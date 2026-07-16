@@ -58,7 +58,7 @@ The note's central governance claim deserves scrutiny, though: *"today's Op stor
 
 - **The residual is real but modest.** What the Op genuinely lacks is a *structured, machine-sliceable scope* — the change surface, the self-set boundary, the reasoning — beyond free-text `request_text`. Capturing that **advances** the traceability vision. But framing it as "restoring the distinction from ad-hoc" over-sells it; the distinction is intact. The honest framing is *enrichment of an already-governed artifact*, which is exactly **#1804's** charter.
 
-- **Over-engineering risk:** modelling an Op as "a small WP" imports WP-shaped ceremony (scope/acceptance/requirements sections) onto a tier whose whole reason to exist (per the ADR) is *being lighter than a Mission*. A heavyweight intent schema would erode the very Op/Mission boundary the ADR draws. The vision is served by a **lightweight, optional** intent+scope field, not a WP-clone.
+- **Over-engineering risk:** modelling an Op as "a small WP" imports WP-shaped overhead (scope/acceptance/requirements sections) onto a tier whose whole reason to exist (per the ADR) is *being lighter than a Mission*. A heavyweight intent schema would erode the very Op/Mission boundary the ADR draws. The vision is served by a **lightweight, optional** intent+scope field, not a WP-clone.
 
 ## 4. Prior art / duplication
 
