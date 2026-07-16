@@ -430,11 +430,12 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. |
+| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. This is `primary` **Sense B** — the canonical term is "Primary Branch" (kept per operator decision D1); the wire keys `primary_branch` / `current_is_primary` are unchanged. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Current Branch](#current-branch), [Target Branch](#target-branch), [Feature Branch](#feature-branch), [Branch Strategy Gate](#branch-strategy-gate) |
+| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). |
+| **Related terms** | [Current Branch](#current-branch), [Target Branch](#target-branch), [Feature Branch](#feature-branch), [Branch Strategy Gate](#branch-strategy-gate), [PRIMARY partition](#primary-partition), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target) |
 
 ---
 
@@ -495,3 +496,68 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Canonical entry** | [Tracker Connector](#tracker-connector) |
+
+---
+
+### PRIMARY partition
+
+| | |
+|---|---|
+| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the COORD partition that holds lifecycle/status surfaces (status, notes, trace, issue-matrix, `move-task`). A partition is an artifact-kind *routing* concept: it decides which surface an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is the repository's default integration branch — use [Primary Branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). Never write bare "primary" for the partition; always say "PRIMARY partition". |
+| **Related terms** | [Primary Branch](#primary-branch), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [Target Branch](#target-branch) |
+
+---
+
+### Target Ref / Commit Target
+
+| | |
+|---|---|
+| **Definition** | The git ref that a mission's planning artifacts and status events are committed against — the "commit target" the resolver writes to. In current code this resolves to the mission's `target_branch`. It is distinct from the artifact-kind partition (which decides *which surface* an artifact is written to) and from the repository's default integration branch. This is `primary` **Sense D**; the retired alias phrases "primary target" and "primary ref" describe this sense. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository's default integration branch — use [Primary Branch](#primary-branch). The concept is the branch the mission's code must ultimately land on — use [Target Branch](#target-branch). Avoid the bare aliases "primary target" and "primary ref". |
+| **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Base Branch](#base-branch), [Current Branch](#current-branch), [PRIMARY partition](#primary-partition) |
+
+---
+
+### Lane Consolidation
+
+| | |
+|---|---|
+| **Definition** | The `spec-kitty merge` operation: LOCAL consolidation of completed lane branches into the mission branch, with **no** push to any remote. Realized by the internal helper `consolidate_lane_into_mission`. This is `merge` **Sense 1** — the first of three distinct "merge" operations. It stops at local main; it never publishes. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. |
+| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge Target Branch](#merge-target-branch), [Lane](#lane) |
+
+---
+
+### Branch Integration / Git Merge
+
+| | |
+|---|---|
+| **Definition** | The `git merge` operation that integrates the mission branch into its target branch. Realized by the internal helper `integrate_mission_into_target`. This is `merge` **Sense 2** — branch-to-branch integration, distinct from local lane consolidation and from publishing to origin. The `MergeStrategy` literals (`merge` / `squash` / `rebase`) select *how* this integration is performed and are unchanged serialized contracts. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Publish to origin/main](#publish-to-originmain), [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch) |
+
+---
+
+### Publish to origin/main
+
+| | |
+|---|---|
+| **Definition** | The operator-only act of publishing merged mission work to `origin/main`, always through a pull request — never a direct push. Represented in the merge flow by `push_requested`. `spec-kitty merge` deliberately does **not** perform this step; it stops at LOCAL consolidation. This is `merge` **Sense 3** — the publish operation, sometimes called "operator merge". |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [Primary Branch](#primary-branch) |

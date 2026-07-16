@@ -244,9 +244,9 @@ def _delegate_to_top_level_merge(
 
 def merge_feature(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
-    target: Annotated[str | None, typer.Option("--target", help="Target branch to merge into (required in multi-feature repos)")] = None,
-    strategy: Annotated[str, typer.Option("--strategy", help="Merge strategy: merge, squash, rebase")] = "merge",
-    push: Annotated[bool, typer.Option("--push", help="Push to origin after merging")] = False,
+    target: Annotated[str | None, typer.Option("--target", help="Target branch for the branch-integration step (required in multi-mission repos)")] = None,
+    strategy: Annotated[str, typer.Option("--strategy", help="Strategy for the branch-integration step: merge, squash, rebase")] = "merge",
+    push: Annotated[bool, typer.Option("--push", help="Publish to origin after the local merge (the operator publish step)")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show actions without executing")] = False,
     keep_branch: Annotated[bool, typer.Option("--keep-branch", help="Keep mission branch after merge (default: delete)")] = False,
     keep_worktree: Annotated[bool, typer.Option("--keep-worktree", help="Keep worktree after merge (default: remove)")] = False,

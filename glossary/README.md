@@ -23,26 +23,26 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 
 | Domain | Summary | File |
 |---|---|---|
-| Dossier | Artifact inventory, integrity validation, and drift detection. | `glossary/contexts/dossier.md` |
-| Execution | CLI/tool invocation, generation boundaries, and collaboration modes. | `glossary/contexts/execution.md` |
-| Identity | Actors, roles, mission participation, and Human-in-Charge (HiC). | `glossary/contexts/identity.md` |
-| Lexical | Glossary internal data model — term surfaces, senses, provenance. | `glossary/contexts/lexical.md` |
-| Orchestration | Project/mission/feature/work-package lifecycle and runtime terms. Includes **Decision**, **Decision Input Request**, and **Decision Input Answer** — see disambiguation note in that file and in the SaaS `architecture/domain-glossary.md`. | `glossary/contexts/orchestration.md` |
-| Governance | Charter/ADR/policy precedence and rules. | `glossary/contexts/governance.md` |
-| Planning & Tracking | Issue-tracker organization (functional epics, meta-trackers, triage status, priority scheme) and the **Op** execution tier. Human-readable companion to `.kittify/glossaries/planning-and-tracking.yaml`. | `glossary/contexts/planning-and-tracking.md` |
-| Doctrine | Doctrine domain model and artifact taxonomy. | `glossary/contexts/doctrine.md` |
-| System Events | Event envelope, replay, glossary evolution, and system event types. | `glossary/contexts/system-events.md` |
-| Practices & Principles | Working agreements for low-friction, high-signal delivery. | `glossary/contexts/practices-principles.md` |
-| Configuration & Project Structure | Project-local structure and configuration artifacts. | `glossary/contexts/configuration-project-structure.md` |
-| Technology Foundations | General technology terms (API, CLI, YAML, etc.) for reader accessibility. | `glossary/contexts/technology-foundations.md` |
-| Testing Taxonomy | Canonical categories for tests in `tests/` — every pytest marker declared in `pytest.ini` with a usable description for choosing the right tag. | `glossary/contexts/testing-taxonomy.md` |
+| Dossier | Artifact inventory, integrity validation, and drift detection. | `docs/context/dossier.md` |
+| Execution | CLI/tool invocation, generation boundaries, and collaboration modes. | `docs/context/execution.md` |
+| Identity | Actors, roles, mission participation, and Human-in-Charge (HiC). | `docs/context/identity.md` |
+| Lexical | Glossary internal data model — term surfaces, senses, provenance. | `docs/context/lexical.md` |
+| Orchestration | Project/mission/feature/work-package lifecycle and runtime terms. Includes **Decision**, **Decision Input Request**, and **Decision Input Answer** — see disambiguation note in that file and in the SaaS `architecture/domain-glossary.md`. | `docs/context/orchestration.md` |
+| Governance | Charter/ADR/policy precedence and rules. | `docs/context/governance.md` |
+| Planning & Tracking | Issue-tracker organization (functional epics, meta-trackers, triage status, priority scheme) and the **Op** execution tier. Human-readable companion to `.kittify/glossaries/planning-and-tracking.yaml`. | `docs/context/planning-and-tracking.md` |
+| Doctrine | Doctrine domain model and artifact taxonomy. | `docs/context/doctrine.md` |
+| System Events | Event envelope, replay, glossary evolution, and system event types. | `docs/context/system-events.md` |
+| Practices & Principles | Working agreements for low-friction, high-signal delivery. | `docs/context/practices-principles.md` |
+| Configuration & Project Structure | Project-local structure and configuration artifacts. | `docs/context/configuration-project-structure.md` |
+| Technology Foundations | General technology terms (API, CLI, YAML, etc.) for reader accessibility. | `docs/context/technology-foundations.md` |
+| Testing Taxonomy | Canonical categories for tests in `tests/` — every pytest marker declared in `pytest.ini` with a usable description for choosing the right tag. | `docs/context/testing-taxonomy.md` |
 
 ## Reference Notes
 
 | Note | File |
 |---|---|
-| Naming Decision: Tool vs Agent | `glossary/naming-decision-tool-vs-agent.md` |
-| Historical Terms and Mappings | `glossary/historical-terms.md` |
+| Naming Decision: Tool vs Agent | `docs/context/naming-decision-tool-vs-agent.md` |
+| Historical Terms and Mappings | `docs/context/historical-terms.md` |
 
 ## Status Lifecycle
 
