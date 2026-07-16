@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
+from charter.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.adapters import (
     register_pending_origin_consumer,
     reset_origin_consumer,
@@ -19,6 +20,7 @@ from specify_cli.core.mission_creation import (
     MissionCreationResult,
     create_mission_core,
 )
+from specify_cli.runtime.resolver import TemplateConfigurationError
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -73,9 +75,158 @@ def _mission_summary(slug: str) -> dict[str, str]:
     }
 
 
+def _configured_mission_context(
+    template_set: dict[str, str] | None,
+    *,
+    mission_type: str = "software-dev",
+) -> ResolvedMissionType:
+    """Build an activated context while leaving filesystem resolution real."""
+    return ResolvedMissionType(
+        mission_type=mission_type,
+        governance_text="",
+        action_sequence=[],
+        provenance="test",
+        _template_set_thunk=lambda: template_set,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Happy-path tests
 # ---------------------------------------------------------------------------
+
+
+def test_create_uses_configured_non_conventional_spec_override(tmp_path: Path) -> None:
+    """Mission creation copies the configured filename, not a manufactured default."""
+    _init_git_repo(tmp_path)
+    mapped_name = "mission-blueprint.md"
+    mapped_content = "# Project override selected through mission configuration\n"
+    override = tmp_path / ".kittify" / "overrides" / "templates" / mapped_name
+    override.parent.mkdir(parents=True)
+    override.write_text(mapped_content, encoding="utf-8")
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=_configured_mission_context({"spec": mapped_name}),
+        ),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+    ):
+        result = create_mission_core(tmp_path, "mapped-spec", **_mission_summary("mapped-spec"))
+
+    spec_file = result.feature_dir / "spec.md"
+    assert spec_file.read_text(encoding="utf-8") == mapped_content
+    assert result.created_files.count(spec_file) == 1
+
+
+def test_create_uses_configured_package_default_spec(tmp_path: Path) -> None:
+    """The configured filename reaches the existing package-default tier."""
+    _init_git_repo(tmp_path)
+    mapped_name = "package-mission-blueprint.md"
+    mapped_content = "# Package mission template\n"
+    package_root = tmp_path / "package-missions"
+    package_template = package_root / "software-dev" / "templates" / mapped_name
+    package_template.parent.mkdir(parents=True)
+    package_template.write_text(mapped_content, encoding="utf-8")
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=_configured_mission_context({"spec": mapped_name}),
+        ),
+        patch(
+            "specify_cli.runtime.resolver.get_kittify_home",
+            return_value=tmp_path / "empty-home",
+        ),
+        patch(
+            "specify_cli.runtime.resolver.get_package_asset_root",
+            return_value=package_root,
+        ),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+    ):
+        result = create_mission_core(tmp_path, "package-spec", **_mission_summary("package-spec"))
+
+    assert (result.feature_dir / "spec.md").read_text(encoding="utf-8") == mapped_content
+
+
+@pytest.mark.parametrize(
+    "template_set",
+    [None, {"plan": "plan-template.md"}],
+    ids=["null-template-set", "missing-spec-key"],
+)
+def test_create_fails_before_scaffolding_for_invalid_spec_mapping(
+    tmp_path: Path,
+    template_set: dict[str, str] | None,
+) -> None:
+    """Invalid activated configuration cannot leave a partially created mission."""
+    _init_git_repo(tmp_path)
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=_configured_mission_context(
+                template_set,
+                mission_type="documentation",
+            ),
+        ),
+        pytest.raises(TemplateConfigurationError) as exc_info,
+    ):
+        create_mission_core(
+            tmp_path,
+            "invalid-spec-config",
+            mission="documentation",
+            **_mission_summary("invalid-spec-config"),
+        )
+
+    assert exc_info.value.mission_type == "documentation"
+    assert exc_info.value.artifact_kind == "spec"
+    assert not any((tmp_path / "kitty-specs").iterdir())
+
+
+def test_create_fails_before_scaffolding_for_unresolved_mapped_spec(tmp_path: Path) -> None:
+    """An unresolved configured filename is actionable and produces no mission state."""
+    _init_git_repo(tmp_path)
+    mapped_name = "missing-mission-blueprint.md"
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=_configured_mission_context({"spec": mapped_name}),
+        ),
+        patch(
+            "specify_cli.runtime.resolver.get_kittify_home",
+            return_value=tmp_path / "empty-home",
+        ),
+        patch(
+            "specify_cli.runtime.resolver.get_package_asset_root",
+            side_effect=FileNotFoundError("no package templates"),
+        ),
+        pytest.raises(TemplateConfigurationError) as exc_info,
+    ):
+        create_mission_core(tmp_path, "missing-spec", **_mission_summary("missing-spec"))
+
+    assert exc_info.value.mission_type == "software-dev"
+    assert exc_info.value.artifact_kind == "spec"
+    assert exc_info.value.mapped_filename == mapped_name
+    assert mapped_name in str(exc_info.value)
+    assert not any((tmp_path / "kitty-specs").iterdir())
 
 
 def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None:
@@ -449,8 +600,8 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
-    """mission='documentation' initializes documentation_state in meta.json."""
+def test_documentation_mission_without_spec_mapping_fails_closed(tmp_path: Path) -> None:
+    """The shipped null documentation mapping cannot borrow software-dev content."""
     _init_git_repo(tmp_path)
 
     with (
@@ -458,20 +609,18 @@ def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        pytest.raises(TemplateConfigurationError) as exc_info,
     ):
-        result = create_mission_core(
+        create_mission_core(
             tmp_path,
             "docs-feature",
             mission="documentation",
             **_mission_summary("docs-feature"),
         )
 
-    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
-    assert meta["mission_type"] == "documentation"
-    assert "documentation_state" in meta
-    assert meta["documentation_state"]["iteration_mode"] == "initial"
+    assert exc_info.value.mission_type == "documentation"
+    assert exc_info.value.artifact_kind == "spec"
+    assert not any((tmp_path / "kitty-specs").iterdir())
 
 
 def test_default_mission_is_software_dev(tmp_path: Path) -> None:

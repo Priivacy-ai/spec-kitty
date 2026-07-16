@@ -15,7 +15,9 @@ reappearance guard; the enduring determinism assertions live here.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from ruamel.yaml import YAML
@@ -132,6 +134,7 @@ class TestResolverHardFailPolicies:
         assert bundle.governance is None
         assert bundle.governance_text == ""
         assert bundle.action_sequence == []
+        assert bundle.template_set is None
 
     def test_unknown_typed_mission_hard_fails(self, tmp_path: Path) -> None:
         """A recognised-but-unactivated type with no override raises (FR-003)."""
@@ -147,15 +150,18 @@ class TestResolverHardFailPolicies:
         assert "Mission-Type Governance Profile: software-dev" in bundle.governance_text
         assert bundle.action_sequence  # non-empty for the canonical software-dev type
 
-    def test_reserved_slots_and_populated_step_contracts(self, tmp_path: Path) -> None:
-        """expected_artifacts (WP10) + template_set remain reserved; step_contracts populated (WP11)."""
+    def test_doctrine_slots_and_populated_step_contracts(self, tmp_path: Path) -> None:
+        """Doctrine-backed slots expose the activated software-dev artifacts."""
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         assert isinstance(bundle, ResolvedMissionType)
         # WP10: expected_artifacts is now populated from the doctrine gate tree.
         assert bundle.expected_artifacts is not None
         assert isinstance(bundle.expected_artifacts, dict)
         assert bundle.expected_artifacts["mission_type"] == "software-dev"
-        assert bundle.template_set is None
+        assert bundle.template_set == {
+            "spec": "spec-template.md",
+            "plan": "plan-template.md",
+        }
         # WP11 routed step-contract resolution through the artefact bundle: a
         # registered type now resolves its ordered step-contract ids.
         assert bundle.step_contracts == ["implement", "plan", "review", "specify", "tasks"]
@@ -174,6 +180,7 @@ class TestResolverDeterminism:
         assert first.governance_text == second.governance_text
         assert first.governance == second.governance
         assert first.action_sequence == second.action_sequence
+        assert list(first.template_set.items()) == list(second.template_set.items())
 
     def test_governance_selections_are_ordered_lists(self, tmp_path: Path) -> None:
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
@@ -185,6 +192,124 @@ class TestResolverDeterminism:
         ):
             assert isinstance(selection, list)
             assert selection == sorted(selection)
+
+
+# ---------------------------------------------------------------------------
+# Template mapping projection — doctrine authority, lazy cache, immutability
+# ---------------------------------------------------------------------------
+
+
+def _write_profile_template_override(
+    repo_root: Path, template_set: str, *, mission_type: str = "software-dev"
+) -> None:
+    """Write a legacy governance-profile string that must not author mappings."""
+    override_dir = repo_root / ".kittify" / "doctrine" / "mission_types" / mission_type
+    override_dir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (override_dir / "governance-profile.yaml").open("w") as fh:
+        yaml.dump(
+            {
+                "id": mission_type,
+                "mission_type": mission_type,
+                "template_set": template_set,
+            },
+            fh,
+        )
+
+
+class TestResolvedTemplateSet:
+    @pytest.mark.parametrize("mission_type", ["documentation", "research", "plan"])
+    def test_non_software_builtin_preserves_explicit_null(
+        self, tmp_path: Path, mission_type: str
+    ) -> None:
+        bundle = resolve_mission_type_context(tmp_path, mission_type=mission_type)
+        assert bundle.template_set is None
+
+    def test_mapping_is_lazy_and_cached_per_bundle(self, tmp_path: Path) -> None:
+        from doctrine.missions.mission_type_repository import MissionTypeRepository
+
+        original_default = MissionTypeRepository.default
+        with patch.object(
+            MissionTypeRepository,
+            "default",
+            side_effect=original_default,
+        ) as repository_default:
+            bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+            assert repository_default.call_count == 1  # action-sequence resolution only
+            assert "template_set" not in bundle.__dict__
+
+            first = bundle.template_set
+            second = bundle.template_set
+
+        assert repository_default.call_count == 2
+        assert first is second
+        assert first == {
+            "spec": "spec-template.md",
+            "plan": "plan-template.md",
+        }
+
+    def test_mapping_rejects_consumer_mutation(self, tmp_path: Path) -> None:
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        template_set = bundle.template_set
+        assert template_set is not None
+
+        with pytest.raises(TypeError):
+            template_set["spec"] = "consumer-owned.md"  # type: ignore[index]
+
+        later = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert later.template_set == {
+            "spec": "spec-template.md",
+            "plan": "plan-template.md",
+        }
+
+    def test_profile_string_override_cannot_author_artifact_mapping(
+        self, tmp_path: Path
+    ) -> None:
+        _write_profile_template_override(tmp_path, "project-custom")
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+        assert bundle.template_set == {
+            "spec": "spec-template.md",
+            "plan": "plan-template.md",
+        }
+
+    def test_unregistered_project_override_has_no_artifact_mapping(
+        self, tmp_path: Path
+    ) -> None:
+        _write_config(tmp_path, ["software-dev"])
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        (charter_dir / "governance.yaml").write_text(
+            "doctrine:\n  selected_directives:\n    - DIRECTIVE_001\n",
+            encoding="utf-8",
+        )
+        _write_profile_template_override(
+            tmp_path,
+            "project-custom",
+            mission_type="project-only",
+        )
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="project-only")
+
+        assert bundle.action_sequence == []
+        assert bundle.template_set is None
+
+    def test_action_sequence_hot_path_does_not_resolve_template_mapping(
+        self, tmp_path: Path
+    ) -> None:
+        timings_ms: list[float] = []
+        for _ in range(20):
+            started = time.monotonic_ns()
+            bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+            assert bundle.action_sequence
+            timings_ms.append((time.monotonic_ns() - started) / 1_000_000)
+            assert "template_set" not in bundle.__dict__
+
+        timings_ms.sort()
+        p95 = timings_ms[18]
+        assert p95 < 100, f"action-sequence hot-path p95 = {p95:.3f}ms (budget: 100ms)"
 
 
 # ---------------------------------------------------------------------------

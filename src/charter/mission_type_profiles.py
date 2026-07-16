@@ -55,6 +55,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -305,10 +306,11 @@ class ResolvedMissionType:
 
     ``mission_type`` is the canonicalized key (``None`` for a typeless mission).
     ``governance_text`` / ``action_sequence`` are populated eagerly on the hot
-    path; ``template_set`` (later slice) is reserved.
+    path; ``template_set`` is projected lazily from the activated doctrine
+    :class:`~doctrine.missions.models.MissionType` artifact.
 
-    ``governance`` (WP03), ``expected_artifacts`` (WP10) and ``step_contracts``
-    (WP11) are resolved **lazily** (NFR-001): ``governance`` triggers the
+    ``governance`` (WP03), ``template_set``, ``expected_artifacts`` (WP10) and
+    ``step_contracts`` (WP11) are resolved **lazily** (NFR-001): ``governance`` triggers the
     FR-013 type-grain / action-grain union (which reads every one of the
     mission type's ``actions/*/index.yaml`` files off disk via
     :func:`charter.action_grain.aggregate_action_grain`); ``expected_artifacts``
@@ -320,15 +322,20 @@ class ResolvedMissionType:
     shape: ``bundle.governance`` is still a non-``None``
     :class:`ResolvedGovernance` for a registered type, ``bundle.expected_artifacts``
     is still a non-``None`` dict for a registered type, and
-    ``bundle.step_contracts`` is still the ordered list. Each is memoised on
-    first access, so repeated reads stay cheap.
+    ``bundle.step_contracts`` is still the ordered list, and
+    ``bundle.template_set`` is an immutable mapping or explicit ``None``. Each
+    is memoised on first access, so repeated reads stay cheap.
     """
 
     mission_type: str | None
     governance_text: str
     action_sequence: list[str]
     provenance: str
-    template_set: str | None = None
+    #: Deferred resolver for the activated doctrine artifact's template
+    #: mapping. ``None`` yields ``None`` for the neutral/typeless bundle.
+    _template_set_thunk: Callable[[], Mapping[str, str] | None] | None = field(
+        default=None, repr=False, compare=False
+    )
     #: Deferred resolver for ``governance``. ``None`` yields ``None`` (the
     #: neutral/typeless bundle). Excluded from ``eq``/``repr``: equality and
     #: determinism hinge on the eager, hot-path fields plus the memoised
@@ -360,6 +367,13 @@ class ResolvedMissionType:
         if self._governance_thunk is None:
             return None
         return self._governance_thunk()
+
+    @cached_property
+    def template_set(self) -> Mapping[str, str] | None:
+        """Lazily expose the activated doctrine artifact's immutable mapping."""
+        if self._template_set_thunk is None:
+            return None
+        return self._template_set_thunk()
 
     @cached_property
     def expected_artifacts(self) -> _ExpectedArtifactsManifest | None:
@@ -481,12 +495,15 @@ def resolve_mission_type_context(
         governance_text=governance_text,
         action_sequence=action_sequence,
         provenance=governance_provenance,
-        template_set=None,  # reserved — a later slice populates template-file selection.
-        # The FR-013 union (governance) + WP11 (step-contract artefact, FR-008)
-        # + WP10 (doctrine gate tree) each read off disk; defer all three so the
+        # The FR-013 union (governance) + template mapping + WP11
+        # (step-contract artefact, FR-008) + WP10 (doctrine gate tree) each read
+        # off disk; defer all four so the
         # FSM hot path (action_sequence only) stays under the NFR-001 100ms
         # budget. Each is memoised on first access.
         _governance_thunk=governance_thunk,
+        _template_set_thunk=lambda: _resolve_template_set_slot(
+            type_key, is_registered=is_registered
+        ),
         _step_contracts_thunk=lambda: _resolve_step_contracts_slot(
             type_key, is_registered=is_registered
         ),
@@ -535,10 +552,9 @@ def _neutral_context() -> ResolvedMissionType:
         governance_text="",
         action_sequence=[],
         provenance="builtin",
-        template_set=None,
-        # Typeless bundle: all three lazy slots stay at their neutral defaults
+        # Typeless bundle: all four lazy slots stay at their neutral defaults
         # (``governance`` -> ``None``, ``expected_artifacts`` -> ``None``,
-        # ``step_contracts`` -> ``[]``).
+        # ``step_contracts`` -> ``[]``, ``template_set`` -> ``None``).
     )
 
 
@@ -710,6 +726,30 @@ def _resolve_expected_artifacts_slot(
     if not isinstance(parsed, Mapping):
         return None
     return parsed
+
+
+def _resolve_template_set_slot(
+    mission_type: str,
+    *,
+    is_registered: bool,
+) -> Mapping[str, str] | None:
+    """Project the activated doctrine mission type's immutable template mapping.
+
+    The doctrine :class:`MissionType` artifact is the sole authority. The
+    similarly named governance-profile string is intentionally not read here.
+    A defensive copy prevents consumers from mutating repository-owned model
+    state, while :class:`types.MappingProxyType` preserves deterministic
+    insertion order behind a read-only public surface.
+    """
+    if not is_registered:
+        return None
+
+    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+
+    mission = MissionTypeRepository.default().get(mission_type)
+    if mission is None or mission.template_set is None:
+        return None
+    return MappingProxyType(dict(mission.template_set))
 
 
 def _resolve_step_contracts_slot(

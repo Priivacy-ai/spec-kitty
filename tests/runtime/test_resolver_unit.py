@@ -9,14 +9,17 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
+from charter.mission_type_profiles import ResolvedMissionType
 from specify_cli.runtime.resolver import (
     ResolutionResult,
     ResolutionTier,
+    TemplateConfigurationError,
     resolve_command,
+    resolve_configured_template,
     resolve_mission,
     resolve_template,
 )
@@ -27,6 +30,7 @@ from specify_cli.runtime.resolver import (
 # ---------------------------------------------------------------------------
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _create_file(path: Path, content: str = "placeholder") -> Path:
     """Create a file (and any missing parent dirs), return its path."""
@@ -62,6 +66,400 @@ def _setup_all_tiers(
     paths["package"] = _create_file(pr / mission / subdir / name)
 
     return paths
+
+
+def _resolved_mission_type(
+    *,
+    mission_type: str | None = "software-dev",
+    template_set: dict[str, str] | None = None,
+) -> ResolvedMissionType:
+    """Build a narrow activated-context fixture without reading doctrine files."""
+    mapping = {"spec": "configured-spec.md"} if template_set is None else template_set
+    return ResolvedMissionType(
+        mission_type=mission_type,
+        governance_text="",
+        action_sequence=[],
+        provenance="builtin",
+        _template_set_thunk=lambda: mapping,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Configured content-template selection (issue #2658)
+# ---------------------------------------------------------------------------
+
+
+class TestConfiguredTemplateResolution:
+    """Artifact keys resolve through activated mission configuration."""
+
+    @pytest.mark.parametrize(
+        "mission_type",
+        [
+            "",
+            "   ",
+            "../..",
+            "/absolute/type",
+            "nested/type",
+            r"nested\type",
+            r"C:\missions\type",
+            "C:type",
+            ".",
+            ".hidden-type",
+        ],
+        ids=[
+            "empty",
+            "whitespace",
+            "parent-traversal",
+            "absolute-posix",
+            "nested-forward-separator",
+            "nested-windows-separator",
+            "windows-absolute-drive",
+            "windows-drive-relative",
+            "dot-segment",
+            "hidden-segment",
+        ],
+    )
+    def test_unsafe_mission_type_fails_before_mapping_or_file_resolution(
+        self,
+        tmp_path: Path,
+        mission_type: str,
+    ) -> None:
+        mapping_resolver = Mock(
+            side_effect=AssertionError("unsafe mission type read its template mapping")
+        )
+        context = ResolvedMissionType(
+            mission_type=mission_type,
+            governance_text="",
+            action_sequence=[],
+            provenance="forged-test-context",
+            _template_set_thunk=mapping_resolver,
+        )
+
+        with (
+            patch("specify_cli.runtime.resolver.resolve_template") as file_resolver,
+            pytest.raises(TemplateConfigurationError) as exc_info,
+        ):
+            resolve_configured_template("spec", tmp_path, context)
+
+        error = exc_info.value
+        assert error.mission_type == mission_type
+        assert error.artifact_kind == "spec"
+        assert error.mapped_filename is None
+        assert "unsafe mission type" in str(error)
+        assert repr(mission_type) in str(error)
+        assert isinstance(error.__cause__, ValueError)
+        mapping_resolver.assert_not_called()
+        file_resolver.assert_not_called()
+
+    def test_safe_unactivated_forged_mission_type_cannot_escape_paths(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Path safety is local; activation authenticity remains caller-owned."""
+        mission_type = "forged-but-safe-custom"
+        mapped_filename = "spec-template.md"
+        context = _resolved_mission_type(
+            mission_type=mission_type,
+            template_set={"spec": mapped_filename},
+        )
+        expected = ResolutionResult(
+            path=tmp_path / mapped_filename,
+            tier=ResolutionTier.PACKAGE_DEFAULT,
+            mission=mission_type,
+        )
+
+        with patch(
+            "specify_cli.runtime.resolver.resolve_template",
+            return_value=expected,
+        ) as file_resolver:
+            result = resolve_configured_template("spec", tmp_path, context)
+
+        assert result is expected
+        file_resolver.assert_called_once_with(
+            mapped_filename,
+            tmp_path,
+            mission=mission_type,
+        )
+
+    def test_mapped_filename_preserves_project_override_precedence(
+        self, tmp_path: Path
+    ) -> None:
+        project = tmp_path / "project"
+        override = _create_file(
+            project / ".kittify" / "overrides" / "templates" / "configured-spec.md",
+            "override",
+        )
+        _create_file(
+            tmp_path
+            / "global_home"
+            / "missions"
+            / "software-dev"
+            / "templates"
+            / "configured-spec.md",
+            "global",
+        )
+
+        with patch(
+            "specify_cli.runtime.resolver.get_kittify_home",
+            return_value=tmp_path / "global_home",
+        ):
+            result = resolve_configured_template(
+                "spec", project, _resolved_mission_type()
+            )
+
+        assert result == ResolutionResult(
+            path=override,
+            tier=ResolutionTier.OVERRIDE,
+            mission="software-dev",
+        )
+
+    def test_mapped_filename_preserves_package_default_tier(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        package_root = tmp_path / "package"
+        configured = _create_file(
+            package_root
+            / "software-dev"
+            / "templates"
+            / "configured-spec.md",
+            "package",
+        )
+
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_kittify_home",
+                return_value=tmp_path / "empty-home",
+            ),
+            patch(
+                "specify_cli.runtime.resolver.get_package_asset_root",
+                return_value=package_root,
+            ),
+        ):
+            result = resolve_configured_template(
+                "spec", project, _resolved_mission_type()
+            )
+
+        assert result.path == configured
+        assert result.tier is ResolutionTier.PACKAGE_DEFAULT
+        assert result.mission == "software-dev"
+
+    @pytest.mark.parametrize("template_set", [None, {}])
+    def test_null_or_missing_mapping_fails_before_file_resolution(
+        self,
+        tmp_path: Path,
+        template_set: dict[str, str] | None,
+    ) -> None:
+        context = ResolvedMissionType(
+            mission_type="documentation",
+            governance_text="",
+            action_sequence=[],
+            provenance="builtin",
+            _template_set_thunk=lambda: template_set,
+        )
+
+        with (
+            patch("specify_cli.runtime.resolver.resolve_template") as file_resolver,
+            pytest.raises(TemplateConfigurationError) as exc_info,
+        ):
+            resolve_configured_template("spec", tmp_path, context)
+
+        assert exc_info.value.mission_type == "documentation"
+        assert exc_info.value.artifact_kind == "spec"
+        assert "documentation" in str(exc_info.value)
+        assert "spec" in str(exc_info.value)
+        file_resolver.assert_not_called()
+
+    @pytest.mark.parametrize("mapped_filename", ["", "   "])
+    def test_blank_mapped_filename_fails_before_file_resolution(
+        self, tmp_path: Path, mapped_filename: str
+    ) -> None:
+        context = _resolved_mission_type(template_set={"plan": mapped_filename})
+
+        with (
+            patch("specify_cli.runtime.resolver.resolve_template") as file_resolver,
+            pytest.raises(TemplateConfigurationError, match="software-dev.*plan"),
+        ):
+            resolve_configured_template("plan", tmp_path, context)
+
+        file_resolver.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "mapped_filename",
+        [
+            "/etc/spec-template.md",
+            "../spec-template.md",
+            "nested/spec-template.md",
+            r"nested\spec-template.md",
+            r"C:\templates\spec-template.md",
+            "C:spec-template.md",
+            ".",
+            ".spec-template.md",
+            " spec-template.md",
+            "spec-template.md ",
+        ],
+        ids=[
+            "absolute-posix",
+            "parent-traversal",
+            "nested-forward-separator",
+            "nested-windows-separator",
+            "windows-absolute-drive",
+            "windows-drive-relative",
+            "dot-segment",
+            "hidden-file",
+            "leading-whitespace",
+            "trailing-whitespace",
+        ],
+    )
+    def test_unsafe_mapped_filename_fails_before_file_resolution(
+        self,
+        tmp_path: Path,
+        mapped_filename: str,
+    ) -> None:
+        context = _resolved_mission_type(template_set={"spec": mapped_filename})
+
+        with (
+            patch("specify_cli.runtime.resolver.resolve_template") as file_resolver,
+            pytest.raises(TemplateConfigurationError) as exc_info,
+        ):
+            resolve_configured_template("spec", tmp_path, context)
+
+        error = exc_info.value
+        assert error.mission_type == "software-dev"
+        assert error.artifact_kind == "spec"
+        assert error.mapped_filename == mapped_filename
+        assert "unsafe filename" in str(error)
+        assert repr(mapped_filename) in str(error)
+        assert isinstance(error.__cause__, ValueError)
+        file_resolver.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "mapped_filename",
+        [
+            "CON",
+            "con.md",
+            "PrN.txt",
+            "AUX.tar.gz",
+            "nul.md",
+            "CLOCK$.yaml",
+            "COM1.md",
+            "com9.MD",
+            "LPT1",
+            "lPt9.template",
+            "spec-template.md.",
+            "plan-template.md ",
+        ],
+        ids=[
+            "con-bare",
+            "con-extension-lowercase",
+            "prn-extension-mixed-case",
+            "aux-multiple-extensions",
+            "nul-extension-lowercase",
+            "clock-dollar-extension",
+            "com-first",
+            "com-last-lowercase",
+            "lpt-first",
+            "lpt-last-mixed-case",
+            "trailing-dot",
+            "trailing-space",
+        ],
+    )
+    def test_windows_unsafe_mapped_filename_fails_before_file_resolution(
+        self,
+        tmp_path: Path,
+        mapped_filename: str,
+    ) -> None:
+        context = _resolved_mission_type(template_set={"spec": mapped_filename})
+
+        with (
+            patch("specify_cli.runtime.resolver.resolve_template") as file_resolver,
+            pytest.raises(TemplateConfigurationError) as exc_info,
+        ):
+            resolve_configured_template("spec", tmp_path, context)
+
+        error = exc_info.value
+        assert error.mission_type == "software-dev"
+        assert error.artifact_kind == "spec"
+        assert error.mapped_filename == mapped_filename
+        assert "unsafe filename" in str(error)
+        assert repr(mapped_filename) in str(error)
+        assert isinstance(error.__cause__, ValueError)
+        file_resolver.assert_not_called()
+
+    @pytest.mark.parametrize("mapped_filename", ["spec-template.md", "plan-template.md"])
+    def test_portable_mapped_filename_reaches_file_resolution(
+        self,
+        tmp_path: Path,
+        mapped_filename: str,
+    ) -> None:
+        context = _resolved_mission_type(template_set={"spec": mapped_filename})
+        expected = ResolutionResult(
+            path=tmp_path / mapped_filename,
+            tier=ResolutionTier.PACKAGE_DEFAULT,
+            mission="software-dev",
+        )
+
+        with patch(
+            "specify_cli.runtime.resolver.resolve_template",
+            return_value=expected,
+        ) as file_resolver:
+            result = resolve_configured_template("spec", tmp_path, context)
+
+        assert result is expected
+        file_resolver.assert_called_once_with(
+            mapped_filename,
+            tmp_path,
+            mission="software-dev",
+        )
+
+    def test_unresolved_mapped_filename_adds_configuration_context(
+        self, tmp_path: Path
+    ) -> None:
+        context = _resolved_mission_type(
+            template_set={"plan": "configured-plan.md"}
+        )
+
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_kittify_home",
+                return_value=tmp_path / "empty-home",
+            ),
+            patch(
+                "specify_cli.runtime.resolver.get_package_asset_root",
+                side_effect=FileNotFoundError("no package"),
+            ),
+            pytest.raises(TemplateConfigurationError) as exc_info,
+        ):
+            resolve_configured_template("plan", tmp_path / "project", context)
+
+        error = exc_info.value
+        assert error.mission_type == "software-dev"
+        assert error.artifact_kind == "plan"
+        assert error.mapped_filename == "configured-plan.md"
+        assert "configured-plan.md" in str(error)
+        assert isinstance(error.__cause__, FileNotFoundError)
+
+    def test_typeless_context_fails_without_software_development_inference(
+        self, tmp_path: Path
+    ) -> None:
+        context = _resolved_mission_type(
+            mission_type=None,
+            template_set={"spec": "configured-spec.md"},
+        )
+
+        with (
+            patch("specify_cli.runtime.resolver.resolve_template") as file_resolver,
+            pytest.raises(TemplateConfigurationError) as exc_info,
+        ):
+            resolve_configured_template("spec", tmp_path, context)
+
+        assert exc_info.value.mission_type == "<typeless>"
+        assert exc_info.value.artifact_kind == "spec"
+        assert "<typeless>" in str(exc_info.value)
+        file_resolver.assert_not_called()
+
+    def test_mission_shim_reexports_configured_template_seam(self) -> None:
+        from specify_cli.cli.commands.agent import mission
+
+        assert mission.resolve_configured_template is resolve_configured_template
 
 
 # ---------------------------------------------------------------------------
