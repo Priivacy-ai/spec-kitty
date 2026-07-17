@@ -958,7 +958,10 @@ def setup_plan(
         ):
             return
 
-        plan_template = _resolve_plan_template(repo_root, plan_read_dir)
+        try:
+            plan_template = _resolve_plan_template(repo_root, plan_read_dir)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError("Plan template not found in repository or package") from exc
         _scaffold_plan_template(plan_file, plan_template)
         _emit_spec_plan_phase_events(feature_dir, mission_slug, spec_file, repo_root)
 
