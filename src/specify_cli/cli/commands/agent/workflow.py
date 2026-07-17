@@ -1484,6 +1484,7 @@ def review(
             review_ctx=review_ctx,
             main_repo_root=main_repo_root,
             review_feedback_path=review_feedback_path,
+            status_feature_dir=feature_dir,
         )
 
         _executor.review_finalize_and_print(

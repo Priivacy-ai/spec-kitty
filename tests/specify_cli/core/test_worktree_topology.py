@@ -57,7 +57,9 @@ def _clear_workspace_cache() -> None:
     clear_workspace_resolution_caches()
 
 
-def test_mixed_mission_topology_includes_repo_root_planning_entry(tmp_path: Path) -> None:
+def test_mixed_mission_topology_includes_repo_root_planning_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo_root = tmp_path
     mission_slug = "077-feature"
     feature_dir = repo_root / "kitty-specs" / mission_slug
@@ -71,10 +73,23 @@ def test_mixed_mission_topology_includes_repo_root_planning_entry(tmp_path: Path
     _write_wp(tasks_dir / "WP01-code.md", "WP01", execution_mode="code_change")
     _write_wp(tasks_dir / "WP02-planning.md", "WP02", execution_mode="planning_artifact")
     write_lanes_json(feature_dir, _manifest(mission_slug))
+    status_feature_dir = repo_root / ".worktrees" / "coord" / "kitty-specs" / mission_slug
+    status_feature_dir.mkdir(parents=True)
+    status_reads: list[Path] = []
 
-    topology = materialize_worktree_topology(repo_root, mission_slug)
+    def _read_status(path: Path, _wp_id: str) -> str:
+        status_reads.append(path)
+        return "approved"
+
+    monkeypatch.setattr("specify_cli.core.worktree_topology._read_canonical_lane_or_default", _read_status)
+
+    topology = materialize_worktree_topology(
+        repo_root, mission_slug, status_feature_dir=status_feature_dir
+    )
 
     assert [entry.wp_id for entry in topology.entries] == ["WP01", "WP02"]
+    assert [entry.lane for entry in topology.entries] == ["approved", "approved"]
+    assert status_reads == [status_feature_dir, status_feature_dir]
     assert topology.has_stacking is True
 
     planning_entry = topology.get_entry("WP02")
