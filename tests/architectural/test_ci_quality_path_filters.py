@@ -280,8 +280,13 @@ def test_execution_context_parity_ratchet_runs_unconditionally() -> None:
     data = _load_workflow()
     arch_job = _job(data, "arch-adversarial")
 
-    # Always-on: no result-gated or filter-gated skip can drop the ratchet.
-    assert str(arch_job["if"]).strip() == "always()"
+    # Always-on: no result-gated or path/status-gated skip can drop the ratchet.
+    # The only permitted guards are the pr:deferred / pr:skip-ci full-CI-block
+    # labels (ddac71ebc), which block ALL PR workflows but cannot mask this pole
+    # via a change filter.
+    assert gc.gate_is_always_on_modulo_full_ci_block(
+        str(arch_job["if"]), require_always=True
+    ), f"arch-adversarial pole gained a masking filter: if={arch_job['if']!r}"
 
     # Every matrix leg collects the tests/architectural tree, which owns
     # test_execution_context_parity.py — so the parity ratchet is in-scope no

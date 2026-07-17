@@ -27,6 +27,8 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.architectural import _gate_coverage as gc
+
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -187,12 +189,14 @@ def test_arch_suite_runs_unconditionally_cannot_be_masked() -> None:
     data = _load_workflow()
     arch_job = data["jobs"]["arch-adversarial"]
 
-    # Gate is exactly always() — not a filter-conditioned expression.
+    # Gate is always() — optionally AND-ed with ONLY the pr:deferred /
+    # pr:skip-ci full-CI-block labels (ddac71ebc) — never a path/status filter.
     gate = str(arch_job["if"]).strip()
-    assert gate == "always()", (
-        f"arch-adversarial gate must be exactly 'always()', got {gate!r}. A "
-        "filter-conditioned gate would let a status/path change mask the "
-        "architectural suite (the pre-WP03 mask this mission removed)."
+    assert gc.gate_is_always_on_modulo_full_ci_block(gate, require_always=True), (
+        f"arch-adversarial gate must be 'always()' (optionally guarded only by "
+        f"the pr:deferred / pr:skip-ci full-CI-block labels), got {gate!r}. A "
+        "path/status-conditioned gate would let a change mask the architectural "
+        "suite (the pre-WP03 mask this mission removed)."
     )
     assert "needs.changes.outputs" not in gate, (
         "arch-adversarial gained a dorny filter-output gate — that re-opens the "
