@@ -2,11 +2,14 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-07-04'
+updated: '2026-07-17'
 related:
 - docs/guides/index.md
 - docs/guides/review-gates.md
 - docs/guides/testing-flakiness.md
+- docs/guides/manage-issue-tracker.md
+- docs/guides/red-main-and-release-readiness.md
+- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 - docs/changelog/index.md
 ---
 # Landing Contributor PRs: The Maintainer Runbook
@@ -93,7 +96,7 @@ rebased tip and classify it into exactly one of four bins:
 |---|---|---|
 | **PR defect** | The PR's own change breaks a test or gate | Fix it on the branch (a "fold", [step 5](#5-folds-remediation-commits-on-the-contributor-branch)) |
 | **Contract the PR legitimately crosses** | A seam move-set completeness gate, a census tolerance band | Re-pin the contract **in the same PR**, with a dated rationale in the pin |
-| **Pre-existing main breakage** | The same red reproduces on an unrelated main-based branch | Prove it cross-branch, file an upstream issue (campsite-cleaning standing order); do **not** fix it inside the contributor PR and do **not** retry-to-green |
+| **Pre-existing main breakage** | The same red reproduces on an unrelated main-based branch | **Fold the fix in by default** ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)) — keep main green even for a red the PR did not cause — *unless* one of the two carve-outs below applies |
 | **Perf-budget flake** | A budget gate trips without a correctness signal | Note it, watch for recurrence, tune the budget at the root if it repeats — never retry-to-green |
 
 The cross-branch reproduction for the third bin is cheap and decisive:
@@ -103,10 +106,29 @@ git worktree add /tmp/repro-main upstream/main
 cd /tmp/repro-main && PWHEADLESS=1 uv run pytest <failing test> -q
 ```
 
-If it is red there too, the PR does not wear the failure — the filed issue
-does. See the
-[test-flakiness handling policy](testing-flakiness.md) for the
-never-retry-to-green rule behind the fourth bin.
+A red there too confirms the failure is pre-existing, not the PR's. **The
+default is then to fold the fix in anyway** — a landing pass that leaves an
+easy pre-existing red on the board just defers the cost and keeps main red for
+longer. Two carve-outs override that default:
+
+- **A `regression`-marked red-first test.** An intentionally-failing,
+  issue-pinned reproduction (per
+  [ADR 2026-07-17-1](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md))
+  is a *deliberate* red-mainline signal for an open P0 bug — **leave it red.**
+  Do not fold it to green; the product fix that closes its tracking issue is
+  separate, dedicated work, never a landing-pass fold. Greening it here would
+  erase the honest release-blocker signal the ADR exists to preserve. (Tell
+  these apart by the `@pytest.mark.regression` marker and the in-test NOTE
+  naming the tracking issue.)
+- **A fix that is mission scope and cannot reasonably be folded.** If the real
+  fix belongs to a distinct mission — wide blast radius, its own spec/design —
+  do not cram it into the contributor PR. File or reference it and move on.
+  Never retry-to-green.
+
+See [manage-issue-tracker.md](manage-issue-tracker.md#triaging-issues-type-severity-and-release-blocking-bugs)
+for the type/severity triage this leans on, and
+[testing-flakiness.md](testing-flakiness.md) for the never-retry-to-green rule
+behind the fourth bin.
 
 ## 5. Folds: remediation commits on the contributor branch
 
@@ -119,7 +141,11 @@ relies on `maintainerCanModify`, which is true by default on PRs from forks.
 
 Typical folds: canonical-source fixes (the changelog lives in
 `docs/changelog/`), seam re-pins with dated rationale, retired-shim API
-migrations, and doc/contract artifact sync.
+migrations, doc/contract artifact sync, and — by default — fixes for
+**pre-existing main breakage** the PR happens to surface ([step 4](#4-classify-every-red-check)).
+The one red you do **not** fold to green is a `regression`-marked red-first
+test: it is a deliberate open-P0 signal and stays red until its own product
+fix lands (ADR 2026-07-17-1).
 
 ## 6. Red-first verification for bugfix PRs
 
@@ -238,9 +264,11 @@ been fixed, the end-state is stated instead of the trap.
   abbreviated display.
 - **Pre-existing main breakage surfaces mid-pass.** One broken contract on
   main (#2339: dotted `migration_id` vs the dry-run JSON contract) turned
-  local runs red on *every* rebased branch in the pass. Adjudication cost one
-  cross-branch reproduction per PR until the issue was filed — file early;
-  the filed issue is what lets subsequent PRs skip the reproduction.
+  local runs red on *every* rebased branch in the pass. The default is to
+  **fold the fix** ([step 4](#4-classify-every-red-check)) — that clears main
+  and every rebased branch inherits the green. When you *can't* fold (a
+  `regression`-marked red-first test, or a mission-scope fix), file early; the
+  filed issue is what lets subsequent PRs skip re-reproducing it.
 - **Saturated tolerance bands trip on the next legitimate change.** The CLI
   visible-count census sat at the top of its band, so the next legitimate
   command (#2338) tripped it. A saturated band needs a re-pin with a dated
