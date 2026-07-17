@@ -43,8 +43,8 @@ These bind every action; detail lives in the referenced doctrine and the section
 
 ## Quality & Tech-Debt Standing Orders
 
-Eight standing practices that keep spec-driven missions honest, now activated
-doctrine (14 artifacts) and compiled into this charter. Each rule below is
+Nine standing practices that keep spec-driven missions honest, now activated
+doctrine (15 artifacts) and compiled into this charter. Each rule below is
 binding actionable guidance; the full how-to lives in the referenced doctrine
 artifact. **Throughline:** never trust a green check, a clean diff, or a confident
 summary — verify against live code, witness the bug in a real run, and let
@@ -88,8 +88,16 @@ the cheapest point in the lifecycle.
    give implementers ownership-map leeway (no-overlap is the real guard); apply
    tiered rigour. → `planning-and-tracking` styleguide,
    `reviewer-implementer-role-separation`, `ownership-map-leeway`.
+9. **Red-main & release discipline.** A red mainline is an honest signal of a
+   known release-blocking (P0) defect — never green-wash it (no reverting an
+   honest red, no declining a bug's reproduction test). Mainline CI status is the
+   authoritative release gate: **red CI == no release**. When a P0 is filed or
+   accepted, land a failing reproduction test; do not spend expensive QA or manual
+   testing on a red base; work red main down as top priority. Transparency over
+   convenience — it's broken, we hate it, but it's the truth, so we do not hide it.
+   → `red-main-release-discipline` procedure, ADR `2026-07-17-1`.
 
-All 14 catfooding artifacts are activated (`.kittify/config.yaml`) and
+All 15 catfooding artifacts are activated (`.kittify/config.yaml`) and
 directive-reachable, so each resolves in the compiled reference set
 (`references.yaml`). This section states the rules; the referenced artifacts carry
 the detailed procedures, examples, and anti-patterns.

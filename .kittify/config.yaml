@@ -184,6 +184,7 @@ activated_procedures:
 - adversarial-squad-deployment
 - post-merge-arch-gate-adjudication
 - mission-wrap-up-sequence
+- red-main-release-discipline
 activated_paradigms:
 - atomic-design
 - behaviour-driven-development
