@@ -48,6 +48,7 @@ from specify_cli.delivery.receivers import (
     DeliveryResult,
     OutboundEvent,
     StubReceiver,
+    map_batch_response,
 )
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
@@ -193,6 +194,39 @@ class _PendingHeadStub:
             )
             for event in batch
         ]
+
+
+class _AdaptiveOversizedStub:
+    """Exercise the canonical mapper's batch-413 then singleton-terminal path."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__adaptive-oversized-stub__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+        events = list(batch)
+        self.calls.append(tuple(event.event_id for event in events))
+        if events and events[0].event_id == "evt-0":
+            return map_batch_response(events, http_status=413, body=None)
+        return map_batch_response(
+            events,
+            http_status=200,
+            body={
+                "results": [
+                    {"event_id": event.event_id, "status": "success"}
+                    for event in events
+                ]
+            },
+        )
 
 
 class _FakeCoalesce:
@@ -559,6 +593,31 @@ def test_multi_batch_drain_skips_pending_head_through_live_dispatcher(
     assert summary.delivered == 2
     remaining = _select_undelivered(journal, ledger, target_a.target_id)
     assert [event.event_id for event in remaining] == ["evt-0", "evt-1"]
+
+
+def test_multi_batch_drain_continues_after_singleton_terminal_failure(
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Canonical 413 halving parks one event, then drains the success tail."""
+    receiver = _AdaptiveOversizedStub()
+    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+
+    assert receiver.calls == [
+        ("evt-0", "evt-1"),
+        ("evt-0",),
+        ("evt-1",),
+        ("evt-2",),
+    ]
+    assert summary.selected == 3
+    assert summary.terminal_failed == 1
+    assert summary.delivered == 2
+    assert _select_undelivered(journal, ledger, target_a.target_id) == []
 
 
 # --------------------------------------------------------------------------- #
