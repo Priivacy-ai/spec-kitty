@@ -41,7 +41,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Reusable workflow blueprint that configures mission actions, templates, and guardrails. |
+| **Definition** | Reusable workflow blueprint that configures the mission's steps (actions), their templates, and guardrails. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |

@@ -61,7 +61,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
   |                 isolated git worktree resolved for this WP
 ```
 
-**Mission Type** -- A reusable workflow blueprint. It defines the steps, templates, artifacts, and guards. You never edit mission types directly; you select one when starting a mission.
+**Mission Type** -- A reusable workflow blueprint. It defines the steps (each carrying its prompt and content templates), the expected artifacts, and the guards. You never edit mission types directly; you select one when starting a mission.
 
 **Mission** -- A concrete tracked item, stored in `kitty-specs/###-name/`. Each mission is linked to exactly one mission type via its `meta.json` file. Different missions in the same project can use different mission types.
 

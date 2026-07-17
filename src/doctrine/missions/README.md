@@ -1,6 +1,6 @@
 # Missions
 
-**Missions** are workflow definitions that configure phases, templates, and guardrails
+**Missions** are workflow definitions that configure steps (each with its templates) and guardrails
 for structured work. Each mission subdirectory contains a state machine definition,
 an optional runtime DAG, command templates, and content templates.
 
