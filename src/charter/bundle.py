@@ -24,6 +24,7 @@ v1.0.0 (C-012 backward-compat guarantee, see ``BundleValidationResult``).
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,17 +38,29 @@ GOVERNANCE_YAML = Path(".kittify/charter/governance.yaml")
 DIRECTIVES_YAML = Path(".kittify/charter/directives.yaml")
 METADATA_YAML = Path(".kittify/charter/metadata.yaml")
 
-# Synthesized-DRG freshness content-identity input set (synthesized-drg-
-# stale-refresh mission). Intentionally the SAME four names as
-# ``specify_cli.charter_runtime.freshness.computer::_BUNDLE_FILES`` — minor
-# duplication (data-model.md Decision 5) to avoid pulling ``charter.bundle``
-# into that module's eager import path for the unrelated
-# ``_compute_synced_bundle`` code path. Do NOT import this constant from the
-# ``specify_cli`` reader — that would invert the dependency direction.
+# Synthesized-DRG freshness content-identity input FILE set (the per-file
+# digest half of the recipe). WP02 (#2758) REMOVED ``references.yaml`` from this
+# set: it is compiled by ``charter generate`` (not written by ``charter sync``),
+# so a project that has not run ``generate`` legitimately has no
+# ``references.yaml`` — hashing it forced ``compute_bundle_content_hash`` to
+# ``None`` and pinned ``synthesized_drg`` permanently ``stale`` (#2758). The
+# reader's ``specify_cli.charter_runtime.freshness.computer::_BUNDLE_FILES``
+# (which drives the SEPARATE ``synced_bundle`` existence/mtime signal, C-003)
+# intentionally RETAINS ``references.yaml`` and is therefore no longer identical
+# to this tuple — it is a strict superset differing by exactly
+# ``references.yaml`` (pinned by
+# ``test_bundle_file_lists_diverge_only_by_references_yaml``). The two stay
+# module-local duplicates (data-model.md Decision 5) to avoid pulling
+# ``charter.bundle`` into that reader's eager import path; do NOT import this
+# constant from the ``specify_cli`` reader — that would invert the dependency
+# direction.
+#
+# Beyond the triad, ``compute_bundle_content_hash`` also folds in a
+# directive-activation digest (#2759) so activating/deactivating a directive
+# moves the identity — see the function body.
 BUNDLE_CONTENT_HASH_FILES: tuple[str, ...] = (
     "governance.yaml",
     "directives.yaml",
-    "references.yaml",
     "metadata.yaml",
 )
 
@@ -131,20 +144,33 @@ CANONICAL_MANIFEST: CharterBundleManifest = CharterBundleManifest(
 
 
 def compute_bundle_content_hash(repo_root: Path) -> str | None:
-    """Compute the content-identity digest of the synced bundle files.
+    """Compute the content-identity digest of the synced bundle + activation.
 
-    Hashes each file in :data:`BUNDLE_CONTENT_HASH_FILES` (declared order)
-    INDEPENDENTLY via :func:`charter.hasher.hash_content` (per-file BOM-strip
-    + CRLF-normalize), then combines the four ``"sha256:..."`` digests
-    deterministically by hashing their newline-joined concatenation. Per-file
-    hashing (not concat-then-hash-once) is required: ``canonical_yaml`` only
-    strips a *leading* BOM of a whole payload, so a BOM on a non-first file
-    would otherwise survive undetected (data-model.md fact #14).
+    Hashes each file in :data:`BUNDLE_CONTENT_HASH_FILES` (declared order —
+    the ``governance``/``directives``/``metadata`` triad) INDEPENDENTLY via
+    :func:`charter.hasher.hash_content` (per-file BOM-strip + CRLF-normalize),
+    then APPENDS a directive-activation digest (#2759 — see below), then
+    combines the ``"sha256:..."`` digests deterministically by hashing their
+    newline-joined concatenation. Per-file hashing (not concat-then-hash-once)
+    is required: ``canonical_yaml`` only strips a *leading* BOM of a whole
+    payload, so a BOM on a non-first file would otherwise survive undetected
+    (data-model.md fact #14).
 
-    This is the single canonical write-side hashing recipe (C-005). It is
-    **pure and unwired** in this WP — no production caller imports it yet;
-    writers (WP02) and the freshness reader (WP03) both route through it so
-    there is exactly one recipe.
+    The directive-activation digest is
+    ``hash_content("directives=" + ",".join(sorted(ids)))`` where ``ids`` is
+    :func:`charter.compiler.resolve_synthesis_graph_directives` — the SAME
+    single-authority resolved directive list the synthesizer feeds
+    ``graph.yaml`` (#2759, FR-002/FR-004, C-004). Folding it in means activating
+    or deactivating a directive moves the identity (→ ``stale`` until the next
+    ``charter synthesize``); paradigms/tactics are inert for ``graph.yaml`` and
+    are deliberately NOT included.
+
+    ``references.yaml`` is NO LONGER hashed (#2758): it is compiled by
+    ``charter generate``, so its legitimate absence must not force ``None``.
+
+    This is the single canonical hashing recipe (C-005): writers
+    (``promote``/``resynthesize``) and the freshness reader all route through
+    it so there is exactly one recipe (FR-004).
 
     Parameters
     ----------
@@ -154,14 +180,15 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
     Returns
     -------
     str | None
-        ``"sha256:<hex>"``, deterministic for fixed file content
+        ``"sha256:<hex>"``, deterministic for fixed file content + activation
         (mtime-agnostic). ``None`` — fail-safe, never raises — when
-        ``.kittify/charter/`` is missing OR any of the four files is
-        individually missing or unreadable (``OSError``,
-        ``UnicodeDecodeError`` — a non-UTF-8 file raises the latter, which is
-        NOT an ``OSError`` subclass and must be caught explicitly). The
-        freshness reader maps ``None`` to ``stale``, never a crash (spec
-        fail-posture).
+        ``.kittify/charter/`` is missing OR any triad file is individually
+        missing or unreadable (``OSError``, ``UnicodeDecodeError`` — a non-UTF-8
+        file raises the latter, which is NOT an ``OSError`` subclass and must be
+        caught explicitly), OR the directive-activation resolver cannot resolve
+        (a drifted activated stem → ``UnknownArtifactIdError``, or malformed
+        ``config.yaml`` → ``CharterPackConfigError``). The freshness reader maps
+        ``None`` to ``stale``, never a crash (spec fail-posture, NFR-003).
     """
     charter_dir = repo_root / ".kittify" / "charter"
     digests: list[str] = []
@@ -180,6 +207,33 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
         # a suppression comment.
         digest: str = hash_content(text)
         digests.append(digest)
+
+    # #2759 directive-activation digest. Function-local import keeps
+    # ``charter.compiler`` (and its ~1s catalog load) off the eager
+    # ``charter.bundle`` import path (NFR-001). The resolver read is wrapped so
+    # a freshness read that cannot prove the activation → ``None`` → recoverable
+    # ``stale`` (never-raise contract, this function must NOT propagate — spec
+    # fail-posture / NFR-003). Concrete expected raises the catch translates:
+    # ``UnknownArtifactIdError`` (a ``ValueError``) from a drifted activated
+    # stem, and ``CharterPackConfigError`` (NOT a ``ValueError`` subclass — must
+    # be named explicitly) from a malformed ``config.yaml``; ``OSError`` covers
+    # a filesystem read fault while loading config / the doctrine catalog. The
+    # catch is scoped to the resolver read ONLY — the per-file loop above stays
+    # outside it.
+    try:
+        from charter.compiler import resolve_synthesis_graph_directives  # noqa: PLC0415
+        from charter.pack_context import CharterPackConfigError  # noqa: PLC0415
+
+        directives = resolve_synthesis_graph_directives(repo_root)
+    except (CharterPackConfigError, ValueError, OSError):
+        return None
+    # ``json.dumps`` (not a raw ``","``-join) so the serialization is
+    # collision-free: a resolved directive ``id`` may legally contain a comma
+    # (the ``id:`` field is not schema-validated at the resolution point), which
+    # a bare comma-join would conflate with a multi-id set → a #2759-class
+    # false-fresh. JSON quoting/escaping makes distinct id sets distinct strings.
+    digests.append(hash_content("directives=" + json.dumps(sorted(directives))))
+
     combined: str = hash_content("\n".join(digests))
     return combined
 

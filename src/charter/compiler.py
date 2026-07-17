@@ -31,6 +31,7 @@ __all__ = [
     "WriteBundleResult",
     "compile_charter",
     "resolve_config_activated_roots",
+    "resolve_synthesis_graph_directives",
     "write_compiled_charter",
 ]
 # NOTE: ``ConfigActivatedRoots`` is intentionally NOT public API -- it is the
@@ -232,6 +233,50 @@ def resolve_config_activated_roots(
         catalog=catalog,
         doctrine_root=doctrine_root,
     )
+
+
+def resolve_synthesis_graph_directives(
+    repo_root: Path, *, config_roots: ConfigActivatedRoots | None = None
+) -> list[str]:
+    """The resolved directive list the synthesizer feeds ``graph.yaml``.
+
+    Single authority shared by ``specify_cli.cli.commands.charter._synthesis``
+    (``interview_snapshot["selected_directives"]`` / ``drg_snapshot["nodes"]``)
+    and ``charter.bundle``'s freshness hash input (WP02, FR-002/FR-004, C-004).
+
+    Absent ``config.activated_directives`` -> ``[]`` (the #2577 fast-follow
+    fix): unlike :func:`resolve_config_activated_roots`, which falls back to
+    "every built-in directive" for the ``references.yaml`` consumer, this
+    consumer must see zero directives on a fresh project with no explicit
+    activation yet -- otherwise the DRG/companion-tactic expansion path
+    demands companion tactics nobody asked for. See
+    :func:`specify_cli.cli.commands.charter._synthesis._build_synthesis_request`
+    for the full rationale (only the raw three-state signal, read directly
+    from :class:`~charter.pack_context.PackContext`, distinguishes the
+    absent-key case from an explicit, possibly-empty activation list).
+
+    *config_roots* is an optional pre-resolved
+    :class:`ConfigActivatedRoots`: a caller that already called
+    :func:`resolve_config_activated_roots` (e.g. ``_build_synthesis_request``,
+    which also needs ``config_roots.paradigms``) passes its instance in so this
+    helper does not repeat the uncached ``load_doctrine_catalog()`` (~2s,
+    354-file glob). When ``None`` the roots are resolved here, so a caller that
+    only has ``repo_root`` (e.g. WP02's ``charter.bundle``) still gets a single
+    resolve. The three-state directive signal is always read fresh from
+    :class:`~charter.pack_context.PackContext` and is independent of the
+    (possibly pre-resolved) roots' catalog fallback.
+    """
+    pack_context = PackContext.from_config(repo_root)
+    if pack_context.activated_directives is None:
+        # #2577: the graph consumer sees [] on the absent-key path regardless of
+        # the resolved roots. Short-circuit BEFORE resolving so the freshness
+        # read (WP02's charter.bundle caller) never pays the uncached
+        # load_doctrine_catalog() (~2s, 354-file glob) for a project with no
+        # activated directives -- keeps the read within NFR-001/NFR-002.
+        return []
+    if config_roots is None:
+        config_roots = resolve_config_activated_roots(repo_root=repo_root)
+    return config_roots.directives
 
 
 if TYPE_CHECKING:

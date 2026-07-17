@@ -230,22 +230,26 @@ def _base_synthesis_request(run_id: str) -> SynthesisRequest:
 # ---------------------------------------------------------------------------
 
 
-def test_bundle_file_lists_stay_in_sync() -> None:
-    """The reader's ``_BUNDLE_FILES`` must equal the canonical bundle hash set.
+def test_bundle_file_lists_diverge_only_by_references_yaml() -> None:
+    """The two bundle file lists intentionally diverge by exactly ``references.yaml``.
 
-    ``charter.bundle.BUNDLE_CONTENT_HASH_FILES`` (the content-identity input
-    set, drives the ``synthesized_drg`` hash) and
-    ``computer._BUNDLE_FILES`` (drives ``synced_bundle`` existence + mtime) are
-    deliberately duplicated 4-tuples in different modules to keep the
-    ``charter``→``specify_cli`` dependency direction intact (data-model
-    Decision 5). This pins them equal so a future edit to one that silently
-    drifts from the other — which would let the two freshness sub-states track
-    different file sets — is caught, honoring the single-canonical-authority
-    principle without inverting the import direction.
+    ``computer._BUNDLE_FILES`` (drives the ``synced_bundle`` existence + mtime
+    signal) retains ``references.yaml``; ``charter.bundle.BUNDLE_CONTENT_HASH_FILES``
+    (drives the ``synthesized_drg`` content-identity hash) DROPS it (WP02,
+    #2758) so a missing/pruned ``references.yaml`` — compiled by ``charter
+    generate``, not written by ``charter sync`` — can no longer force the
+    content hash to ``None``/permanent-stale. The content-hash set is therefore
+    a strict subset of the synced-bundle set, differing by exactly
+    ``references.yaml``. Both remain module-local (duplicated, not cross-imported)
+    to keep the ``charter``→``specify_cli`` dependency direction intact
+    (data-model Decision 5); this pins their intended relationship so an
+    accidental re-addition of ``references.yaml`` to the hash set — or an
+    unrelated drift between the two — is caught.
     """
     from specify_cli.charter_runtime.freshness.computer import _BUNDLE_FILES
 
-    assert tuple(_BUNDLE_FILES) == tuple(BUNDLE_CONTENT_HASH_FILES)
+    assert set(BUNDLE_CONTENT_HASH_FILES) < set(_BUNDLE_FILES)
+    assert set(_BUNDLE_FILES) - set(BUNDLE_CONTENT_HASH_FILES) == {"references.yaml"}
 
 
 def test_returns_three_sub_objects(tmp_path: Path) -> None:
@@ -484,17 +488,22 @@ def test_synthesized_drg_fresh_after_mtime_only_bump(tmp_path: Path) -> None:
     assert result.synthesized_drg.state == "fresh"
 
 
-def test_synthesized_drg_stale_when_a_bundle_file_is_missing(tmp_path: Path) -> None:
-    """A missing bundle file (e.g. ``references.yaml``) yields ``stale`` — never
-    ``fresh``, never a crash.
+def test_synthesized_drg_not_stale_when_references_yaml_missing(tmp_path: Path) -> None:
+    """#2758 flip: a missing ``references.yaml`` no longer forces ``stale``.
 
-    ``compute_bundle_content_hash`` fail-safes to ``None`` when any of the four
-    files is absent, so the reader reports ``stale``. This is the
-    *missing-bundle-file* ``None`` the reader docstring distinguishes from a
-    *legacy-manifest* ``None``: it does NOT self-heal via ``synthesize`` alone
-    (the recompute is also ``None``), because ``references.yaml`` is compiled by
-    ``charter generate``, not written by ``charter sync``. The heavier
-    require-full-bundle preflight remediation is tracked separately.
+    ``references.yaml`` is compiled by ``charter generate``, not written by
+    ``charter sync``, and is REMOVED from ``BUNDLE_CONTENT_HASH_FILES`` (WP02).
+    So with the triad (governance/directives/metadata) intact and the resolved
+    directive set unchanged, deleting ``references.yaml``:
+
+    * leaves ``compute_bundle_content_hash`` returning the SAME real hash
+      (NOT ``None``) — the identity is over the triad + directive digest, and
+      ``references.yaml`` was never part of it, and
+    * leaves ``synced_bundle`` ``fresh`` (it only reports ``missing`` when the
+      ENTIRE bundle is gone; individual absent files are tolerated),
+
+    so the reader reports ``fresh`` — never ``stale`` on that account, never a
+    crash. This is the exact #2758 permanent-stale regression, now closed.
     """
     _seed_full_bundle(tmp_path)
     _seed_graph(tmp_path)
@@ -507,13 +516,13 @@ def test_synthesized_drg_stale_when_a_bundle_file_is_missing(tmp_path: Path) -> 
         bundle_content_hash=real_hash,
     )
 
-    # Remove one required bundle file after the manifest was stamped fresh.
+    # Remove references.yaml AFTER the manifest was stamped fresh.
     (tmp_path / ".kittify" / "charter" / "references.yaml").unlink()
 
-    # The recipe fail-safes to None (never raises) on the missing file...
-    assert compute_bundle_content_hash(tmp_path) is None
-    # ...and the reader maps the incomplete bundle to stale, not fresh/crash.
-    assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
+    # The recipe still returns the SAME real hash (references.yaml is not hashed).
+    assert compute_bundle_content_hash(tmp_path) == real_hash
+    # ...and the reader reports fresh, not stale, on that account (#2758 flip).
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
 
 
 def test_synthesized_drg_stale_when_bundle_content_genuinely_changed(tmp_path: Path) -> None:

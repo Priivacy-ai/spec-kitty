@@ -30,9 +30,8 @@ def _build_synthesis_request(
     """
     import uuid
 
-    from charter.compiler import resolve_config_activated_roots
+    from charter.compiler import resolve_config_activated_roots, resolve_synthesis_graph_directives
     from charter.interview import read_interview_answers
-    from charter.pack_context import PackContext
     from charter.synthesizer.fixture_adapter import FixtureAdapter
     from charter.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
     from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
@@ -67,15 +66,22 @@ def _build_synthesis_request(
     # `resolve_sections()` expands one `how-we-apply-<directive>` companion-
     # tactic target per entry, so a first-run project with no explicit
     # activation yet demanded ~25 companion tactics nobody asked for and
-    # failed `charter synthesize` closed on the first missing YAML. Read the
-    # raw three-state signal directly so the absent-key case (first run) is
-    # distinguished from an explicit (possibly empty) activation list -- only
-    # the latter should drive companion-tactic expansion, matching the
-    # pre-#2526 behavior where this field was sourced from
-    # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
-    pack_context = PackContext.from_config(repo_root)
-    directives_for_synthesis: list[str] = (
-        [] if pack_context.activated_directives is None else config_roots.directives
+    # failed `charter synthesize` closed on the first missing YAML.
+    # `resolve_synthesis_graph_directives` is the single-authority helper
+    # (charter.compiler, WP01) that reads the raw three-state signal directly
+    # so the absent-key case (first run) is distinguished from an explicit
+    # (possibly empty) activation list -- only the latter should drive
+    # companion-tactic expansion, matching the pre-#2526 behavior where this
+    # field was sourced from `answers.selected_directives` and defaulted to
+    # `[]` on a fresh interview. WP02's `charter.bundle` freshness hash reuses
+    # the same helper so both consumers never drift.
+    #
+    # `config_roots` (resolved once above, also needed for `selected_paradigms`
+    # below) is threaded in so the helper does not repeat the uncached
+    # `load_doctrine_catalog()` -- `resolve_config_activated_roots` runs exactly
+    # ONCE per `_build_synthesis_request`.
+    directives_for_synthesis: list[str] = resolve_synthesis_graph_directives(
+        repo_root, config_roots=config_roots
     )
 
     # Build a minimal interview snapshot, config-activated selections + answers

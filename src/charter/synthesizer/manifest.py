@@ -73,9 +73,12 @@ class SynthesisManifest(BaseModel):
     except manifest_hash)`` — allows readers to verify manifest self-integrity.
 
     Schema version 3 (synthesized-drg-stale-refresh): added
-    ``bundle_content_hash``, the content-identity digest of the four synced
-    bundle files (see ``charter.bundle.compute_bundle_content_hash``) used by
-    the synthesized-DRG freshness comparison. The literal is widened to
+    ``bundle_content_hash``, the content-identity digest (see
+    ``charter.bundle.compute_bundle_content_hash``) used by the synthesized-DRG
+    freshness comparison — the sync triad (``governance``/``directives``/
+    ``metadata``.yaml) plus a digest of the resolved directive set the
+    synthesizer feeds ``graph.yaml`` (#2758/#2759; ``references.yaml`` removed
+    from the identity). The literal is widened to
     ``Literal["2", "3"]`` so pre-fix ``"2"`` manifests keep validating. The
     model default is ``"3"``: the real writers omit ``schema_version`` and rely
     on this default to stamp new manifests, so they carry ``bundle_content_hash``.
@@ -120,8 +123,9 @@ class SynthesisManifest(BaseModel):
     """
 
     bundle_content_hash: str | None = None
-    """``"sha256:..."`` content-identity digest of the four synced bundle
-    files, produced by ``charter.bundle.compute_bundle_content_hash``.
+    """``"sha256:..."`` content-identity digest (the sync triad
+    ``governance``/``directives``/``metadata``.yaml plus the resolved-directive
+    digest; #2758/#2759), produced by ``charter.bundle.compute_bundle_content_hash``.
 
     **Substantive (non-volatile).** This field participates in no-op-stable
     write comparisons and MUST NOT be added to
