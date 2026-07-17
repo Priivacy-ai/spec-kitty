@@ -1,5 +1,5 @@
 schema_version: 1.0.0
-generated_at: '2026-07-10T16:55:49Z'
+generated_at: '2026-07-17T17:44:58Z'
 mission: software-dev
 template_set: software-dev-default
 languages:
@@ -510,12 +510,6 @@ references:
     into technical debt.\n"
   source_path: ''
   local_path: _LIBRARY/tactic-avoid-gold-plating.md
-- id: TACTIC:bdd-scenario-lifecycle
-  kind: tactic
-  title: bdd-scenario-lifecycle
-  summary: Definition unavailable in bundled doctrine.
-  source_path: ''
-  local_path: _LIBRARY/tactic-bdd-scenario-lifecycle.md
 - id: TACTIC:behavior-driven-development
   kind: tactic
   title: Behavior-Driven Development
@@ -1668,8 +1662,10 @@ references:
   local_path: _LIBRARY/toolguide-rtk-search-tooling.md
 - id: TOOLGUIDE:terminology-guard
   kind: toolguide
-  title: terminology-guard
-  summary: Definition unavailable in bundled doctrine.
+  title: Terminology Guard
+  summary: "Describes when and how to invoke the legacy-terminology guard before pushing
+    changes to src/doctrine/ or user-facing prose. The guard catches superseded terms
+    that have reappeared in active source and fails CI if any are found.\n"
   source_path: ''
   local_path: _LIBRARY/toolguide-terminology-guard.md
 - id: TOOLGUIDE:typescript-mutation-tools
@@ -1703,6 +1699,12 @@ references:
     or any Given/When/Then runner.\n"
   source_path: ''
   local_path: _LIBRARY/procedure-bdd-scenario-lifecycle.md
+- id: PROCEDURE:development-assist-test-cleanup
+  kind: procedure
+  title: development-assist-test-cleanup
+  summary: Definition unavailable in bundled doctrine.
+  source_path: ''
+  local_path: _LIBRARY/procedure-development-assist-test-cleanup.md
 - id: PROCEDURE:disciplined-defect-diagnosis
   kind: procedure
   title: Disciplined Defect Diagnosis
@@ -1824,6 +1826,18 @@ references:
     from either ignoring real regressions or blocking on failures they did not cause.\n"
   source_path: ''
   local_path: _LIBRARY/procedure-post-merge-arch-gate-adjudication.md
+- id: PROCEDURE:red-main-release-discipline
+  kind: procedure
+  title: Red Main & Release Discipline
+  summary: "Keep the mainline CI signal honest and authoritative for release. A red
+    main is a true signal of known release-blocking (P0) defects, never something
+    to hide by reverting an honest failure or declining a bug's reproduction test.
+    Mainline CI status is the single authoritative release gate; expensive QA and
+    manual testing are not spent on a known-broken base; and red main is worked down
+    as top priority. Consensus policy (CEO/product owner, QA lead, maintainers); governing
+    decision ADR 2026-07-17-1, operational guide docs/guides/red-main-and-release-readiness.md.\n"
+  source_path: ''
+  local_path: _LIBRARY/procedure-red-main-release-discipline.md
 - id: PROCEDURE:refactoring
   kind: procedure
   title: Refactoring

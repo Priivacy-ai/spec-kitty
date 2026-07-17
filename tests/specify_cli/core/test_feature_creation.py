@@ -600,8 +600,14 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_documentation_mission_without_spec_mapping_fails_closed(tmp_path: Path) -> None:
-    """The shipped null documentation mapping cannot borrow software-dev content."""
+def test_documentation_mission_resolves_authored_spec_template(tmp_path: Path) -> None:
+    """documentation is creatable: its authored spec mapping resolves (#2689).
+
+    Before the mission-step-creatability slice the shipped documentation type
+    carried a null spec mapping and creation failed closed; it now resolves the
+    per-type authored spec template. The fail-closed contract for a genuinely
+    unmapped kind is covered by ``tests/runtime/test_resolver_unit.py``.
+    """
     _init_git_repo(tmp_path)
 
     with (
@@ -609,18 +615,18 @@ def test_documentation_mission_without_spec_mapping_fails_closed(tmp_path: Path)
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        pytest.raises(TemplateConfigurationError) as exc_info,
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        create_mission_core(
+        result = create_mission_core(
             tmp_path,
             "docs-feature",
             mission="documentation",
             **_mission_summary("docs-feature"),
         )
 
-    assert exc_info.value.mission_type == "documentation"
-    assert exc_info.value.artifact_kind == "spec"
-    assert not any((tmp_path / "kitty-specs").iterdir())
+    assert result.meta["mission_type"] == "documentation"
+    assert any((tmp_path / "kitty-specs").iterdir())
 
 
 def test_default_mission_is_software_dev(tmp_path: Path) -> None:

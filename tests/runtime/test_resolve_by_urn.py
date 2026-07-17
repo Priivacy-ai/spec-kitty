@@ -15,6 +15,7 @@ invariants.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
@@ -167,13 +168,32 @@ class TestOverrideWinsOnUrnLane:
             content="# Legacy customization",
         )
 
-        with pytest.warns(DeprecationWarning):
+        # ``_warn_legacy_asset`` suppresses the DeprecationWarning (emitting a
+        # one-time stderr nudge instead) when a global runtime is configured,
+        # i.e. when ``get_kittify_home()/cache/version.lock`` exists. Under
+        # per-worker HOME isolation that state depends on test ordering, so
+        # point the home at a non-existent dir to make the warning deterministic
+        # -- the same mechanism the dedicated legacy-warning tests in
+        # ``test_resolver_unit.py`` use.
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_kittify_home",
+                return_value=tmp_path / "no_home",
+            ),
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always")
             result = resolve_template_by_urn(
                 "template:software-dev/spec-template.md", project
             )
 
         assert result.tier == ResolutionTier.LEGACY
         assert result.path == legacy_path
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, DeprecationWarning)
+        ]
+        assert len(deprecation_warnings) == 1
+        assert "Legacy asset resolved" in str(deprecation_warnings[0].message)
 
 
 # ---------------------------------------------------------------------------

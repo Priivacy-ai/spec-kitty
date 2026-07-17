@@ -544,9 +544,17 @@ def test_setup_plan_scaffolds_and_compares_override_winner(tmp_path: Path) -> No
     assert _file_in_head(tmp_path, str(plan_file.relative_to(tmp_path))) is False
 
 
-def test_setup_plan_json_fails_closed_for_null_template_mapping(tmp_path: Path) -> None:
+def test_setup_plan_resolves_research_plan_template(tmp_path: Path) -> None:
+    """research is creatable: setup-plan resolves its authored plan mapping (#2689).
+
+    Before the mission-step-creatability slice research carried a null plan
+    mapping and setup-plan failed closed (TEMPLATE_CONFIGURATION_ERROR); it now
+    resolves the per-type authored plan template and scaffolds ``plan.md``. The
+    fail-closed contract for a genuinely unmapped kind is covered by
+    ``tests/runtime/test_resolver_unit.py``.
+    """
     _init_git_repo(tmp_path)
-    feature_dir = _create_mission(tmp_path, "mission-null-plan-mapping")
+    feature_dir = _create_mission(tmp_path, "mission-research-plan-mapping")
     handle = feature_dir.name
     meta_file = feature_dir / "meta.json"
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
@@ -562,13 +570,9 @@ def test_setup_plan_json_fails_closed_for_null_template_mapping(tmp_path: Path) 
 
     payload = _run_setup_plan(tmp_path, handle)
 
-    assert payload.get("result") == "error"
-    assert payload.get("error_code") == "TEMPLATE_CONFIGURATION_ERROR"
-    assert payload.get("mission_type") == "research"
-    assert payload.get("artifact_kind") == "plan"
-    assert "configured template mapping" in str(payload.get("error"))
-    assert not (feature_dir / "plan.md").exists()
-    assert _file_in_head(tmp_path, str((feature_dir / "plan.md").relative_to(tmp_path))) is False
+    assert payload.get("result") == "success"
+    assert payload.get("error_code") is None
+    assert (feature_dir / "plan.md").exists()
 
 
 # ---------------------------------------------------------------------------
