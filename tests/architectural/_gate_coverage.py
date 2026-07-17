@@ -115,6 +115,66 @@ _PYTEST_HEAD_RE = re.compile(r"^pytest\b")
 _GHA_EXPR_RE = re.compile(r"\$\{\{(.*?)\}\}")
 _SEGMENT_SPLIT_RE = re.compile(r"&&|;|\|\|?|\bthen\b|\bdo\b")
 
+# The two operator-facing "full CI block" labels: a PR explicitly labeled
+# ``pr:deferred`` / ``pr:skip-ci`` blocks ALL PR-triggered workflows (added in
+# ``ddac71ebc``). An always-on job may carry ONLY these two label guards and
+# still count as "runs unconditionally"; ANY other conjunct (a
+# ``needs.changes.outputs`` path filter, a status/draft/event-name check) would
+# silently mask the job and is rejected -- that is the mask the arch pole and
+# the residual gate exist to forbid.
+FULL_CI_BLOCK_LABELS: tuple[str, ...] = ("pr:deferred", "pr:skip-ci")
+
+
+def _normalize_conjunct(text: str) -> str:
+    """Collapse all whitespace so gate conjuncts compare canonically."""
+    return "".join(text.split())
+
+
+def _full_ci_block_conjuncts() -> frozenset[str]:
+    return frozenset(
+        f"!contains(github.event.pull_request.labels.*.name,'{label}')"
+        for label in FULL_CI_BLOCK_LABELS
+    )
+
+
+def gate_is_always_on_modulo_full_ci_block(
+    if_value: str | None, *, require_always: bool
+) -> bool:
+    """Whether a job runs unconditionally EXCEPT for the full-CI-block labels.
+
+    Accepts either an absent ``if:`` (truly unconditional) or an ``if:`` whose
+    only conjuncts are ``always()`` (optional in general, mandatory when
+    *require_always* -- e.g. the arch pole must run even when upstream jobs
+    fail) plus BOTH ``pr:deferred`` / ``pr:skip-ci`` label guards. Any other
+    conjunct -- a path/status/needs/draft/event filter -- returns ``False``,
+    because it could silently mask the job (the pre-WP03 mask this forbids).
+    """
+    if if_value is None:
+        # No gate at all is unconditional, but a job that must survive upstream
+        # failure needs an explicit ``always()`` -- absence is a regression there.
+        return not require_always
+    expr_match = _GHA_EXPR_RE.search(if_value)
+    inner = expr_match.group(1) if expr_match else if_value
+    conjuncts = [c for c in inner.split("&&") if c.strip()]
+    if not conjuncts:
+        return False
+    has_always = False
+    label_conjuncts = _full_ci_block_conjuncts()
+    seen_labels: set[str] = set()
+    for conjunct in conjuncts:
+        normalized = _normalize_conjunct(conjunct)
+        if normalized in ("always()", "(always())"):
+            has_always = True
+        elif normalized in label_conjuncts:
+            seen_labels.add(normalized)
+        else:
+            return False  # a masking condition -- reject
+    # Labels are all-or-nothing: a bare ``always()`` (no labels) is the original,
+    # strictest form; ``always()`` + BOTH labels is the sanctioned full-CI-block
+    # form. A single label (asymmetric) is a malformed gate and is rejected.
+    labels_ok = seen_labels in (frozenset(), label_conjuncts)
+    return labels_ok and (has_always or not require_always)
+
 # Runner prefixes that may precede the literal ``pytest`` command token. After
 # stripping leading env-assignments and these, a real pytest *command* segment
 # begins with ``pytest`` — so ``pipx inject ... pytest`` and ``git grep ...

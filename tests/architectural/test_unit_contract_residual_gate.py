@@ -73,16 +73,24 @@ def _load_jobs(path: Path) -> dict[str, Any]:
 
 
 def residual_job_is_always_on(jobs: dict[str, Any], job_name: str) -> bool:
-    """``True`` iff ``job_name`` EXISTS and carries no ``if:`` key.
+    """``True`` iff ``job_name`` EXISTS and runs unconditionally.
 
-    An absent job is explicitly a violation (``False``), never a vacuous pass
-    — guards the ``.get(key, empty)`` mis-key trap called out in the module
-    docstring.
+    "Unconditionally" means no ``if:`` key at all, OR an ``if:`` whose only
+    conjuncts are the ``pr:deferred`` / ``pr:skip-ci`` full-CI-block label
+    guards (``ddac71ebc``): those let an operator block ALL PR workflows but
+    cannot silently mask this job via a path/status change. Any other filter is
+    a violation. An absent job is explicitly a violation (``False``), never a
+    vacuous pass — guards the ``.get(key, empty)`` mis-key trap called out in
+    the module docstring.
     """
     if job_name not in jobs:
         return False
     job = jobs[job_name]
-    return isinstance(job, dict) and job.get("if") is None
+    if not isinstance(job, dict):
+        return False
+    return gc.gate_is_always_on_modulo_full_ci_block(
+        job.get("if"), require_always=False
+    )
 
 
 def residual_job_is_gate_member(
@@ -116,8 +124,9 @@ def test_unit_contract_residual_is_always_on_live() -> None:
     """
     jobs = _load_jobs(_CI_QUALITY)
     assert residual_job_is_always_on(jobs, _RESIDUAL_JOB), (
-        f"{_RESIDUAL_JOB!r} must carry NO `if:` key (always-on); found "
-        f"if={jobs.get(_RESIDUAL_JOB, {}).get('if')!r}"
+        f"{_RESIDUAL_JOB!r} must run unconditionally — no `if:`, or an `if:` "
+        "guarded ONLY by the pr:deferred / pr:skip-ci full-CI-block labels; "
+        f"found if={jobs.get(_RESIDUAL_JOB, {}).get('if')!r}"
     )
 
 
