@@ -48,7 +48,7 @@ contexts:
       - name: "Mission State Derivation"
         definition: "The process of figuring out where a mission currently stands by reading filesystem artifacts and event logs, so the system can determine what mission actions are available next."
       - name: "Mission Type"
-        definition: "Reusable workflow blueprint that configures mission actions, templates, and guardrails."
+        definition: "Reusable workflow blueprint that configures the mission's steps (actions), their templates, and guardrails."
       - name: "Mission-Runtime YAML"
         definition: "Configuration file (`mission-runtime.yaml`) that defines a mission type's step graph, action ordering, dependencies, and prompt-template bindings."
       - name: "Orchestrator API"

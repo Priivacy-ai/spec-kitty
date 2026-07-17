@@ -6,3 +6,8 @@ agent_profile: null
 guidance: null
 delegates_to: []
 depends_on: []
+sequence_index: 0
+in_action_sequence: true
+template:
+  artifact_key: spec
+  template_file: spec-template.md

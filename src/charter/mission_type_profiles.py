@@ -674,6 +674,19 @@ def _resolve_action_slot(
     hatch: an activated-but-undefined type raises.  An unregistered type that
     was tolerated by the governance slot (project override present) has no
     built-in action sequence, so it degrades to an empty list.
+
+    **WP06 confirmation (S-B cutover, mission-step-authority):**
+    ``mission.action_sequence`` below is already the WP02-projected value —
+    ``MissionTypeRepository._load`` overlays ``project_action_sequence(steps)``
+    onto the raw YAML field (via ``_inject_projected_fields``) before
+    :class:`~doctrine.missions.models.MissionType` validates, falling back to
+    the authored YAML only while a given type's projection is still empty
+    (pre-WP07). This resolver was never a bypass; it reads the injected model
+    through :meth:`MissionTypeRepository.default`, which is memoized
+    (``functools.cache``) so this call never re-walks ``mission-steps/`` on
+    the hot path. See ``tests/runtime/test_runtime_seam.py`` for the
+    seam-equivalence lock (all 4 built-in types) and the extends-fallback
+    check below.
     """
     if not is_registered:
         return []
@@ -692,9 +705,9 @@ def _resolve_action_slot(
     if mission.extends is not None:
         parent = repo.get(mission.extends)
         if parent is not None and not mission.action_sequence:
-            return list(parent.action_sequence)
+            return list(parent.action_sequence or [])
 
-    return list(mission.action_sequence)
+    return list(mission.action_sequence or [])
 
 
 def _resolve_expected_artifacts_slot(
@@ -740,6 +753,15 @@ def _resolve_template_set_slot(
     A defensive copy prevents consumers from mutating repository-owned model
     state, while :class:`types.MappingProxyType` preserves deterministic
     insertion order behind a read-only public surface.
+
+    **WP06 confirmation (S-B cutover, mission-step-authority):** this is the
+    *dict* ``MissionType.template_set`` (per-type template mapping), never the
+    unrelated ``doctrine.template_set`` scalar (charter selection authority in
+    ``resolver.py``/``compiler.py``/etc.) — C-008 keeps those surfaces fenced
+    off. Like :func:`_resolve_action_slot`, ``mission.template_set`` here is
+    already the WP02-projected value (``_inject_projected_fields`` overlays
+    ``project_template_set(steps)``, falling back to the authored YAML only
+    while empty); no raw re-read exists to switch.
     """
     if not is_registered:
         return None

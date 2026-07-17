@@ -7,3 +7,5 @@ guidance: null
 delegates_to: []
 depends_on:
 - tasks
+sequence_index: 3
+in_action_sequence: true

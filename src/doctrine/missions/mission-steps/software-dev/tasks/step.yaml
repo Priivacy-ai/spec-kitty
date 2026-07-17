@@ -7,3 +7,5 @@ guidance: null
 delegates_to: []
 depends_on:
 - plan
+sequence_index: 2
+in_action_sequence: true

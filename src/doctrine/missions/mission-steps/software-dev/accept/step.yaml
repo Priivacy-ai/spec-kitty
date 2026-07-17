@@ -7,3 +7,5 @@ guidance: null
 delegates_to: []
 depends_on:
 - review
+sequence_index: null
+in_action_sequence: false
