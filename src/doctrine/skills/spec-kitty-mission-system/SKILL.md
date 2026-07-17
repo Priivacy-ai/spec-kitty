@@ -18,9 +18,9 @@ description: >-
 # spec-kitty-mission-system
 
 Understand how missions structure work in Spec Kitty. A mission is a
-domain-specific workflow blueprint that defines what phases you go through,
-what templates agents see, what artifacts you produce, and how to validate
-success.
+domain-specific workflow blueprint that defines what steps you go through,
+the template each step provides, what artifacts you produce, and how to
+validate success.
 
 ---
 
@@ -34,8 +34,7 @@ Different goals need different processes. Building a software component is
 different from conducting research or writing documentation. Each mission
 provides domain-appropriate:
 
-- **Steps** — the ordered phases of work (specify → plan → implement → review)
-- **Templates** — prompts that tell agents what to do at each step
+- **Steps** — the ordered phases of work (specify → plan → implement → review); each step provides the prompt/content **template** agents follow
 - **Artifacts** — expected outputs (spec.md, plan.md, tasks.md)
 - **Guards** — conditions that must be met before advancing (e.g., spec.md must exist before planning)
 - **Validation** — checks that verify the output quality
