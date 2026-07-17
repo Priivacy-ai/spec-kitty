@@ -19,10 +19,13 @@ Or as a CI step:
     - name: NFR-003 latency gate
       run: python scripts/check_nfr_003_latency.py
 
-TODO (known red — tracked in Priivacy-ai/spec-kitty#2749):
-    As of 2026-07-17 this gate FAILS on ``main`` and any branch rebased onto it.
-    ``spec-kitty next`` cold-start regressed to ~1.25s (CI) / ~1.46s (local) vs
-    the 1.05s CI ceiling. Root cause is the doctrine-as-SSOT / step-authority
+TODO (known flaky at the ceiling — tracked in Priivacy-ai/spec-kitty#2749):
+    As of 2026-07-17 this gate is FLAKY at the 1.05s ceiling boundary: with
+    import-neutral changes it measured ~1.25s (FAIL) on one CI run and passed
+    (<1.05s) on the next. ``spec-kitty next`` cold-start rose to ~1.25s (CI) /
+    ~1.46s (local), i.e. a real latency increase that sits right on the ceiling
+    so runner variance decides pass/fail. Root cause is the doctrine-as-SSOT /
+    step-authority
     work (#2723 "step.yaml single source; action_sequence/template_set
     projected", #2722): the new ``step_projection.py`` runtime seam runs on
     every ``next`` (the cost is command execution, not imports — ``import
