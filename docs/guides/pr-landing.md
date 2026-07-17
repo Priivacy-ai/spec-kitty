@@ -107,7 +107,9 @@ cd /tmp/repro-main && PWHEADLESS=1 uv run pytest <failing test> -q
 ```
 
 A red there too confirms the failure is pre-existing, not the PR's. **The
-default is then to fold the fix in anyway** — a landing pass that leaves an
+default is then to fold the fix in anyway** (boy-scout / campsite-clean,
+`DIRECTIVE_025`) — a stale generated artifact, a forgotten regen, or a small
+unwired reference are all fixable inline, and a landing pass that leaves an
 easy pre-existing red on the board just defers the cost and keeps main red for
 longer. Two carve-outs override that default:
 
@@ -121,9 +123,13 @@ longer. Two carve-outs override that default:
   these apart by the `@pytest.mark.regression` marker and the in-test NOTE
   naming the tracking issue.)
 - **A fix that is mission scope and cannot reasonably be folded.** If the real
-  fix belongs to a distinct mission — wide blast radius, its own spec/design —
-  do not cram it into the contributor PR. File or reference it and move on.
-  Never retry-to-green.
+  fix belongs to a distinct mission — wide blast radius, its own spec/design, an
+  in-flight mission's own reconciliation — do not cram it into the contributor
+  PR. Instead **accept the failure as an honest P0 red**: mark the failing test
+  `@pytest.mark.regression`, pin it (an in-test note) to the owning issue/mission,
+  and leave it red per
+  [Red Main and Release Readiness](red-main-and-release-readiness.md). Never
+  retry-to-green.
 
 See [manage-issue-tracker.md](manage-issue-tracker.md#triaging-issues-type-severity-and-release-blocking-bugs)
 for the type/severity triage this leans on, and

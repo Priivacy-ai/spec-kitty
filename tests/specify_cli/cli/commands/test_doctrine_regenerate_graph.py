@@ -93,6 +93,12 @@ def _count_orphans(graph: DRGGraph) -> int:
     return len(urns - incident)
 
 
+# Accepted P0 red (regression): the `red-main-release-discipline` procedure
+# landed (1eb035e20) without regenerating the shipped DRG / bumping the
+# migration-extractor zero-delta baseline, so `regenerate-graph` (picks up the
+# node) and the frozen baseline split-brain. Reconciliation is owned by the
+# in-flight step-authority DRG work (#2721 / #2751); honest red until it lands.
+@pytest.mark.regression
 def test_check_reports_committed_graph_fresh() -> None:
     """The shipped graph must be fresh — operator twin of the freshness gate.
 

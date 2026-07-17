@@ -80,6 +80,12 @@ def _orphan_urns(nodes: Any, edges: Any) -> set[str]:
 class TestDRGZeroDelta:
     """The projection re-point leaves the shipped DRG graph unchanged (NFR-002)."""
 
+    # Accepted P0 red (regression): the `red-main-release-discipline` procedure
+    # landed (1eb035e20) as a doctrine source without regenerating the shipped
+    # DRG / bumping this zero-delta baseline (280), so the extractor now sees a
+    # node the frozen baseline does not. Reconciliation is owned by the in-flight
+    # step-authority DRG work (#2721 / #2751); honest red until it lands.
+    @pytest.mark.regression
     def test_regenerated_graph_matches_baseline_counts(self, tmp_path: Path) -> None:
         graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
 
@@ -88,6 +94,12 @@ class TestDRGZeroDelta:
         orphans = _orphan_urns(graph.nodes, graph.edges)
         assert len(orphans) == _EXPECTED_ORPHAN_COUNT  # golden-count: cardinality-is-contract
 
+    # Accepted P0 red (regression): same root cause as
+    # test_regenerated_graph_matches_baseline_counts — the red-main procedure
+    # (1eb035e20) landed without regenerating the shipped DRG, so the extractor
+    # and the shipped graph split-brain. Owned by in-flight step-authority DRG
+    # work (#2721 / #2751); honest red until it lands.
+    @pytest.mark.regression
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:
         """A fresh regeneration matches the committed shipped graph exactly."""
         shipped = load_built_in_graph()
