@@ -13,13 +13,13 @@ clears the path to merge once the gate passes.
 
 ---
 
-## 📍 WORKING DIRECTORY: Run from the MAIN repository
+## 📍 WORKING DIRECTORY: Run from the repository root checkout
 
-**IMPORTANT**: Acceptance runs from the primary repository checkout root, NOT
+**IMPORTANT**: Acceptance runs from the repository root checkout, NOT
 from a work-package worktree.
 
 ```bash
-# If you are inside a worktree, return to the main checkout first:
+# If you are inside a worktree, return to the repository root checkout first:
 cd $(git rev-parse --show-toplevel)
 ```
 
