@@ -41,6 +41,21 @@ the catalog's computed pick and the profile's declared
 modes are read-but-not-differentiated here (out of scope, C-004); the
 resolved mode is still carried on the recommendation for callers to
 inspect.
+
+Step model-tier offer (FR-008; D4/C-002; live consumer, WP08)
+---------------------------------------------------------------
+``evaluate`` optionally accepts ``recommended_model_tier`` (a
+``MissionStep``'s advisory model-tier offer, read from the caller's own
+step lookup) and ``model_tier_override`` (a charter/runtime override).
+Both are resolved through the one named seam,
+:func:`doctrine.missions.step_offer_seam.resolve_model_tier_offer`, with
+**override-wins** precedence, and the resolution is surfaced on
+:attr:`RoutingRecommendation.model_tier`. This is additive and advisory
+only -- it never changes ``catalog_candidate``/``profile_candidate``
+scoring, so routing authority never leaks into doctrine (C-002). When
+neither argument is supplied (the default), ``model_tier`` is ``None``
+and evaluator behavior is byte-for-byte unchanged from before this offer
+existed.
 """
 
 from __future__ import annotations
@@ -49,6 +64,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from doctrine.agent_profiles.profile import AgentProfile
+from doctrine.missions.step_offer_seam import OfferResolution, resolve_model_tier_offer
 from doctrine.model_task_routing.models import (
     Confidence,
     CostTier,
@@ -109,12 +125,19 @@ class RoutingCandidate:
 @dataclass(frozen=True)
 class RoutingRecommendation:
     """The evaluator's output: a task_type-scoped, provenance-tagged set
-    of candidates plus the objective/override-mode that produced them."""
+    of candidates plus the objective/override-mode that produced them.
+
+    ``model_tier`` is the resolved ``recommended_model_tier`` offer
+    (:func:`doctrine.missions.step_offer_seam.resolve_model_tier_offer`),
+    or ``None`` when the caller supplied neither a step offer nor an
+    override -- the default, behavior-preserving state (WP08).
+    """
 
     task_type: str
     objective: str
     override_mode: str
     candidates: tuple[RoutingCandidate, ...]
+    model_tier: OfferResolution | None = None
 
     @property
     def catalog_candidate(self) -> RoutingCandidate | None:
@@ -226,8 +249,28 @@ def _profile_candidate(profile: AgentProfile) -> RoutingCandidate | None:
     )
 
 
+def _resolve_model_tier(
+    recommended_model_tier: str | None, model_tier_override: str | None
+) -> OfferResolution | None:
+    """Resolve the step's model-tier offer via the one named seam.
+
+    Returns ``None`` -- not an :class:`OfferResolution` with empty
+    fields -- when the caller supplies neither argument, so
+    ``RoutingRecommendation.model_tier`` stays absent for every existing
+    caller that does not yet pass a step offer (behavior-preserving).
+    """
+    if recommended_model_tier is None and model_tier_override is None:
+        return None
+    return resolve_model_tier_offer(step_offer=recommended_model_tier, override=model_tier_override)
+
+
 def evaluate(
-    catalog: ModelToTaskType, task_type: str, profile: AgentProfile
+    catalog: ModelToTaskType,
+    task_type: str,
+    profile: AgentProfile,
+    *,
+    recommended_model_tier: str | None = None,
+    model_tier_override: str | None = None,
 ) -> RoutingRecommendation:
     """Compute a routing recommendation. Pure, deterministic, never raises
     on "no match"/empty ``task_fit`` -- it returns fewer candidates instead.
@@ -235,6 +278,16 @@ def evaluate(
     Under ``override_policy.mode == "advisory"`` (the only mode exercised,
     C-004), both the catalog pick and the profile's declared model are
     surfaced with provenance; neither is enforced over the other.
+
+    ``recommended_model_tier`` (a step's advisory offer, FR-008) and
+    ``model_tier_override`` (a charter/runtime override) are both
+    optional and default to ``None``: omitting both reproduces prior
+    behavior exactly (``model_tier=None`` on the result). When either is
+    supplied, they are resolved through
+    :func:`doctrine.missions.step_offer_seam.resolve_model_tier_offer`
+    with override-wins precedence (D4/C-002) -- this never influences
+    ``catalog_candidate``/``profile_candidate``, only the surfaced
+    ``model_tier`` resolution.
     """
     catalog_pick = _best_catalog_candidate(catalog, task_type)
     profile_pick = _profile_candidate(profile)
@@ -246,4 +299,5 @@ def evaluate(
         objective=str(policy.objective.value),
         override_mode=str(policy.override_policy.mode.value),
         candidates=candidates,
+        model_tier=_resolve_model_tier(recommended_model_tier, model_tier_override),
     )

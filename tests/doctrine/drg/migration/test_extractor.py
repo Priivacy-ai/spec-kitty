@@ -28,6 +28,7 @@ from doctrine.drg.migration.extractor import (
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import resolve_context
 from doctrine.drg.validator import validate_graph
+from doctrine.missions.mission_type_repository import MissionTypeRepository
 
 # Path to the shipped doctrine root inside the repo.
 
@@ -692,13 +693,21 @@ MISSION_TYPES_DIR = DOCTRINE_ROOT / "missions" / "mission_types"
 
 
 def _shipped_action_sequences() -> dict[str, list[str]]:
-    """Read every shipped mission-type YAML's ``action_sequence``."""
-    sequences: dict[str, list[str]] = {}
-    for path in sorted(MISSION_TYPES_DIR.glob("*.yaml")):
-        data: Any = _yaml.load(path)
-        assert isinstance(data, dict)
-        sequences[data["id"]] = list(data.get("action_sequence", []) or [])
-    return sequences
+    """Resolved ``action_sequence`` per shipped mission type via the WP02 seam.
+
+    Re-pointed (WP04, T013) from a raw ``data.get("action_sequence")`` YAML
+    read to :class:`MissionTypeRepository`'s resolved value -- the same
+    projection-or-fallback seam :func:`extract_mission_type_edges` now reads.
+    A raw-YAML read would go red at the WP07 cutover once ``action_sequence``
+    is no longer authored in the shipped YAML; reading through the repository
+    turns this into a referential-integrity check that survives the cutover
+    unchanged.
+    """
+    repo = MissionTypeRepository(MISSION_TYPES_DIR)
+    return {
+        mission_type.id: list(mission_type.action_sequence or [])
+        for mission_type in repo.load_all()
+    }
 
 
 @pytest.mark.doctrine

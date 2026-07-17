@@ -156,7 +156,10 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
         current_seq = []
 
     mt = MissionTypeRepository.default().get(artifact_id)
-    incoming_seq: list[str] = list(mt.action_sequence) if mt is not None else []
+    # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
+    # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
+    # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
+    incoming_seq: list[str] = list(mt.action_sequence or []) if mt is not None else []
 
     removed = find_removed_steps(current_seq, incoming_seq)
     if removed:

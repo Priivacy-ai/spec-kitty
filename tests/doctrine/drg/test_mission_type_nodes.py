@@ -25,6 +25,7 @@ from ruamel.yaml import YAML
 
 from doctrine.drg.migration.extractor import generate_graph
 from doctrine.drg.models import DRGNode, NodeKind, Relation
+from doctrine.missions.mission_type_repository import MissionTypeRepository
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -91,12 +92,21 @@ class TestMissionTypeNodeGeneration:
         assert actual_by_urn == expected_by_urn
 
     def _shipped_action_sequences(self) -> dict[str, list[str]]:
-        sequences: dict[str, list[str]] = {}
-        for path in sorted(MISSION_TYPES_DIR.glob("*.yaml")):
-            data = _yaml.load(path)
-            assert isinstance(data, dict)
-            sequences[data["id"]] = list(data.get("action_sequence", []) or [])
-        return sequences
+        """Resolved ``action_sequence`` per shipped mission type via the WP02 seam.
+
+        Re-pointed (WP04, T013) from a raw ``data.get("action_sequence")`` YAML
+        read to :class:`MissionTypeRepository`'s resolved value -- the same
+        projection-or-fallback seam :func:`extract_mission_type_edges` now
+        reads. A raw-YAML read would go red at the WP07 cutover once
+        ``action_sequence`` is no longer authored in the shipped YAML; reading
+        through the repository turns this into a referential-integrity check
+        that survives the cutover unchanged.
+        """
+        repo = MissionTypeRepository(MISSION_TYPES_DIR)
+        return {
+            mission_type.id: list(mission_type.action_sequence or [])
+            for mission_type in repo.load_all()
+        }
 
     def test_mission_type_nodes_have_outbound_requires_edges(
         self, tmp_path: Path

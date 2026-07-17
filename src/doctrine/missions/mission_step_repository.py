@@ -96,16 +96,26 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
 
     The mapping between step.yaml field names and MissionStep field names:
 
-    step.yaml field   → MissionStep field
-    ─────────────────────────────────────
-    id                → id
-    display_name      → display_name  (human-readable label; also accessible as .title)
-    step_type         → step_type     (executor discriminant)
-    prompt_template   → prompt_template
-    agent_profile     → agent-profile (alias)
-    depends_on        → depends_on
-    (guidance)        → stripped (not in MissionStep)
-    (delegates_to)    → stripped (not in MissionStep)
+    step.yaml field         → MissionStep field
+    ─────────────────────────────────────────────
+    id                      → id
+    display_name            → display_name  (human-readable label; also accessible as .title)
+    step_type               → step_type     (executor discriminant)
+    prompt_template         → prompt_template
+    agent_profile           → agent-profile (alias)
+    depends_on              → depends_on
+    sequence_index          → sequence_index          (S-B, WP01)
+    in_action_sequence      → in_action_sequence       (S-B, WP01)
+    recommended_model_tier  → recommended_model_tier   (S-B, WP01; advisory offer, WP08 consumer)
+    template                → template                 (S-B, WP01; MissionStepTemplateRef)
+    (guidance)              → stripped (not in MissionStep)
+    (delegates_to)          → stripped (not in MissionStep)
+
+    ``MissionStep`` is ``extra="forbid"`` — any field absent from this
+    mapping is **silently stripped** before validation rather than raising.
+    Every new ``MissionStep`` field MUST be added here or it vanishes on
+    load with no error (see :mod:`tests.doctrine.missions.test_step_schema`
+    for the round-trip regression guard).
     """
     if not step_file.exists():
         return None
@@ -124,6 +134,10 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
         "prompt_template": "prompt_template",
         "agent_profile": "agent-profile",  # alias
         "depends_on": "depends_on",
+        "sequence_index": "sequence_index",
+        "in_action_sequence": "in_action_sequence",
+        "recommended_model_tier": "recommended_model_tier",
+        "template": "template",
     }
     mapped: dict[str, Any] = {}
     for src_key, dst_key in _STEP_YAML_TO_MODEL.items():

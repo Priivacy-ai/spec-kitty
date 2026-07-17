@@ -87,7 +87,10 @@ def charter_mission_type_list(
                 repo_root, mission_type=mt_id
             ).action_sequence
         except UnknownMissionTypeError:
-            action_seq = list(mt.action_sequence)
+            # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
+            # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
+            # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
+            action_seq = list(mt.action_sequence or [])
 
         rows.append(
             {

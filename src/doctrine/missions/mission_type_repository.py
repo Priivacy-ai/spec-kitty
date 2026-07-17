@@ -8,7 +8,9 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from .mission_step_repository import MissionStepRepository
 from .models import MissionType
+from .step_projection import project_action_sequence, project_template_set
 
 __all__ = [
     "MissionTypeRepository",
@@ -44,8 +46,28 @@ class MissionTypeRepository:
     # ------------------------------------------------------------------
 
     @classmethod
+    @functools.cache
     def default(cls) -> MissionTypeRepository:
-        """Return a repository loaded from the doctrine-bundled mission_types directory."""
+        """Return a repository loaded from the doctrine-bundled mission_types directory.
+
+        Memoized (NFR-007, WP02): loading a mission type now also resolves
+        that type's builtin ``step.yaml`` set to compute the
+        ``action_sequence``/``template_set`` projection (see
+        :func:`_inject_projected_fields`), so an un-memoized ``default()``
+        would re-walk and re-parse the entire ``mission-steps/`` tree on
+        every hot-path call. Reuses the exact ``@functools.cache`` idiom
+        applied to :func:`builtin_mission_type_ids` below.
+
+        Test seam: call ``MissionTypeRepository.default.cache_clear()``
+        (auto-provided by ``functools.cache``, reachable through the
+        classmethod's bound-method attribute proxy) to force a rebuild --
+        e.g. after pointing at a synthetic ``mission_types/`` fixture tree.
+        Production never mutates the bundled ``mission_types/``/
+        ``mission-steps/`` trees mid-process, so the cache is safe there;
+        tests must never write into the real bundled trees to exercise this
+        seam (mirrors the ``builtin_mission_type_ids`` cache-vs-test-seam
+        contract, C-010).
+        """
         try:
             from importlib.resources import files
 
@@ -119,7 +141,8 @@ class MissionTypeRepository:
                 raise ValueError(
                     f"Expected a YAML mapping in {yaml_file}; got {type(raw).__name__}"
                 )
-            mission_type = MissionType.model_validate(raw)
+            payload = _inject_projected_fields(raw, mission_type_id=yaml_file.stem)
+            mission_type = MissionType.model_validate(payload)
             expected_id = yaml_file.stem
             if mission_type.id != expected_id:
                 raise ValueError(
@@ -130,6 +153,54 @@ class MissionTypeRepository:
             index[mission_type.id] = mission_type
 
         return index
+
+
+# ----------------------------------------------------------------------------
+# WP02 projection injection (S-B transitional seam)
+# ----------------------------------------------------------------------------
+
+
+def _inject_projected_fields(raw: dict[str, Any], *, mission_type_id: str) -> dict[str, Any]:
+    """Overlay the WP02 projection onto *raw* YAML fields before validation.
+
+    Resolves *mission_type_id*'s **builtin-only** step set
+    (``pack_context=None`` -- org/project overrides never leak into this
+    repository-load-time injection; those apply through the separate
+    runtime consumer switch, WP06) and derives ``action_sequence`` /
+    ``template_set`` via
+    :func:`~doctrine.missions.step_projection.project_action_sequence` /
+    :func:`~doctrine.missions.step_projection.project_template_set`.
+
+    **Transitional fallback (today, pre-WP03/WP05/WP07):**
+    ``action_sequence`` and ``template_set`` are still YAML-authored for
+    every built-in mission type. Until a given type's steps carry
+    ``sequence_index``/``in_action_sequence``/``template`` data, the
+    projection over that type's steps is legitimately empty. Injecting an
+    empty value in that case would both violate ``MissionType``'s
+    non-empty invariant for ``action_sequence`` and silently blank out an
+    authored ``template_set``. So an **empty projection falls back to the
+    raw YAML-authored value** rather than overwriting it; only a
+    *non-empty* projection is injected in its place. This keeps
+    ``MissionTypeRepository`` behavior-preserving for every mission type
+    until WP03 (software-dev step data) and WP05 (four-type unification)
+    land and WP07 removes the authored fields from the YAML entirely
+    (the S-B cutover).
+    """
+    steps = list(
+        MissionStepRepository.default()
+        .resolve_all_for_mission_type(mission_type_id, pack_context=None)
+        .values()
+    )
+
+    projected_sequence = project_action_sequence(steps)
+    projected_templates = project_template_set(steps)
+
+    payload = dict(raw)
+    payload["action_sequence"] = projected_sequence or raw.get("action_sequence")
+    payload["template_set"] = (
+        projected_templates if projected_templates is not None else raw.get("template_set")
+    )
+    return payload
 
 
 # ----------------------------------------------------------------------------

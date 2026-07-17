@@ -26,6 +26,8 @@ from doctrine.drg.migration.calibrator import calibrate_surfaces
 from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
+from doctrine.missions.mission_step_repository import MissionStepRepository
+from doctrine.missions.step_projection import project_action_sequence
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 
@@ -832,21 +834,52 @@ def _discover_mission_type_nodes(
         _ensure_node(nodes_by_urn, urn, NodeKind.MISSION_TYPE, label or None)
 
 
+def _resolve_action_sequence(
+    step_repo: MissionStepRepository, mission_type_id: str, data: dict[str, Any]
+) -> list[str]:
+    """Resolve *mission_type_id*'s action sequence via the WP02 projection seam.
+
+    Builtin-only (``pack_context=None``): org/project overrides never leak into
+    the shipped graph -- those apply through the separate runtime consumer
+    switch (WP06), not this repository-load-time extraction. Steps are read
+    through :meth:`MissionStepRepository.resolve_all_for_mission_type` (never a
+    raw ``mission-steps/`` directory listing at this call site -- a naive
+    listing would blow ``software-dev`` from 5 to 12 edges by including its 7
+    non-sequence steps).
+
+    Mirrors the transitional fallback in
+    :func:`~doctrine.missions.mission_type_repository._inject_projected_fields`:
+    an empty projection -- mission types whose steps are not yet annotated
+    with ``sequence_index``/``in_action_sequence`` (pending WP05) -- falls
+    back to the still-authored raw YAML ``action_sequence`` so the shipped
+    graph stays byte-identical (NFR-002) until the full cutover (WP07).
+    """
+    steps = step_repo.resolve_all_for_mission_type(
+        mission_type_id, pack_context=None
+    ).values()
+    projected = project_action_sequence(steps)
+    return projected or list(data.get("action_sequence", []) or [])
+
+
 def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
     """Emit ``mission_type:<id> --requires--> action:<id>/<step>`` edges.
 
-    For each shipped mission-type YAML, read its ``action_sequence`` and emit
+    For each shipped mission-type YAML, resolve its action sequence through
+    the WP02 projection seam (see :func:`_resolve_action_sequence`) and emit
     one :attr:`Relation.REQUIRES` edge per step to the matching
     ``action:<id>/<step>`` node minted by :func:`extract_action_edges`. Steps
-    absent from every ``action_sequence`` (e.g. ``retrospect``) get no edge;
-    they remain non-orphan via their own ``scope`` edges. Each edge is emitted
-    exactly once (steps within a sequence are unique), so no dedup is needed
-    here -- duplicate/dangling/cycle safety is enforced by ``assert_valid``.
+    absent from every action sequence (e.g. ``retrospect``, and
+    ``software-dev``'s 7 non-sequence steps) get no edge; they remain
+    non-orphan via their own ``scope`` edges. Each edge is emitted exactly
+    once (steps within a sequence are unique), so no dedup is needed here --
+    duplicate/dangling/cycle safety is enforced by ``assert_valid``.
     """
     edges: list[DRGEdge] = []
+    step_repo = MissionStepRepository(doctrine_root / "missions" / "mission-steps")
     for mission_type_id, data, _path in _iter_mission_type_data(doctrine_root):
         source_urn = artifact_to_urn("mission_type", mission_type_id)
-        for step in data.get("action_sequence", []) or []:
+        sequence = _resolve_action_sequence(step_repo, mission_type_id, data)
+        for step in sequence:
             edges.append(
                 DRGEdge(
                     source=source_urn,
