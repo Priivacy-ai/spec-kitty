@@ -28,6 +28,13 @@ from specify_cli.configured_command import ConfiguredCommandUnsupported, run_con
 
 logger = logging.getLogger(__name__)
 
+# Wall-clock bound for a single scoped/full test run. Shared with the
+# pre-review gate's head-run default
+# (``pre_review_gate._DEFAULT_HEAD_RUN_TIMEOUT``) so the two mirror each other
+# by construction rather than by a hand-copied literal that could silently
+# diverge when one is retuned.
+CAPTURE_BASELINE_TIMEOUT_SECONDS = 300  # 5 minutes
+
 
 @dataclass(frozen=True)
 class BaselineFailure:
@@ -294,7 +301,7 @@ def capture_baseline(
                     capture_output=True,
                     text=True,
                     check=False,
-                    timeout=300,  # 5 minute timeout
+                    timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
                 )
             except ConfiguredCommandUnsupported as exc:
                 logger.warning("Test command is not supported on this platform: %s", exc)

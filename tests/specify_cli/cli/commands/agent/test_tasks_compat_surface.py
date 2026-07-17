@@ -60,8 +60,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # retired seam file's own ``_MOVE_SET`` (grouped for readability; the guard
 # treats the union as one required key-set). Counts noted per group for
 # traceability against the seam files' own docstring counts at authoring
-# time (finalize=8, map_requirements=15, shared=21, status_cmd=21,
-# move_task=60, mark_status=13 — 138 total).
+# time (finalize=8, map_requirements=15, shared=20, status_cmd=21,
+# move_task=65, mark_status=13 — 142 total).
 # ---------------------------------------------------------------------------
 
 _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols

@@ -57,6 +57,7 @@ from typing import cast
 from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.baseline import (
+    CAPTURE_BASELINE_TIMEOUT_SECONDS,
     BaselineFailure,
     BaselineTestResult,
     _parse_junit_xml,
@@ -111,7 +112,7 @@ _EMPTY_COMPOSITE_ROUTE: _CompositeRoute = (None, None, ())
 _LoadWorkflowModels = Callable[[], dict[str, object]]
 _AggregateFilterGroups = Callable[[dict[str, object]], dict[str, tuple[str, ...]]]
 
-_DEFAULT_HEAD_RUN_TIMEOUT = 300  # seconds; mirrors baseline.py's capture_baseline timeout.
+_DEFAULT_HEAD_RUN_TIMEOUT = CAPTURE_BASELINE_TIMEOUT_SECONDS  # shared with baseline.py's capture_baseline.
 _HEAD_RUN_HEARTBEAT_INTERVAL = 30.0
 _HEAD_RUN_TERMINATE_GRACE = 5.0
 
