@@ -22,15 +22,19 @@ closes).
 Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
 37 registered markers; `_gate_coverage.load_gates()` + `collect_universe()`):
 
-  ROUTED-BY-MARKER (10): architectural, contract, fast, git_repo, integration,
-      quarantine, slow, timing, unit, windows_ci
+  ROUTED-BY-MARKER (11): architectural, contract, fast, git_repo, integration,
+      quarantine, regression, slow, timing, unit, windows_ci
       (`quarantine` is routed by the NON-BLOCKING `quarantine-visibility` gate —
       the spec's documented edge case: a job selects it, so it is ROUTED;
       blocking-ness is a separate axis. Its held-out population is governed by
       #2295/#2309 (17) + #2342 (`test_200_missions_under_5s`) and is never
-      hard-pinned here.)
-  ROUTED-BY-PATH (15): adversarial, agent, asyncio, distribution, doctrine,
-      e2e, flaky, no_git_tmp_path, no_readiness_stub, non_sandbox, regression,
+      hard-pinned here. `regression` is routed the same way by the NON-BLOCKING
+      `regression-visibility` gate (#2774): red-first P0 reproductions carry
+      orphan carriers by path — e.g. `tests/delivery/` reaches no path gate — so
+      an explicit `-m regression` job is their required, visible CI home rather
+      than a silent CI_INVISIBLE entry.)
+  ROUTED-BY-PATH (14): adversarial, agent, asyncio, distribution, doctrine,
+      e2e, flaky, no_git_tmp_path, no_readiness_stub, non_sandbox,
       requires_symlinks, stress, timeout, upgrade
       (each has >=1 collected carrier and ZERO orphan carriers — verified via
       the orphan model; NOT hand-asserted. The spec's illustrative
