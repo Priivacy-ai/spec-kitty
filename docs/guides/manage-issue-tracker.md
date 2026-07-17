@@ -1,12 +1,14 @@
 ---
 title: Managing the Issue Tracker
-description: 'Conventions for the Spec Kitty issue tracker: functional epics versus meta-trackers, native sub-issue parenting, and blocked_by dependencies.'
+description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, and triage (type, severity, release-blocking bugs).'
 doc_status: active
-updated: '2026-07-12'
+updated: '2026-07-17'
 related:
 - docs/guides/contributing.md
 - docs/guides/keep-main-clean.md
 - docs/guides/pr-landing.md
+- docs/guides/red-main-and-release-readiness.md
+- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 ---
 
 # Managing the Issue Tracker
@@ -127,8 +129,65 @@ When you decompose an epic into issues:
   record that with evidence rather than filing a phantom "to-do" ticket that
   misrepresents completed work as pending.
 
+## Triaging issues: type, severity, and release-blocking bugs
+
+Every open issue carries two orthogonal classifications a triage pass must get
+right: **what kind of thing it is** (native type) and **how urgent it is**
+(priority). They are set independently and mean different things.
+
+### Native type is the kind carrier
+
+Set the GitHub **native issue type** — `Task`, `Bug`, or `Feature` (the tokens
+are case-sensitive: `gh issue edit <N> --type Bug`). The type is the *sole* kind
+carrier; the old `bug` label was retired repo-wide and must not be reintroduced.
+A capability request wearing a bug title is a `Feature` (retype it, don't leave
+it as a `Bug`). `enhancement` is a Feature, not a separate kind.
+
+### Priority, and what makes a P0
+
+Priority is a label (`priority:P0` … `priority:P3`). **`priority:P0` on a `Bug`
+means a release-blocking defect** — and, per
+[ADR 2026-07-17-1](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
+that has teeth: **an open P0 bug is expected to red mainline**, mainline CI is the
+authoritative release gate, and **red CI means no release**.
+
+Because a P0 bug halts the release train, calibrate it deliberately. A bug is P0
+if it trips any of:
+
+- **Data/state corruption or loss** — overwrites recorded results, poisons/drops
+  events, wrong-authority or split-brain committed writes.
+- **Silent wrong result / false success** — a command reports success but skips or
+  loses work (especially damning under the honesty ADR).
+- **Core workflow broken with no workaround** — cannot implement / review / merge /
+  accept / commit a mission; a deadlock or hang with no escape hatch.
+- **Blocks release** directly, or a **security** exposure (credentials/secrets).
+
+Downgrade below P0 when a clear workaround exists, the fault is edge-case-only,
+cosmetic/UX, or confined to a dev-assist command. **Do not inflate P0** —
+crying wolf devalues the red-mainline signal; and **do not under-call** a genuine
+corruption or hang. Escalation to P0 is an operator decision.
+
+Priority on a **non-bug** means something else: a `priority:P0` `Feature`/`Task`
+is the priority of *planned work*, not a release-blocking defect — it does not
+imply a red mainline.
+
+### A P0 bug should carry a failing reproduction test
+
+Per the ADR, when you file or accept a P0 bug, land an **issue-pinned red-first
+reproduction test** so mainline honestly reflects the blocker rather than merely
+asserting it. Mark it `@pytest.mark.regression` (the issue-pinned
+exact-reproduction marker — **not** `quarantine`, which is built to *never* red
+main), reproduce the defect through the pre-existing entry point, and note in the
+test that it is an intentional red-first P0 reproduction referencing its tracking
+issue. It must fail because of the product defect, not a test error — a
+false red corrupts the signal it exists to give. Expensive QA and manual testing
+wait for green; maintainers prioritize red recovery. See the
+[red-main policy](red-main-and-release-readiness.md).
+
 ## See also
 
 - [Contributing to Spec Kitty](contributing.md) — pull-request and maintainer workflow.
 - [Keep main clean](keep-main-clean.md) — branch and merge discipline.
-- [PR landing](pr-landing.md) — the fork-PR landing runbook.
+- [PR landing](pr-landing.md) — the fork-PR landing runbook, incl. red classification.
+- [Red main and release readiness](red-main-and-release-readiness.md) — what a red main means and the release gate.
+- [ADR 2026-07-17-1 — Red main is honest signal; CI is the release authority](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
