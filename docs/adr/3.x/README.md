@@ -82,3 +82,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-14 | [Doctrine → Charter → Core Mission-Type Resolution Unification (governance first)](2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) |
 | 2026-07-16 | [WP runtime-state authority — evict runtime-mutable state from tasks/WP##.md into the canonical event log](2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md) |
 | 2026-07-16 | [Steps are the mission-type building block; "template" is a doctrine artefact kind](2026-07-16-2-mission-type-step-authority-and-template-vocabulary.md) |
+| 2026-07-17 | [Red main is honest signal; CI status is the release authority](2026-07-17-1-red-main-is-honest-ci-is-release-authority.md) |
