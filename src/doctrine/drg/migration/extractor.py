@@ -27,7 +27,8 @@ from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
 from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.step_projection import project_action_sequence
+from doctrine.missions.step_projection import iter_template_refs, project_action_sequence
+from doctrine.template_catalog import template_id_for, template_urn
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 
@@ -890,6 +891,70 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
     return edges
 
 
+def extract_template_instantiation_edges(
+    doctrine_root: Path,
+) -> tuple[list[DRGNode], list[DRGEdge]]:
+    """Emit ``template:<mission>/<file>`` nodes + ``action --instantiates--> template`` edges.
+
+    Graphs-back the ``mission_type -> step -> template`` chain (FR-009): a
+    step's ``template`` field is a structured :class:`MissionStepTemplateRef`,
+    not a ``references:`` list entry, so no existing pass ever traverses it --
+    unlike :func:`extract_mission_type_edges` (modelled on here), this is a
+    genuinely new pass rather than an unskip of ``_SKIP_REF_TYPES`` (which is
+    empty).
+
+    For each shipped mission-type YAML, resolve its steps through the same
+    builtin-only :meth:`MissionStepRepository.resolve_all_for_mission_type`
+    seam :func:`extract_mission_type_edges` uses, then walk
+    :func:`~doctrine.missions.step_projection.iter_template_refs` -- the
+    **sole traversal** of ``MissionStep.template`` (C-003) -- rather than
+    re-checking ``step.template`` independently here.
+
+    Each ``(step, template_ref)`` pair mints:
+
+    - a mission-qualified ``template:<mission_type>/<template_file>`` node
+      (via :func:`doctrine.template_catalog.template_urn`), deduplicated by
+      URN (two steps in the same mission type never share a template file
+      today, but a future one might);
+    - one :attr:`Relation.INSTANTIATES` edge from the step's own
+      ``action:<mission_type>/<step_id>`` node (already minted by
+      :func:`extract_action_edges`) to that template node.
+
+    Edges are emitted sorted by ``(source, target)`` (FR-011) so the pass is
+    deterministic independent of the composing ``generate_graph`` sort.
+    Callers land the returned edges in ``action.graph.yaml`` (action-sourced)
+    and the returned nodes in ``template.graph.yaml`` (nodes only) -- the 16
+    bare ``template:<name>`` exemplars (#2712) are untouched by this pass,
+    which only ever mints mission-qualified URNs.
+    """
+    nodes: list[DRGNode] = []
+    edges: list[DRGEdge] = []
+    seen_node_urns: set[str] = set()
+    step_repo = MissionStepRepository(doctrine_root / "missions" / "mission-steps")
+    for mission_type_id, _data, _path in _iter_mission_type_data(doctrine_root):
+        steps = step_repo.resolve_all_for_mission_type(
+            mission_type_id, pack_context=None
+        ).values()
+        for step, template_ref in iter_template_refs(steps):
+            template_id = template_id_for(mission_type_id, template_ref.template_file)
+            node_urn = template_urn(template_id)
+            if node_urn not in seen_node_urns:
+                seen_node_urns.add(node_urn)
+                nodes.append(
+                    DRGNode(urn=node_urn, kind=NodeKind.TEMPLATE, label=template_id)
+                )
+            action_urn = artifact_to_urn("action", f"{mission_type_id}/{step.id}")
+            edges.append(
+                DRGEdge(
+                    source=action_urn,
+                    target=node_urn,
+                    relation=Relation.INSTANTIATES,
+                )
+            )
+    edges.sort(key=lambda e: (e.source, e.target))
+    return nodes, edges
+
+
 def generate_graph(
     doctrine_root: Path,
     output_path: Path,
@@ -928,10 +993,21 @@ def generate_graph(
     # Step 4b: Discover mission-type nodes
     _discover_mission_type_nodes(doctrine_root, nodes_by_urn)
 
+    # Step 4c: Graph-back the mission_type->step->template chain (FR-009):
+    # mint mission-qualified template nodes + action->template instantiates
+    # edges from the WP01 iter_template_refs projection.
+    template_nodes, template_instantiation_edges = extract_template_instantiation_edges(
+        doctrine_root
+    )
+    for node in template_nodes:
+        _ensure_node(nodes_by_urn, node.urn, node.kind, node.label)
+
     # Step 5: Merge all edges (mission_type->action edges join before
     # calibration + the deterministic sort so they are treated uniformly)
     mission_type_edges = extract_mission_type_edges(doctrine_root)
-    all_edges = artifact_edges + action_edges + mission_type_edges
+    all_edges = (
+        artifact_edges + action_edges + mission_type_edges + template_instantiation_edges
+    )
 
     # Step 6: Calibrate surfaces
     all_nodes_list = list(nodes_by_urn.values())

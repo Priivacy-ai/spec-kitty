@@ -40,10 +40,12 @@ __all__ = [
     "ResolutionResult",
     "ResolutionTier",
     "TemplateConfigurationError",
+    "TemplateURNError",
     "resolve_command",
     "resolve_configured_template",
     "resolve_mission",
     "resolve_template",
+    "resolve_template_by_urn",
 ]
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
@@ -82,6 +84,23 @@ class TemplateConfigurationError(ValueError):
             f"Template configuration for mission type {self.mission_type!r} "
             f"and artifact kind {artifact_kind!r} {reason}."
         )
+
+
+class TemplateURNError(ValueError):
+    """Raised when a mission-qualified template URN cannot be resolved.
+
+    Covers both malformed URNs (absent, blank, missing the ``template:``
+    prefix, or not of the ``<mission>/<name>`` shape after the prefix) and
+    well-formed URNs that no tier resolves. Fail-closed per C-001: the
+    mission segment is never inferred or defaulted when absent.
+
+    Attributes:
+        urn: The exact URN string that failed to resolve.
+    """
+
+    def __init__(self, *, urn: str, reason: str) -> None:
+        self.urn = urn
+        super().__init__(f"Template URN {urn!r} {reason}.")
 
 
 class _CharterTemplateResolver(Protocol):
@@ -434,6 +453,89 @@ def resolve_configured_template(
             artifact_kind=artifact_kind,
             mapped_filename=mapped_filename,
             reason=f"maps to unresolved filename {mapped_filename!r}",
+        ) from exc
+
+
+#: URN prefix identifying a template node's DRG identity, mirroring
+#: ``doctrine.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
+_TEMPLATE_URN_PREFIX = "template:"
+
+#: ``resolve_template_by_id`` only consults ``TierRoot.project_dir`` for the
+#: override/legacy tiers (verified against ``doctrine.template_catalog``);
+#: ``missions_root`` matters solely to the discovery surface
+#: (``discover_templates``), which this URN lane never calls. A fixed,
+#: non-existent sentinel keeps that fact explicit instead of silently
+#: reusing an unrelated path.
+_URN_LANE_MISSIONS_ROOT_SENTINEL = Path("/nonexistent-template-urn-missions-root")
+
+
+def resolve_template_by_urn(
+    urn: str,
+    project_dir: Path,
+) -> ResolutionResult:
+    """Resolve a mission-qualified ``template:<mission>/<name>`` URN.
+
+    This is Lane 2 of the name↔URN resolution contract (C-004,
+    ``contracts/name-urn-resolution.md``): a graph-addressed resolution path
+    added *alongside* :func:`resolve_configured_template` (Lane 1, the
+    name-based creation path). Neither lane re-wires the other --
+    :func:`resolve_configured_template`'s signature is unchanged.
+
+    The URN is split into its mission-qualified ``<mission>/<name>`` template
+    ID and handed to
+    :func:`doctrine.template_catalog.resolve_template_by_id`, which performs
+    that split itself and delegates to the same Stage-2 five-tier precedence
+    (override > legacy > global-mission > global > package) that
+    :func:`resolve_template` implements -- so an override at
+    ``.kittify/overrides/templates/<file>`` wins on this lane exactly as it
+    does on the name-based lane (US3.3).
+
+    Args:
+        urn: Mission-qualified template URN, e.g.
+            ``"template:software-dev/spec-template.md"``.
+        project_dir: Project root containing ``.kittify/`` (participates in
+            the override/legacy tiers).
+
+    Returns:
+        ResolutionResult from the unchanged five-tier resolver.
+
+    Raises:
+        TemplateURNError: If the URN is absent/blank, missing the
+            ``"template:"`` prefix, malformed (not ``"<mission>/<name>"``
+            after the prefix), or unresolvable at any tier. The mission
+            segment is never inferred or defaulted (C-001, no #2660
+            inference reintroduction) -- an unqualified URN fails closed
+            rather than defaulting to ``"software-dev"``.
+    """
+    if not urn or not urn.strip():
+        raise TemplateURNError(urn=urn, reason="is absent or blank")
+
+    if not urn.startswith(_TEMPLATE_URN_PREFIX):
+        raise TemplateURNError(
+            urn=urn,
+            reason=f"does not start with the required {_TEMPLATE_URN_PREFIX!r} prefix",
+        )
+
+    template_id = urn[len(_TEMPLATE_URN_PREFIX) :]
+
+    from doctrine.template_catalog import TierRoot, resolve_template_by_id  # noqa: PLC0415
+
+    tier_roots = [
+        TierRoot(
+            tier=ResolutionTier.PACKAGE_DEFAULT,
+            missions_root=_URN_LANE_MISSIONS_ROOT_SENTINEL,
+            project_dir=project_dir,
+        )
+    ]
+
+    try:
+        return resolve_template_by_id(template_id, tier_roots=tier_roots)
+    except ValueError as exc:
+        raise TemplateURNError(urn=urn, reason=f"is malformed ({exc})") from exc
+    except FileNotFoundError as exc:
+        raise TemplateURNError(
+            urn=urn,
+            reason=f"could not be resolved at any tier ({exc})",
         ) from exc
 
 

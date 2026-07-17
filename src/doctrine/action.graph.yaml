@@ -111,6 +111,9 @@ edges:
 - source: action:documentation/design
   target: tactic:requirements-validation-workflow
   relation: scope
+- source: action:documentation/design
+  target: template:documentation/documentation-plan-template.md
+  relation: instantiates
 - source: action:documentation/discover
   target: directive:DIRECTIVE_003
   relation: scope
@@ -126,6 +129,9 @@ edges:
 - source: action:documentation/discover
   target: tactic:stakeholder-alignment
   relation: scope
+- source: action:documentation/discover
+  target: template:documentation/documentation-spec-template.md
+  relation: instantiates
 - source: action:documentation/generate
   target: directive:DIRECTIVE_010
   relation: scope
@@ -186,6 +192,12 @@ edges:
 - source: action:documentation/validate
   target: tactic:requirements-validation-workflow
   relation: scope
+- source: action:plan/plan
+  target: template:plan/plan-plan-skeleton.md
+  relation: instantiates
+- source: action:plan/specify
+  target: template:plan/plan-spec-skeleton.md
+  relation: instantiates
 - source: action:research/gathering
   target: directive:DIRECTIVE_003
   relation: scope
@@ -207,6 +219,9 @@ edges:
 - source: action:research/methodology
   target: tactic:requirements-validation-workflow
   relation: scope
+- source: action:research/methodology
+  target: template:research/research-plan-template.md
+  relation: instantiates
 - source: action:research/output
   target: directive:DIRECTIVE_010
   relation: scope
@@ -255,6 +270,9 @@ edges:
 - source: action:research/scoping
   target: tactic:requirements-validation-workflow
   relation: scope
+- source: action:research/scoping
+  target: template:research/research-spec-template.md
+  relation: instantiates
 - source: action:research/synthesis
   target: directive:DIRECTIVE_003
   relation: scope
@@ -399,6 +417,9 @@ edges:
 - source: action:software-dev/plan
   target: tactic:requirements-validation-workflow
   relation: scope
+- source: action:software-dev/plan
+  target: template:software-dev/plan-template.md
+  relation: instantiates
 - source: action:software-dev/retrospect
   target: agent_profile:retrospective-facilitator
   relation: scope
@@ -525,6 +546,9 @@ edges:
 - source: action:software-dev/specify
   target: tactic:requirements-validation-workflow
   relation: scope
+- source: action:software-dev/specify
+  target: template:software-dev/spec-template.md
+  relation: instantiates
 - source: action:software-dev/tasks
   target: directive:DIRECTIVE_003
   relation: scope

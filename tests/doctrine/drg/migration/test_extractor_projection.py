@@ -37,9 +37,21 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #: Baseline DRG counts pinned by the mission-step-authority mission (NFR-002).
 #: Any drift here is a defect, not an accepted change -- see WP04's Definition
 #: of Done in kitty-specs/mission-step-authority-01KXNZMT/tasks/WP04-extractor-repoint.md.
-_EXPECTED_NODE_COUNT = 280
-_EXPECTED_EDGE_COUNT = 757
-_EXPECTED_ORPHAN_COUNT = 10
+#: WP06 (mission-step-creatability-01KXQA6R, S-C / #2724) grafts the
+#: mission_type->step->template chain into the shipped graph: 8 mission-qualified
+#: template nodes (software-dev 2 + documentation/research/plan x {spec,plan})
+#: and 8 matching action->template ``instantiates`` edges (N=8, computed from
+#: the authored ``iter_template_refs`` refs, not hand-picked). Every new
+#: template node gets an ``instantiates`` in-edge (S-C adds 0 orphans).
+#: Re-baselined after rebase onto upstream/main: the base advanced by +1 node
+#: / +1 orphan -- ``procedure:red-main-release-discipline`` was present in the
+#: upstream doctrine source but missing from upstream's shipped graph (a
+#: pre-existing upstream freshness drift this regeneration incidentally fixes).
+#: So the counts are (upstream-source-truth 281/757/11) + S-C's intentional
+#: +8/+8/+0 = 289/765/11.
+_EXPECTED_NODE_COUNT = 289
+_EXPECTED_EDGE_COUNT = 765
+_EXPECTED_ORPHAN_COUNT = 11
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).

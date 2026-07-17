@@ -35,7 +35,6 @@ tests/specify_cli/dossier/test_integration.py::TestLargeArtifactHandling::test_l
 tests/specify_cli/invocation/cli/test_invocations.py::test_list_performance_10k
 tests/specify_cli/invocation/test_doctor_ops.py::test_sweep_nfr_002_10k_files_under_5s
 tests/specify_cli/migration/test_runner.py::TestPerformance::test_migration_completes_in_under_10_seconds_for_5_features
-tests/specify_cli/next/test_runtime_bridge_dispatch.py::TestPerformanceRealIO::test_pack_context_from_config_p99_under_100ms
 tests/stress/test_concurrent_emits.py::test_concurrent_emits_produce_valid_event_log
 tests/sync/test_edge_cases.py::TestConcurrentEmission::test_clock_values_unique_under_concurrency_high_volume
 tests/sync/test_edge_cases.py::TestConcurrentEmission::test_concurrent_emits_no_corruption_high_volume

@@ -7,8 +7,10 @@ Covers:
   guards against the ``extra="forbid"`` silent-strip trap when a new field is
   added to the model but not registered in ``_STEP_YAML_TO_MODEL``.
 - ``MissionStep.prompt_template`` stays a required field (not relaxed).
-- ``MissionType`` loads with ``action_sequence`` / ``template_set`` both
-  present (transitional, YAML-authored) and absent (post-cutover-tolerant).
+- ``MissionType`` loads with ``action_sequence`` present (transitional,
+  YAML-authored) and absent (post-cutover-tolerant). ``template_set`` is no
+  longer a ``MissionType`` field (S-C cutover, mission-step-creatability-01KXQA6R
+  WP01) -- authoring it now raises ``ValidationError`` (SC-002).
 
 FR-001, FR-006, FR-007, FR-014 (S-B, mission-step-authority-01KXNZMT WP01).
 """
@@ -187,31 +189,47 @@ step_type: agent
 
 
 class TestMissionTypeAbsenceTolerant:
-    """``MissionType`` loads with the flat projection-fields present or absent."""
+    """``MissionType`` loads with the flat ``action_sequence`` projection field
+    present or absent. ``template_set`` was retired as a ``MissionType``
+    field entirely (S-C cutover, mission-step-creatability-01KXQA6R WP01,
+    FR-001) -- ``TestTemplateSetRetiredFailsLoudly`` below covers its
+    replacement contract."""
 
-    def test_loads_with_action_sequence_and_template_set_present(self) -> None:
+    def test_loads_with_action_sequence_present(self) -> None:
         mt = MissionType(
             id="software-dev",
             display_name="Software Development",
             action_sequence=["specify", "plan", "tasks", "implement", "review"],
-            template_set={"spec": "spec-template.md", "plan": "plan-template.md"},
         )
 
         assert mt.action_sequence == ["specify", "plan", "tasks", "implement", "review"]
-        assert mt.template_set == {"spec": "spec-template.md", "plan": "plan-template.md"}
 
-    def test_loads_with_action_sequence_and_template_set_absent(self) -> None:
-        """Post-WP07-cutover shape: neither flat field is authored in the YAML."""
+    def test_loads_with_action_sequence_absent(self) -> None:
+        """Post-WP07-cutover shape: the flat field is not authored in the YAML."""
         mt = MissionType(
             id="documentation",
             display_name="Documentation",
         )
 
         assert mt.action_sequence is None
-        assert mt.template_set is None
 
     def test_absent_action_sequence_does_not_trip_non_empty_invariant(self) -> None:
         """Absence is not the same as an authored-empty list — must not raise."""
         mt = MissionType(id="research", display_name="Research")
 
         assert mt.action_sequence is None
+
+
+class TestTemplateSetRetiredFailsLoudly:
+    """SC-002 (S-C cutover, mission-step-creatability-01KXQA6R WP01, FR-001):
+    the retired ``template_set`` field is rejected loudly, not silently
+    honored or dropped, by ``extra="forbid"``."""
+
+    def test_authoring_template_set_raises_validation_error(self) -> None:
+        with pytest.raises(ValidationError, match="template_set"):
+            MissionType(
+                id="software-dev",
+                display_name="Software Development",
+                action_sequence=["specify"],
+                template_set={"spec": "spec-template.md"},  # type: ignore[call-arg]
+            )

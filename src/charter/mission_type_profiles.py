@@ -748,30 +748,43 @@ def _resolve_template_set_slot(
 ) -> Mapping[str, str] | None:
     """Project the activated doctrine mission type's immutable template mapping.
 
-    The doctrine :class:`MissionType` artifact is the sole authority. The
-    similarly named governance-profile string is intentionally not read here.
-    A defensive copy prevents consumers from mutating repository-owned model
-    state, while :class:`types.MappingProxyType` preserves deterministic
-    insertion order behind a read-only public surface.
+    The step authority (``MissionStep.template``) is the sole source. The
+    similarly named governance-profile scalar is intentionally not read
+    here. A defensive copy prevents consumers from mutating repository-owned
+    model state, while :class:`types.MappingProxyType` preserves
+    deterministic insertion order behind a read-only public surface.
 
-    **WP06 confirmation (S-B cutover, mission-step-authority):** this is the
-    *dict* ``MissionType.template_set`` (per-type template mapping), never the
-    unrelated ``doctrine.template_set`` scalar (charter selection authority in
-    ``resolver.py``/``compiler.py``/etc.) — C-008 keeps those surfaces fenced
-    off. Like :func:`_resolve_action_slot`, ``mission.template_set`` here is
-    already the WP02-projected value (``_inject_projected_fields`` overlays
-    ``project_template_set(steps)``, falling back to the authored YAML only
-    while empty); no raw re-read exists to switch.
+    **S-C cutover (mission-step-creatability-01KXQA6R WP01, FR-002):** the
+    persisted ``MissionType.template_set`` field is retired and this slot no
+    longer reads it -- it computes
+    ``project_template_set(steps)`` directly from
+    ``MissionStepRepository.resolve_all_for_mission_type(mission_type,
+    pack_context=None)`` (builtin-only, matching the pre-cutover parity
+    contract). ``pack_context=None`` here means the shared
+    ``resolve_all_for_mission_type`` cache (NFR-003) is warm whenever
+    :class:`MissionTypeRepository`'s ``action_sequence`` overlay already
+    resolved the same ``(mission_type, None)`` pair in this process -- one
+    filesystem walk serves both consumers. This is the *dict* template
+    mapping (per-type template mapping), never the unrelated
+    ``doctrine.template_set`` scalar (charter selection authority in
+    ``resolver.py``/``compiler.py``/etc.) — C-002 keeps those surfaces
+    fenced off.
     """
     if not is_registered:
         return None
 
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+    from doctrine.missions.mission_step_repository import MissionStepRepository  # noqa: PLC0415
+    from doctrine.missions.step_projection import project_template_set  # noqa: PLC0415
 
-    mission = MissionTypeRepository.default().get(mission_type)
-    if mission is None or mission.template_set is None:
+    steps = list(
+        MissionStepRepository.default()
+        .resolve_all_for_mission_type(mission_type, pack_context=None)
+        .values()
+    )
+    template_set = project_template_set(steps)
+    if template_set is None:
         return None
-    return MappingProxyType(dict(mission.template_set))
+    return MappingProxyType(dict(template_set))
 
 
 def _resolve_step_contracts_slot(

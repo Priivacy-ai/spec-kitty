@@ -1,39 +1,42 @@
-"""T017 — prompt-emptiness gate for the mission-steps/ step-authority layout.
+"""T024/T025 -- emptiness-scaffold retirement + positive prompt-floor gate.
 
-Every ``MissionStep.prompt_template`` is a **required** field (see
-``doctrine.missions.models.MissionStep`` docstring): a step with no authored
-prompt yet must still point at a real file, but that file must not stay
-permanently blank -- an empty/dummy prompt is a genuine content gap, not a
-valid terminal state.
+``mission-step-authority-01KXNZMT`` WP05 seeded 16 blank placeholder
+``prompt.md`` files across ``documentation`` (7), ``research`` (5), and
+``plan`` (4) -- the same ``mission-steps/<type>/<step>/`` layout
+``software-dev`` already had. Each blank was tracked as a named,
+individually-visible ``xfail`` so the gate stayed green while content
+authoring (S-C's Concern B: WP02/documentation, WP03/research, WP04/plan)
+was still in flight.
 
-WP05 (``mission-step-authority-01KXNZMT``) seeds **16** blank placeholder
-``prompt.md`` files while giving ``documentation`` (7 sequence steps),
-``research`` (5), and ``plan`` (4) the same ``mission-steps/<type>/<step>/``
-layout ``software-dev`` already has (T014/T015/T016). No prompt content is
-invented here (C-004, DD-06) -- a blank file plus a *named, documented* red is
-the correct disposition for a missing prompt; S-C (a later WP) fills the 16
-placeholders with real content.
+**mission-step-creatability-01KXQA6R WP05 retires that scaffold.** All 16
+prompts are now authored (WP02/WP03/WP04 landed and were approved before
+this WP started) -- ``_SEEDED_BLANK_STEPS`` is empty, so the ``xfail``/
+``zero-bytes``/``_currently_blank`` parametrized tests that exercised the
+seeded-blank census are vacuous and have been removed. In their place this
+module asserts, **positively**, that every dispatch-relevant sequence-step
+``prompt.md`` across all four built-in mission types clears a structural
+floor.
 
-Each of the 16 gaps is asserted individually via ``pytest.mark.xfail(strict=False)``
-so:
+IMPORTANT -- this machine floor is necessary, not sufficient (NFR-004):
+clearing every check below (non-empty, no dummy marker, references
+``$ARGUMENTS``, has at least one ``## `` heading, clears a minimum length)
+proves a prompt is not a *stub*. It does NOT prove the prompt's content is
+substantively correct, complete, or genuinely walks an agent through that
+step's domain-specific process -- a filler paragraph padded past the length
+floor with a heading and ``$ARGUMENTS`` sprinkled in would still pass this
+test. **Genuine per-type substance is a human reviewer gate**, owned by the
+content-authoring work packages themselves (WP02/documentation, WP03/
+research, WP04/plan) at their own review checkpoints -- this test is the
+machine half of that two-part guard, not a replacement for the human half.
 
-* the gap is **named** and **visible** in test output/collection (not folded
-  into a single parametrized "expected failures" blob),
-* the overall gate stays **green** (an xfail is not a suite failure) so this
-  WP does not block on content only S-C is scoped to author,
-* the moment S-C fills a given prompt, that step's xfail becomes an
-  ``XPASS`` -- a visible signal (not a silent hard-pass) that the gap has
-  been closed and the ``xfail`` marker for that step should be deleted.
+``retrospect`` (documentation, research) stays out of scope here, same as
+the retired scaffold: it is authored with ``in_action_sequence: false``
+(never a member of the dispatched action sequence, NFR-006) and its
+prompt is validated only for model presence (``MissionStep.prompt_template``
+is required), never for content quality.
 
-``retrospect`` (documentation, research) is out of scope for this gate: it is
-authored with ``in_action_sequence: false`` (never part of the dispatched
-action sequence NFR-006 protects) and is not one of the 16 steps WP05's
-content census names. Its placeholder prompt is seeded for model validity
-(``MissionStep.prompt_template`` is required) but intentionally not asserted
-here -- scoping the emptiness gate to the dispatch-relevant 16 keeps this
-test's "exactly 16 named gaps" contract precise instead of silently growing.
-
-FR-005, FR-013 (S-B, mission-step-authority-01KXNZMT WP05, T017).
+FR-005, FR-013, NFR-004 (S-B mission-step-authority-01KXNZMT WP05 origin;
+S-C mission-step-creatability-01KXQA6R WP05 retirement, T024/T025).
 """
 
 from __future__ import annotations
@@ -42,161 +45,125 @@ from pathlib import Path
 
 import pytest
 
+from doctrine.missions.mission_step_repository import MissionStepRepository
+from doctrine.missions.mission_type_repository import MissionTypeRepository
+from doctrine.missions.step_projection import project_action_sequence
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-_TESTS_DIR = Path(__file__).parent
 _REPO_ROOT = Path(__file__).parents[3]
 _MISSION_STEPS_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions" / "mission-steps"
-
-# The exact 16 prompt-less steps WP05's content census identified
-# (documentation 7 + research 5 + plan 4). This is the pinned, named gap
-# list -- S-C closes it step by step.
-_SEEDED_BLANK_STEPS: tuple[tuple[str, str], ...] = (
-    ("documentation", "discover"),
-    ("documentation", "audit"),
-    ("documentation", "design"),
-    ("documentation", "generate"),
-    ("documentation", "validate"),
-    ("documentation", "publish"),
-    ("documentation", "accept"),
-    ("research", "scoping"),
-    ("research", "methodology"),
-    ("research", "gathering"),
-    ("research", "synthesis"),
-    ("research", "output"),
-    ("plan", "specify"),
-    ("plan", "research"),
-    ("plan", "plan"),
-    ("plan", "review"),
-)
 
 # A prompt counts as "empty/dummy" if it has no meaningful content: zero
 # bytes, or nothing but whitespace / a placeholder TODO marker.
 _DUMMY_MARKERS = ("TODO", "PLACEHOLDER", "FIXME")
 
-
-def _is_empty_or_dummy(prompt_path: Path) -> bool:
-    if not prompt_path.is_file():
-        return True
-    text = prompt_path.read_text(encoding="utf-8").strip()
-    if not text:
-        return True
-    return any(marker in text for marker in _DUMMY_MARKERS)
+#: Minimum stripped-character length a genuine prompt must clear. This is a
+#: partial defence against filler-stub prompts, not a content-quality proof
+#: (see the module docstring's NFR-004 disclaimer): a real authored prompt
+#: clears this floor several times over (the smallest of the 21 dispatch-
+#: relevant prompts today is ~3.1K chars); a one-liner or a bare heading
+#: does not.
+_MIN_PROMPT_LENGTH = 800
 
 
 def _prompt_path(mission_type: str, step_id: str) -> Path:
     return _MISSION_STEPS_ROOT / mission_type / step_id / "prompt.md"
 
 
+def _every_dispatch_relevant_sequence_step() -> list[tuple[str, str]]:
+    """Every ``(mission_type, step_id)`` pair in a dispatched action sequence.
+
+    Derived from the same step-authority projection the runtime seam
+    consumes (:func:`~doctrine.missions.step_projection.project_action_sequence`)
+    rather than a hand-maintained literal list -- so this census can never
+    silently drift from the authority it is meant to police (C-003, "one
+    ordering authority"). Steps with ``in_action_sequence: false`` (e.g.
+    ``retrospect``) are excluded by the projection itself.
+    """
+    pairs: list[tuple[str, str]] = []
+    for mission_type_id in sorted(MissionTypeRepository.default().ids()):
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type(mission_type_id, pack_context=None)
+            .values()
+        )
+        for step_id in project_action_sequence(steps):
+            pairs.append((mission_type_id, step_id))
+    return pairs
+
+
+_SEQUENCE_STEPS: list[tuple[str, str]] = _every_dispatch_relevant_sequence_step()
+
+
 # ---------------------------------------------------------------------------
-# The 16 named, accepted-red gaps.
+# Positive structural floor -- every dispatch-relevant prompt, every type.
 # ---------------------------------------------------------------------------
 
 
-class TestSeededBlankPromptsAreNamedGaps:
-    """Each of the 16 seeded blanks is individually named and marked xfail.
+class TestEverySequenceStepPromptClearsTheStructuralFloor:
+    """T025: the positive replacement for the retired seeded-blank scaffold.
 
-    xfail(strict=False): the gate stays green while S-C has not yet filled
-    the prompt; the moment content lands, this reports XPASS instead of
-    silently passing, which is the visible signal to delete the marker.
+    Each dispatch-relevant sequence step's ``prompt.md``, across all four
+    built-in mission types, must be (i) non-empty, (ii) free of dummy/
+    placeholder markers, (iii) reference ``$ARGUMENTS``, (iv) contain at
+    least one ``## `` heading, and (v) clear a minimum length. See the
+    module docstring for the NFR-004 necessary-not-sufficient disclaimer.
     """
 
     @pytest.mark.parametrize(
         ("mission_type", "step_id"),
-        _SEEDED_BLANK_STEPS,
-        ids=[f"{mt}/{sid}" for mt, sid in _SEEDED_BLANK_STEPS],
+        _SEQUENCE_STEPS,
+        ids=[f"{mt}/{sid}" for mt, sid in _SEQUENCE_STEPS],
     )
-    @pytest.mark.xfail(
-        reason=(
-            "WP05 seeds a blank placeholder prompt.md (C-004: no content "
-            "invented); S-C is scoped to author real prompt content for "
-            "this step."
-        ),
-        strict=False,
-    )
-    def test_prompt_is_not_empty(self, mission_type: str, step_id: str) -> None:
+    def test_prompt_clears_structural_floor(
+        self, mission_type: str, step_id: str
+    ) -> None:
         prompt_path = _prompt_path(mission_type, step_id)
         assert prompt_path.is_file(), f"expected prompt.md at {prompt_path}"
-        assert not _is_empty_or_dummy(prompt_path), (
-            f"{mission_type}/{step_id}: prompt.md at {prompt_path} is empty "
-            "or a dummy placeholder"
+
+        text = prompt_path.read_text(encoding="utf-8")
+        stripped = text.strip()
+
+        assert stripped, (
+            f"{mission_type}/{step_id}: prompt.md at {prompt_path} is empty"
+        )
+        for marker in _DUMMY_MARKERS:
+            assert marker not in text, (
+                f"{mission_type}/{step_id}: prompt.md at {prompt_path} "
+                f"contains dummy marker {marker!r}"
+            )
+        assert "$ARGUMENTS" in text, (
+            f"{mission_type}/{step_id}: prompt.md at {prompt_path} does not "
+            "reference $ARGUMENTS"
+        )
+        assert "## " in text, (
+            f"{mission_type}/{step_id}: prompt.md at {prompt_path} has no "
+            "`## ` heading"
+        )
+        assert len(stripped) >= _MIN_PROMPT_LENGTH, (
+            f"{mission_type}/{step_id}: prompt.md at {prompt_path} is only "
+            f"{len(stripped)} chars (floor: {_MIN_PROMPT_LENGTH})"
         )
 
 
-class TestSeededBlankPromptsAreVerifiablyBlank:
-    """Anti-vacuity guard: prove the 16 xfails above are exercising a real gap.
+# ---------------------------------------------------------------------------
+# Anti-vacuity guard -- prove the census above is actually exercising all
+# four built-in types (not silently collapsing to zero parametrizations).
+# ---------------------------------------------------------------------------
 
-    An ``xfail`` that never actually fails proves nothing (it would pass
-    silently either way). This class asserts, without the xfail marker, that
-    each of the 16 files genuinely is empty today -- so the xfail above is
-    verified to be exercising a live gap rather than a marker nobody checked.
+
+class TestSequenceStepCensusIsNotVacuous:
+    """A parametrized suite over an empty list passes trivially and proves
+    nothing. This guards the census derivation itself so a future regression
+    in ``project_action_sequence`` (or a mission-steps tree that goes
+    missing) surfaces here instead of the suite above silently collecting
+    zero tests.
     """
 
-    @pytest.mark.parametrize(
-        ("mission_type", "step_id"),
-        _SEEDED_BLANK_STEPS,
-        ids=[f"{mt}/{sid}" for mt, sid in _SEEDED_BLANK_STEPS],
-    )
-    def test_seeded_prompt_is_zero_bytes(self, mission_type: str, step_id: str) -> None:
-        prompt_path = _prompt_path(mission_type, step_id)
-        assert prompt_path.is_file(), f"expected prompt.md at {prompt_path}"
-        assert prompt_path.stat().st_size == 0, (
-            f"{mission_type}/{step_id}: prompt.md at {prompt_path} is no "
-            "longer zero-bytes -- S-C has filled this gap; delete the "
-            "matching xfail entry in TestSeededBlankPromptsAreNamedGaps "
-            "(and this entry) for this step"
-        )
+    def test_census_covers_all_four_built_in_types(self) -> None:
+        covered_types = {mission_type for mission_type, _ in _SEQUENCE_STEPS}
+        assert covered_types == {"documentation", "research", "plan", "software-dev"}
 
-
-class TestSeededBlankListIsExhaustive:
-    """The named 16 is exactly the set of blank prompts under the 3 types.
-
-    Guards against silent drift: a future edit that adds another blank
-    prompt.md under documentation/research/plan (in the dispatch-relevant
-    sequence, i.e. excluding retrospect) must also add it to
-    ``_SEEDED_BLANK_STEPS`` here, or this test fails loudly instead of the
-    gap going unnoticed.
-    """
-
-    _SEQUENCE_STEPS_BY_TYPE: dict[str, tuple[str, ...]] = {
-        "documentation": (
-            "discover",
-            "audit",
-            "design",
-            "generate",
-            "validate",
-            "publish",
-            "accept",
-        ),
-        "research": ("scoping", "methodology", "gathering", "synthesis", "output"),
-        "plan": ("specify", "research", "plan", "review"),
-    }
-
-    def test_named_gap_count_is_exactly_sixteen(self) -> None:
-        assert len(_SEEDED_BLANK_STEPS) == 16  # golden-count: cardinality-is-contract
-
-    def test_named_gaps_cover_every_sequence_step_and_no_more(self) -> None:
-        expected = {
-            (mission_type, step_id)
-            for mission_type, step_ids in self._SEQUENCE_STEPS_BY_TYPE.items()
-            for step_id in step_ids
-        }
-        assert set(_SEEDED_BLANK_STEPS) == expected
-
-    def test_every_sequence_step_prompt_is_currently_blank(self) -> None:
-        """Every dispatch-relevant sequence step's prompt is blank today.
-
-        Reads the filesystem directly (not the named list) so this test
-        fails if a sequence step's prompt is populated without also being
-        removed from ``_SEEDED_BLANK_STEPS`` above.
-        """
-        for mission_type, step_ids in self._SEQUENCE_STEPS_BY_TYPE.items():
-            for step_id in step_ids:
-                prompt_path = _prompt_path(mission_type, step_id)
-                is_blank = _is_empty_or_dummy(prompt_path)
-                named = (mission_type, step_id) in _SEEDED_BLANK_STEPS
-                assert is_blank == named, (
-                    f"{mission_type}/{step_id}: blank={is_blank} but "
-                    f"named-as-seeded-blank={named} -- update "
-                    "_SEEDED_BLANK_STEPS to match reality"
-                )
+    def test_census_is_non_empty(self) -> None:
+        assert len(_SEQUENCE_STEPS) > 0

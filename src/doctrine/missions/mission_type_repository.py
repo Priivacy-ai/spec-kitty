@@ -10,7 +10,7 @@ from ruamel.yaml import YAML
 
 from .mission_step_repository import MissionStepRepository
 from .models import MissionType
-from .step_projection import project_action_sequence, project_template_set
+from .step_projection import project_action_sequence
 
 __all__ = [
     "MissionTypeRepository",
@@ -161,30 +161,33 @@ class MissionTypeRepository:
 
 
 def _inject_projected_fields(raw: dict[str, Any], *, mission_type_id: str) -> dict[str, Any]:
-    """Overlay the WP02 projection onto *raw* YAML fields before validation.
+    """Overlay the WP02 ``action_sequence`` projection onto *raw* YAML fields.
 
     Resolves *mission_type_id*'s **builtin-only** step set
     (``pack_context=None`` -- org/project overrides never leak into this
     repository-load-time injection; those apply through the separate
-    runtime consumer switch, WP06) and derives ``action_sequence`` /
-    ``template_set`` via
-    :func:`~doctrine.missions.step_projection.project_action_sequence` /
-    :func:`~doctrine.missions.step_projection.project_template_set`.
+    runtime consumer switch, WP06) and derives ``action_sequence`` via
+    :func:`~doctrine.missions.step_projection.project_action_sequence`.
 
-    **Transitional fallback (today, pre-WP03/WP05/WP07):**
-    ``action_sequence`` and ``template_set`` are still YAML-authored for
-    every built-in mission type. Until a given type's steps carry
-    ``sequence_index``/``in_action_sequence``/``template`` data, the
-    projection over that type's steps is legitimately empty. Injecting an
-    empty value in that case would both violate ``MissionType``'s
-    non-empty invariant for ``action_sequence`` and silently blank out an
-    authored ``template_set``. So an **empty projection falls back to the
-    raw YAML-authored value** rather than overwriting it; only a
-    *non-empty* projection is injected in its place. This keeps
-    ``MissionTypeRepository`` behavior-preserving for every mission type
-    until WP03 (software-dev step data) and WP05 (four-type unification)
-    land and WP07 removes the authored fields from the YAML entirely
-    (the S-B cutover).
+    **Transitional fallback (``action_sequence`` only, C-007-retained):**
+    ``action_sequence`` is still YAML-authored for every built-in mission
+    type. Until a given type's steps carry ``sequence_index`` /
+    ``in_action_sequence`` data, the projection over that type's steps is
+    legitimately empty. Injecting an empty value in that case would violate
+    ``MissionType``'s non-empty invariant. So an **empty projection falls
+    back to the raw YAML-authored value** rather than overwriting it; only
+    a *non-empty* projection is injected in its place.
+
+    ``template_set`` (S-C cutover, mission-step-creatability-01KXQA6R WP01,
+    FR-001): the persisted field and its overlay are retired entirely --
+    this function no longer reads or writes a ``template_set`` key at all.
+    ``payload = dict(raw)`` below preserves any (incorrect) raw-authored
+    ``template_set:`` key verbatim; ``MissionType``'s ``extra="forbid"``
+    then rejects it during validation (SC-002 loud-fail), rather than this
+    seam silently honoring or dropping it. Consumers now source the
+    template mapping from the step authority directly at the consumption
+    boundary (:func:`charter.mission_type_profiles._resolve_template_set_slot`),
+    not from this repository-load-time injection.
     """
     steps = list(
         MissionStepRepository.default()
@@ -193,13 +196,9 @@ def _inject_projected_fields(raw: dict[str, Any], *, mission_type_id: str) -> di
     )
 
     projected_sequence = project_action_sequence(steps)
-    projected_templates = project_template_set(steps)
 
     payload = dict(raw)
     payload["action_sequence"] = projected_sequence or raw.get("action_sequence")
-    payload["template_set"] = (
-        projected_templates if projected_templates is not None else raw.get("template_set")
-    )
     return payload
 
 

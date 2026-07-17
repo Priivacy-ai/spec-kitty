@@ -553,10 +553,15 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         SymbolKey("TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e"),  # doctrine.drg.org_pack_loader::TOPOLOGY_KINDS
         # doctrine.drg.org_pack_loader::merge_topology_artifact
         SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9"),
-        SymbolKey("template_id_for", "0e816b5839625489512068cb183053b521d37802def537e897e8934e4e850def"),  # doctrine.template_catalog::template_id_for
+        # ``template_id_for`` and ``template_urn`` left the allowlist in
+        # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
+        # extractor's template-instantiation pass
+        # (``doctrine.drg.migration.extractor.extract_template_instantiation_edges``)
+        # is now their first live non-test caller, so the dead-symbol gate
+        # (FR-008) requires them removed. ``template_node``/``template_nodes``
+        # stay allowlisted -- still no live caller.
         SymbolKey("template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0"),  # doctrine.template_catalog::template_node
         SymbolKey("template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd"),  # doctrine.template_catalog::template_nodes
-        SymbolKey("template_urn", "0a08a189b1239da1a84fc6cf17349ce11ba78e2dfc2f8ab3d5924fdb9b0359e2"),  # doctrine.template_catalog::template_urn
         SymbolKey("PackHealth", "82268603b58f8a1449a0bf97456ddf08c217c11de4d66d85a41afc56819f7eee"),  # specify_cli.cli.commands._doctrine_health::PackHealth
     }
 )
@@ -864,6 +869,28 @@ _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT: frozenset[SymbolKey] = froze
 )
 
 
+# ---------- C. mission-step-creatability (01KXQA6R) WP07 URN resolution lane ----------
+# ``resolve_template_by_urn`` / ``TemplateURNError`` are the by-URN
+# compatibility-contract lane for template resolution (C-004,
+# ``contracts/name-urn-resolution.md``). WP07's scope is FR-010-bound to
+# "add the lane + a by-URN==by-name equivalence test only" -- wiring a real
+# production consumer is explicitly out of scope for this WP. The real
+# consumer (`charter context --include template:<id>`) lands in a later
+# mission/WP, so these two names are exported but currently have zero
+# production importers. Follow-up tracker: #2761.
+
+_CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.runtime.resolver::resolve_template_by_urn -- compatibility-contract
+        # URN lane (C-004/FR-010); consumer wired in #2761
+        SymbolKey("resolve_template_by_urn", "9bb6376d69e172430d4dbebb61800f0be7b11cd48522bb0201e6a4b2e8ad9b3d"),
+        # specify_cli.runtime.resolver::TemplateURNError -- compatibility-contract
+        # URN lane (C-004/FR-010); consumer wired in #2761
+        SymbolKey("TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -891,6 +918,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
+    | _CATEGORY_C_URN_RESOLUTION_LANE
 )
 
 

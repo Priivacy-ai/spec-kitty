@@ -1,27 +1,33 @@
-"""Projection seam: derive ``MissionType.action_sequence`` / ``template_set``.
+"""Projection seam: derive ``action_sequence`` / ``template_set`` from steps.
 
-Single canonical, doctrine-layer seam (S-B, WP02). **Both** the DRG
-extractor (WP04) and the charter/runtime consumer switch (WP06) import
-*this* module -- never a second copy, never independently re-derived
-downstream (C-003, "one ordering authority: every consumer switches").
-Layering: this module lives in ``doctrine`` and is imported *by* the
-charter layer, never the reverse -- no layering inversion.
+Single canonical, doctrine-layer seam (S-B, WP02; retired the persisted
+``MissionType.template_set`` field entirely in the S-C atomic cutover,
+mission-step-creatability-01KXQA6R WP01). **Every** consumer -- the
+charter/runtime seam (:func:`charter.mission_type_profiles._resolve_template_set_slot`)
+and the (future, FR-009) DRG extractor pass -- imports *this* module and
+its :func:`iter_template_refs` helper, never a second copy, never
+independently re-derived downstream (C-003, "one ordering authority: every
+consumer switches"). Layering: this module lives in ``doctrine`` and is
+imported *by* the charter layer, never the reverse -- no layering
+inversion.
 
-The two functions here are pure and deterministic: given the same
-``MissionStep`` collection, both always return byte-identical output. The
+The functions here are pure and deterministic: given the same
+``MissionStep`` collection, each always returns byte-identical output. The
 DRG freshness gate (NFR-002) and the software-dev parity scaffold
-(NFR-001a) both depend on that determinism, so neither function may read
-the filesystem, mutate its input, or depend on iteration/dict ordering
-beyond what is explicitly sorted below.
+(NFR-001a) both depend on that determinism, so none may read the
+filesystem, mutate its input, or depend on iteration/dict ordering beyond
+what is explicitly sorted below.
 
-Scope fence (C-008, "whack-a-field"): this module projects **only**
-``MissionType.template_set`` -- the ``dict[artifact_key, template_file]``
-derived from ``MissionStep.template``. The unrelated charter/project
-``doctrine.template_set`` **scalar** (``charter/resolver.py``,
-``compiler.py``, ``compact.py``, ``generator.py``, ``catalog.py``,
-``prompt_builder.py``, ``scope_router.py``, ``governance-profile.yaml``) is
-a different domain object entirely. This module must never import from, or
-reference, that scalar surface.
+Scope fence (C-008, "whack-a-field"): this module projects **only** the
+``dict[artifact_key, template_file]`` mapping derived from
+``MissionStep.template`` (exposed as ``MissionType.template_set`` was,
+pre-cutover, and as ``ResolvedMissionType.template_set`` still is,
+per C-006). The unrelated charter/project ``doctrine.template_set``
+**scalar** (``charter/resolver.py``, ``compiler.py``, ``compact.py``,
+``generator.py``, ``catalog.py``, ``prompt_builder.py``,
+``scope_router.py``, ``governance-profile.yaml``) is a different domain
+object entirely. This module must never import from, or reference, that
+scalar surface.
 """
 
 from __future__ import annotations
@@ -31,9 +37,15 @@ from collections.abc import Iterable
 from .models import MissionStep, MissionStepTemplateRef, validate_action_sequence
 
 __all__ = [
+    "iter_template_refs",
     "project_action_sequence",
     "project_template_set",
 ]
+# ``iter_template_refs`` is the single shared traversal of ``MissionStep.template``:
+# both ``project_template_set`` (in-module) and the DRG extractor's
+# ``extract_template_instantiation_edges`` (cross-module, drg/migration/extractor.py)
+# consume it, so it is a public surface with a live non-test caller under ``src/``
+# (satisfying tests.architectural.test_no_dead_symbols).
 
 #: Sentinel sort weight for a sequence member with no ``sequence_index``.
 #: Sorts after every real (non-negative) index so the total order stays
@@ -94,20 +106,39 @@ def project_template_set(steps: Iterable[MissionStep]) -> dict[str, str] | None:
     because ``artifact_key="spec"``); the resolver reads
     ``template_set["spec"]``, so keying on step id would silently break it.
 
-    Steps without a ``template`` ref are dropped. Returns ``None`` when no
-    step in *steps* carries a template -- matching the 3 built-in mission
-    types (``documentation``, ``research``, ``plan``) whose ``template_set``
-    is explicitly ``null`` today.
+    Built from :func:`iter_template_refs` (single traversal, shared with
+    the FR-009 DRG extractor pass), so key order is deterministic
+    ``sequence_index`` order (FR-011) -- software-dev's order stays
+    ``{spec, plan}`` (specify=idx0, plan=idx1). Steps without a
+    ``template`` ref are dropped. Returns ``None`` when no step in *steps*
+    carries a template -- matching the 3 built-in mission types
+    (``documentation``, ``research``, ``plan``) whose ``template_set`` is
+    explicitly ``null`` today.
     """
     template_set: dict[str, str] = {}
-    for step in steps:
-        template_ref = _step_template_ref(step)
-        if template_ref is None:
-            continue
+    for _step, template_ref in iter_template_refs(steps):
         template_set[template_ref.artifact_key] = template_ref.template_file
     return template_set or None
 
 
-def _step_template_ref(step: MissionStep) -> MissionStepTemplateRef | None:
-    """Return *step*'s template reference, explicitly typed as :class:`MissionStepTemplateRef`."""
-    return step.template
+def iter_template_refs(
+    steps: Iterable[MissionStep],
+) -> list[tuple[MissionStep, MissionStepTemplateRef]]:
+    """Return every ``(step, template_ref)`` pair in *steps*, ``sequence_index``-ordered.
+
+    The **sole traversal** of ``MissionStep.template`` in this module --
+    both :func:`project_template_set` and the FR-009 DRG extractor pass
+    (``instantiates`` edges, WP06) build from this single helper rather
+    than each independently walking *steps* and re-checking ``.template``
+    (C-003, "one ordering authority"). Steps carrying no ``template`` ref
+    are dropped; ordering mirrors :func:`project_action_sequence`'s
+    ``sequence_index`` sort (FR-011) so both the dict key order here and
+    the downstream edge-emission order are deterministic.
+    """
+    ordered = sorted(steps, key=_sequence_sort_key)
+    refs: list[tuple[MissionStep, MissionStepTemplateRef]] = []
+    for step in ordered:
+        template_ref = step.template
+        if template_ref is not None:
+            refs.append((step, template_ref))
+    return refs
