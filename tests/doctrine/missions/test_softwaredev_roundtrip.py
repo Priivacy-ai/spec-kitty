@@ -14,10 +14,18 @@ Two layers are asserted:
 1. The pure projection over ``MissionStepRepository``-resolved software-dev
    steps (bypasses ``MissionTypeRepository`` caching/fallback entirely).
 2. ``MissionTypeRepository.default()`` resolving software-dev's
-   ``MissionType.action_sequence`` / ``template_set`` to the same values --
-   proving the projection is now *live* (wins over the YAML fallback) for
-   software-dev, per the transitional contract in
+   ``MissionType.action_sequence`` to the same value -- proving the
+   projection is *live* (wins over the YAML fallback) for software-dev, per
+   the transitional contract in
    ``mission_type_repository._inject_projected_fields``.
+
+``template_set`` (S-C cutover, mission-step-creatability-01KXQA6R WP01,
+C-005): the persisted ``MissionType.template_set`` field is retired, so
+layer 2's equivalent no longer exists at the ``MissionType`` level -- the
+pure-projection assertion in layer 1
+(``TestSoftwareDevProjectionParity.test_template_set_matches_authored_value_byte_for_byte``)
+remains the enduring parity guard; the consumer-facing (resolved-context)
+equivalent lives in ``tests/charter/test_resolved_mission_type_context.py``.
 
 FR-001, FR-014 (mission-step-authority-01KXNZMT WP03).
 """
@@ -128,8 +136,27 @@ class TestMissionTypeRepositoryLiveProjection:
         assert mission_type is not None
         assert mission_type.action_sequence == _AUTHORED_ACTION_SEQUENCE
 
-    def test_default_resolves_software_dev_template_set(self) -> None:
-        mission_type = MissionTypeRepository.default().get("software-dev")
+    # ``test_default_resolves_software_dev_template_set`` retired (S-C cutover,
+    # mission-step-creatability-01KXQA6R WP01, C-005): ``MissionType`` no
+    # longer carries a ``template_set`` field to resolve -- the consumer-facing
+    # equivalent is ``TestSoftwareDevProjectionParity.test_template_set_matches_authored_value_byte_for_byte``
+    # above, plus the resolved-context coverage in
+    # ``tests/charter/test_resolved_mission_type_context.py``.
 
+    def test_default_get_constructs_and_projects_template_set(self) -> None:
+        """T007 proof #2 (WP01, SC-002 acceptance scenario 1): the atomic
+        cutover leaves ``MissionTypeRepository.default().get("software-dev")``
+        constructing cleanly (no dangling ``.template_set`` model-field read
+        under ``extra="forbid"`` -- that would raise ``AttributeError``), and
+        the step authority still projects the full ``{spec, plan}`` mapping,
+        sourced independently via ``MissionStepRepository``/``project_template_set``
+        (the same seam ``_resolve_template_set_slot`` now uses)."""
+        mission_type = MissionTypeRepository.default().get("software-dev")
         assert mission_type is not None
-        assert mission_type.template_set == _AUTHORED_TEMPLATE_SET
+
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type("software-dev", pack_context=None)
+            .values()
+        )
+        assert project_template_set(steps) == _AUTHORED_TEMPLATE_SET

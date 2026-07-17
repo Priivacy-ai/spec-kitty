@@ -39,10 +39,7 @@ from charter.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.resolution import ResolutionTier
-from specify_cli.runtime.resolver import (
-    TemplateConfigurationError,
-    resolve_configured_template,
-)
+from specify_cli.runtime.resolver import resolve_configured_template
 
 pytestmark = [pytest.mark.integration]
 
@@ -104,6 +101,28 @@ EXPECTED_DOMAIN_MEMBERSHIP: dict[str, frozenset[str]] = {
 }
 
 _DOMAIN_TYPES: tuple[str, ...] = ("documentation", "research", "plan")
+
+# Expected resolved ``template_set`` per domain type. All three domain types
+# now author their own spec/plan template refs (``documentation`` WP02,
+# ``research`` WP03, ``plan`` WP04 — reconciled by mission-step-creatability-
+# 01KXQA6R WP05), each with per-type-unique ``template_file`` names (NFR-006).
+# Used to prove no domain type falls back to software-dev's ``{spec, plan}``
+# mapping.
+_EXPECTED_DOMAIN_TEMPLATE_SET: dict[str, dict[str, str] | None] = {
+    "documentation": {
+        "spec": "documentation-spec-template.md",
+        "plan": "documentation-plan-template.md",
+    },
+    "plan": {
+        "spec": "plan-spec-skeleton.md",
+        "plan": "plan-plan-skeleton.md",
+    },
+    "research": {
+        "spec": "research-spec-template.md",
+        "plan": "research-plan-template.md",
+    },
+}
+
 
 
 def _canonical_urn(kind_plural: str, raw: str) -> str:
@@ -168,7 +187,13 @@ def test_domain_mission_resolves_zero_software_dev_doctrine(mission_type: str, t
     assert not leaked, f"SC-001: a real {mission_type} mission (meta.json → resolver) resolved software-dev-only doctrine {sorted(leaked)}."
     bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
     assert "software-dev-default" not in bundle.governance_text.lower()
-    assert bundle.template_set is None
+    # No domain type falls back to software-dev's {spec, plan} mapping. research
+    # resolves its own per-type-unique refs (WP03); documentation/plan stay None.
+    expected_template_set = _EXPECTED_DOMAIN_TEMPLATE_SET[mission_type]
+    resolved_template_set = (
+        dict(bundle.template_set) if bundle.template_set is not None else None
+    )
+    assert resolved_template_set == expected_template_set
 
 
 # ---------------------------------------------------------------------------
@@ -234,19 +259,83 @@ def test_software_development_mission_resolves_exact_configured_templates(
         assert result.path.read_bytes()
 
 
-@pytest.mark.parametrize("mission_type", _DOMAIN_TYPES)
-def test_null_template_mapping_fails_closed_with_stable_diagnostics(
-    mission_type: str,
+# ``test_null_template_mapping_fails_closed_with_stable_diagnostics`` (formerly
+# parametrized over ``_NULL_TEMPLATE_DOMAIN_TYPES``, covering the still-null
+# ``documentation``/``plan`` types pre-WP05) is retired here: as of
+# mission-step-creatability-01KXQA6R WP05, all three domain types
+# (documentation WP02, research WP03, plan WP04) author template refs, so
+# there is no longer a *domain type* left to exercise the null-mapping
+# fail-closed path through this integration-level, real-``meta.json`` route.
+# The fail-closed contract itself (``TemplateConfigurationError`` on a null/
+# missing mapping, C-001) remains covered generically at the unit level by
+# ``tests/runtime/test_resolver_unit.py::TestResolveConfiguredTemplate::
+# test_null_or_missing_mapping_fails_before_file_resolution``, which does not
+# depend on any particular built-in mission type having an unauthored
+# template_set.
+
+
+def _assert_domain_mission_resolves_authored_templates(
     tmp_path: Path,
+    mission_type: str,
+    expected_template_set: dict[str, str],
 ) -> None:
+    """Shared body for the three domain "creatability proof" tests below:
+    stage a real mission of *mission_type*, resolve its bundle, and confirm
+    every authored artifact_key/template_file pair resolves to a real,
+    readable, package-default-tier template file."""
     feature_dir = _stage_mission(tmp_path, mission_type)
     bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
-    with pytest.raises(TemplateConfigurationError) as exc_info:
-        resolve_configured_template("spec", tmp_path, bundle)
+    assert dict(bundle.template_set or {}) == expected_template_set
+    for artifact_kind, expected_filename in (bundle.template_set or {}).items():
+        result = resolve_configured_template(artifact_kind, tmp_path, bundle)
+        assert result.path.name == expected_filename
+        assert result.tier is ResolutionTier.PACKAGE_DEFAULT
+        assert result.mission == mission_type
+        assert result.path.read_bytes()
 
-    error = exc_info.value
-    assert error.mission_type == mission_type
-    assert error.artifact_kind == "spec"
-    assert error.mapped_filename is None
-    assert "has no configured template mapping" in str(error)
+
+def test_research_mission_resolves_authored_templates(tmp_path: Path) -> None:
+    """S-C Concern B (WP03, C-003/C-010): a real research mission resolves its
+    authored ``spec``/``plan`` templates to the research-vocabulary files, at the
+    package-default tier — the creatability proof for the ``research`` type."""
+    _assert_domain_mission_resolves_authored_templates(
+        tmp_path,
+        "research",
+        {
+            "spec": "research-spec-template.md",
+            "plan": "research-plan-template.md",
+        },
+    )
+
+
+def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> None:
+    """S-C Concern B (mission-step-creatability-01KXQA6R WP02, reconciled by
+    WP05, C-003/C-010): a real documentation mission resolves its authored
+    ``spec``/``plan`` templates to the documentation-vocabulary files, at the
+    package-default tier — the creatability proof for the ``documentation``
+    type, mirroring ``test_research_mission_resolves_authored_templates``."""
+    _assert_domain_mission_resolves_authored_templates(
+        tmp_path,
+        "documentation",
+        {
+            "spec": "documentation-spec-template.md",
+            "plan": "documentation-plan-template.md",
+        },
+    )
+
+
+def test_plan_mission_resolves_authored_templates(tmp_path: Path) -> None:
+    """S-C Concern B (mission-step-creatability-01KXQA6R WP04, reconciled by
+    WP05, C-003/C-010): a real plan mission resolves its authored
+    ``spec``/``plan`` templates to the plan-vocabulary files, at the
+    package-default tier — the creatability proof for the ``plan`` type,
+    mirroring ``test_research_mission_resolves_authored_templates``."""
+    _assert_domain_mission_resolves_authored_templates(
+        tmp_path,
+        "plan",
+        {
+            "spec": "plan-spec-skeleton.md",
+            "plan": "plan-plan-skeleton.md",
+        },
+    )

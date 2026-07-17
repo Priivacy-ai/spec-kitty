@@ -14,13 +14,22 @@ future change cannot silently reintroduce a 5th authority (C-003).
 
 Investigation result (T018/T019 — no code changes required, confirmation only):
 
-- ``charter.mission_type_profiles._resolve_action_slot`` (:694/697) and
-  ``_resolve_template_set_slot`` (:750) both call
+- ``charter.mission_type_profiles._resolve_action_slot`` (:694/697) calls
   ``doctrine.missions.mission_type_repository.MissionTypeRepository.default()``
-  and read ``mission.action_sequence`` / ``mission.template_set`` straight off
-  the loaded model — the exact field WP02's ``_inject_projected_fields``
-  overlays before ``MissionType.model_validate()`` runs. There is no
-  alternate/raw YAML re-parse anywhere in either resolver.
+  and reads ``mission.action_sequence`` straight off the loaded model — the
+  exact field WP02's ``_inject_projected_fields`` overlays before
+  ``MissionType.model_validate()`` runs. There is no alternate/raw YAML
+  re-parse in this resolver.
+
+  **Update (S-C cutover, mission-step-creatability-01KXQA6R WP01):**
+  ``_resolve_template_set_slot`` (:750, indicative) no longer reads a
+  ``mission.template_set`` model field at all — that field and its
+  ``_inject_projected_fields`` overlay were retired atomically (FR-001).
+  The slot now computes ``project_template_set(steps)`` directly from
+  ``MissionStepRepository.resolve_all_for_mission_type(mission_type,
+  pack_context=None)`` at the consumption boundary — still a single
+  authority (the step authority), just no longer routed through a
+  ``MissionType`` model field as an intermediate.
 - ``runtime.next.decision._build_prompt_or_error`` (:606) and
   ``runtime.next.runtime_bridge_composition._should_dispatch_via_composition``
   (:186) / ``_composition_dispatch_inputs`` (:321) all call
@@ -75,15 +84,34 @@ _EXPECTED_AUTHORED: dict[str, dict[str, Any]] = {
         "action_sequence": [
             "discover", "audit", "design", "generate", "validate", "publish", "accept",
         ],
-        "template_set": None,
+        # S-C Concern B (mission-step-creatability-01KXQA6R WP02, reconciled by
+        # WP05, C-003/C-010): documentation authors a spec ref (discover) and a
+        # plan ref (design), each with a per-type-unique template_file name
+        # (NFR-006).
+        "template_set": {
+            "spec": "documentation-spec-template.md",
+            "plan": "documentation-plan-template.md",
+        },
     },
     "research": {
         "action_sequence": ["scoping", "methodology", "gathering", "synthesis", "output"],
-        "template_set": None,
+        # S-C Concern B (mission-step-creatability-01KXQA6R WP03, C-003/C-010):
+        # research authors a spec ref (scoping) and a plan ref (methodology),
+        # each with a per-type-unique template_file name (NFR-006).
+        "template_set": {
+            "spec": "research-spec-template.md",
+            "plan": "research-plan-template.md",
+        },
     },
     "plan": {
         "action_sequence": ["specify", "research", "plan", "review"],
-        "template_set": None,
+        # S-C Concern B (mission-step-creatability-01KXQA6R WP04, reconciled by
+        # WP05, C-003/C-010): plan authors a spec ref (specify) and a plan ref
+        # (plan), each with a per-type-unique template_file name (NFR-006).
+        "template_set": {
+            "spec": "plan-spec-skeleton.md",
+            "plan": "plan-plan-skeleton.md",
+        },
     },
 }
 
@@ -137,20 +165,20 @@ class TestSeamEquivalence:
             assert dict(bundle.template_set) == expected_template_set
 
     def test_software_dev_template_set_is_non_empty_dict(self, tmp_path: Path) -> None:
-        """Ground the dict-branch: software-dev is the only type authoring a
-        non-null template_set (its two content templates)."""
+        """Ground the dict-branch with software-dev's two content templates.
+        All four built-in types now author a non-null template_set (WP01
+        software-dev cutover + WP02 documentation + WP03 research + WP04
+        plan, reconciled by WP05) -- see ``_EXPECTED_AUTHORED`` for each
+        type's own pair, and ``test_template_set_matches_authored_contract``
+        above for the generic per-type dict-branch assertion. There is no
+        longer a null-``template_set`` branch among the four built-in types
+        to ground here (the retired ``test_non_software_dev_template_set_is_none``
+        parametrization covered that branch pre-WP05)."""
         bundle = _resolve_via_seam(tmp_path, "software-dev")
         assert bundle.template_set == {
             "spec": "spec-template.md",
             "plan": "plan-template.md",
         }
-
-    @pytest.mark.parametrize("mission_type_id", ["documentation", "plan", "research"])
-    def test_non_software_dev_template_set_is_none(
-        self, tmp_path: Path, mission_type_id: str
-    ) -> None:
-        bundle = _resolve_via_seam(tmp_path, mission_type_id)
-        assert bundle.template_set is None
 
 
 # ---------------------------------------------------------------------------

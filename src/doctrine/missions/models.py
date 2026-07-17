@@ -91,9 +91,10 @@ class MissionStepTemplateRef(BaseModel):
     """Reference to the content template a step's authored artifact uses.
 
     A pure ``(artifact_key, template_file)`` pair — a *reference*, never
-    inlined content (C-004). ``artifact_key`` is the key the projected
-    ``MissionType.template_set`` dict is keyed on (e.g. ``"spec"``), which
-    is **not** necessarily the step id (e.g. step id ``specify`` projects
+    inlined content (C-004). ``artifact_key`` is the key the
+    ``project_template_set(steps)`` projection (single authority, S-C
+    cutover) keys its dict on (e.g. ``"spec"``), which is **not**
+    necessarily the step id (e.g. step id ``specify`` projects
     ``template_set["spec"]``). ``template_file`` is the template's
     filename within the mission type's template directory (e.g.
     ``"spec-template.md"``).
@@ -241,12 +242,14 @@ class MissionType(BaseModel):
         ``sequence_index`` and the projection seam (WP02+) derives the
         sequence instead (S-B cutover, WP07). While present, it must be
         non-empty and contain no duplicates (:func:`validate_action_sequence`).
-    template_set:
-        Optional mapping from artifact-type key (e.g. ``"spec"``) to
-        template filename (e.g. ``"spec-template.md"``).  ``None`` means
-        no built-in templates are declared for this type, **or** that the
-        projection seam derives it from ``MissionStep.template`` instead
-        (S-B cutover, WP07).
+
+    The former ``template_set`` field (a persisted, YAML-authorable mapping
+    duplicating the step authority) was retired in the S-C atomic cutover
+    (mission-step-creatability-01KXQA6R WP01, FR-001). The template mapping
+    is now sourced exclusively from the step authority at the consumption
+    boundary via :func:`~doctrine.missions.step_projection.project_template_set`;
+    ``extra="forbid"`` below makes any YAML re-authoring a ``template_set:``
+    key fail loudly (SC-002) rather than being silently honored or dropped.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -256,7 +259,6 @@ class MissionType(BaseModel):
     display_name: str
     extends: str | None = None
     action_sequence: list[str] | None = None
-    template_set: dict[str, str] | None = None
 
     @field_validator("id")
     @classmethod

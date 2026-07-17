@@ -219,30 +219,78 @@ def _write_profile_template_override(
 
 
 class TestResolvedTemplateSet:
-    @pytest.mark.parametrize("mission_type", ["documentation", "research", "plan"])
-    def test_non_software_builtin_preserves_explicit_null(
-        self, tmp_path: Path, mission_type: str
-    ) -> None:
-        bundle = resolve_mission_type_context(tmp_path, mission_type=mission_type)
-        assert bundle.template_set is None
+    def test_research_template_set_resolves(self, tmp_path: Path) -> None:
+        """S-C Concern B (WP03, C-003/C-010): the resolved bundle surfaces the
+        ``spec``/``plan`` refs authored on ``research``'s ``scoping``/
+        ``methodology`` steps, with per-type-unique ``template_file`` names
+        (NFR-006)."""
+        bundle = resolve_mission_type_context(tmp_path, mission_type="research")
+        assert dict(bundle.template_set or {}) == {
+            "spec": "research-spec-template.md",
+            "plan": "research-plan-template.md",
+        }
+
+    def test_documentation_template_set_resolves(self, tmp_path: Path) -> None:
+        """S-C Concern B (mission-step-creatability-01KXQA6R WP02, reconciled by
+        WP05, C-003/C-010): the resolved bundle surfaces the ``spec``/``plan``
+        refs authored on ``documentation``'s ``discover``/``design`` steps,
+        with per-type-unique ``template_file`` names (NFR-006). ``documentation``
+        was removed from the now-deleted
+        ``test_non_software_builtin_preserves_explicit_null`` parametrization
+        once WP02 authored these refs."""
+        bundle = resolve_mission_type_context(tmp_path, mission_type="documentation")
+        assert dict(bundle.template_set or {}) == {
+            "spec": "documentation-spec-template.md",
+            "plan": "documentation-plan-template.md",
+        }
+
+    def test_plan_template_set_resolves(self, tmp_path: Path) -> None:
+        """S-C Concern B (mission-step-creatability-01KXQA6R WP04, reconciled by
+        WP05, C-003/C-010): the resolved bundle surfaces the ``spec``/``plan``
+        refs authored on ``plan``'s ``specify``/``plan`` steps, with
+        per-type-unique ``template_file`` names (NFR-006). ``plan`` was removed
+        from the now-deleted ``test_non_software_builtin_preserves_explicit_null``
+        parametrization once WP04 authored these refs."""
+        bundle = resolve_mission_type_context(tmp_path, mission_type="plan")
+        assert dict(bundle.template_set or {}) == {
+            "spec": "plan-spec-skeleton.md",
+            "plan": "plan-plan-skeleton.md",
+        }
 
     def test_mapping_is_lazy_and_cached_per_bundle(self, tmp_path: Path) -> None:
+        """S-C cutover (mission-step-creatability-01KXQA6R WP01, FR-002):
+        ``_resolve_template_set_slot`` no longer calls
+        ``MissionTypeRepository.default()`` -- it computes
+        ``project_template_set(steps)`` from
+        ``MissionStepRepository.default().resolve_all_for_mission_type(...)``
+        directly. The proxy this test watches moves accordingly; the
+        laziness + per-bundle-memoization contract it proves is unchanged.
+        """
+        from doctrine.missions.mission_step_repository import MissionStepRepository
         from doctrine.missions.mission_type_repository import MissionTypeRepository
 
-        original_default = MissionTypeRepository.default
+        # Prime MissionTypeRepository.default() (functools.cache, process-wide)
+        # so _load()'s own action_sequence-overlay resolution -- which also
+        # calls MissionStepRepository.default() internally -- has already run
+        # before the patch below starts counting. Isolates the template_set
+        # slot's OWN MissionStepRepository.default() call.
+        MissionTypeRepository.default()
+
+        original_step_default = MissionStepRepository.default
         with patch.object(
-            MissionTypeRepository,
+            MissionStepRepository,
             "default",
-            side_effect=original_default,
-        ) as repository_default:
+            side_effect=original_step_default,
+        ) as step_repository_default:
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
-            assert repository_default.call_count == 1  # action-sequence resolution only
+            assert step_repository_default.call_count == 0  # action-sequence path unaffected
             assert "template_set" not in bundle.__dict__
 
             first = bundle.template_set
             second = bundle.template_set
 
-        assert repository_default.call_count == 2
+        assert step_repository_default.call_count == 1
+        assert first is second
         assert first is second
         assert first == {
             "spec": "spec-template.md",

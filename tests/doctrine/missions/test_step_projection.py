@@ -30,6 +30,7 @@ from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 from doctrine.missions.models import MissionStep, MissionStepTemplateRef
 from doctrine.missions.step_projection import (
+    iter_template_refs,
     project_action_sequence,
     project_template_set,
 )
@@ -202,6 +203,61 @@ class TestProjectTemplateSet:
 
 
 # ---------------------------------------------------------------------------
+# iter_template_refs (T003 — the sole traversal, promoted from the former
+# private ``_step_template_ref``; project_template_set and the future
+# FR-009 DRG extractor pass both build from this helper)
+# ---------------------------------------------------------------------------
+
+
+class TestIterTemplateRefs:
+    def test_drops_steps_without_a_template(self) -> None:
+        specify_step = _step(
+            "specify",
+            sequence_index=0,
+            template=MissionStepTemplateRef(
+                artifact_key="spec", template_file="spec-template.md"
+            ),
+        )
+        implement_step = _step("implement", sequence_index=1, template=None)
+
+        refs = iter_template_refs([specify_step, implement_step])
+
+        assert [step.id for step, _ref in refs] == ["specify"]
+
+    def test_ordered_by_sequence_index_not_input_order(self) -> None:
+        plan_step = _step(
+            "plan",
+            sequence_index=1,
+            template=MissionStepTemplateRef(
+                artifact_key="plan", template_file="plan-template.md"
+            ),
+        )
+        specify_step = _step(
+            "specify",
+            sequence_index=0,
+            template=MissionStepTemplateRef(
+                artifact_key="spec", template_file="spec-template.md"
+            ),
+        )
+
+        # Input order is [plan, specify] -- reversed relative to sequence_index.
+        refs = iter_template_refs([plan_step, specify_step])
+
+        assert [step.id for step, _ref in refs] == ["specify", "plan"]
+
+    def test_returns_step_and_ref_pairs(self) -> None:
+        template = MissionStepTemplateRef(artifact_key="spec", template_file="spec-template.md")
+        specify_step = _step("specify", sequence_index=0, template=template)
+
+        refs = iter_template_refs([specify_step])
+
+        assert refs == [(specify_step, template)]
+
+    def test_empty_input_returns_empty_list(self) -> None:
+        assert iter_template_refs([]) == []
+
+
+# ---------------------------------------------------------------------------
 # MissionTypeRepository cached accessor + injection (T007)
 # ---------------------------------------------------------------------------
 
@@ -228,6 +284,11 @@ class TestMissionTypeRepositoryProjectionInjection:
         in_action_sequence yet (pending WP03) -- the injected value must fall
         back to the still-authored YAML rather than overwrite it with an
         empty projection.
+
+        ``template_set`` is no longer part of this fallback contract (S-C
+        cutover, mission-step-creatability-01KXQA6R WP01) -- the field and
+        its overlay are retired entirely, so this fixture only authors
+        ``action_sequence``.
         """
         mission_types_dir = tmp_path / "mission_types"
         mission_types_dir.mkdir()
@@ -240,10 +301,7 @@ class TestMissionTypeRepositoryProjectionInjection:
             "  - plan\n"
             "  - tasks\n"
             "  - implement\n"
-            "  - review\n"
-            "template_set:\n"
-            "  spec: spec-template.md\n"
-            "  plan: plan-template.md\n",
+            "  - review\n",
             encoding="utf-8",
         )
 
@@ -252,7 +310,6 @@ class TestMissionTypeRepositoryProjectionInjection:
 
         assert mt is not None
         assert mt.action_sequence == ["specify", "plan", "tasks", "implement", "review"]
-        assert mt.template_set == {"spec": "spec-template.md", "plan": "plan-template.md"}
 
     def test_annotated_builtin_steps_override_stale_authored_yaml(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -304,9 +361,7 @@ class TestMissionTypeRepositoryProjectionInjection:
             "display_name: Synth\n"
             "action_sequence:\n"
             "  - stale-a\n"
-            "  - stale-b\n"
-            "template_set:\n"
-            "  stale: stale-template.md\n",
+            "  - stale-b\n",
             encoding="utf-8",
         )
 
@@ -315,7 +370,17 @@ class TestMissionTypeRepositoryProjectionInjection:
 
         assert mt is not None
         assert mt.action_sequence == ["beta", "alpha"]
-        assert mt.template_set == {"alpha-artifact": "alpha-template.md"}
+
+        # template_set (S-C cutover, WP01): no longer a MissionType field or
+        # overlay -- the alpha step's template ref still feeds the
+        # consumption-boundary projection (proving the ref is genuinely
+        # wired, not merely present-but-unused).
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type("synth-type", pack_context=None)
+            .values()
+        )
+        assert project_template_set(steps) == {"alpha-artifact": "alpha-template.md"}
 
 
 class TestDefaultMemoization:

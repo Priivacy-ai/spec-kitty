@@ -28,6 +28,7 @@ If ``pack_context.repo_root`` is available, the project layer is also queried.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -45,10 +46,19 @@ class _PackContextLike(Protocol):
     accessed by this module are declared; the protocol is intentionally
     minimal so that any conforming object — including test fakes — satisfies
     it without needing to depend on the charter package.
+
+    ``__hash__`` is declared explicitly (NFR-003, mission-step-creatability-01KXQA6R
+    WP01) so this protocol is a structural subtype of ``collections.abc.Hashable``
+    for ``mypy --strict`` -- ``resolve_all_for_mission_type``'s shared cache
+    keys on ``pack_context`` directly. The real ``charter.pack_context.PackContext``
+    (and every test double used against this module) is a frozen
+    ``@dataclass``, which synthesizes ``__hash__`` automatically.
     """
 
     pack_roots: tuple[Path, ...]
     repo_root: Path
+
+    def __hash__(self) -> int: ...
 
 __all__ = [
     "StepKey",
@@ -265,6 +275,20 @@ class MissionStepRepository:
         Scans the built-in layer for available ``step_id`` values, then
         applies org and project shadows via :meth:`resolve`.
 
+        **Shared cache (NFR-003):** the underlying filesystem walk is
+        memoised in a **module-level** cache keyed by
+        ``(builtin_steps_root, mission_type_id, pack_context)`` -- shared
+        across every :class:`MissionStepRepository` instance and call site,
+        not scoped to ``self`` or to a single consumer. This is deliberate:
+        after the S-C cutover (mission-step-creatability-01KXQA6R WP01)
+        both the retained ``action_sequence`` overlay
+        (``mission_type_repository._inject_projected_fields``) and the
+        projected ``template_set`` slot
+        (``charter.mission_type_profiles._resolve_template_set_slot``)
+        resolve steps for the same ``(mission_type, pack_context)`` per
+        resolution; without a shared cache that would be two filesystem
+        walks instead of one. Cleared via :meth:`cache_clear` (test seam).
+
         Parameters
         ----------
         mission_type_id:
@@ -279,6 +303,28 @@ class MissionStepRepository:
             Only step IDs that exist in the built-in layer (or in org/project
             overrides for the same mission type) are returned.
         """
+        return _resolve_all_for_mission_type_cached(
+            self._builtin_root, mission_type_id, pack_context
+        )
+
+    @staticmethod
+    def cache_clear() -> None:
+        """Test seam (NFR-003): clear the shared ``resolve_all_for_mission_type`` cache.
+
+        Production never mutates the bundled ``mission-steps/`` tree
+        mid-process, so the cache is safe there; tests that write into a
+        synthetic tree and expect a subsequent call to observe the change
+        must call this first (mirrors the ``MissionTypeRepository.default``
+        cache-vs-test-seam contract, C-010).
+        """
+        _resolve_all_for_mission_type_cached.cache_clear()
+
+    def _resolve_all_for_mission_type_uncached(
+        self,
+        mission_type_id: str,
+        pack_context: _PackContextLike | None,
+    ) -> dict[str, MissionStep]:
+        """Perform the actual layered filesystem walk (the cache-miss path)."""
         result: dict[str, MissionStep] = {}
 
         # Collect step_ids from all layers.
@@ -377,3 +423,35 @@ class MissionStepRepository:
             pack_context, mission_type_id,
         ) / step_id / _STEP_FILENAME
         return _load_step_yaml(step_file)
+
+
+# ---------------------------------------------------------------------------
+# Shared cache (NFR-003, mission-step-creatability-01KXQA6R WP01)
+# ---------------------------------------------------------------------------
+
+
+@functools.cache
+def _resolve_all_for_mission_type_cached(
+    builtin_root: Path,
+    mission_type_id: str,
+    pack_context: _PackContextLike | None,
+) -> dict[str, MissionStep]:
+    """Module-level, cross-instance cache for ``resolve_all_for_mission_type``.
+
+    Keyed by ``(builtin_root, mission_type_id, pack_context)`` -- **not**
+    keyed on any :class:`MissionStepRepository` instance, so it stays
+    shared even though ``MissionStepRepository.default()`` itself is not
+    memoised (only ``MissionTypeRepository.default()`` singletons the
+    *repository object*; this cache is what actually avoids re-walking
+    ``mission-steps/`` on repeat resolutions, per NFR-003). ``pack_context``
+    is either ``None`` or a hashable frozen dataclass (real
+    ``charter.pack_context.PackContext``, or a test double satisfying the
+    same shape), so it is safe to use directly as part of the cache key.
+
+    Cleared via :meth:`MissionStepRepository.cache_clear` (test seam) --
+    never call ``.cache_clear()`` on this private function directly from
+    outside this module.
+    """
+    return MissionStepRepository(
+        builtin_root
+    )._resolve_all_for_mission_type_uncached(mission_type_id, pack_context)

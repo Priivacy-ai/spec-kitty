@@ -8,3 +8,6 @@ delegates_to: []
 depends_on: []
 sequence_index: 1
 in_action_sequence: true
+template:
+  artifact_key: plan
+  template_file: research-plan-template.md

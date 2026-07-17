@@ -50,6 +50,9 @@ nodes:
 - urn: procedure:post-merge-arch-gate-adjudication
   kind: procedure
   label: Post-Merge Arch-Gate Adjudication
+- urn: procedure:red-main-release-discipline
+  kind: procedure
+  label: Red Main & Release Discipline
 - urn: procedure:refactoring
   kind: procedure
   label: Refactoring
