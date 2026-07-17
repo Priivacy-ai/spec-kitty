@@ -817,6 +817,16 @@ def _run_dispatch_batches(
         terminal_progress = (
             batch.delivered + batch.duplicate + batch.terminal_failed
         ) > 0
+        # Grow a shrunk limit back after terminal progress. A single event over
+        # the server byte cap forces `limit` down to 1 and is parked
+        # (terminal_failed); without recovery the entire *healthy* tail would
+        # then drain one-event-per-POST for the rest of the pass -- correct but
+        # a throughput cliff. Multiplicative increase mirrors the halving and is
+        # capped at the count default, so throughput recovers within a few
+        # batches while the per-batch byte contract is still honored: an
+        # over-grown batch simply 413s and re-halves, which is bounded.
+        if terminal_progress and limit < _EVENT_SYNC_DISPATCH_BATCH_LIMIT:
+            limit = min(_EVENT_SYNC_DISPATCH_BATCH_LIMIT, limit * 2)
         advanced = terminal_progress or len(skip) > before
         if batch.selected == 0 or not advanced:
             break
