@@ -557,6 +557,75 @@ def test_run_dispatch_batches_skips_rejected_and_drains_events_behind(
     assert combined.rejected == 2
 
 
+def test_run_dispatch_batches_grows_limit_back_after_oversized_park(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After a single over-cap event forces limit->1 and is parked, the limit
+    grows back so the healthy tail drains in grown batches, not one-per-POST.
+
+    Without the grow-back the four small events behind the giant would each
+    need their own singleton POST (the throughput cliff). Asserting that a
+    post-park batch delivered >1 tail event catches a regression to that.
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 8)
+
+    giant = "big-0"  # any batch containing it exceeds the server byte cap
+    tail = ["s0", "s1", "s2", "s3"]
+    universe = [giant, *tail]
+    delivered: list[str] = []
+    parked: set[str] = set()
+    calls: list[tuple[str, ...]] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        selectable = [
+            eid
+            for eid in universe
+            if eid not in exclude and eid not in delivered and eid not in parked
+        ]
+        chunk = selectable[:limit]
+        calls.append(tuple(chunk))
+        if not chunk:
+            return DispatchSummary.empty()
+        if giant in chunk and len(chunk) > 1:  # byte-oversized: server 413s it
+            return _oversized_summary(len(chunk))
+        if chunk == [giant]:  # a single over-cap event is terminal-failed
+            parked.add(giant)
+            return DispatchSummary(
+                target_id="t",
+                selected=1,
+                delivered=0,
+                duplicate=0,
+                pending=0,
+                rejected=0,
+                transient=0,
+                terminal_failed=1,
+            )
+        delivered.extend(chunk)
+        return DispatchSummary(
+            target_id="t",
+            selected=len(chunk),
+            delivered=len(chunk),
+            duplicate=0,
+            pending=0,
+            rejected=0,
+            transient=0,
+            terminal_failed=0,
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    assert combined.delivered == len(tail)
+    assert combined.terminal_failed == 1
+    assert set(delivered) == set(tail)
+    # The healthy tail drained in grown batches, not four singleton POSTs:
+    # the limit recovered above 1 after the giant was parked.
+    tail_calls = [c for c in calls if c and all(eid in tail for eid in c)]
+    assert any(len(c) >= 2 for c in tail_calls)
+    assert len(tail_calls) < len(tail)
+
+
 def test_run_dispatch_batches_skips_pending_and_reports_each_event_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

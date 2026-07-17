@@ -601,7 +601,14 @@ def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     target_a: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Canonical 413 halving parks one event, then drains the success tail."""
+    """Canonical 413 halving parks one event, then drains the success tail.
+
+    After the oversized head (evt-0) is halved to a singleton and parked as
+    terminal_failed, the limit grows back (1 -> 2), so the healthy tail
+    (evt-1, evt-2) drains in one grown batch rather than one-event-per-POST.
+    The grow-back is the throughput-cliff fix; the old behavior emitted
+    ``("evt-1",), ("evt-2",)`` as separate singleton calls.
+    """
     receiver = _AdaptiveOversizedStub()
     runtime = SimpleNamespace(journal=journal, ledger=ledger)
     monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
@@ -611,8 +618,7 @@ def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     assert receiver.calls == [
         ("evt-0", "evt-1"),
         ("evt-0",),
-        ("evt-1",),
-        ("evt-2",),
+        ("evt-1", "evt-2"),
     ]
     assert summary.selected == 3
     assert summary.terminal_failed == 1
