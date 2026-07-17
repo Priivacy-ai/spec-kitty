@@ -484,6 +484,38 @@ def test_synthesized_drg_fresh_after_mtime_only_bump(tmp_path: Path) -> None:
     assert result.synthesized_drg.state == "fresh"
 
 
+def test_synthesized_drg_stale_when_a_bundle_file_is_missing(tmp_path: Path) -> None:
+    """A missing bundle file (e.g. ``references.yaml``) yields ``stale`` — never
+    ``fresh``, never a crash.
+
+    ``compute_bundle_content_hash`` fail-safes to ``None`` when any of the four
+    files is absent, so the reader reports ``stale``. This is the
+    *missing-bundle-file* ``None`` the reader docstring distinguishes from a
+    *legacy-manifest* ``None``: it does NOT self-heal via ``synthesize`` alone
+    (the recompute is also ``None``), because ``references.yaml`` is compiled by
+    ``charter generate``, not written by ``charter sync``. The heavier
+    require-full-bundle preflight remediation is tracked separately.
+    """
+    _seed_full_bundle(tmp_path)
+    _seed_graph(tmp_path)
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    _seed_manifest(
+        tmp_path,
+        built_in_only=False,
+        created_at="2026-01-01T00:00:00+00:00",
+        bundle_content_hash=real_hash,
+    )
+
+    # Remove one required bundle file after the manifest was stamped fresh.
+    (tmp_path / ".kittify" / "charter" / "references.yaml").unlink()
+
+    # The recipe fail-safes to None (never raises) on the missing file...
+    assert compute_bundle_content_hash(tmp_path) is None
+    # ...and the reader maps the incomplete bundle to stale, not fresh/crash.
+    assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
+
+
 def test_synthesized_drg_stale_when_bundle_content_genuinely_changed(tmp_path: Path) -> None:
     """AS-2 pin (fact #22): a genuine bundle-content edit is still ``stale``.
 
