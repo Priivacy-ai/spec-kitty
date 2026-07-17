@@ -230,6 +230,24 @@ def _base_synthesis_request(run_id: str) -> SynthesisRequest:
 # ---------------------------------------------------------------------------
 
 
+def test_bundle_file_lists_stay_in_sync() -> None:
+    """The reader's ``_BUNDLE_FILES`` must equal the canonical bundle hash set.
+
+    ``charter.bundle.BUNDLE_CONTENT_HASH_FILES`` (the content-identity input
+    set, drives the ``synthesized_drg`` hash) and
+    ``computer._BUNDLE_FILES`` (drives ``synced_bundle`` existence + mtime) are
+    deliberately duplicated 4-tuples in different modules to keep the
+    ``charter``→``specify_cli`` dependency direction intact (data-model
+    Decision 5). This pins them equal so a future edit to one that silently
+    drifts from the other — which would let the two freshness sub-states track
+    different file sets — is caught, honoring the single-canonical-authority
+    principle without inverting the import direction.
+    """
+    from specify_cli.charter_runtime.freshness.computer import _BUNDLE_FILES
+
+    assert tuple(_BUNDLE_FILES) == tuple(BUNDLE_CONTENT_HASH_FILES)
+
+
 def test_returns_three_sub_objects(tmp_path: Path) -> None:
     """The result always exposes all three layers."""
     result = compute_freshness(tmp_path)
