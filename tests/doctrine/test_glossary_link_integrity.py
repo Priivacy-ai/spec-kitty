@@ -23,7 +23,11 @@ def _slugify_heading(text: str) -> str:
     heading = heading.replace("`", "").lower()
     heading = re.sub(r"[^a-z0-9 _-]", "", heading)
     heading = heading.replace(" ", "-")
-    heading = re.sub(r"-{2,}", "-", heading).strip("-")
+    # GitHub does NOT collapse consecutive hyphens: a heading like
+    # "Target Ref / Commit Target" anchors as "target-ref--commit-target"
+    # (the removed "/" leaves two spaces → two hyphens). Collapsing here would
+    # diverge from GitHub and pass links that are actually broken on github.com.
+    heading = heading.strip("-")
     return heading
 
 

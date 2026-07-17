@@ -200,9 +200,22 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     # targets the same synthetic built_in_root as the resolver. The
     # compiler imports the function into its own namespace, so we patch
     # the binding there.
+    #
+    # The compiler resolves the *built-in DRG graph* through a SECOND,
+    # deliberately-separate seam: ``doctrine.drg.loader.load_built_in_graph``
+    # (via ``built_in_graph_source`` -> ``files("doctrine")``). That seam does
+    # NOT consult ``resolve_doctrine_root`` -- doctrine sits below charter in
+    # the dependency graph (C-004) and must not import upward. Without patching
+    # it, the compiler's transitive walk loads the *installed* package graph,
+    # where none of the synthetic fixture URNs exist, and every start URN is
+    # recorded as an unresolved reference. Patch it to the same synthetic graph
+    # the resolver used so both seams agree.
     with patch(
         "charter.compiler.resolve_doctrine_root",
         return_value=built_in_root,
+    ), patch(
+        "doctrine.drg.loader.load_built_in_graph",
+        return_value=drg,
     ):
         compiled = compile_charter(
             mission="software-dev",
