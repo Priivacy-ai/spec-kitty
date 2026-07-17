@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "8aa50952aaf4237780b4efa0d196e163ad38c978",
+  "coordination_branch": "kitty/mission-mission-step-creatability-01KXQA6R",
+  "created_at": "2026-07-17T05:53:48.895305+00:00",
+  "flattened": false,
+  "friendly_name": "Mission-Type Creatability via Rich Step Model",
+  "mission_id": "01KXQA6RAYQ8SXBMB0WC2RF6PG",
+  "mission_number": 182,
+  "mission_slug": "mission-step-creatability-01KXQA6R",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A prior slice left three of four built-in mission types uncreatable (they carry no content templates) and shipped a flattened template_set field that duplicates the rich step model — a partial cutover that keeps a live split-brain vector for future contributors. This mission completes the cutover: it retires the duplicate persisted field, authors the missing per-type content on the one step authority, and graph-backs the mission-type to step to template chain, so the three types work again and there is a single place to author with no split-brain.",
+  "purpose_tldr": "Make documentation/research/plan missions creatable again by authoring their content on the single step authority, and retire the transitional template_set field that duplicates it.",
+  "slug": "mission-step-creatability-01KXQA6R",
+  "target_branch": "feat/mission-step-creatability",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-17T10:16:16.459282+00:00"
+}

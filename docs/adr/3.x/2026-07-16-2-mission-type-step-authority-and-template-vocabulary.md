@@ -85,6 +85,9 @@ The declared-but-empty `NodeKind.MISSION_STEP_CONTRACT` becomes a step's input/o
   scaffolds as `template:` nodes and teach the resolver to resolve-by-URN. This closes the #2689 uncreatable
   regression **and** #2712/#883. Each type's templates hang on *its own* step names (`research`:
   `scoping→methodology→…`; `documentation`: `discover→audit→…`) — do not assume a `specify`/`plan` shape.
+  **Re-scoped 2026-07-17 (see Amendment below):** S-C also **retires the persisted `template_set` field**,
+  reading the step authority throughout (tidy-first, before authoring); `action_sequence` symmetry is split
+  to a distinct follow-up slice.
 
 **Deferred (lower priority):**
 
@@ -100,6 +103,8 @@ The declared-but-empty `NodeKind.MISSION_STEP_CONTRACT` becomes a step's input/o
   (`step.yaml`). The `mission_type → step → template` chain becomes fully graph-backed and activation-gated,
   extending #2712 and subsuming #2689's `template_set` as a transitional read-projection (no rework of either).
   The step model is ~70% shipped, so S-A/S-B/S-C are *promote + graph-back*, not greenfield.
+  **Superseded 2026-07-17 (see Amendment):** `template_set` is not retained even as a persisted projection —
+  S-C retires the field and computes the projection at the consumption boundary from the step authority.
 - **Costs / risks.** ~80 files / ~8 load-bearing seams. The two boundaries that must not be hand-waved into one
   PR: the **filesystem↔URN template duality** (S-C — a compatibility contract, resolve-by-name vs resolve-by-URN)
   and the **consumer read-source switch** for role/model (S-B — else a new parallel authority). Every new
@@ -109,6 +114,39 @@ The declared-but-empty `NodeKind.MISSION_STEP_CONTRACT` becomes a step's input/o
   *authoring the missing content*, not by the rename or authority collapse.
 - **Deferred without debt.** Substeps and guards are net-new capabilities with their own DRG primitives; both
   ride the existing activation filter when added. Nothing in S-A/S-B/S-C forecloses them.
+
+## Amendment — 2026-07-17: S-C re-scope (retire `template_set` as a persisted field)
+
+**Status:** Accepted (operator direction change; validated by a 3-lens research squad + a 3-lens adversarial
+verification squad, all LAND). Mission: `mission-step-creatability-01KXQA6R` (#2724).
+
+**What changed.** The original decision kept `template_set` as a **transitional projected read-field** on
+`MissionType` ("reuse the existing mechanism to limit blast radius"). On reflection this was judged a **partial
+cutover**: consumption still read a flattened dict instead of the step authority, it perpetuated a **model
+collision** with the unrelated scalar `doctrine.template_set` (separated only by the C-008 prose fence), and —
+decisively — the still-authorable `MissionType.template_set` field plus the `raw.get("template_set")` fallback
+(`mission_type_repository.py:200-201`) left a **live split-brain vector**: a community/pack-authored `template_set`
+would be silently honored. All four concerns were confirmed in code.
+
+**New direction.** S-C **retires the persisted `template_set` field** and deletes the raw-YAML fallback; the
+single behavioral consumer (`resolve_configured_template`) reads the lazy `ResolvedMissionType.template_set`
+`@cached_property`, whose thunk now computes `project_template_set(steps)` from the step authority
+(`MissionStepRepository.resolve_all_for_mission_type(type, pack_context=None)`, cached). Sequenced **tidy-first**:
+the cutover lands before the three types' content is authored, so they are born on the clean surface and can never
+carry the split-brain. A future pack authoring `template_set:` must **fail loudly**, not be silently honored or
+dropped.
+
+**Verified (adversarial squad).** Behavior-preserving — proven byte-for-byte at runtime (`stored ==
+project_template_set(steps)` for all four types); no `mission_types/*.yaml` authors `template_set`, so the fallback
+is already dead code. Blast radius ~4-5 code sites + ~6 field-pin test files; the resolver signature and the
+#2689/#2660 fail-closed guards are untouched; the enduring `TestSoftwareDevProjectionParity` guard is retained
+(only the `MissionTypeRepository`-injection half is disposable). The `ResolvedMissionType.template_set` property is
+**not** renamed (wide, all-green, no correctness benefit).
+
+**Split off.** The identical persisted-projection pattern for **`action_sequence`** is **not** folded in — it
+crosses a categorically different gate (DRG shipped-graph + NFR-002 freshness), a hard non-empty
+`validate_action_sequence` invariant, and the eager FSM hot-path — and is filed as a distinct follow-up slice
+under #2721.
 
 ## References
 
