@@ -125,7 +125,7 @@ def _is_global_runtime_configured() -> bool:
     """
     try:
         home = get_kittify_home()
-        return cast(bool, (home / "cache" / "version.lock").is_file())
+        return (home / "cache" / "version.lock").is_file()
     except RuntimeError:
         return False
 

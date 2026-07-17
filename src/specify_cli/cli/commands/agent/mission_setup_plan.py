@@ -293,13 +293,10 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
     try:
         from mission_runtime import ActionContextError
 
-        return cast(
-            Path,
-            _mission._find_feature_directory(
-                repo_root,
-                cwd,
-                explicit_feature=resolved_feature,
-            ),
+        return _mission._find_feature_directory(
+            repo_root,
+            cwd,
+            explicit_feature=resolved_feature,
         )
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
@@ -520,12 +517,9 @@ def _is_plan_pristine(
     """
     from specify_cli.missions._substantive import is_pristine_scaffold
 
-    return cast(
-        bool,
-        is_pristine_scaffold(
-            plan_file.read_text(encoding="utf-8"),
-            plan_template.path.read_text(encoding="utf-8"),
-        ),
+    return is_pristine_scaffold(
+        plan_file.read_text(encoding="utf-8"),
+        plan_template.path.read_text(encoding="utf-8"),
     )
 
 
