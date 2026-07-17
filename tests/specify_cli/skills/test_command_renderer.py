@@ -15,6 +15,19 @@ can see the exact before/after diff.
 
 DO NOT regenerate snapshots to silence a test failure without understanding
 why the output changed — the snapshots are the regression guard.
+
+TODO (reconsider this test's design if it keeps causing friction):
+    These snapshots pin *byte-identical* rendered ``SKILL.md`` output per agent,
+    so any legitimate prose edit to a doctrine source template
+    (``src/doctrine/missions/mission-steps/**``) forces regenerating the
+    committed ``__snapshots__/<agent>/<command>.SKILL.md`` copies. The snapshot
+    asserts byte-identity, not semantic correctness. Paired with the 12-agent
+    baseline guard (``tests/specify_cli/regression/test_twelve_agent_parity``),
+    a single one-line source change fans out to ~14 fixture files. If this
+    regeneration tax becomes a recurring problem (observed during the
+    primary/merge terminology sweep, mission primary-merge-vocabulary-01KXP11C),
+    reconsider narrowing to structural/contract assertions plus one canonical
+    snapshot instead of a full per-agent byte grid.
 """
 
 from __future__ import annotations
