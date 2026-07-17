@@ -11,10 +11,16 @@ Detection rules (per ``contracts/charter-status-json.md``):
   hash of the current synced bundle (``governance.yaml``, ``directives.yaml``,
   ``references.yaml``, ``metadata.yaml`` under ``.kittify/charter/``, via
   ``charter.bundle.compute_bundle_content_hash``) — a content comparison, not
-  a timestamp comparison. A manifest that predates this field (missing
-  ``bundle_content_hash``) is treated the same as a mismatch: ``stale``,
-  self-healing to ``fresh`` on the next ``spec-kitty charter synthesize`` or
-  ``spec-kitty charter resynthesize`` run. This comparison only runs once
+  a timestamp comparison. A missing/``None`` stored hash is treated the same
+  as a mismatch: ``stale``. Two distinct ``None`` causes with different
+  recoveries: a *legacy-manifest* ``None`` (the field predates this fix)
+  self-heals to ``fresh`` on the next ``spec-kitty charter synthesize`` /
+  ``resynthesize`` run, which stamps the current hash; a *missing-bundle-file*
+  ``None`` (``compute_bundle_content_hash`` returns ``None`` when any of the
+  four files is absent — e.g. ``references.yaml``, which ``charter generate``
+  compiles rather than ``charter sync``) does NOT self-heal via ``synthesize``
+  alone, because the recomputed hash is also ``None`` — the bundle must first
+  be completed. This comparison only runs once
   ``synced_bundle.state == "fresh"`` (see the precedence rule below).
 * ``synthesized_drg.state = "missing"`` when ``.kittify/doctrine/graph.yaml``
   is absent AND the manifest does not declare ``built_in_only: true``.
