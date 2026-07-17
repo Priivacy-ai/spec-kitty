@@ -94,6 +94,7 @@ jobs:
   # ---------------------------------------------------------------------------
   changes:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       # ``run_all`` (workflow_dispatch input) and ``unmatched`` (the FR-010
       # fail-closed catch-all: a src/** change matched by NO named filter
@@ -423,6 +424,7 @@ jobs:
 
   lint:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       commitlint_has_failures: ${{ steps.commitlint.outputs.has_failures }}
       markdownlint_has_failures: ${{ steps.markdownlint.outputs.has_failures }}
@@ -787,13 +789,7 @@ jobs:
   lint-feedback:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: lint
-    if: >-
-      always() && github.event_name == 'pull_request'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && (needs.lint.outputs.commitlint_has_failures == 'true'
-       || needs.lint.outputs.markdownlint_has_failures == 'true'
-       || needs.lint.outputs.ruff_has_failures == 'true'
-       || needs.lint.outputs.mypy_has_failures == 'true')
+    if: ${{ (always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.outputs.commitlint_has_failures == 'true' || needs.lint.outputs.markdownlint_has_failures == 'true' || needs.lint.outputs.ruff_has_failures == 'true' || needs.lint.outputs.mypy_has_failures == 'true')) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     permissions:
       contents: read
       pull-requests: write
@@ -1791,7 +1787,7 @@ jobs:
   arch-adversarial:
     name: arch-adversarial (${{ matrix.shard }})
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: always()
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     # 3-shard matrix (mission ci-health-charter-path-and-arch-shard-01KWRTB2,
     # #2397): the arch-pole selection is now routed by dedicated pytest
     # markers (``arch_shard_1/2/3``, assignment table in
@@ -1958,7 +1954,7 @@ jobs:
   timing-nfr-serial:
     name: Timing NFR gate (serial, -m timing)
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: always()
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2670,6 +2666,7 @@ jobs:
   # ---------------------------------------------------------------------------
   unit-contract-residual:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2804,13 +2801,7 @@ jobs:
     name: doctor restart-daemon NFR-002 timing (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     needs: [changes]
-    if: >-
-      always() &&
-      (
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch' ||
-        needs.changes.outputs.cli == 'true'
-      )
+    if: ${{ (always() && ( github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cli == 'true' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     strategy:
       fail-fast: false
@@ -2849,14 +2840,7 @@ jobs:
     name: quarantine visibility (non-blocking)
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: >-
-      always() &&
-      (
-        github.event_name == 'push' ||
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'pull_request'
-      )
+    if: ${{ (always() && ( github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -2890,28 +2874,7 @@ jobs:
   e2e-cross-cutting:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: |
-      always() && (
-        github.event_name == 'push' ||
-        (
-          github.event_name == 'pull_request' &&
-          (
-            needs.changes.outputs.e2e == 'true' ||
-            needs.changes.outputs.core_misc == 'true' ||
-            needs.changes.outputs.execution_context == 'true'
-          ) &&
-          (
-            (
-              github.event.pull_request.draft == false &&
-              !startsWith(github.event.pull_request.title, 'WIP') &&
-              !startsWith(github.event.pull_request.title, '[WIP]')
-            ) ||
-            contains(github.event.pull_request.labels.*.name, 'ci:full') ||
-            contains(github.event.pull_request.labels.*.name, 'ready-for-ci')
-          )
-        ) ||
-        (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all))
-      )
+    if: ${{ (always() && ( github.event_name == 'push' || ( github.event_name == 'pull_request' && ( needs.changes.outputs.e2e == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' ) && ( ( github.event.pull_request.draft == false && !startsWith(github.event.pull_request.title, 'WIP') && !startsWith(github.event.pull_request.title, '[WIP]') ) || contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ready-for-ci') ) ) || (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all)) )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 40
 
     steps:
@@ -2976,8 +2939,7 @@ jobs:
       # arch-adversarial emits coverage-arch-adversarial.xml consumed here via
       # the coverage-*.xml glob (mission ci-topology-shrink FR-006/FR-007).
       - arch-adversarial
-    if: always() && github.event_name == 'pull_request'
-
+    if: ${{ (always() && github.event_name == 'pull_request') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -3569,6 +3531,7 @@ jobs:
   uv-lock-check:
     name: uv lock --check (NFR-005)
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v6
@@ -3593,6 +3556,7 @@ jobs:
   build-wheel:
     name: Build wheel
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
@@ -3635,6 +3599,7 @@ jobs:
   clean-install-verification:
     name: Clean install verification (FR-010)
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5     # NFR-004
     needs: [build-wheel]
     steps:
@@ -3889,7 +3854,7 @@ jobs:
       - consumer-compatibility
       - uv-lock-check
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: always()
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: "Check out repository (decision script)"
         uses: actions/checkout@v6

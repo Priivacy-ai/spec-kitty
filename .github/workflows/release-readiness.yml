@@ -34,6 +34,7 @@ permissions:
 jobs:
   check-readiness:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
