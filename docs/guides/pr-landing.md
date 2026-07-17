@@ -93,7 +93,7 @@ rebased tip and classify it into exactly one of four bins:
 |---|---|---|
 | **PR defect** | The PR's own change breaks a test or gate | Fix it on the branch (a "fold", [step 5](#5-folds-remediation-commits-on-the-contributor-branch)) |
 | **Contract the PR legitimately crosses** | A seam move-set completeness gate, a census tolerance band | Re-pin the contract **in the same PR**, with a dated rationale in the pin |
-| **Pre-existing main breakage** | The same red reproduces on an unrelated main-based branch | Prove it cross-branch, file an upstream issue (campsite-cleaning standing order); do **not** fix it inside the contributor PR and do **not** retry-to-green |
+| **Pre-existing main breakage** | The same red reproduces on an unrelated main-based branch | **Fold the fix in the same landing pass by default** (boyscout / campsite-clean): a stale generated artifact, a forgotten regen, a small unwired reference are all fixable inline. **Only** when the fix is genuinely mission-scope/size and cannot reasonably be boy-scouted (e.g. it needs an in-flight mission's own reconciliation) do you instead accept it as an honest **P0 red** — mark the failing test `regression`, pin it to the tracking issue/mission, and leave it red per [Red Main and Release Readiness](red-main-and-release-readiness.md). Never retry-to-green. |
 | **Perf-budget flake** | A budget gate trips without a correctness signal | Note it, watch for recurrence, tune the budget at the root if it repeats — never retry-to-green |
 
 The cross-branch reproduction for the third bin is cheap and decisive:
@@ -103,10 +103,17 @@ git worktree add /tmp/repro-main upstream/main
 cd /tmp/repro-main && PWHEADLESS=1 uv run pytest <failing test> -q
 ```
 
-If it is red there too, the PR does not wear the failure — the filed issue
-does. See the
+If it is red there too, it is a pre-existing breakage — but the default is to
+**fold the fix** into the landing pass (boyscout), not to file-and-defer. Fall
+back to an accepted-P0 `regression` mark + tracking issue **only** when the fix
+is genuinely mission-scope (it belongs to an in-flight mission's own
+reconciliation). Either way the PR does not *wear* the failure: a folded fix
+removes it; a mission-scope red is pinned to the tracking issue/mission it
+belongs to. See the
 [test-flakiness handling policy](testing-flakiness.md) for the
-never-retry-to-green rule behind the fourth bin.
+never-retry-to-green rule behind the fourth bin, and [Red Main and Release
+Readiness](red-main-and-release-readiness.md) for how an accepted red is
+handled honestly.
 
 ## 5. Folds: remediation commits on the contributor branch
 
