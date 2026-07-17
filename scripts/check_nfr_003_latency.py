@@ -18,6 +18,19 @@ Or as a CI step:
 
     - name: NFR-003 latency gate
       run: python scripts/check_nfr_003_latency.py
+
+TODO (known red — tracked in Priivacy-ai/spec-kitty#2749):
+    As of 2026-07-17 this gate FAILS on ``main`` and any branch rebased onto it.
+    ``spec-kitty next`` cold-start regressed to ~1.25s (CI) / ~1.46s (local) vs
+    the 1.05s CI ceiling. Root cause is the doctrine-as-SSOT / step-authority
+    work (#2723 "step.yaml single source; action_sequence/template_set
+    projected", #2722): the new ``step_projection.py`` runtime seam runs on
+    every ``next`` (the cost is command execution, not imports — ``import
+    specify_cli`` is ~50ms). This is NOT a regression from unrelated PRs; do not
+    "fix" it by bumping ``ci_target_median_seconds`` from within an unrelated
+    change. The real fix is optimizing/caching step projection on the ``next``
+    path (SSOT mission's territory), or a deliberate, documented ceiling
+    recalibration. Remove this TODO once #2749 is resolved.
 """
 
 from __future__ import annotations
