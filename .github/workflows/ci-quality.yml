@@ -2683,7 +2683,7 @@ jobs:
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
@@ -2863,6 +2863,50 @@ jobs:
           set -e
           if [ "$ec" -eq 5 ]; then
             echo "::notice::No tests are currently quarantined (-m quarantine collected nothing)."
+            exit 0
+          fi
+          exit "$ec"
+
+  # ---------------------------------------------------------------------------
+  # regression-visibility: runs `-m regression` for real so every red-first P0
+  # reproduction test (@pytest.mark.regression) has an explicit, routed CI home
+  # and its expected-red signal stays VISIBLE — the marker-completeness gate
+  # (tests/architectural/test_marker_job_completeness.py) requires that no
+  # registered marker be silently CI-invisible (#2774). Per the
+  # red-main-release-discipline procedure and docs/guides/testing-flakiness.md it
+  # is intentionally NON-BLOCKING: it MUST NOT be added to the `quality-gate`
+  # aggregation below or to branch-protection required checks, so an
+  # expected-red P0 reproduction can never turn main red or block an unrelated
+  # PR. It is EXPECTED to be red while open P0s exist; that red is the honest,
+  # tracked signal — never retried to green. Tolerates pytest exit code 5 (no
+  # regression tests currently registered) as green.
+  # ---------------------------------------------------------------------------
+  regression-visibility:
+    name: regression visibility (non-blocking)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    needs: [changes]
+    if: ${{ (always() && ( github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: Run regression red-first reproductions (visible, never blocks merge)
+        env:
+          PWHEADLESS: "1"
+        run: |
+          set +e
+          python -m pytest tests/ -m regression -p no:cacheprovider -q --tb=short
+          ec=$?
+          set -e
+          if [ "$ec" -eq 5 ]; then
+            echo "::notice::No regression red-first reproductions are currently registered (-m regression collected nothing)."
             exit 0
           fi
           exit "$ec"
