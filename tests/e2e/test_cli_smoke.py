@@ -196,11 +196,18 @@ class TestFullCLIWorkflow:
         assert result.returncode == 0, result.stderr
         assert (feature_dir / "plan.md").read_bytes() == plan_bytes
 
-    def test_null_mapping_fails_before_mission_state_is_created(
+    def test_documentation_mission_create_resolves_authored_template(
         self,
         e2e_project: Path,
         run_cli,
     ) -> None:
+        """documentation is creatable end-to-end: its authored spec mapping
+        resolves and a mission directory is materialised (#2689).
+
+        Before the mission-step-creatability slice this ``create`` failed closed
+        ("has no configured template mapping") because the shipped type carried a
+        null spec mapping; it now resolves the per-type authored template.
+        """
         result = run_cli(
             e2e_project,
             "agent",
@@ -212,11 +219,14 @@ class TestFullCLIWorkflow:
             "--json",
         )
 
-        assert result.returncode == 1
+        assert result.returncode == 0, (
+            f"mission create failed (rc={result.returncode}):\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
         output = json.loads(result.stdout)
-        assert "documentation" in output["error"]
-        assert "has no configured template mapping" in output["error"]
-        assert not any(path.name.startswith("documentation-template-smoke-") for path in (e2e_project / "kitty-specs").glob("*"))
+        assert output["result"] == "success"
+        assert "documentation-template-smoke" in output["mission_slug"]
+        assert any(path.name.startswith("documentation-template-smoke-") for path in (e2e_project / "kitty-specs").glob("*"))
 
     def test_full_workflow_sequence(self, e2e_project: Path, run_cli) -> None:
         """Full mission create -> setup-plan -> finalize-tasks -> implement -> move-task.

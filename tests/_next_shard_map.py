@@ -118,6 +118,7 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     "tests/runtime/test_bridge_retrospective.py",
     "tests/runtime/test_home_unit.py",
     "tests/runtime/test_project_resolver.py",
+    "tests/runtime/test_resolve_by_urn.py",
     "tests/runtime/test_runtime_identity_resolution.py",
     "tests/runtime/test_show_origin_unit.py",
     "tests/runtime/test_tmp_prompt_namespace.py",
