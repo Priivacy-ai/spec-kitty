@@ -544,6 +544,7 @@ def test_run_dispatch_batches_skips_rejected_and_drains_events_behind(
                 )
                 for eid in rejected_ids
             ),
+            retryable_event_ids=tuple(rejected_ids),
         )
 
     monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
@@ -554,6 +555,53 @@ def test_run_dispatch_batches_skips_rejected_and_drains_events_behind(
     assert set(delivered) == set(good)
     assert combined.delivered == 3
     assert combined.rejected == 2
+
+
+def test_run_dispatch_batches_skips_pending_and_reports_each_event_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pending head must wait for the next command, not block this drain."""
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    pending = {"p0", "p1"}
+    good = {"g0", "g1"}
+    universe = ["p0", "p1", "g0", "g1"]
+    delivered: set[str] = set()
+    attempted: list[tuple[str, ...]] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        selectable = [
+            event_id
+            for event_id in universe
+            if event_id not in exclude and event_id not in delivered
+        ]
+        chunk = selectable[:limit]
+        attempted.append(tuple(chunk))
+        if not chunk:
+            return DispatchSummary.empty()
+        pending_ids = [event_id for event_id in chunk if event_id in pending]
+        delivered_ids = [event_id for event_id in chunk if event_id in good]
+        delivered.update(delivered_ids)
+        return DispatchSummary(
+            target_id="t",
+            selected=len(chunk),
+            delivered=len(delivered_ids),
+            duplicate=0,
+            pending=len(pending_ids),
+            rejected=0,
+            transient=0,
+            terminal_failed=0,
+            retryable_event_ids=tuple(pending_ids),
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    assert attempted == [("p0", "p1"), ("g0", "g1"), ()]
+    assert combined.selected == 4
+    assert combined.pending == 2
+    assert combined.delivered == 2
 
 
 def test_transient_block_message_distinguishes_cause() -> None:
@@ -596,3 +644,66 @@ def test_transient_block_message_distinguishes_cause() -> None:
     assert sync_module._transient_block_message(server_err) == (
         sync_module._TRANSIENT_SYNC_NOW_MESSAGE
     )
+
+
+def test_oversized_classifier_requires_wholesale_transient_rejection() -> None:
+    """Ordinary content text containing 'too large' must not trigger halving."""
+    content_rejection = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=1,
+        transient=0,
+        terminal_failed=0,
+        failures=(
+            DispatchFailure(
+                event_id="e",
+                outcome="rejected",
+                http_status=200,
+                error="field value too large",
+            ),
+        ),
+    )
+    partial_413 = DispatchSummary(
+        target_id="t",
+        selected=2,
+        delivered=1,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(
+            DispatchFailure(
+                event_id="e",
+                outcome="transient",
+                http_status=413,
+                error="batch payload too large; retry with a smaller batch",
+            ),
+        ),
+    )
+    generic_transient = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(
+            DispatchFailure(
+                event_id="e",
+                outcome="transient",
+                http_status=200,
+                error="field value too large",
+            ),
+        ),
+    )
+
+    assert sync_module._batch_is_oversized(_oversized_summary(2)) is True
+    assert sync_module._batch_is_oversized(content_rejection) is False
+    assert sync_module._batch_is_oversized(partial_413) is False
+    assert sync_module._batch_is_oversized(generic_transient) is False

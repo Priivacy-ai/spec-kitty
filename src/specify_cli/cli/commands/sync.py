@@ -85,7 +85,7 @@ _TRANSIENT_SYNC_NOW_MESSAGE = (
 # HTTP 413 is how the SaaS sync ingress (Fly proxy + edge) rejects an
 # over-cap batch; see apps/sync/limits.py (512 KiB decompressed ceiling).
 _HTTP_PAYLOAD_TOO_LARGE = 413
-_OVERSIZED_ERROR_MARKER = "too large"
+_OVERSIZED_ERROR_MARKER = "retry with a smaller batch"
 _HTTP_AUTH_STATUSES = frozenset({401, 403})
 _WARNING_HEADER_STYLE = "bold yellow"
 _ABSENT_VALUE = "<absent>"
@@ -310,7 +310,8 @@ def _enforce_sync_now_exit_from_dispatch(
       "queue non-empty but all-zero result". This is routed through the
       teamspace-aware recovery so the unauthenticated UX (interactive login,
       structured exit 4, legacy exit 1) is preserved regardless of ``--strict``.
-    * Partial progress with a hard terminal failure → exit 1 under ``--strict``.
+    * Partial progress with any rejected, transient, or terminal failure → exit
+      1 under ``--strict``.
 
     A ``None`` summary means dispatch infrastructure was unavailable. Under
     ``--strict`` that is a failure only when retained or legacy work exists.
@@ -342,7 +343,8 @@ def _enforce_sync_now_exit_from_dispatch(
     if work_present and progressed == 0:
         _handle_sync_now_unauthenticated(strict)
         return
-    if strict and summary is not None and summary.terminal_failed > 0:
+    errors = summary.rejected + summary.transient + summary.terminal_failed
+    if strict and errors > 0:
         raise typer.Exit(1)
 
 
@@ -716,6 +718,10 @@ def _combine_dispatch_summaries(
         transient=left.transient + right.transient,
         terminal_failed=left.terminal_failed + right.terminal_failed,
         failures=(*left.failures, *right.failures),
+        retryable_event_ids=(
+            *left.retryable_event_ids,
+            *right.retryable_event_ids,
+        ),
     )
 
 
@@ -729,10 +735,22 @@ def _batch_is_oversized(summary: DispatchSummary) -> bool:
     error (``_BATCH_OVERSIZED_ERROR`` = "retry with a smaller batch"). This is
     the signal that we should honor that documented contract and shrink.
     """
-    return any(
-        failure.http_status == _HTTP_PAYLOAD_TOO_LARGE
-        or (failure.error is not None and _OVERSIZED_ERROR_MARKER in failure.error)
-        for failure in summary.failures
+    failures = summary.failures
+    is_wholesale_transient = (
+        summary.selected > 0
+        and summary.transient == summary.selected
+        and len(failures) == summary.selected
+    )
+    return is_wholesale_transient and all(
+        failure.outcome == "transient"
+        and (
+            failure.http_status == _HTTP_PAYLOAD_TOO_LARGE
+            or (
+                failure.error is not None
+                and _OVERSIZED_ERROR_MARKER in failure.error.lower()
+            )
+        )
+        for failure in failures
     )
 
 
@@ -781,13 +799,13 @@ def _run_dispatch_batches(
             limit = max(1, limit // 2)
             continue
         combined = _combine_dispatch_summaries(combined, batch)
-        # Advance past events that made no terminal-success this pass (content
-        # rejections, persistent transient). Skipping them for the REST OF THIS
-        # PASS lets deliverable events behind them drain instead of a poison
-        # batch halting the loop; the ledger keeps them selectable for the next
-        # `sync now`, so the non-terminal retry contract is preserved.
+        # Advance past retryable events that made no terminal-success this pass
+        # (pending, content rejection, persistent transient). Skipping them for
+        # the REST OF THIS PASS lets deliverable events behind them drain
+        # instead of a poison batch halting the loop; the ledger keeps them
+        # selectable for the next `sync now`, so retryability is preserved.
         before = len(skip)
-        skip.update(failure.event_id for failure in batch.failures)
+        skip.update(batch.retryable_event_ids)
         advanced = (batch.delivered + batch.duplicate) > 0 or len(skip) > before
         if batch.selected == 0 or not advanced:
             break

@@ -511,6 +511,29 @@ class TestSyncNowExitCodes:
             res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1, res.output
 
+    @pytest.mark.parametrize("outcome", ["rejected", "transient"])
+    def test_strict_exits_1_on_partial_retryable_errors(self, outcome):
+        """Strict mode fails when progress leaves retryable delivery errors."""
+        summary = self._dispatch_summary(
+            selected=3,
+            delivered=2,
+            **{outcome: 1},
+        )
+        svc = self._make_dispatch_service(queue_size=3)
+
+        runner = CliRunner()
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.cli.commands.sync.is_saas_sync_enabled", return_value=True),
+            patch(
+                "specify_cli.cli.commands.sync._run_event_sync_dispatch",
+                return_value=summary,
+            ),
+        ):
+            res = runner.invoke(sync_app, ["now"])
+
+        assert res.exit_code == 1, res.output
+
     def test_now_returns_0_when_saas_feature_disabled(self, monkeypatch):
         """sync now should no-op safely when SaaS flag is disabled."""
         monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
