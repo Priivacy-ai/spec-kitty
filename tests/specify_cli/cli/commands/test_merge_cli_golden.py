@@ -46,7 +46,7 @@ pytestmark = pytest.mark.fast
 # --- Frozen contract data (cli-surface-contract.md) -------------------------
 
 # The one-line help (docstring) must be byte-identical.
-EXPECTED_ONE_LINE_HELP = "Merge a lane-based feature into its target branch."
+EXPECTED_ONE_LINE_HELP = "Merge a lane-based mission into its target branch."
 
 # The EXACT set of every long option the parser exposes. This is the
 # load-bearing flag-surface contract (#2057): byte-identity of the parser option

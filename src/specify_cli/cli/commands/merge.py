@@ -446,7 +446,7 @@ def merge(
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Proceed after merge warnings without prompts"),
 ) -> None:
-    """Merge a lane-based feature into its target branch."""
+    """Merge a lane-based mission into its target branch."""
     del context_token, keep_workspace
 
     if not json_output:
