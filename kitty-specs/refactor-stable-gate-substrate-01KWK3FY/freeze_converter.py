@@ -46,7 +46,6 @@ _ARCH = _REPO_ROOT / "tests" / "architectural"
 sys.path.insert(0, str(_REPO_ROOT / "tests"))
 
 from architectural._ratchet_keys import (  # noqa: E402
-    code_tokens_by_line,
     composite_key_from_file,
 )
 from architectural.test_resolution_authority_gates import (  # noqa: E402
