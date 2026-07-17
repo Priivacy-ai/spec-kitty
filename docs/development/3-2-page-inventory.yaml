@@ -794,6 +794,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2055,6 +2061,12 @@
   current_target: true
   notes: null
 - path: docs/guides/recover-from-interrupted-merge.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/guides/red-main-and-release-readiness.md
   tag: current
   divio_type: none
   owning_workstream: none

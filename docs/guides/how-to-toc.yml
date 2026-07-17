@@ -48,6 +48,8 @@
   href: merge-feature.md
 - name: Troubleshoot Merge Issues
   href: troubleshoot-merge.md
+- name: Red Main and Release Readiness
+  href: red-main-and-release-readiness.md
 - name: Handle Dependencies
   href: handle-dependencies.md
 - name: Sync Workspaces
