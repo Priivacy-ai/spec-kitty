@@ -296,10 +296,7 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     if not tasks_path.exists():
         return False
     content = tasks_path.read_text(encoding="utf-8")
-    # cast: follow_imports=skip (pyproject.toml [[tool.mypy.overrides]] for
-    # specify_cli.*) makes count_wp_section_subtask_rows's real tuple[int, int]
-    # annotation invisible to mypy from this call site.
-    done, total = cast("tuple[int, int]", count_wp_section_subtask_rows(content, wp_id))
+    done, total = count_wp_section_subtask_rows(content, wp_id)
     if total == 0:
         return True
     return done == total
