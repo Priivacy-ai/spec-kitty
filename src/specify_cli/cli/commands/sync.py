@@ -337,6 +337,14 @@ def _enforce_sync_now_exit_from_dispatch(
         if strict:
             raise typer.Exit(1)
         return
+    if selected > 0 and progressed == 0 and summary.recorded > 0:
+        # Rejected and terminal-failed rows are concrete delivery outcomes, not
+        # evidence that authentication blocked the attempt. The dispatch
+        # summary already exposes their counts; preserve --strict semantics
+        # without sending the operator through auth recovery.
+        if strict:
+            raise typer.Exit(1)
+        return
 
     # Pending work but nothing was even attempted → teamspace-aware recovery.
     work_present = queue_size > 0 or selected > 0
@@ -806,7 +814,10 @@ def _run_dispatch_batches(
         # selectable for the next `sync now`, so retryability is preserved.
         before = len(skip)
         skip.update(batch.retryable_event_ids)
-        advanced = (batch.delivered + batch.duplicate) > 0 or len(skip) > before
+        terminal_progress = (
+            batch.delivered + batch.duplicate + batch.terminal_failed
+        ) > 0
+        advanced = terminal_progress or len(skip) > before
         if batch.selected == 0 or not advanced:
             break
     return combined
