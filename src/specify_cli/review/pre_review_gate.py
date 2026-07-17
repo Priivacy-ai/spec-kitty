@@ -508,7 +508,20 @@ def _terminate_and_reap(
         return wait(process, _HEAD_RUN_TERMINATE_GRACE)
     except subprocess.TimeoutExpired:
         _signal_owned_process_tree(process, force=True)
-        return process.communicate()
+        try:
+            return process.communicate(timeout=_HEAD_RUN_TERMINATE_GRACE)
+        except subprocess.TimeoutExpired:
+            # The owned child is dead post-SIGKILL, but a grandchild that
+            # escaped the process group (it called ``setsid`` itself) can
+            # inherit and hold the stdout pipe, so the drain never sees EOF.
+            # Reap the dead child by PID and return rather than wedging the
+            # gate forever on a pipe the group-kill cannot reach. The escaped
+            # orphan subtree is a separate, tracked reaping concern
+            # (killpg/taskkill cannot cover a re-parented subtree) — it must
+            # never turn the runner's own reap into an unbounded hang.
+            with contextlib.suppress(Exception):
+                process.wait(timeout=_HEAD_RUN_TERMINATE_GRACE)
+            return "", ""
 
 
 def _observe_process(

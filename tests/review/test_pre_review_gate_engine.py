@@ -547,6 +547,48 @@ def test_termination_escalates_to_kill_and_reaps(
 
 
 @pytest.mark.fast
+def test_reap_is_bounded_when_escaped_grandchild_holds_pipe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The post-SIGKILL reap must return within a bound, never hang forever.
+
+    A grandchild that escaped the process group (self-``setsid``) can inherit
+    and hold the stdout pipe, so ``communicate`` never sees EOF even though the
+    owned child is dead. The reap must fall back to reaping the child by PID and
+    return, rather than wedging the gate on the leaked pipe.
+    """
+
+    class _PipeHeldProcess:
+        pid = 909090
+
+        def __init__(self) -> None:
+            self.waited = False
+
+        def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            # EOF never arrives — the escaped grandchild still holds the pipe.
+            raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout or 0.0)
+
+        def wait(self, timeout: float | None = None) -> int:
+            self.waited = True
+            return -9
+
+    process = _PipeHeldProcess()
+
+    def _wait(candidate: object, timeout: float) -> tuple[str, str]:
+        del candidate
+        raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout)
+
+    monkeypatch.setattr(
+        pre_review_gate, "_signal_owned_process_tree", lambda *a, **k: None
+    )
+
+    output = pre_review_gate._terminate_and_reap(process, wait=_wait)  # type: ignore[arg-type]
+
+    assert output == ("", "")
+    assert process.waited is True  # the dead child was reaped by PID, not left
+
+
+@pytest.mark.fast
 def test_cancellation_releases_scoped_run_lock(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
