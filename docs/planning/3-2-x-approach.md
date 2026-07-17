@@ -1,6 +1,6 @@
 ---
 title: '3.2.x Delivery Approach — Operator Plan, Dialectically Challenged'
-description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup next, hold non-critical PRs), stress-tested by a two-round dialectic squad (architect / planner / architecture-scout) and synthesised into an actionable, fact-checked plan.'
+description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup next, hold non-critical PRs), stress-tested by a two-round dialectic squad into a fact-checked plan.'
 doc_status: proposed
 updated: '2026-07-17'
 related:

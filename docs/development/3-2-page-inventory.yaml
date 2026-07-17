@@ -2408,6 +2408,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/planning/3-2-x-approach.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/planning/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md
   tag: current
   divio_type: none
