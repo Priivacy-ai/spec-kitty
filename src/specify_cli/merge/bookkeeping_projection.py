@@ -373,7 +373,5 @@ __all__ = [
     "_capture_bookkeeping_snapshots",
     "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
-    "_union_event_logs",
-    "_rematerialize_status_snapshot",
     "_project_status_bookkeeping_to_target",
 ]
