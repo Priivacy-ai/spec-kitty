@@ -9,6 +9,7 @@ invariant: the ``merge.path_is_under_worktrees`` import is function-local and no
 
 from __future__ import annotations
 
+import json as _json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,8 @@ import pytest
 import typer
 
 from specify_cli.cli.commands import _coordination_doctor as cd
+from specify_cli.coordination.coherence import coord_incoherent_done_wps
+from specify_cli.merge.state import MergeState, load_state, save_state
 
 pytestmark = [pytest.mark.fast]
 
@@ -480,3 +483,357 @@ def test_collect_injects_meta_path_for_never_created_findings(
     assert never_created, "expected NEVER_CREATED finding from monkeypatched check"
     assert "meta_path" in never_created[0].extra
     assert never_created[0].extra["meta_path"].endswith("meta.json")
+
+
+# ---------------------------------------------------------------------------
+# WP04 (#2786 / #2367-B, FR-007): stranded-coord-revert check + --fix.
+#
+# The load-bearing separator is the NEGATIVE AC (US2-S5): a marker present but a
+# committed coord ref that re-derives COHERENT must yield NO finding. A
+# marker-presence-only implementation passes the positive test and FAILS this.
+# These tests build a real committed coord ref so re-verification is genuine.
+# ---------------------------------------------------------------------------
+
+_DOCTOR_MISSION_SLUG = "coord-doctor-fixture-01KXTM59"
+_DOCTOR_MISSION_ID = "01MIDDOCTOR00000000000000A0"
+_DOCTOR_EVENTS_REL = f"kitty-specs/{_DOCTOR_MISSION_SLUG}/status.events.jsonl"
+
+
+def _git_doctor(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+    )
+
+
+def _init_doctor_repo(repo: Path) -> None:
+    repo.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "init", "-qb", "main", str(repo)], check=True, capture_output=True
+    )
+    _git_doctor(repo, "config", "user.email", "test@test.com")
+    _git_doctor(repo, "config", "user.name", "Test")
+    _git_doctor(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    _git_doctor(repo, "add", ".")
+    _git_doctor(repo, "commit", "-m", "init")
+
+
+def _doctor_event(
+    wp_id: str, to_lane: str, *, event_id: str, from_lane: str
+) -> dict[str, object]:
+    return {
+        "actor": "reviewer-renata",
+        "at": "2026-07-18T10:00:00+00:00",
+        "event_id": event_id,
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": _DOCTOR_MISSION_SLUG,
+        "force": False,
+        "from_lane": from_lane,
+        "reason": None,
+        "review_ref": None,
+        "to_lane": to_lane,
+        "wp_id": wp_id,
+    }
+
+
+def _seed_doctor_coord_ref(
+    repo: Path, events: list[dict[str, object]], *, branch: str = "coord"
+) -> None:
+    """Init ``repo`` and commit ``events`` as the mission's coord event log on ``branch``.
+
+    The mission meta deliberately omits ``coordination_branch`` (legacy shape) so
+    the unrelated worktree-health check skips it — the exit code then reflects the
+    stranded-revert check alone.
+    """
+    _init_doctor_repo(repo)
+    feature_dir = repo / "kitty-specs" / _DOCTOR_MISSION_SLUG
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        _json.dumps(
+            {
+                "mission_slug": _DOCTOR_MISSION_SLUG,
+                "mission_id": _DOCTOR_MISSION_ID,
+                "mission_number": None,
+                "mission_type": "software-dev",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "status.events.jsonl").write_text(
+        "".join(_json.dumps(e, sort_keys=True) + "\n" for e in events),
+        encoding="utf-8",
+    )
+    _git_doctor(repo, "add", ".")
+    _git_doctor(repo, "commit", "-m", "seed coord events")
+    _git_doctor(repo, "branch", branch)
+
+
+def _save_marker_state(
+    repo: Path,
+    *,
+    stranded_wp_ids: list[str],
+    coord_ref: str = "coord",
+    captured_sha: str = "deadbeef",
+    coord_worktree: str = "/tmp/coord-wt",
+) -> None:
+    marker = {
+        "coord_ref": coord_ref,
+        "captured_sha": captured_sha,
+        "coord_worktree": coord_worktree,
+        "stranded_wp_ids": stranded_wp_ids,
+        "revert_error": None,
+        "detected_at": "2026-07-18T10:05:00+00:00",
+    }
+    save_state(
+        MergeState(
+            mission_id=_DOCTOR_MISSION_ID,
+            mission_slug=_DOCTOR_MISSION_SLUG,
+            target_branch="main",
+            wp_order=stranded_wp_ids or ["WP-A"],
+            current_wp=(stranded_wp_ids or ["WP-A"])[0],
+            pending_coord_reconcile=marker,
+        ),
+        repo,
+    )
+
+
+# --- T014 (a) POSITIVE: live strand -> error finding + exit 1 ----------------
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_stranded_check_emits_error_for_live_strand(tmp_path: Path) -> None:
+    """A marker whose committed ref STILL reduces WP-A to done -> one error finding."""
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [
+            _doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review"),
+            _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
+            _doctor_event("WP-B", "approved", event_id="01B00", from_lane="in_review"),
+        ],
+    )
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"])
+
+    findings = cd._check_stranded_coord_revert(repo)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.severity == "error"
+    assert finding.error_code == cd._STRANDED_COORD_REVERT_CODE
+    # Re-derived from the committed ref, not echoed from the marker.
+    assert finding.extra["stranded_wp_ids"] == ["WP-A"]
+    assert finding.extra["mission_slug"] == _DOCTOR_MISSION_SLUG
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_run_coordination_health_json_exits_1_on_live_strand(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`doctor coordination --json` exits 1 and surfaces the stable error_code."""
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [
+            _doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review"),
+            _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
+        ],
+    )
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"])
+
+    # Isolate the exit code to the stranded-revert check (git-version/tracked
+    # checks are environment-dependent and never emit errors here).
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True)
+    assert exc.value.exit_code == 1
+    assert cd._STRANDED_COORD_REVERT_CODE in capsys.readouterr().out
+
+
+# --- T014 (b) NEGATIVE (the separator): stale marker, coherent ref -> exit 0 --
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_stranded_check_no_finding_for_stale_marker_over_coherent_ref(
+    tmp_path: Path,
+) -> None:
+    """Marker present, but the committed ref re-derives COHERENT -> NO finding.
+
+    This is the AC that separates re-verification from marker-presence: WP-A is
+    only ever ``approved`` on the ref, so a marker-presence-only implementation
+    would (wrongly) emit a finding here.
+    """
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [_doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review")],
+    )
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"])
+
+    # Sanity: the marker IS present and non-empty.
+    st = load_state(repo, _DOCTOR_MISSION_ID)
+    assert st is not None and st.pending_coord_reconcile is not None
+
+    assert cd._check_stranded_coord_revert(repo) == []
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_run_coordination_health_exits_0_for_stale_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The entrypoint exits 0 when every marker's ref re-derives coherent."""
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [_doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review")],
+    )
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"])
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True)
+    assert exc.value.exit_code == 0
+
+
+def test_parse_reconcile_marker_rejects_empty_strand() -> None:
+    """An empty strand is not a strand (data-model): the marker is unusable."""
+    base = {
+        "coord_ref": "coord",
+        "captured_sha": "deadbeef",
+        "coord_worktree": "/tmp/wt",
+        "stranded_wp_ids": [],
+    }
+    assert cd._parse_reconcile_marker(base) is None
+    assert cd._parse_reconcile_marker(None) is None
+    assert cd._parse_reconcile_marker({**base, "coord_ref": ""}) is None
+    assert cd._parse_reconcile_marker({**base, "stranded_wp_ids": ["WP-A"]}) == (
+        "coord",
+        "deadbeef",
+        "/tmp/wt",
+        ["WP-A"],
+    )
+
+
+# --- T014 (c) --fix heals coherence + idempotency (byte-stable, marker once) --
+
+
+def _bake_stranding_done(repo: Path, tmp_path: Path) -> tuple[str, Path]:
+    """Materialize a coord worktree and bake a stranding WP-A ``done`` commit.
+
+    Returns ``(captured_sha, coord_worktree)`` where ``captured_sha`` is the coord
+    tip BEFORE the bake (the ``git revert`` base).
+    """
+    captured_sha = _git_doctor(repo, "rev-parse", "coord").stdout.strip()
+    worktree = tmp_path / "coord-wt"
+    _git_doctor(repo, "worktree", "add", str(worktree), "coord")
+    wt_events = worktree / "kitty-specs" / _DOCTOR_MISSION_SLUG / "status.events.jsonl"
+    with wt_events.open("a", encoding="utf-8") as fh:
+        fh.write(
+            _json.dumps(
+                _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
+                sort_keys=True,
+            )
+            + "\n"
+        )
+    _git_doctor(worktree, "add", ".")
+    _git_doctor(worktree, "commit", "-m", "bake WP-A done (strands on rollback)")
+    return captured_sha, worktree
+
+
+def _committed_coord_events(repo: Path) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(repo), "show", f"coord:{_DOCTOR_EVENTS_REL}"],
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_run_coordination_health_fix_heals_then_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`--fix` reverts the strand, clears the marker, and re-running is byte-stable."""
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [_doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review")],
+    )
+    captured_sha, worktree = _bake_stranding_done(repo, tmp_path)
+    _save_marker_state(
+        repo,
+        stranded_wp_ids=["WP-A"],
+        captured_sha=captured_sha,
+        coord_worktree=str(worktree),
+    )
+    feature_dir = repo / "kitty-specs" / _DOCTOR_MISSION_SLUG
+
+    # Pre-condition: WP-A is genuinely stranded done on the committed ref.
+    assert coord_incoherent_done_wps(
+        "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == ["WP-A"]
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    # First --fix: reverts the strand -> coherent -> exit 0.
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+    assert exc.value.exit_code == 0
+    assert coord_incoherent_done_wps(
+        "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == []
+    # Marker cleared exactly once.
+    healed_state = load_state(repo, _DOCTOR_MISSION_ID)
+    assert healed_state is not None
+    assert healed_state.pending_coord_reconcile is None
+    bytes_after_first = _committed_coord_events(repo)
+
+    # Second --fix: marker gone -> no finding, no revert, byte-stable coord log.
+    with pytest.raises(typer.Exit) as exc2:
+        cd.run_coordination_health(json_output=True, fix=True)
+    assert exc2.value.exit_code == 0
+    assert _committed_coord_events(repo) == bytes_after_first
+    second_state = load_state(repo, _DOCTOR_MISSION_ID)
+    assert second_state is not None
+    assert second_state.pending_coord_reconcile is None
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_fix_stranded_reverts_direct_returns_healed_slug(tmp_path: Path) -> None:
+    """`_fix_stranded_reverts` heals and returns the mission slug; a 2nd call is a no-op."""
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [_doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review")],
+    )
+    captured_sha, worktree = _bake_stranding_done(repo, tmp_path)
+    _save_marker_state(
+        repo,
+        stranded_wp_ids=["WP-A"],
+        captured_sha=captured_sha,
+        coord_worktree=str(worktree),
+    )
+
+    findings = cd._check_stranded_coord_revert(repo)
+    assert [f.error_code for f in findings] == [cd._STRANDED_COORD_REVERT_CODE]
+
+    assert cd._fix_stranded_reverts(findings, repo) == [_DOCTOR_MISSION_SLUG]
+    # Marker cleared -> re-checking finds nothing -> a second fix heals nothing.
+    assert cd._check_stranded_coord_revert(repo) == []
+    assert cd._fix_stranded_reverts(findings, repo) == []
