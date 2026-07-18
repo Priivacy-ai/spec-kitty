@@ -115,6 +115,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   Tracked follow-ups: **#2786** (write a durable reconcile marker when the rollback revert
   itself fails) and **#2794** (a `SPEC_KITTY_SYNC_MINIMAL_IMPORT` test-isolation leak that
   skips the pre-review gate under the parallel CI suite).
+- **A failed coordination-`done` revert during rollback no longer silently re-opens the
+  #2711 split-brain (#2786), and the coordination write-set rolls back transactionally
+  (#2367 Mechanism B).** When the rollback's coord-`done` `git revert` itself *failed* (#2786),
+  or when a merge aborted mid-way through `_record_merged_wps_done_for_merge` before any revert
+  ran (#2367-B), rollback restored only working-tree bytes and left a committed `done` opposed to
+  a reverted working `approved` — a silently-stranded split-brain. Rollback now **marks-not-raises**:
+  a durable `MergeState.pending_coord_reconcile` marker records the stranded WP(s) — derived from
+  the **committed** coordination ref (the reliable authority; a working-tree diff is empty at the
+  revert-failure point) over *this merge's own* pre-target `done` write-set, so a legitimately
+  pre-existing-`done` WP is never re-stranded. `spec-kitty merge --resume` heals via a strand-gated,
+  idempotent `git revert` (byte-stable on re-run), and `spec-kitty doctor coordination` detects the
+  strand (re-verifying incoherence from the committed ref, not marker-presence) with a `--fix`. A
+  behavioral class-closing guard reds if any of the seven `_restore_final_bookkeeping_snapshots`
+  rollback sites (incl. the previously-unenumerated coord-reachable site) strands without marking.
+  INV-5 (#1827) ordering preserved; happy-path merge byte-identical. Ships red-first repros for both
+  mechanisms. Deferred with follow-ups: **#2795** (#2367 Mechanism A — claim-time VCS-lock resync)
+  and **#2797** (unify the two `git revert` transport legs into one shared helper).
 - **`--json` output is now plain regardless of terminal colour; CLI tests are colour-deterministic (#2632).**
   Under a colour-forcing harness (e.g. `FORCE_COLOR=3`) Rich syntax-highlighted `--json`
   output — splicing ANSI escapes into the payload so `json.loads` and `| jq` choked — and
