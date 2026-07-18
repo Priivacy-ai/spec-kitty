@@ -82,6 +82,12 @@ _DIRTY_SCOPE_PATHS: tuple[str, ...] = (
     ".kittify/doctrine/",
 )
 
+# Shared prefix for the three refresh-sequence subprocess commands (#2157a
+# campsite — S1192).  The tails differ (``sync`` / ``synthesize`` /
+# ``bundle validate``), so only the common ``["spec-kitty", "charter"]``
+# tokens are hoisted; each call site appends its own tail.
+_SPEC_KITTY_CHARTER_PREFIX: tuple[str, ...] = ("spec-kitty", "charter")
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -221,20 +227,29 @@ def _default_detail(label: str, state: str, last_change: str | None) -> str:
 
 
 def _derive_blocked_reason(checks: list[CharterPreflightCheck]) -> str:
-    """Pick the first non-passing check and build a blocked_reason.
+    """Enumerate every non-passing check into one ``blocked_reason`` string.
 
-    The returned string MUST include an actionable command (per the
-    contract) — we use the check's own ``remediation`` when present, or
-    fall back to ``spec-kitty charter status`` so the operator at least
-    sees the diagnostic.
+    #2157a: previously this picked only the FIRST non-passing check, which
+    made the operator fix charter-owed prerequisites one at a time (fix,
+    re-run, discover the next). It now reports every non-passing check in
+    ``checks`` order so a single pass surfaces the whole remediation list.
+
+    Per-check formatting is unchanged from the prior single-check behaviour
+    (``"<name> <state>; run `<remediation>`"``) — for exactly one
+    non-passing check this still returns that identical single-line string;
+    for multiple, the lines are joined with a newline into one string (the
+    ``blocked_reason`` field stays a single ``str`` — see the output-shape
+    pin in ``result.py``).
     """
-    for check in checks:
-        if check.state in _PASS_STATES:
-            continue
-        remediation = check.remediation or "spec-kitty charter status"
-        return f"{check.name} {check.state}; run `{remediation}`"
-    # Should not happen — callers only enter this path when passed=False.
-    return "charter preflight failed; run `spec-kitty charter status`"
+    lines = [
+        f"{check.name} {check.state}; run `{check.remediation or 'spec-kitty charter status'}`"
+        for check in checks
+        if check.state not in _PASS_STATES
+    ]
+    if not lines:
+        # Should not happen — callers only enter this path when passed=False.
+        return "charter preflight failed; run `spec-kitty charter status`"
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +390,7 @@ def _attempt_auto_refresh(
     drg_fresh = freshness.synthesized_drg.state == "fresh"
 
     if not (source_fresh and bundle_fresh):
-        sync_cmd = ["spec-kitty", "charter", "sync"]
+        sync_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "sync"]
         ok, reason = _run_refresh_step(sync_cmd, repo_root, timeout_secs)
         actions.append(" ".join(sync_cmd))
         if not ok:
@@ -388,7 +403,7 @@ def _attempt_auto_refresh(
             )
 
     if not drg_fresh:
-        synth_cmd = ["spec-kitty", "charter", "synthesize"]
+        synth_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "synthesize"]
         ok, reason = _run_refresh_step(synth_cmd, repo_root, timeout_secs)
         actions.append(" ".join(synth_cmd))
         if not ok:
@@ -400,7 +415,7 @@ def _attempt_auto_refresh(
                 blocked_reason=reason,
             )
 
-    validate_cmd = ["spec-kitty", "charter", "bundle", "validate"]
+    validate_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "bundle", "validate"]
     ok, reason = _run_refresh_step(validate_cmd, repo_root, timeout_secs)
     actions.append(" ".join(validate_cmd))
     if not ok:

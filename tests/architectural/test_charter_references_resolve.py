@@ -228,11 +228,6 @@ def _actual_dangling_tokens() -> set[str]:
     return cited_tokens - resolved_suffixes
 
 
-# Accepted red (regression): the `red-main-release-discipline` procedure landed
-# (1eb035e20) citing itself in charter.md without wiring the reference into the
-# compiled DRG/references, so this dangler check reds. Tracked by #2770 (open
-# until the shipped DRG is regenerated); honest red until it lands.
-@pytest.mark.regression
 def test_no_new_charter_reference_danglers() -> None:
     """FR-009 / SC-004: no NEW dangling `→ `token`` citation may appear in
     charter.md, across every section.

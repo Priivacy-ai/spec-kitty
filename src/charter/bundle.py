@@ -184,6 +184,47 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
     return combined
 
 
+def first_missing_bundle_file(repo_root: Path) -> str | None:
+    """Return the name of the first missing content-hash bundle file, if any.
+
+    Pure existence check over :data:`BUNDLE_CONTENT_HASH_FILES` (declared
+    order) under ``.kittify/charter/`` — it does not read file content or
+    compute any hash, and its own contract is independent of
+    :func:`compute_bundle_content_hash` (whose fail-safe ``None``-on-missing
+    behaviour is unchanged by this helper).
+
+    Callers that need to know *which* file is missing before doing work that
+    assumes a complete bundle (issue #2758) use this instead of interpreting
+    a bare ``None`` from :func:`compute_bundle_content_hash`. Concretely:
+    ``sync()`` refreshes ``governance.yaml`` / ``directives.yaml`` /
+    ``metadata.yaml`` automatically, but ``references.yaml`` is written only
+    by ``charter generate`` (:func:`charter.compiler.compile_charter`) — a
+    synced-but-not-generated project has three of the four files present and
+    would otherwise silently persist an un-healable ``None`` bundle-content
+    hash into the synthesis manifest, which the freshness reader
+    (``specify_cli.charter_runtime.freshness.computer``) then reports as
+    permanently ``stale`` with no way for a re-run of ``synthesize`` to
+    self-heal (it never compiles ``references.yaml`` itself).
+
+    Parameters
+    ----------
+    repo_root:
+        Absolute project root.
+
+    Returns
+    -------
+    str | None
+        The filename (e.g. ``"references.yaml"``) of the first missing file
+        in :data:`BUNDLE_CONTENT_HASH_FILES` order, or ``None`` when every
+        file is present under ``.kittify/charter/``.
+    """
+    charter_dir = repo_root / ".kittify" / "charter"
+    for name in BUNDLE_CONTENT_HASH_FILES:
+        if not (charter_dir / name).exists():
+            return name
+    return None
+
+
 # ---------------------------------------------------------------------------
 # WP03 (FR-015): Synthesis state validation extension
 # ---------------------------------------------------------------------------
@@ -421,6 +462,8 @@ __all__ = [
     # module-internal — the reader consumes the compute_bundle_content_hash
     # helper, never the file-list constant — so it stays out of __all__)
     "compute_bundle_content_hash",
+    # #2758: fail-closed preflight helper (WP02)
+    "first_missing_bundle_file",
     # WP03 extension (FR-015)
     "BundleValidationResult",
     "validate_synthesis_state",

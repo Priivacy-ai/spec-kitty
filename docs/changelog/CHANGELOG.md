@@ -19,6 +19,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **`charter activate`/`deactivate --resynthesize` opt-in eager refresh (FR-007, #2761).**
+  Since the config↔derived freshness seam (#2759) made `charter activate`/`deactivate`
+  visible to the `synthesized_drg` freshness signal, a routine activation now reports
+  `stale` until the operator reconciles it. The new `--resynthesize`/`--no-resynthesize`
+  flag (default **off**) gives operators an escape hatch: passing it re-runs the existing
+  `charter generate` + `charter synthesize` pipeline right after the config write, so the
+  derived bundle/DRG — and the freshness signal — are fresh immediately, without building
+  a second reconciliation pipeline. The default (no-flag) path is unchanged: a fast,
+  config-only write that spawns **zero** synthesis calls, locked in by a call-count spy
+  regression test (NFR-001); the `spec-kitty upgrade` migration and `org_charter`
+  `promote_activations` paths are untouched and remain synthesis-free (NFR-003).
 - **Development-assist test cleanup is now a standing wrap-up procedure (#2557).**
   A new built-in `development-assist-test-cleanup` procedure codifies a proactive,
   judge-the-test pass at mission close (identify → judge → execute → scope-the-residue)

@@ -136,6 +136,13 @@ _CHARTER_FILENAME = "charter.md"
 _METADATA_FILENAME = "metadata.yaml"
 _BUNDLE_FILES = ("governance.yaml", "directives.yaml", "references.yaml", _METADATA_FILENAME)
 
+#: Remediation for a config<->derived activation-parity divergence (#2759).
+#: MUST name ``charter generate`` (recompiles references.yaml from the current
+#: activation state) before ``charter synthesize`` — bare ``synthesize`` cannot
+#: clear references-parity drift, so pointing there recreates the #2758
+#: un-healable dead-end for the parity signal. ``--resynthesize`` runs both.
+_PARITY_DRIFT_REMEDIATION = "spec-kitty charter generate && spec-kitty charter synthesize"
+
 
 def _synthesis_manifest_path(repo_root: Path) -> Path:
     """Return the canonical synthesis manifest path via lazy chokepoint import."""
@@ -362,52 +369,96 @@ def _compute_synthesized_drg(
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False
     graph_exists = graph_path.exists()
 
-    legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
-
     if built_in_only:
-        # FR-006 (C2-f, structural): the synthesis manifest is the declared
-        # authority over graph.yaml presence (#083). A graph.yaml the manifest
-        # disowns is *residue*, not a contradiction — so the reader reports the
-        # authoritative ``built_in_only`` state regardless of graph presence and,
-        # when residue is present, attaches a NON-BLOCKING diagnostic. This is a
-        # read-time normalization, NOT a reactive self-heal: the reader does not
-        # run ``synthesize`` and emits no remediation for residue (C-003). The
-        # blocking ``invalid`` branch for this specific condition is now
-        # unreachable, so preflight (``built_in_only`` ∈ ``_PASS_STATES``) passes.
-        if graph_exists:
-            return FreshnessSubState(
-                state="built_in_only",
-                last_change=_mtime_iso(graph_path),
-                remediation=None,
-                detail=(
-                    "stale graph residue: graph.yaml present but the synthesis "
-                    "manifest declares built_in_only; the manifest is "
-                    "authoritative, the residual graph.yaml is ignored"
-                ),
-            )
-        # Authoritative built-in-only state (FR-009).
-        return FreshnessSubState(
-            state="built_in_only",
-            last_change=_mtime_iso(manifest_path),
-            remediation=None,
-        )
+        # FR-006 (C2-f, structural) / #2759 fresh-seed guarantee: built_in_only
+        # is an authoritative, never-synthesized short-circuit that returns
+        # BEFORE the activation-parity read below is ever reached — a
+        # config<->derived drift on a fresh-seed project must not force it
+        # stale (R-01).
+        return _synthesized_drg_built_in_only_state(graph_path, manifest_path, graph_exists=graph_exists)
 
     if not graph_exists:
-        if _looks_like_legacy_fresh_seed(legacy_fresh_seed):
-            return FreshnessSubState(
-                state="built_in_only",
-                last_change=_mtime_iso(legacy_fresh_seed),
-                remediation=None,
-                detail="legacy fresh-project seed marker; re-run `spec-kitty charter synthesize` to write synthesis-manifest.yaml",
-            )
-        # No graph + manifest does not opt into built_in_only → missing.
-        return FreshnessSubState(
-            state="missing",
-            last_change=None,
-            remediation="spec-kitty charter synthesize",
-        )
+        # No graph + manifest does not opt into built_in_only → also a
+        # never-synthesized short-circuit (legacy-seed or missing); the
+        # activation-parity read is equally unreached here.
+        return _synthesized_drg_missing_graph_state(repo_root)
 
-    # graph_exists is true → check staleness vs. synced_bundle.
+    return _synthesized_drg_graph_state(repo_root, graph_path, manifest, synced_bundle)
+
+
+def _synthesized_drg_built_in_only_state(
+    graph_path: Path,
+    manifest_path: Path,
+    *,
+    graph_exists: bool,
+) -> FreshnessSubState:
+    """FR-006 (C2-f, structural): the synthesis manifest is the declared
+    authority over graph.yaml presence (#083). A graph.yaml the manifest
+    disowns is *residue*, not a contradiction — so the reader reports the
+    authoritative ``built_in_only`` state regardless of graph presence and,
+    when residue is present, attaches a NON-BLOCKING diagnostic. This is a
+    read-time normalization, NOT a reactive self-heal: the reader does not
+    run ``synthesize`` and emits no remediation for residue (C-003). The
+    blocking ``invalid`` branch for this specific condition is now
+    unreachable, so preflight (``built_in_only`` ∈ ``_PASS_STATES``) passes.
+    """
+    if graph_exists:
+        return FreshnessSubState(
+            state="built_in_only",
+            last_change=_mtime_iso(graph_path),
+            remediation=None,
+            detail=(
+                "stale graph residue: graph.yaml present but the synthesis "
+                "manifest declares built_in_only; the manifest is "
+                "authoritative, the residual graph.yaml is ignored"
+            ),
+        )
+    # Authoritative built-in-only state (FR-009).
+    return FreshnessSubState(
+        state="built_in_only",
+        last_change=_mtime_iso(manifest_path),
+        remediation=None,
+    )
+
+
+def _synthesized_drg_missing_graph_state(repo_root: Path) -> FreshnessSubState:
+    """No project ``graph.yaml`` and the manifest does not declare
+    ``built_in_only`` — either a legacy fresh-project seed marker (self-heals
+    on the next synthesize) or a genuine ``missing`` state.
+    """
+    legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
+    if _looks_like_legacy_fresh_seed(legacy_fresh_seed):
+        return FreshnessSubState(
+            state="built_in_only",
+            last_change=_mtime_iso(legacy_fresh_seed),
+            remediation=None,
+            detail="legacy fresh-project seed marker; re-run `spec-kitty charter synthesize` to write synthesis-manifest.yaml",
+        )
+    return FreshnessSubState(
+        state="missing",
+        last_change=None,
+        remediation="spec-kitty charter synthesize",
+    )
+
+
+def _synthesized_drg_graph_state(
+    repo_root: Path,
+    graph_path: Path,
+    manifest: SynthesisManifest | None,
+    synced_bundle: FreshnessSubState,
+) -> FreshnessSubState:
+    """Compute the synthesized_drg substate once a project ``graph.yaml`` is
+    known to exist and the manifest does not short-circuit to
+    ``built_in_only``.
+
+    Order (#2759): (1) the existing content-identity hash comparison against
+    ``synced_bundle`` — UNCHANGED, #2732's contract — then (2), only once
+    content-identity itself reads fresh, the config<->derived
+    activation-parity read. Parity is a SEPARATE signal COMPOSED WITH
+    content-identity, never folded into the hash (NFR-002): an unchanged
+    bundle still hashes identically regardless of what this function
+    returns.
+    """
     graph_mtime_iso = _mtime_iso(graph_path)
 
     if synced_bundle.state != "fresh" or synced_bundle.last_change is None:
@@ -432,7 +483,72 @@ def _compute_synthesized_drg(
             remediation="spec-kitty charter synthesize",
         )
 
+    parity_drift = _activation_parity_drift_reason(repo_root)
+    if parity_drift is not None:
+        # A config<->derived parity divergence is cleared by recompiling the
+        # references/graph FROM the current activation state — which is
+        # `charter generate` (recompiles references.yaml) followed by
+        # `charter synthesize` (regenerates the graph). Bare `synthesize`
+        # canNOT self-heal this: it never recompiles references.yaml (only
+        # `generate`/`compile_charter` does — the same invariant #2758 rests
+        # on), so pointing the operator at bare `synthesize` here would
+        # recreate the un-healable dead-end this mission set out to kill.
+        return FreshnessSubState(
+            state="stale",
+            last_change=graph_mtime_iso,
+            remediation=_PARITY_DRIFT_REMEDIATION,
+            detail=parity_drift,
+        )
+
     return FreshnessSubState(state="fresh", last_change=graph_mtime_iso, remediation=None)
+
+
+def _activation_parity_drift_reason(repo_root: Path) -> str | None:
+    """Consult the config<->derived activation-parity guard (#2759 seam).
+
+    ``charter activate``/``deactivate`` mutate ``config.yaml``
+    (``activated_*``), which is not one of the four files the content-hash
+    covers (see module docstring), so a config<->references or
+    config<->graph divergence would otherwise stay invisible to
+    ``synthesized_drg`` forever. This makes that drift visible by REUSING
+    ``charter.consistency_check.run_consistency_check`` (C-007 — do not
+    reimplement a parallel parity check) rather than adding a second
+    activation-parity implementation here.
+
+    Writer-agnostic by construction: ``run_consistency_check`` reads
+    ``.kittify/config.yaml`` directly, so it also catches drift written by
+    the ``merge_defaults`` bypass (``charter.pack_manager``), which never
+    goes through ``charter.activation_engine.commit_plan``.
+
+    Scope: only the config<->references (``reference_id_divergences``) and
+    config<->graph (``graph_kind_gaps``) parity findings are consulted here
+    — NOT the full ``ConsistencyReport.coherent`` flag, which also folds in
+    unrelated findings (unknown doctrine IDs, cross-kind DRG edge gaps, kind
+    violations) that are not a synthesis-staleness signal. A guard that
+    could not even verify parity (``verification_errors``, #2530) is treated
+    the same as a genuine mismatch — fail-closed (FR-003).
+
+    Returns a human-readable drift reason, or ``None`` when parity holds.
+    """
+    from charter.consistency_check import run_consistency_check  # noqa: PLC0415
+    from charter.invocation_context import ProjectContext  # noqa: PLC0415
+
+    ctx = ProjectContext.from_repo(repo_root)
+    report = run_consistency_check(ctx)
+
+    findings: list[str] = []
+    if report.reference_id_divergences:
+        findings.append(
+            "config<->references.yaml activation drift: " + ", ".join(report.reference_id_divergences)
+        )
+    if report.graph_kind_gaps:
+        findings.append("config<->graph activation drift: " + ", ".join(report.graph_kind_gaps))
+    if report.verification_errors:
+        findings.append("activation parity could not be verified: " + "; ".join(report.verification_errors))
+
+    if not findings:
+        return None
+    return "; ".join(findings)
 
 
 def _looks_like_legacy_fresh_seed(path: Path) -> bool:
