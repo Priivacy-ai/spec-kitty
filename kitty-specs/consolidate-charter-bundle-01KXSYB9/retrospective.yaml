@@ -1,0 +1,472 @@
+schema_version: 1
+mission_id: 01KXSYB9B87MZ34K476BNTR3FV
+mission_slug: consolidate-charter-bundle-01KXSYB9
+mission_number:
+friendly_name: Consolidate the Compiled Charter Bundle
+mission_type: software-dev
+target_branch: feat/consolidate-charter-bundle
+created_at: '2026-07-18T19:26:05.214806+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-18T19:26:05.214806+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-004
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-005
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-006
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-007
+  category: tooling
+  summary: 'Tracer: D9 — WP06 spurious-authoring-staleness: option (b) DECIDED'
+  evidence_refs:
+  - e-025
+  details: "- **D9 — WP06 spurious-authoring-staleness: option (b) DECIDED** (data-model.md Landmine 2 extension, alphonso
+    MINOR-3). Freshness stays grounded on the whole-file ``charter.yaml`` content-identity hash (`charter.bundle.compute_bundle_content_hash`),
+    NOT a narrower `catalog`↔`activation` parity check. Consequence: an authoring-only edit (e.g. hand-editing `governance`/`directives`/`activation`
+    without touching the derived `catalog`) trips `synthesized_drg` to `stale` even though nothing *derived* drifted — accepted
+    as expected, not a defect. Rationale: (1) always healable by the very next `spec-kitty charter synthesize`/`resynthesize`
+    (which recomputes the hash from current content and re-stamps the manifest) — a transient, self-clearing state, never
+    a permanent-stale dead-end like the retired #2758 missing-file trap; (2) option (a) (grounding freshness on a NEW `catalog`↔`activation`
+    parity check) would require net-new logic in `consistency_check.py`/`bundle.py`, outside WP06's owned "
+not_helpful:
+- id: n-010
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-024
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-007
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-021
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-008
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-022
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-009
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-023
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-002
+  category: process
+  summary: WP01 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP01 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-004
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP03 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP03 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-005
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP07 was sent back from review to planning 1 time(s).
+- id: n-011
+  category: tooling
+  summary: 'Tracer: D1 — charter.yaml is the project charter, OWNS activation'
+  evidence_refs:
+  - e-025
+  details: '- **D1 — charter.yaml is the project charter, OWNS activation** (operator, ADR 2026-07-18-1). Pack-shaped, git-tracked,
+    overlays default.yaml. activated_* relocates from config.yaml.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: D10 — #2759 retirement confirmed structurally moot, not just removed.'
+  evidence_refs:
+  - e-025
+  details: "- **D10 — #2759 retirement confirmed structurally moot, not just removed.** `_activation_parity_drift_reason`/`_PARITY_DRIFT_REMEDIATION`
+    deleted from `computer.py` (T026). The config<->references/graph divergence they guarded against cannot exist once activation
+    relocates into `charter.yaml` (D1/D5) — the same file the content hash already covers — so the unified content-hash comparison
+    in `_synthesized_drg_graph_state` subsumes the guarantee the parity read used to provide (any edit to `charter.yaml`,
+    activation-shaped or not, flips the hash). `#2758`'s `first_missing_bundle_file` stays out of scope (owned by WP01/`bundle.py`,
+    WP03's caller in `_synthesis.py`)."
+- id: n-020
+  category: tooling
+  summary: 'Tracer: D11 — `_compute_charter_source` (Landmine 2) never returns `"stale"`.'
+  evidence_refs:
+  - e-025
+  details: '- **D11 — `_compute_charter_source` (Landmine 2) never returns `"stale"`.** Retired outright, not re-homed: `charter.yaml`
+    cannot carry a self-referential hash of itself (chicken-egg), so there is no meaningful upstream artifact left to compare
+    `charter.yaml` against at the `charter_source` layer. States: `missing` (absent) / `invalid` (present, unparseable) /
+    `fresh` (parses). The content-drift question moved entirely to `synthesized_drg` (D9/D10). `synced_bundle` mirrors `charter_source`
+    (`_BUNDLE_FILES` narrowed to `("charter.yaml",)`, contracts/manifest-v2.md M1/M3) — `missing` when absent, `stale` when
+    present-but-`charter_source`-`invalid`, `fresh` otherwise.'
+- id: n-021
+  category: tooling
+  summary: "Tracer: D12 — Fallout beyond WP06's 8 owned test files, fixed as necessary consequence, not scope creep."
+  evidence_refs:
+  - e-025
+  details: "- **D12 — Fallout beyond WP06's 8 owned test files, fixed as necessary consequence, not scope creep.** `tests/specify_cli/charter_preflight/_fixtures.py`
+    (added `seed_charter_yaml()`; wired into `make_fresh_repo`), `tests/specify_cli/charter_preflight/test_runner.py` (`test_built_in_only_passes`,
+    re-pinned `test_stale_charter_blocks`→`test_invalid_charter_yaml_blocks`), and `tests/specify_cli/charter_runtime/test_freshness_residue.py`
+    (`_seed_residue_repo`, re-pinned `test_genuine_invalid_still_blocks_preflight`) were broken either by WP01's `BUNDLE_CONTENT_HASH_FILES`
+    narrowing landing before this WP, or directly by this WP's `_compute_charter_source` rework — none of the 9 WPs claim
+    these files. Left unfixed they would have regressed 4 then-passing tests (confirmed via a before/after `pytest` run: 3
+    pre-existing reds from WP01 → 0; then my own change would have pushed 25 passing → far fewer without this fix). Fixed
+    with the smallest mechanical delta (a new fixture helper + swapping w"
+- id: n-012
+  category: tooling
+  summary: 'Tracer: D2 — Retire the prose→triad extractor; charter.md is a curated companion'
+  evidence_refs:
+  - e-025
+  details: '- **D2 — Retire the prose→triad extractor; charter.md is a curated companion** (never resolving, never clobbered).
+    Seeded from the triad (lossless yaml→yaml).'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: D3 — Manifest v2 (Landmine 1)'
+  evidence_refs:
+  - e-025
+  details: '- **D3 — Manifest v2 (Landmine 1)**: charter.yaml ∈ tracked_files; derived_files → content-hash input set; single
+    SCHEMA_VERSION bump; hash → charter.yaml. Catalog stays inside charter.yaml (parity+freshness keep it honest).'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: D4 — Retire charter.md-hash staleness (Landmine 2)'
+  evidence_refs:
+  - e-025
+  details: '- **D4 — Retire charter.md-hash staleness (Landmine 2)**: no self-referential charter_hash in charter.yaml.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: D5 — config.yaml keeps a one-line `charter:` pointer'
+  evidence_refs:
+  - e-025
+  details: '- **D5 — config.yaml keeps a one-line `charter:` pointer** (indirection): resolver locates charter.yaml via it;
+    one-line swaps; fewer multi-user merge conflicts (operator).'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: D6 — One branch/PR, tidy-first, no half-inverted ship'
+  evidence_refs:
+  - e-025
+  details: '- **D6 — One branch/PR, tidy-first, no half-inverted ship** (C-006/NFR-005).'
+- id: n-017
+  category: tooling
+  summary: 'Tracer: D7 — No folds'
+  evidence_refs:
+  - e-025
+  details: '- **D7 — No folds**: #2554 already-fixed→close; #2373 follow-up (#1914); #2772 folded.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: D8 — Fence ADR 2026-07-15-1 runtime-gating OUT'
+  evidence_refs:
+  - e-025
+  details: "- **D8 — Fence ADR 2026-07-15-1 runtime-gating OUT** (C-008); local-override mechanism assumed-compatible.\n\n\
+    ## Appended (implement)\n_(implementers append material decisions here — e.g. exact charter.yaml key names, activation-overlay
+    merge order, migration edge handling)_"
+- id: n-039
+  category: tooling
+  summary: 'Tracer: FR-015 (config pointer)'
+  evidence_refs:
+  - e-027
+  details: "- **FR-015 (config pointer)**: resolver locates charter.yaml via the `charter:` pointer; dangling pointer fails
+    loud.\n\n## Gate matrix (must be green at the single PR head — NFR-005/C-006)\n`ruff check .` · `mypy --strict` · `tests/architectural/{test_shared_package_boundary,test_no_legacy_terminology}`
+    · `tests/charter` · `tests/specify_cli/charter_runtime` · `tests/specify_cli/charter_freshness` · `tests/doctrine/test_activation_parity_guard.py`
+    · `tests/upgrade` (migration) · `spec-kitty doctor doctrine` · `scripts.docs.check_docs_freshness --ci`\n\n## Appended
+    (implement)\n_(implementers append per-WP proof: commands run + exit codes + evidence)_"
+- id: n-022
+  category: tooling
+  summary: 'Tracer: R1 (HIGH) — NFR-005 half-inverted ordering.'
+  evidence_refs:
+  - e-026
+  details: '- **R1 (HIGH) — NFR-005 half-inverted ordering.** If the extractor retires (IC-04) before the loaders re-point,
+    `sync()` stops writing the triad and un-re-pointed loaders return empty `GovernanceConfig()` SILENTLY — governance lost,
+    no error. Mitigation: strict IC-03→IC-04 ordering; loader signatures stay stable; red-first test asserting non-empty governance
+    through the pre-existing loader entry point.'
+- id: n-023
+  category: tooling
+  summary: 'Tracer: R2 (HIGH) — activation-engine blast radius (IC-01).'
+  evidence_refs:
+  - e-026
+  details: '- **R2 (HIGH) — activation-engine blast radius (IC-01).** Relocating `activated_*` touches `commit_plan`/`merge_defaults`/`PackContext.from_config`.
+    Mitigation: behavior-preserving; `tests/doctrine/test_activation_parity_guard.py` + pack_context/activation_engine suites
+    must stay green; preserve fail-closed + default-pack fallback.'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: R3 (HIGH) — schema/git-class reversibility (Landmine 1).'
+  evidence_refs:
+  - e-026
+  details: '- **R3 (HIGH) — schema/git-class reversibility (Landmine 1).** Wrong tracked/derived semantics → a second C-004
+    schema bump. Mitigation: pinned in data-model.md; charter.yaml tracked; derived_files = content-hash input set.'
+- id: n-025
+  category: tooling
+  summary: 'Tracer: R4 (MED) — two `metadata.yaml`.'
+  evidence_refs:
+  - e-026
+  details: '- **R4 (MED) — two `metadata.yaml`.** Migration must touch only `.kittify/charter/metadata.yaml`, never `.kittify/metadata.yaml`
+    (project identity). Mitigation: explicit path guard + test.'
+- id: n-026
+  category: tooling
+  summary: 'Tracer: R5 (MED) — charter_hash self-reference (Landmine 2).'
+  evidence_refs:
+  - e-026
+  details: '- **R5 (MED) — charter_hash self-reference (Landmine 2).** Mitigation: retire/re-home; no self-hash field.'
+- id: n-027
+  category: tooling
+  summary: 'Tracer: R6 (MED) — content-identity regression (#2732).'
+  evidence_refs:
+  - e-026
+  details: '- **R6 (MED) — content-identity regression (#2732).** Mitigation: single `BUNDLE_CONTENT_HASH_FILES` point; existing
+    content-identity suite must pass unchanged.'
+- id: n-028
+  category: tooling
+  summary: 'Tracer: R7 (LOW) — dangling `charter:` pointer.'
+  evidence_refs:
+  - e-026
+  details: '- **R7 (LOW) — dangling `charter:` pointer.** Mitigation: fail-loud (C-003), no fallback; test.'
+- id: n-029
+  category: tooling
+  summary: 'Tracer: R8 (LOW) — docs drift.'
+  evidence_refs:
+  - e-026
+  details: '- **R8 (LOW) — docs drift.** charter-overview.md / governance-files.md assert "charter.md is THE source"; must
+    flip in the same PR (C-006). Mitigation: IC-09 docs WP + terminology guard pre-push.'
+- id: n-030
+  category: tooling
+  summary: 'Tracer: R9 (process) — scout-agent git-checkout hazard'
+  evidence_refs:
+  - e-026
+  details: "- **R9 (process) — scout-agent git-checkout hazard** (hit during the pre-plan squad; recovered). Mitigation: isolate
+    or forbid HEAD-moving commands in future scouts.\n\n## Appended (implement)\n_(implementers append newly-surfaced risks
+    + resolutions)_"
+- id: n-031
+  category: tooling
+  summary: 'Tracer: SC-001 (freshness reflects mutation)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-001 (freshness reflects mutation)**: red-first through `compute_freshness`; activate→stale→reconcile→fresh
+    e2e; no permanent-stale reachable.'
+- id: n-032
+  category: tooling
+  summary: 'Tracer: SC-002 (no retired-file / prose decision reads)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-002 (no retired-file / prose decision reads)**: grep gate (four filenames only in migration code); no governance
+    decision reads charter.md.'
+- id: n-033
+  category: tooling
+  summary: 'Tracer: SC-003 (migration idempotent/fail-loud)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-003 (migration idempotent/fail-loud)**: legacy fixture → fail-loud before; migrate; re-run → 0 changes.'
+- id: n-034
+  category: tooling
+  summary: 'Tracer: SC-004 (derived-set == hash-set)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-004 (derived-set == hash-set)**: manifest assertion `{charter.yaml}`; #2758/#2759 stopgaps removed.'
+- id: n-035
+  category: tooling
+  summary: 'Tracer: SC-005 (content-identity #2732)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-005 (content-identity #2732)**: existing content-identity suite unchanged; unchanged charter.yaml → identical
+    hash.'
+- id: n-036
+  category: tooling
+  summary: 'Tracer: SC-006 (charter.md never clobbered, folds #2772)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-006 (charter.md never clobbered, folds #2772)**: inverted clobber test — curated prose survives `generate
+    --force`.'
+- id: n-037
+  category: tooling
+  summary: 'Tracer: SC-007 (extractor retired)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-007 (extractor retired)**: `SECTION_MAPPING`/`extract_with_ai` deleted; loaders read charter.yaml.'
+- id: n-038
+  category: tooling
+  summary: 'Tracer: SC-008 (activation relocated, behavior-preserving)'
+  evidence_refs:
+  - e-027
+  details: '- **SC-008 (activation relocated, behavior-preserving)**: `activated_*` in charter.yaml not config.yaml; activation-parity
+    + DRG-filter suites green; overlays default.yaml.'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP01-schema-manifest-keystone.md
+- id: e-006
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP02-activation-relocation.md
+- id: e-007
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP03-writer-clobber-guard.md
+- id: e-008
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP04-decision-repoint-extractor-retire.md
+- id: e-009
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP05-display-repoint.md
+- id: e-010
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP06-freshness.md
+- id: e-011
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP07-migration-failloud-state.md
+- id: e-012
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP08-language-tier3.md
+- id: e-013
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/tasks/WP09-docs-skills-snapshots.md
+- id: e-014
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+- id: e-015
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: 01KXV66WEKXECAREQZ770SM0SM
+- id: e-016
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: 01KXT93K6T28KY925JYM20C5P2
+- id: e-017
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: 01KXTR5TA1F7EEFWKMCTZJ5RVR
+- id: e-018
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: 01KXT93K6T28KY925JYM20C5P2
+- id: e-019
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: 01KXTR5TA1F7EEFWKMCTZJ5RVR
+- id: e-020
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: 01KXV66WEKXECAREQZ770SM0SM
+- id: e-021
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: implementation_cycles
+- id: e-022
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: implementation_cycles
+- id: e-023
+  kind: event_range
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/status.events.jsonl
+  range: implementation_cycles
+- id: e-024
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/analysis-report.md
+- id: e-025
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/traces/decisions.md
+- id: e-026
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/traces/risks.md
+- id: e-027
+  kind: file
+  path: kitty-specs/consolidate-charter-bundle-01KXSYB9/traces/verification.md
+generator_version: '1.0'
+provenance_history: []

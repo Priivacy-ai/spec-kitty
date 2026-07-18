@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "mission_slug": "consolidate-charter-bundle-01KXSYB9",
+  "mission_id": "01KXSYB9B87MZ34K476BNTR3FV",
+  "mission_branch": "kitty/mission-consolidate-charter-bundle-01KXSYB9",
+  "target_branch": "feat/consolidate-charter-bundle",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "src/charter/charter_yaml_io.py",
+        "src/charter/schemas.py",
+        "tests/charter/test_bundle_manifest_model.py",
+        "tests/charter/test_charter_yaml_io.py",
+        "tests/charter/test_charter_yaml_model.py",
+        "tests/cli/commands/test_charter_bundle_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation_engine.py",
+        "src/charter/pack_context.py",
+        "src/charter/pack_manager.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "src/specify_cli/doctrine/org_charter.py",
+        "tests/charter/test_activation_engine_charter_yaml.py",
+        "tests/charter/test_pack_context_charter_yaml.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/compiler.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "src/specify_cli/cli/commands/charter_bundle.py",
+        "tests/agent/cli/commands/test_charter_cli.py",
+        "tests/charter/test_compiler_charter_yaml.py",
+        "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/freshness/computer.py",
+        "tests/charter/synthesizer/test_orchestrator_resynthesize.py",
+        "tests/charter/synthesizer/test_performance_envelopes.py",
+        "tests/charter/test_bundle_content_hash.py",
+        "tests/integration/test_charter_status_freshness.py",
+        "tests/specify_cli/charter/test_freshness_hash_unification.py",
+        "tests/specify_cli/charter_freshness/test_computer.py",
+        "tests/specify_cli/charter_runtime/test_freshness_activation_visibility.py",
+        "tests/specify_cli/charter_runtime/test_preflight_one_pass.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/__init__.py",
+        "src/charter/consistency_check.py",
+        "src/charter/extractor.py",
+        "src/charter/mission_type_profiles.py",
+        "src/charter/sync.py",
+        "src/doctrine/spdd_reasons/activation.py",
+        "src/specify_cli/cli/commands/_doctrine_collect.py",
+        "tests/architectural/test_charter_references_resolve.py",
+        "tests/charter/test_extractor.py",
+        "tests/charter/test_integration.py",
+        "tests/charter/test_references_missing_failclosed.py",
+        "tests/doctrine/test_activation_parity_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/charter/language_scope.py",
+        "tests/charter/test_language_scope.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/compact.py",
+        "src/charter/context.py",
+        "src/charter/context_renderers/section_bodies.py",
+        "tests/charter/test_context_display_charter_md.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "src/doctrine/versioning.py",
+        "src/specify_cli/state/contract.py",
+        "src/specify_cli/upgrade/migrations/m_consolidate_charter_bundle.py",
+        "tests/specify_cli/test_state_contract.py",
+        "tests/specify_cli/test_state_gitignore_migration.py",
+        "tests/upgrade/test_consolidate_charter_bundle_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/architecture/06_unified_charter_bundle.md",
+        "docs/context/charter-overview.md",
+        "docs/context/governance-files.md",
+        "docs/development/3-2-page-inventory.yaml",
+        "src/doctrine/missions/mission-steps/software-dev/charter/prompt.md",
+        "src/doctrine/skills/spec-kitty-charter-doctrine",
+        "tests/specify_cli/regression/_twelve_agent_baseline",
+        "tests/specify_cli/skills/__snapshots__"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-18T13:09:26.126491+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
