@@ -34,7 +34,7 @@ import pytest
 
 from specify_cli.cli.commands.agent.tasks import _list_wp_branch_mission_specs_changes
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

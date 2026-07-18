@@ -51,7 +51,7 @@ from tests.git.protected_target_fixtures import (  # noqa: F401 — pytest fixtu
     protected_target_repo,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # Realistic identity (NFR-005 / test-data policy): full ULID, derived mid8, and a
 # production-shaped slug whose tail IS the mid8 (the mission-identity naming the
