@@ -1,6 +1,6 @@
 ---
 title: 'Field report: a doctrine-driven P0 remediation, end to end'
-description: 'A field report on remediating the merge-core P0 pair #2709/#2711 under Spec Kitty''s own doctrine — the process, the operator decisions, and where the charter/ADRs/guides actually changed the outcome.'
+description: 'Field report: remediating the merge-core P0 pair #2709/#2711 under Spec Kitty''s own doctrine — process, operator decisions, and doctrine effects.'
 doc_status: draft
 updated: '2026-07-18'
 related:
