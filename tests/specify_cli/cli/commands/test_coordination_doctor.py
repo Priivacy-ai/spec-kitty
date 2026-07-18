@@ -837,3 +837,151 @@ def test_fix_stranded_reverts_direct_returns_healed_slug(tmp_path: Path) -> None
     # Marker cleared -> re-checking finds nothing -> a second fix heals nothing.
     assert cd._check_stranded_coord_revert(repo) == []
     assert cd._fix_stranded_reverts(findings, repo) == []
+
+
+# ---------------------------------------------------------------------------
+# Bare-handle feature_dir canonicalization in the coord strand check (paula LOW).
+#
+# paula-patterns pre-merge finding: `_check_stranded_coord_revert` /
+# `_fix_stranded_reverts` resolve the mission ``feature_dir`` via the
+# canonicalizing ``resolve_planning_read_dir(..., kind=WORK_PACKAGE_TASK)`` — the
+# SAME read seam the executor's mark/heal use — instead of the raw
+# ``primary_feature_dir_for_mission``. When a saved marker's ``state.mission_slug``
+# is a BARE handle (``foo``) while the on-disk mission dir is the canonical
+# ``foo-<mid8>``, the raw resolver composes ``kitty-specs/foo/...`` (non-existent)
+# → no events → ``coord_incoherent_done_wps`` returns ``[]`` → the doctor silently
+# declares the marker stale: a split-brain safety-net FALSE-NEGATIVE. The
+# canonicalizing resolver folds ``foo`` → ``foo-<mid8>`` (via
+# ``_canonicalize_bare_modern_handle`` / ``resolve_bare_modern_mission_dir_name``)
+# and reads the right dir. This is the resolver-unification: check, fix, and the
+# executor's mark/heal all resolve the IDENTICAL feature_dir.
+# ---------------------------------------------------------------------------
+
+_BARE_HANDLE = "bare-handle-fixture"
+_BARE_MID8 = "01KXTM60"
+_BARE_COMPOSED = f"{_BARE_HANDLE}-{_BARE_MID8}"
+_BARE_MISSION_ID = "01MIDBAREHANDLE0000000000A0"
+
+
+def _seed_bare_handle_fixture(repo: Path) -> None:
+    """Seed a mission whose on-disk dir is canonical ``<slug>-<mid8>`` but whose
+    saved reconcile marker carries the BARE handle.
+
+    The committed ``coord`` ref holds a live WP-A ``done`` strand under the CANONICAL
+    dir name (``kitty-specs/<slug>-<mid8>/status.events.jsonl``), so only a resolver
+    that folds the bare handle → the canonical dir name reads the events and derives
+    the strand. The marker's ``mission_slug`` is deliberately the bare handle (no
+    ``-<mid8>`` suffix). The seeded events reuse :func:`_doctor_event`; their
+    ``feature_slug`` field is cosmetic — the coherence reduction keys on
+    ``wp_id`` + lane only.
+    """
+    _init_doctor_repo(repo)
+    feature_dir = repo / "kitty-specs" / _BARE_COMPOSED
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        _json.dumps(
+            {
+                "mission_slug": _BARE_COMPOSED,
+                "mission_id": _BARE_MISSION_ID,
+                "mission_number": None,
+                "mission_type": "software-dev",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    events = [
+        _doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review"),
+        _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
+    ]
+    (feature_dir / "status.events.jsonl").write_text(
+        "".join(_json.dumps(e, sort_keys=True) + "\n" for e in events),
+        encoding="utf-8",
+    )
+    _git_doctor(repo, "add", ".")
+    _git_doctor(repo, "commit", "-m", "seed coord events (canonical dir)")
+    _git_doctor(repo, "branch", "coord")
+
+    marker = {
+        "coord_ref": "coord",
+        "captured_sha": "deadbeef",
+        "coord_worktree": "/tmp/coord-wt",
+        "stranded_wp_ids": ["WP-A"],
+        "revert_error": None,
+        "detected_at": "2026-07-18T10:05:00+00:00",
+    }
+    save_state(
+        MergeState(
+            mission_id=_BARE_MISSION_ID,
+            mission_slug=_BARE_HANDLE,  # BARE handle — no -<mid8> suffix.
+            target_branch="main",
+            wp_order=["WP-A"],
+            current_wp="WP-A",
+            pending_coord_reconcile=marker,
+        ),
+        repo,
+    )
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_stranded_check_folds_bare_handle_to_canonical_feature_dir(
+    tmp_path: Path,
+) -> None:
+    """A marker with a BARE ``mission_slug`` STILL yields the strand finding.
+
+    The on-disk mission dir is the canonical ``<slug>-<mid8>``; the canonicalizing
+    ``resolve_planning_read_dir(..., kind=WORK_PACKAGE_TASK)`` folds ``bare`` →
+    ``<slug>-<mid8>`` so the committed coord ref is read from the right dir and the
+    live WP-A ``done`` strand is derived (paula-patterns pre-merge finding —
+    resolver-unification with the executor mark/heal). The non-vacuity companion
+    (:func:`test_stranded_check_bare_handle_false_negative_under_raw_resolver`)
+    proves this REDs under the pre-fix raw resolver.
+    """
+    repo = tmp_path / "repo"
+    _seed_bare_handle_fixture(repo)
+
+    findings = cd._check_stranded_coord_revert(repo)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.severity == "error"
+    assert finding.error_code == cd._STRANDED_COORD_REVERT_CODE
+    # Re-derived from the committed ref read at the CANONICAL dir, not echoed.
+    assert finding.extra["stranded_wp_ids"] == ["WP-A"]
+    assert finding.extra["mission_slug"] == _BARE_HANDLE
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Non-vacuity guard: the SAME fixture yields ZERO findings under the raw resolver.
+
+    Simulates the pre-fix code path by swapping the canonicalizing
+    ``resolve_planning_read_dir`` for the raw ``primary_feature_dir_for_mission``,
+    which composes ``kitty-specs/<bare>`` — a directory that does not exist. The
+    committed ref is then unreadable → no events → ``coord_incoherent_done_wps``
+    returns ``[]`` → the split-brain safety net silently declares the marker stale.
+    This proves the positive test above genuinely distinguishes the canonicalizing
+    resolver from the broken raw one (it would RED before the resolver-unification
+    fix). ``_check_stranded_coord_revert`` imports the resolver function-locally, so
+    patching the module attribute swaps in the pre-fix behaviour.
+    """
+    from specify_cli.missions import _read_path_resolver as rpr
+
+    repo = tmp_path / "repo"
+    _seed_bare_handle_fixture(repo)
+
+    def _raw(repo_root: Path, mission_slug: str, **_kwargs: object) -> Path:
+        # Bind explicitly: the resolver crosses the ``follow_imports=skip``
+        # boundary, so mypy widens the ``-> Path`` primitive to ``Any``.
+        resolved: Path = rpr.primary_feature_dir_for_mission(repo_root, mission_slug)
+        return resolved
+
+    monkeypatch.setattr(rpr, "resolve_planning_read_dir", _raw)
+
+    assert cd._check_stranded_coord_revert(repo) == []
