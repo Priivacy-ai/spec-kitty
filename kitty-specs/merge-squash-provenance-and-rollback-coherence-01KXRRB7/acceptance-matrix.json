@@ -1,0 +1,119 @@
+{
+  "mission_slug": "merge-squash-provenance-and-rollback-coherence-01KXRRB7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Red-first repro for #2709 (both-sides divergence, RED-for-right-reason)",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_issue_2709_squash_provenance.py green; reviewer-renata APPROVE (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Red-first repro for #2711 (non-vacuous coherence + idempotency)",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_issue_2711_merge_rollback_resume_coherence.py green; APPROVE (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Per-artifact-class squash reconciliation (planning mission-authoritative; meta/traces reconciled)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 squash reconciliation (merge-driver-meta/-traces); #2709 set green; #1732 preserved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "meta.json acceptance field-merge (target-authoritative; acceptance_history unioned)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 reconcile_meta_payloads (ACCEPTANCE_PROVENANCE_FIELDS, acceptance_history union)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Event-log projection unions + rematerializes status.json (no blind write)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 projection union + status.json rematerialize; test_issue_2709_projection_union.py green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Coherent rollback via Option A (revert coord done commit, AC-B3-safe)",
+      "proof_type": "automated_test",
+      "evidence": "WP04 Option A coord-done-revert (coord-worktree git revert, resolve_placement_only ref); AC-B3/F1 safe",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Durable-log resume derivation (consume coordination_branch_ref; no new reducer)",
+      "proof_type": "automated_test",
+      "evidence": "WP04 durable-log resume via coordination_branch_ref; completed_wps demoted to hint",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Non-vacuous class-closing guards (both loss mechanisms)",
+      "proof_type": "automated_test",
+      "evidence": "WP05 no-blind-copy + driver-registry lints + WP06 resume non-reemission property; self-mutation RED proven",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "No happy-path regression (byte-identical squash on no divergence)",
+      "proof_type": "automated_test",
+      "evidence": "Full merge/lanes suite green (1138 passed post auto_rebase fix)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Resume idempotency (event_id byte-stable across N resumes)",
+      "proof_type": "automated_test",
+      "evidence": "WP06 resume non-reemission property guard (5 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "Scoped test surface (merge suites + INV-5 ratchet homes)",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/, test_executor_phase_boundary.py, test_1827_baseline_regression.py green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-18",
+      "notes": null
+    }
+  ],
+  "negative_invariants": []
+}
