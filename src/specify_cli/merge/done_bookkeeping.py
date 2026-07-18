@@ -538,8 +538,14 @@ def _durable_done_wps_on_coordination_ref(
 
     # The committed events live at ``kitty-specs/<slug>/status.events.jsonl`` on
     # the coordination ref; the primary feature dir (name == slug, meta-bearing)
-    # is the correct ref-path anchor AND legacy-parse dir.
-    read_feature_dir = repo_root / KITTY_SPECS_DIR / mission_slug
+    # is the correct ref-path anchor AND legacy-parse dir. Route through the
+    # canonical PRIMARY-partition resolver (FR-004): a WORK_PACKAGE_TASK read folds
+    # onto the topology-blind ``primary_feature_dir_for_mission`` (name == slug),
+    # so no raw ``KITTY_SPECS_DIR / slug`` bypass — and a stale ``-coord`` husk can
+    # never shadow the anchor.
+    read_feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
     events = read_event_log(
         EventLogReadContract.coordination_branch_ref(
             repo_root=repo_root,

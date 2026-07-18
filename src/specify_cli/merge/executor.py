@@ -1241,5 +1241,4 @@ __all__ = [
     "_run_lane_based_merge",
     "_run_lane_based_merge_locked",
     "_emit_merge_diff_summary",
-    "_MergeRunState",
 ]
