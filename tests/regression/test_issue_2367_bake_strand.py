@@ -1,10 +1,13 @@
-"""Scope: #2367 Mechanism B — the merge coord write-set is not atomic (INTENTIONAL red-first P0).
+"""Scope: #2367 Mechanism B — the merge coord write-set is not atomic (regression guard; #2367-B FIXED).
 
-This module is an INTENTIONAL, issue-pinned red-first P0 reproduction for
-**#2367 Mechanism B**. It is expected to FAIL on the mission base and stays RED
-until the unified #2786/#2367-B fix lands — per ADR ``docs/adr/3.x/2026-07-17-1``
-(a P0 defect carries an honest, main-breaking reproduction; it is NOT deselected
-or xfail-masked).
+This module reproduces **#2367 Mechanism B** and now guards its fix. It began as
+an INTENTIONAL, issue-pinned red-first P0 reproduction (per ADR
+``docs/adr/3.x/2026-07-17-1``, expected to fail on the mission base while the P0
+was open). The unified #2786/#2367-B fix has now LANDED — mark-not-raise +
+strand-gated resume heal — so the reproduction drives the bake strand and asserts
+coherence AFTER the heal. The ``regression`` marker (which flagged the
+intentional-red phase) is removed now that the defect is closed; the test stays a
+green regression guard via its ``git_repo`` marker.
 
 Defect (#2367 Mechanism B)
 --------------------------
@@ -57,8 +60,11 @@ the RIGHT reason: after a ``spec-kitty merge --resume`` heal (a no-op on the bas
 until the WP03 repair lands), the committed reduction is stranded at ``done``
 while the working tree reduces to ``approved``.
 
-Do NOT fix the bake path here — the fix is the unified #2786/#2367-B marker +
-strand-gated heal; this module is the honest red that the fix flips green.
+#2367 Mechanism B is FIXED — the bake-path rollback marks-not-raises (durable
+``pending_coord_reconcile`` marker) and the resume heal reverts the stranded coord
+``done`` via a strand-gated ``git revert``; this module verifies coherence is
+restored after the heal and guards against regression. (Mechanism A — claim-time
+VCS-lock resync — is deferred to #2795.)
 """
 
 from __future__ import annotations
@@ -100,7 +106,7 @@ from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
     _merge_external_mocks,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 # ---------------------------------------------------------------------------
 # Mission identity (slug ends with ``-<mid8>`` so the coordination branch IS the
