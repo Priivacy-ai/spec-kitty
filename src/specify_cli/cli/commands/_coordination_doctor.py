@@ -88,9 +88,12 @@ _STRANDED_COORD_REVERT_HINT = (
 )
 
 #: STUCK variant (FR-007): a live strand whose recorded coordination worktree no
-#: longer exists. ``--fix`` cannot revert it (there is nothing to run the revert
-#: in), so this surfaces as a distinct ``warning`` with a manual-recovery hint
-#: rather than an ``error`` whose ``next_step`` loops the user back to ``--fix``.
+#: longer exists. It is STILL a committed-ref split-brain, so it stays an
+#: ``error`` (exit 1 — the coord branch carries a wrong ``done``; the doctor must
+#: NOT report the mission healthy). ``--fix`` cannot revert it (nothing to run the
+#: revert in), so it carries a distinct code + a *manual-recovery* ``next_step``
+#: instead of looping the user back to ``--fix`` (debugger-debbie HIGH: a
+#: ``warning`` here would exit 0 and hide the split-brain).
 _STRANDED_COORD_REVERT_STUCK_CODE = "COORDINATION_STRANDED_COORD_REVERT_STUCK"
 _STRANDED_COORD_REVERT_STUCK_HINT = (
     "The coordination worktree recorded for this strand no longer exists, so "
@@ -745,10 +748,13 @@ def _finding_for_reconcile_marker(
     extra = _marker_extra(state, coord_ref, captured_sha, coord_worktree, candidate_wps, remaining)
     if not Path(coord_worktree).exists():
         # Live strand, but the coord worktree is pruned — `--fix` cannot revert it.
-        # Surface a distinct STUCK warning instead of an error whose hint loops the
-        # user back to a `--fix` that can never succeed (FR-007).
+        # It is STILL a committed-ref split-brain, so it stays an `error` (exit 1):
+        # the coord branch carries a wrong `done` and the mission is NOT healthy.
+        # Only the `next_step` changes — a manual-recovery hint instead of looping
+        # the user back to `--fix` (debugger-debbie HIGH: a `warning` here exits 0
+        # and hides the split-brain).
         return DoctorFinding(
-            severity="warning",
+            severity="error",
             message=(
                 f"Coordination ref {coord_ref!r} for mission {mission_slug!r} still "
                 f"strands WP(s) {remaining} at `done`, but its coordination worktree "
@@ -868,8 +874,10 @@ def _heal_one_strand(
         _clear_pending_marker(repo_root, mission_id)
         return mission_slug, None
     if outcome.worktree_missing:
+        # Still a committed-ref split-brain `--fix` couldn't heal — stays `error`
+        # (exit 1) with a manual-recovery hint; a `warning` would exit 0 and hide it.
         return None, DoctorFinding(
-            severity="warning",
+            severity="error",
             message=(
                 f"Coordination worktree {coord_worktree!r} for mission "
                 f"{mission_slug!r} no longer exists — `--fix` cannot revert its strand."
