@@ -276,7 +276,7 @@ def test_end_to_end_activation_induced_drg_staleness_surfaces_in_report(tmp_path
 
     assert result.passed is False
     assert result.blocked_reason is not None
-    assert "synthesized_drg stale; run `spec-kitty charter synthesize`" in result.blocked_reason
+    assert "synthesized_drg stale; run `spec-kitty charter generate && spec-kitty charter synthesize`" in result.blocked_reason
     drg = next(c for c in result.checks if c.name == "synthesized_drg")
     assert drg.state == "stale"
     assert drg.detail is not None
@@ -314,7 +314,7 @@ def test_activation_driven_check_enumerated_alongside_another_failure(tmp_path: 
     reason = runner_module._derive_blocked_reason(checks)
 
     assert "charter_source stale; run `spec-kitty charter sync`" in reason
-    assert "synthesized_drg stale; run `spec-kitty charter synthesize`" in reason
+    assert "synthesized_drg stale; run `spec-kitty charter generate && spec-kitty charter synthesize`" in reason
     assert reason.index("charter_source") < reason.index("synthesized_drg")  # ordering preserved
 
 
