@@ -27,6 +27,8 @@ from specify_cli.cli.commands.merge_driver import (
 )
 from specify_cli.status import EventLogMergeError
 
+pytestmark = pytest.mark.fast
+
 _EVENT_APPROVED: dict[str, object] = {
     "actor": "claude",
     "at": "2026-02-08T12:00:00+00:00",

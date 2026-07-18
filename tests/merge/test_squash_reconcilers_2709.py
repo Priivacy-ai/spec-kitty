@@ -10,12 +10,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.cli.commands.merge_driver import (
     _union_acceptance_history,
     reconcile_meta_payloads,
     union_trace_texts,
 )
 from specify_cli.mission_metadata import load_meta, write_meta
+
+pytestmark = pytest.mark.fast
 
 # Delimiter used by the traces union contract (matches the #2709 repro fixtures).
 _TARGET_MARKER = "<!-- section:target-newer -->"
