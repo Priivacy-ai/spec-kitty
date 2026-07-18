@@ -65,14 +65,11 @@ NON_BLOCKING_ALLOWLIST: dict[str, str] = {
         "can never legitimately be promoted to gate-blocking — a quarantined "
         "flake must never be able to block a merge."
     ),
-    "regression-visibility": (
-        "Non-blocking BY DESIGN (visible-but-never-gating red-first surface, "
-        "#2774). Runs `-m regression` so every @pytest.mark.regression P0 "
-        "reproduction has a routed, VISIBLE CI home (satisfying "
-        "test_marker_job_completeness) while never gating a merge: a red-first "
-        "reproduction is expected-red until its product bug is fixed, so it must "
-        "never enter quality-gate's needs. Mirrors quarantine-visibility."
-    ),
+    # NOTE: `regression-tests` is deliberately NOT here — it is BLOCKING
+    # (a member of `quality-gate.needs`). A red-first P0 reproduction is
+    # expected to red mainline AND, because CI is the release authority, must
+    # gate releases; a non-blocking regression lane would fake green on P0s
+    # (#2772-family course-correction of the #2774 visibility-only design).
     "mutation-testing": (
         "Disabled placeholder (`if: false`, an echo-only step: "
         '`echo "Mutation testing is disabled."`) pending future '
