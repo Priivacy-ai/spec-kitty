@@ -1091,13 +1091,13 @@ def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox
-def test_stranded_check_pruned_worktree_emits_stuck_warning(tmp_path: Path) -> None:
-    """A live strand whose coord worktree is PRUNED → a ``warning`` STUCK finding.
+def test_stranded_check_pruned_worktree_emits_stuck_error(tmp_path: Path) -> None:
+    """A live strand whose coord worktree is PRUNED → a distinct STUCK ``error``.
 
-    ``--fix`` cannot revert a strand whose coordination worktree no longer exists
-    (there is nothing to run the revert in). Rather than emit the healable ``error``
-    (whose ``next_step`` loops the user back to a ``--fix`` that can never succeed),
-    the check surfaces a distinct ``warning`` with a manual-recovery hint.
+    It is STILL a committed-ref split-brain, so it stays an ``error`` (the doctor
+    must not report the mission healthy — debugger-debbie HIGH). Only the
+    ``next_step`` differs: a manual-recovery hint instead of the healable hint that
+    would loop the user back to a ``--fix`` that can never succeed.
     """
     repo = tmp_path / "repo"
     _seed_doctor_coord_ref(
@@ -1115,19 +1115,19 @@ def test_stranded_check_pruned_worktree_emits_stuck_warning(tmp_path: Path) -> N
 
     assert len(findings) == 1
     finding = findings[0]
-    assert finding.severity == "warning"
+    assert finding.severity == "error"  # still a committed split-brain → exit 1
     assert finding.error_code == cd._STRANDED_COORD_REVERT_STUCK_CODE
     # The recovery hint must NOT loop the user back at plain `--fix`.
-    assert finding.next_step is not None
+    assert finding.next_step == cd._STRANDED_COORD_REVERT_STUCK_HINT
     assert "no longer exists" in finding.message
 
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox
-def test_run_coordination_health_pruned_worktree_exits_0_with_warning(
+def test_run_coordination_health_pruned_worktree_exits_1_with_stuck_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A pruned-worktree STUCK strand is a ``warning`` (exit 0), surfaced in output."""
+    """A pruned-worktree STUCK strand is a committed split-brain → ``error``, exit 1."""
     repo = tmp_path / "repo"
     _seed_doctor_coord_ref(
         repo,
@@ -1147,21 +1147,23 @@ def test_run_coordination_health_pruned_worktree_exits_0_with_warning(
 
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=True)
-    # A warning does not fail the gate, but the STUCK code IS surfaced (not dropped).
-    assert exc.value.exit_code == 0
+    # A stuck strand is an unresolved committed split-brain — the gate MUST fail
+    # (exit 1); a warning/exit-0 would report the mission healthy and hide it.
+    assert exc.value.exit_code == 1
     assert cd._STRANDED_COORD_REVERT_STUCK_CODE in capsys.readouterr().out
 
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox
-def test_fix_stranded_reverts_pruned_worktree_yields_warning_not_silent(
+def test_fix_stranded_reverts_pruned_worktree_yields_stuck_error_not_silent(
     tmp_path: Path,
 ) -> None:
-    """`_fix_stranded_reverts` on a strand finding whose worktree is pruned WARNS.
+    """`_fix_stranded_reverts` on a strand finding whose worktree is pruned → STUCK error.
 
     Directly exercises the fix-path defensive branch (a worktree pruned between the
     check and the fix): the shared primitive returns ``worktree_missing`` and the
-    fixer surfaces a ``warning`` rather than silently dropping the marker.
+    fixer surfaces a STUCK ``error`` (exit 1 — still a committed split-brain) rather
+    than silently dropping the marker or reporting healthy.
     """
     repo = tmp_path / "repo"
     (repo / ".kittify").mkdir(parents=True)
@@ -1181,10 +1183,11 @@ def test_fix_stranded_reverts_pruned_worktree_yields_warning_not_silent(
         },
     )
 
-    healed, warnings = cd._fix_stranded_reverts([finding], repo)
+    healed, extra = cd._fix_stranded_reverts([finding], repo)
 
     assert healed == []
-    assert [w.error_code for w in warnings] == [cd._STRANDED_COORD_REVERT_STUCK_CODE]
+    assert [w.error_code for w in extra] == [cd._STRANDED_COORD_REVERT_STUCK_CODE]
+    assert [w.severity for w in extra] == ["error"]  # exit-1, not a hidden warning
 
 
 # ---------------------------------------------------------------------------

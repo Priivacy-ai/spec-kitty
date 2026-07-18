@@ -655,7 +655,13 @@ def _heal_pending_coord_reconcile(run: _MergeRunState) -> None:
         repo_root=run.main_repo,
         feature_dir=_coord_reconcile_read_feature_dir(run),
     )
-    if outcome.healed or not outcome.stranded_wp_ids:
+    # Clear the marker only on a genuine heal OR a re-derived-coherent no-op.
+    # A ``worktree_missing`` short-circuit returns an EMPTY ``stranded_wp_ids``
+    # because the strand was never checked (the worktree is gone) — NOT because
+    # it is coherent. Clearing on that would erase the marker for an unresolved
+    # committed split-brain, making it invisible to a later doctor/resume once the
+    # worktree is re-materialized (debugger-debbie HIGH). Preserve it.
+    if outcome.healed or (not outcome.stranded_wp_ids and not outcome.worktree_missing):
         run.state.pending_coord_reconcile = None
         save_state(run.state, run.main_repo)
 

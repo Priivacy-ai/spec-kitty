@@ -291,3 +291,42 @@ def test_revert_failure_strand_marks_and_resume_reconciles(tmp_path: Path) -> No
     assert _marker(repo, REVERT_MISSION_ID) is not None, (
         "a revert that could not apply must leave the marker for the next pass"
     )
+
+
+def test_resume_preserves_marker_when_coord_worktree_pruned(tmp_path: Path) -> None:
+    """A pruned coord worktree must PRESERVE the marker on resume (debugger-debbie HIGH).
+
+    ``repair_coord_strand`` short-circuits ``worktree_missing`` BEFORE its strand
+    gate, so its empty ``stranded_wp_ids`` means "strand UNCHECKED", NOT "coherent".
+    Clearing the marker on that empty set (the pre-fix ``not outcome.stranded_wp_ids``
+    condition) would erase an UNRESOLVED committed split-brain — invisible to a later
+    doctor/resume once the worktree is re-materialized. The heal must leave the marker.
+    """
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    (repo / "kitty-specs" / MISSION_SLUG).mkdir(parents=True)
+    marker = {
+        "coord_ref": COORD_BRANCH,
+        "captured_sha": "deadbeef",
+        "coord_worktree": str(tmp_path / "pruned-coord-wt"),  # does NOT exist
+        "stranded_wp_ids": [STRANDED_WP],
+        "revert_error": "injected",
+        "detected_at": "2026-07-18T10:00:00+00:00",
+    }
+    state = MergeState(
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        target_branch="main",
+        wp_order=[STRANDED_WP],
+        current_wp=STRANDED_WP,
+        pending_coord_reconcile=marker,
+    )
+    run = _make_min_run(repo, all_wp_ids=[STRANDED_WP], state=state)
+    run.is_resume = True
+
+    ex._heal_pending_coord_reconcile(run)
+
+    assert run.state.pending_coord_reconcile is not None, (
+        "a pruned coord worktree must PRESERVE the marker (worktree_missing is NOT "
+        "coherence) — clearing it erases an unresolved committed split-brain"
+    )
