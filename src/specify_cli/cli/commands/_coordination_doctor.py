@@ -74,6 +74,19 @@ _COORD_BRANCH_ABSENT_HINT = (
     "`spec-kitty migrate backfill-topology` to re-derive and persist the topology."
 )
 
+#: Stable error code for a coord strand that survives a rollback (#2786 / #2367-B,
+#: FR-007). Emitted only when the committed coordination ref *still* reduces a
+#: this-merge ``done`` WP to ``DONE`` — a marker whose ref re-derives coherent is
+#: stale and yields NO finding (US2-S5 negative AC). Downstream tooling keys off
+#: this constant, so it must stay stable.
+_STRANDED_COORD_REVERT_CODE = "COORDINATION_STRANDED_COORD_REVERT"
+
+#: Recovery hint for a live strand — points at the ``--fix`` repair path.
+_STRANDED_COORD_REVERT_HINT = (
+    "Run `spec-kitty doctor coordination --fix` to revert the stranded coordination "
+    "`done` commit(s) and clear the reconcile marker."
+)
+
 
 def _detect_git_version() -> tuple[int, int] | None:
     """Return ``(major, minor)`` of the local git binary, or ``None`` on failure."""
@@ -528,6 +541,8 @@ def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
     findings.extend(_check_git_version())
     # FR-035 (#1772 Bug 0): repo-level tracked-.worktrees/ hygiene check.
     findings.extend(_check_tracked_worktrees_content(repo_root))
+    # FR-007 (#2786 / #2367-B): repo-level stranded-coord-revert re-verification.
+    findings.extend(_check_stranded_coord_revert(repo_root))
 
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
@@ -584,6 +599,179 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
     return fixed
 
 
+def _parse_reconcile_marker(
+    marker: dict[str, object] | None,
+) -> tuple[str, str, str, list[str]] | None:
+    """Validate a ``pending_coord_reconcile`` marker into repair inputs.
+
+    Returns ``(coord_ref, captured_sha, coord_worktree, stranded_wp_ids)`` or
+    ``None`` when the marker is malformed (missing ref/sha/worktree or an empty
+    strand — an empty strand is not a strand, per the data-model derivation
+    contract). ``coord_worktree`` stays a ``str`` so the finding's ``extra`` dict
+    remains JSON-serializable; the fixer rehydrates it to a ``Path``.
+    """
+    if not marker:
+        return None
+    coord_ref = marker.get("coord_ref")
+    captured_sha = marker.get("captured_sha")
+    coord_worktree = marker.get("coord_worktree")
+    stranded = marker.get("stranded_wp_ids")
+    if not (isinstance(coord_ref, str) and coord_ref):
+        return None
+    if not (isinstance(captured_sha, str) and captured_sha):
+        return None
+    if not (isinstance(coord_worktree, str) and coord_worktree):
+        return None
+    if not (isinstance(stranded, list) and stranded):
+        return None
+    return coord_ref, captured_sha, coord_worktree, [str(w) for w in stranded]
+
+
+def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
+    """FR-007: re-verify each reconcile marker against the **committed** coord ref.
+
+    Enumerate ``pending_coord_reconcile`` markers via WP02's
+    :func:`~specify_cli.merge.state.iter_pending_coord_reconcile_markers` — NOT
+    ``load_state(mission_id=None)`` (it *raises* ``MergeAmbiguousStateError`` on
+    >=2 markers) and NOT a re-implemented runtime-path scan (a second path
+    authority / DIR-044 breach). For each marker the strand is **re-derived from
+    the committed ref** via
+    :func:`~specify_cli.coordination.coherence.coord_incoherent_done_wps` — never
+    from marker-presence. Only a strand that still reduces to ``DONE`` on the ref
+    yields an ``error`` finding; a marker whose ref re-derives coherent is stale
+    and yields NO finding (US2-S5, the load-bearing negative AC).
+    """
+    from specify_cli.coordination.coherence import coord_incoherent_done_wps
+    from specify_cli.merge.state import iter_pending_coord_reconcile_markers
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+    findings: list[DoctorFinding] = []
+    for state in iter_pending_coord_reconcile_markers(repo_root):
+        parsed = _parse_reconcile_marker(state.pending_coord_reconcile)
+        if parsed is None:
+            continue
+        coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
+        try:
+            feature_dir = primary_feature_dir_for_mission(repo_root, state.mission_slug)
+        except ValueError:
+            # Unsafe mission_slug path segment — skip rather than crash the doctor.
+            continue
+        remaining = coord_incoherent_done_wps(
+            coord_ref, candidate_wps, repo_root=repo_root, feature_dir=feature_dir,
+        )
+        if not remaining:
+            # Stale marker: the committed ref re-derives coherent (US2-S5). No finding.
+            continue
+        findings.append(DoctorFinding(
+            severity="error",
+            message=(
+                f"Coordination ref {coord_ref!r} for mission "
+                f"{state.mission_slug!r} still reduces WP(s) {remaining} to "
+                "`done` after a merge rollback (expected `approved`)."
+            ),
+            next_step=_STRANDED_COORD_REVERT_HINT,
+            error_code=_STRANDED_COORD_REVERT_CODE,
+            extra={
+                "mission_id": state.mission_id,
+                "mission_slug": state.mission_slug,
+                "coord_ref": coord_ref,
+                "captured_sha": captured_sha,
+                "coord_worktree": coord_worktree,
+                "candidate_wps": candidate_wps,
+                "stranded_wp_ids": remaining,
+            },
+        ))
+    return findings
+
+
+def _clear_pending_marker(repo_root: Path, mission_id: str) -> None:
+    """Atomically clear a mission's ``pending_coord_reconcile`` marker after a heal."""
+    from specify_cli.merge.state import load_state, save_state
+
+    state = load_state(repo_root, mission_id=mission_id)
+    if state is None:
+        return
+    state.pending_coord_reconcile = None
+    save_state(state, repo_root)
+
+
+def _fix_stranded_reverts(findings: list[DoctorFinding], repo_root: Path) -> list[str]:
+    """Heal every live-strand finding via WP02's shared repair primitive.
+
+    Delegates to
+    :func:`~specify_cli.coordination.coherence.repair_coord_strand` (strand-gated:
+    it re-derives the strand from the committed ref, so a double-heal cannot
+    revert the revert) and clears the marker only on a genuine heal — so
+    ``--fix`` run twice is byte-stable and the marker is cleared exactly once.
+    Never re-implements the revert. Returns the mission slugs healed on this call.
+    """
+    from specify_cli.coordination.coherence import repair_coord_strand
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+    healed: list[str] = []
+    for f in findings:
+        if f.error_code != _STRANDED_COORD_REVERT_CODE:
+            continue
+        parsed = _parse_reconcile_marker(f.extra)
+        mission_id = f.extra.get("mission_id")
+        mission_slug = f.extra.get("mission_slug")
+        if parsed is None or not isinstance(mission_id, str) or not isinstance(mission_slug, str):
+            continue
+        coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
+        feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        outcome = repair_coord_strand(
+            coord_ref=coord_ref,
+            captured_sha=captured_sha,
+            coord_worktree=Path(coord_worktree),
+            candidate_wps=candidate_wps,
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+        )
+        if outcome.healed:
+            _clear_pending_marker(repo_root, mission_id)
+            healed.append(mission_slug)
+    return healed
+
+
+def _apply_never_created_fix(findings: list[DoctorFinding], repo_root: Path) -> None:
+    """Flatten missions with a stale ``coordination_branch`` key, then re-backfill topology."""
+    fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+    if not fixable:
+        return
+    fixed_slugs = _fix_never_created_branches(fixable)
+    for slug in fixed_slugs:
+        console.print(
+            f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"
+        )
+    if fixed_slugs:
+        from specify_cli.migration.backfill_topology import backfill_topology_repo
+        backfill_topology_repo(repo_root)
+        console.print(
+            "[green]Topology backfilled.[/green] "
+            "Run `spec-kitty doctor coordination` to verify."
+        )
+
+
+def _apply_stranded_revert_fix(findings: list[DoctorFinding], repo_root: Path) -> None:
+    """Heal live coord strands (FR-007) via the shared repair primitive."""
+    for slug in _fix_stranded_reverts(findings, repo_root):
+        console.print(
+            f"[green]Healed:[/green] reverted the stranded coordination `done` and "
+            f"cleared the reconcile marker for {slug}."
+        )
+
+
+def _apply_coordination_fixes(findings: list[DoctorFinding], repo_root: Path) -> None:
+    """Run every registered ``--fix`` handler over the collected findings.
+
+    Extracted so adding a fixer keeps the caller (:func:`run_coordination_health`)
+    and this dispatch each well under the CC-15 ceiling. Each handler is
+    error-code-scoped and idempotent, so the order is irrelevant.
+    """
+    _apply_never_created_fix(findings, repo_root)
+    _apply_stranded_revert_fix(findings, repo_root)
+
+
 def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool) -> None:
     """Render coordination findings as JSON or coloured human output."""
     if json_output:
@@ -628,22 +816,9 @@ def run_coordination_health(json_output: bool, fix: bool = False) -> None:
     findings = _collect_coordination_findings(repo_root)
 
     if fix:
-        fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
-        if fixable:
-            fixed_slugs = _fix_never_created_branches(fixable)
-            for slug in fixed_slugs:
-                console.print(
-                    f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"
-                )
-            if fixed_slugs:
-                from specify_cli.migration.backfill_topology import backfill_topology_repo
-                backfill_topology_repo(repo_root)
-                console.print(
-                    "[green]Topology backfilled.[/green] "
-                    "Run `spec-kitty doctor coordination` to verify."
-                )
-            # Re-collect findings after fix so the exit code reflects the new state.
-            findings = _collect_coordination_findings(repo_root)
+        _apply_coordination_fixes(findings, repo_root)
+        # Re-collect findings after fix so the exit code reflects the new state.
+        findings = _collect_coordination_findings(repo_root)
 
     _emit_coordination_findings(findings, json_output)
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)
