@@ -1,0 +1,33 @@
+{
+  "accept_commit": "8097df07e0f658445938430acb90917490615fa9",
+  "acceptance_history": [
+    {
+      "accept_commit": "8097df07e0f658445938430acb90917490615fa9",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-18T19:20:38.604764+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "18bec174fa62cef9ef8a359230d7232fcb7c4f06"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-18T19:20:38.604764+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "18bec174fa62cef9ef8a359230d7232fcb7c4f06",
+  "baseline_merge_commit": "1d276a73c89a0a9a531881e158571f543cc84f1a",
+  "coordination_branch": "kitty/mission-consolidate-charter-bundle-01KXSYB9",
+  "created_at": "2026-07-18T06:24:17.769129+00:00",
+  "flattened": false,
+  "friendly_name": "Consolidate the Compiled Charter Bundle",
+  "mission_id": "01KXSYB9B87MZ34K476BNTR3FV",
+  "mission_number": null,
+  "mission_slug": "consolidate-charter-bundle-01KXSYB9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Charter state is spread across governance.yaml, directives.yaml, metadata.yaml, and references.yaml. That split is a standing source of drift and stopgaps: the freshness signal hashes a file that is not part of the derived set, and references.yaml doubles as the ID-parity authority. Consolidating into a single compiled charter.yaml removes the split-brain, collapses the fail-closed workarounds, and gives charter-state consumers one structured source of truth.",
+  "purpose_tldr": "Replace the four split charter bundle files with one authoritative charter.yaml so freshness, parity, and resolving can no longer silently drift.",
+  "slug": "consolidate-charter-bundle-01KXSYB9",
+  "target_branch": "feat/consolidate-charter-bundle",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-18T09:30:46.703064+00:00"
+}
