@@ -116,6 +116,22 @@ def _revert_forced_to_fail() -> Iterator[list[list[str]]]:
         yield intercepted
 
 
+def _reduce_coord_lanes(repo: Path, feature_dir: Path) -> tuple[Lane, Lane]:
+    """Reduce ``(committed_lane, working_lane)`` for the mission's WP.
+
+    ``committed_lane`` is the reduction of the events COMMITTED to the
+    coordination branch (contract-routed via
+    ``EventLogReadContract.coordination_branch_ref``); ``working_lane`` is the
+    reduction of the coordination worktree's rolled-back WORKING-tree event log.
+    Both legs are git-reducible — no marker/doctor surface is consulted.
+    """
+    committed_lane, _ = wp_lane_actor_from_events(
+        _committed_coord_events(repo, feature_dir), WP_ID
+    )
+    working_lane, _ = wp_lane_actor_from_events(_working_coord_events(repo), WP_ID)
+    return committed_lane, working_lane
+
+
 def _run_merge_with_target_and_revert_failing(
     repo: Path,
 ) -> tuple[BaseException, list[list[str]]]:
@@ -123,6 +139,12 @@ def _run_merge_with_target_and_revert_failing(
 
     Returns the propagated exception (asserted to be the injected target-advance
     fault) and the intercepted revert commands (asserted non-empty).
+
+    Re-invoked as the ``spec-kitty merge --resume`` heal step: on the mission
+    base the second pass detects ``is_resume`` from the persisted ``MergeState``
+    and re-drives the same failing merge, so the injected target-advance fault is
+    re-raised (and caught here) while the pre-existing strand is left untouched —
+    the resume no-ops the coherence heal until WP03 lands it.
     """
     with (
         _merge_external_mocks(),
@@ -153,14 +175,28 @@ def _run_merge_with_target_and_revert_failing(
 def test_swallowed_revert_failure_re_opens_2711_split_brain(tmp_path: Path) -> None:
     """#2786 (RED): a FAILED coord ``done`` revert during rollback is swallowed,
     leaving the committed coordination ``done`` opposed to the rolled-back working
-    ``approved`` — the #2711 split-brain re-opened along the revert-failure path.
+    ``approved`` — the #2711 split-brain re-opened along the revert-failure path —
+    and a ``spec-kitty merge --resume`` heal does NOT restore coherence.
 
-    RED-for-the-right-reason contract: the committed coordination reduction and the
-    working-tree reduction must AGREE after rollback. On ``main`` today they
-    disagree because ``_revert_coord_done_commit`` logs a warning and returns on a
-    non-zero ``git revert`` without raising or writing a durable reconcile marker.
-    The #2786 fix (fail-loud or durable reconcile marker on revert failure) flips
-    this GREEN.
+    Assert-after-heal contract (FR-001 / SC-006). The pre-fix synchronous
+    ``committed_lane == working_lane`` assertion had **no resume step**: under the
+    mark-not-raise fix (FR-005) the committed ``done`` is *deliberately* stranded
+    until repair, so a synchronous coherence assertion could never go green
+    (permanent red — violates SC-001/SC-004). This test instead:
+
+    1. drives the swallowed-revert strand and WITNESSES it (committed ``done`` vs
+       working ``approved``) — a state that survives the mark-not-raise fix;
+    2. invokes the ``spec-kitty merge --resume`` heal (a no-op on the mission base
+       — the coherence-repair entry lands in WP03, so the resume merely re-drives
+       the still-failing merge and is caught, leaving the strand untouched);
+    3. asserts ``committed_lane == working_lane`` **re-reduced from the coord ref
+       AFTER the heal** — RED on the mission base because the no-op resume leaves
+       the strand; GREEN once WP03's strand-gated ``git revert`` heal reconciles
+       the committed ``done`` back to ``approved``.
+
+    A bare deletion of the coherence assertion would fail SC-006 — it is
+    *modified* (moved past the heal step + paired with the pre-heal witness), not
+    removed. No marker/doctor surface is referenced (git-reducible reds only).
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
@@ -187,28 +223,58 @@ def test_swallowed_revert_failure_re_opens_2711_split_brain(tmp_path: Path) -> N
         "the reproduction would be vacuous."
     )
 
-    committed_events = _committed_coord_events(repo, feature_dir)
-    working_events = _working_coord_events(repo)
-    committed_lane, _ = wp_lane_actor_from_events(committed_events, WP_ID)
-    working_lane, _ = wp_lane_actor_from_events(working_events, WP_ID)
+    committed_lane_pre, working_lane_pre = _reduce_coord_lanes(repo, feature_dir)
 
     # Precondition: the working tree DID roll back to ``approved`` (the byte-restore
     # leg still runs after the swallowed revert failure).
-    assert working_lane == Lane.APPROVED, (
+    assert working_lane_pre == Lane.APPROVED, (
         "precondition: the rolled-back working tree should reduce to ``approved``; "
-        f"got {working_lane}"
+        f"got {working_lane_pre}"
     )
 
-    # Coherence CONTRACT (RED on main): a swallowed revert failure must NOT strand
-    # the committed coordination ``done`` opposed to the working ``approved``.
+    # Pre-heal WITNESS (the strand exists): the swallowed revert leaves the
+    # committed coordination reduction stranded at ``done`` — the exact incoherence
+    # the mark-not-raise fix records durably and the heal must reconcile. GREEN on
+    # base AND after the mark-not-raise fix (the strand is deliberate pre-repair).
+    assert committed_lane_pre == Lane.DONE, (
+        "precondition: the swallowed-revert strand must exist — the committed "
+        "coordination ``done`` should survive the rollback while the working tree "
+        f"rolls back to ``approved``; got committed={committed_lane_pre}"
+    )
+
+    # Heal step — ``spec-kitty merge --resume``. On the mission base no coherence
+    # repair entry exists (it lands in WP03), so the resume re-drives the same
+    # failing merge: the injected target-advance fault re-raises and is caught
+    # here, proving the resume RAN through to the rollback path (not an
+    # AttributeError/infra early-abort). The strand is left in place — the heal
+    # no-ops today.
+    resume_exc, _resume_reverts = _run_merge_with_target_and_revert_failing(repo)
+    assert isinstance(resume_exc, RuntimeError) and _INJECTED_TARGET_FAILURE in str(
+        resume_exc
+    ), (
+        "the ``merge --resume`` heal step must RUN through to the injected "
+        "target-advance fault (proving the resume reached the rollback path, not "
+        f"an infra/AttributeError early-abort); got {resume_exc!r}"
+    )
+
+    committed_lane, working_lane = _reduce_coord_lanes(repo, feature_dir)
+
+    # Coherence CONTRACT (RED on base, SC-006): after the heal the committed
+    # coordination reduction and the working-tree reduction must AGREE. On the
+    # mission base they still disagree because the no-op resume left the swallowed
+    # ``done`` stranded (``_revert_coord_done_commit`` logged a warning and
+    # returned; no durable reconcile marker; no strand-gated heal). The #2786 fix
+    # (mark-not-raise + strand-gated ``git revert`` heal on ``--resume``) flips
+    # this GREEN.
     assert committed_lane == working_lane, (
-        "#2786 swallowed-revert split-brain: the coord-worktree ``git revert`` "
-        "FAILED during rollback and _revert_coord_done_commit swallowed it "
-        "(warning + return, no raise, no durable reconcile marker), so the "
-        "committed coordination ``done`` was left stranded against the rolled-back "
-        "working ``approved``.\n"
+        "#2786 swallowed-revert split-brain (post-heal): the coord-worktree "
+        "``git revert`` FAILED during rollback and _revert_coord_done_commit "
+        "swallowed it (warning + return, no raise, no durable reconcile marker), "
+        "and ``merge --resume`` did NOT reconcile the strand, so the committed "
+        "coordination ``done`` remains stranded against the rolled-back working "
+        "``approved``.\n"
         f"  committed coord ref (git-tracked): {committed_lane}\n"
         f"  rolled-back working tree:          {working_lane}\n"
-        "The revert-failure path must fail loud or record a durable reconcile "
-        "marker so the divergence is never silent (#2786)."
+        "The revert-failure path must record a durable reconcile marker and "
+        "``--resume`` must heal it so the divergence is never silent (#2786)."
     )
