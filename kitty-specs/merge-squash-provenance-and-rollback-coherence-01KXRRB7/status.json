@@ -1,0 +1,63 @@
+{
+  "event_count": 42,
+  "last_event_id": "01KXT4JGT4959FS87ABM2WXC36",
+  "materialized_at": "2026-07-18T08:13:06.244121+00:00",
+  "mission_number": "184",
+  "mission_slug": "merge-squash-provenance-and-rollback-coherence-01KXRRB7",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXT4HG4S8KV6CKXKMZP15VYW",
+      "last_transition_at": "2026-07-18T08:12:32.793850+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXT4HPS3229DWDP68NX5T1CZ",
+      "last_transition_at": "2026-07-18T08:12:39.587710+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXT4HX9FQD6G2CPAX4YX4EGS",
+      "last_transition_at": "2026-07-18T08:12:46.255855+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXT4J3VWDDEJDSF1SK67SYEW",
+      "last_transition_at": "2026-07-18T08:12:52.988714+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXT4JA9EGE9BK2C1EQ3YQJRW",
+      "last_transition_at": "2026-07-18T08:12:59.566489+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXT4JGT4959FS87ABM2WXC36",
+      "last_transition_at": "2026-07-18T08:13:06.244121+00:00"
+    }
+  }
+}
