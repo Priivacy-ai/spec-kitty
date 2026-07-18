@@ -416,17 +416,6 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         notes="Policy enforced in feature 054: commit answers + library, ignore references",
     ),
     StateSurface(
-        name="charter_references",
-        path_pattern=".kittify/charter/references.yaml",
-        root=StateRoot.PROJECT,
-        format=StateFormat.YAML,
-        authority=AuthorityClass.LOCAL_RUNTIME,
-        git_class=GitClass.IGNORED,
-        owner_module="charter compiler",
-        creation_trigger="charter compile",
-        notes="Policy enforced in feature 054: commit answers + library, ignore references",
-    ),
-    StateSurface(
         name="charter_library",
         path_pattern=".kittify/charter/library/*.md",
         root=StateRoot.PROJECT,
@@ -438,34 +427,27 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         notes="Policy enforced in feature 054: commit answers + library, ignore references",
     ),
     StateSurface(
-        name="charter_governance",
-        path_pattern=".kittify/charter/governance.yaml",
+        name="charter_yaml",
+        path_pattern=".kittify/charter/charter.yaml",
         root=StateRoot.PROJECT,
         format=StateFormat.YAML,
-        authority=AuthorityClass.DERIVED,
-        git_class=GitClass.IGNORED,
-        owner_module="charter sync",
-        creation_trigger="charter sync",
-    ),
-    StateSurface(
-        name="charter_directives",
-        path_pattern=".kittify/charter/directives.yaml",
-        root=StateRoot.PROJECT,
-        format=StateFormat.YAML,
-        authority=AuthorityClass.DERIVED,
-        git_class=GitClass.IGNORED,
-        owner_module="charter sync",
-        creation_trigger="charter sync",
-    ),
-    StateSurface(
-        name="charter_sync_metadata",
-        path_pattern=".kittify/charter/metadata.yaml",
-        root=StateRoot.PROJECT,
-        format=StateFormat.YAML,
-        authority=AuthorityClass.DERIVED,
-        git_class=GitClass.IGNORED,
-        owner_module="charter sync",
-        creation_trigger="charter sync",
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.TRACKED,
+        owner_module="charter compiler / activation engine / migration",
+        creation_trigger="charter generate, charter activate/deactivate, or the "
+        "consolidate_charter_bundle_fold upgrade migration",
+        notes=(
+            "consolidate-charter-bundle (WP07): retires the four legacy "
+            "IGNORED/DERIVED bundle surfaces this replaces (charter_governance, "
+            "charter_directives, charter_sync_metadata, charter_references) -- "
+            "governance/directives are hand-authored sections and catalog is a "
+            "DERIVED-but-committed projection, all living inside this single "
+            "git-tracked file (data-model.md Landmine 1). Three writers "
+            "(activation_engine.commit_plan, pack_manager.merge_defaults, "
+            "compiler.write_compiled_charter) route through the shared INV-9 "
+            "load->mutate-owned-section->round-trip-save helper "
+            "(charter.charter_yaml_io) so section-preservation is structural."
+        ),
     ),
     StateSurface(
         name="charter_context_state",

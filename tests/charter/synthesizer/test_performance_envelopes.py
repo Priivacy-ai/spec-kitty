@@ -20,7 +20,6 @@ from typing import Any
 import pytest
 
 from charter.bundle import compute_bundle_content_hash
-from charter.hasher import hash_content
 from charter.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
@@ -169,29 +168,32 @@ class TestNfr002FullSynthesis:
 
 def _seed_charter_freshness_repo(repo: Path) -> None:
     """Seed a representative ``.kittify/charter/`` + ``.kittify/doctrine/``
-    tree: the four ``BUNDLE_CONTENT_HASH_FILES`` (``metadata.yaml``,
-    ``governance.yaml``, ``directives.yaml``, ``references.yaml``), a
-    ``graph.yaml``, and a ``synthesis-manifest.yaml`` carrying a REAL
-    ``bundle_content_hash`` computed via the canonical helper — so
-    ``compute_freshness`` exercises the full content-identity comparison
-    path (data-model.md's replaced ``:411-441`` block) rather than an early
+    tree: the single ``BUNDLE_CONTENT_HASH_FILES`` entry (``charter.yaml``,
+    contracts/manifest-v2.md M1/M3 — consolidate-charter-bundle WP06
+    narrowed this from the four legacy bundle files), a ``graph.yaml``, and
+    a ``synthesis-manifest.yaml`` carrying a REAL ``bundle_content_hash``
+    computed via the canonical helper — so ``compute_freshness`` exercises
+    the full content-identity comparison path rather than an early
     ``missing``/``stale`` short-circuit. Mirrors the seeding pattern in
     ``tests/specify_cli/charter_freshness/test_computer.py`` (duplicated,
-    not imported — that module is WP02/WP03-owned)."""
+    not imported — that module is a sibling WP06-owned suite)."""
     charter_dir = repo / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    charter_path = charter_dir / "charter.md"
-    charter_path.write_text(
-        "# Charter\n\nRepresentative project charter for perf-envelope seeding.\n",
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n"
+        "governance: {}\n"
+        "directives:\n"
+        "  directives: []\n"
+        "catalog:\n"
+        "  mission: perf-envelope-seed\n"
+        "  template_set: default\n"
+        "  languages: []\n"
+        "  references: []\n"
+        "metadata:\n"
+        "  generated_at: '2026-01-01T00:00:00+00:00'\n"
+        "  bundle_schema_version: 2\n",
         encoding="utf-8",
     )
-    digest = hash_content(charter_path.read_text(encoding="utf-8")).split(":", 1)[1]
-    (charter_dir / "metadata.yaml").write_text(
-        f"charter_hash: sha256:{digest}\ntimestamp_utc: 2026-01-01T00:00:00+00:00\n",
-        encoding="utf-8",
-    )
-    for name in ("governance.yaml", "directives.yaml", "references.yaml"):
-        (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
 
     graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)

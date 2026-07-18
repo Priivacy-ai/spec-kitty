@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Full reference for all spec-kitty charter subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-18'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -28,7 +28,7 @@ This reference covers all `charter` subcommands. For a task-oriented walkthrough
 | `interview` | Capture charter interview answers for later generation |
 | `generate` | Generate charter bundle from interview answers + doctrine references |
 | `context` | Render charter context for a specific workflow action |
-| `sync` | Sync charter.md to structured YAML config files |
+| `sync` | Retained for canonical-root resolution / back-compat; performs no extraction (always a no-op) |
 | `status` | Display charter sync status plus synthesis/operator state |
 | `synthesize` | Validate and promote agent-generated project-local doctrine artifacts |
 | `resynthesize` | Regenerate a bounded set of project-local doctrine artifacts (partial resynthesis) |
@@ -73,10 +73,14 @@ uv run spec-kitty charter interview --profile comprehensive
 
 **Synopsis**: `spec-kitty charter generate [OPTIONS]`
 
-**Description**: Generate charter bundle from interview answers + doctrine references. On success
-in a git working tree, the generated charter commit inputs are auto-staged for the follow-up
-`spec-kitty safe-commit` step. Requires a git working tree — exits non-zero
-outside git repos with a `git init` remediation message. With `--from-interview`, missing
+**Description**: Refresh `charter.yaml`'s `catalog` and `metadata` sections from interview answers
++ doctrine references, through the shared load→mutate-owned-section→round-trip-save helper — the
+`governance`/`directives`/activation/`overrides` sections are preserved byte-for-byte (they are
+bootstrapped from a legacy triad only the first time `charter.yaml` is created; every later run
+leaves them untouched). `generate` never writes `charter.md` — it is a curated companion, not a
+compilation target. On success in a git working tree, the generated charter commit inputs are
+auto-staged for the follow-up `spec-kitty safe-commit` step. Requires a git working tree — exits
+non-zero outside git repos with a `git init` remediation message. With `--from-interview`, missing
 interview answers fail closed; use `--no-from-interview` to opt into defaults.
 
 | Flag | Description | Default |
@@ -197,19 +201,16 @@ uv run spec-kitty charter status --provenance
 
 **Synopsis**: `spec-kitty charter sync [OPTIONS]`
 
-**Description**: Sync `charter.md` to structured YAML config files (`governance.yaml`,
-`directives.yaml`, `metadata.yaml`). This is a different operation from `charter synthesize` —
-sync updates the YAML config from prose; synthesize promotes DRG-backed doctrine artifacts.
+**Description**: Retained for canonical-root resolution and the internal freshness check
+(`ensure_charter_bundle_fresh()`) that other charter-layer modules — the dashboard, the
+bundle-migration upgrader, and `charter context` — still call through this module. `sync` no
+longer extracts anything: the prose→triad scrape (`charter.md` → `governance.yaml` /
+`directives.yaml` / `metadata.yaml`) is retired now that `governance`/`directives` are
+hand-authored sections directly inside `charter.yaml`. Every invocation is a no-op: it always
+reports `synced=False` and `files_written=[]`, regardless of `--force`.
 
-Run sync after manually editing `charter.md`. Sync is idempotent.
-
-Sync input is always `.kittify/charter/charter.md` as resolved by the project root. If that path
-is a regular hand-authored file, its current markdown content is extracted. If it is a generated
-copy, sync extracts the generated copy and does not refresh it from the upstream document. If it is
-a symlink, sync follows the symlink for reads; the generated YAML files are still written into
-`.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a
-symlinked `charter.md` before compilation, sync, gitignore updates, or staging; use symlinks only
-for sync-only extraction or update the target directly. See
+There is no required step after editing `charter.yaml` by hand — the next `charter context` call
+reads the file as-is. Running `charter sync` is harmless but produces no side effect. See
 [Governance Files Reference](../context/governance-files.md#external-governance-documents) for the
 source-of-truth model when a project also has a public constitution.
 
@@ -282,8 +283,8 @@ uv run spec-kitty charter context --action specify --no-mark-loaded --json
 
 **Synopsis**: `spec-kitty charter bundle validate [OPTIONS]`
 
-**Description**: Validate the charter bundle against CharterBundleManifest v1.0.0. Verifies
-that all required files are present, correctly structured, and consistent.
+**Description**: Validate the charter bundle against CharterBundleManifest v2.0.0. Verifies
+that both tracked files (`charter.md`, `charter.yaml`) are present and correctly structured.
 
 | Flag | Description | Default |
 |---|---|---|

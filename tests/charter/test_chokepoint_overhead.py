@@ -13,8 +13,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from ruamel.yaml import YAML
 
-from charter.sync import ensure_charter_bundle_fresh, sync
+from charter.hasher import hash_content
+from charter.sync import ensure_charter_bundle_fresh
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: subprocess
@@ -36,11 +38,15 @@ _SAMPLE_CHARTER = """# Testing Standards
 
 @pytest.fixture
 def warm_bundle(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Build a fully-populated charter bundle inside a fresh git repo.
+    """Build a fully-populated, already-fresh charter bundle inside a fresh git repo.
 
-    Returns the canonical root path. After this fixture runs, every file
-    declared in ``CANONICAL_MANIFEST.derived_files`` exists with hashes
-    matching the source ``charter.md``.
+    Returns the canonical root path. consolidate-charter-bundle (IC-04 /
+    WP04, T028c): ``sync()`` no longer writes/primes anything (manifest v2's
+    ``derived_files`` is ``[]``) -- priming the WARM state now means seeding
+    a ``metadata.yaml`` whose ``charter_hash`` already matches ``charter.md``,
+    so ``ensure_charter_bundle_fresh``'s staleness check short-circuits to
+    the true zero-write warm path on every call, which is exactly what this
+    NFR-002 overhead budget measures.
     """
     repo = tmp_path_factory.mktemp("warm_bundle")
     subprocess.run(["git", "init", "--quiet", str(repo)], check=True, capture_output=True)
@@ -48,9 +54,8 @@ def warm_bundle(tmp_path_factory: pytest.TempPathFactory) -> Path:
     charter_dir.mkdir(parents=True)
     charter_path = charter_dir / "charter.md"
     charter_path.write_text(_SAMPLE_CHARTER, encoding="utf-8")
-    # Prime the bundle by running sync once.
-    result = sync(charter_path, charter_dir, force=True)
-    assert result.synced is True, f"Bundle priming failed: {result.error}"
+    yaml = YAML()
+    yaml.dump({"charter_hash": hash_content(_SAMPLE_CHARTER)}, charter_dir / "metadata.yaml")
     # Drop resolver cache so the first chokepoint call inside the test is
     # the one we measure with a clean cache state.
     from charter.resolution import resolve_canonical_repo_root

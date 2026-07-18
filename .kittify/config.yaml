@@ -11,6 +11,9 @@ project:
   slug: spec-kitty
   node_id: d036a097a835
   build_id: f97f4d9b-d2fa-4ce6-a7ee-9bbca7308aab
+# Charter pointer (WP02 activation-relocation): resolves to charter.yaml,
+# the activation authority. Minted at charter.yaml bootstrap (WP03/T014).
+charter: .kittify/charter/charter.yaml
 # Merge strategy for spec-kitty merge command (mission -> target step).
 # One of: merge | squash | rebase. Default: squash.
 # Lane -> mission merges always use merge commits regardless of this setting.

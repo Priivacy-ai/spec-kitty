@@ -30,6 +30,7 @@ from charter._catalog_miss import (
 )
 from charter._doctrine_paths import resolve_project_root
 from charter.activations import ActivationEntry, _activation_identity_key
+from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
@@ -73,7 +74,10 @@ NO_POLICY_SUMMARY_MESSAGE = "  - No explicit policy summary section found in cha
 REFERENCE_DOCS_HEADER = "Reference Docs:"
 NONE_LABEL = "(none)"
 KITTIFY_DIRNAME = ".kittify"
-CHARTER_FILENAME = "charter.md"
+#: WP05 (IC-05, display prose-consumer re-point): the display call-sites below
+#: consume the shared ``charter.bundle.CHARTER_MD`` constant rather than
+#: re-declaring the ``"charter.md"`` filename locally (Sonar S1192 pre-emption
+#: the earlier local ``CHARTER_FILENAME = "charter.md"`` duplicate is retired).
 MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
 
 _MIN_EFFECTIVE_DEPTH = 2   # minimum depth for bootstrap context (full summary + references)
@@ -193,8 +197,7 @@ def build_charter_context(
     canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
 
     normalized = action.strip().lower()
-    charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
-    references_path = canonical_root / KITTIFY_DIRNAME / "charter" / "references.yaml"
+    charter_path = canonical_root / CHARTER_MD
 
     def _augment(text: str) -> str:
         if missing_pack_diagnostic:
@@ -272,7 +275,7 @@ def build_charter_context(
     )
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
-    references = _load_references(references_path)
+    references = _load_references(canonical_root)
     doctrine_selection = _load_doctrine_selection(repo_root)
     text = _render_bootstrap_text(
         charter_path=charter_path,
@@ -335,7 +338,7 @@ def build_charter_context_include(
 
     if kind == "section":
         canonical_root = _bundle_root_for_json(repo_root)
-        charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
+        charter_path = canonical_root / CHARTER_MD
         if not charter_path.exists():
             raise ValueError("No charter.md found for section selector.")
         charter_content = charter_path.read_text(encoding="utf-8")
@@ -2696,6 +2699,27 @@ def _render_profile_sections(
     return "\n\n".join(blocks)
 
 
+def _compact_section_block(repo_root: Path, action: str | None) -> str:
+    """Render the compact-mode action-critical section block (DISPLAY-only).
+
+    Reads the companion ``charter.md`` for the given *action* and delegates
+    to :func:`render_critical_section_bodies`. The companion file is an
+    optional display surface (a project's governance authority lives in
+    ``charter.yaml``), so a missing or unreadable ``charter.md`` degrades to
+    the empty string rather than raising (NFR-005).
+    """
+    if not action:
+        return ""
+    charter_path = repo_root / CHARTER_MD
+    if not charter_path.exists():
+        return ""
+    try:
+        charter_content = charter_path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    return str(render_critical_section_bodies(charter_content, action))
+
+
 def _render_compact_governance(
     repo_root: Path,
     *,
@@ -2744,16 +2768,16 @@ def _render_compact_governance(
     if reference_block:
         augmented_blocks.append(reference_block)
 
-    if action:
-        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
-        if charter_path.exists():
-            try:
-                charter_content = charter_path.read_text(encoding="utf-8")
-            except OSError:
-                charter_content = ""
-            section_block = render_critical_section_bodies(charter_content, action)
-            if section_block:
-                augmented_blocks.append(section_block)
+    # WP05 (IC-05) — the companion `charter.md` prose is DISPLAY-only and
+    # optional: a project may have no `charter.md` on disk (e.g. governance
+    # authority already lives in `charter.yaml`). ``_compact_section_block``
+    # degrades gracefully to the empty string in that case (no crash, no
+    # section block) rather than raising. The block is computed once and
+    # reused for both the appended section and the NFR-001 budget input
+    # below, instead of re-reading the companion file a second time.
+    section_block_str = _compact_section_block(repo_root, action)
+    if section_block_str:
+        augmented_blocks.append(section_block_str)
 
     profile_block_str = ""
     if profile is not None:
@@ -2773,15 +2797,6 @@ def _render_compact_governance(
     # WP05 (NFR-001) — compact view shares the budget cap with the
     # bootstrap path so prompts driven through the compact rail (e.g.
     # via the WP06 wiring) honour the same NFR-001 contract.
-    section_block_str = ""
-    if action:
-        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / CHARTER_FILENAME
-        if charter_path.exists():
-            try:
-                charter_content = charter_path.read_text(encoding="utf-8")
-            except OSError:
-                charter_content = ""
-            section_block_str = render_critical_section_bodies(charter_content, action or "")
     return _enforce_token_budget(
         combined,
         action=action or "",
@@ -2816,17 +2831,29 @@ def _find_section_start(lines: list[str], heading: str) -> int | None:
     return None
 
 
-def _load_references(path: Path) -> list[dict[str, str]]:
-    if not path.exists():
+def _load_references(canonical_root: Path) -> list[dict[str, str]]:
+    """Load the doctrine reference catalog from charter.yaml's ``catalog.references``.
+
+    consolidate-charter-bundle (#2773): the retired ``references.yaml`` body is now
+    the DERIVED ``catalog`` projection inside the authoritative ``charter.yaml``
+    (``charter.schemas.CharterCatalog`` — item shape mirrors the old file verbatim).
+    Reading it here keeps the injected "Reference Docs" bootstrap block sourced from
+    the authoritative charter, not the file the fold migration deletes. Returns
+    ``[]`` when charter.yaml or its ``catalog`` section is absent.
+    """
+    from charter.charter_yaml_io import load_charter_yaml  # noqa: PLC0415 — same-layer, lazy to avoid import cycles
+
+    charter_yaml_path = canonical_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
         return []
 
-    yaml = YAML(typ="safe")
     try:
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}
+        document = load_charter_yaml(charter_yaml_path)
     except (YAMLError, UnicodeDecodeError, OSError):
         return []
 
-    raw_references = data.get("references") if isinstance(data, dict) else []
+    catalog = document.get("catalog") if isinstance(document, dict) else None
+    raw_references = catalog.get("references") if isinstance(catalog, dict) else []
     if not isinstance(raw_references, list):
         return []
 
@@ -2949,7 +2976,7 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     """Describe the project-local charter loaded by the context renderer."""
     bundle_root = _bundle_root_for_json(repo_root)
     charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
-    charter_path = charter_dir / CHARTER_FILENAME
+    charter_path = bundle_root / CHARTER_MD
     metadata_path = charter_dir / "metadata.yaml"
 
     block: dict[str, object] = {

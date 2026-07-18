@@ -2,8 +2,10 @@
 
 Single source of truth for "is the SPDD/REASONS doctrine pack active for this
 project?". The helper inspects the project's resolved charter selection
-(``.kittify/charter/governance.yaml`` and ``.kittify/charter/directives.yaml``)
-and returns ``True`` iff at least one of the four selectors is present:
+(IC-04 / WP04: ``.kittify/charter/charter.yaml``'s ``governance:`` and
+``directives:`` sections -- the retired ``governance.yaml`` /
+``directives.yaml`` triad files) and returns ``True`` iff at least one of the
+four selectors is present:
 
 - paradigm ``structured-prompt-driven-development``
 - tactic ``reasons-canvas-fill``
@@ -16,7 +18,7 @@ Failure modes (per ``contracts/activation.md``):
 - Malformed YAML → propagates the loader exception (``YAMLError``).
 - No paradigms section → returns ``False``.
 
-A small per-process cache keyed on the resolved governance file path is used to
+A small per-process cache keyed on the resolved charter.yaml path is used to
 amortise the cost of repeated calls within a single CLI invocation. The cache
 is invalidated whenever the file's mtime changes, and is never persisted to
 disk. ``clear_activation_cache()`` is exposed for tests.
@@ -38,10 +40,15 @@ DIRECTIVE_NUMERIC_HINT = "038"
 
 _KITTIFY = ".kittify"
 _CHARTER = "charter"
-_GOVERNANCE = "governance.yaml"
-_DIRECTIVES = "directives.yaml"
+# IC-04 (WP04): the retired ``governance.yaml`` / ``directives.yaml`` triad
+# files are replaced by the single git-tracked ``charter.yaml``'s
+# ``governance:`` / ``directives:`` sections. This module MUST NOT import
+# ``charter`` (layer rule: ``kernel <- doctrine <- charter <- specify_cli``),
+# so the filename is a local literal rather than
+# ``charter.bundle.CHARTER_YAML``.
+_CHARTER_YAML = "charter.yaml"
 
-# Per-process cache. Keyed by ``str(governance_path)`` -> ``(mtime_ns, result)``.
+# Per-process cache. Keyed by ``str(charter_yaml_path)`` -> ``(mtime_ns, result)``.
 # Never persisted; cleared on test boundary via ``clear_activation_cache``.
 _cache: dict[str, tuple[int, bool]] = {}
 
@@ -72,42 +79,42 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
     if not charter_dir.exists():
         return False
 
-    governance_path = charter_dir / _GOVERNANCE
-    directives_path = charter_dir / _DIRECTIVES
+    charter_yaml_path = charter_dir / _CHARTER_YAML
 
-    cache_key = str(governance_path.resolve()) if governance_path.exists() else str(governance_path)
-    governance_mtime = governance_path.stat().st_mtime_ns if governance_path.exists() else 0
-    directives_mtime = directives_path.stat().st_mtime_ns if directives_path.exists() else 0
-    composite_mtime = governance_mtime ^ directives_mtime  # cheap fingerprint
+    cache_key = str(charter_yaml_path.resolve()) if charter_yaml_path.exists() else str(charter_yaml_path)
+    mtime = charter_yaml_path.stat().st_mtime_ns if charter_yaml_path.exists() else 0
 
     cached = _cache.get(cache_key)
-    if cached is not None and cached[0] == composite_mtime:
+    if cached is not None and cached[0] == mtime:
         return cached[1]
 
-    result = _compute_active(governance_path, directives_path)
-    _cache[cache_key] = (composite_mtime, result)
+    result = _compute_active(charter_yaml_path)
+    _cache[cache_key] = (mtime, result)
     return result
 
 
-def _compute_active(governance_path: Path, directives_path: Path) -> bool:
-    """Compute activation by inspecting governance and directives YAML files."""
-    if _governance_selects_pack(governance_path):
+def _compute_active(charter_yaml_path: Path) -> bool:
+    """Compute activation by inspecting charter.yaml's governance/directives."""
+    if not charter_yaml_path.exists():
+        return False
+
+    data = _load_yaml(charter_yaml_path)
+    if not isinstance(data, dict):
+        return False
+
+    if _governance_selects_pack(data.get("governance")):
         return True
-    if _directives_select_pack(directives_path):
+    if _directives_select_pack(data.get("directives")):
         return True
     return False
 
 
-def _governance_selects_pack(governance_path: Path) -> bool:
-    """Inspect ``governance.yaml`` for any SPDD/REASONS selector."""
-    if not governance_path.exists():
+def _governance_selects_pack(governance: Any) -> bool:
+    """Inspect charter.yaml's ``governance:`` section for any SPDD/REASONS selector."""
+    if not isinstance(governance, dict):
         return False
 
-    data = _load_yaml(governance_path)
-    if not isinstance(data, dict):
-        return False
-
-    doctrine = data.get("doctrine")
+    doctrine = governance.get("doctrine")
     if not isinstance(doctrine, dict):
         return False
 
@@ -129,16 +136,12 @@ def _governance_selects_pack(governance_path: Path) -> bool:
     return False
 
 
-def _directives_select_pack(directives_path: Path) -> bool:
-    """Inspect ``directives.yaml`` for ``DIRECTIVE_038`` (or ``038-`` slug)."""
-    if not directives_path.exists():
+def _directives_select_pack(directives: Any) -> bool:
+    """Inspect charter.yaml's ``directives:`` section for ``DIRECTIVE_038`` (or ``038-`` slug)."""
+    if not isinstance(directives, dict):
         return False
 
-    data = _load_yaml(directives_path)
-    if not isinstance(data, dict):
-        return False
-
-    raw = data.get("directives")
+    raw = directives.get("directives")
     if not isinstance(raw, list):
         return False
 

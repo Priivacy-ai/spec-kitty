@@ -1,20 +1,27 @@
-"""Unit tests for ``specify_cli.charter_runtime.freshness.computer`` (WP02 / FR-005, FR-009).
+"""Unit tests for ``specify_cli.charter_runtime.freshness.computer``
+(WP02 / FR-005, FR-009; re-pointed at ``charter.yaml`` by
+consolidate-charter-bundle WP06 / FR-003, FR-011, NFR-001, NFR-002).
 
 Covers each documented sub-state:
 
-* ``fresh`` — when SHA-256 of charter.md matches metadata + bundle/DRG mtimes
-  are downstream of the charter source.
-* ``stale`` — when charter content has drifted from the stored hash, or
-  bundle/DRG files are older than their upstream change.
+* ``fresh`` — ``charter.yaml`` exists and parses (``charter_source`` /
+  ``synced_bundle``); the synthesis manifest's stored ``bundle_content_hash``
+  matches a fresh recompute (``synthesized_drg``).
+* ``stale`` — ``synthesized_drg`` only: the stored hash diverges from a
+  fresh recompute, or the upstream ``synced_bundle`` is not itself fresh.
+  ``charter_source`` NEVER returns ``stale`` post-Landmine-2 (the
+  ``charter.md``-hash staleness mechanism is retired outright — see
+  ``computer.py``'s module docstring).
 * ``missing`` — when the synthesized DRG file is absent and the manifest
-  does not opt into ``built_in_only=true``.
+  does not opt into ``built_in_only=true`` (or ``charter.yaml`` itself is
+  absent, for ``charter_source``/``synced_bundle``).
 * ``built_in_only`` — when the manifest declares ``built_in_only: true``.
   A residual ``graph.yaml`` the manifest disowns is *stale graph residue*
   (FR-006 / C2-f): still ``built_in_only`` + a non-blocking diagnostic, never
   the formerly-terminal ``invalid`` state.
 * ``invalid`` — a genuine inconsistency from ``_compute_charter_source``:
-  ``charter.md`` exists but cannot be hashed. (No ``synthesized_drg`` producer
-  returns ``invalid`` after FR-006.)
+  ``charter.yaml`` exists but cannot be parsed. (No ``synthesized_drg``
+  producer returns ``invalid`` after FR-006.)
 """
 
 from __future__ import annotations
@@ -32,7 +39,6 @@ from specify_cli.charter_runtime.freshness import (
     compute_freshness,
 )
 from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
-from charter.hasher import hash_content
 from charter.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
@@ -49,34 +55,29 @@ pytestmark = [pytest.mark.fast]
 # ---------------------------------------------------------------------------
 
 
-def _seed_charter(repo: Path, body: str = "# Charter\n\nHello") -> tuple[Path, Path]:
+_CHARTER_YAML_BODY = (
+    "schema_version: '2.0.0'\n"
+    "governance: {}\n"
+    "directives:\n"
+    "  directives: []\n"
+    "catalog:\n"
+    "  mission: test-mission\n"
+    "  template_set: default\n"
+    "  languages: []\n"
+    "  references: []\n"
+    "metadata:\n"
+    "  generated_at: '2026-01-01T00:00:00+00:00'\n"
+    "  bundle_schema_version: 2\n"
+)
+
+
+def _seed_charter_yaml(repo: Path, body: str = _CHARTER_YAML_BODY) -> Path:
+    """Write ``.kittify/charter/charter.yaml`` and return its path."""
     charter_dir = repo / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    charter_path = charter_dir / "charter.md"
-    metadata_path = charter_dir / "metadata.yaml"
+    charter_path = charter_dir / "charter.yaml"
     charter_path.write_text(body, encoding="utf-8")
-    return charter_path, metadata_path
-
-
-def _write_metadata(metadata_path: Path, charter_path: Path, *, mismatched: bool = False) -> None:
-    digest = hash_content(charter_path.read_text(encoding="utf-8")).split(":", 1)[1]
-    if mismatched:
-        digest = "0" * 64
-    metadata_path.write_text(
-        dedent(
-            f"""\
-            charter_hash: sha256:{digest}
-            timestamp_utc: 2026-01-01T00:00:00+00:00
-            """
-        ),
-        encoding="utf-8",
-    )
-
-
-def _seed_bundle_files(repo: Path) -> None:
-    charter_dir = repo / ".kittify" / "charter"
-    for name in ("governance.yaml", "directives.yaml", "references.yaml"):
-        (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
+    return charter_path
 
 
 def _seed_manifest(
@@ -114,14 +115,14 @@ def _seed_manifest(
     return manifest_path
 
 
-def _seed_full_bundle(repo: Path) -> tuple[Path, Path]:
-    """Seed charter.md + metadata.yaml + the remaining three bundle files —
-    the complete ``BUNDLE_CONTENT_HASH_FILES`` set (fact #20) required for a
-    meaningful ``compute_bundle_content_hash`` comparison."""
-    charter_path, metadata_path = _seed_charter(repo)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(repo)
-    return charter_path, metadata_path
+def _seed_fresh_bundle_and_manifest(repo: Path) -> Path:
+    """Seed ``charter.yaml`` + a manifest whose ``bundle_content_hash``
+    genuinely matches a fresh recompute of it."""
+    charter_path = _seed_charter_yaml(repo)
+    real_hash = compute_bundle_content_hash(repo)
+    assert real_hash is not None
+    _seed_manifest(repo, built_in_only=False, bundle_content_hash=real_hash)
+    return charter_path
 
 
 def _seed_graph(repo: Path) -> Path:
@@ -146,12 +147,11 @@ def _bump_bundle_mtimes_to_future(repo: Path, *, offset_seconds: float = 100.0) 
 # Real synthesize/resynthesize pipeline fixtures (AS-5 / SC-003 e2e proofs)
 #
 # ``synthesize()``/``resynthesize`` do not themselves write
-# ``.kittify/charter/{governance,directives,references,metadata}.yaml`` (fact
-# #20, ``bundle.py`` provenance — those are ``charter sync``'s output), so
-# tests that need a real ``bundle_content_hash`` must seed them directly.
-# These fixtures duplicate (rather than import) the pattern used by
-# ``tests/charter/synthesizer/test_orchestrator_resynthesize.py`` — WP03 does
-# not edit that WP02-owned file.
+# ``.kittify/charter/charter.yaml`` (that is authored / ``charter sync``'s
+# output), so tests that need a real ``bundle_content_hash`` must seed it
+# directly. These fixtures duplicate (rather than import) the pattern used
+# by ``tests/charter/synthesizer/test_orchestrator_resynthesize.py`` — a
+# sibling WP06-owned file does not import from another owned-elsewhere WP.
 # ---------------------------------------------------------------------------
 
 
@@ -159,25 +159,8 @@ _SYNTH_FIXTURE_ROOT = Path(__file__).resolve().parent.parent.parent / "charter" 
 
 
 def _seed_pipeline_bundle_files(repo: Path) -> None:
-    """Seed charter.md + the four content-hash bundle files ahead of a real
-    pipeline run.
-
-    ``metadata.yaml`` is BOTH one of ``BUNDLE_CONTENT_HASH_FILES`` AND the
-    file ``_compute_charter_source`` reads for ``charter_hash`` — it must
-    carry a hash that actually matches ``charter.md``, or ``charter_source``
-    (and therefore ``synced_bundle``) reads as ``missing``/``stale`` and the
-    PRESERVED ``synced_bundle``-precedence branch short-circuits
-    ``synthesized_drg`` to ``stale`` before the content-hash comparison this
-    fixture exists to exercise ever runs.
-    """
-    charter_path, metadata_path = _seed_charter(repo)
-    _write_metadata(metadata_path, charter_path)
-    for name in BUNDLE_CONTENT_HASH_FILES:
-        if name == "metadata.yaml":
-            continue
-        (repo / ".kittify" / "charter" / name).write_text(
-            f"# {name} fixture content\n", encoding="utf-8"
-        )
+    """Seed ``charter.yaml`` ahead of a real pipeline run."""
+    _seed_charter_yaml(repo)
 
 
 def _synth_adapter() -> FixtureAdapter:
@@ -236,7 +219,7 @@ def test_bundle_file_lists_stay_in_sync() -> None:
     ``charter.bundle.BUNDLE_CONTENT_HASH_FILES`` (the content-identity input
     set, drives the ``synthesized_drg`` hash) and
     ``computer._BUNDLE_FILES`` (drives ``synced_bundle`` existence + mtime) are
-    deliberately duplicated 4-tuples in different modules to keep the
+    deliberately duplicated tuples in different modules to keep the
     ``charter``→``specify_cli`` dependency direction intact (data-model
     Decision 5). This pins them equal so a future edit to one that silently
     drifts from the other — which would let the two freshness sub-states track
@@ -246,6 +229,7 @@ def test_bundle_file_lists_stay_in_sync() -> None:
     from specify_cli.charter_runtime.freshness.computer import _BUNDLE_FILES
 
     assert tuple(_BUNDLE_FILES) == tuple(BUNDLE_CONTENT_HASH_FILES)
+    assert tuple(_BUNDLE_FILES) == ("charter.yaml",)
 
 
 def test_returns_three_sub_objects(tmp_path: Path) -> None:
@@ -257,96 +241,64 @@ def test_returns_three_sub_objects(tmp_path: Path) -> None:
         assert sub.state in {"fresh", "stale", "missing", "built_in_only", "invalid"}
 
 
-def test_charter_source_missing_when_charter_md_absent(tmp_path: Path) -> None:
+def test_charter_source_missing_when_charter_yaml_absent(tmp_path: Path) -> None:
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "missing"
     assert result.charter_source.remediation == "spec-kitty charter sync"
 
 
-def test_charter_source_fresh_when_hash_matches(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
+def test_charter_source_fresh_when_charter_yaml_parses(tmp_path: Path) -> None:
+    _seed_charter_yaml(tmp_path)
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "fresh"
     assert result.charter_source.last_change is not None
 
 
-def test_charter_source_stale_when_hash_mismatches(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path, mismatched=True)
+def test_charter_source_invalid_when_unparseable(tmp_path: Path) -> None:
+    """A genuinely malformed ``charter.yaml`` is ``invalid``, never ``stale``
+    (Landmine 2: the ``charter.md``-hash staleness mechanism no longer
+    exists at this layer)."""
+    _seed_charter_yaml(tmp_path, body="not: [valid: yaml: at: all")
     result = compute_freshness(tmp_path)
-    assert result.charter_source.state == "stale"
+    assert result.charter_source.state == "invalid"
     assert result.charter_source.remediation == "spec-kitty charter sync"
 
 
-def test_synced_bundle_missing_when_no_bundle_files(tmp_path: Path) -> None:
-    _, _ = _seed_charter(tmp_path)
-    result = compute_freshness(tmp_path)
-    # Metadata file is one of the bundle files; even though charter.md
-    # exists, the rest of the bundle is missing.  We need a true "no files"
-    # scenario: drop charter dir except for charter.md.
-    bundle = tmp_path / ".kittify" / "charter"
-    for stale_file in ("governance.yaml", "directives.yaml", "references.yaml", "metadata.yaml"):
-        candidate = bundle / stale_file
-        if candidate.exists():
-            candidate.unlink()
+def test_charter_source_never_reachable_as_stale() -> None:
+    """Structural pin for Landmine 2: ``"stale"`` is not among the states
+    ``_compute_charter_source`` can produce — the content-drift question
+    moved entirely to ``synthesized_drg``."""
+    from specify_cli.charter_runtime.freshness import computer as freshness_computer
+
+    assert not hasattr(freshness_computer, "_charter_hash_of")
+    assert not hasattr(freshness_computer, "_activation_parity_drift_reason")
+    assert not hasattr(freshness_computer, "_PARITY_DRIFT_REMEDIATION")
+
+
+def test_synced_bundle_missing_when_charter_yaml_absent(tmp_path: Path) -> None:
     result = compute_freshness(tmp_path)
     assert result.synced_bundle.state == "missing"
 
 
-def test_synced_bundle_fresh_when_bundle_followed_charter(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    # Bundle files written AFTER charter — fresh.
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+def test_synced_bundle_fresh_when_charter_yaml_parses(tmp_path: Path) -> None:
+    _seed_charter_yaml(tmp_path)
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "fresh"
     assert result.synced_bundle.state == "fresh"
 
 
-def test_synced_bundle_stale_when_charter_is_newer(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
-    # Re-write charter much later but DO NOT update metadata — that flips
-    # charter_source to stale → synced_bundle inherits "stale".
-    time.sleep(0.01)
-    charter_path.write_text("# Charter (drifted)\n", encoding="utf-8")
+def test_synced_bundle_stale_when_charter_source_invalid(tmp_path: Path) -> None:
+    _seed_charter_yaml(tmp_path, body="not: [valid: yaml: at: all")
     result = compute_freshness(tmp_path)
-    assert result.charter_source.state == "stale"
+    assert result.charter_source.state == "invalid"
     assert result.synced_bundle.state == "stale"
-
-
-def test_charter_source_uses_sync_hash_normalization(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path, "# Charter\n\nHello\n\n")
-    _write_metadata(metadata_path, charter_path)
-
-    result = compute_freshness(tmp_path)
-
-    assert result.charter_source.state == "fresh"
-
-
-def test_synced_bundle_fresh_when_matching_hash_but_bundle_mtime_older(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
-
-    time.sleep(0.01)
-    charter_path.write_text("# Charter\n\nHello\n\n", encoding="utf-8")
-    result = compute_freshness(tmp_path)
-
-    assert result.charter_source.state == "fresh"
-    assert result.synced_bundle.state == "fresh"
 
 
 def test_synthesized_drg_missing_when_no_graph_no_manifest(tmp_path: Path) -> None:
     """Preserved by the #2681 fix — the ``missing`` branch (no ``graph.yaml``,
     no built-in-only opt-in, no legacy seed marker) sits above the
-    content-hash comparison. A regress here means T015 touched a branch it
-    should not have."""
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+    content-hash comparison."""
+    _seed_charter_yaml(tmp_path)
     result = compute_freshness(tmp_path)
     assert result.synthesized_drg.state == "missing"
     assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
@@ -354,11 +306,8 @@ def test_synthesized_drg_missing_when_no_graph_no_manifest(tmp_path: Path) -> No
 
 def test_synthesized_drg_built_in_only_when_manifest_declares_it(tmp_path: Path) -> None:
     """Preserved by the #2681 fix (data-model.md): ``built_in_only`` short-
-    circuits BEFORE the content-hash comparison. A regress here means T015
-    touched a branch it should not have."""
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+    circuits BEFORE the content-hash comparison."""
+    _seed_charter_yaml(tmp_path)
     _seed_manifest(tmp_path, built_in_only=True)
     result = compute_freshness(tmp_path)
     assert result.synthesized_drg.state == "built_in_only"
@@ -367,11 +316,8 @@ def test_synthesized_drg_built_in_only_when_manifest_declares_it(tmp_path: Path)
 
 def test_synthesized_drg_built_in_only_for_legacy_fresh_seed(tmp_path: Path) -> None:
     """Preserved by the #2681 fix — the legacy-fresh-seed branch sits above
-    the content-hash comparison and is untouched by T015. A regress here
-    means T015 touched a branch it should not have."""
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+    the content-hash comparison."""
+    _seed_charter_yaml(tmp_path)
     provenance = tmp_path / ".kittify" / "doctrine" / "PROVENANCE.md"
     provenance.parent.mkdir(parents=True, exist_ok=True)
     provenance.write_text(
@@ -394,14 +340,8 @@ def test_synthesized_drg_residue_reports_built_in_only(tmp_path: Path) -> None:
     ``built_in_only`` state with a non-blocking diagnostic instead of the
     formerly-terminal ``invalid`` state — making the blocking branch
     unreachable for this condition (structural, not reactive).
-
-    Preserved by the #2681 fix — this branch also sits above the
-    content-hash comparison. A regress here means T015 touched a branch it
-    should not have.
     """
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+    _seed_charter_yaml(tmp_path)
     _seed_manifest(tmp_path, built_in_only=True)
     _seed_graph(tmp_path)  # residue: built_in_only=true AND graph.yaml present
     result = compute_freshness(tmp_path)
@@ -416,44 +356,29 @@ def test_synthesized_drg_residue_reports_built_in_only(tmp_path: Path) -> None:
 def test_synthesized_drg_stale_when_synced_bundle_not_fresh(tmp_path: Path) -> None:
     """Preserved precedence branch (data-model.md): an upstream-stale
     ``synced_bundle`` short-circuits ``synthesized_drg`` to ``stale`` BEFORE
-    any content-hash comparison runs — even when the stored
-    ``bundle_content_hash`` still matches the current bundle content. A
-    regress here means T015 touched a branch it should not have."""
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+    any content-hash comparison runs."""
+    _seed_charter_yaml(tmp_path, body="not: [valid: yaml: at: all")
     _seed_graph(tmp_path)
-    real_hash = compute_bundle_content_hash(tmp_path)
-    assert real_hash is not None
-    _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=real_hash)
-
-    # Drift the charter (without updating metadata) so charter_source, and
-    # therefore synced_bundle, goes stale — even though bundle_content_hash
-    # itself still matches the (untouched) bundle files.
-    time.sleep(0.01)
-    charter_path.write_text("# Charter (drifted)\n", encoding="utf-8")
+    _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash="sha256:" + "0" * 64)
 
     result = compute_freshness(tmp_path)
 
+    assert result.charter_source.state == "invalid"
     assert result.synced_bundle.state == "stale"
     assert result.synthesized_drg.state == "stale"
     assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
 
 
-def test_synthesized_drg_fresh_when_graph_followed_bundle(tmp_path: Path) -> None:
-    charter_path, metadata_path = _seed_charter(tmp_path)
-    _write_metadata(metadata_path, charter_path)
-    _seed_bundle_files(tmp_path)
+def test_synthesized_drg_fresh_when_hash_matches(tmp_path: Path) -> None:
+    _seed_fresh_bundle_and_manifest(tmp_path)
     _seed_graph(tmp_path)
-    real_hash = compute_bundle_content_hash(tmp_path)
-    assert real_hash is not None
-    _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=real_hash)
     result = compute_freshness(tmp_path)
     assert result.synthesized_drg.state == "fresh"
 
 
 # ---------------------------------------------------------------------------
-# Content-identity comparison (WP03 / #2681 reader swap)
+# Content-identity comparison (WP03 / #2681 reader swap; WP06 re-pointed at
+# charter.yaml)
 # ---------------------------------------------------------------------------
 
 
@@ -462,11 +387,10 @@ def test_synthesized_drg_fresh_after_mtime_only_bump(tmp_path: Path) -> None:
 
     A realistic past-dated ``created_at`` (e.g. ``2026-01-01…``, NOT the
     ``2099-…`` sentinel — NFR-006) loses to a bumped bundle mtime under the
-    old ``manifest_ts + 1.0 < bundle_ts`` rule, so the pre-swap (still-mtime)
-    reader wrongly reports ``stale`` here. GREEN after T015 swaps the
-    comparison to content-identity — WP03's load-bearing per-WP red pin.
+    old ``manifest_ts + 1.0 < bundle_ts`` rule, so a mtime-based reader would
+    wrongly report ``stale`` here. GREEN under the content-identity reader.
     """
-    _seed_full_bundle(tmp_path)
+    _seed_charter_yaml(tmp_path)
     _seed_graph(tmp_path)
     real_hash = compute_bundle_content_hash(tmp_path)
     assert real_hash is not None
@@ -484,19 +408,12 @@ def test_synthesized_drg_fresh_after_mtime_only_bump(tmp_path: Path) -> None:
     assert result.synthesized_drg.state == "fresh"
 
 
-def test_synthesized_drg_stale_when_a_bundle_file_is_missing(tmp_path: Path) -> None:
-    """A missing bundle file (e.g. ``references.yaml``) yields ``stale`` — never
-    ``fresh``, never a crash.
-
-    ``compute_bundle_content_hash`` fail-safes to ``None`` when any of the four
-    files is absent, so the reader reports ``stale``. This is the
-    *missing-bundle-file* ``None`` the reader docstring distinguishes from a
-    *legacy-manifest* ``None``: it does NOT self-heal via ``synthesize`` alone
-    (the recompute is also ``None``), because ``references.yaml`` is compiled by
-    ``charter generate``, not written by ``charter sync``. The heavier
-    require-full-bundle preflight remediation is tracked separately.
-    """
-    _seed_full_bundle(tmp_path)
+def test_synthesized_drg_stale_when_charter_yaml_is_missing(tmp_path: Path) -> None:
+    """A missing ``charter.yaml`` yields ``stale`` — never ``fresh``, never a
+    crash. ``compute_bundle_content_hash`` fail-safes to ``None`` when the
+    file is absent, so the reader reports ``stale`` (via the
+    ``synced_bundle``-not-fresh precedence branch)."""
+    _seed_charter_yaml(tmp_path)
     _seed_graph(tmp_path)
     real_hash = compute_bundle_content_hash(tmp_path)
     assert real_hash is not None
@@ -507,8 +424,8 @@ def test_synthesized_drg_stale_when_a_bundle_file_is_missing(tmp_path: Path) -> 
         bundle_content_hash=real_hash,
     )
 
-    # Remove one required bundle file after the manifest was stamped fresh.
-    (tmp_path / ".kittify" / "charter" / "references.yaml").unlink()
+    # Remove the bundle file after the manifest was stamped fresh.
+    (tmp_path / ".kittify" / "charter" / "charter.yaml").unlink()
 
     # The recipe fail-safes to None (never raises) on the missing file...
     assert compute_bundle_content_hash(tmp_path) is None
@@ -519,12 +436,12 @@ def test_synthesized_drg_stale_when_a_bundle_file_is_missing(tmp_path: Path) -> 
 def test_synthesized_drg_stale_when_bundle_content_genuinely_changed(tmp_path: Path) -> None:
     """AS-2 pin (fact #22): a genuine bundle-content edit is still ``stale``.
 
-    May coincidentally pass on the pre-swap mtime reader too (editing
-    content also bumps mtime) — its regression power activates once the
+    May coincidentally pass on a pre-swap mtime reader too (editing content
+    also bumps mtime) — its regression power activates once the
     content-hash reader lands; it is NOT the red-first proof (see AS-1 for
     that).
     """
-    _seed_full_bundle(tmp_path)
+    _seed_charter_yaml(tmp_path)
     _seed_graph(tmp_path)
     real_hash = compute_bundle_content_hash(tmp_path)
     assert real_hash is not None
@@ -537,8 +454,10 @@ def test_synthesized_drg_stale_when_bundle_content_genuinely_changed(tmp_path: P
 
     # Genuinely edit bundle CONTENT (not just mtime) without re-seeding the
     # manifest's stored hash.
-    governance_path = tmp_path / ".kittify" / "charter" / "governance.yaml"
-    governance_path.write_text("schema_version: '1'\nchanged: true\n", encoding="utf-8")
+    charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker\n", encoding="utf-8"
+    )
 
     result = compute_freshness(tmp_path)
 
@@ -549,12 +468,9 @@ def test_synthesized_drg_2681_repro_cleared_via_synthesize(tmp_path: Path) -> No
     """AS-5 (#2681 full repro, ``synthesize`` entry point).
 
     synthesize once -> a no-op-stable run occurs -> a git-style mtime bump
-    (content unchanged) -> the pre-swap reader wrongly reports ``stale`` and
-    STAYS stuck ``stale`` even after a ``synthesize`` remediation attempt
-    (remediation's own fresh ``created_at`` still lags the artificially
-    future-bumped bundle mtime — the exact #2681 "stuck stale" symptom).
-    RED on the pre-swap reader (both assertions below fail); GREEN after
-    T015 — one of WP03's two load-bearing per-WP red pins (with AS-1).
+    (content unchanged) -> a mtime-based reader would wrongly report
+    ``stale`` and stay stuck ``stale`` even after a ``synthesize``
+    remediation attempt. GREEN under the content-identity reader.
     """
     _seed_pipeline_bundle_files(tmp_path)
     adapter = _synth_adapter()
@@ -577,8 +493,7 @@ def test_synthesized_drg_2681_repro_cleared_via_synthesize(tmp_path: Path) -> No
 def test_synthesized_drg_2681_repro_cleared_via_resynthesize(tmp_path: Path) -> None:
     """AS-5 (#2681 full repro, ``resynthesize`` entry point) — separate fresh
     fixture, mirrors the ``synthesize`` case above via
-    ``resynthesize_pipeline.run``. RED-then-GREEN alongside AS-1 (NFR-006:
-    BOTH entry points covered)."""
+    ``resynthesize_pipeline.run``. Covers both entry points (NFR-006)."""
     _seed_pipeline_bundle_files(tmp_path)
     adapter = _synth_adapter()
     synthesize(_base_synthesis_request("01DDDDDDDDDDDDDDDDDDDDDDDD"), adapter=adapter, repo_root=tmp_path)
@@ -601,10 +516,13 @@ def test_synthesized_drg_2681_repro_cleared_via_resynthesize(tmp_path: Path) -> 
 def test_synthesized_drg_remediation_clears_genuine_content_change(tmp_path: Path) -> None:
     """Genuine-content-change remediation e2e (SC-003/AS-3 full proof).
 
-    fresh -> edit ``governance.yaml`` CONTENT -> stale -> ``synthesize`` ->
-    fresh; repeat the stale -> ``resynthesize`` -> fresh cycle. Proves
-    WP02's writer recompute AND WP03's reader compose end-to-end — fails if
-    either half is broken.
+    fresh -> edit ``charter.yaml`` CONTENT (the spurious authoring-staleness
+    case, data-model.md Landmine 2 extension, decision (b) —
+    ``traces/decisions.md``) -> stale -> ``synthesize`` -> fresh; repeat the
+    stale -> ``resynthesize`` -> fresh cycle. Proves the writer recompute
+    AND this reader compose end-to-end, AND that an authoring-only edit is
+    always healable by the very next synth (never a permanent-stale
+    dead-end) — fails if either half is broken.
     """
     _seed_pipeline_bundle_files(tmp_path)
     adapter = _synth_adapter()
@@ -612,17 +530,17 @@ def test_synthesized_drg_remediation_clears_genuine_content_change(tmp_path: Pat
 
     assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
 
-    governance_path = tmp_path / ".kittify" / "charter" / "governance.yaml"
-    governance_path.write_text(
-        governance_path.read_text(encoding="utf-8") + "# drift-marker\n", encoding="utf-8"
+    charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker\n", encoding="utf-8"
     )
     assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
 
     synthesize(_base_synthesis_request("01HHHHHHHHHHHHHHHHHHHHHHHH"), adapter=adapter, repo_root=tmp_path)
     assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
 
-    governance_path.write_text(
-        governance_path.read_text(encoding="utf-8") + "# drift-marker-2\n", encoding="utf-8"
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker-2\n", encoding="utf-8"
     )
     assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
 
@@ -646,11 +564,18 @@ def test_to_dict_shape_matches_contract(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "scenario",
-    ["fresh", "stale", "missing", "built_in_only", "invalid"],
+    ["fresh", "missing", "built_in_only", "invalid"],
 )
 def test_states_are_among_documented_vocabulary(scenario: str, tmp_path: Path) -> None:
-    """Smoke: every documented state value is reachable by the computer."""
-    charter_path, metadata_path = _seed_charter(tmp_path)
+    """Smoke: every documented state value is reachable by the computer.
+
+    ``"stale"`` is exercised by the dedicated
+    ``test_synthesized_drg_stale_when_synced_bundle_not_fresh`` /
+    ``test_synthesized_drg_stale_when_bundle_content_genuinely_changed``
+    tests above rather than here — post-Landmine-2 it is reachable only via
+    ``synthesized_drg``/``synced_bundle``, not as a smoke-level
+    ``charter_source`` scenario (that producer is retired).
+    """
     if scenario == "missing":
         result = compute_freshness(tmp_path)
         states = {
@@ -660,33 +585,83 @@ def test_states_are_among_documented_vocabulary(scenario: str, tmp_path: Path) -
         }
         assert "missing" in states
         return
-    if scenario == "stale":
-        _write_metadata(metadata_path, charter_path, mismatched=True)
-        result = compute_freshness(tmp_path)
-        assert result.charter_source.state == "stale"
-        return
     if scenario == "fresh":
-        _write_metadata(metadata_path, charter_path)
-        _seed_bundle_files(tmp_path)
+        _seed_charter_yaml(tmp_path)
         result = compute_freshness(tmp_path)
         assert result.charter_source.state == "fresh"
         return
     if scenario == "built_in_only":
-        _write_metadata(metadata_path, charter_path)
-        _seed_bundle_files(tmp_path)
+        _seed_charter_yaml(tmp_path)
         _seed_manifest(tmp_path, built_in_only=True)
         result = compute_freshness(tmp_path)
         assert result.synthesized_drg.state == "built_in_only"
         return
     if scenario == "invalid":
         # FR-006 re-pointed this vocabulary smoke-entry: the only ``invalid``
-        # producer is now ``_compute_charter_source`` ("charter.md exists but
-        # cannot be hashed"), a genuine inconsistency — NOT the downgraded
+        # producer is ``_compute_charter_source`` ("charter.yaml exists but
+        # cannot be parsed"), a genuine inconsistency — NOT the downgraded
         # built_in_only ∧ graph residue case.
-        _write_metadata(metadata_path, charter_path)
-        charter_path.unlink()
-        charter_path.mkdir()  # a directory where a file is expected → unhashable
+        _seed_charter_yaml(tmp_path)
+        charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+        charter_yaml_path.unlink()
+        charter_yaml_path.mkdir()  # a directory where a file is expected → unparseable
         result = compute_freshness(tmp_path)
         assert result.charter_source.state == "invalid"
         return
     pytest.fail(f"Unhandled scenario {scenario!r}")
+
+
+# ---------------------------------------------------------------------------
+# NFR-002: default freshness read spawns ZERO subprocesses
+# ---------------------------------------------------------------------------
+
+
+def test_compute_freshness_spawns_zero_subprocesses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """NFR-002: a default ``compute_freshness`` read must not spawn any
+    synthesis/regenerate subprocess. ``compute_freshness`` is a pure
+    observer (module docstring) -- it reads ``charter.yaml``, the synthesis
+    manifest, and ``graph.yaml`` from disk only, never shelling out.
+
+    Exercised across a fresh, a stale (content-hash mismatch), and a
+    missing-everything repo so the spy covers every branch of the three
+    sub-state computers, not just the happy path.
+    """
+    import subprocess
+
+    call_count = 0
+    real_run = subprocess.run
+    real_popen = subprocess.Popen
+
+    def _spy_run(*args: object, **kwargs: object) -> object:
+        nonlocal call_count
+        call_count += 1
+        return real_run(*args, **kwargs)  # type: ignore[arg-type]
+
+    def _spy_popen(*args: object, **kwargs: object) -> object:
+        nonlocal call_count
+        call_count += 1
+        return real_popen(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(subprocess, "run", _spy_run)
+    monkeypatch.setattr(subprocess, "Popen", _spy_popen)
+
+    # Fresh.
+    _seed_fresh_bundle_and_manifest(tmp_path)
+    _seed_graph(tmp_path)
+    compute_freshness(tmp_path)
+
+    # Stale (genuine content drift, no re-stamp).
+    (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
+        _CHARTER_YAML_BODY.replace("mission: test-mission", "mission: drifted-mission"),
+        encoding="utf-8",
+    )
+    compute_freshness(tmp_path)
+
+    # Missing everything.
+    empty_repo = tmp_path / "empty"
+    empty_repo.mkdir()
+    compute_freshness(empty_repo)
+
+    assert call_count == 0, f"compute_freshness spawned {call_count} subprocess(es) (NFR-002 violation)"

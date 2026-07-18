@@ -69,10 +69,58 @@ def write_metadata(metadata_path: Path, charter_path: Path, *, mismatched: bool 
 
 
 def seed_bundle_files(repo: Path) -> None:
-    """Create the three sibling bundle YAMLs that ``synced_bundle`` expects."""
+    """Create the three sibling bundle YAMLs the LEGACY (pre-consolidate-
+    charter-bundle) ``synced_bundle`` model expected.
+
+    consolidate-charter-bundle WP06 (Landmine 1/2, contracts/manifest-v2.md
+    M1) narrowed the freshness computer's ``_BUNDLE_FILES`` /
+    ``charter.bundle.BUNDLE_CONTENT_HASH_FILES`` to the single tracked,
+    authored ``charter.yaml`` -- these three files no longer feed
+    ``charter_source``/``synced_bundle``/``synthesized_drg`` at all. Kept as
+    a no-op-for-freshness-purposes companion (harmless; some non-freshness
+    consumers under test may still reference them) alongside
+    :func:`seed_charter_yaml`, which is what now actually drives freshness.
+    """
     charter_dir = repo / ".kittify" / "charter"
     for name in ("governance.yaml", "directives.yaml", "references.yaml"):
         (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
+
+
+_CHARTER_YAML_BODY = (
+    "schema_version: '2.0.0'\n"
+    "governance: {}\n"
+    "directives:\n"
+    "  directives: []\n"
+    "catalog:\n"
+    "  mission: preflight-fixture\n"
+    "  template_set: default\n"
+    "  languages: []\n"
+    "  references: []\n"
+    "metadata:\n"
+    "  generated_at: '2026-01-01T00:00:00+00:00'\n"
+    "  bundle_schema_version: 2\n"
+)
+
+
+def seed_charter_yaml(repo: Path, *, valid: bool = True) -> Path:
+    """Create ``.kittify/charter/charter.yaml`` -- the resolving freshness
+    source (consolidate-charter-bundle WP06 / Landmine 2). This is the file
+    ``charter_source``/``synced_bundle``/``synthesized_drg`` actually read
+    post-mission; ``seed_charter``/``write_metadata``/``seed_bundle_files``
+    above model the retired ``charter.md``-hash mechanism and no longer
+    drive freshness on their own.
+
+    ``valid=False`` writes genuinely malformed YAML so ``charter_source``
+    reads ``invalid`` -- the only non-``fresh``, non-``missing`` state
+    reachable once the file exists (the ``charter.md``-hash ``"stale"``
+    branch is retired outright, not re-homed).
+    """
+    charter_dir = repo / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    charter_yaml_path = charter_dir / "charter.yaml"
+    body = _CHARTER_YAML_BODY if valid else "not: [valid: yaml: at: all"
+    charter_yaml_path.write_text(body, encoding="utf-8")
+    return charter_yaml_path
 
 
 class _AutoHash:
@@ -183,15 +231,21 @@ def make_fresh_repo(repo: Path) -> None:
     """Materialise a fully-fresh repo: charter + bundle + synthesised graph.
 
     "Fresh" is defined by the content-identity freshness contract
-    (synthesized-drg-stale-refresh): because the bundle files are seeded
-    before the manifest, ``seed_manifest``'s default auto-compute stamps a
-    ``schema_version: '3'`` manifest whose ``bundle_content_hash`` matches a
-    fresh recompute — exactly what a real ``spec-kitty charter synthesize``
-    run would write, so the synthesized DRG reads as ``fresh``.
+    (synthesized-drg-stale-refresh, re-pointed at ``charter.yaml`` by
+    consolidate-charter-bundle WP06): ``charter.yaml`` is seeded (via
+    :func:`seed_charter_yaml`) before the manifest, so ``seed_manifest``'s
+    default auto-compute (``_resolve_bundle_hash`` ->
+    ``compute_bundle_content_hash``) stamps a manifest whose
+    ``bundle_content_hash`` matches a fresh recompute of ``charter.yaml`` —
+    exactly what a real ``spec-kitty charter synthesize`` run would write,
+    so ``charter_source``/``synced_bundle``/``synthesized_drg`` all read
+    ``fresh``. The legacy ``charter.md``/bundle-triad seeding is retained
+    alongside it as a harmless companion for non-freshness consumers.
     """
     init_git_repo(repo)
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
     seed_bundle_files(repo)
+    seed_charter_yaml(repo)
     seed_manifest(repo, built_in_only=False)
     seed_graph(repo)

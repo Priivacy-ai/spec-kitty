@@ -56,6 +56,7 @@ on this flag.
 from __future__ import annotations
 
 import functools
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -70,6 +71,8 @@ from charter.activation_engine import (
     plan_activation,
     plan_deactivation,
 )
+from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
+from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
@@ -86,6 +89,7 @@ __all__ = [
     "CharterPackManager",
     "MergeResult",
     "YAML_KEY_MAP",
+    "resolve_activation_write_target",
 ]
 # ``AvailableArtifact`` is exported now that ``charter list --all`` (WP16)
 # imports it as a live ``src/`` consumer (it is the per-layer value object
@@ -336,6 +340,70 @@ def _save_config(config_path: Path, data: Any, yaml: YAML) -> None:
         yaml.dump(data, fh)
 
 
+def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any]) -> None:
+    """INV-9 write path: persist activation keys through the shared helper.
+
+    ``data`` is the full in-memory ``charter.yaml`` document (governance /
+    directives / catalog / metadata / overrides plus the flat activation
+    keys); only the flat activation keys known to :data:`YAML_KEY_MAP` are
+    ever written, via :func:`~charter.charter_yaml_io.update_charter_yaml_section`'s
+    ``"activation"`` pseudo-section — so unrelated sections are structurally
+    preserved rather than conventionally preserved (Landmine 3 / INV-9).
+
+    Safe to call once per changed key (``CharterPackManager.activate`` /
+    ``deactivate``) or once for a batch of keys (``merge_defaults``,
+    ``charter.activation_engine.promote_activations``): only the keys
+    actually present in ``data`` are written, and re-writing an unchanged
+    key is idempotent.
+    """
+    values = {key: data[key] for key in YAML_KEY_MAP.values() if key in data}
+    if values:
+        update_charter_yaml_section(charter_path, "activation", values)
+
+
+def resolve_activation_write_target(
+    repo_root: Path,
+) -> tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None]]:
+    """Resolve the ``(path, loaded document, save)`` triple for activation writes.
+
+    Shared by :class:`CharterPackManager` and the two other activation
+    writers (``specify_cli.cli.commands.charter.interview`` and
+    ``specify_cli.doctrine.org_charter``) so pointer resolution has exactly
+    one implementation on the write side — mirroring
+    :meth:`charter.pack_context.PackContext.from_config` on the read side
+    (INV-2/INV-5/INV-9).
+
+    Absent ``.kittify/config.yaml`` ``charter:`` pointer -> legacy /
+    un-migrated project: the target IS ``config.yaml`` itself, written as a
+    full ``ruamel`` round-trip document — the pre-relocation behavior,
+    preserved byte-for-byte until the project runs the charter-bundle
+    migration.
+
+    Present pointer -> migrated project: the target is the pointed-at
+    ``charter.yaml``; a dangling/unreadable pointer is a fail-loud
+    :class:`~charter.pack_context.CharterPackConfigError` (INV-5, re-homed
+    #2530) rather than a silent fallback to the legacy config-embedded keys.
+    Writes route through :func:`_save_charter_yaml_activation`, touching
+    only the flat activation keys (INV-9).
+    """
+    config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
+    config_data, yaml_inst = _load_config(config_path)
+
+    charter_path = resolve_charter_yaml_pointer(repo_root, config_data)
+    if charter_path is None:
+        return config_path, config_data, functools.partial(_save_config, yaml=yaml_inst)
+
+    if not charter_path.exists():
+        raise CharterPackConfigError(
+            f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
+            f"which does not exist.\nRemediation: run the charter-bundle "
+            f"migration (`spec-kitty upgrade`) to (re)generate it, or fix "
+            f"the 'charter:' pointer."
+        )
+    charter_data = dict(load_charter_yaml(charter_path))
+    return charter_path, charter_data, _save_charter_yaml_activation
+
+
 def _load_default_pack() -> dict[str, list[str]]:
     """Load the built-in default pack IDs from the shipped default.yaml."""
     import yaml as _yaml
@@ -424,8 +492,7 @@ class CharterPackManager:
         yaml_key = YAML_KEY_MAP[kind]
 
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
-        data, yaml_inst = _load_config(config_path)
+        target_path, data, save = resolve_activation_write_target(repo_root)
 
         available = self.list_available(ctx, kind, layer_roots=layer_roots)
         default_pack = _load_default_pack()
@@ -445,7 +512,7 @@ class CharterPackManager:
 
         result = ActivationResult(activated=list(plan.activated), warnings=list(plan.warnings))
 
-        commit_plan(config_path, data, plan, save=functools.partial(_save_config, yaml=yaml_inst))
+        commit_plan(target_path, data, plan, save=save)
         return result
 
     def deactivate(
@@ -499,8 +566,7 @@ class CharterPackManager:
         yaml_key = YAML_KEY_MAP[kind]
 
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
-        data, yaml_inst = _load_config(config_path)
+        target_path, data, save = resolve_activation_write_target(repo_root)
 
         plan = plan_deactivation(
             kind,
@@ -511,12 +577,12 @@ class CharterPackManager:
 
         result = ActivationResult(deactivated=list(plan.deactivated), warnings=list(plan.warnings))
 
-        # No-op removal (ID not present): nothing to write, leave config bytes
-        # untouched.
+        # No-op removal (ID not present): nothing to write, leave the
+        # activation source bytes untouched.
         if not plan.deactivated:
             return result
 
-        commit_plan(config_path, data, plan, save=functools.partial(_save_config, yaml=yaml_inst))
+        commit_plan(target_path, data, plan, save=save)
         return result
 
     def list_activated(
@@ -525,8 +591,9 @@ class CharterPackManager:
     ) -> dict[str, frozenset[str] | None]:
         """Return activated artifact IDs keyed by charter kind token.
 
-        A ``None`` value means the kind has no explicit activation set
-        in ``config.yaml`` (the project has not yet been upgraded to
+        A ``None`` value means the kind has no explicit activation set (in
+        ``charter.yaml`` for a migrated project, or in ``config.yaml`` for a
+        legacy/un-migrated one — the project has not yet been upgraded to
         the pack-based model for that kind).
 
         Parameters
@@ -540,8 +607,7 @@ class CharterPackManager:
             Mapping of charter kind token to activated IDs (or ``None``).
         """
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
-        data, _ = _load_config(config_path)
+        _, data, _ = resolve_activation_write_target(repo_root)
 
         result: dict[str, frozenset[str] | None] = {}
         for kind, yaml_key in YAML_KEY_MAP.items():
@@ -704,11 +770,14 @@ class CharterPackManager:
         self,
         ctx: ProjectContext,
     ) -> MergeResult:
-        """Merge the default pack into ``config.yaml`` for all absent kinds.
+        """Merge the default pack into the activation source for all absent kinds.
 
-        Only absent keys are written; present keys are not overwritten.
-        If ``.kittify/charter/charter.md`` exists it is backed up before
-        any write.
+        Only absent keys are written; present keys are not overwritten. The
+        activation source is ``charter.yaml`` for a migrated project (a
+        ``charter:`` pointer is present in ``config.yaml``) or ``config.yaml``
+        itself for a legacy/un-migrated one — see
+        :func:`resolve_activation_write_target`. If ``.kittify/charter/charter.md``
+        exists it is backed up before any write.
 
         Parameters
         ----------
@@ -723,21 +792,20 @@ class CharterPackManager:
         from datetime import UTC, datetime
 
         repo_root = ctx.require_repo_root()
-        config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
-        charter_path = repo_root / _KITTIFY_DIRNAME / "charter" / _CHARTER_FILENAME
+        charter_md_path = repo_root / _KITTIFY_DIRNAME / "charter" / _CHARTER_FILENAME
 
         result = MergeResult()
 
         # Backup charter.md if it exists before any write
-        if charter_path.exists():
+        if charter_md_path.exists():
             ts = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
             backup_dir = repo_root / _KITTIFY_DIRNAME / "charter" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
             backup_path = backup_dir / f"charter-{ts}.md"
-            backup_path.write_bytes(charter_path.read_bytes())
+            backup_path.write_bytes(charter_md_path.read_bytes())
             result.backup_path = backup_path
 
-        data, yaml_inst = _load_config(config_path)
+        target_path, data, save = resolve_activation_write_target(repo_root)
         default_pack = _load_default_pack()
 
         for yaml_key in YAML_KEY_MAP.values():
@@ -750,7 +818,7 @@ class CharterPackManager:
                 result.kinds_written.append(kind)
 
         if result.kinds_written:
-            _save_config(config_path, data, yaml_inst)
+            save(target_path, data)
 
         return result
 

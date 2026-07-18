@@ -86,6 +86,13 @@ def _clear_resolver_cache() -> None:
 def test_build_charter_context_from_worktree_uses_canonical_root(tmp_path: Path) -> None:
     """FR-010: ``build_charter_context`` called from a worktree anchors
     all charter reads at the main checkout's canonical root.
+
+    consolidate-charter-bundle (IC-04 / WP04, T028c): ``sync()`` no longer
+    materializes governance.yaml/directives.yaml/metadata.yaml (manifest
+    v2's ``derived_files`` is ``[]``) -- ``ensure_charter_bundle_fresh``
+    remains the canonical-root resolution chokepoint, but priming the
+    bundle no longer means "these three files now exist"; it means the
+    resolver correctly anchors at the main checkout regardless.
     """
     from charter.context import build_charter_context
     from charter.sync import ensure_charter_bundle_fresh
@@ -98,12 +105,12 @@ def test_build_charter_context_from_worktree_uses_canonical_root(tmp_path: Path)
     ).resolve()
     _clear_resolver_cache()
 
-    # Prime the bundle from the main checkout so derivatives exist there.
+    # The chokepoint still resolves canonical root correctly, even though
+    # it no longer writes any derivative there.
     main_sync = ensure_charter_bundle_fresh(main_root)
     assert main_sync is not None
     assert main_sync.canonical_root == main_root
-    for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
-        assert (main_root / ".kittify" / "charter" / name).exists()
+    assert main_sync.synced is False
 
     _clear_resolver_cache()
 
@@ -170,9 +177,15 @@ def test_dashboard_charter_path_from_worktree_points_at_main(tmp_path: Path) -> 
 
 
 def test_worktree_bundle_never_materializes_locally(tmp_path: Path) -> None:
-    """Regression guard: after a reader has been invoked from the worktree
-    path, the worktree's ``.kittify/charter/`` directory is either
-    absent or empty. The chokepoint writes to canonical root only.
+    """Regression guard: invoking the chokepoint from a worktree never
+    writes anything into the worktree's own ``.kittify/charter/`` tree.
+
+    consolidate-charter-bundle (IC-04 / WP04, T028c): the chokepoint no
+    longer materializes derivatives ANYWHERE (manifest v2's
+    ``derived_files`` is ``[]``) -- there is nothing left for it to write,
+    at the main checkout or the worktree. This test now pins the narrower,
+    still-real invariant: the worktree's charter dir gains no legacy
+    derivative as a side effect of a chokepoint call routed through it.
     """
     from charter.sync import ensure_charter_bundle_fresh
 
@@ -184,19 +197,10 @@ def test_worktree_bundle_never_materializes_locally(tmp_path: Path) -> None:
     ).resolve()
     _clear_resolver_cache()
 
-    # Delete derivatives so the chokepoint has to run sync.
-    for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
-        candidate = main_root / ".kittify" / "charter" / name
-        if candidate.exists():
-            candidate.unlink()
-
-    ensure_charter_bundle_fresh(worktree_root)
-
-    # Post-condition: main checkout has the bundle materialized.
-    for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
-        assert (main_root / ".kittify" / "charter" / name).exists(), (
-            f"main checkout missing derivative {name}"
-        )
+    result = ensure_charter_bundle_fresh(worktree_root)
+    assert result is not None
+    assert result.canonical_root == main_root
+    assert result.synced is False
 
     # Post-condition: worktree's own charter dir must not hold a bundle.
     worktree_charter_dir = worktree_root / ".kittify" / "charter"

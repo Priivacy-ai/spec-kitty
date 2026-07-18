@@ -890,6 +890,59 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. consolidate-charter-bundle (01KXSYB9) WP04 extractor retirement ----------
+# WP04 (IC-04) retires ``charter.sync.sync``'s prose->triad scrape -- the
+# extraction pipeline's ONLY production caller (governance/directives are
+# hand-authored in charter.yaml now; see ``charter.sync.load_governance_config``
+# / ``load_directives_config``). ``Extractor`` itself is intentionally NOT
+# deleted: its still-live doctrine-selection + activation-registry scan
+# (unconditional, independent of the retired ``SECTION_MAPPING`` dispatch) is
+# exercised directly by ``tests/charter/test_extractor_activations.py`` /
+# ``test_extractor_selection.py`` / ``test_sync_authority_paths.py`` /
+# ``test_charter_context_spdd_reasons.py``, none of which are WP04's to
+# rewrite. Follow-up tracker: consolidate-charter-bundle-01KXSYB9 (wire a real
+# caller for the doctrine-selection/activation scan, or delete ``Extractor``
+# and its remaining test dependents in a dedicated follow-up).
+
+_CATEGORY_C_WP_IN_FLIGHT_EXTRACTOR_RETIREMENT: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.extractor::Extractor -- library primitive, test-only callers
+        # post-WP04 (see block comment above)
+        SymbolKey("Extractor", "ee6d759dbb877705e8bad8e35dea7c782a5afa008e82fada58afbfbd8701905e"),
+    }
+)
+
+
+# ---------- C. consolidate-charter-bundle WP01 shared write-helper vocabulary ----------
+# ``charter.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
+# writer all three charter.yaml mutators -- activation_engine.commit_plan,
+# pack_manager.merge_defaults, compiler.write_compiled_charter -- route
+# through) IS wired with a live src/ caller. ``OWNED_SECTIONS`` (the public
+# vocabulary of section names callers may name) and
+# ``UnknownCharterYamlSectionError`` (the typed error the helper raises for
+# an unrecognised section) are the module's public *contract* surface for
+# that call, but every current caller passes a literal section string
+# rather than importing the vocabulary/exception to validate against --
+# so neither symbol itself has a cross-file src/ importer yet. Library-
+# primitive, test-exercised (tests/charter/test_charter_yaml_io.py
+# validates both the accepted-section vocabulary and the raised-on-unknown
+# contract). WP07 (consolidate-charter-bundle-01KXSYB9, #2773) declines to
+# force an artificial caller (e.g. a defensive pre-check duplicating the
+# helper's own validation) purely to satisfy this gate. Follow-up tracker:
+# #2773 (wire a real caller, e.g. a CLI/validation surface that echoes
+# ``OWNED_SECTIONS`` back to an operator, or fold the two symbols out of
+# ``__all__`` in a dedicated follow-up).
+
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.charter_yaml_io::OWNED_SECTIONS
+        SymbolKey("OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3"),
+        # charter.charter_yaml_io::UnknownCharterYamlSectionError
+        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -918,6 +971,8 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE
+    | _CATEGORY_C_WP_IN_FLIGHT_EXTRACTOR_RETIREMENT
+    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
 )
 
 

@@ -18,8 +18,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from charter.charter_yaml_io import save_charter_yaml
 from charter.compiler import compile_charter
-from charter.extractor import Extractor, write_extraction_result
+from charter.extractor import Extractor
 from charter.interview import default_interview, read_interview_answers
 from charter.pack_context import PackContext
 from doctrine.service import DoctrineService
@@ -210,7 +211,27 @@ class TestSpddActivationDoesNotFlip:
         )
 
         extraction = Extractor().extract(compiled.markdown)
-        write_extraction_result(extraction, tmp_path / ".kittify" / "charter")
+        # IC-04 (WP04) retirement: write_extraction_result (governance.yaml
+        # / directives.yaml / metadata.yaml triad emitter) is retired.
+        # governance/directives are hand-authored sections directly inside
+        # charter.yaml now (data-model.md); is_spdd_reasons_active reads
+        # them from there (doctrine/spdd_reasons/activation.py).
+        charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+        save_charter_yaml(
+            charter_yaml_path,
+            {
+                "schema_version": "2.0.0",
+                "governance": extraction.governance.model_dump(mode="json"),
+                "directives": extraction.directives.model_dump(mode="json"),
+                "catalog": {
+                    "mission": interview.mission,
+                    "template_set": "software-dev-default",
+                    "languages": [],
+                    "references": [],
+                },
+                "metadata": {"generated_at": "2026-01-01T00:00:00Z", "bundle_schema_version": 2},
+            },
+        )
 
         clear_activation_cache()
         assert is_spdd_reasons_active(tmp_path) is True, (

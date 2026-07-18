@@ -29,8 +29,10 @@ def test_resynthesize_list_topics_checks_bundle_compatibility(
 ) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "metadata.yaml").write_text(
-        "bundle_schema_version: 2\n", encoding="utf-8"
+    # consolidate-charter-bundle (#2773): the compat gate keys off charter.yaml
+    # (the authoritative v2 bundle), NOT the retired metadata.yaml.
+    (charter_dir / "charter.yaml").write_text(
+        "metadata:\n  bundle_schema_version: 2\n", encoding="utf-8"
     )
 
     compatibility_calls: list[Path] = []
@@ -68,8 +70,10 @@ def test_status_list_checks_bundle_compatibility(
 ) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "metadata.yaml").write_text(
-        "bundle_schema_version: 2\n", encoding="utf-8"
+    # consolidate-charter-bundle (#2773): the compat gate keys off charter.yaml
+    # (the authoritative v2 bundle), NOT the retired metadata.yaml.
+    (charter_dir / "charter.yaml").write_text(
+        "metadata:\n  bundle_schema_version: 2\n", encoding="utf-8"
     )
 
     compatibility_calls: list[Path] = []
@@ -95,6 +99,48 @@ def test_status_list_checks_bundle_compatibility(
 
     assert result.exit_code == 0, result.output
     assert compatibility_calls == [charter_dir]
+
+
+def test_status_compat_gate_ignores_retired_metadata_yaml(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """#2773 regression: metadata.yaml alone must NOT trigger the compat gate.
+
+    The fold migration deletes ``metadata.yaml``; if the gate keyed off it, a
+    real post-migration v2 project — which has ``charter.yaml`` but no
+    ``metadata.yaml`` — would silently skip the bundle-compatibility check.
+    """
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    # Only the retired metadata.yaml present; no charter.yaml.
+    (charter_dir / "metadata.yaml").write_text(
+        "bundle_schema_version: 2\n", encoding="utf-8"
+    )
+
+    compatibility_calls: list[Path] = []
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.charter.find_repo_root", lambda: tmp_path
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.charter._assert_bundle_compatible",
+        lambda path: compatibility_calls.append(path),
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.charter._collect_charter_sync_status",
+        lambda repo_root: {"repo_root": str(repo_root)},
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.charter._collect_synthesis_status",
+        lambda repo_root, include_provenance=False: {"present": False},
+    )
+
+    result = runner.invoke(charter_app, ["status", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert compatibility_calls == [], (
+        "retired metadata.yaml must not trigger the compat gate; it must key "
+        "off charter.yaml (else v2 bundles silently skip the check)"
+    )
 
 
 def test_collect_charter_sync_status_passes_metadata_path_to_stale_check(

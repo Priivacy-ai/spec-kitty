@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from ruamel.yaml import YAML
 
+from charter.bundle import CHARTER_YAML
 from charter.catalog import resolve_doctrine_root
+from charter.charter_yaml_io import load_charter_yaml
 from charter.invocation_context import ProjectContext
 from charter.kind_vocabulary import (
     ArtifactKind,
@@ -16,6 +19,7 @@ from charter.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
+from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 __all__ = [
@@ -25,18 +29,26 @@ __all__ = [
 
 
 # Internal-only (not exported): raised and caught within this module to route a
-# corrupt/unreadable references.yaml into the fail-closed verification_errors
-# path. Kept out of __all__ per the symbol-level dead-code gate — no external
-# caller imports it (the fail-closed tests trigger it via corrupt input).
-class ReferencesCorruptError(RuntimeError):
-    """``references.yaml`` exists but is unreadable or structurally invalid (#2530).
+# corrupt/unreadable charter.yaml (activation lists or catalog) into the
+# fail-closed verification_errors path. Kept out of __all__ per the
+# symbol-level dead-code gate — no external caller imports it (the
+# fail-closed tests trigger it via corrupt input).
+class CharterYamlCorruptError(RuntimeError):
+    """``charter.yaml`` exists but is unreadable or structurally invalid (#2530).
 
-    Raised by :func:`_load_reference_ids_by_kind` when the compiled reference
-    set is present on disk but cannot be trusted -- unparseable YAML, a
-    non-mapping document root, or a missing/malformed ``references`` list.
-    Deliberately distinct from the ``None`` return of that same function,
-    which signals the legitimate "no charter synthesis has run yet" no-op
-    skip. Callers must fail closed on this exception (surface a
+    IC-04 re-home: originally named ``ReferencesCorruptError`` and scoped to
+    ``references.yaml`` alone. WP04 re-points ``_load_reference_ids_by_kind``
+    (the catalog parity read) onto ``charter.yaml``, so this is now raised
+    when a resolved ``charter.yaml`` is present but unparseable, not a
+    mapping, or missing a valid ``catalog.references`` list. (The SIBLING
+    activation-list read, :func:`_load_raw_activation_lists`, fails closed
+    with :class:`charter.pack_context.CharterPackConfigError` instead --
+    reused directly rather than re-invented, since a dangling ``charter:``
+    pointer is exactly the condition ``PackContext.from_config`` (WP02)
+    already raises that same exception for.) Deliberately distinct from the
+    ``None`` return of :func:`_load_reference_ids_by_kind`, which signals the
+    legitimate "no charter synthesis has run yet" no-op skip. Callers must
+    fail closed on this exception (surface a
     ``ConsistencyReport.verification_errors`` entry and treat the report as
     NOT coherent), never treat it the same as the ``None``/skip case --
     an empty finding list must mean "verified coherent", never "could not
@@ -116,8 +128,9 @@ class ConsistencyReport:
             duplicate IDs within a single activation set.
         reference_id_divergences: FR-005/T017 -- ID-level parity findings
             between ``config.activated_*`` and the compiled reference set
-            (``.kittify/charter/references.yaml``). Forward direction (every
-            kind): a config-activated ID that does not resolve in the
+            (IC-04: ``.kittify/charter/charter.yaml``'s ``catalog.references``
+            -- formerly the retired ``references.yaml``). Forward direction
+            (every kind): a config-activated ID that does not resolve in the
             compiled reference set is the #2524 dangler class. Reverse
             direction (paradigms only -- the one kind rendered 1:1 with no
             DRG-transitive expansion): a compiled paradigm reference with no
@@ -131,13 +144,13 @@ class ConsistencyReport:
         verification_errors: #2530 -- fail-closed signal distinct from every
             other (empty) finding list above. Populated when a parity check
             could not run at all because its input was unreadable or
-            structurally invalid (a corrupt/truncated
-            ``references.yaml``, or a DRG load/validation failure) -- as
-            opposed to the legitimate "not yet synthesized" no-op skip (no
-            ``references.yaml`` on disk yet). An empty finding list must
-            mean "verified coherent", never "could not verify"; this field
-            is how the guard reports the latter instead of silently
-            reporting the former.
+            structurally invalid (a corrupt/truncated ``charter.yaml``, a
+            dangling config.yaml ``charter:`` pointer, or a DRG
+            load/validation failure) -- as opposed to the legitimate "not
+            yet synthesized" no-op skip (no ``charter.yaml`` on disk yet).
+            An empty finding list must mean "verified coherent", never
+            "could not verify"; this field is how the guard reports the
+            latter instead of silently reporting the former.
         suggestions: Human-readable resolution instructions for each finding.
     """
 
@@ -195,16 +208,61 @@ def _get_raw_activation_list(
     return raw_activated_by_kind.get(kind)
 
 
-def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | None]:
-    """Read activation lists from config.yaml without deduplicating entries."""
-    config_path = ctx.require_repo_root() / ".kittify" / "config.yaml"
+def _load_config_yaml_mapping(config_path: Path) -> dict[str, Any]:
+    """Parse ``.kittify/config.yaml`` into a plain mapping (``{}`` if absent)."""
     if not config_path.exists():
-        return dict.fromkeys(YAML_KEY_MAP, None)
-
+        return {}
     yaml = YAML(typ="safe")
     data = yaml.load(config_path) or {}
-    if not isinstance(data, dict):
-        return dict.fromkeys(YAML_KEY_MAP, None)
+    return data if isinstance(data, dict) else {}
+
+
+def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
+    """Resolve the mapping raw activation lists are read from (IC-04).
+
+    Mirrors :meth:`charter.pack_context.PackContext.from_config`'s two-state
+    INV-2/INV-5 resolution, so this guard and the activation engine never
+    diverge on which source is authoritative (closing the WP02<->WP04
+    transient-parity coupling):
+
+    * ``charter:`` pointer absent in ``config.yaml`` -> legacy/un-migrated
+      project. Activation is read directly from ``config.yaml`` (the
+      pre-relocation behavior, unchanged).
+    * Pointer present -> ``charter.yaml`` MUST resolve to a readable
+      mapping; a dangling pointer or unparseable/non-mapping ``charter.yaml``
+      is a fail-loud :class:`CharterPackConfigError` (#2530 re-homed onto
+      charter.yaml), never a silent fallback to the legacy config-embedded
+      keys.
+    """
+    config_path = repo_root / ".kittify" / "config.yaml"
+    config_data = _load_config_yaml_mapping(config_path)
+
+    charter_path = resolve_charter_yaml_pointer(repo_root, config_data)
+    if charter_path is None:
+        return config_data
+    if not charter_path.exists():
+        raise CharterPackConfigError(
+            f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
+            f"which does not exist."
+        )
+    try:
+        loaded = load_charter_yaml(charter_path)
+    except Exception as exc:  # noqa: BLE001 - re-raised as a typed, fail-closed signal.
+        raise CharterPackConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
+    return dict(loaded)
+
+
+def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | None]:
+    """Read activation lists from charter.yaml, without deduplicating entries.
+
+    IC-04: re-pointed from a direct ``config.yaml`` read onto the same
+    charter.yaml activation source :class:`charter.pack_context.PackContext`
+    resolves (via the ``charter:`` pointer) -- see
+    :func:`_load_raw_activation_source`.
+    """
+    data = _load_raw_activation_source(ctx.require_repo_root())
 
     result: dict[str, list[str] | None] = {}
     for kind, yaml_key in YAML_KEY_MAP.items():
@@ -403,41 +461,75 @@ def _check_kind_violations(
                     break  # Report once per misplaced ID.
 
 
-def _load_reference_ids_by_kind(ctx: ProjectContext) -> dict[str, frozenset[str]] | None:
-    """Parse ``.kittify/charter/references.yaml``, grouped by kind.
+def _resolve_charter_yaml_path(repo_root: Path) -> Path:
+    """Resolve the ``charter.yaml`` path for the catalog/reference read (INV-5).
 
-    Returns ``None`` only when the compiled reference set has not been
-    materialised yet (no ``references.yaml`` on disk) -- a legitimate no-op
-    skip (T017 has nothing to check against), NOT a corruption signal.
+    Honors the ``.kittify/config.yaml`` ``charter:`` pointer when present
+    (:func:`charter.pack_context.resolve_charter_yaml_pointer` -- the one
+    shared pointer-resolution implementation); defaults to the canonical
+    ``.kittify/charter/charter.yaml`` location otherwise. Unlike activation
+    (:func:`_load_raw_activation_source`), there is no "legacy" fallback
+    source for the catalog -- ``references.yaml`` (the file this replaces)
+    was never pointer-resolved, so a pointer-absent project simply reads the
+    canonical default location.
+    """
+    config_path = repo_root / ".kittify" / "config.yaml"
+    config_data = _load_config_yaml_mapping(config_path)
+    # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
+    # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
+    # imports, which erases resolve_charter_yaml_pointer's declared
+    # "-> Path | None" return type to Any at this call site. Annotating
+    # recovers the real type without a suppression comment.
+    pointer: Path | None = resolve_charter_yaml_pointer(repo_root, config_data)
+    return pointer if pointer is not None else repo_root / CHARTER_YAML
+
+
+def _load_reference_ids_by_kind(ctx: ProjectContext) -> dict[str, frozenset[str]] | None:
+    """Parse ``charter.yaml``'s ``catalog.references``, grouped by kind.
+
+    IC-04: re-pointed from the retired ``references.yaml`` onto
+    ``charter.yaml``'s ``catalog`` section, which mirrors the retired
+    file's body verbatim (``charter.schemas.CharterCatalog`` docstring,
+    charter contract G2).
+
+    Returns ``None`` only when ``charter.yaml`` has not been materialised
+    yet -- a legitimate no-op skip (nothing to check against), NOT a
+    corruption signal.
 
     Raises:
-        ReferencesCorruptError: ``references.yaml`` exists but cannot be
+        CharterYamlCorruptError: ``charter.yaml`` exists but cannot be
             trusted -- unparseable YAML, a non-mapping document root, or a
-            missing/malformed ``references`` list (#2530). Fail-closed: a
-            guard that cannot read its own input must never report a silent
-            pass by treating "corrupt" the same as "not yet synthesized".
+            missing/malformed ``catalog.references`` list (#2530).
+            Fail-closed: a guard that cannot read its own input must never
+            report a silent pass by treating "corrupt" the same as
+            "not yet synthesized".
     """
-    references_path = ctx.require_repo_root() / ".kittify" / "charter" / "references.yaml"
-    if not references_path.exists():
+    charter_yaml_path = _resolve_charter_yaml_path(ctx.require_repo_root())
+    if not charter_yaml_path.exists():
         return None
 
-    yaml = YAML(typ="safe")
     try:
-        data = yaml.load(references_path)
+        data = load_charter_yaml(charter_yaml_path)
     except Exception as exc:  # noqa: BLE001 -- re-raised as a typed, fail-closed signal below.
-        raise ReferencesCorruptError(
-            f"{references_path} could not be parsed: {exc}"
+        raise CharterYamlCorruptError(
+            f"{charter_yaml_path} could not be parsed: {exc}"
         ) from exc
 
     if not isinstance(data, dict):
-        raise ReferencesCorruptError(
-            f"{references_path} does not contain a YAML mapping at its document root."
+        raise CharterYamlCorruptError(
+            f"{charter_yaml_path} does not contain a YAML mapping at its document root."
         )
 
-    entries = data.get("references")
+    catalog = data.get("catalog")
+    if not isinstance(catalog, dict):
+        raise CharterYamlCorruptError(
+            f"{charter_yaml_path} is missing a valid 'catalog' mapping."
+        )
+
+    entries = catalog.get("references")
     if not isinstance(entries, list):
-        raise ReferencesCorruptError(
-            f"{references_path} is missing a valid 'references' list."
+        raise CharterYamlCorruptError(
+            f"{charter_yaml_path} catalog is missing a valid 'references' list."
         )
 
     by_kind: dict[str, set[str]] = {}
@@ -493,8 +585,9 @@ def _check_reference_id_parity(
     resolver call crashes on the exact same stem. That is a false negative,
     not a best-effort skip.
 
-    Fail-closed on corrupt input (#2530): a ``references.yaml`` that exists
-    but cannot be parsed/trusted raises :class:`ReferencesCorruptError` from
+    Fail-closed on corrupt input (#2530, re-homed onto charter.yaml by
+    IC-04): a ``charter.yaml`` that exists but cannot be parsed/trusted
+    raises :class:`CharterYamlCorruptError` from
     :func:`_load_reference_ids_by_kind`; that is caught here and surfaced as
     a *verification_errors* entry (not silently treated as "nothing to
     check against", which is reserved for the file genuinely not existing
@@ -509,13 +602,13 @@ def _check_reference_id_parity(
     """
     try:
         references_by_kind = _load_reference_ids_by_kind(ctx)
-    except ReferencesCorruptError as exc:
-        verification_errors.append(f"references.yaml: {exc}")
+    except CharterYamlCorruptError as exc:
+        verification_errors.append(f"charter.yaml: {exc}")
         suggestions.append(
-            f"references.yaml: Could not verify config<->references parity "
+            f"charter.yaml: Could not verify config<->references parity "
             f"({exc}). Run 'spec-kitty charter synthesize' (or "
-            f"resynthesize) to regenerate .kittify/charter/references.yaml, "
-            f"or restore it from version control."
+            f"resynthesize) to regenerate .kittify/charter/charter.yaml's "
+            f"catalog, or restore it from version control."
         )
         return
     if references_by_kind is None:
@@ -579,7 +672,7 @@ def _check_reference_id_forward_parity(
                 reference_id_divergences.append(f"{cli_kind}/{stem}")
                 suggestions.append(
                     f"{cli_kind}/{stem}: Activated in config.yaml but does not "
-                    f"resolve in .kittify/charter/references.yaml. Run "
+                    f"resolve in .kittify/charter/charter.yaml's catalog. Run "
                     f"'spec-kitty charter synthesize' (or resynthesize) to "
                     f"regenerate the compiled reference set."
                 )
@@ -608,7 +701,7 @@ def _check_reference_id_reverse_parity(
             reference_id_divergences.append(f"paradigm/{ref_id}")
             suggestions.append(
                 f"paradigm/{ref_id}: Resolves in "
-                f".kittify/charter/references.yaml but is not in "
+                f".kittify/charter/charter.yaml's catalog but is not in "
                 f"config.activated_paradigms. Run 'charter deactivate "
                 f"paradigm {ref_id}' or reconcile config.yaml."
             )
@@ -648,7 +741,7 @@ def _check_graph_kind_parity(
     (``load_validated_graph`` raises on ``assert_valid`` rejection) or
     resolving ``ctx``'s required fields is a genuine "could not verify"
     condition, never a legitimate "not yet synthesized" skip -- unlike
-    ``references.yaml``, there is no not-yet-materialised state for the DRG.
+    ``charter.yaml``, there is no not-yet-materialised state for the DRG.
     A failure here is therefore surfaced as a *verification_errors* entry
     instead of a silent early return.
     """
@@ -704,7 +797,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
       - Unknown references (activated IDs absent from doctrine).
       - Cross-kind DRG edge references where the target kind is empty (FR-012).
       - Kind violations and duplicate IDs within activation sets.
-      - Config<->references.yaml ID parity and config<->DRG kind parity
+      - Config<->charter.yaml catalog ID parity and config<->DRG kind parity
         (FR-005), fail-closed on unreadable/corrupt input (#2530) rather
         than silently reporting an empty, passing result.
 
@@ -725,7 +818,24 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     suggestions: list[str] = []
 
     manager = CharterPackManager()
-    raw_activated_by_kind = _load_raw_activation_lists(ctx)
+    try:
+        raw_activated_by_kind = _load_raw_activation_lists(ctx)
+    except CharterPackConfigError as exc:
+        # #2530 re-homed onto charter.yaml (IC-04): a dangling/unreadable
+        # `charter:` pointer target must fail closed with a
+        # verification_errors finding, never raise past this entry point
+        # (which would defeat the "coherent report vs exception" contract
+        # every other corrupt-input branch in this module honors).
+        return ConsistencyReport(
+            coherent=False,
+            verification_errors=[f"charter.yaml: {exc}"],
+            suggestions=[
+                f"charter.yaml: Could not verify config<->charter.yaml "
+                f"activation parity ({exc}). Fix the .kittify/config.yaml "
+                f"'charter:' pointer, or restore charter.yaml from version "
+                f"control."
+            ],
+        )
     activated_by_kind = {
         kind: None if raw is None else frozenset(raw)
         for kind, raw in raw_activated_by_kind.items()

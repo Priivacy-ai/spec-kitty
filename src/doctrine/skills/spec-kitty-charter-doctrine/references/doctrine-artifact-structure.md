@@ -8,37 +8,62 @@ File layout, authority classes, and data flow for the charter subsystem.
 
 ```
 .kittify/charter/
-  charter.md                  # Runtime governance source consumed by Spec Kitty
-  governance.yaml             # Derived: testing, quality, commits, performance, branching
-  directives.yaml             # Derived: numbered rules with severity and scope
-  references.yaml             # Derived: manifest of reference docs
-  metadata.yaml               # Derived: extraction provenance (hash, timestamp, mode)
+  charter.yaml                # The single authoritative structured charter
+  charter.md                  # Curated companion; never parsed by the runtime
   context-state.json          # Runtime: tracks first-load state per action
   interview/
-    answers.yaml              # Authoritative: captured interview responses
-  library/
-    *.md                      # Derived: doctrine reference documents
+    answers.yaml               # Authoritative: captured interview responses
+  generated/                  # Agent-authored candidate doctrine inputs
+    directives/*.directive.yaml
+    tactics/*.tactic.yaml
+    styleguides/*.styleguide.yaml
+  provenance/*.yaml            # Provenance sidecars (post-synthesize)
+  synthesis-manifest.yaml      # Promoted synthesis manifest (post-synthesize)
+
+.kittify/config.yaml            # `charter:` pointer resolves the active charter.yaml
 ```
+
+### `charter.yaml`'s internal sections
+
+```yaml
+schema_version: "2.0.0"
+governance: { ... }            # AUTHORED — testing/quality/commits/performance/branch/doctrine-selection
+directives: [ ... ]             # AUTHORED — numbered project rules
+catalog: { ... }                # DERIVED-but-committed — doctrine reference manifest, refreshed by generate
+activated_kinds: [ ... ]        # AUTHORED — flat root activation keys (one list per kind)
+mission_type_activations: [ ... ]
+activated_directives: [ ... ]
+# ... one flat root list per kind (styleguides/toolguides/paradigms/procedures/agent_profiles/mission_step_contracts)
+overrides: { ... }              # AUTHORED — project doctrine overrides (forward-compat)
+metadata:
+  generated_at: <iso8601>       # DERIVED — refreshed by generate
+  bundle_schema_version: 2
+```
+
+Activation keys are flat at the `charter.yaml` root (not nested under an
+`activation:` mapping), matching `src/charter/packs/default.yaml`.
 
 ---
 
 ## Authority Classes
 
-Each file has an authority class that determines how it should be treated.
+Each file (or `charter.yaml` section) has an authority class that determines how it should be treated.
 
-| File | Authority | Meaning |
+| File / section | Authority | Meaning |
 |------|-----------|---------|
-| `charter.md` | **Runtime source** | Spec Kitty runtime policy source. Edit this file to change injected agent policy, or reference public governance docs from it. |
+| `charter.yaml`: `governance`, `directives`, activation keys, `overrides` | **Authoritative** | Hand-authored runtime policy. Edit directly to change injected agent policy. |
+| `charter.yaml`: `catalog`, `metadata` | **Derived-but-committed** | Refreshed deterministically by `charter generate` on every run. Hand edits here are lost on the next `generate`. |
+| `charter.md` | **Companion (non-authoritative)** | Human-readable narrative. Never parsed by the runtime — editing it has no effect on injected policy. |
+| `.kittify/config.yaml` (`charter:` key) | **Authoritative pointer** | Resolves which `charter.yaml` is active. Edit to redirect to a different charter file. |
 | `interview/answers.yaml` | **Authoritative** | Captured interview input. Re-run interview or edit directly to change. |
-| `governance.yaml` | **Derived** | Auto-generated from charter.md by sync. Do not edit directly. |
-| `directives.yaml` | **Derived** | Auto-generated from charter.md by sync. Do not edit directly. |
-| `references.yaml` | **Derived** | Auto-generated during charter generation. Do not edit directly. |
-| `metadata.yaml` | **Derived** | Extraction provenance. Written by sync. Do not edit directly. |
 | `context-state.json` | **Runtime** | Tracks which actions have loaded context. Safe to delete (resets first-load state). |
-| `library/*.md` | **Derived** | Copied from doctrine templates during generation. Do not edit directly. |
+| `generated/*` | **Agent-authored input** | Written by the harness during synthesis; validated/promoted by `charter synthesize`. |
+| `provenance/*.yaml`, `synthesis-manifest.yaml` | **Derived** | Written by `charter synthesize`. Do not edit directly. |
 
-**Rule:** Only edit files with **Authoritative** authority. All **Derived** files are
-overwritten by sync or generate. Edits to derived files will be lost.
+**Rule:** Only edit sections/files with **Authoritative** authority. `catalog`/`metadata` inside
+`charter.yaml` and everything under `provenance/`/`synthesis-manifest.yaml` are overwritten by
+`generate`/`synthesize`. Edits there will be lost. `charter.md` is freely editable but carries no
+runtime weight.
 
 ---
 
@@ -51,40 +76,39 @@ Interview Answers (answers.yaml)
     [generate]  <-- doctrine templates + mission config
         |
         v
-Runtime Charter (charter.md)  <-- Spec Kitty runtime source
+charter.yaml
+  governance / directives / activated_* / overrides   <-- preserved byte-for-byte
+  catalog / metadata                                   <-- REFRESHED every run
         |
         v
-      [sync]  <-- deterministic extraction
-        |
-        +---> governance.yaml
-        +---> directives.yaml
-        +---> metadata.yaml
-
-
-Charter (charter.md)
-        |
-        v
-    [context]  <-- reads governance.yaml + references.yaml
+    [context]  <-- reads charter.yaml directly (governance/directives/catalog)
         |
         v
 Agent Prompt Context  <-- injected into specify/plan/implement/review
+
+
+charter.md  (curated companion — authored separately, never read by [context])
 ```
 
 **Key points:**
 
-1. `generate` reads interview answers and produces `charter.md` plus
-   all derived files (it triggers sync automatically).
-2. `sync` reads `charter.md` and writes `governance.yaml`,
-   `directives.yaml`, and `metadata.yaml`.
-3. `context` reads the derived YAML files and renders governance text
-   for injection into agent prompts.
-4. Manual edits to `charter.md` require a `sync` to update derived files.
+1. `generate` reads interview answers and refreshes `charter.yaml`'s
+   `catalog`/`metadata` sections through the shared
+   load→mutate-owned-section→round-trip-save helper; `governance`/
+   `directives`/activation/`overrides` are preserved byte-for-byte (seeded
+   from a legacy triad only the first time `charter.yaml` is created).
+2. `generate` never writes `charter.md`.
+3. `context` reads `charter.yaml` directly and renders governance text for
+   injection into agent prompts. There is no intermediate derived-YAML
+   layer any more.
+4. Manual edits to `charter.yaml`'s `governance`/`directives` sections take
+   effect immediately — no sync step is required.
 
 ---
 
-## governance.yaml Schema
+## `charter.yaml`'s `governance` Schema
 
-Top-level keys and their purpose:
+Top-level keys and their purpose (nested under `governance:` in `charter.yaml`):
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -105,13 +129,16 @@ Top-level keys and their purpose:
 | `doctrine.selected_directives` | list | Active directive IDs |
 | `doctrine.available_tools` | list | Active tool IDs |
 | `doctrine.template_set` | string or null | Doctrine template set |
+| `doctrine.authority_paths` | list | Repository-relative directories surfaced as required reading |
+| `doctrine.governance_references` | list | Repository-relative supporting governance documents |
+| `activations` | list | Charter-level activation registry entries |
 | `enforcement` | dict | Enforcement policy by domain |
 
 ---
 
-## directives.yaml Schema
+## `charter.yaml`'s `directives` Schema
 
-Contains a list of numbered directives:
+Contains a list of numbered directives (nested under `directives:` in `charter.yaml`):
 
 ```yaml
 directives:
@@ -134,20 +161,18 @@ directives:
 
 ---
 
-## metadata.yaml Schema
+## `charter.yaml`'s `metadata` Schema
 
-Extraction provenance written by sync:
+Refreshed by `generate` on every run:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `schema_version` | string | Schema version (currently "1.0.0") |
-| `extracted_at` | string | ISO 8601 timestamp of last extraction |
-| `charter_hash` | string | SHA-256 hash of charter.md at extraction time |
-| `source_path` | string | Relative path to charter.md |
-| `extraction_mode` | string | `deterministic` or `hybrid` |
-| `sections_parsed.structured` | int | Sections parsed deterministically |
-| `sections_parsed.ai_assisted` | int | Sections that required AI assistance |
-| `sections_parsed.skipped` | int | Sections that could not be parsed |
+| `generated_at` | string | ISO 8601 timestamp of the last `generate` refresh |
+| `bundle_schema_version` | int | Currently `2` |
+
+There is deliberately no self-referential content hash here — a hash of
+`charter.yaml` cannot live *inside* `charter.yaml`. The bundle's freshness
+hash is computed externally, over the whole file.
 
 ---
 
@@ -155,14 +180,12 @@ Extraction provenance written by sync:
 
 | Path | Git status | Reason |
 |------|------------|--------|
-| `.kittify/charter/charter.md` | Tracked | Authoritative governance document, shared across team |
+| `.kittify/charter/charter.yaml` | Tracked | Authoritative governance document, shared across team |
+| `.kittify/charter/charter.md` | Tracked | Curated companion, shared across team; not a runtime input |
+| `.kittify/config.yaml` | Tracked | Holds the `charter:` pointer plus agent/pack config |
 | `.kittify/charter/interview/answers.yaml` | Tracked | Authoritative interview input, shared across team |
-| `.kittify/charter/governance.yaml` | Tracked | Derived but committed for CI/tool access without running sync |
-| `.kittify/charter/directives.yaml` | Tracked | Derived but committed for CI/tool access |
-| `.kittify/charter/references.yaml` | Tracked | Derived but committed for reference resolution |
-| `.kittify/charter/metadata.yaml` | Tracked | Derived but committed for staleness detection |
 | `.kittify/charter/context-state.json` | Ignored | Local runtime state, not shared |
-| `.kittify/charter/library/*.md` | Tracked | Derived but committed for offline reference access |
+| `.kittify/charter/provenance/*`, `synthesis-manifest.yaml` | Ignored | Regenerated synthesis state |
 
 ---
 
@@ -170,9 +193,9 @@ Extraction provenance written by sync:
 
 | Anti-Pattern | Why It Fails | Correct Approach |
 |-------------|-------------|-----------------|
-| Editing `governance.yaml` directly | Overwritten on next sync | Edit `charter.md`, then run `sync` |
-| Editing `directives.yaml` directly | Overwritten on next sync | Edit `charter.md`, then run `sync` |
-| Deleting `metadata.yaml` | Breaks staleness detection; next sync always runs | Let sync manage this file |
-| Editing `library/*.md` files | Overwritten on next `generate` | Edit doctrine source templates upstream |
-| Skipping `sync` after manual edits | Runtime reads stale governance config | Always run `sync` after editing `charter.md` |
-| Assuming `.kittify/memory/` is current | Legacy path; only used as compatibility fallback | Use `.kittify/charter/` for all new projects |
+| Editing `charter.yaml`'s `catalog`/`metadata` directly | Overwritten on next `generate` | Edit `governance`/`directives`/activation/`overrides` instead — those are preserved |
+| Expecting `charter.md` edits to change runtime policy | The runtime never parses `charter.md` | Edit `charter.yaml` for policy changes |
+| Running `charter sync` expecting a side effect | Retained for back-compat only; always a no-op | No post-edit step is required after hand-editing `charter.yaml` |
+| Deleting `charter.yaml` | Breaks the config `charter:` pointer resolution | Re-run `charter generate` to bootstrap a fresh file, or restore from git |
+| Skipping `charter synthesize` after adding `generated/*` artifacts | Runtime doctrine overlay never picks them up | Run `charter synthesize` to validate and promote |
+| Assuming `.kittify/memory/` is current | Legacy path; only used as compatibility fallback | Use `.kittify/charter/charter.yaml` for all new projects |

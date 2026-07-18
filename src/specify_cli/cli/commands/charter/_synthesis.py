@@ -19,13 +19,17 @@ from specify_cli.task_utils import TaskCliError
 
 # #2758: single hoisted message (Sonar S1192 -- also referenced verbatim by
 # the fail-closed preflight test) for the fail-closed bundle-completeness
-# guard. ``synthesize`` never itself compiles ``references.yaml`` (only
-# ``charter generate`` / ``compile_charter`` does), so failing closed toward
-# ``charter generate`` is the only non-circular remediation -- re-running
+# guard. consolidate-charter-bundle WP03/T013: the bundle's sole
+# content-hash input is now ``charter.yaml`` (data-model.md Landmine 1 /
+# manifest v2 -- the legacy four-file set is retired). ``synthesize`` never
+# itself compiles ``charter.yaml`` (only ``charter generate`` /
+# ``compile_charter`` does), so failing closed toward ``charter generate``
+# / the fold migration is the only non-circular remediation -- re-running
 # ``synthesize`` can never self-heal a missing bundle file.
 BUNDLE_INCOMPLETE_MESSAGE = (
     "Charter bundle incomplete: '{missing}' is missing. "
-    "Run `spec-kitty charter generate` first to compile it, then retry `charter synthesize`."
+    "Run `spec-kitty charter generate` (or the charter.yaml migration) first "
+    "to compile it, then retry `charter synthesize`."
 )
 
 
@@ -507,8 +511,8 @@ def _raise_if_bundle_incomplete(repo_root: Path) -> None:
     reaches ``write_pipeline.promote()``, which stamps
     ``compute_bundle_content_hash(repo_root)`` into the synthesis manifest.
     That helper is intentionally fail-safe (returns ``None``, never raises)
-    when any of the four bundle files is missing, and a ``None`` stored hash
-    is unconditionally read back as ``stale`` by
+    when the ``charter.yaml`` bundle file is missing, and a ``None`` stored
+    hash is unconditionally read back as ``stale`` by
     ``specify_cli.charter_runtime.freshness.computer`` -- with no signal
     telling the operator *why*, and no way for a subsequent ``synthesize``
     re-run to fix it (issue #2758).
@@ -517,9 +521,9 @@ def _raise_if_bundle_incomplete(repo_root: Path) -> None:
     ------
     TaskCliError
         When :func:`charter.bundle.first_missing_bundle_file` reports a
-        missing file. The message names ``charter generate`` because that is
-        the only command that produces ``references.yaml`` -- the file
-        ``sync()`` never writes.
+        missing file. consolidate-charter-bundle (#2773): the input is the
+        single authoritative ``charter.yaml``; the message points the operator
+        at ``spec-kitty upgrade`` / ``charter generate`` to produce it.
     """
     from charter.bundle import first_missing_bundle_file  # noqa: PLC0415
 

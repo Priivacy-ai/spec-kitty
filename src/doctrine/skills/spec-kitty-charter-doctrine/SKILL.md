@@ -20,12 +20,14 @@ and status. Access doctrine artifacts programmatically via `DoctrineService`.
 Resolve agent profiles for role-scoped behavior. Load governance context
 iteratively at action boundaries rather than dumping everything upfront.
 
-`.kittify/charter/charter.md` is the Spec Kitty runtime governance
-source for a project. A repository may also keep public governance docs
-outside `.kittify/`; those docs are human-facing authority unless the
-runtime charter summarizes or references them. All structured config
-(`governance.yaml`, `directives.yaml`, `references.yaml`) is derived from
-the runtime charter. The doctrine layer (`src/doctrine/`) provides the
+`.kittify/charter/charter.yaml` is the Spec Kitty runtime governance
+source for a project — the single git-tracked, structured file nesting
+`governance`, `directives`, `catalog`, activation, and `overrides`.
+`.kittify/charter/charter.md` is a curated, human-readable companion the
+runtime never parses or resolves policy from. A repository may also keep
+public governance docs outside `.kittify/`; those docs are human-facing
+authority unless `charter.yaml`'s `governance.doctrine.governance_references`
+points at them. The doctrine layer (`src/doctrine/`) provides the
 reusable knowledge artifacts (directives, tactics, paradigms, styleguides,
 toolguides, procedures, agent profiles, step contracts) that the charter
 references.
@@ -196,113 +198,103 @@ git commit -m "feat(charter): promote project-local doctrine from generated inpu
 
 ## How the Charter System Works
 
-The charter is a **governance-as-code** framework. A human-written markdown
-document captures project policy, and the runtime extracts structured YAML from
-it to constrain what agents see and do during workflow actions.
+The charter is a **governance-as-code** framework. A single git-tracked,
+structured YAML file — `charter.yaml` — holds the project policy directly;
+the runtime reads it without any parse/extract step in between.
 
-### The 3-Layer Model
+### The 2-Layer Model
 
-1. **Runtime charter** (`.kittify/charter/charter.md`) — Human-editable
-   markdown consumed by Spec Kitty. Created via interview or written by hand.
-   If the repository also has a public constitution or handbook, keep the
-   runtime charter concise: summarize binding directives and reference the
-   public authority through prose or `authority_paths`.
+1. **Structured charter** (`.kittify/charter/charter.yaml`) — The single
+   authoritative source. Nests four kinds of section:
+   - `governance` / `directives` — **hand-authored** policy (testing,
+     quality, performance, branching, doctrine selections; numbered project
+     rules with severity and scope). Edit these directly; nothing overwrites
+     them except a deliberate hand edit.
+   - Flat-root activation keys (`activated_kinds`, `activated_directives`,
+     `mission_type_activations`, …) — **hand-authored**, mirrors
+     `src/charter/packs/default.yaml`.
+   - `catalog` / `metadata` — **generator-refreshed**. `charter generate`
+     rewrites these two sections deterministically on every run (doctrine
+     reference manifest, generation timestamp); everything else in the file
+     is preserved byte-for-byte through a round-trip merge.
+   - `overrides` — hand-authored, forward-compatible project doctrine
+     overrides.
 
-2. **Extracted config** — Machine-readable YAML derived deterministically by
-   sync. Never edit these directly — they are overwritten on every sync.
-   - `governance.yaml` — Testing, quality, performance, branching, doctrine selections
-   - `directives.yaml` — Numbered project rules with severity and scope
-   - `metadata.yaml` — Hash, timestamp, extraction mode
+2. **Curated companion** (`.kittify/charter/charter.md`) — Human-editable
+   markdown. Written by hand, or by an agent during `/spec-kitty.charter`'s
+   chat flow — never by `charter generate`. The runtime never
+   parses it for policy — it exists purely for human review/onboarding, and
+   optionally to summarize `charter.yaml` or point at a public constitution.
+   If the repository also has a public constitution or handbook, reference
+   it from `charter.yaml`'s `governance.doctrine.governance_references` (or
+   `authority_paths`), not just from the companion prose.
 
-3. **Doctrine references** (`library/*.md`) — Detailed guidance documents for
-   selected paradigms, directives, and tools. Copied from `src/doctrine/` during
-   generation.
+`.kittify/config.yaml` carries a single `charter:` pointer (default
+`.kittify/charter/charter.yaml`) that resolves the active charter file —
+useful for redirecting to a shared or cross-project charter.
 
 ### Data Flow
 
 ```
 Interview Answers (answers.yaml)
-        ↓
-  [generate command]  ← doctrine templates, mission config
-        ↓
-Runtime Charter (charter.md)  ← Spec Kitty runtime source
-        ↓
-  [auto-sync triggered]
-        ↓
-    ├→ governance.yaml      ← extracted structured config
-    ├→ directives.yaml      ← extracted numbered rules
-    ├→ metadata.yaml        ← hash, timestamp, extraction mode
-    └→ library/*.md         ← copied doctrine reference docs
-        ↓
+        |
+        v
+  [generate command]  <-- doctrine templates, mission config
+        |
+        v
+charter.yaml
+  governance:    <-- hand-authored, preserved byte-for-byte by generate
+  directives:    <-- hand-authored, preserved byte-for-byte by generate
+  activated_*:   <-- hand-authored, preserved byte-for-byte by generate
+  catalog:       <-- REFRESHED every run (doctrine reference manifest)
+  metadata:      <-- REFRESHED every run (generation timestamp)
+        |
+        v
   [context command]  at each workflow action
-        ↓
+        |
+        v
     Text injected into agent prompt
 ```
 
-### How Sync Extraction Works
+`charter.md` sits beside this flow as a hand-authored (or agent-authored,
+e.g. via `/spec-kitty.charter`'s chat flow) companion — `generate` never
+writes it, and it is never read back in.
 
-The sync command parses `charter.md` by classifying section headings
-against a keyword map:
+### How Charter.yaml Sections Are Populated
 
-| Heading keyword | Target schema |
-|---|---|
-| `testing`, `test`, `coverage` | `governance.testing` |
-| `quality`, `lint` | `governance.quality` |
-| `commit` | `governance.commits` |
-| `performance` | `governance.performance` |
-| `branch` | `governance.branch_strategy` |
-| `paradigm`, `tool`, `template` | `governance.doctrine` |
-| `directive`, `constraint`, `rule` | `directives.directives` |
-
-For each matched section, the parser extracts structured data from:
-1. **Markdown tables** — rows parsed as key-value dicts
-2. **YAML code blocks** — parsed directly
-3. **Numbered lists** — extracted as directive items
-4. **Keyword patterns** — regex matching for quantitative values:
-   - `90%+ coverage` → `testing.min_coverage: 90`
-   - `TDD required` → `testing.tdd_required: true`
-   - `< 2 seconds` → `performance.cli_timeout_seconds: 2.0`
-   - `<project-type-checker>` → `testing.type_checking: "<project-type-checker>"`
-   - `1 approval` → `quality.pr_approvals: 1`
-   - `conventional commits` → `commits.convention: "conventional"`
-   - `pre-commit hooks` → `quality.pre_commit_hooks: true`
-
-Doctrine selections (paradigms, directives, tools, template_set) are merged
-from YAML blocks and tables that contain keys like `selected_paradigms`,
-`available_tools`, or `template_set`.
-
-### governance.yaml Schema
+`governance` and `directives` deserialize straight into the existing
+`GovernanceConfig` / `DirectivesConfig` models — the same shapes the old
+`governance.yaml` / `directives.yaml` used, now nested inside `charter.yaml`
+instead of living in separate files:
 
 ```yaml
-testing:
-  min_coverage: 90              # Minimum test coverage %
-  tdd_required: false           # TDD mandatory
-  framework: <project-runner>   # Test framework / runner
-  type_checking: "<project-type-checker>" # Type checker
-quality:
-  linting: "<project-linter>"   # Linter
-  pr_approvals: 1               # Required approvals before merge
-  pre_commit_hooks: false       # Pre-commit hooks required
-commits:
-  convention: conventional      # Commit convention (or null)
-performance:
-  cli_timeout_seconds: 2.0      # Max CLI command duration
-  dashboard_max_wps: 100        # Max work packages dashboard displays
-branch_strategy:
-  main_branch: main             # Primary branch
-  dev_branch: null              # Development branch (optional)
-  rules: []                     # Branch naming/protection rules
-doctrine:
-  selected_paradigms: []        # Active paradigm IDs
-  selected_directives: []       # Active directive IDs
-  available_tools: []           # Active tool IDs
-  template_set: null            # Mission template set
-enforcement: {}                 # Enforcement policy by domain
-```
-
-### directives.yaml Schema
-
-```yaml
+governance:
+  testing:
+    min_coverage: 90              # Minimum test coverage %
+    tdd_required: false           # TDD mandatory
+    framework: <project-runner>   # Test framework / runner
+    type_checking: "<project-type-checker>" # Type checker
+  quality:
+    linting: "<project-linter>"   # Linter
+    pr_approvals: 1               # Required approvals before merge
+    pre_commit_hooks: false       # Pre-commit hooks required
+  commits:
+    convention: conventional      # Commit convention (or null)
+  performance:
+    cli_timeout_seconds: 2.0      # Max CLI command duration
+    dashboard_max_wps: 100        # Max work packages dashboard displays
+  branch_strategy:
+    main_branch: main             # Primary branch
+    dev_branch: null              # Development branch (optional)
+    rules: []                     # Branch naming/protection rules
+  doctrine:
+    selected_paradigms: []        # Active paradigm IDs
+    selected_directives: []       # Active directive IDs
+    available_tools: []           # Active tool IDs
+    template_set: null            # Mission template set
+    authority_paths: []           # Directories surfaced as required reading
+    governance_references: []     # Supporting external governance documents
+  enforcement: {}                 # Enforcement policy by domain
 directives:
   - id: DIR-001                 # Auto-generated or custom ID
     title: "Short title"        # First 50 chars
@@ -311,13 +303,21 @@ directives:
     applies_to: [implement, review]  # Actions where directive fires
 ```
 
-### Hash-Based Staleness Detection
+There is no keyword-classified prose parser any more — the old "sync"
+extraction that scanned `charter.md` headings and regex-matched values like
+`90%+ coverage` is retired. Populate these sections directly (by hand, or
+through the interview → `charter generate` bootstrap path) instead of
+writing prose you expect a parser to interpret.
 
-Sync uses SHA-256 to detect changes. The hash of `charter.md` content
-(whitespace-normalized) is stored in `metadata.yaml`. On sync:
-- If hashes match and `--force` not set → skip (idempotent)
-- If hashes differ → re-extract
-- If no `metadata.yaml` exists → always stale
+### Content-Hash Freshness (not hash-based staleness)
+
+`charter.yaml` is the sole content-hash input (`content_hash_files`) for the
+bundle's freshness signal — a SHA-256 over the file itself. There is no
+`charter.md`-hash staleness check any more: `metadata` intentionally carries
+no self-referential `charter_hash` field (a hash of `charter.yaml` cannot
+live *inside* `charter.yaml`). `charter sync` is retained only for
+canonical-root resolution and back-compat call sites — it performs no
+extraction and always reports `synced=False`.
 
 ### How Context Gets Injected Into Workflow Actions
 
@@ -546,7 +546,9 @@ spec-kitty charter status --json
 ```
 
 Reports `synced` or `stale`, current and stored hashes, library doc count,
-and per-file sizes. If `stale`, run sync before relying on governance config.
+and per-file sizes. `governance`/`directives` are always read live from
+`charter.yaml` — a `stale` report here does not mean governance config is
+out of date; it is a legacy staleness signal, not a gate on correctness.
 
 ---
 
@@ -598,19 +600,20 @@ spec-kitty charter generate --from-interview --json
 
 Key flags: `--mission-type`, `--template-set`, `--force`, `--from-interview`, `--json`.
 
-Generation triggers an automatic sync, so governance.yaml and directives.yaml
-are written immediately.
+Generation refreshes `charter.yaml`'s `catalog` and `metadata` sections
+deterministically. `governance`/`directives`/activation/`overrides` are
+preserved byte-for-byte through the shared round-trip merge (bootstrapped
+from a legacy triad only the first time `charter.yaml` is created).
+`charter.md` is never written by this command.
 
-**Output:** `.kittify/charter/charter.md`, `.kittify/charter/references.yaml`,
-and extracted YAML files.
+**Output:** `.kittify/charter/charter.yaml` (refreshed sections).
 
 To commit the generated charter inputs, use:
 
 ```bash
 spec-kitty safe-commit --message "chore: generate project charter" \
   .kittify/charter/interview/answers.yaml \
-  .kittify/charter/charter.md \
-  .kittify/charter/references.yaml \
+  .kittify/charter/charter.yaml \
   .gitignore
 ```
 
@@ -632,15 +635,18 @@ Load context iteratively at the action boundary, not as part of charter setup.
 
 ---
 
-## Step 5: Sync After Manual Edits
+## Step 5: Manual Edits to `charter.yaml`
+
+Edit `charter.yaml`'s `governance:` or `directives:` sections directly —
+there is no separate sync step. The next `charter context` call reads the
+file as-is.
 
 ```bash
-spec-kitty charter sync --json
-spec-kitty charter sync --force --json   # re-extract even if unchanged
+spec-kitty charter sync --json   # retained for back-compat; always a no-op
 ```
 
-Sync is idempotent — skips extraction when the charter hash is unchanged
-unless `--force` is passed.
+`charter sync` no longer extracts anything from `charter.md`. It always
+reports `synced=False` / `files_written=[]`, regardless of `--force`.
 
 ---
 
@@ -788,15 +794,22 @@ Doctrine does NOT constrain when:
 
 ## Governance Anti-Patterns
 
-1. **Editing derived files** — `governance.yaml`, `directives.yaml`, and
-   `library/*.md` are overwritten by sync/generate. Edit `charter.md`.
-2. **Skipping the interview** — produces generic defaults; the charter
+1. **Editing `charter.yaml`'s generated sections** — `catalog` and
+   `metadata` are overwritten by `charter generate` on every run. Edit
+   `governance`/`directives`/activation/`overrides` instead — those are
+   preserved byte-for-byte.
+2. **Expecting `charter.md` edits to change runtime policy** — the runtime
+   never parses `charter.md`. Edit `charter.yaml` for policy changes;
+   `charter.md` is a curated companion only.
+3. **Skipping the interview** — produces generic defaults; the charter
    is most valuable with project-specific decisions.
-3. **Stale charter** — an outdated charter silently injects wrong
-   policy. Run `status` to check, `sync` to fix.
-4. **Legacy path assumptions** — canonical path is
-   `.kittify/charter/charter.md`, not `.kittify/memory/`.
-5. **Upfront context dump** — loading all doctrine at session start wastes
+4. **Running `charter sync` expecting an effect** — it is retained for
+   back-compat call sites only and always no-ops. There is no required
+   post-edit step after changing `charter.yaml` by hand.
+5. **Legacy path assumptions** — canonical path is
+   `.kittify/charter/charter.yaml`, not `.kittify/memory/` and not a
+   `governance.yaml`/`directives.yaml`/`references.yaml` triad.
+6. **Upfront context dump** — loading all doctrine at session start wastes
    tokens and dilutes relevance. Use action-scoped loading and pull specific
    artifacts on demand.
 

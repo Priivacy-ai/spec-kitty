@@ -29,7 +29,16 @@ from typing import Any
 from kernel.errors import KittyInternalConsistencyError
 from ruamel.yaml import YAML
 
-__all__ = ["CharterPackConfigError", "PackContext"]
+from charter.charter_yaml_io import load_charter_yaml
+
+__all__ = ["CharterPackConfigError", "PackContext", "resolve_charter_yaml_pointer"]
+
+#: The single ``config.yaml`` key naming the active charter (consolidate-
+#: charter-bundle WP02, data-model.md "Entity: .kittify/config.yaml (after
+#: relocation)"). Absent -> legacy/un-migrated project (activation stays in
+#: ``config.yaml`` itself). Present -> the resolver follows it to
+#: ``charter.yaml`` (INV-2).
+_CHARTER_POINTER_KEY = "charter"
 
 
 class CharterPackConfigError(KittyInternalConsistencyError):
@@ -169,11 +178,20 @@ class PackContext:
         """
         data = _load_config(repo_root)
 
+        # --- activation source (two-file read, INV-2) -------------------
+        # Absent `charter:` pointer -> legacy/un-migrated project: activation
+        # keys are read directly from the already-loaded config.yaml mapping
+        # (unchanged pre-relocation behavior). Present pointer -> the
+        # resolved charter.yaml supplies the flat activation keys instead;
+        # `org_pack_names`/`pack_roots` below STILL read from `data`
+        # (config.yaml), never from the activation source.
+        activation = _load_charter_activation_source(repo_root, data)
+
         # --- activated_kinds -------------------------------------------
-        activated_kinds = _read_activated_kinds(data)
+        activated_kinds = _read_activated_kinds(activation)
 
         # --- activated_mission_types -----------------------------------
-        activated_mission_types = _read_activated_mission_types(data)
+        activated_mission_types = _read_activated_mission_types(activation)
 
         # --- org packs -------------------------------------------------
         org_pack_names, org_pack_roots = _read_org_packs(repo_root, data)
@@ -188,14 +206,14 @@ class PackContext:
             pack_roots=pack_roots,
             org_pack_names=org_pack_names,
             repo_root=repo_root,
-            activated_directives=_read_activated_directives(data),
-            activated_tactics=_read_activated_tactics(data),
-            activated_styleguides=_read_activated_styleguides(data),
-            activated_toolguides=_read_activated_toolguides(data),
-            activated_paradigms=_read_activated_paradigms(data),
-            activated_procedures=_read_activated_procedures(data),
-            activated_agent_profiles=_read_activated_agent_profiles(data),
-            activated_mission_step_contracts=_read_activated_mission_step_contracts(data),
+            activated_directives=_read_activated_directives(activation),
+            activated_tactics=_read_activated_tactics(activation),
+            activated_styleguides=_read_activated_styleguides(activation),
+            activated_toolguides=_read_activated_toolguides(activation),
+            activated_paradigms=_read_activated_paradigms(activation),
+            activated_procedures=_read_activated_procedures(activation),
+            activated_agent_profiles=_read_activated_agent_profiles(activation),
+            activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
         )
 
 
@@ -212,7 +230,63 @@ def _yaml_loader() -> YAML:
 
 
 def _config_error(message: str) -> CharterPackConfigError:
-    return CharterPackConfigError(f"{message}\nRemediation: fix .kittify/config.yaml or run `spec-kitty upgrade` to restore the default charter pack shape.")
+    return CharterPackConfigError(
+        f"{message}\nRemediation: fix .kittify/config.yaml (or the charter.yaml "
+        f"it points to) or run `spec-kitty upgrade` to restore the default "
+        f"charter pack shape."
+    )
+
+
+def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -> Path | None:
+    """Resolve the ``charter:`` pointer key from parsed ``config.yaml`` data.
+
+    Returns ``None`` when the key is absent — the legacy/un-migrated state,
+    where callers fall back to reading/writing activation directly in
+    ``config.yaml`` (INV-2). Returns the resolved (repo-root-relative or
+    absolute) path when the key is present, WITHOUT checking existence:
+    callers apply their own fail-loud policy so the "missing file" error can
+    name the calling operation (read vs write).
+
+    Shared by :meth:`PackContext.from_config` (read) and
+    ``charter.pack_manager`` (write) so pointer resolution has exactly one
+    implementation (INV-5).
+    """
+    pointer = config_data.get(_CHARTER_POINTER_KEY)
+    if pointer is None:
+        return None
+    pointer_path = Path(str(pointer))
+    return pointer_path if pointer_path.is_absolute() else repo_root / pointer_path
+
+
+def _load_charter_activation_source(repo_root: Path, data: dict[str, Any]) -> dict[str, Any]:
+    """Return the mapping ``_read_activated_*`` reads activation keys from.
+
+    Two-state resolution keyed on the ``charter:`` pointer (INV-2/INV-5):
+
+    * Pointer absent -> legacy/un-migrated project. Activation is read
+      directly from ``config.yaml`` (the pre-relocation behavior, preserved
+      byte-for-byte for projects that have not yet run the charter-bundle
+      migration).
+    * Pointer present -> the project has been migrated. The pointer MUST
+      resolve to a readable ``charter.yaml``; a dangling/unreadable pointer
+      is a fail-loud error (INV-5, re-homed #2530) — never a silent
+      fallback to the legacy config-embedded keys.
+    """
+    charter_path = resolve_charter_yaml_pointer(repo_root, data)
+    if charter_path is None:
+        return data
+    if not charter_path.exists():
+        raise _config_error(
+            f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
+            f"which does not exist."
+        )
+    try:
+        loaded = load_charter_yaml(charter_path)
+    except Exception as exc:
+        raise _config_error(f"Invalid YAML in {charter_path}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise _config_error(f"{charter_path} root must be a mapping.")
+    return dict(loaded)
 
 
 def _load_config(repo_root: Path) -> dict[str, Any]:
@@ -241,7 +315,7 @@ def _read_list_key(data: dict[str, Any], key: str) -> frozenset[str] | None:
     if raw is None:
         return None
     if not isinstance(raw, list):
-        raise _config_error(f".kittify/config.yaml key '{key}' must be a list, got {type(raw).__name__}.")
+        raise _config_error(f"Activation key '{key}' must be a list, got {type(raw).__name__}.")
     return frozenset(str(item) for item in raw)
 
 

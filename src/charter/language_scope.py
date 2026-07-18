@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
-from typing import Any
 
-from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.bundle import CHARTER_YAML
+from charter.charter_yaml_io import load_charter_yaml
 from charter.interview import read_interview_answers
 from doctrine.shared.scoping import normalize_languages
 
@@ -44,30 +44,33 @@ def extract_declared_languages(text: str) -> list[str]:
 def _read_compiled_languages(repo_root: Path) -> list[str] | None:
     """Read the structured ``languages`` field persisted at compile time.
 
-    Returns ``None`` when the compiled charter's ``references.yaml`` does not
-    exist or does not carry the structured field yet (pre-existing charters
-    compiled before this field was introduced) — the caller falls back to
-    interview/charter.md extraction in that case. Returns an empty list
-    (not ``None``) when the field is present but empty, since that is a
-    legitimate compiled answer, not an absence signal.
+    Returns ``None`` when ``charter.yaml`` does not exist, or its ``catalog``
+    section does not carry the structured ``languages`` field yet (a charter
+    compiled before this field existed) — the caller falls back to interview
+    extraction in that case. Returns an empty list (not ``None``) when the
+    field is present but empty, since that is a legitimate compiled answer,
+    not an absence signal.
+
+    Tier-1, authoritative post-inversion (WP08): reads ``charter.yaml``'s
+    ``catalog.languages`` rather than the retired ``references.yaml``.
     """
-    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
-    if not references_path.exists():
+    charter_yaml_path = repo_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
         return None
 
-    yaml = YAML(typ="safe")
     try:
-        payload: Any = yaml.load(references_path.read_text(encoding="utf-8"))
+        document = load_charter_yaml(charter_yaml_path)
     except (YAMLError, OSError, UnicodeDecodeError):
-        # Malformed or unreadable references.yaml falls back to the
+        # Malformed or unreadable charter.yaml falls back to the
         # pre-existing resolution path rather than hard-failing charter
         # language resolution.
         return None
 
-    if not isinstance(payload, dict) or "languages" not in payload:
+    catalog = document.get("catalog") if isinstance(document, dict) else None
+    if not isinstance(catalog, dict) or "languages" not in catalog:
         return None
 
-    languages = payload["languages"]
+    languages = catalog["languages"]
     if not isinstance(languages, list):
         return None
 
@@ -78,13 +81,19 @@ def infer_repo_languages(repo_root: Path) -> list[str]:
     """Infer active project languages, preferring the compiled charter.
 
     Resolution precedence (FR-008/FR-009/FR-010):
-      1. The structured ``languages`` field persisted on the compiled charter
-         at ``charter generate``/``charter sync`` time. Once present, this is
-         authoritative and unconditionally wins — the interview transcript is
-         never consulted, even if it would produce a different answer.
-      2. Otherwise (no compiled charter yet, or a charter compiled before this
-         field existed): fall back to today's pre-existing logic — interview
-         transcript first, then ``charter.md`` free-text extraction.
+      1. The structured ``languages`` field persisted in ``charter.yaml``'s
+         ``catalog`` section at ``charter generate``/``charter sync`` time.
+         Once present, this is authoritative and unconditionally wins — the
+         interview transcript is never consulted, even if it would produce
+         a different answer.
+      2. Otherwise (no compiled charter yet, or a ``charter.yaml`` compiled
+         before this field existed): fall back to the interview transcript.
+
+    There is no further ``charter.md`` prose fallback (WP08 / FR-009):
+    ``charter.md`` is a curated narrative document, not a decision input, and
+    ``catalog.languages`` is populated from the same interview signal at
+    compile time — so a free-text re-scan of the prose would be redundant
+    with tier-2, never additive.
     """
     compiled_languages = _read_compiled_languages(repo_root)
     if compiled_languages is not None:
@@ -97,9 +106,5 @@ def infer_repo_languages(repo_root: Path) -> list[str]:
         languages = extract_declared_languages(combined)
         if languages:
             return languages
-
-    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
-    if charter_path.exists():
-        return extract_declared_languages(charter_path.read_text(encoding="utf-8"))
 
     return []

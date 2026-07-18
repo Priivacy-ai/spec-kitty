@@ -116,11 +116,42 @@ def _write_charter(root: Path, body: str = _CHARTER_MD) -> Path:
 
 
 def _sync_charter(root: Path) -> None:
-    """Pre-populate derivatives by invoking the real sync pipeline."""
+    """Pre-populate the tracked bundle by invoking sync() + writing charter.yaml.
+
+    consolidate-charter-bundle (WP04/WP01, T028b): ``sync()`` is retired --
+    it no longer scrapes/writes governance.yaml/directives.yaml/
+    metadata.yaml (``synced`` is now always ``False``). Manifest v2's
+    ``tracked_files`` is ``[charter.md, charter.yaml]`` with
+    ``derived_files=[]``, so a "fully materialized bundle" fixture must
+    write ``charter.yaml`` directly (mirroring a project that has already
+    run ``charter generate`` once) rather than relying on the now-inert
+    sync chokepoint to produce it.
+    """
     from charter.sync import sync
 
     charter_dir = root / ".kittify" / "charter"
     sync(charter_dir / "charter.md", charter_dir, force=True)
+    _write_charter_yaml(root)
+
+
+def _write_charter_yaml(root: Path) -> Path:
+    """Write a minimal, schema-valid charter.yaml under the canonical charter dir."""
+    charter_dir = root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    charter_yaml = charter_dir / "charter.yaml"
+    charter_yaml.write_text(
+        "schema_version: '2.0.0'\n"
+        "catalog:\n"
+        "  mission: software-dev\n"
+        "  template_set: software-dev-default\n"
+        "  languages: []\n"
+        "  references: []\n"
+        "metadata:\n"
+        "  generated_at: '2026-01-01T00:00:00Z'\n"
+        "  bundle_schema_version: 2\n",
+        encoding="utf-8",
+    )
+    return charter_yaml
 
 
 def _clear_resolver_cache() -> None:
@@ -222,25 +253,29 @@ def test_fixture_a_passes_bundle_validation_no_chokepoint_refresh(
     assert report["errors"] == []
 
 
-def test_fixture_b_chokepoint_refreshes_derivatives(
+def test_fixture_b_missing_charter_yaml_stays_unrefreshed(
     fixture_b_no_derivatives: Path, migration: Any
 ) -> None:
-    """(b) no derivatives → chokepoint runs, applied=True, post-refresh empty missing."""
+    """(b) charter.md only, no charter.yaml → chokepoint CANNOT self-heal.
+
+    consolidate-charter-bundle (WP04/WP01, T028b): ``sync()`` no longer
+    scrapes/writes anything (``synced`` is always ``False``), and manifest
+    v2's ``derived_files`` is ``[]`` -- there is nothing left for the
+    now-inert chokepoint to refresh. A project missing ``charter.yaml``
+    stays missing it; the WP07 fold migration (or ``charter generate``) is
+    the remediation, not this migration.
+    """
     result = migration.apply(fixture_b_no_derivatives)
     report = _decode_report(result)
 
     assert report["charter_present"] is True
-    assert report["applied"] is True
-    assert report["chokepoint_refreshed"] is True
+    assert report["applied"] is False
+    assert report["chokepoint_refreshed"] is False
     assert report["bundle_validation"]["missing_derived"] == []
-    assert report["bundle_validation"]["passed"] is True
-    # Every derivative materialised on disk.
-    for rel in (
-        ".kittify/charter/governance.yaml",
-        ".kittify/charter/directives.yaml",
-        ".kittify/charter/metadata.yaml",
-    ):
-        assert (fixture_b_no_derivatives / rel).exists(), rel
+    assert report["bundle_validation"]["missing_tracked"] == [".kittify/charter/charter.yaml"]
+    assert report["bundle_validation"]["passed"] is False
+    # The chokepoint is inert -- it never materialises anything.
+    assert not (fixture_b_no_derivatives / ".kittify" / "charter" / "charter.yaml").exists()
 
 
 def test_fixture_c_second_apply_is_no_op(
@@ -263,16 +298,24 @@ def test_fixture_c_second_apply_is_no_op(
     assert second_report["bundle_validation"]["passed"] is True
 
 
-def test_fixture_d_stale_metadata_triggers_refresh(
+def test_fixture_d_stale_metadata_does_not_refresh(
     fixture_d_stale_metadata: Path, migration: Any
 ) -> None:
-    """(d) stale hash → chokepoint refreshes."""
+    """(d) stale charter.md hash → chokepoint is retired, never refreshes anything.
+
+    consolidate-charter-bundle (WP04/WP01, T028b): ``sync()``'s staleness
+    check is still evaluated internally (``stale_before``), but it no
+    longer has anything to write (``synced`` is always ``False``), so
+    ``chokepoint_refreshed``/``applied`` are False regardless of staleness.
+    The fixture keeps its charter.yaml (written at ``_sync_charter`` time),
+    so bundle validation still passes on tracked-file presence alone.
+    """
     result = migration.apply(fixture_d_stale_metadata)
     report = _decode_report(result)
 
     assert report["charter_present"] is True
-    assert report["chokepoint_refreshed"] is True
-    assert report["applied"] is True
+    assert report["chokepoint_refreshed"] is False
+    assert report["applied"] is False
     assert report["bundle_validation"]["passed"] is True
 
 
@@ -615,8 +658,14 @@ def test_upgrade_runner_invokes_migration_on_stale_metadata(
     report_json = result.migration_results["3.2.0rc35_unified_bundle"].changes_made[0]
     report = json.loads(report_json)
     assert report["charter_present"] is True
-    assert report["chokepoint_refreshed"] is True
-    assert report["applied"] is True
+    # consolidate-charter-bundle (WP04/WP01, T028b): sync() is retired --
+    # it always reports synced=False now, so the chokepoint never refreshes
+    # anything regardless of staleness (nothing left in derived_files=[]
+    # for it to heal). The regression this test guards (the migration being
+    # silently ABSENT from the runner's visited set) is asserted above via
+    # migration_ids_seen; the refresh/applied fields no longer flip True.
+    assert report["chokepoint_refreshed"] is False
+    assert report["applied"] is False
 
 
 # ---------------------------------------------------------------------------

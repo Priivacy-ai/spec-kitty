@@ -84,13 +84,22 @@ _GOVERNANCE_YAML = textwrap.dedent("""\
       available_tools: []
 """)
 
-_REFERENCES_YAML = textwrap.dedent("""\
-    schema_version: "1.0.0"
-    references:
-      - id: "USER:PROJECT_PROFILE"
-        kind: user_profile
-        title: User Project Profile
-        local_path: _LIBRARY/user-project-profile.md
+# consolidate-charter-bundle (#2773): the reference catalog is the DERIVED
+# ``catalog.references`` projection inside the authoritative ``charter.yaml`` —
+# the retired ``references.yaml`` is no longer read by ``build_charter_context``.
+_CHARTER_YAML = textwrap.dedent("""\
+    schema_version: "2.0.0"
+    catalog:
+      mission: null
+      template_set: software-dev-default
+      languages: []
+      references:
+        - id: "USER:PROJECT_PROFILE"
+          kind: user_profile
+          title: User Project Profile
+          local_path: _LIBRARY/user-project-profile.md
+    metadata:
+      bundle_schema_version: 2
 """)
 
 
@@ -100,7 +109,9 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(_GOVERNANCE_YAML, encoding="utf-8")
-    (charter_dir / "references.yaml").write_text(_REFERENCES_YAML, encoding="utf-8")
+    # References are read from charter.yaml's ``catalog.references`` (#2773), not
+    # the retired references.yaml — writing charter.yaml here exercises that path.
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML, encoding="utf-8")
 
 
 def _write_graph_fixture(tmp_path: Path) -> None:
@@ -217,17 +228,15 @@ class TestBuildContextV2:
         _setup_fixture_repo(tmp_path)
         (tmp_path / "spec").mkdir()
         (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
-        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
-            _CHARTER_MD
-            + textwrap.dedent("""\
-
-                ## Supporting Governance
-
-                ```yaml
-                governance_references:
-                  - spec/constitution.md
-                ```
-            """),
+        # consolidate-charter-bundle (IC-04 / WP04, T028c): the charter.md
+        # fenced-YAML -> governance.yaml extraction this fixture used to rely
+        # on is retired (sync() no longer scrapes anything); governance is
+        # hand-authored directly in charter.yaml now.
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
+            "governance:\n"
+            "  doctrine:\n"
+            "    governance_references:\n"
+            "      - spec/constitution.md\n",
             encoding="utf-8",
         )
 
@@ -269,18 +278,15 @@ class TestBuildContextV2:
         _setup_fixture_repo(tmp_path)
         (tmp_path / "spec").mkdir()
         (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
-        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
-            _CHARTER_MD
-            + textwrap.dedent("""\
-
-                ## Supporting Governance
-
-                ```yaml
-                governance_references:
-                  - spec/constitution.md
-                  - docs/missing-governance.md
-                ```
-            """),
+        # consolidate-charter-bundle (IC-04 / WP04, T028c): governance is
+        # hand-authored directly in charter.yaml now -- the charter.md
+        # fenced-YAML extraction this fixture used to rely on is retired.
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
+            "governance:\n"
+            "  doctrine:\n"
+            "    governance_references:\n"
+            "      - spec/constitution.md\n"
+            "      - docs/missing-governance.md\n",
             encoding="utf-8",
         )
 
@@ -305,13 +311,17 @@ class TestBuildContextV2:
     def test_selected_directive_closure_contributes_action_context(self, tmp_path: Path) -> None:
         """Selected directives contribute their DRG closure even without action-scope edges."""
         _setup_fixture_repo(tmp_path)
-        (tmp_path / ".kittify" / "charter" / "governance.yaml").write_text(
+        # consolidate-charter-bundle (IC-04 / WP04, T028c): governance is
+        # hand-authored directly in charter.yaml now; the retired
+        # governance.yaml is never read by load_governance_config.
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
             textwrap.dedent("""\
-                doctrine:
-                  template_set: software-dev-default
-                  selected_paradigms: []
-                  selected_directives: [DIRECTIVE_039]
-                  available_tools: []
+                governance:
+                  doctrine:
+                    template_set: software-dev-default
+                    selected_paradigms: []
+                    selected_directives: [DIRECTIVE_039]
+                    available_tools: []
             """),
             encoding="utf-8",
         )
@@ -546,15 +556,20 @@ class TestBuildContextV2:
         """Compact JSON still exposes project-local charter facts."""
         _setup_fixture_repo(tmp_path)
         charter_dir = tmp_path / ".kittify" / "charter"
-        (charter_dir / "directives.yaml").write_text(
+        # consolidate-charter-bundle (IC-04 / WP04, T028c):
+        # _project_directive_entries -> load_directives_config now reads
+        # charter.yaml's directives: section; the retired directives.yaml
+        # is never read.
+        (charter_dir / "charter.yaml").write_text(
             textwrap.dedent("""\
                 directives:
-                  - id: DIR-001
-                    title: First directive
-                    description: First rule
-                  - id: DIR-002
-                    title: Second directive
-                    description: Second rule
+                  directives:
+                    - id: DIR-001
+                      title: First directive
+                      description: First rule
+                    - id: DIR-002
+                      title: Second directive
+                      description: Second rule
             """),
             encoding="utf-8",
         )
@@ -941,11 +956,12 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
 ) -> None:
     """WP02/T010: the real (non-monkeypatched) infer_repo_languages resolution.
 
-    Writes a real compiled-charter fixture (references.yaml with the T008
-    structured ``languages`` field) alongside an interview transcript that
-    disagrees, then confirms ``_build_doctrine_service`` receives the
-    compiled value via ``active_languages`` — proving there is no separate
-    precedence logic duplicated in ``context.py`` itself.
+    Writes a real compiled-charter fixture (charter.yaml with the
+    ``catalog.languages`` field — WP08 re-pointed tier-1 from the retired
+    ``references.yaml`` to this authoritative source) alongside an interview
+    transcript that disagrees, then confirms ``_build_doctrine_service``
+    receives the compiled value via ``active_languages`` — proving there is
+    no separate precedence logic duplicated in ``context.py`` itself.
     """
     from ruamel.yaml import YAML
 
@@ -970,20 +986,21 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     )
     write_interview_answers(answers_path, interview)
 
-    # Compiled charter (references.yaml) says "rust" — this is the canonical
-    # answer once it exists.
-    references_path = tmp_path / ".kittify" / "charter" / "references.yaml"
+    # Compiled charter (charter.yaml catalog.languages) says "rust" — this is
+    # the canonical answer once it exists.
+    charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
     yaml = YAML()
     yaml.default_flow_style = False
-    with references_path.open("w", encoding="utf-8") as handle:
+    with charter_yaml_path.open("w", encoding="utf-8") as handle:
         yaml.dump(
             {
-                "schema_version": "1.0.0",
-                "generated_at": "2026-07-07T00:00:00Z",
-                "mission": "software-dev",
-                "template_set": "default",
-                "languages": ["rust"],
-                "references": [],
+                "schema_version": "2.0.0",
+                "catalog": {
+                    "mission": "software-dev",
+                    "template_set": "default",
+                    "languages": ["rust"],
+                    "references": [],
+                },
             },
             handle,
         )

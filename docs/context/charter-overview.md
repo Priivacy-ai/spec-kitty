@@ -2,43 +2,52 @@
 title: How Charter Works
 description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-18'
 related:
 - docs/context/governance-files.md
 ---
 # How Charter Works
 
-Charter is the governance layer that turns your project's policy document (`charter.md`) into
-structured context that every agent mission action automatically receives. This page explains the
-mental model. For a step-by-step walkthrough, see the
+Charter is the governance layer that turns your project's structured policy file
+(`.kittify/charter/charter.yaml`) into context that every agent mission action automatically
+receives. This page explains the mental model. For a step-by-step walkthrough, see the
 [Governed Charter Workflow Tutorial](../guides/charter-governed-workflow.md).
 
-> **Key invariant**: `.kittify/charter/charter.md` is the Spec Kitty runtime policy source. A
-> project may also keep a public constitution or governance document outside `.kittify/`, but
-> `charter sync` extracts the runtime bundle from `.kittify/charter/charter.md`. External
-> governance docs such as `spec/constitution.md` are supporting context referenced from the
-> charter, not alternate authoritative charter paths. Do not hand-edit derived files such as
-> `governance.yaml`, `directives.yaml`, `metadata.yaml`,
-> `references.yaml`, `context-state.json`, synthesis manifests, or provenance sidecars. Agent
-> synthesis input under `.kittify/charter/generated/` is produced by the harness, not by routine
-> operator edits.
+> **Key invariant**: `.kittify/charter/charter.yaml` is the git-tracked, authoritative,
+> structured charter — `governance`, `directives`, `catalog`, activation, and `overrides` all
+> live inside it. `governance`, `directives`, activation, and `overrides` are hand-authored (or
+> interview-seeded); `catalog` and `metadata` are refreshed deterministically by
+> `charter generate`. `.kittify/charter/charter.md` is a **curated companion**: a human-readable
+> narrative the runtime never parses, scrapes, or resolves policy from — editing it has no
+> runtime effect. A project may also keep a public constitution or governance document outside
+> `.kittify/`; both `charter.md` and any external document are supporting context, not alternate
+> authoritative charter paths. `.kittify/config.yaml` carries a single `charter:` pointer that
+> resolves the active `charter.yaml`. Do not hand-edit `charter.yaml`'s `catalog` or `metadata`
+> sections, synthesis manifests, or provenance sidecars. Agent synthesis input under
+> `.kittify/charter/generated/` is produced by the harness, not by routine operator edits.
 
 ---
 
 ## What Charter Does
 
 Charter solves a specific problem: agent prompts need consistent, project-accurate policy context,
-but the runtime context must come from one operator-controlled charter surface.
+sourced from one operator-controlled, machine-readable charter file.
 
 The mechanism:
 
-1. You write (or generate via interview) a `charter.md` file that captures your project's policy
-   decisions — testing standards, quality gates, branching rules, directive selections.
-2. The synthesis pipeline reads that file and produces a structured **charter bundle** of YAML
-   artifacts in `.kittify/charter/`.
-3. When `spec-kitty next` invokes an agent profile for a mission action, the runtime injects
-   the relevant charter context into the prompt automatically. The agent does not invent governance;
-   it reads and complies with what the charter says.
+1. You author (directly, or via interview + `charter generate`) the `governance`, `directives`,
+   and activation sections of `.kittify/charter/charter.yaml` — testing standards, quality gates,
+   branching rules, directive selections, activated doctrine kinds.
+2. `charter generate` refreshes `charter.yaml`'s `catalog` and `metadata` sections (the doctrine
+   reference manifest and a generation timestamp) from the current doctrine selection, merging
+   the refresh back into the file without touching your authored sections.
+3. When `spec-kitty next` invokes an agent profile for a mission action, the runtime reads
+   `charter.yaml` directly and injects the relevant charter context into the prompt automatically.
+   The agent does not invent governance; it reads and complies with what the charter says.
+
+`charter.md` plays no role in that resolution path. Keep it as a narrative companion — a
+human-facing summary of the same policy, or a pointer to a public constitution — but editing it
+does not change runtime behavior.
 
 ---
 
@@ -50,7 +59,8 @@ The full Charter setup flow uses these commands in sequence:
 # Step 1 — Capture policy decisions interactively (or use --defaults for CI)
 uv run spec-kitty charter interview
 
-# Step 2 — Generate charter.md and initial bundle from interview answers
+# Step 2 — Write/refresh charter.yaml from interview answers (bootstrap: authored
+# sections seeded once; on every later run only catalog/metadata refresh)
 uv run spec-kitty charter generate --from-interview
 
 # Step 3 — Check for graph-native decay (orphaned directives, contradictions, etc.)
@@ -59,26 +69,25 @@ uv run spec-kitty charter lint
 # Step 4 — Validate + promote agent-generated doctrine artifacts to .kittify/doctrine/
 uv run spec-kitty charter synthesize
 
-# Step 5 — Validate the charter bundle against the CharterBundleManifest v1.0.0 schema
+# Step 5 — Validate the charter bundle against the CharterBundleManifest v2.0.0 schema
 uv run spec-kitty charter bundle validate
 
-# Check sync status at any time
+# Check bundle state at any time
 uv run spec-kitty charter status
 ```
 
 **`charter context`** is a separate runtime/debug command for rendering action-specific
-governance context for a specific workflow action. It is not part of the synthesis pipeline:
+governance context for a specific workflow action. It is not part of the generation pipeline:
 
 ```bash
 # Render what governance context an agent would receive for the 'implement' action
 uv run spec-kitty charter context --action implement --json
 ```
 
-After editing `charter.md` by hand, re-sync the YAML config files with:
-
-```bash
-uv run spec-kitty charter sync
-```
+To change runtime policy by hand, edit `charter.yaml`'s `governance:` or `directives:` sections
+directly. There is no separate sync step: the next `charter context` call reads the file as-is.
+`charter sync` still exists for canonical-root resolution and back-compat call sites, but it no
+longer extracts anything from `charter.md` — running it is always a no-op.
 
 For partial regeneration of a specific directive or tactic without touching unrelated artifacts:
 
@@ -107,15 +116,17 @@ accordance with the directives it finds there.
 
 Projects that already publish governance outside `.kittify/`, for example
 `spec/constitution.md`, should keep that public document in place and reference it from
-`.kittify/charter/charter.md`. Spec Kitty does not require the public document and
-`.kittify/charter/charter.md` to be byte-for-byte equal. Mirroring the public document into
-`charter.md` is allowed only when the project deliberately chooses that policy.
+`.kittify/charter/charter.yaml`. Spec Kitty does not require the public document, `charter.yaml`,
+and `charter.md` to be byte-for-byte equal — `charter.yaml` is the only one the runtime resolves.
 
-Declare supporting docs in a fenced YAML block:
+Declare supporting docs under `governance.doctrine.governance_references` in `charter.yaml`
+(the interview's equivalent answer writes into this same section):
 
 ```yaml
-governance_references:
-  - spec/constitution.md
+governance:
+  doctrine:
+    governance_references:
+      - spec/constitution.md
 ```
 
 `spec-kitty charter context --action ...` renders these paths as required governance reading.
@@ -129,7 +140,7 @@ All referenced paths must be repository-relative and stay inside the repo root.
 The DRG traversal for a given action can produce large context payloads for complex projects.
 
 - **Bootstrap mode**: the first time an action loads context (or when the charter is freshly
-  synthesized), the runtime injects the full relevant DRG subgraph. The agent sees all applicable
+  generated), the runtime injects the full relevant DRG subgraph. The agent sees all applicable
   directives and tactics.
 - **Compact-context mode**: when the DRG context payload is too large to include in full, the
   runtime falls back to a summarized view — resolved paradigms, directives, and tool list only,
@@ -145,11 +156,9 @@ compact-context mode, causing agents to receive less detail.
 
 | File | Written by | Purpose |
 |---|---|---|
-| `.kittify/charter/charter.md` | **Human** | Spec Kitty runtime policy source; summarize or reference public governance docs here |
-| `.kittify/charter/governance.yaml` | Auto-generated (`charter sync`) | Testing, quality, performance, branch, and doctrine-selection config |
-| `.kittify/charter/directives.yaml` | Auto-generated (`charter sync`) | Extracted directive list |
-| `.kittify/charter/metadata.yaml` | Auto-generated (`charter sync`) | Charter hash, extraction timestamp, and parser metadata |
-| `.kittify/charter/references.yaml` | Auto-generated (`charter generate`) | Reference manifest for built-in and local doctrine content |
+| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/activation/`overrides`); `charter generate` (`catalog`/`metadata` only) | The single git-tracked, authoritative structured charter |
+| `.kittify/charter/charter.md` | **Human** | Curated narrative companion; never parsed by the runtime |
+| `.kittify/config.yaml` | **Human**; `charter:` pointer minted once at bootstrap | Points to the active `charter.yaml`; also holds `org_packs` |
 | `.kittify/charter/generated/` | Agent harness | Candidate doctrine YAML consumed by `charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Auto-generated (`charter synthesize`) | Manifest for promoted project-local doctrine artifacts |
 | `.kittify/charter/provenance/*.yaml` | Auto-generated (`charter synthesize`) | Provenance sidecars for synthesized doctrine artifacts |

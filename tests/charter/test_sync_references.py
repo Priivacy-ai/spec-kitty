@@ -115,39 +115,35 @@ def _load_directives(directives_yaml: Path) -> dict[str, object]:
     return data
 
 
-def test_sync_emits_references_field_for_DIRECTIVE_citation(tmp_path: Path) -> None:
+def test_sync_never_writes_directives_yaml_for_DIRECTIVE_citation(tmp_path: Path) -> None:
+    """consolidate-charter-bundle (IC-04 / WP04): sync() no longer scrapes/emits anything.
+
+    The prose->triad directive-body scrape (this test's original subject)
+    is retired along with the rest of sync()'s write side. ``directives``
+    are hand-authored directly in ``charter.yaml`` now
+    (``charter.sync.load_directives_config``); ``directives.yaml`` is never
+    materialised by ``sync()``, cited body or not.
+    """
     charter_file = tmp_path / "charter.md"
     charter_file.write_text(_CHARTER_WITH_CITATION, encoding="utf-8")
 
     result = sync(charter_file, tmp_path)
 
-    assert result.synced is True
+    assert result.synced is False
     assert result.error is None
-    directives_yaml = tmp_path / "directives.yaml"
-    body = directives_yaml.read_text(encoding="utf-8")
-    # DIRECTIVE_032 MUST appear somewhere in the emitted file — either in
-    # the directive description or in the explicit references list — so
-    # the ATDD test for cross-link emission goes green.
-    assert "DIRECTIVE_032" in body, (
-        "Cross-link contract violated: DIRECTIVE_032 cited in the body "
-        "must be preserved in the emitted directives.yaml."
-    )
-
-    parsed = _load_directives(directives_yaml)
-    directives_list = parsed.get("directives") or []
-    assert isinstance(directives_list, list)
-    assert directives_list, "Code Review Checklist bullets should produce directives"
-    first = directives_list[0]
-    assert isinstance(first, dict)
-    refs = first.get("references")
-    assert refs == ["DIRECTIVE_032"], (
-        "First directive (which cites DIRECTIVE_032) must carry a "
-        "references list with the catalog ID."
-    )
+    assert result.files_written == []
+    assert not (tmp_path / "directives.yaml").exists()
 
 
-def test_extractor_populates_references_from_body_via_registry() -> None:
-    """End-to-end inside the Extractor: registry injection drives references."""
+def test_extractor_directive_body_extraction_is_retired() -> None:
+    """The directive-body citation scraper is retired (IC-04 / WP04).
+
+    ``Extractor``'s constructor no longer accepts ``tactic_registry`` --
+    it existed only to thread a citation-detector predicate into the now-
+    retired directive-body scraper. ``extract()`` always returns an EMPTY
+    ``DirectivesConfig`` regardless of citations in the body (module
+    docstring, ``src/charter/extractor.py``).
+    """
     charter = """\
 # Charter
 
@@ -156,12 +152,8 @@ def test_extractor_populates_references_from_body_via_registry() -> None:
 1. Apply language-driven-design when reading the diff (see DIRECTIVE_010).
 2. No bare references here.
 """
-    extractor = Extractor(
-        tactic_registry=lambda slug: slug == "language-driven-design",
-    )
-    result = extractor.extract(charter)
-    assert len(result.directives.directives) == 2
-    first = result.directives.directives[0]
-    # Order is first-seen: tactic-slug appears before DIRECTIVE_010 in the body.
-    assert first.references == ["language-driven-design", "DIRECTIVE_010"]
-    assert result.directives.directives[1].references == []
+    with pytest.raises(TypeError, match="tactic_registry"):
+        Extractor(tactic_registry=lambda slug: slug == "language-driven-design")  # type: ignore[call-arg]
+
+    result = Extractor().extract(charter)
+    assert result.directives.directives == []

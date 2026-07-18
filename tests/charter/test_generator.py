@@ -90,7 +90,16 @@ def test_write_charter_rejects_symlink_even_with_force(tmp_path: Path) -> None:
 
 
 @pytest.mark.requires_symlinks
-def test_write_compiled_charter_rejects_symlink_even_with_force(tmp_path: Path) -> None:
+def test_write_compiled_charter_ignores_stale_symlinked_charter_md(tmp_path: Path) -> None:
+    """WP03 (T014b) re-pin: the retired force-clobber-rejects-symlink
+    contract guarded ``charter.md`` specifically, which ``write_compiled_charter``
+    no longer writes at all (data-model.md Landmine 3 -- the clobber is
+    removed, not merely force-gated). A symlinked ``charter.md`` left over
+    in the output dir is therefore inert to this call: the write only ever
+    touches ``charter.yaml``, so the stale symlink is neither followed nor
+    disturbed. (The output-*directory*-level symlink guard is still
+    enforced -- see ``test_write_compiled_charter_rejects_symlinked_output_dir``.)
+    """
     target = tmp_path / "outside.md"
     target.write_text("# Outside\n", encoding="utf-8")
     output_dir = tmp_path / ".kittify" / "charter"
@@ -109,10 +118,11 @@ def test_write_compiled_charter_rejects_symlink_even_with_force(tmp_path: Path) 
         references=[],
     )
 
-    with pytest.raises(FileExistsError, match="is a symlink"):
-        write_compiled_charter(output_dir, compiled, force=True)
+    result = write_compiled_charter(output_dir, compiled, force=True)
 
+    assert result.files_written == ["charter.yaml"]
     assert target.read_text(encoding="utf-8") == "# Outside\n"
+    assert (output_dir / "charter.md").is_symlink(), "the stale symlink itself is left untouched"
 
 
 @pytest.mark.requires_symlinks

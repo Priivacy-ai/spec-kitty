@@ -7,9 +7,11 @@ This subpackage provides tools for:
 - Emitting YAML config files for consumption by other modules
 
 Provides:
-- sync(): Parse charter.md → structured YAML files
-- load_governance_config(): Load governance rules for hook evaluation
-- post_save_hook(): Auto-trigger sync after CLI writes
+- load_governance_config() / load_directives_config(): read the
+  hand-authored ``governance`` / ``directives`` sections directly from
+  ``charter.yaml`` (IC-04 -- the prose->triad scrape is retired).
+- sync(): retained for its ``charter.md`` staleness-check contract; no
+  longer extracts or writes anything (see ``charter.sync`` module docstring).
 """
 
 from .bundle import (
@@ -62,7 +64,6 @@ from .sync import (
     SyncResult,
     load_directives_config,
     load_governance_config,
-    post_save_hook,
     sync,
 )
 from .org_extends import (
@@ -136,7 +137,6 @@ __all__ = [
     "SyncResult",
     "load_directives_config",
     "load_governance_config",
-    "post_save_hook",
     "sync",
     "GovernanceResolution",
     "GovernanceResolutionError",

@@ -64,12 +64,14 @@ def _bundle_callback() -> None:
 # These entries carry producer-specific rationale per the CLI contract; any
 # other undeclared file under .kittify/charter/ falls through to a generic
 # informational warning.
+#
+# consolidate-charter-bundle WP03/T013: the ``references.yaml`` special
+# case is retired -- ``compiler.write_compiled_charter`` no longer emits
+# that file (data-model.md Landmine 1, manifest v2: charter.yaml is the
+# sole tracked/content-hash file). A stray ``references.yaml`` left over
+# from a pre-migration project now falls through to the generic
+# out-of-scope message below, same as any other undeclared file.
 _OUT_OF_SCOPE_WARNINGS: dict[str, str] = {
-    ".kittify/charter/references.yaml": (
-        "File '.kittify/charter/references.yaml' is present but out of "
-        "v1.0.0 manifest scope (produced by the compiler pipeline); "
-        "leaving untouched."
-    ),
     ".kittify/charter/context-state.json": (
         "File '.kittify/charter/context-state.json' is present but out of "
         "v1.0.0 manifest scope (runtime state written by "
@@ -86,9 +88,10 @@ def _enumerate_out_of_scope_files(
 
     Every file under ``.kittify/charter/`` that is not declared in the
     manifest (neither tracked nor derived) is surfaced as an informational
-    warning. The two canonical producer-specific messages for
-    ``references.yaml`` and ``context-state.json`` are preserved; all other
-    undeclared files fall through to a generic warning.
+    warning. The canonical producer-specific message for
+    ``context-state.json`` is preserved; all other undeclared files
+    (including a stray pre-migration ``references.yaml``) fall through to
+    a generic warning.
     """
     charter_dir = canonical_root.joinpath(*_CHARTER_DIR)
     if not charter_dir.is_dir():
@@ -352,7 +355,12 @@ def validate(
     # same parseable envelope as other public validation failures.
     charter_dir = canonical_root.joinpath(*_CHARTER_DIR)
     compatibility_error: str | None = None
-    if (charter_dir / "metadata.yaml").exists():
+    # consolidate-charter-bundle (WP07): the schema version was retired from
+    # ``metadata.yaml`` and re-homed under ``charter.yaml`` (``metadata.
+    # bundle_schema_version``). Gate the compatibility check on ``charter.yaml``
+    # so an incompatible bundle is still caught — keying off the now-retired
+    # ``metadata.yaml`` would silently skip the check for every v2 bundle.
+    if (charter_dir / "charter.yaml").exists():
         compatibility_error = _bundle_compatibility_error(charter_dir)
 
     manifest = CANONICAL_MANIFEST

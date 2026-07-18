@@ -233,6 +233,13 @@ def test_result_is_frozen() -> None:
 
 # ---------------------------------------------------------------------------
 # get_bundle_schema_version
+#
+# consolidate-charter-bundle (WP07 / T030): the read target moved from
+# ``<charter_dir>/metadata.yaml`` (top-level ``bundle_schema_version`` key,
+# now RETIRED) to ``<charter_dir>/charter.yaml``'s ``metadata:`` section
+# (``charter.schemas.CharterYamlMetadata`` keeps this one field across the
+# Landmine 2 retirement). Fixtures below write ``charter.yaml`` with the
+# field nested under ``metadata:`` instead of ``metadata.yaml`` flat.
 # ---------------------------------------------------------------------------
 
 
@@ -242,41 +249,47 @@ def test_returns_none_when_file_absent(tmp_path: Path) -> None:
 
 
 def test_returns_none_when_field_absent(tmp_path: Path) -> None:
-    metadata = tmp_path / "metadata.yaml"
-    metadata.write_text("schema_version: '1.0.0'\nextracted_at: '2026-01-01'\n")
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("metadata:\n  generated_at: '2026-01-01'\n")
+    assert get_bundle_schema_version(tmp_path) is None
+
+
+def test_returns_none_when_metadata_section_absent(tmp_path: Path) -> None:
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("schema_version: '2.0.0'\n")
     assert get_bundle_schema_version(tmp_path) is None
 
 
 def test_returns_int_when_present(tmp_path: Path) -> None:
-    metadata = tmp_path / "metadata.yaml"
-    metadata.write_text("bundle_schema_version: 2\n")
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("metadata:\n  bundle_schema_version: 2\n")
     result = get_bundle_schema_version(tmp_path)
     assert result == 2
     assert isinstance(result, int)
 
 
 def test_returns_none_when_field_is_null(tmp_path: Path) -> None:
-    metadata = tmp_path / "metadata.yaml"
-    metadata.write_text("bundle_schema_version: null\n")
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("metadata:\n  bundle_schema_version: null\n")
     assert get_bundle_schema_version(tmp_path) is None
 
 
 def test_returns_none_when_field_is_string(tmp_path: Path) -> None:
     """String values (e.g. '2') should not be accepted — must be int."""
-    metadata = tmp_path / "metadata.yaml"
-    metadata.write_text("bundle_schema_version: '2'\n")
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("metadata:\n  bundle_schema_version: '2'\n")
     assert get_bundle_schema_version(tmp_path) is None
 
 
 def test_returns_none_when_file_is_not_a_mapping(tmp_path: Path) -> None:
-    metadata = tmp_path / "metadata.yaml"
-    metadata.write_text("- item1\n- item2\n")
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("- item1\n- item2\n")
     assert get_bundle_schema_version(tmp_path) is None
 
 
 def test_returns_correct_version_for_v1(tmp_path: Path) -> None:
-    metadata = tmp_path / "metadata.yaml"
-    metadata.write_text("bundle_schema_version: 1\n")
+    charter_yaml = tmp_path / "charter.yaml"
+    charter_yaml.write_text("metadata:\n  bundle_schema_version: 1\n")
     assert get_bundle_schema_version(tmp_path) == 1
 
 
@@ -284,9 +297,9 @@ def test_ruamel_yaml_roundtrip_writes_integer(tmp_path: Path) -> None:
     """Verify ruamel.yaml serializes bundle_schema_version as an integer, not string."""
     from ruamel.yaml import YAML
 
-    metadata_path = tmp_path / "metadata.yaml"
+    charter_yaml_path = tmp_path / "charter.yaml"
     yaml = YAML()
-    yaml.dump({"bundle_schema_version": 2, "other": "data"}, metadata_path)
+    yaml.dump({"metadata": {"bundle_schema_version": 2}, "other": "data"}, charter_yaml_path)
 
     # Read back and confirm type is int
     result = get_bundle_schema_version(tmp_path)
@@ -310,12 +323,17 @@ def test_run_migration_v1_returns_migration_result(tmp_path: Path) -> None:
     (tmp_path / "metadata.yaml").write_text(
         "charter_slug: test-charter\n", encoding="utf-8"
     )
+    # consolidate-charter-bundle (WP07 / T030): step 3 now stamps
+    # charter.yaml's metadata section, not the retired metadata.yaml.
+    (tmp_path / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n", encoding="utf-8"
+    )
     result = run_migration(1, tmp_path)
     assert isinstance(result, MigrationResult)
     assert result.from_version == 1
     assert result.to_version == 2
     assert result.errors == []
-    assert any("metadata.yaml" in change for change in result.changes_made)
+    assert any("charter.yaml" in change for change in result.changes_made)
 
 
 def test_run_migration_v1_backfills_manifest_and_sidecar_fields(tmp_path: Path) -> None:

@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from charter._doctrine_paths import resolve_project_root
+from charter.bundle import CHARTER_MD
 from charter.language_scope import infer_repo_languages
 from charter.resolver import GovernanceResolutionError, resolve_project_governance
 
@@ -31,7 +32,6 @@ __all__ = [
 ]
 
 NONE_LABEL = "(none)"
-KITTIFY_DIRNAME = ".kittify"
 
 
 @dataclass(frozen=True)
@@ -128,7 +128,12 @@ def render_compact_view(
         anchor_tuple = tuple(dict.fromkeys(section_anchors))
     else:
         if charter_text is None:
-            charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+            # WP05 (IC-05) — the companion `charter.md` is DISPLAY-only and
+            # optional (governance authority lives in `charter.yaml`); a
+            # missing/unreadable file degrades to an empty anchor set rather
+            # than raising. Consumes the shared `charter.bundle.CHARTER_MD`
+            # constant instead of re-declaring the filename locally.
+            charter_path = repo_root / CHARTER_MD
             charter_text = ""
             if charter_path.exists():
                 try:

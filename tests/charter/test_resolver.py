@@ -25,10 +25,43 @@ def _write_charter_files(
     governance: str,
     directives: str = "directives: []\n",
 ) -> Path:
-    charter_dir = root / ".kittify" / "charter"
-    charter_dir.mkdir(parents=True)
-    (charter_dir / "governance.yaml").write_text(governance, encoding="utf-8")
-    (charter_dir / "directives.yaml").write_text(directives, encoding="utf-8")
+    """Write governance/directives bodies into charter.yaml's sections.
+
+    consolidate-charter-bundle (IC-04 / WP04, T028c): ``resolve_project_
+    governance`` reads ``charter.sync.load_governance_config`` /
+    ``load_directives_config``, which now source ``charter.yaml``'s
+    ``governance:`` / ``directives:`` sections directly -- the retired
+    ``governance.yaml`` / ``directives.yaml`` files are no longer read at
+    all. Callers pass the SAME bare-YAML fixture bodies as before; this
+    helper nests them under the two charter.yaml keys instead of writing
+    two standalone files.
+
+    Writes at the CANONICAL root (``charter.resolution.
+    resolve_canonical_repo_root(root)``), not necessarily ``root`` itself:
+    the loaders anchor every read there (FR-010 worktree transparency), and
+    several callers in this file pass a *subdirectory* of the
+    ``tests/charter/conftest.py`` autouse-git-initialized ``tmp_path``
+    (e.g. ``tmp_path / "repo"``) -- which resolves to ``tmp_path``, not the
+    subdirectory, so the fixture must write where the reader will actually
+    look.
+    """
+    from charter.resolution import resolve_canonical_repo_root
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    # resolve_canonical_repo_root shells out with cwd=root; root must exist
+    # on disk first (it may be a not-yet-created subdirectory of the
+    # conftest-git-initialized tmp_path).
+    root.mkdir(parents=True, exist_ok=True)
+    canonical_root = resolve_canonical_repo_root(root)
+    charter_dir = canonical_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    document = {
+        "governance": yaml.load(governance),
+        "directives": yaml.load(directives),
+    }
+    with (charter_dir / "charter.yaml").open("w", encoding="utf-8") as fh:
+        yaml.dump(document, fh)
     return charter_dir
 
 
@@ -560,7 +593,13 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
 
 
 def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
-    """Charter sync writes exactly governance/directives/metadata — no agents.yaml."""
+    """consolidate-charter-bundle (IC-04 / WP04): sync() writes nothing at all now.
+
+    The prose->triad scrape this test originally pinned (governance/
+    directives/metadata, never agents.yaml) is retired -- ``sync()``
+    always reports ``synced=False`` / ``files_written=[]``, which trivially
+    satisfies "no agents.yaml" but for a stronger reason than before.
+    """
     from charter.sync import sync
 
     charter_file = tmp_path / "charter.md"
@@ -568,8 +607,9 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 
     result = sync(charter_file, tmp_path)
 
-    assert result.synced is True
-    assert set(result.files_written) == {"governance.yaml", "directives.yaml", "metadata.yaml"}
+    assert result.synced is False
+    assert result.files_written == []
+    assert not (tmp_path / "agents.yaml").exists()
 
 
 # ---------------------------------------------------------------------------

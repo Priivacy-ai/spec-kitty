@@ -12,7 +12,10 @@ from typing import Any
 
 from specify_cli.task_utils import TaskCliError
 
-from specify_cli.cli.commands.charter._app import METADATA_FILENAME
+from specify_cli.cli.commands.charter._app import (
+    CHARTER_YAML_FILENAME,
+    METADATA_FILENAME,
+)
 from specify_cli.cli.commands.charter._common import (
     _display_path,
     _resolve_charter_path,
@@ -59,16 +62,21 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
+        charter_yaml_path = output_dir / CHARTER_YAML_FILENAME
 
-        stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
+        # consolidate-charter-bundle (#2773): the charter.md<->metadata.yaml hash
+        # staleness model is retired (metadata.yaml folded into charter.yaml).
+        # charter.yaml is the authoritative bundle and freshness is reported
+        # separately (read-only) via compute_freshness. When metadata.yaml is
+        # absent (post-migration), report presence of charter.yaml rather than a
+        # misleading perpetual "stale".
+        if metadata_path.exists():
+            stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
+        else:
+            stale, current_hash, stored_hash = (not charter_yaml_path.exists()), "", ""
 
         files_info: list[dict[str, str | bool | float]] = []
-        for filename in [
-            "governance.yaml",
-            "directives.yaml",
-            METADATA_FILENAME,
-            "references.yaml",
-        ]:
+        for filename in [CHARTER_YAML_FILENAME, "charter.md"]:
             file_path = output_dir / filename
             if file_path.exists():
                 size = file_path.stat().st_size

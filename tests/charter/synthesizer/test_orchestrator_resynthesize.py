@@ -727,15 +727,20 @@ class TestBundleContentHashWriterWiring:
 
 
 def _drift_governance_file(repo: Path) -> None:
-    """Genuinely change the content of one bundle file.
+    """Genuinely change the content of the bundle file.
 
+    consolidate-charter-bundle WP06 (T027): ``BUNDLE_CONTENT_HASH_FILES``
+    narrowed from the four legacy bundle files to the single ``charter.yaml``
+    (contracts/manifest-v2.md M1); this helper's name is kept (only the two
+    ``TestBundleContentHashRecomputesOnDrift`` tests below use it) but it now
+    drifts ``charter.yaml`` — the only file ``_seed_bundle_files`` seeds.
     Appends a distinguishable line that survives ``hash_content``'s
     BOM-strip/CRLF-normalize/``.strip()`` normalization (a plain trailing
     text line, not whitespace-only).
     """
-    governance_path = repo / ".kittify" / "charter" / "governance.yaml"
-    governance_path.write_text(
-        governance_path.read_text(encoding="utf-8") + "# drift-marker: genuinely-changed\n",
+    charter_yaml_path = repo / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker: genuinely-changed\n",
         encoding="utf-8",
     )
 

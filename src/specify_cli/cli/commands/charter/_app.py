@@ -27,8 +27,16 @@ from specify_cli.cli.commands.charter.mission_type import charter_mission_type_a
 
 logger = logging.getLogger("specify_cli.cli.commands.charter")
 
-#: Filename of the charter bundle metadata sidecar.
+#: Filename of the (retired) charter bundle metadata sidecar. Kept for
+#: migration/back-compat references only — the authoritative bundle file is
+#: ``charter.yaml`` (see ``CHARTER_YAML_FILENAME``).
 METADATA_FILENAME = "metadata.yaml"
+
+#: Filename of the authoritative, git-tracked charter bundle file
+#: (consolidate-charter-bundle #2773). Existence of this file — not the retired
+#: ``metadata.yaml`` — gates the bundle-compatibility check on every charter
+#: command surface, so a v2 bundle with an incompatible schema is still caught.
+CHARTER_YAML_FILENAME = "charter.yaml"
 
 #: The typer app exposed under ``spec-kitty charter``.
 charter_app = typer.Typer(
