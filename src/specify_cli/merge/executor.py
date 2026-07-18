@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.coordination.coherence import (
+    CoordRepairOutcome,
     coord_incoherent_done_wps,
     repair_coord_strand,
 )
@@ -627,36 +628,16 @@ def _persist_coord_reconcile_marker(
     save_state(run.state, run.main_repo)
 
 
-def _clean_coord_worktree_to_head(coord_worktree: Path) -> None:
-    """Reset the coordination worktree's tracked bytes to HEAD before a heal revert.
-
-    The rollback byte-restore (:func:`_restore_final_bookkeeping_snapshots`) leaves
-    the coord worktree DIRTY (working ``status.events.jsonl`` rolled to ``approved``
-    while HEAD is still the committed ``done``). ``git revert`` refuses to run over
-    that divergence, so the heal must first discard the byte-restore delta — the
-    coherent forward revert supersedes it (it lands the working tree back on
-    ``approved`` anyway, now in lockstep with the committed ref). Env routes through
-    ``_make_merge_env`` (AC-F1), mirroring :func:`_revert_coord_done_commit`.
-    """
-    from specify_cli.lanes.merge import _make_merge_env
-
-    subprocess.run(
-        ["git", "-C", str(coord_worktree), "reset", "--hard", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=_make_merge_env(),
-    )
-
-
 def _heal_pending_coord_reconcile(run: _MergeRunState) -> None:
     """Strand-gated ``git revert`` heal of a pending coord-reconcile marker (FR-006).
 
-    Delegates the repair to the single coordination authority
+    Delegates the repair to the single self-sufficient coordination authority
     :func:`repair_coord_strand` (which re-derives the strand from the committed
     ref and no-ops if already coherent — a blind ``git revert captured_sha..HEAD``
-    would re-apply ``done`` and is rejected). The coord worktree is first cleaned to
-    HEAD so the forward revert can apply over the byte-restored (dirty) tree.
+    would re-apply ``done`` and is rejected). The primitive itself performs the
+    scoped clean-to-HEAD (after its strand gate, before the revert) so the forward
+    revert can apply over the byte-restored (dirty) tree — this caller no longer
+    pre-cleans, keeping the clean happening exactly once, inside the primitive.
     Idempotent (NFR-002): the marker is cleared atomically with the heal only once
     the revert commits (or the ref is already coherent — a stale marker heals to a
     no-op clear). A revert that could not be applied leaves the marker for the next
@@ -666,8 +647,7 @@ def _heal_pending_coord_reconcile(run: _MergeRunState) -> None:
     if not marker:
         return
     coord_worktree = Path(str(marker["coord_worktree"]))
-    _clean_coord_worktree_to_head(coord_worktree)
-    outcome = repair_coord_strand(
+    outcome: CoordRepairOutcome = repair_coord_strand(
         coord_ref=str(marker["coord_ref"]),
         captured_sha=str(marker["captured_sha"]),
         coord_worktree=coord_worktree,
