@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-merge-coord-rollback-transactionality-01KXTM59",
+  "created_at": "2026-07-18T12:45:30.464479+00:00",
+  "flattened": false,
+  "friendly_name": "merge coord rollback transactionality",
+  "mission_id": "01KXTM59YZZ6AGKA7YVJA0HCRS",
+  "mission_number": null,
+  "mission_slug": "merge-coord-rollback-transactionality-01KXTM59",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances merge coord rollback transactionality on fix/merge-coord-rollback-transactionality so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "merge coord rollback transactionality",
+  "slug": "merge-coord-rollback-transactionality-01KXTM59",
+  "target_branch": "fix/merge-coord-rollback-transactionality",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-18T15:20:57.408281+00:00"
+}
