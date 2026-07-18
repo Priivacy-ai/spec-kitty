@@ -1,6 +1,6 @@
 ---
 title: 'RFC #2497 — External Observability Endpoints: Squad Assessment'
-description: 'Decision-support assessment of the five additive CLI endpoints proposed in RFC #2497 (external observability + attestation side-car), across architecture, duplication, and doctrine lenses — with a per-endpoint retain/create/decline recommendation. Does not decide; RFC #2497 stays open.'
+description: "Squad assessment of RFC #2497's five proposed external-observability CLI endpoints across architecture, duplication, and doctrine lenses, with retain/create/decline calls."
 doc_status: active
 updated: '2026-07-18'
 related:
