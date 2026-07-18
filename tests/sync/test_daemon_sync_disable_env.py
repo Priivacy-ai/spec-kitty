@@ -26,6 +26,12 @@ import pytest
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.sync.daemon import DaemonIntent, ensure_sync_daemon_running
 
+# Module-level marker (pytest-marker-convention gate): pre-existing file that
+# declared its markers only as per-function decorators. Hoisted to module scope
+# (behaviour-identical — single test in the file). NOT part of the
+# doctrine-activation-freshness mission; folded in the landing pass to green CI.
+pytestmark = [pytest.mark.unit, pytest.mark.regression]
+
 
 def _config(policy: BackgroundDaemonPolicy) -> SyncConfig:
     """Build a SyncConfig stub with a fixed background-daemon policy (no disk I/O)."""
@@ -34,8 +40,6 @@ def _config(policy: BackgroundDaemonPolicy) -> SyncConfig:
     return cfg
 
 
-@pytest.mark.unit
-@pytest.mark.regression
 def test_sync_disable_env_skips_daemon_spawn(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
