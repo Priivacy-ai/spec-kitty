@@ -283,6 +283,100 @@ def test_repair_reverts_strand_then_is_a_byte_stable_noop_on_reapply(tmp_path: P
         assert _committed_events_bytes(repo, "coord") == bytes_after_first
 
 
+def test_repair_missing_worktree_returns_distinct_outcome(tmp_path: Path) -> None:
+    """A marker whose ``coord_worktree`` does not exist → a distinguishable outcome.
+
+    FR-007: the primitive returns ``worktree_missing=True`` (and never touches git)
+    so callers can surface a STUCK diagnostic instead of crashing or looping the
+    same live-strand error forever. The worktree check short-circuits BEFORE the
+    strand gate, so ``stranded_wp_ids`` stays empty.
+    """
+    repo = tmp_path / "repo"
+    feature_dir = _seed_committed_coord_ref(
+        repo,
+        [_event("WP-A", "done", at="2026-07-18T10:05:00+00:00", event_id="01A01", from_lane="approved")],
+    )
+
+    outcome = repair_coord_strand(
+        coord_ref="coord",
+        captured_sha="deadbeef",
+        coord_worktree=tmp_path / "pruned-coord-wt",  # does not exist
+        candidate_wps=["WP-A"],
+        repo_root=repo,
+        feature_dir=feature_dir,
+    )
+
+    assert isinstance(outcome, CoordRepairOutcome)
+    assert outcome.healed is False
+    assert outcome.worktree_missing is True
+    assert outcome.stranded_wp_ids == []
+    assert outcome.head_advanced is False
+
+
+def test_repair_refuses_when_head_already_reverted(tmp_path: Path) -> None:
+    """HEAD-freshness guard: a concurrent heal already advanced HEAD → refuse.
+
+    Simulates the concurrency TOCTOU: the passed ``coord_ref`` still reduces WP-A
+    to ``done`` (a stale view — so the strand gate passes), but the coordination
+    worktree HEAD has ALREADY been reverted to a coherent ``approved`` tip. A blind
+    ``git revert captured_sha..HEAD`` would then revert that concurrent revert too
+    and churn the ref; the guard instead REFUSES (``head_advanced=True``, no revert)
+    so a double-heal cannot re-apply ``done``. Without the guard the worktree HEAD
+    would advance with fresh revert commits — here it must stay put.
+    """
+    repo = tmp_path / "repo"
+    feature_dir = _seed_committed_coord_ref(
+        repo,
+        [_event("WP-A", "approved", at="2026-07-18T10:00:00+00:00", event_id="01A00", from_lane="in_review")],
+    )
+    captured_sha = _git(repo, "rev-parse", "coord").stdout.strip()  # C0 (pre-done)
+
+    worktree = tmp_path / "coord-wt"
+    _git(repo, "worktree", "add", str(worktree), "coord")
+    wt_events = worktree / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
+    with wt_events.open("a", encoding="utf-8") as fh:
+        fh.write(
+            json.dumps(
+                _event("WP-A", "done", at="2026-07-18T10:05:00+00:00", event_id="01A01", from_lane="approved"),
+                sort_keys=True,
+            )
+            + "\n"
+        )
+    _git(worktree, "add", ".")
+    _git(worktree, "commit", "-m", "bake WP-A done")
+    # Pin a STALE ref at the ``done`` tip (C1) — this is what the gate reads.
+    _git(repo, "branch", "coord_done", "coord")
+
+    # A concurrent healer already reverted the ``done`` → worktree HEAD advances to
+    # a coherent ``approved`` tip (C2); the ``coord`` branch moves with it.
+    _git(worktree, "revert", "--no-edit", "HEAD")
+    head_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+    # Sanity: the stale ref STILL reduces WP-A to done (gate would pass) …
+    assert coord_incoherent_done_wps(
+        "coord_done", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == ["WP-A"]
+    # … while the worktree HEAD is already coherent (approved).
+    assert coord_incoherent_done_wps(
+        head_before, ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == []
+
+    outcome = repair_coord_strand(
+        coord_ref="coord_done",  # stale: still reduces to done → gate passes
+        captured_sha=captured_sha,
+        coord_worktree=worktree,
+        candidate_wps=["WP-A"],
+        repo_root=repo,
+        feature_dir=feature_dir,
+    )
+
+    assert outcome.healed is False
+    assert outcome.head_advanced is True
+    assert outcome.stranded_wp_ids == ["WP-A"]
+    # The guard must NOT run a revert — HEAD is unchanged (no re-applied ``done``).
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == head_before
+
+
 def test_repair_on_already_coherent_ref_is_a_noop(tmp_path: Path) -> None:
     """A ref whose candidate WP is only ever ``approved`` heals to a no-op — the
     repair never reverts the (non-existent) strand."""
