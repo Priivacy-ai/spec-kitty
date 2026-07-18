@@ -250,6 +250,45 @@ def _target_branch_still_at_baseline(
     return bool(ret == 0 and out.strip() == baseline_sha)
 
 
+def _union_event_logs(
+    source_bytes: bytes | None,
+    original_bytes: bytes | None,
+) -> bytes | None:
+    """Union two ``status.events.jsonl`` byte-sets via the canonical reconciler.
+
+    FR-005: the coord→target projection must union ``source ∪ original`` through
+    ``merge_event_log_texts`` (``merge_event_payloads`` — id-keyed dedupe/sort)
+    rather than blind-overwriting the target log, so a target-newer event the
+    coord worktree lacks survives. Returns ``None`` only when both sides are empty.
+    """
+    if source_bytes is None and original_bytes is None:
+        return None
+    from specify_cli.status import merge_event_log_texts
+
+    source_text = source_bytes.decode("utf-8") if source_bytes is not None else ""
+    original_text = original_bytes.decode("utf-8") if original_bytes is not None else ""
+    merged_text: str = merge_event_log_texts(source_text, original_text)
+    return merged_text.encode("utf-8")
+
+
+def _rematerialize_status_snapshot(
+    events_bytes: bytes,
+    read_context_dir: Path,
+) -> bytes:
+    """Rematerialize ``status.json`` = ``reduce(union events)`` (FR-005).
+
+    ``status.json`` is a derived reduced snapshot, so after the event log is
+    unioned it must be re-reduced from the unioned events — a blind copy would
+    leave it contradicting the log. ``read_context_dir`` supplies slug/meta
+    context for legacy (mission_id-less) events.
+    """
+    from specify_cli.status import materialize_to_json, read_events_from_text, reduce
+
+    events = read_events_from_text(read_context_dir, events_bytes.decode("utf-8"))
+    snapshot_json: str = materialize_to_json(reduce(events))
+    return snapshot_json.encode("utf-8")
+
+
 def _project_status_bookkeeping_to_target(
     *,
     main_repo: Path,
@@ -301,10 +340,19 @@ def _project_status_bookkeeping_to_target(
     source_status_bytes = _read_optional_bytes(source_status_path)
     original_events_bytes = _read_optional_bytes(trusted_target_events_path)
     original_status_bytes = _read_optional_bytes(trusted_target_status_path)
+    # FR-005: union the event log (source ∪ original) instead of blind-overwriting,
+    # and rematerialize status.json from the unioned events (a derived reduced
+    # snapshot) rather than blind-copying the coord copy.
+    union_events_bytes = _union_event_logs(source_events_bytes, original_events_bytes)
     try:
-        if source_events_bytes is not None:
-            trusted_target_events_path.write_bytes(source_events_bytes)
-        if source_status_bytes is not None:
+        if union_events_bytes is not None:
+            trusted_target_events_path.write_bytes(union_events_bytes)
+            trusted_target_status_path.write_bytes(
+                _rematerialize_status_snapshot(
+                    union_events_bytes, trusted_target_events_path.parent
+                )
+            )
+        elif source_status_bytes is not None:
             trusted_target_status_path.write_bytes(source_status_bytes)
     except OSError:
         _restore_optional_bytes(trusted_target_events_path, original_events_bytes)
@@ -325,5 +373,7 @@ __all__ = [
     "_capture_bookkeeping_snapshots",
     "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
+    "_union_event_logs",
+    "_rematerialize_status_snapshot",
     "_project_status_bookkeeping_to_target",
 ]

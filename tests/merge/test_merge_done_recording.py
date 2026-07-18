@@ -763,18 +763,34 @@ def test_coord_branch_assert_ignores_primary_checkout(
         _assert_merged_wps_reached_done(repo_root, _COORD_SLUG, ["WP01"])
 
 
-def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
+def test_project_status_bookkeeping_unions_coord_surface_into_primary_target(
     coord_branch_mission: dict,
 ) -> None:
-    """Final merge bookkeeping must stage primary paths, not .worktrees paths."""
+    """Final merge bookkeeping stages primary paths and UNIONS the event log.
+
+    FR-005 (#2709): the coord->target projection must union
+    ``source ∪ original`` (via ``merge_event_payloads``) and rematerialize
+    ``status.json`` from ``reduce(union)`` — never blind-overwrite the target
+    with the coord copy. A target-newer event the coord worktree lacks survives.
+    """
+    from specify_cli.status import (
+        materialize_to_json,
+        merge_event_log_texts,
+        read_events_from_text,
+        reduce,
+    )
+
     repo_root = coord_branch_mission["repo_root"]
     primary_dir = coord_branch_mission["primary_dir"]
     coord_specs = coord_branch_mission["coord_specs"]
 
-    (primary_dir / "status.events.jsonl").write_text("old-event\n", encoding="utf-8")
-    (primary_dir / "status.json").write_text('{"WP01": "approved"}\n', encoding="utf-8")
-    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
-    (coord_specs / "status.json").write_text('{"WP01": "done"}\n', encoding="utf-8")
+    # Target (primary) carries a NEWER done event the coord worktree lacks.
+    _seed_done_event(primary_dir, _COORD_SLUG, "WP02")
+    # Coord worktree carries the WP01 done event.
+    _seed_done_event(coord_specs, _COORD_SLUG, "WP01")
+
+    coord_events_text = (coord_specs / "status.events.jsonl").read_text(encoding="utf-8")
+    target_events_text = (primary_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
     target_events, target_status = _project_status_bookkeeping_to_target(
         main_repo=repo_root,
@@ -786,8 +802,20 @@ def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
     assert target_status == primary_dir / "status.json"
     assert ".worktrees" not in target_events.parts
     assert ".worktrees" not in target_status.parts
-    assert target_events.read_text(encoding="utf-8") == "new-done-event\n"
-    assert target_status.read_text(encoding="utf-8") == '{"WP01": "done"}\n'
+
+    merged_events = target_events.read_text(encoding="utf-8")
+    assert "WP02" in merged_events, "target-newer WP02 event must survive the union"
+    assert "WP01" in merged_events, "coord-side WP01 event must survive the union"
+
+    expected_snapshot = materialize_to_json(
+        reduce(
+            read_events_from_text(
+                primary_dir,
+                merge_event_log_texts(coord_events_text, target_events_text),
+            )
+        )
+    )
+    assert target_status.read_text(encoding="utf-8") == expected_snapshot
 
 
 def test_project_status_bookkeeping_restores_primary_on_projection_failure(
