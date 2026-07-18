@@ -1,0 +1,18 @@
+# Issue matrix — doctrine-activation-freshness-01KXRSDN
+
+Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue referenced in spec.md.
+
+| Issue | Title | Verdict | Evidence ref |
+|-------|-------|---------|--------------|
+| #2519 | Epic: Charter authoring & lifecycle robustness | deferred-with-followup | This mission is a **functional slice** of the epic (the `activate ⇒ refresh-or-fail-closed` seam). It advances but does not close the epic. Follow-up: #2773 (references.yaml deprecation) + the broader authoring/`charter init` surface remain open under this epic. |
+| #2759 | Freshness blind spot: activate/deactivate mutates config without refreshing the bundle-content signal | fixed | Seam core closed by WP03 (`7bc87cdac`): `run_consistency_check` parity wired into `_compute_synthesized_drg` (read-path, writer-agnostic — covers the merge_defaults bypass); activate → signal STALE by construction; #2732 content-identity preserved. FR-001/002/003, SC-002 green. Approved (renata/opus). |
+| #2770 | Shipped DRG left stale after activating a built-in procedure (4 DRG tests red) | fixed | Durably un-pinned by WP01 (`8de93eed`): the 4 #2770-tied `@regression` markers removed, tests pass as ordinary blocking tests; `regenerate-graph --check` fresh; baseline 289/765/11 intact (regen/citation already landed by S-C). FR-004, SC-001. Approved (renata/opus). |
+| #2758 | synthesized_drg freshness: missing references.yaml yields permanent-stale that synthesize can't self-heal | fixed | Fixed by WP02 (`27fea64e5`): fail-closed preflight (`_raise_if_bundle_incomplete`) surfaces an actionable "run charter generate" instead of a dead-end None; 4-file hash unchanged (no #2773 stopgap). FR-005, SC-003. Approved (renata/opus). |
+| #2157 | Implement gate bounces prerequisites one-at-a-time (charter_source → synced_bundle → synthesized_drg) | fixed | Gate-aggregation (2157a) fixed by WP04 (`edcfdd6e7`): `_derive_blocked_reason` enumerates ALL non-passing checks into one string report (schema unchanged); single-failure output byte-identical; C-004 fence (2157b OUT) tested. FR-006, SC-004. Approved (renata/opus). |
+| #2732 | Content-identity freshness machinery (bundle-content hash) | verified-already-fixed | Just landed; this mission's guardrail (NFR-002 / SC-006) is that it MUST NOT regress. No re-fix — preserve the recipe, stamps, normalization, fresh-seed early-exit. |
+| #2760 | Overlay-vs-new-built-in DRG URN collision on upgrade | deferred-with-followup | OUT of scope per C-003 — an upgrade⇒overlay-revalidation concern owned by the DRG-model lane (#2721). Referenced in spec as an explicit non-goal; remains a follow-up. |
+| #2721 | Step-model sub-epic (DRG-model lane) | deferred-with-followup | Referenced only as the owning lane for #2760; not touched by this mission. |
+| #2767 | S-C landing PR (mission-step-creatability; did a references.yaml recompile) | verified-already-fixed | A merged PR, referenced in spec.md only as Q1 context — #2773's body flags its references recompile as the stopgap this mission's fail-closed fork deliberately avoids. Already landed; not touched or re-fixed here. |
+| #2773 | Consolidate the compiled charter bundle: deprecate references.yaml, charter.yaml authoritative | deferred-with-followup | ADJACENT coordination dependency (under #2519). Owns the Q1 fork (retires the 4th hashed file). Not folded — Q1 must be resolved in /plan without shipping a references.yaml stopgap #2773 removes. |
+
+Valid `Verdict` values: `fixed`, `verified-already-fixed`, `deferred-with-followup`, `in-mission` (being fixed by a later WP in this mission; must reach a terminal verdict before mission `done`).
