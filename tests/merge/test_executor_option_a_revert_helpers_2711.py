@@ -35,6 +35,8 @@ from specify_cli.merge.executor import (
     _revert_coord_done_commit,
 )
 
+pytestmark = pytest.mark.fast
+
 _CAPTURED_SHA = "f76bd91297db0000000000000000000000000000"
 _HEAD_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555"
 
