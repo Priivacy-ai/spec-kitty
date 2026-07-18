@@ -1,16 +1,28 @@
 """Charter extraction pipeline.
 
-Maps parsed charter sections to validated Pydantic models:
-- governance.yaml (testing, quality, performance, branch strategy)
-- directives.yaml (numbered rules and enforcement)
-- metadata.yaml (extraction provenance and statistics)
+IC-04 (consolidate-charter-bundle / WP04) retirement notice: the
+heading-classification dispatch this module used to drive
+``governance.testing`` / ``.quality`` / ``.commits`` / ``.performance`` /
+``.branch_strategy`` and ``directives.directives`` extraction from
+``charter.md`` prose (the ``SECTION_MAPPING`` table, ``_classify_section``,
+and the numbered/bullet-item directive scraper) is RETIRED --
+``governance``/``directives`` are hand-authored directly in ``charter.yaml``
+now (``charter.sync.load_governance_config`` / ``load_directives_config``).
+``Extractor.extract()`` therefore always returns an empty
+``DirectivesConfig``.
+
+Still live: doctrine-selection extraction (``template_set`` /
+``available_tools`` / ``authority_paths`` / ``selected_*``) and the
+activation-registry scan (``activations:`` fenced YAML blocks) -- both scan
+every section unconditionally rather than via ``SECTION_MAPPING``, and
+``_detect_catalog_references`` (the ``DIRECTIVE_NNN`` / tactic-slug citation
+detector), kept as a standalone, independently-testable utility.
 """
 
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from kernel._safe_re import re
@@ -23,7 +35,6 @@ from charter.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     DoctrineSelectionConfig,
-    Directive,
     DirectivesConfig,
     ExtractionMetadata,
     GovernanceConfig,
@@ -31,41 +42,14 @@ from charter.schemas import (
     QualityConfig,
     SectionsParsed,
     CharterTestingConfig,
-    emit_yaml,
 )
 
 __all__ = [
     "Extractor",
-    "write_extraction_result",
 ]
 
 
 logger = logging.getLogger(__name__)
-
-# Section heading keywords → (target_schema, target_field)
-SECTION_MAPPING: dict[str, tuple[str, str]] = {
-    "testing": ("governance", "testing"),
-    "test": ("governance", "testing"),
-    "coverage": ("governance", "testing"),
-    "quality": ("governance", "quality"),
-    "lint": ("governance", "quality"),
-    "commit": ("governance", "commits"),
-    "performance": ("governance", "performance"),
-    "branch": ("governance", "branch_strategy"),
-    "paradigm": ("governance", "doctrine"),
-    "tool": ("governance", "doctrine"),
-    "template": ("governance", "doctrine"),
-    "directive": ("directives", "directives"),
-    "constraint": ("directives", "directives"),
-    "rule": ("directives", "directives"),
-    # WP02: "Code Review Checklist" sections produce directive entries so the
-    # body of each bullet item can be scanned for catalog citations
-    # (FR-006). Keyed on the compound "code review" rather than the bare
-    # "checklist" to avoid accidentally classifying unrelated sections
-    # (e.g. "Deployment Checklist") as directives.
-    "code review": ("directives", "directives"),
-}
-
 
 # WP02: regex helpers for catalog-citation detection inside directive bodies.
 # Per contract `contracts/charter-sync-cross-link.md`:
@@ -77,18 +61,6 @@ SECTION_MAPPING: dict[str, tuple[str, str]] = {
 #     (e.g. ``pre-commit-hooks`` is not a tactic; ``language-driven-design`` is).
 _DIRECTIVE_CITATION_RE = re.compile(r"\bDIRECTIVE_(\d{3})\b")
 _TACTIC_SLUG_RE = re.compile(r"\b([a-z][a-z0-9]*(?:-[a-z0-9]+){1,4})\b")
-_GENERATED_DIRECTIVE_PLACEHOLDER_RE = re.compile(
-    r"^Apply doctrine directive `(?P<directive_id>[A-Z][A-Z0-9_/-]*)` "
-    r"to planning and implementation decisions\.?$"
-)
-
-
-# WP02: bullet-list pattern used as a fallback inside directive sections that
-# carry `-` bullets rather than `1. ` numbered items (e.g. "Code Review
-# Checklist"). Extraction of bullet items is gated on the section being
-# classified as a directive section AND the section not already exposing
-# numbered items.
-_BULLET_ITEM_RE = re.compile(r"^[ \t]*-[ \t]+(.+(?:\n[ \t]+.+)*)", re.MULTILINE)
 
 
 def _detect_catalog_references(
@@ -164,30 +136,28 @@ class ExtractionResult:
 class Extractor:
     """Extract structured configuration from parsed charter sections."""
 
-    def __init__(
-        self,
-        parser: CharterParser | None = None,
-        *,
-        tactic_registry: Callable[[str], bool] | None = None,
-    ):
+    def __init__(self, parser: CharterParser | None = None):
         """Initialize extractor with optional parser.
+
+        IC-04 (WP04): the constructor no longer accepts ``tactic_registry``
+        -- it existed only to thread a ``DoctrineService.tactics``-backed
+        predicate into the now-retired directive-body citation scraper.
+        :func:`_detect_catalog_references` (the citation detector itself)
+        is unaffected and still takes ``tactic_registry`` directly.
 
         Args:
             parser: CharterParser instance (creates default if None).
-            tactic_registry: Optional predicate that returns True when its
-                input names a real ``DoctrineService.tactics`` entry. Used
-                by :func:`_detect_catalog_references` to filter out
-                false-positive kebab-case slugs (R-5 in the WP02 plan). The
-                default callable always returns False — that is the
-                contract-safe fallback when no doctrine service is
-                available (see ``contracts/charter-sync-cross-link.md``
-                §3, "DoctrineService cannot be constructed").
         """
         self.parser = parser or CharterParser()
-        self._tactic_registry: Callable[[str], bool] = tactic_registry or (lambda _slug: False)
 
     def extract(self, content: str) -> ExtractionResult:
         """Full extraction pipeline: parse → map → validate → return.
+
+        IC-04 (WP04): ``governance``'s testing/quality/commits/performance/
+        branch_strategy fields and ``directives`` are no longer scraped from
+        prose (see module docstring) -- ``governance`` carries only the
+        still-live doctrine-selection + activation-registry scan results,
+        and ``directives`` is always empty.
 
         Args:
             content: Raw charter markdown text
@@ -200,7 +170,7 @@ class Extractor:
         sections = self.parser.parse(content)
         warnings: list[str] = []
         governance = self._extract_governance(sections)
-        directives = self._extract_directives(sections, warnings=warnings)
+        directives = DirectivesConfig()
         metadata = self._build_metadata(content, sections)
 
         return ExtractionResult(
@@ -211,13 +181,21 @@ class Extractor:
         )
 
     def _extract_governance(self, sections: list[CharterSection]) -> GovernanceConfig:
-        """Extract governance configuration from classified sections.
+        """Extract governance configuration from every section, unconditionally.
+
+        IC-04 (WP04): the ``testing``/``quality``/``commits``/``performance``/
+        ``branch_strategy`` fields stay at schema defaults -- their prose
+        scrape (gated on ``SECTION_MAPPING`` classification) is retired.
+        ``doctrine`` (selection) and ``activations`` (the activation
+        registry) are unaffected: both were already scanned unconditionally
+        across every section, independent of heading classification.
 
         Args:
             sections: Parsed charter sections
 
         Returns:
-            Merged GovernanceConfig with testing/quality/performance/branch/commits data
+            GovernanceConfig with doctrine selection + activations populated;
+            testing/quality/commits/performance/branch_strategy at defaults.
         """
         testing = CharterTestingConfig()
         quality = QualityConfig()
@@ -227,28 +205,8 @@ class Extractor:
         doctrine = DoctrineSelectionConfig()
         activations: list[ActivationEntry] = []
 
-        _FIELD_HANDLERS: dict[str, Any] = {
-            "testing": lambda s: self._apply_testing_keywords(testing, s.structured_data.get("keywords", {})),
-            "quality": lambda s: self._apply_quality_keywords(quality, s.structured_data.get("keywords", {})),
-            "commits": lambda s: self._apply_commits_keywords(commits, s.structured_data.get("keywords", {})),
-            "performance": lambda s: self._apply_performance_section(performance, s.structured_data),
-            "branch_strategy": lambda s: self._apply_branch_strategy_section(branch_strategy, s.structured_data),
-            "doctrine": lambda s: self._merge_doctrine_selection(s, doctrine),
-        }
-
-        for section in sections:
-            classification = self._classify_section(section.heading)
-            if not classification:
-                continue
-            schema_name, field_name = classification
-            if schema_name != "governance":
-                continue
-            handler = _FIELD_HANDLERS.get(field_name)
-            if handler:
-                handler(section)
-
-        # Also scan all sections for explicit doctrine selection keys
-        # so charter headings remain flexible.
+        # Scan all sections for explicit doctrine selection keys so charter
+        # headings remain flexible.
         for section in sections:
             self._merge_doctrine_selection(section, doctrine)
 
@@ -331,58 +289,6 @@ class Extractor:
                     f"charter activations: invalid entry {item!r}: {exc}"
                 ) from exc
             activations.append(entry)
-
-    def _apply_testing_keywords(self, testing: CharterTestingConfig, keywords: dict[str, Any]) -> None:
-        """Apply testing section keyword values to the testing config."""
-        if "min_coverage" in keywords:
-            testing.min_coverage = keywords["min_coverage"]
-        if "tdd_required" in keywords:
-            testing.tdd_required = keywords["tdd_required"]
-        if "framework" in keywords:
-            testing.framework = keywords["framework"]
-        if "type_checking" in keywords:
-            testing.type_checking = keywords["type_checking"]
-
-    def _apply_quality_keywords(self, quality: QualityConfig, keywords: dict[str, Any]) -> None:
-        """Apply quality section keyword values to the quality config."""
-        if "linting" in keywords:
-            quality.linting = keywords["linting"]
-        if "pr_approvals" in keywords:
-            quality.pr_approvals = keywords["pr_approvals"]
-        if "pre_commit_hooks" in keywords:
-            quality.pre_commit_hooks = keywords["pre_commit_hooks"]
-
-    def _apply_commits_keywords(self, commits: CommitConfig, keywords: dict[str, Any]) -> None:
-        """Apply commits section keyword values to the commits config."""
-        if "convention" in keywords:
-            commits.convention = keywords["convention"]
-
-    def _apply_performance_section(
-        self, performance: PerformanceConfig, structured_data: dict[str, Any]
-    ) -> None:
-        """Apply performance section data (keywords + tables) to the performance config."""
-        keywords = structured_data.get("keywords", {})
-        if "timeout_seconds" in keywords:
-            performance.cli_timeout_seconds = keywords["timeout_seconds"]
-        for table_row in structured_data.get("tables", []):
-            for key, val in table_row.items():
-                if "max_wps" in key.lower() and str(val).isdigit():
-                    performance.dashboard_max_wps = int(val)
-                    break
-
-    def _apply_branch_strategy_section(
-        self, branch_strategy: BranchStrategyConfig, structured_data: dict[str, Any]
-    ) -> None:
-        """Apply branch strategy section data (tables + numbered items) to the branch config."""
-        for table_row in structured_data.get("tables", []):
-            branch_val = table_row.get("branch", table_row.get("name", ""))
-            if branch_val.lower() == "main":
-                branch_strategy.main_branch = "main"
-            if branch_val.lower() in ("develop", "dev"):
-                branch_strategy.dev_branch = "develop"
-        numbered_items = structured_data.get("numbered_items", [])
-        if numbered_items:
-            branch_strategy.rules = numbered_items
 
     def _merge_doctrine_selection(self, section: CharterSection, doctrine: DoctrineSelectionConfig) -> None:
         """Merge doctrine selection hints from a section into doctrine config.
@@ -631,100 +537,6 @@ class Extractor:
                     return value
         return None
 
-    def _extract_directives(
-        self,
-        sections: list[CharterSection],
-        *,
-        warnings: list[str],
-    ) -> DirectivesConfig:
-        """Extract directives from classified sections.
-
-        Args:
-            sections: Parsed charter sections
-
-        Returns:
-            DirectivesConfig with auto-generated DIR-XXX IDs.
-
-        WP02 changes:
-
-        - Each extracted directive body is scanned via
-          :func:`_detect_catalog_references` and any detected catalog IDs
-          or known tactic slugs are lifted into ``Directive.references``.
-        - When a directive-classified section carries no numbered items but
-          does carry bullet items (the ``- item`` shape used by Code Review
-          Checklist–style sections), the bullet items become directives.
-          Numbered items take precedence; bullets are only consulted as a
-          fallback so existing charters with both shapes still emit one
-          directive per numbered line.
-        """
-        directives_list: list[Directive] = []
-        directive_counter = 1
-
-        for section in sections:
-            classification = self._classify_section(section.heading)
-            if not classification:
-                continue
-
-            schema_name, _ = classification
-
-            # Only process directive sections
-            if schema_name != "directives":
-                continue
-
-            items: list[str] = list(section.structured_data.get("numbered_items", []))
-            if not items:
-                # Fallback: bullet items inside a directive-classified section.
-                items = self._extract_bullet_items(section.content)
-
-            for item_text in items:
-                placeholder_directive_id = _generated_directive_placeholder_id(item_text)
-                if placeholder_directive_id:
-                    warnings.append(_generated_directive_placeholder_warning(placeholder_directive_id))
-                    logger.warning(warnings[-1])
-                    continue
-
-                # Detect cross-link catalog citations inside the body so the
-                # downstream resolver can surface the catalog body on demand
-                # (FR-006). The registry callable is injected at __init__
-                # time so this method stays decoupled from DoctrineService.
-                references = _detect_catalog_references(
-                    item_text,
-                    tactic_registry=self._tactic_registry,
-                )
-                directive_id = f"DIR-{directive_counter:03d}"
-                directive = Directive(
-                    id=directive_id,
-                    title=item_text[:50],  # First 50 chars as title
-                    description=item_text,
-                    severity="warn",
-                    references=references,
-                )
-                directives_list.append(directive)
-                directive_counter += 1
-
-        return DirectivesConfig(directives=directives_list)
-
-    @staticmethod
-    def _extract_bullet_items(content: str) -> list[str]:
-        """Extract ``- item`` bullet items from raw section content.
-
-        Used as a fallback inside directive-classified sections that carry
-        bullet lists instead of numbered lists (e.g. Code Review
-        Checklist). Each bullet's text becomes one directive entry.
-        Multi-line bullet continuations (a single bullet whose body wraps
-        onto an indented next line) are joined with a single space so the
-        emitted directive description stays one-line per item.
-        """
-        items: list[str] = []
-        for match in _BULLET_ITEM_RE.finditer(content):
-            raw = match.group(1)
-            # Join indented continuation lines with a single space; collapse
-            # internal whitespace to keep the description compact.
-            joined = " ".join(part.strip() for part in raw.splitlines() if part.strip())
-            if joined:
-                items.append(joined)
-        return items
-
     def _build_metadata(self, content: str, sections: list[CharterSection]) -> ExtractionMetadata:
         """Build extraction metadata with provenance info.
 
@@ -763,79 +575,3 @@ class Extractor:
             sections_parsed=sections_parsed,
             bundle_schema_version=CURRENT_BUNDLE_SCHEMA_VERSION,
         )
-
-    def _classify_section(self, heading: str) -> tuple[str, str] | None:
-        """Classify section heading to target schema and field.
-
-        Args:
-            heading: Section heading text
-
-        Returns:
-            (schema_name, field_name) tuple or None if unclassifiable
-        """
-        heading_lower = heading.lower()
-
-        # Find longest matching keyword (more specific wins)
-        best_match: tuple[str, str] | None = None
-        best_length = 0
-
-        for keyword, (schema, field) in SECTION_MAPPING.items():
-            if keyword in heading_lower and len(keyword) > best_length:
-                best_match = (schema, field)
-                best_length = len(keyword)
-
-        return best_match
-
-
-def _generated_directive_placeholder_id(item_text: str) -> str | None:
-    """Return the catalog directive ID when *item_text* is generated placeholder prose."""
-    match = _GENERATED_DIRECTIVE_PLACEHOLDER_RE.match(item_text.strip())
-    if not match:
-        return None
-    directive_id = match.group("directive_id")
-    return str(directive_id)
-
-
-def _generated_directive_placeholder_warning(directive_id: str) -> str:
-    return (
-        f"Skipped generated placeholder for {directive_id}; "
-        "run `spec-kitty charter generate --force` with current templates so "
-        "directives.yaml does not mint hollow local DIR-NNN policy."
-    )
-
-
-def extract_with_ai(
-    prose_sections: list[CharterSection],
-    schema_hint: dict[str, Any],
-) -> dict[str, Any]:
-    """Send prose sections to configured AI agent for structured extraction.
-
-    This is a stub implementation for WP02. Actual AI integration happens in WP05.
-
-    Args:
-        prose_sections: Sections that require AI extraction (requires_ai=True)
-        schema_hint: Expected output schema as dict
-
-    Returns:
-        Extracted data as dict matching schema hint (empty dict if AI unavailable)
-    """
-    # Check if AI agent is available (stub for now)
-    _ = schema_hint
-    logger.info("AI extraction not yet implemented - skipping %d prose sections", len(prose_sections))
-
-    # Return empty dict (graceful fallback)
-    return {}
-
-
-def write_extraction_result(result: ExtractionResult, charter_dir: Path) -> None:
-    """Write all YAML files from an extraction result.
-
-    Args:
-        result: Complete extraction result
-        charter_dir: Target directory (e.g., .kittify/charter/)
-    """
-    charter_dir.mkdir(parents=True, exist_ok=True)
-
-    emit_yaml(result.governance, charter_dir / "governance.yaml")
-    emit_yaml(result.directives, charter_dir / "directives.yaml")
-    emit_yaml(result.metadata, charter_dir / "metadata.yaml")

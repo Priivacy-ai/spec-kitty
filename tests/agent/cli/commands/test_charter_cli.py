@@ -141,6 +141,8 @@ def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
 
 
 def test_generate_command_success(tmp_path: Path) -> None:
+    """consolidate-charter-bundle WP03: ``generate`` writes ``charter.yaml``
+    only -- ``charter.md``/``references.yaml`` are never written (Landmine 3)."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _git_init(repo_root)
@@ -153,27 +155,44 @@ def test_generate_command_success(tmp_path: Path) -> None:
 
         assert result.exit_code == 0
         assert "generated and synced" in result.stdout
-        assert (repo_root / ".kittify" / "charter" / "charter.md").exists()
-        assert (repo_root / ".kittify" / "charter" / "references.yaml").exists()
-        assert (repo_root / ".kittify" / "charter" / "governance.yaml").exists()
+        assert (repo_root / ".kittify" / "charter" / "charter.yaml").exists()
+        assert not (repo_root / ".kittify" / "charter" / "charter.md").exists()
+        assert not (repo_root / ".kittify" / "charter" / "references.yaml").exists()
         assert (repo_root / ".kittify" / "charter" / "library").exists()
 
 
-def test_generate_command_requires_force_when_existing(tmp_path: Path) -> None:
+def test_generate_does_not_require_force_when_charter_yaml_already_exists(tmp_path: Path) -> None:
+    """Landmine 3 inversion of the old force-gate test: a charter.yaml
+    partial-merge refresh never needs ``--force`` -- there is nothing
+    destructive left for it to gate (the whole point of the WP03 fix)."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _git_init(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
-    (charter_dir / "charter.md").write_text("# Existing", encoding="utf-8")
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n"
+        "governance: {}\n"
+        "directives:\n"
+        "  directives: []\n"
+        "catalog:\n"
+        "  mission: software-dev\n"
+        "  template_set: software-dev-default\n"
+        "  languages: []\n"
+        "  references: []\n"
+        "overrides: {}\n"
+        "metadata:\n"
+        "  generated_at: ''\n"
+        "  bundle_schema_version: 2\n",
+        encoding="utf-8",
+    )
 
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
         result = runner.invoke(app, ["generate", "--no-from-interview"])
 
-        assert result.exit_code == 1
-        assert "--force" in result.stdout
+        assert result.exit_code == 0, result.stdout
 
 
 def test_generate_command_force_overwrites(tmp_path: Path) -> None:
@@ -198,27 +217,19 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
         assert data["references_count"] >= 1
 
 
-@pytest.mark.regression
 def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path) -> None:
-    """RED-FIRST P0 reproduction of #2772 — intentional expected-red, BLOCKING.
+    """#2772 fixed by consolidate-charter-bundle WP03 -- was RED-FIRST P0.
 
-    ``spec-kitty charter generate --force`` regenerates the human-facing
-    ``charter.md`` from the interview/default template, DESTROYING curated
-    prose: recompiling the bundle to add a single reference produced a
-    1237-line clobber of the curated v1.3.0 charter during the #2767 landing,
-    forcing a ``git checkout HEAD -- charter.md`` to recover it. ``charter.md``
-    is a curated reference and is NOT a charter-resolving input (resolving keys
-    off the structured bundle — ``config.yaml`` / ``references.yaml``), so
-    refresh / generate MUST preserve it.
-
-    This reproduces the defect through the exact ``generate --force`` entry
-    point named in the issue and asserts the curated prose survives. It fails
-    on main because of the product defect (not a test error). It is marked
-    ``@pytest.mark.regression`` for the red-first regime while KEEPING its
-    ``integration``/``git_repo`` slice (module ``pytestmark``) so a BLOCKING CI
-    job selects it — an open P0 is expected to red mainline (ADR 2026-07-17-1),
-    never shunted to the non-blocking ``regression-visibility`` lane. Un-mark
-    ``@regression`` when #2772 lands the preserve-curated-charter fix.
+    ``spec-kitty charter generate --force`` used to regenerate the
+    human-facing ``charter.md`` from the interview/default template,
+    DESTROYING curated prose: recompiling the bundle to add a single
+    reference produced a 1237-line clobber of the curated v1.3.0 charter
+    during the #2767 landing, forcing a ``git checkout HEAD -- charter.md``
+    to recover it. The WP03 fix removes the write entirely (data-model.md
+    Landmine 3): ``write_compiled_charter`` never writes ``charter.md`` at
+    all any more (not even under ``--force``) -- ``charter.md`` is a
+    curated companion, resolving authority lives in ``charter.yaml``.
+    Un-marked ``@pytest.mark.regression`` now that the fix has landed.
     Tracking: #2772 (epic #2519).
     """
     repo_root = tmp_path / "repo"
@@ -248,11 +259,68 @@ def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path) -> 
     )
 
 
+def test_generate_force_preserves_authored_charter_yaml_sections(tmp_path: Path) -> None:
+    """Landmine 3, one level down: ``charter generate --force`` refreshes
+    ONLY charter.yaml's derived ``catalog``/``metadata`` -- authored
+    ``governance``/``directives``/activation survive, exercised through the
+    real CLI entry point (complements the compiler-level unit coverage in
+    ``tests/charter/test_compiler_charter_yaml.py``)."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git_init(repo_root)
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n"
+        "governance:\n"
+        "  testing:\n"
+        "    min_coverage: 91  # CLI-AUTHORED-GOVERNANCE-SENTINEL\n"
+        "  quality: {}\n"
+        "  commits: {}\n"
+        "  performance: {}\n"
+        "  branch_strategy: {}\n"
+        "  doctrine: {}\n"
+        "  activations: []\n"
+        "  enforcement: {}\n"
+        "directives:\n"
+        "  directives: []\n"
+        "catalog:\n"
+        "  mission: stale-mission\n"
+        "  template_set: stale-template-set\n"
+        "  languages: []\n"
+        "  references: []\n"
+        "activated_directives:\n"
+        "- 001-architectural-integrity-standard  # CLI-AUTHORED-ACTIVATION-SENTINEL\n"
+        "overrides: {}\n"
+        "metadata:\n"
+        "  generated_at: '2020-01-01T00:00:00Z'\n"
+        "  bundle_schema_version: 2\n",
+        encoding="utf-8",
+    )
+
+    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = repo_root
+
+        result = runner.invoke(app, ["generate", "--force", "--json", "--no-from-interview"])
+
+    assert result.exit_code == 0, result.stdout
+    surviving = (charter_dir / "charter.yaml").read_text(encoding="utf-8")
+    assert "CLI-AUTHORED-GOVERNANCE-SENTINEL" in surviving
+    assert "CLI-AUTHORED-ACTIVATION-SENTINEL" in surviving
+    assert "stale-mission" not in surviving, "catalog is the DERIVED section and must refresh"
+
+
 def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _git_init(repo_root)
-    (repo_root / ".kittify" / "charter").mkdir(parents=True)
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    # consolidate-charter-bundle WP03: ``generate`` no longer writes
+    # ``charter.md`` (Landmine 3). ``context``'s bootstrap mode still keys
+    # off the legacy sync triad, which is derived from ``charter.md`` --
+    # seed a curated one so the sync step this test exercises still runs.
+    (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
 
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
@@ -282,6 +350,11 @@ def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: P
     _subprocess.run(["git", "init", "--quiet", str(repo_root)], check=True)
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
+    # consolidate-charter-bundle WP03: ``generate`` no longer writes
+    # ``charter.md`` (Landmine 3); this test exercises the legacy sync
+    # triad's auto-resync, which is derived from ``charter.md`` -- seed a
+    # curated one so that sync step still runs.
+    (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
 
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root

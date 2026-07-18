@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 90  # justification: +2 (88->90): m_3_2_4_runtime_dirs_gitignore_backfill (#2384, #2388) and m_3_2_5_agents_skills_gitignore_backfill (#2412) are auto-discovered migrations loaded via pkgutil.iter_modules + @MigrationRegistry.register, never statically imported — same sibling shape as the m_3_2_3 backfill above.
+  category_1_auto_discovered_migrations: 91  # justification: +1 (90->91): m_unify_charter_activation_finalize (#2773, migration_id consolidate_charter_bundle_fold) is the charter-bundle fold migration, auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register, never statically imported — same sibling shape as every other migration here. Filename prefix-extends m_unify_charter_activation to sort strictly after it at the tied 3.2.6 target.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -55,7 +55,7 @@ test_no_dead_modules:
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
   category_4_backcompat_shims: 0
   # justification: 3 compat-shim WP-in-flight adapters.
-  category_5_wp_in_flight_adapters: 0  # emptied: the 3 dead compat._adapters shim modules deleted (salvaged from closed #2159/#2049)
+  category_5_wp_in_flight_adapters: 1  # justification: +1 (0->1): charter.extractor — the prose->triad scraper is retired by consolidate-charter-bundle WP04 (#2773); sync() no longer scrapes, so Extractor has zero non-test src/ callers. Full class deletion deferred (test-only refs remain), tracked as a follow-up.
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3

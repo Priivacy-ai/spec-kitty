@@ -1,0 +1,56 @@
+# Auto-generated from charter.md — do not edit directly.
+# Run 'spec-kitty charter sync' to regenerate.
+
+directives:
+- id: DIR-001
+  title: '**Cross-platform:** Linux, macOS, Windows 10+'
+  description: '**Cross-platform:** Linux, macOS, Windows 10+'
+  severity: warn
+- id: DIR-002
+  title: '**Python 3.11+** (no legacy Python 2 support)'
+  description: '**Python 3.11+** (no legacy Python 2 support)'
+  severity: warn
+- id: DIR-003
+  title: '**Git required** (all worktree features depend on '
+  description: '**Git required** (all worktree features depend on Git)'
+  severity: warn
+- id: DIR-004
+  title: '**PyPI distribution** via automated release workfl'
+  description: '**PyPI distribution** via automated release workflow'
+  severity: warn
+- id: DIR-005
+  title: Tests added for new functionality
+  description: Tests added for new functionality
+  severity: warn
+- id: DIR-006
+  title: Type annotations present (mypy --strict passes)
+  description: Type annotations present (mypy --strict passes)
+  severity: warn
+- id: DIR-007
+  title: Docstrings for public APIs
+  description: Docstrings for public APIs
+  severity: warn
+- id: DIR-008
+  title: No security issues (credentials, secrets handling)
+  description: No security issues (credentials, secrets handling)
+  severity: warn
+- id: DIR-009
+  title: Breaking changes documented in CHANGELOG.md
+  description: Breaking changes documented in CHANGELOG.md
+  severity: warn
+- id: DIR-010
+  title: Database names, lane identifiers, and other storag
+  description: Database names, lane identifiers, and other storage-facing slugs generated from user, branch, lane, mission, or tracker input must remain ASCII-only and deterministic. Sanitizers must use an explicit ASCII allowlist such as `[A-Za-z0-9_]` or opt Python regular expressions into ASCII semantics with `re.ASCII`; do not rely on default Unicode `\w` or `\W` behavior for database-safe identifiers.
+  severity: warn
+- id: DIR-011
+  title: Any change to identifier normalization or slug san
+  description: Any change to identifier normalization or slug sanitization must include regression coverage for non-ASCII input, including at least one accented Latin example and one case that proves the produced storage identifier is `.isascii()`.
+  severity: warn
+- id: DIR-012
+  title: When an agent starts implementing work from a trac
+  description: When an agent starts implementing work from a tracker-backed issue for this repository, the agent must assign that ticket to the Human-in-Charge (HiC) before or as part of beginning the implementation. For Spec Kitty today, GitHub issues are the active tracker case and must follow this rule.
+  severity: warn
+- id: DIR-013
+  title: When an agent encounters pre-existing test failure
+  description: When an agent encounters pre-existing test failures while working in this repository, the agent MUST open a GitHub issue reporting them before treating those failures as accepted baseline context or continuing past them. The issue must include the command run, the relevant failure summary, and why the agent believes the failures are pre-existing rather than introduced by its current change.
+  severity: warn

@@ -36,9 +36,10 @@ Post-WP05 adversarial-squad findings on this same guard (mission
 - ``test_corrupt_references_yaml_fails_closed`` /
   ``test_references_yaml_malformed_schema_fails_closed`` /
   ``test_references_yaml_absent_is_still_a_clean_skip``: #2530 -- an
-  unreadable/corrupt ``references.yaml`` must surface a
-  ``verification_errors`` finding and NOT-coherent report, distinct from
-  the legitimate "not yet synthesized" no-op skip (file simply absent).
+  unreadable/corrupt ``charter.yaml`` (IC-04: re-homed from ``references.yaml``)
+  must surface a ``verification_errors`` finding and NOT-coherent report,
+  distinct from the legitimate "not yet synthesized" no-op skip (file
+  simply absent).
 - ``test_drg_load_failure_fails_closed``: #2530 -- the KIND-level
   config<->DRG check must fail closed the same way on a DRG load/validate
   failure, not silently return an empty (passing) result.
@@ -46,6 +47,19 @@ Post-WP05 adversarial-squad findings on this same guard (mission
   invariant the reverse paradigm parity check depends on (paradigm
   canonical id == config stem, no normalization step) via the same
   resolver bridge the forward check uses, so it cannot silently rot.
+
+IC-04 (consolidate-charter-bundle / WP04) re-point: both parity reads --
+``_load_raw_activation_lists`` (activation) and ``_load_reference_ids_by_kind``
+(catalog) -- now read from ``charter.yaml`` instead of ``config.yaml``
+direct-embedding / the retired ``references.yaml``. The catalog fixtures below
+use :func:`_write_charter_yaml_catalog` (writing ``.kittify/charter/
+charter.yaml``'s ``catalog.references``) in place of the retired
+``_write_references`` (``references.yaml``). New tests
+(``test_activation_reads_charter_yaml_pointer_not_stale_config`` /
+``test_dangling_charter_pointer_fails_closed_for_activation``) close the
+WP02<->WP04 transient-parity coupling this WP's Definition of Done calls out:
+the activation-list parity read and ``PackContext.from_config`` (WP02) must
+resolve the exact same source when a ``charter:`` pointer is present.
 """
 
 from __future__ import annotations
@@ -86,22 +100,32 @@ def _write_config(tmp_path: Path, content: str) -> Path:
     return kittify
 
 
-def _write_references(kittify: Path, ref_entries: list[dict[str, str]]) -> None:
-    """Write a minimal .kittify/charter/references.yaml with the given entries."""
+def _write_charter_yaml_catalog(kittify: Path, ref_entries: list[dict[str, str]]) -> Path:
+    """Write a minimal ``.kittify/charter/charter.yaml`` carrying the given
+    ``catalog.references`` entries (IC-04: replaces the retired
+    ``references.yaml`` -- ``charter.yaml``'s ``catalog`` mirrors that file's
+    body verbatim, see ``charter.schemas.CharterCatalog``). Returns the
+    written path.
+    """
     charter_dir = kittify / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     payload = {
-        "schema_version": "1.0.0",
-        "generated_at": "2026-07-10T00:00:00Z",
-        "mission": "software-dev",
-        "template_set": "software-dev-default",
-        "languages": ["python"],
-        "references": ref_entries,
+        "schema_version": "2.0.0",
+        "governance": {},
+        "directives": {},
+        "catalog": {
+            "mission": "software-dev",
+            "template_set": "software-dev-default",
+            "languages": ["python"],
+            "references": ref_entries,
+        },
     }
     yaml = YAML()
     yaml.default_flow_style = False
-    with (charter_dir / "references.yaml").open("w", encoding="utf-8") as handle:
+    charter_yaml_path = charter_dir / "charter.yaml"
+    with charter_yaml_path.open("w", encoding="utf-8") as handle:
         yaml.dump(payload, handle)
+    return charter_yaml_path
 
 
 def _reference_entry(ref_id: str, kind: str) -> dict[str, str]:
@@ -167,14 +191,15 @@ def test_this_project_charter_pack_is_coherent() -> None:
 
 
 def test_config_directive_absent_from_references_bites(tmp_path: Path) -> None:
-    """#2524 dangler class: config activates a directive, references.yaml lacks it."""
+    """#2524 dangler class: config activates a directive, charter.yaml's
+    catalog lacks it."""
     kittify = _write_config(
         tmp_path,
         f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
     )
     # Compiled WITHOUT the activated directive -- the exact #2524 shape (live
     # in config, dangling in the compiled reference set).
-    _write_references(kittify, [])
+    _write_charter_yaml_catalog(kittify, [])
 
     ctx = ProjectContext.from_repo(tmp_path)
     report = run_consistency_check(ctx)
@@ -182,7 +207,7 @@ def test_config_directive_absent_from_references_bites(tmp_path: Path) -> None:
     assert report.coherent is False
     assert f"directive/{_REAL_DIRECTIVE_STEM}" in report.reference_id_divergences
     assert any(
-        "does not resolve in .kittify/charter/references.yaml" in s
+        "does not resolve in .kittify/charter/charter.yaml's catalog" in s
         for s in report.suggestions
     )
 
@@ -193,7 +218,7 @@ def test_config_directive_present_in_references_is_coherent(tmp_path: Path) -> N
         tmp_path,
         f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
     )
-    _write_references(
+    _write_charter_yaml_catalog(
         kittify,
         [_reference_entry(f"DIRECTIVE:{_REAL_DIRECTIVE_CANONICAL}", "directive")],
     )
@@ -210,18 +235,18 @@ def test_orphan_paradigm_reference_bites(tmp_path: Path) -> None:
 
     Paradigms are rendered 1:1 from ``config.activated_paradigms`` with no
     DRG-transitive expansion, so this is the one kind where a reverse
-    (references -> config) check is sound -- see
+    (catalog -> config) check is sound -- see
     ``consistency_check._check_reference_id_parity``.
     """
     kittify = _write_config(
         tmp_path,
         "activated_paradigms:\n  - domain-driven-design\n",
     )
-    _write_references(
+    _write_charter_yaml_catalog(
         kittify,
         [
             _reference_entry("PARADIGM:domain-driven-design", "paradigm"),
-            # Orphan: resolves in references.yaml but not activated in config.
+            # Orphan: resolves in the catalog but not activated in config.
             _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM}", "paradigm"),
         ],
     )
@@ -279,6 +304,95 @@ def test_config_kind_present_in_activated_kinds_is_coherent(tmp_path: Path) -> N
 
 
 # ---------------------------------------------------------------------------
+# IC-04 (WP04): activation-list parity must read charter.yaml via the
+# ``charter:`` pointer, not a possibly-stale ``config.yaml`` direct embed --
+# closing the WP02<->WP04 transient-parity coupling (the guard used to read a
+# DIFFERENT source than ``PackContext.from_config`` -- WP02 -- once a project
+# migrated to a charter.yaml pointer).
+# ---------------------------------------------------------------------------
+
+
+def test_activation_reads_charter_yaml_pointer_not_stale_config(tmp_path: Path) -> None:
+    """A ``charter:`` pointer present in config.yaml must be authoritative:
+    the parity guard reads charter.yaml's activation, never a stale
+    ``config.yaml``-embedded value left behind by the migration.
+
+    ``config.yaml`` carries a STALE ``activated_directives`` entry that names
+    no real doctrine artifact (would trip ``unknown_references`` if it were
+    actually read); ``charter.yaml`` carries the CORRECT, resolvable
+    activation + a matching catalog entry. A guard that (incorrectly) fell
+    back to reading ``config.yaml`` directly despite the pointer would report
+    ``coherent=False`` here; one that correctly resolves the pointer reports
+    ``coherent=True``.
+    """
+    kittify = _write_config(
+        tmp_path,
+        (
+            "charter: .kittify/charter/charter.yaml\n"
+            "activated_directives:\n"
+            "  - this-stale-directive-does-not-exist\n"
+        ),
+    )
+    charter_yaml_path = _write_charter_yaml_catalog(
+        kittify,
+        [_reference_entry(f"DIRECTIVE:{_REAL_DIRECTIVE_CANONICAL}", "directive")],
+    )
+    # Append the flat activation keys onto the same charter.yaml the catalog
+    # helper just wrote (charter.yaml carries activation flat-at-root, WP02).
+    yaml = YAML()
+    with charter_yaml_path.open("r", encoding="utf-8") as fh:
+        document = yaml.load(fh)
+    document["activated_directives"] = [_REAL_DIRECTIVE_STEM]
+    with charter_yaml_path.open("w", encoding="utf-8") as fh:
+        yaml.dump(document, fh)
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is True, (
+        f"expected the pointer-resolved charter.yaml activation to be "
+        f"authoritative, got: unknown_references={report.unknown_references} "
+        f"reference_id_divergences={report.reference_id_divergences} "
+        f"verification_errors={report.verification_errors}"
+    )
+    assert "directive/this-stale-directive-does-not-exist" not in report.unknown_references
+
+
+def test_dangling_charter_pointer_fails_closed_for_activation(tmp_path: Path) -> None:
+    """#2530 re-homed onto charter.yaml: a ``charter:`` pointer naming a
+    charter.yaml that does not exist must fail closed (verification_errors
+    populated, report NOT coherent) -- never a silent fallback to the legacy
+    config-embedded activation, and never an unhandled exception past
+    ``run_consistency_check``.
+
+    ``ProjectContext`` is constructed directly (bypassing ``.from_repo()``)
+    because ``PackContext.from_config`` (WP02) ALREADY fails closed on this
+    exact dangling-pointer condition at context-construction time -- this
+    test isolates ``run_consistency_check``'s OWN fail-closed catch around
+    ``_load_raw_activation_lists`` (the code path this WP adds), not WP02's
+    pre-existing one.
+    """
+    _write_config(
+        tmp_path,
+        (
+            "charter: .kittify/charter/charter.yaml\n"
+            f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
+        ),
+    )
+    # No .kittify/charter/charter.yaml written -- the pointer dangles.
+
+    ctx = ProjectContext(repo_root=tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is False
+    assert report.verification_errors, (
+        "a dangling charter.yaml pointer must be reported as 'could not "
+        "verify', not silently treated as 'nothing activated'"
+    )
+    assert any("charter.yaml" in entry for entry in report.verification_errors)
+
+
+# ---------------------------------------------------------------------------
 # #2529: the guard must resolve org/project-overlay artefacts, not
 # built-in-only.
 # ---------------------------------------------------------------------------
@@ -318,7 +432,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
         ),
     )
     # Compiled WITHOUT the org directive -- the exact #2524 dangler shape.
-    _write_references(kittify, [])
+    _write_charter_yaml_catalog(kittify, [])
 
     ctx = ProjectContext.from_repo(tmp_path)
     assert ctx.pack_context is not None
@@ -352,7 +466,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
 
 
 def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
-    """#2530: unparseable references.yaml must surface a verification error.
+    """#2530: unparseable charter.yaml must surface a verification error.
 
     Before the fix, ``_load_reference_ids_by_kind`` caught every exception
     from the YAML parse and returned ``None`` -- the exact same return value
@@ -368,8 +482,8 @@ def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
     charter_dir.mkdir(parents=True, exist_ok=True)
     # Truncated YAML: an unterminated flow mapping -- a real ParserError,
     # not a benign empty-document parse.
-    (charter_dir / "references.yaml").write_text(
-        "references: [{id: 'x'\n", encoding="utf-8"
+    (charter_dir / "charter.yaml").write_text(
+        "catalog: {references: [{id: 'x'\n", encoding="utf-8"
     )
 
     ctx = ProjectContext.from_repo(tmp_path)
@@ -377,10 +491,10 @@ def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
 
     assert report.coherent is False
     assert report.verification_errors, (
-        "a corrupt references.yaml must be reported as 'could not verify', "
+        "a corrupt charter.yaml must be reported as 'could not verify', "
         "not silently treated as an empty, passing result"
     )
-    assert any("references.yaml" in entry for entry in report.verification_errors)
+    assert any("charter.yaml" in entry for entry in report.verification_errors)
     assert any(
         "could not verify config<->references parity" in s.lower()
         for s in report.suggestions
@@ -388,15 +502,16 @@ def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
 
 
 def test_references_yaml_malformed_schema_fails_closed(tmp_path: Path) -> None:
-    """#2530: valid YAML with no 'references' list is still corrupt, not a skip."""
+    """#2530: valid YAML with no 'catalog.references' list is still corrupt,
+    not a skip."""
     kittify = _write_config(
         tmp_path,
         f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
     )
     charter_dir = kittify / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "references.yaml").write_text(
-        "schema_version: '1.0.0'\n", encoding="utf-8"
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n", encoding="utf-8"
     )
 
     ctx = ProjectContext.from_repo(tmp_path)
@@ -413,7 +528,7 @@ def test_references_yaml_absent_is_still_a_clean_skip(tmp_path: Path) -> None:
         tmp_path,
         f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
     )
-    # No .kittify/charter/references.yaml written at all.
+    # No .kittify/charter/charter.yaml written at all.
 
     ctx = ProjectContext.from_repo(tmp_path)
     report = run_consistency_check(ctx)

@@ -1,23 +1,30 @@
 """Charter sync orchestrator.
 
-Provides the main sync() function that orchestrates:
-1. Read charter.md
-2. Check staleness (skip if unchanged, unless --force)
-3. Parse and extract to YAML
-4. Write governance/directives/metadata files
-5. Update metadata with hash and timestamp
+IC-04 (consolidate-charter-bundle / WP04): the prose->triad scrape this
+module used to perform -- parsing ``charter.md`` and writing
+``governance.yaml`` / ``directives.yaml`` / ``metadata.yaml`` -- is RETIRED.
+``governance`` and ``directives`` are now hand-authored sections directly
+inside the git-tracked ``charter.yaml`` (``charter.schemas.CharterYaml``);
+:func:`load_governance_config` / :func:`load_directives_config` read those
+sections straight off disk (INV-3: no governance/directives DECISION reads
+``charter.md`` prose or the retired triad files any more).
+
+``sync()`` / ``ensure_charter_bundle_fresh()`` are RETAINED -- signatures and
+``SyncResult`` contract unchanged -- because other charter-layer modules
+(``context.py``, ``specify_cli.charter_runtime.freshness.computer``, the
+``charter sync`` CLI command, the dashboard, and the bundle-migration
+upgrader) still call them for canonical-root resolution and the
+``charter.md`` staleness check. ``sync()`` no longer extracts or writes
+anything; it always reports ``synced=False`` / ``files_written=[]``.
 """
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from ruamel.yaml import YAML
-
 from charter._io import load_charter_file
-from charter.bundle import CANONICAL_MANIFEST
-from charter.extractor import Extractor, write_extraction_result
+from charter.bundle import CANONICAL_MANIFEST, CHARTER_YAML
+from charter.charter_yaml_io import load_charter_yaml
 from charter.hasher import is_stale
 from charter.resolution import resolve_canonical_repo_root
 from charter.schemas import (
@@ -30,7 +37,6 @@ __all__ = [
     "ensure_charter_bundle_fresh",
     "load_directives_config",
     "load_governance_config",
-    "post_save_hook",
     "sync",
 ]
 
@@ -41,13 +47,6 @@ _KITTIFY_DIRNAME = ".kittify"
 _CHARTER_DIRNAME = "charter"
 _CHARTER_FILENAME = "charter.md"
 _METADATA_FILENAME = "metadata.yaml"
-_GOVERNANCE_FILENAME = "governance.yaml"
-_DIRECTIVES_FILENAME = "directives.yaml"
-_SYNC_OUTPUT_FILES = [
-    _GOVERNANCE_FILENAME,
-    _DIRECTIVES_FILENAME,
-    _METADATA_FILENAME,
-]
 
 
 @dataclass
@@ -143,12 +142,26 @@ def sync(
     force: bool = False,
     unsafe: bool = False,
 ) -> SyncResult:
-    """Sync charter.md to structured YAML config files.
+    """Report ``charter.md`` staleness; no longer extracts or writes anything.
+
+    IC-04 retirement: this function used to parse ``charter.md`` and write
+    ``governance.yaml`` / ``directives.yaml`` / ``metadata.yaml`` (the
+    prose->triad scrape). That scrape is retired -- ``governance`` and
+    ``directives`` are hand-authored directly in ``charter.yaml`` now (see
+    :func:`load_governance_config` / :func:`load_directives_config`).
+
+    Retained for its callers' contract (``ensure_charter_bundle_fresh``, the
+    ``charter sync`` CLI command): it still performs the staleness check
+    against ``charter.md`` and reports ``stale_before`` accurately, but
+    ``synced`` is now always ``False`` and ``files_written`` always empty --
+    there is nothing left for this function to produce.
 
     Args:
         charter_path: Path to charter.md
-        output_dir: Directory for YAML output (default: same as charter_path.parent)
-        force: If True, extract even if not stale
+        output_dir: Directory containing metadata.yaml for the staleness
+            check (default: same as charter_path.parent)
+        force: Accepted for backward compatibility with existing callers;
+            no longer changes behavior (there is no extraction to force).
         unsafe: when True, bypass CHARTER_ENCODING_AMBIGUOUS by accepting the
             highest-confidence decode candidate and logging bypass_used=True in
             provenance.  Use only when you have inspected the file and accept
@@ -156,8 +169,10 @@ def sync(
             ``.encoding-provenance.jsonl``.
 
     Returns:
-        SyncResult with status and file paths
+        SyncResult with ``synced=False`` and the staleness verdict.
     """
+    _ = force  # no longer changes behavior; kept for signature stability.
+
     # Default output directory to same location as charter
     if output_dir is None:
         output_dir = charter_path.parent
@@ -172,42 +187,11 @@ def sync(
         # Check staleness using the content (eliminates TOCTOU race)
         stale, _, _ = is_stale(None, metadata_path, content=content)
 
-        # Skip if not stale and not forced
-        if not stale and not force:
-            logger.info("Charter unchanged, skipping sync")
-            return SyncResult(
-                synced=False,
-                stale_before=False,
-                files_written=[],
-                extraction_mode="",
-            )
-
-        # Extract to structured configs (using same content). WP02 wires a
-        # tactic-registry predicate built from DoctrineService.tactics so
-        # the extractor can gate kebab-case slug citations against real
-        # tactic IDs (avoids false positives — see contract
-        # ``charter-sync-cross-link.md`` §2). Doctrine construction is
-        # best-effort: if the built-in catalog is unavailable the registry
-        # silently returns False, and only DIRECTIVE_NNN citations are
-        # picked up (contract §3, "DoctrineService cannot be constructed").
-        tactic_registry = _build_tactic_registry(charter_path.parent.parent.parent)
-        extractor = Extractor(tactic_registry=tactic_registry)
-        result = extractor.extract(content)
-
-        # Write YAML files
-        write_extraction_result(result, output_dir)
-
-        # List files written
-        files_written = list(_SYNC_OUTPUT_FILES)
-
-        logger.info(f"Charter synced successfully (mode: {result.metadata.extraction_mode})")
-
         return SyncResult(
-            synced=True,
+            synced=False,
             stale_before=stale,
-            files_written=files_written,
-            extraction_mode=result.metadata.extraction_mode,
-            warnings=list(result.warnings),
+            files_written=[],
+            extraction_mode="",
         )
 
     except Exception as e:
@@ -221,177 +205,70 @@ def sync(
         )
 
 
-def post_save_hook(charter_path: Path) -> None:
-    """Auto-trigger sync after charter write.
+def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
+    """Return the named top-level ``charter.yaml`` section, or ``None``.
 
-    Called synchronously after CLI writes to charter.md.
-    Failures are logged but don't propagate (FR-2.3).
+    Anchors path resolution on the canonical (main-checkout) root via
+    :func:`charter.resolution.resolve_canonical_repo_root` so worktree
+    callers read the same ``charter.yaml`` the main checkout tracks
+    (FR-010) -- mirrors the worktree-transparency contract the retired
+    ``ensure_charter_bundle_fresh``-routed loaders used to provide, without
+    invoking the (now-inert) sync chokepoint.
 
-    Args:
-        charter_path: Path to charter.md
+    Returns ``None`` when ``charter.yaml`` itself is absent, or when it
+    exists but does not carry *section* as a top-level key -- both are the
+    caller's "use an empty config" signal, logged at different verbosity by
+    the two public loaders below.
     """
-    try:
-        result = sync(charter_path, force=True)
-        if result.synced:
-            # Anchor log paths against canonical_root when available, falling
-            # back to the charter directory when the caller invoked sync()
-            # directly (no chokepoint patch). This is a logging convenience —
-            # the sync result itself is unchanged.
-            anchor = result.canonical_root if result.canonical_root else charter_path.parent
-            logger.info(
-                "Charter synced: %d YAML files updated under %s",
-                len(result.files_written),
-                anchor,
-            )
-        elif result.error:
-            logger.warning("Charter sync warning: %s", result.error)
-    except Exception:
-        logger.warning(
-            "Charter auto-sync failed. Run 'spec-kitty charter sync' manually.",
-            exc_info=True,
-        )
-
-
-def _build_tactic_registry(repo_root_candidate: Path) -> Callable[[str], bool]:
-    """Build a ``DoctrineService.tactics.get``-backed predicate.
-
-    The returned callable is what ``Extractor._detect_catalog_references``
-    consults to decide whether a kebab-case slug from a directive body is
-    a real tactic ID (per contract ``charter-sync-cross-link.md`` §2,
-    "Tactic ID detection"). When the doctrine service cannot be built —
-    for example because the built-in catalog is missing on disk — the
-    fallback is a callable that always returns False; the contract §3
-    explicitly accepts this graceful degradation so that ``charter sync``
-    does NOT error in that situation.
-    """
-    try:
-        # Reuse the same default-construction helper that the compiler
-        # uses so the built-in + project overlay match the rest of the
-        # charter pipeline.
-        from charter.compiler import _default_doctrine_service
-
-        service = _default_doctrine_service(repo_root_candidate)
-        tactics_repo = service.tactics
-
-        def _is_known_tactic(slug: str) -> bool:
-            try:
-                return tactics_repo.get(slug) is not None
-            except Exception:  # noqa: BLE001 - registry must never break sync
-                return False
-
-        return _is_known_tactic
-    except Exception as exc:  # noqa: BLE001 - graceful degradation per contract §3
-        logger.debug(
-            "DoctrineService unavailable while building tactic registry for charter sync "
-            "(%s); falling back to directive-only citation detection.",
-            exc,
-        )
-        return lambda _slug: False
-
-
-def _resolve_bundle_root(repo_root: Path, refresh_result: SyncResult | None) -> Path:
-    """Return the canonical charter-bundle root for loader path construction.
-
-    The chokepoint materializes the bundle under the main-checkout canonical
-    root; loaders called from a worktree must anchor path construction on
-    that same root so the just-materialized derivatives are visible (FR-010).
-    Fall back to ``repo_root`` only when the chokepoint returned ``None``
-    (no ``charter.md`` under the canonical root) — in that case there is
-    nothing to read regardless of which root we use.
-    """
-    if refresh_result is not None and refresh_result.canonical_root is not None:
-        return refresh_result.canonical_root
-    return repo_root
+    canonical_root = resolve_canonical_repo_root(repo_root)
+    charter_yaml_path = canonical_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
+        return None
+    document = load_charter_yaml(charter_yaml_path)
+    if not isinstance(document, dict):
+        return None
+    return document.get(section)
 
 
 def load_governance_config(repo_root: Path) -> GovernanceConfig:
-    """Load governance config from .kittify/charter/governance.yaml.
+    """Load governance config from ``charter.yaml``'s ``governance:`` section.
 
-    Falls back to empty GovernanceConfig if file missing (FR-4.4).
-    Checks staleness and logs warning if stale (FR-4.2).
-
-    Performance: YAML loading only, no AI invocation (FR-4.5).
-
-    The loader routes through ``ensure_charter_bundle_fresh`` and anchors
-    every subsequent path on the returned ``canonical_root``, so worktree
-    callers read the main-checkout bundle that the chokepoint materialized
-    (FR-010). Callers therefore do not need to pre-resolve the canonical
-    root themselves.
+    IC-04 (INV-3): the prose->triad scrape is retired -- ``governance`` is a
+    hand-authored section directly inside the git-tracked ``charter.yaml``
+    (``charter.schemas.CharterYaml``), not a derived ``governance.yaml``.
+    Falls back to an empty ``GovernanceConfig`` when ``charter.yaml`` is
+    absent, or present without a ``governance`` section.
 
     Args:
         repo_root: Repository root directory (may be a worktree path).
 
     Returns:
-        GovernanceConfig instance (empty if file missing)
+        GovernanceConfig instance (empty if charter.yaml/section missing)
     """
-    refresh_result = ensure_charter_bundle_fresh(repo_root)
-    bundle_root = _resolve_bundle_root(repo_root, refresh_result)
-    charter_dir = bundle_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
-    charter_path = charter_dir / _CHARTER_FILENAME
-    governance_path = charter_dir / _GOVERNANCE_FILENAME
-
-    if not governance_path.exists():
-        if charter_path.exists():
-            logger.warning("governance.yaml unavailable after charter auto-sync. Using empty governance config.")
-        else:
-            logger.info("governance.yaml not found and charter.md is absent. Using empty governance config.")
+    governance_data = _load_charter_yaml_section(repo_root, "governance")
+    if governance_data is None:
+        logger.info("charter.yaml governance section not found. Using empty governance config.")
         return GovernanceConfig()
-
-    # Check staleness
-    metadata_path = charter_dir / _METADATA_FILENAME
-    if charter_path.exists() and metadata_path.exists():
-        stale, _, _ = is_stale(charter_path, metadata_path)
-        if stale:
-            if refresh_result and refresh_result.error:
-                logger.warning("Charter bundle is stale after auto-sync failure. Using last synced governance config.")
-            else:
-                logger.warning("Charter bundle remains stale. Using last synced governance config.")
-
-    # Load and validate
-    yaml = YAML()
-    data = yaml.load(governance_path)
-    return GovernanceConfig.model_validate(data)
+    return GovernanceConfig.model_validate(governance_data)
 
 
 def load_directives_config(repo_root: Path) -> DirectivesConfig:
-    """Load directives config from .kittify/charter/directives.yaml.
+    """Load directives config from ``charter.yaml``'s ``directives:`` section.
 
-    Falls back to empty DirectivesConfig if file missing.
-    Checks staleness and logs warning if stale.
-
-    The loader routes through ``ensure_charter_bundle_fresh`` and anchors
-    every subsequent path on the returned ``canonical_root``, so worktree
-    callers read the main-checkout bundle that the chokepoint materialized
-    (FR-010).
+    IC-04 (INV-3): the prose->triad scrape is retired -- ``directives`` is a
+    hand-authored section directly inside the git-tracked ``charter.yaml``
+    (``charter.schemas.CharterYaml``), not a derived ``directives.yaml``.
+    Falls back to an empty ``DirectivesConfig`` when ``charter.yaml`` is
+    absent, or present without a ``directives`` section.
 
     Args:
         repo_root: Repository root directory (may be a worktree path).
 
     Returns:
-        DirectivesConfig instance (empty if file missing)
+        DirectivesConfig instance (empty if charter.yaml/section missing)
     """
-    refresh_result = ensure_charter_bundle_fresh(repo_root)
-    bundle_root = _resolve_bundle_root(repo_root, refresh_result)
-    charter_dir = bundle_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
-    charter_path = charter_dir / _CHARTER_FILENAME
-    directives_path = charter_dir / _DIRECTIVES_FILENAME
-
-    if not directives_path.exists():
-        if charter_path.exists():
-            logger.warning("directives.yaml unavailable after charter auto-sync. Using empty directives config.")
-        else:
-            logger.info("directives.yaml not found and charter.md is absent. Using empty directives config.")
+    directives_data = _load_charter_yaml_section(repo_root, "directives")
+    if directives_data is None:
+        logger.info("charter.yaml directives section not found. Using empty directives config.")
         return DirectivesConfig()
-
-    metadata_path = charter_dir / _METADATA_FILENAME
-    if charter_path.exists() and metadata_path.exists():
-        stale, _, _ = is_stale(charter_path, metadata_path)
-        if stale:
-            if refresh_result and refresh_result.error:
-                logger.warning("Charter bundle is stale after auto-sync failure. Using last synced directives config.")
-            else:
-                logger.warning("Charter bundle remains stale. Using last synced directives config.")
-
-    yaml = YAML()
-    data = yaml.load(directives_path)
-    return DirectivesConfig.model_validate(data)
+    return DirectivesConfig.model_validate(directives_data)

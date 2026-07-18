@@ -234,7 +234,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     assert resolution.tactics == ["review-tactic"]
     assert resolution.styleguides == ["review-style"]
     assert compiled.diagnostics == []
-    assert "charter.md" in result.files_written
+    assert "charter.yaml" in result.files_written  # consolidate-charter-bundle: write_compiled_charter no longer emits charter.md (INV-3)
     assert "agent_profile: reviewer" in compiled.markdown
     assert any(ref.kind == "tactic" and ref.title == "Review Tactic" for ref in compiled.references)
     assert any(ref.kind == "styleguide" and ref.title == "Review Style" for ref in compiled.references)
@@ -310,6 +310,19 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
         # ── Step 4: agents.yaml must NOT be generated ──
         assert not (charter_dir / "agents.yaml").exists(), "agents.yaml must NOT be generated"
 
+        # consolidate-charter-bundle (data-model.md Landmine 3, T028c):
+        # ``generate`` writes charter.yaml ONLY -- charter.md is a curated,
+        # hand-authored companion, NEVER produced by a generate/compile path
+        # (INV-3). ``build_charter_context``'s bootstrap/compact caching
+        # keys on charter.md's existence, so exercising that caching
+        # end-to-end (this test's actual subject, per its docstring) now
+        # requires the curated companion to exist -- exactly as a real
+        # operator would author it once, post-generate.
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n## Policy Summary\n\n- Curated companion authored post-generate.\n",
+            encoding="utf-8",
+        )
+
         # ── Step 5: first context call → bootstrap mode ──
         ctx1 = runner.invoke(app, ["context", "--action", "specify", "--json"])
         assert ctx1.exit_code == 0, ctx1.stdout
@@ -367,7 +380,7 @@ def test_local_support_additive_warning_when_overlapping_built_in_concept(tmp_pa
 
     # Write to disk and confirm no library/ directory is created
     result = write_compiled_charter(output_dir, compiled, force=True)
-    assert "charter.md" in result.files_written
+    assert "charter.yaml" in result.files_written  # consolidate-charter-bundle: write_compiled_charter no longer emits charter.md (INV-3)
     assert not (output_dir / "library").exists(), (
         "library/ directory must NOT be created even when local support files are declared"
     )

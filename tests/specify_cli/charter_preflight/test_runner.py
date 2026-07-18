@@ -35,6 +35,7 @@ from ._fixtures import (
     make_fresh_repo,
     seed_bundle_files,
     seed_charter,
+    seed_charter_yaml,
     seed_manifest,
     write_metadata,
 )
@@ -74,6 +75,10 @@ def test_built_in_only_passes(tmp_path: Path) -> None:
     charter_path, metadata_path = seed_charter(tmp_path)
     write_metadata(metadata_path, charter_path)
     seed_bundle_files(tmp_path)
+    # consolidate-charter-bundle WP06 (Landmine 2): charter_source/
+    # synced_bundle now resolve over charter.yaml, independent of the
+    # legacy charter.md/metadata.yaml pair seeded above.
+    seed_charter_yaml(tmp_path)
     seed_manifest(tmp_path, built_in_only=True)
     # No graph.yaml.
     result = run_charter_preflight(tmp_path)
@@ -136,12 +141,20 @@ def test_missing_drg_blocks_with_remediation(tmp_path: Path) -> None:
     assert drg.remediation == "spec-kitty charter synthesize"
 
 
-def test_stale_charter_blocks(tmp_path: Path) -> None:
-    """A mismatched charter hash blocks with the sync remediation."""
+def test_invalid_charter_yaml_blocks(tmp_path: Path) -> None:
+    """An unparseable ``charter.yaml`` blocks with the sync remediation.
+
+    consolidate-charter-bundle WP06 (Landmine 2) re-pins this test: the
+    retired charter.md-hash-mismatch mechanism (formerly ``"stale"``) is
+    replaced by ``charter.yaml`` being present but unparseable
+    (``"invalid"``) — the only non-``fresh``, non-``missing`` state
+    ``charter_source`` can report post-retirement.
+    """
     init_git_repo(tmp_path)
     charter_path, metadata_path = seed_charter(tmp_path)
-    write_metadata(metadata_path, charter_path, mismatched=True)
+    write_metadata(metadata_path, charter_path)
     seed_bundle_files(tmp_path)
+    seed_charter_yaml(tmp_path, valid=False)
     seed_manifest(tmp_path, built_in_only=True)
 
     result = run_charter_preflight(tmp_path)
@@ -149,7 +162,7 @@ def test_stale_charter_blocks(tmp_path: Path) -> None:
     assert result.blocked_reason is not None
     assert "sync" in result.blocked_reason
     source = next(c for c in result.checks if c.name == "charter_source")
-    assert source.state == "stale"
+    assert source.state == "invalid"
 
 
 # ---------------------------------------------------------------------------

@@ -86,7 +86,6 @@ kitty-specs/**/.kittify/dossiers/
 .kittify/dossiers/*/snapshot-latest.json
 kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 .kittify/charter/context-state.json
-.kittify/charter/directives.yaml
 
 # Doctrine artifacts are version-controlled — that is the point of
 # `spec-kitty agent retrospect synthesize --apply` writing them. Use
@@ -112,9 +111,6 @@ kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 
 # Local-only working notes / mission drafts (already-tracked files remain tracked)
 /work/
-.kittify/charter/governance.yaml
-.kittify/charter/metadata.yaml
-.kittify/charter/references.yaml
 .kittify/.scratch
 node_modules/
 

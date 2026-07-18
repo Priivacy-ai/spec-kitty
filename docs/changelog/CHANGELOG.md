@@ -19,6 +19,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Charter bundle consolidated into an authoritative `charter.yaml` (#2773).**
+  The four compiled bundle files (`governance.yaml`, `directives.yaml`,
+  `metadata.yaml`, `references.yaml`) plus `config.yaml`'s `activated_*` keys
+  fold into a single git-tracked, authorable `charter.yaml` that becomes the
+  project's authoritative structured charter; `charter.md` becomes a curated
+  companion. The bundle manifest bumps to schema `2.0.0` (`charter.yaml` is the
+  sole content-hash input), and `config.yaml` gains a one-line `charter:`
+  pointer. A deterministic, idempotent, fail-loud `upgrade` migration performs
+  the fold, sequenced strictly after the `3.2.6` activation-seed migrations
+  (verbatim activation copy; the seeds' post-state — `config` carries
+  `activated_*` — is the fold's pre-state).
+
 - **`charter activate`/`deactivate --resynthesize` opt-in eager refresh (FR-007, #2761).**
   Since the config↔derived freshness seam (#2759) made `charter activate`/`deactivate`
   visible to the `synthesized_drg` freshness signal, a routine activation now reports

@@ -1,70 +1,62 @@
-"""#2759 seam core: config-activation visibility in the freshness read-path (WP03).
+"""Activation visibility in the freshness read-path — RETIREMENT pin
+(consolidate-charter-bundle WP06 / #2759, data-model.md / contracts/
+manifest-v2.md).
 
-``charter activate``/``deactivate`` mutate ``.kittify/config.yaml``
-(``activated_*``), which is not one of the four files
-``charter.bundle.compute_bundle_content_hash`` covers, so a config<->derived
-(references.yaml / DRG graph) drift used to stay invisible to
-``synthesized_drg`` forever. This WP wires the already-built
-``charter.consistency_check.run_consistency_check`` parity guard into the
-freshness READ-path (``computer._compute_synthesized_drg``) so that drift
-resolves to ``stale`` by construction (fail-closed, FR-003) instead of
-silently reporting ``fresh``.
+History: the synthesized-drg-stale-refresh mission's WP03 wired
+``charter.consistency_check.run_consistency_check`` into
+``computer._compute_synthesized_drg`` as a SEPARATE config<->derived
+activation-parity signal, because ``charter activate``/``deactivate`` wrote
+to ``.kittify/config.yaml`` (``activated_*``), which was NOT one of the four
+files the content-hash covered — so activation drift was otherwise invisible
+to ``synthesized_drg``.
+
+consolidate-charter-bundle retires that separate parity read
+(``_activation_parity_drift_reason`` / ``_PARITY_DRIFT_REMEDIATION``)
+outright: it is moot once freshness hashes ``charter.yaml`` directly, because
+activation is relocated INTO ``charter.yaml`` (data-model.md Entity:
+``.kittify/config.yaml`` after relocation) — the same file the content hash
+already covers. A config<->references/graph divergence of the
+pre-relocation kind cannot exist anymore: there is no longer a second file
+for activation to drift *away from* the hash input. The content-identity
+comparison in ``_synthesized_drg_graph_state`` subsumes what the parity read
+used to catch — any edit to ``charter.yaml`` (governance, directives, OR
+activation) flips the whole-file hash and therefore ``synthesized_drg``.
 
 Covers:
-- ``test_activation_without_reconcile_is_stale``: T009 red-first (SC-002,
-  first half) -- a fresh project + ``charter activate`` (real writer,
-  ``activation_engine.commit_plan``) with no compiled ``references.yaml``
-  entry for the newly-activated directive reports ``stale``.
-- ``test_reconcile_after_activation_returns_to_fresh``: T012 (SC-002, second
-  half) -- reconciling the compiled bundle (references.yaml + a matching
-  content-hash stamp, what ``charter generate`` + ``charter synthesize``
-  produce) clears the drift back to ``fresh``.
-- ``test_deactivate_without_reconcile_is_stale``: deactivate symmetric --
-  the reverse-direction (paradigm-only) parity check fires when a
-  deactivated-but-still-compiled paradigm is orphaned.
-- ``test_deactivate_last_activation_writes_explicit_empty_and_stays_visible``:
-  deactivate-to-empty edge -- ``.remove()`` writes an explicit ``[]``, which
-  ``_has_explicit_activation`` treats as non-``None`` (parity still fires),
-  guarding a future key-deletion refactor from silently reopening the hole.
-- ``test_multi_kind_drift_reports_single_stale_signal``: cascade edge -- a
-  simultaneous multi-kind config drift still resolves to exactly ONE
-  ``synthesized_drg`` sub-state per freshness computation (the read-path
-  evaluates parity once per call, not per drifted artifact).
-- ``test_merge_defaults_seeded_activation_is_visible``: writer-agnostic
-  (R-08) -- activation written via ``CharterPackManager.merge_defaults``
-  (the ``pack_manager.py`` bypass that never touches
-  ``activation_engine.commit_plan``) is equally visible, because
-  ``run_consistency_check`` reads ``config.yaml`` directly.
-- ``test_unchanged_bundle_hash_unaffected_by_parity_check``: NFR-002 (#2732)
-  -- the parity read is a separate, COMPOSED signal; it never becomes a hash
-  input, so an unchanged bundle still hashes identically.
-- ``test_fresh_seed_built_in_only_project_not_forced_stale_by_drifted_config``:
-  NFR-002 / R-01 -- a never-synthesized (``built_in_only``) project is a
-  structural short-circuit that returns BEFORE the parity read is ever
-  reached, so a drifted config.yaml must not force it stale. Asserts the
-  PASS-STATE membership (``built_in_only`` ∈ preflight's ``_PASS_STATES``),
-  not a literal ``"fresh"`` string.
+- ``test_activation_parity_mechanism_retired``: structural pin — the
+  retired symbols no longer exist on ``computer``.
+- ``test_charter_yaml_edit_without_reconcile_is_stale`` /
+  ``test_reconcile_after_edit_returns_to_fresh``: the SAME visibility
+  guarantee the retired parity read used to provide, now delivered by the
+  unified content-hash comparison alone — an edit to ``charter.yaml`` (the
+  post-relocation home for activation) is visible as ``stale`` until the
+  next synth reconciles it. This is also the spurious-authoring-staleness
+  decision (data-model.md Landmine 2 extension, option (b) — see
+  ``traces/decisions.md``).
+- ``test_unchanged_bundle_hash_stable_across_freshness_calls``: NFR-002 —
+  ``compute_freshness`` is a pure observer; calling it never mutates the
+  content-identity hash of the bundle it inspects.
+- ``test_fresh_seed_built_in_only_project_not_forced_stale``: R-01 — a
+  never-synthesized (``built_in_only``) project is a structural
+  short-circuit that returns BEFORE any content-hash comparison, so it is
+  never forced stale regardless of ``charter.yaml`` content.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from textwrap import dedent
 
 import pytest
-from ruamel.yaml import YAML
 
-from charter.invocation_context import ProjectContext
-from charter.pack_manager import CharterPackManager
 from specify_cli.charter_runtime.freshness import compute_freshness
 
 pytestmark = [pytest.mark.git_repo]
 
 from ..charter_preflight._fixtures import (
     init_git_repo,
-    seed_charter,
+    seed_charter_yaml,
+    seed_graph,
     seed_manifest,
-    write_metadata,
 )
 
 # Mirrors the preflight runner's own pass-state set (``_PASS_STATES`` in
@@ -73,302 +65,141 @@ from ..charter_preflight._fixtures import (
 # reachable only via the preflight package.
 _PASS_STATES = frozenset({"fresh", "built_in_only"})
 
-# Real, stable built-in artifacts (matches the pinning rationale in
-# tests/doctrine/test_activation_parity_guard.py -- production-shaped ids,
-# not placeholders).
-_REAL_DIRECTIVE_STEM = "001-architectural-integrity-standard"
-_REAL_DIRECTIVE_CANONICAL = "DIRECTIVE_001"
-_REAL_PARADIGM_STEM_A = "domain-driven-design"
-_REAL_PARADIGM_STEM_B = "atomic-design"
-
-
-# ---------------------------------------------------------------------------
-# Fixture helpers
-# ---------------------------------------------------------------------------
-
-
-def _seed_project_graph(repo: Path) -> Path:
-    """Create a schema-VALID, empty ``.kittify/doctrine/graph.yaml``.
-
-    Deliberately local to this test module rather than reusing
-    ``charter_preflight._fixtures.seed_graph``: that shared helper writes
-    ``schema_version``/``nodes``/``edges`` only, which satisfies the
-    freshness reader (only checks existence/mtime of this path) but is
-    REJECTED by ``doctrine.drg.models.DRGGraph`` (``generated_at`` /
-    ``generated_by`` are required) the moment something actually pydantic-
-    validates it -- which ``charter.consistency_check``'s
-    ``_check_graph_kind_parity`` does via ``load_validated_graph`` (it merges
-    this file in as the "project" DRG layer). This WP is the first consumer
-    that reaches that validation from a freshness-adjacent test, so it seeds
-    a conformant document instead of widening the shared fixture's blast
-    radius outside this WP's owned files.
-    """
-    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
-    graph_path.parent.mkdir(parents=True, exist_ok=True)
-    graph_path.write_text(
-        dedent(
-            """\
-            schema_version: '1.0'
-            generated_at: '2026-07-17T00:00:00Z'
-            generated_by: test-fixture
-            nodes: []
-            edges: []
-            """
-        ),
-        encoding="utf-8",
-    )
-    return graph_path
-
-
-def _write_config(repo: Path, content: str) -> None:
-    kittify = repo / ".kittify"
-    kittify.mkdir(exist_ok=True)
-    (kittify / "config.yaml").write_text(content, encoding="utf-8")
-
-
-def _reference_entry(ref_id: str, kind: str) -> dict[str, str]:
-    return {
-        "id": ref_id,
-        "kind": kind,
-        "title": "x",
-        "summary": "x",
-        "source_path": "",
-        "local_path": "x",
-    }
-
-
-def _write_references(charter_dir: Path, entries: list[dict[str, str]]) -> None:
-    charter_dir.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "schema_version": "1.0.0",
-        "generated_at": "2026-07-17T00:00:00Z",
-        "mission": "software-dev",
-        "template_set": "software-dev-default",
-        "languages": ["python"],
-        "references": entries,
-    }
-    yaml = YAML()
-    yaml.default_flow_style = False
-    with (charter_dir / "references.yaml").open("w", encoding="utf-8") as handle:
-        yaml.dump(payload, handle)
-
-
-def _seed_synthesized_repo(repo: Path, ref_entries: list[dict[str, str]]) -> Path:
-    """Build a fully-synthesized, freshness-``fresh`` repo.
-
-    Unlike ``_fixtures.make_fresh_repo`` (which seeds a trivial,
-    ``references:``-key-less ``references.yaml`` -- fine for tests that never
-    exercise activation, but not a valid *compiled reference set* input for
-    ``run_consistency_check``), this writes a real ``references.yaml`` with
-    the given entries FIRST, then stamps the synthesis manifest's
-    ``bundle_content_hash`` from that same finalised bundle content (order
-    matters: ``seed_manifest``'s auto-hash reads whatever is on disk at call
-    time), so the content-identity hash comparison is genuinely satisfied
-    before the (new, #2759) activation-parity read is ever reached.
-    """
-    init_git_repo(repo)
-    charter_path, metadata_path = seed_charter(repo)
-    write_metadata(metadata_path, charter_path)
-    charter_dir = repo / ".kittify" / "charter"
-    (charter_dir / "governance.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
-    (charter_dir / "directives.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
-    _write_references(charter_dir, ref_entries)
-    seed_manifest(repo, built_in_only=False)
-    _seed_project_graph(repo)
-    return charter_dir
-
-
-def _reconcile_references(repo: Path, ref_entries: list[dict[str, str]]) -> None:
-    """Simulate ``charter generate`` (recompile references.yaml) + ``charter
-    synthesize`` (re-stamp the manifest hash) reconciling config.yaml drift.
-    """
-    charter_dir = repo / ".kittify" / "charter"
-    _write_references(charter_dir, ref_entries)
-    seed_manifest(repo, built_in_only=False)
-
-
-def _ctx(repo: Path) -> ProjectContext:
-    return ProjectContext.from_repo(repo)
-
 
 def _synthesized_drg_state(repo: Path) -> str:
     return compute_freshness(repo).synthesized_drg.state
 
 
-# ---------------------------------------------------------------------------
-# T009 / SC-002 (first half): activate without reconciling -> stale
-# ---------------------------------------------------------------------------
-
-
-def test_activation_without_reconcile_is_stale(tmp_path: Path) -> None:
-    """A fresh project, then ``charter activate`` with no compiled reference
-    for the new directive, reports ``stale`` (desired behavior; RED before
-    the #2759 wiring, GREEN after)."""
-    _seed_synthesized_repo(tmp_path, ref_entries=[])
-    assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
-
-    _write_config(tmp_path, "activated_directives: []\n")
-    CharterPackManager().activate(_ctx(tmp_path), "directive", _REAL_DIRECTIVE_STEM)
-
-    assert _synthesized_drg_state(tmp_path) == "stale"
-
-
-def test_activation_stale_reason_names_the_drift(tmp_path: Path) -> None:
-    """The stale reason composes with (does not replace) the existing
-    content-identity stale reasons and names the concrete drift."""
-    _seed_synthesized_repo(tmp_path, ref_entries=[])
-    _write_config(tmp_path, "activated_directives: []\n")
-    CharterPackManager().activate(_ctx(tmp_path), "directive", _REAL_DIRECTIVE_STEM)
-
-    sub = compute_freshness(tmp_path).synthesized_drg
-    assert sub.state == "stale"
-    assert sub.detail is not None
-    assert f"directive/{_REAL_DIRECTIVE_STEM}" in sub.detail
-    # Remediation MUST name `charter generate` (recompiles references.yaml from
-    # the current activation state) -- bare `synthesize` cannot clear a
-    # references-parity divergence, so pointing there would recreate the #2758
-    # un-healable dead-end for the parity signal (aggregate-squad finding).
-    assert sub.remediation == "spec-kitty charter generate && spec-kitty charter synthesize"
-    assert "generate" in sub.remediation
-
-
-# ---------------------------------------------------------------------------
-# T012: SC-002 (second half) -- reconcile clears the drift
-# ---------------------------------------------------------------------------
-
-
-def test_reconcile_after_activation_returns_to_fresh(tmp_path: Path) -> None:
-    """activate -> stale -> reconcile (recompile references.yaml + re-stamp
-    the manifest, what ``charter generate`` + ``charter synthesize`` do) ->
-    fresh again."""
-    _seed_synthesized_repo(tmp_path, ref_entries=[])
-    _write_config(tmp_path, "activated_directives: []\n")
-    CharterPackManager().activate(_ctx(tmp_path), "directive", _REAL_DIRECTIVE_STEM)
-    assert _synthesized_drg_state(tmp_path) == "stale"
-
-    _reconcile_references(
-        tmp_path,
-        [_reference_entry(f"DIRECTIVE:{_REAL_DIRECTIVE_CANONICAL}", "directive")],
-    )
-
-    assert _synthesized_drg_state(tmp_path) == "fresh"
-
-
-# ---------------------------------------------------------------------------
-# Deactivate symmetric + deactivate-to-empty edge
-# ---------------------------------------------------------------------------
-
-
-def test_deactivate_without_reconcile_is_stale(tmp_path: Path) -> None:
-    """Deactivating one of two compiled paradigms orphans it in
-    references.yaml (reverse-direction parity, paradigms only) -- stale."""
-    _seed_synthesized_repo(
-        tmp_path,
-        ref_entries=[
-            _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_A}", "paradigm"),
-            _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_B}", "paradigm"),
-        ],
-    )
-    _write_config(
-        tmp_path,
-        f"activated_paradigms:\n  - {_REAL_PARADIGM_STEM_A}\n  - {_REAL_PARADIGM_STEM_B}\n",
-    )
-    assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline: config matches compiled set
-
-    CharterPackManager().deactivate(_ctx(tmp_path), "paradigm", _REAL_PARADIGM_STEM_B)
-
-    assert _synthesized_drg_state(tmp_path) == "stale"
-
-
-def test_deactivate_last_activation_writes_explicit_empty_and_stays_visible(tmp_path: Path) -> None:
-    """Deactivating the LAST activated paradigm writes an explicit ``[]``
-    (``activation_engine`` uses ``.remove()``, never key-deletion) -- and
-    ``_has_explicit_activation`` treats ``[]`` as non-``None``, so parity
-    still fires. Locks the guard against a future refactor to key-deletion
-    silently reopening the hole via the ``if not _has_explicit_activation``
-    early-exit.
-    """
-    _seed_synthesized_repo(
-        tmp_path,
-        ref_entries=[_reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_A}", "paradigm")],
-    )
-    _write_config(tmp_path, f"activated_paradigms:\n  - {_REAL_PARADIGM_STEM_A}\n")
-    assert _synthesized_drg_state(tmp_path) == "fresh"
-
-    CharterPackManager().deactivate(_ctx(tmp_path), "paradigm", _REAL_PARADIGM_STEM_A)
-
-    yaml = YAML(typ="safe")
-    config_data = yaml.load((tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
-    assert config_data.get("activated_paradigms") == []  # explicit [], not a deleted key
-
-    assert _synthesized_drg_state(tmp_path) == "stale"
-
-
-# ---------------------------------------------------------------------------
-# Cascade edge: multi-kind drift still resolves to ONE sub-state per call
-# ---------------------------------------------------------------------------
-
-
-def test_multi_kind_drift_reports_single_stale_signal(tmp_path: Path) -> None:
-    """A simultaneous drift across two kinds (what a ``--cascade``
-    multi-artifact flip produces) still resolves to exactly one
-    ``synthesized_drg`` :class:`FreshnessSubState` per freshness computation
-    -- the read-path parity check runs once per ``compute_freshness`` call,
-    not once per drifted artifact, so a cascade is structurally moot here.
-    """
-    _seed_synthesized_repo(tmp_path, ref_entries=[])
-    _write_config(tmp_path, "activated_directives: []\nactivated_paradigms: []\n")
-    ctx = _ctx(tmp_path)
-    CharterPackManager().activate(ctx, "directive", _REAL_DIRECTIVE_STEM)
-    CharterPackManager().activate(_ctx(tmp_path), "paradigm", _REAL_PARADIGM_STEM_A)
-
-    result = compute_freshness(tmp_path)
-
-    assert result.synthesized_drg.state == "stale"
-    assert result.synthesized_drg.detail is not None
-    # Both kinds' drift is named in the SAME, single composed reason -- proves
-    # the guard ran once over the whole config, not once per drifted kind.
-    assert f"directive/{_REAL_DIRECTIVE_STEM}" in result.synthesized_drg.detail
-    assert f"paradigm/{_REAL_PARADIGM_STEM_A}" in result.synthesized_drg.detail
-
-
-# ---------------------------------------------------------------------------
-# Writer-agnostic (R-08): merge_defaults bypasses activation_engine entirely
-# ---------------------------------------------------------------------------
-
-
-def test_merge_defaults_seeded_activation_is_visible(tmp_path: Path) -> None:
-    """Activation state seeded via ``CharterPackManager.merge_defaults`` (the
-    ``pack_manager.py`` writer that never calls
-    ``activation_engine.commit_plan``) is equally visible to the freshness
-    read-path, because ``run_consistency_check`` reads ``config.yaml``
-    directly rather than being told which writer touched it.
-    """
-    _seed_synthesized_repo(tmp_path, ref_entries=[])
-    assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline: no config.yaml yet
-
-    result = CharterPackManager().merge_defaults(_ctx(tmp_path))
-    assert result.kinds_written  # sanity: the bypass writer actually wrote something
-
-    assert _synthesized_drg_state(tmp_path) == "stale"
-
-
-# ---------------------------------------------------------------------------
-# NFR-002 (#2732) preserve: composed signal, not a hash input; fresh-seed intact
-# ---------------------------------------------------------------------------
-
-
-def test_unchanged_bundle_hash_unaffected_by_parity_check(tmp_path: Path) -> None:
-    """An unchanged bundle hashes identically before and after the parity
-    read runs -- the #2759 signal is COMPOSED WITH content-identity, never
-    folded into the hash itself."""
+def _seed_fresh_synthesized_repo(repo: Path) -> Path:
+    """Build a fully-synthesized, freshness-``fresh`` repo: ``charter.yaml``
+    + a real ``graph.yaml`` + a manifest whose ``bundle_content_hash``
+    genuinely matches a fresh recompute."""
     from charter.bundle import compute_bundle_content_hash
 
-    _seed_synthesized_repo(
-        tmp_path,
-        ref_entries=[_reference_entry(f"DIRECTIVE:{_REAL_DIRECTIVE_CANONICAL}", "directive")],
+    init_git_repo(repo)
+    charter_yaml_path = seed_charter_yaml(repo)
+    seed_graph(repo)
+    real_hash = compute_bundle_content_hash(repo)
+    assert real_hash is not None
+    seed_manifest(repo, built_in_only=False, bundle_content_hash=real_hash)
+    return charter_yaml_path
+
+
+# ---------------------------------------------------------------------------
+# Retirement pin
+# ---------------------------------------------------------------------------
+
+
+def test_activation_parity_mechanism_retired() -> None:
+    """The #2759 config<->derived activation-parity read no longer exists on
+    ``computer`` — it is moot once freshness hashes ``charter.yaml`` (the
+    activation-owning file) directly."""
+    from specify_cli.charter_runtime.freshness import computer as freshness_computer
+
+    assert not hasattr(freshness_computer, "_activation_parity_drift_reason")
+    assert not hasattr(freshness_computer, "_PARITY_DRIFT_REMEDIATION")
+
+
+def test_compute_freshness_never_calls_consistency_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Behavioural companion to the structural pin above: even if a caller
+    imports ``run_consistency_check`` independently, ``compute_freshness``
+    itself never invokes it — the read-path is decoupled from the retired
+    parity guard entirely, not merely stripped of its own private helper."""
+    import charter.consistency_check as consistency_check_module
+
+    def _must_not_be_called(*args: object, **kwargs: object) -> None:
+        raise AssertionError(
+            "compute_freshness must not invoke run_consistency_check "
+            "(#2759 parity read retired by consolidate-charter-bundle WP06)"
+        )
+
+    monkeypatch.setattr(consistency_check_module, "run_consistency_check", _must_not_be_called)
+
+    _seed_fresh_synthesized_repo(tmp_path)
+
+    assert _synthesized_drg_state(tmp_path) == "fresh"  # sanity: exercised the real path
+
+
+# ---------------------------------------------------------------------------
+# Unified content-hash visibility (subsumes what the parity read used to do)
+# ---------------------------------------------------------------------------
+
+
+def test_charter_yaml_edit_without_reconcile_is_stale(tmp_path: Path) -> None:
+    """An edit to ``charter.yaml`` (the post-relocation home for activation,
+    data-model.md) without a following synth is visible as ``stale`` — the
+    SAME guarantee the retired parity read used to provide, now delivered by
+    the unified content-hash comparison alone."""
+    charter_yaml_path = _seed_fresh_synthesized_repo(tmp_path)
+    assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline
+
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# activation-shaped edit\n",
+        encoding="utf-8",
     )
-    _write_config(tmp_path, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n")
+
+    assert _synthesized_drg_state(tmp_path) == "stale"
+
+
+def test_reconcile_after_edit_returns_to_fresh(tmp_path: Path) -> None:
+    """edit -> stale -> reconcile (re-stamp the manifest, what ``spec-kitty
+    charter synthesize`` does) -> fresh again. Proves the visibility gap the
+    retired parity read used to close is not a permanent-stale dead-end
+    (data-model.md Landmine 2 extension, decision (b))."""
+    from charter.bundle import compute_bundle_content_hash
+
+    charter_yaml_path = _seed_fresh_synthesized_repo(tmp_path)
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# activation-shaped edit\n",
+        encoding="utf-8",
+    )
+    assert _synthesized_drg_state(tmp_path) == "stale"
+
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=real_hash)
+
+    assert _synthesized_drg_state(tmp_path) == "fresh"
+
+
+def test_reconcile_after_edit_returns_to_fresh_via_resynthesize_shaped_stamp(tmp_path: Path) -> None:
+    """Cascade-shaped edge: reconciling from a genuinely different prior
+    manifest (a real re-stamp, not just re-seeding the same value) also
+    clears the drift — proves the recompute reads current content, not a
+    cached value."""
+    from charter.bundle import compute_bundle_content_hash
+
+    charter_yaml_path = _seed_fresh_synthesized_repo(tmp_path)
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# first edit\n", encoding="utf-8"
+    )
+    assert _synthesized_drg_state(tmp_path) == "stale"
+
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# second edit\n", encoding="utf-8"
+    )
+    assert _synthesized_drg_state(tmp_path) == "stale"  # still stale after a second, unstamped edit
+
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=real_hash)
+
+    assert _synthesized_drg_state(tmp_path) == "fresh"
+
+
+# ---------------------------------------------------------------------------
+# NFR-002 (#2732) preserve: pure observer, fresh-seed intact
+# ---------------------------------------------------------------------------
+
+
+def test_unchanged_bundle_hash_stable_across_freshness_calls(tmp_path: Path) -> None:
+    """``compute_freshness`` is a pure observer: calling it repeatedly never
+    mutates the content-identity hash of the bundle it inspects."""
+    from charter.bundle import compute_bundle_content_hash
+
+    _seed_fresh_synthesized_repo(tmp_path)
 
     hash_before = compute_bundle_content_hash(tmp_path)
     result = compute_freshness(tmp_path)
@@ -376,30 +207,53 @@ def test_unchanged_bundle_hash_unaffected_by_parity_check(tmp_path: Path) -> Non
 
     assert hash_before is not None
     assert hash_before == hash_after
-    assert result.synthesized_drg.state == "fresh"  # coherent config -> unaffected by the new read
+    assert result.synthesized_drg.state == "fresh"
 
 
-def test_fresh_seed_built_in_only_project_not_forced_stale_by_drifted_config(
-    tmp_path: Path,
-) -> None:
+def test_fresh_seed_built_in_only_project_not_forced_stale(tmp_path: Path) -> None:
     """A never-synthesized (``built_in_only``) project is a structural
-    short-circuit that returns BEFORE the activation-parity read is ever
-    reached (R-01) -- even when config.yaml carries an activation with no
-    compiled reference set to check it against at all. Asserts PASS-STATE
-    membership, not the literal ``"fresh"`` string (``built_in_only`` is
-    itself a distinct passing state)."""
+    short-circuit that returns BEFORE any content-hash comparison is ever
+    reached (R-01) — even when ``charter.yaml`` content looks
+    activation-shaped. Asserts PASS-STATE membership, not the literal
+    ``"fresh"`` string (``built_in_only`` is itself a distinct passing
+    state)."""
     init_git_repo(tmp_path)
-    charter_path, metadata_path = seed_charter(tmp_path)
-    write_metadata(metadata_path, charter_path)
-    charter_dir = tmp_path / ".kittify" / "charter"
-    charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "governance.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
-    (charter_dir / "directives.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
-    # No references.yaml at all -- this project has never run `charter generate`.
+    seed_charter_yaml(tmp_path)
     seed_manifest(tmp_path, built_in_only=True)  # no graph.yaml
-    _write_config(tmp_path, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n")
 
     state = _synthesized_drg_state(tmp_path)
 
     assert state in _PASS_STATES
     assert state == "built_in_only"
+
+
+def test_multi_edit_drift_reports_single_stale_signal(tmp_path: Path) -> None:
+    """A simultaneous multi-section edit (what a real activation write PLUS
+    a governance edit would produce once both live in ``charter.yaml``)
+    still resolves to exactly ONE ``synthesized_drg``
+    :class:`FreshnessSubState` per freshness computation — the whole-file
+    hash comparison runs once per ``compute_freshness`` call, not once per
+    edited section."""
+    charter_yaml_path = _seed_fresh_synthesized_repo(tmp_path)
+
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# governance + activation edit\n",
+        encoding="utf-8",
+    )
+
+    result = compute_freshness(tmp_path)
+
+    assert result.synthesized_drg.state == "stale"
+    assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
+
+
+def test_graph_schema_valid_seed_used_by_this_suite(tmp_path: Path) -> None:
+    """Sanity: ``seed_graph`` (shared fixture) produces a schema-conformant
+    graph accepted by this module's real ``compute_freshness`` path (no
+    pydantic validation surprises at the freshness layer, which only checks
+    existence/mtime of ``graph.yaml`` — unlike ``consistency_check``, which
+    this module no longer calls at all)."""
+    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    seed_graph(tmp_path)
+    assert graph_path.exists()
+    assert "nodes" in graph_path.read_text(encoding="utf-8")

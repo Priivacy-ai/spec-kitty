@@ -11,7 +11,7 @@ from rich.text import Text
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
-    METADATA_FILENAME,
+    CHARTER_YAML_FILENAME,
     charter_app,
     console,
 )
@@ -96,7 +96,10 @@ def charter_resynthesize(  # noqa: C901
     try:
         repo_root = _charter_pkg.find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
-        if (charter_dir / METADATA_FILENAME).exists():
+        # consolidate-charter-bundle (#2773): gate on the authoritative
+        # charter.yaml, not the retired metadata.yaml (deleted by the fold
+        # migration) — else the bundle-compat check silently no-ops on v2 bundles.
+        if (charter_dir / CHARTER_YAML_FILENAME).exists():
             _charter_pkg._assert_bundle_compatible(charter_dir)
         evidence_result = _charter_pkg._collect_evidence_result(
             repo_root,

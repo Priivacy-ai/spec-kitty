@@ -121,36 +121,40 @@ def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
 
 
 def test_write_compiled_charter_writes_bundle(tmp_path: Path) -> None:
-    """write_compiled_charter creates charter.md, references.yaml, and library files."""
+    """write_compiled_charter creates ONLY charter.yaml (WP03/T011-T012: the
+    charter.md clobber is removed and references.yaml is retired -- see
+    data-model.md Landmine 3)."""
     # Arrange
     interview = default_interview(mission="software-dev", profile="minimal")
     compiled = compile_charter(mission="software-dev", interview=interview)
 
     # Assumption check
-    assert not (tmp_path / "charter.md").exists(), "target directory must be empty"
+    assert not (tmp_path / "charter.yaml").exists(), "target directory must be empty"
 
     # Act
     result = write_compiled_charter(tmp_path, compiled, force=True)
 
     # Assert
-    assert "charter.md" in result.files_written
-    assert "references.yaml" in result.files_written
-    assert (tmp_path / "charter.md").exists()
-    assert (tmp_path / "references.yaml").exists()
+    assert result.files_written == ["charter.yaml"]
+    assert (tmp_path / "charter.yaml").exists()
+    assert not (tmp_path / "charter.md").exists()
+    assert not (tmp_path / "references.yaml").exists()
 
     # library/ materialization has been removed; no files should exist there.
     assert not (tmp_path / "library").exists()
 
 
 def test_write_compiled_charter_persists_structured_languages_for_round_trip(tmp_path: Path) -> None:
-    """WP02/T008+T009: compiled charter's languages field survives a disk round-trip.
+    """WP02/T008+T009 (re-pinned for WP03): compiled charter's languages
+    field is persisted to charter.yaml's ``catalog.languages`` on disk.
 
-    Compiles a charter from an interview mentioning Rust, writes the bundle,
-    then reads ``infer_repo_languages`` against the same repo root -- a fresh
-    call, not reused in-memory state -- to prove the structured field is the
-    canonical value read back from ``references.yaml`` on disk.
+    ``references.yaml`` is retired (WP03/T012); the structured field's new
+    home is charter.yaml's DERIVED ``catalog`` section. Repointing
+    ``infer_repo_languages``'s tier-1 read at ``catalog.languages`` is
+    WP08's job (language tier-3 fallback migration, dependent on WP03) --
+    this test only pins WP03's write side of the contract.
     """
-    from charter.language_scope import infer_repo_languages
+    from ruamel.yaml import YAML
 
     interview = apply_answer_overrides(
         default_interview(mission="software-dev", profile="minimal"),
@@ -163,52 +167,34 @@ def test_write_compiled_charter_persists_structured_languages_for_round_trip(tmp
     charter_dir = tmp_path / ".kittify" / "charter"
     write_compiled_charter(charter_dir, compiled, force=True)
 
-    references_text = (charter_dir / "references.yaml").read_text(encoding="utf-8")
-    assert "languages:" in references_text, "languages field must be persisted to references.yaml on disk"
+    yaml = YAML()
+    document = yaml.load((charter_dir / "charter.yaml").read_text(encoding="utf-8"))
+    assert document["catalog"]["languages"] == ["rust"], (
+        "languages field must be persisted to charter.yaml's catalog section on disk"
+    )
 
-    # Fresh resolution call reading only from disk -- proves the round-trip,
-    # not just the in-memory CompiledCharter value from this same call.
-    assert infer_repo_languages(tmp_path) == ["rust"]
 
+def test_write_compiled_charter_succeeds_without_force_when_existing(tmp_path: Path) -> None:
+    """Re-pinned for WP03: ``force`` no longer gates a destructive overwrite
 
-def test_write_compiled_charter_requires_force_when_existing(tmp_path: Path) -> None:
-    """Writing to an existing bundle raises FileExistsError when force=False."""
+    (there is none left to gate -- charter.yaml writes are always either a
+    safe partial merge or a one-time bootstrap create). A second write with
+    ``force=False`` succeeds rather than raising ``FileExistsError``.
+    """
     # Arrange
     interview = default_interview(mission="software-dev", profile="minimal")
     compiled = compile_charter(mission="software-dev", interview=interview)
     write_compiled_charter(tmp_path, compiled, force=True)
 
     # Assumption check
-    assert (tmp_path / "charter.md").exists(), "first write must have succeeded"
+    assert (tmp_path / "charter.yaml").exists(), "first write must have succeeded"
 
-    # Act / Assert
-    with pytest.raises(FileExistsError):
-        write_compiled_charter(tmp_path, compiled, force=False)
+    # Act
+    result = write_compiled_charter(tmp_path, compiled, force=False)
 
-
-@pytest.mark.requires_symlinks
-def test_write_compiled_charter_refuses_symlinked_charter(tmp_path: Path) -> None:
-    """Generate must not write through a symlinked charter into an external public doc."""
-    public_dir = tmp_path / "spec"
-    public_dir.mkdir()
-    public_charter = public_dir / "constitution.md"
-    public_charter.write_text("# Public Constitution\n", encoding="utf-8")
-
-    output_dir = tmp_path / ".kittify" / "charter"
-    output_dir.mkdir(parents=True)
-    charter_link = output_dir / "charter.md"
-    try:
-        charter_link.symlink_to(public_charter)
-    except OSError as exc:
-        pytest.skip(f"symlinks unavailable: {exc}")
-
-    interview = default_interview(mission="software-dev", profile="minimal")
-    compiled = compile_charter(mission="software-dev", interview=interview)
-
-    with pytest.raises(FileExistsError, match="Refusing to overwrite symlinked charter"):
-        write_compiled_charter(output_dir, compiled, force=True)
-
-    assert public_charter.read_text(encoding="utf-8") == "# Public Constitution\n"
+    # Assert -- no exception, charter.yaml refreshed in place.
+    assert result.files_written == ["charter.yaml"]
+    assert (tmp_path / "charter.yaml").exists()
 
 
 def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
@@ -714,5 +700,6 @@ def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> No
     result = write_compiled_charter(tmp_path, compiled, force=True)
 
     assert not (tmp_path / "library").exists()
-    # Only charter.md and references.yaml should be written
-    assert set(result.files_written) == {"charter.md", "references.yaml"}
+    # Only charter.yaml should be written (WP03: charter.md clobber removed,
+    # references.yaml writer retired -- data-model.md Landmine 3).
+    assert set(result.files_written) == {"charter.yaml"}

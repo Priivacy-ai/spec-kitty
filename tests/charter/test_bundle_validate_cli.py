@@ -25,14 +25,18 @@ pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
 runner = CliRunner()
 
-# The three derived files mirror src/charter/sync.py :: _SYNC_OUTPUT_FILES.
-_DERIVED = [
-    ".kittify/charter/governance.yaml",
-    ".kittify/charter/directives.yaml",
-    ".kittify/charter/metadata.yaml",
-]
+# consolidate-charter-bundle (WP07): manifest v2 retires the three sync-derived
+# files and references.yaml. ``charter.yaml`` joins ``charter.md`` as the
+# git-tracked surface; ``derived_files`` and ``gitignore_required_entries`` are
+# both empty (CANONICAL_MANIFEST, src/charter/bundle.py).
+_DERIVED: list[str] = []
 _TRACKED = ".kittify/charter/charter.md"
-_GITIGNORE_REQUIRED = sorted(_DERIVED)
+_CHARTER_YAML = ".kittify/charter/charter.yaml"
+_GITIGNORE_REQUIRED: list[str] = []
+# Minimal v2 charter.yaml. ``get_bundle_schema_version`` (doctrine/versioning.py)
+# dict-walks ``metadata.bundle_schema_version``, so the compatibility gate reads
+# "2" from here (the retired ``metadata.yaml`` top-level key is gone).
+_CHARTER_YAML_BODY = 'schema_version: "2.0.0"\nmetadata:\n  bundle_schema_version: 2\n'
 
 
 def _add_doctrine_artifact(repo_root: Path, rel_path: str, content: str = "# artifact\n") -> Path:
@@ -193,20 +197,14 @@ def _write_compliant_bundle(repo_root: Path) -> None:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# charter\n", encoding="utf-8")
-    for rel in _DERIVED:
-        if rel == ".kittify/charter/metadata.yaml":
-            (repo_root / rel).write_text(
-                "bundle_schema_version: 2\n", encoding="utf-8"
-            )
-        else:
-            (repo_root / rel).write_text("# derived\n", encoding="utf-8")
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML_BODY, encoding="utf-8")
     gitignore = repo_root / ".gitignore"
     gitignore.write_text(
-        "\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8"
+        "# charter bundle v2: no ignored derived files\n", encoding="utf-8"
     )
-    # Track charter.md.
+    # Track both charter.md and charter.yaml (manifest v2 tracked surface).
     subprocess.run(
-        ["git", "add", _TRACKED, ".gitignore"],
+        ["git", "add", _TRACKED, _CHARTER_YAML, ".gitignore"],
         cwd=str(repo_root),
         check=True,
     )
@@ -246,7 +244,7 @@ def test_validate_passes_on_compliant_bundle(compliant_repo: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["bundle_compliant"] is True
     assert payload["result"] == "success"
-    assert payload["manifest_schema_version"] == "1.0.0"
+    assert payload["manifest_schema_version"] == "2.0.0"
     assert payload["tracked_files"]["missing"] == []
     assert payload["derived_files"]["missing"] == []
     assert payload["gitignore"]["missing_entries"] == []
@@ -299,20 +297,23 @@ def test_validate_fails_on_missing_tracked_file(compliant_repo: Path) -> None:
     assert _TRACKED in payload["tracked_files"]["missing"]
 
 
-def test_validate_fails_on_missing_gitignore_entry(compliant_repo: Path) -> None:
-    # Remove one required entry from .gitignore.
+def test_validate_v2_requires_no_gitignore_entries(compliant_repo: Path) -> None:
+    """Manifest v2 retires the four bundle files, so no .gitignore entry is required.
+
+    consolidate-charter-bundle (WP07): the pre-v2 contract failed a bundle whose
+    ``.gitignore`` dropped one of the derived-file entries. v2 has
+    ``gitignore_required_entries == []``, so the bundle stays compliant regardless
+    of unrelated ``.gitignore`` edits — there is no derived surface left to ignore.
+    """
     gitignore_path = compliant_repo / ".gitignore"
-    lines = gitignore_path.read_text(encoding="utf-8").splitlines()
-    kept = [line for line in lines if line != ".kittify/charter/metadata.yaml"]
-    gitignore_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    gitignore_path.write_text("# unrelated operator content\n", encoding="utf-8")
 
     result = _invoke_validate_json()
-    assert result.exit_code == 1, result.output
+    assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["bundle_compliant"] is False
-    assert ".kittify/charter/metadata.yaml" in payload["gitignore"][
-        "missing_entries"
-    ]
+    assert payload["bundle_compliant"] is True
+    assert payload["gitignore"]["expected_entries"] == []
+    assert payload["gitignore"]["missing_entries"] == []
 
 
 def test_validate_exits_2_on_non_repo_path(non_repo_path: Path) -> None:
@@ -334,20 +335,12 @@ def test_validate_fails_when_charter_md_is_untracked(
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# charter\n", encoding="utf-8")
-    for rel in _DERIVED:
-        if rel == ".kittify/charter/metadata.yaml":
-            (tmp_path / rel).write_text(
-                "bundle_schema_version: 2\n", encoding="utf-8"
-            )
-        else:
-            (tmp_path / rel).write_text("# derived\n", encoding="utf-8")
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML_BODY, encoding="utf-8")
     gitignore = tmp_path / ".gitignore"
-    gitignore.write_text(
-        "\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8"
-    )
-    # Commit .gitignore only, so charter.md is present but untracked.
+    gitignore.write_text("# charter bundle v2\n", encoding="utf-8")
+    # Commit charter.yaml + .gitignore only, so charter.md is present but untracked.
     subprocess.run(
-        ["git", "add", ".gitignore"], cwd=str(tmp_path), check=True
+        ["git", "add", _CHARTER_YAML, ".gitignore"], cwd=str(tmp_path), check=True
     )
     subprocess.run(
         ["git", "commit", "-q", "-m", "seed"], cwd=str(tmp_path), check=True
@@ -583,8 +576,11 @@ def test_validate_json_is_strict_on_manifest_mismatch(compliant_repo: Path) -> N
 
 def test_validate_json_is_strict_on_incompatible_bundle(compliant_repo: Path) -> None:
     """FR-005/FR-006: incompatible bundle failures still emit JSON to stdout."""
-    (compliant_repo / ".kittify" / "charter" / "metadata.yaml").write_text(
-        "bundle_schema_version: 999\n", encoding="utf-8"
+    # consolidate-charter-bundle (WP07): the schema version now lives under
+    # charter.yaml ``metadata.bundle_schema_version`` (retired metadata.yaml).
+    (compliant_repo / ".kittify" / "charter" / "charter.yaml").write_text(
+        'schema_version: "2.0.0"\nmetadata:\n  bundle_schema_version: 999\n',
+        encoding="utf-8",
     )
 
     result = runner.invoke(charter_bundle.app, ["validate", "--json"])

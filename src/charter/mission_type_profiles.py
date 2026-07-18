@@ -59,10 +59,11 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from ruamel.yaml import YAML
 
 from charter.action_grain import aggregate_action_grain
 from charter.activations import ActivationEntry
+from charter.bundle import CHARTER_YAML
+from charter.charter_yaml_io import load_charter_yaml
 from charter.mission_type_key import canonical_mission_type_key
 
 if TYPE_CHECKING:
@@ -948,31 +949,33 @@ def _load_mission_type_profile(
 # ---------------------------------------------------------------------------
 
 
-_PROJECT_GOVERNANCE_PATH: tuple[str, ...] = (".kittify", "charter", "governance.yaml")
-
-
 def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     """Return ``True`` iff the project charter declares any selection.
 
-    A project "has overrides" when its ``.kittify/charter/governance.yaml``
-    carries a ``doctrine:`` block with at least one non-empty ``selected_<kind>``
-    list.  This is consulted by the governance slot to decide whether an unknown
-    ``mission_type`` should hard-fail (no overrides) or merely skip the missing
-    profile (overrides present).
+    IC-04 (WP04): re-pointed from the retired ``.kittify/charter/
+    governance.yaml`` onto ``charter.yaml``'s ``governance:`` section — a
+    project "has overrides" when ``charter.yaml``'s ``governance.doctrine``
+    carries at least one non-empty ``selected_<kind>`` list. This is
+    consulted by the governance slot to decide whether an unknown
+    ``mission_type`` should hard-fail (no overrides) or merely skip the
+    missing profile (overrides present).
 
-    Best-effort: any I/O or parse failure collapses to ``False`` so a malformed
-    governance file never silences the hard-fail contract.
+    Best-effort: any I/O or parse failure collapses to ``False`` so a
+    malformed charter.yaml never silences the hard-fail contract.
     """
-    governance_yaml = repo_root.joinpath(*_PROJECT_GOVERNANCE_PATH)
-    if not governance_yaml.exists():
+    charter_yaml_path = repo_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
         return False
     try:
-        data = YAML(typ="safe").load(governance_yaml.read_text(encoding="utf-8"))
+        data = load_charter_yaml(charter_yaml_path)
     except Exception:  # noqa: BLE001 — best-effort governance probe
         return False
     if not isinstance(data, dict):
         return False
-    doctrine = data.get("doctrine")
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        return False
+    doctrine = governance.get("doctrine")
     if not isinstance(doctrine, dict):
         return False
     for key, value in doctrine.items():

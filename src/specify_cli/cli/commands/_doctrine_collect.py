@@ -544,21 +544,24 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
     """Read project-charter ``selected_<kind>`` lists (best-effort, FR-018).
 
     We intentionally bypass ``charter.sync.load_governance_config`` here: that
-    loader runs the charter auto-sync pipeline (and requires a git repository).
-    The Selections section is a diagnostic — it MUST work in any working tree,
-    including freshly-bootstrapped tmp fixtures and non-git operator
-    workspaces.  Reading the YAML directly preserves accuracy while keeping the
-    diagnostic side-effect-free.  Missing/malformed YAML degrades to empty lists.
+    loader resolves the canonical (main-checkout) repo root, which requires a
+    git repository. The Selections section is a diagnostic — it MUST work in
+    any working tree, including freshly-bootstrapped tmp fixtures and non-git
+    operator workspaces. Reading ``charter.yaml``'s ``governance:`` section
+    directly (IC-04 / WP04 — re-pointed from the retired ``governance.yaml``)
+    preserves accuracy while keeping the diagnostic side-effect-free and
+    git-independent. Missing/malformed YAML degrades to empty lists.
     """
     selections: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
-    governance_yaml = repo_root / ".kittify" / "charter" / "governance.yaml"
-    if not governance_yaml.exists():
+    charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+    if not charter_yaml.exists():
         return selections
     try:
-        from ruamel.yaml import YAML as _YAML
+        from charter.charter_yaml_io import load_charter_yaml
 
-        data = _YAML(typ="safe").load(governance_yaml.read_text(encoding="utf-8"))
-        doctrine_block = (data or {}).get("doctrine") or {}
+        data = load_charter_yaml(charter_yaml)
+        governance_block = (data or {}).get("governance") or {}
+        doctrine_block = governance_block.get("doctrine") or {}
         for kind in _SELECTION_KIND_PLURALS:
             value = doctrine_block.get(f"selected_{kind}")
             if isinstance(value, list):

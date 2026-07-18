@@ -58,6 +58,30 @@ def _make_minimal_report() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Manifest v2 shape (WP01 / T002) — construct + validate guarantees M1/M2
+# ---------------------------------------------------------------------------
+
+
+class TestManifestV2Shape:
+    def test_manifest_v2_constructs_and_validates(self) -> None:
+        """Manifest v2 constructs without raising (the model_validator
+        disjointness check passes for the canonical v2 shape)."""
+        from charter.bundle import CANONICAL_MANIFEST
+
+        assert CANONICAL_MANIFEST.schema_version == "2.0.0"
+
+    def test_derived_files_is_empty(self) -> None:
+        from charter.bundle import CANONICAL_MANIFEST
+
+        assert CANONICAL_MANIFEST.derived_files == []
+
+    def test_content_hash_files_is_charter_yaml(self) -> None:
+        from charter.bundle import CANONICAL_MANIFEST, CHARTER_YAML
+
+        assert CANONICAL_MANIFEST.content_hash_files == [CHARTER_YAML]
+
+
+# ---------------------------------------------------------------------------
 # Bucket B — Filesystem I/O helpers
 # ---------------------------------------------------------------------------
 

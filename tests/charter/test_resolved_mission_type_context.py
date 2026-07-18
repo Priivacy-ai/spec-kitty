@@ -327,10 +327,17 @@ class TestResolvedTemplateSet:
         self, tmp_path: Path
     ) -> None:
         _write_config(tmp_path, ["software-dev"])
+        # consolidate-charter-bundle (IC-04 / WP04, T028c):
+        # _project_has_doctrine_overrides now reads charter.yaml's
+        # governance.doctrine.selected_* -- the retired governance.yaml is
+        # never consulted.
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)
-        (charter_dir / "governance.yaml").write_text(
-            "doctrine:\n  selected_directives:\n    - DIRECTIVE_001\n",
+        (charter_dir / "charter.yaml").write_text(
+            "governance:\n"
+            "  doctrine:\n"
+            "    selected_directives:\n"
+            "      - DIRECTIVE_001\n",
             encoding="utf-8",
         )
         _write_profile_template_override(

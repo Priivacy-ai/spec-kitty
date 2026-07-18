@@ -163,24 +163,41 @@ def check_bundle_compatibility(bundle_version: int | None) -> BundleCompatibilit
 
 
 def get_bundle_schema_version(charter_dir: Path) -> int | None:
-    """Read the bundle_schema_version integer from <charter_dir>/metadata.yaml.
+    """Read the bundle_schema_version integer from <charter_dir>/charter.yaml.
+
+    consolidate-charter-bundle (WP07 / T030): re-pointed from the retired
+    ``<charter_dir>/metadata.yaml`` top-level ``bundle_schema_version`` key
+    onto ``<charter_dir>/charter.yaml``'s ``metadata.bundle_schema_version``
+    (``charter.schemas.CharterYamlMetadata`` -- data-model.md keeps this
+    one field across the Landmine 2 retirement of ``charter_hash`` /
+    ``extraction_mode`` / ``sections_parsed``). Callers pass the SAME
+    ``charter_dir`` (``.kittify/charter/``) as before; only the filename and
+    the nesting under ``metadata:`` changed. This module must not import
+    ``charter.*`` (dependency direction: charter -> doctrine, never
+    reversed), so the read is a plain YAML dict-walk, not a pydantic
+    validation.
 
     Args:
-        charter_dir: Path to the charter bundle directory containing metadata.yaml.
+        charter_dir: Path to the charter bundle directory containing
+            charter.yaml.
 
     Returns:
-        Integer schema version, or None if the file is absent, the key is absent,
-        the value is null, or the value is not an integer.
+        Integer schema version, or None if the file is absent, the
+        ``metadata`` section or ``bundle_schema_version`` key is absent, the
+        value is null, or the value is not an integer.
         Never raises.
     """
-    metadata_path = charter_dir / "metadata.yaml"
-    if not metadata_path.exists():
+    charter_yaml_path = charter_dir / "charter.yaml"
+    if not charter_yaml_path.exists():
         return None
     yaml = YAML()
-    data = yaml.load(metadata_path)
+    data = yaml.load(charter_yaml_path)
     if not isinstance(data, dict):
         return None
-    value = data.get("bundle_schema_version")
+    metadata = data.get("metadata")
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get("bundle_schema_version")
     if not isinstance(value, int):
         return None
     return value
@@ -301,7 +318,8 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
 
     Adds the mandatory Phase 7 fields to provenance sidecars and the
     synthesis manifest, and stamps ``bundle_schema_version: 2`` in
-    ``metadata.yaml``.
+    ``charter.yaml``'s ``metadata:`` section (consolidate-charter-bundle
+    #2773 re-homed this from the retired ``metadata.yaml``; see the body).
 
     Sentinel values are used for fields that cannot be reconstructed from
     the v1 state:
@@ -414,29 +432,49 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
                     errors.append(f"Failed to write synthesis-manifest.yaml: {exc}")
 
     # -------------------------------------------------------------------------
-    # 3. Update metadata.yaml — stamp bundle_schema_version: 2
+    # 3. Update charter.yaml's metadata section — stamp bundle_schema_version: 2
+    #
+    # consolidate-charter-bundle (WP07 / T030): re-pointed from the retired
+    # <bundle_root>/metadata.yaml (folded into charter.yaml, then deleted)
+    # onto <bundle_root>/charter.yaml's metadata: section -- the SAME
+    # file/section get_bundle_schema_version() now reads (this function is
+    # its counterpart writer). This module must not import charter.*
+    # (dependency direction: charter -> doctrine, never reversed), so the
+    # write is a plain round-trip YAML dict-walk via the same `_yaml`
+    # instance already used above, touching only the metadata.
+    # bundle_schema_version key -- every other top-level section
+    # (governance/directives/catalog/activation) loaded from disk is
+    # re-dumped unchanged. Guarded on existence: a project that has not
+    # run the WP07 fold migration yet has no charter.yaml, and this step
+    # correctly no-ops rather than fabricating one.
     # -------------------------------------------------------------------------
-    metadata_path = bundle_root / "metadata.yaml"
-    if metadata_path.exists():
+    charter_yaml_path = bundle_root / "charter.yaml"
+    if charter_yaml_path.exists():
         try:
-            metadata = _yaml.load(metadata_path)
+            charter_yaml_data = _yaml.load(charter_yaml_path)
         except Exception as exc:  # noqa: BLE001
-            errors.append(f"Failed to load metadata.yaml: {exc}")
-            metadata = None
+            errors.append(f"Failed to load charter.yaml: {exc}")
+            charter_yaml_data = None
 
-        if isinstance(metadata, dict) and metadata.get("bundle_schema_version") != 2:
-            metadata["bundle_schema_version"] = 2
+        if isinstance(charter_yaml_data, dict):
+            metadata_section = charter_yaml_data.get("metadata")
+            if not isinstance(metadata_section, dict):
+                metadata_section = {}
+                charter_yaml_data["metadata"] = metadata_section
 
-            changes_made.append(str(metadata_path))
-            if not dry_run:
-                try:
-                    import io as _io
+            if metadata_section.get("bundle_schema_version") != 2:
+                metadata_section["bundle_schema_version"] = 2
 
-                    buf = _io.BytesIO()
-                    _yaml.dump(metadata, buf)
-                    metadata_path.write_bytes(buf.getvalue())
-                except Exception as exc:  # noqa: BLE001
-                    errors.append(f"Failed to write metadata.yaml: {exc}")
+                changes_made.append(str(charter_yaml_path))
+                if not dry_run:
+                    try:
+                        import io as _io
+
+                        buf = _io.BytesIO()
+                        _yaml.dump(charter_yaml_data, buf)
+                        charter_yaml_path.write_bytes(buf.getvalue())
+                    except Exception as exc:  # noqa: BLE001
+                        errors.append(f"Failed to write charter.yaml: {exc}")
 
     return MigrationResult(
         changes_made=changes_made,

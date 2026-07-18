@@ -31,25 +31,32 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .hasher import hash_content
 
-SCHEMA_VERSION: str = "1.0.0"
+SCHEMA_VERSION: str = "2.0.0"
 CHARTER_MD = Path(".kittify/charter/charter.md")
 GOVERNANCE_YAML = Path(".kittify/charter/governance.yaml")
 DIRECTIVES_YAML = Path(".kittify/charter/directives.yaml")
 METADATA_YAML = Path(".kittify/charter/metadata.yaml")
 
-# Synthesized-DRG freshness content-identity input set (synthesized-drg-
-# stale-refresh mission). Intentionally the SAME four names as
-# ``specify_cli.charter_runtime.freshness.computer::_BUNDLE_FILES`` — minor
-# duplication (data-model.md Decision 5) to avoid pulling ``charter.bundle``
-# into that module's eager import path for the unrelated
-# ``_compute_synced_bundle`` code path. Do NOT import this constant from the
-# ``specify_cli`` reader — that would invert the dependency direction.
-BUNDLE_CONTENT_HASH_FILES: tuple[str, ...] = (
-    "governance.yaml",
-    "directives.yaml",
-    "references.yaml",
-    "metadata.yaml",
-)
+#: consolidate-charter-bundle (WP01 / T004): the ONE shared ``charter.yaml``
+#: filename constant. ``charter.yaml`` is the git-tracked, authorable
+#: structured charter introduced by manifest v2.0.0 (data-model.md, contracts/
+#: charter-yaml-schema.md). Import THIS constant rather than re-declaring the
+#: literal path — the existing duplicated filename sets (this module's
+#: Path-form constants + ``sync.py``'s str-form ``_*_FILENAME`` constants) are
+#: reconciled onto this single source as their owning WPs land (S1192
+#: pre-emption; do NOT re-scatter a second copy of the ``charter.yaml`` name).
+CHARTER_YAML = Path(".kittify/charter/charter.yaml")
+
+# Content-identity input set for the charter bundle's freshness hash
+# (synthesized-drg-stale-refresh mission originally; re-scoped by
+# consolidate-charter-bundle WP01 manifest v2). Post-inversion the ONLY
+# content-hash input is ``charter.yaml`` itself — the four legacy derived
+# files (governance/directives/references/metadata) it replaces are retired
+# (data-model.md Landmine 1/contracts/manifest-v2.md M1). Do NOT import this
+# constant from the ``specify_cli`` reader — that would invert the dependency
+# direction (mirrors ``specify_cli.charter_runtime.freshness.computer::
+# _BUNDLE_FILES``, which independently owns its own copy).
+BUNDLE_CONTENT_HASH_FILES: tuple[str, ...] = ("charter.yaml",)
 
 # Synthesis state paths (all relative to repo root)
 SYNTHESIS_MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
@@ -73,13 +80,25 @@ class CharterBundleManifest(BaseModel):
     tracked_files: list[Path] = Field(min_length=1)
     derived_files: list[Path]
     derivation_sources: dict[Path, Path]
+    content_hash_files: list[Path] = Field(default_factory=list)
+    """The content-hash input set (v2.0.0 / M1) — a field DISTINCT from
+    ``derived_files``. Sourced from :data:`BUNDLE_CONTENT_HASH_FILES`. This
+    field is deliberately NOT included in the ``tracked ∩ derived = ∅``
+    disjointness check below: it was always a separate concern (the historic
+    4-vs-3 file-count mismatch between the old ``BUNDLE_CONTENT_HASH_FILES``
+    tuple and ``derived_files`` is exactly that distinction, made explicit).
+    Landmine 1 (data-model.md): do NOT fold this into ``derived_files`` —
+    ``charter.yaml`` is tracked/authored, not derived."""
     gitignore_required_entries: list[str]
 
     model_config = ConfigDict(frozen=True)
 
     @model_validator(mode="after")
     def _validate(self) -> CharterBundleManifest:
-        # No path may appear in both tracked and derived.
+        # No path may appear in both tracked and derived. UNTOUCHED by the
+        # v2.0.0 manifest bump (Landmine 1 / M2) — charter.yaml lives only in
+        # tracked_files, never derived_files, so this invariant continues to
+        # hold without modification.
         tracked = set(self.tracked_files)
         derived = set(self.derived_files)
         overlap = tracked & derived
@@ -106,22 +125,11 @@ class CharterBundleManifest(BaseModel):
 
 CANONICAL_MANIFEST: CharterBundleManifest = CharterBundleManifest(
     schema_version=SCHEMA_VERSION,
-    tracked_files=[CHARTER_MD],
-    derived_files=[
-        GOVERNANCE_YAML,
-        DIRECTIVES_YAML,
-        METADATA_YAML,
-    ],
-    derivation_sources={
-        GOVERNANCE_YAML: CHARTER_MD,
-        DIRECTIVES_YAML: CHARTER_MD,
-        METADATA_YAML: CHARTER_MD,
-    },
-    gitignore_required_entries=[
-        str(DIRECTIVES_YAML),
-        str(GOVERNANCE_YAML),
-        str(METADATA_YAML),
-    ],
+    tracked_files=[CHARTER_MD, CHARTER_YAML],
+    derived_files=[],
+    derivation_sources={},
+    content_hash_files=[CHARTER_YAML],
+    gitignore_required_entries=[],
 )
 
 
@@ -135,16 +143,20 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
 
     Hashes each file in :data:`BUNDLE_CONTENT_HASH_FILES` (declared order)
     INDEPENDENTLY via :func:`charter.hasher.hash_content` (per-file BOM-strip
-    + CRLF-normalize), then combines the four ``"sha256:..."`` digests
+    + CRLF-normalize), then combines the per-file ``"sha256:..."`` digests
     deterministically by hashing their newline-joined concatenation. Per-file
     hashing (not concat-then-hash-once) is required: ``canonical_yaml`` only
     strips a *leading* BOM of a whole payload, so a BOM on a non-first file
     would otherwise survive undetected (data-model.md fact #14).
 
-    This is the single canonical write-side hashing recipe (C-005). It is
-    **pure and unwired** in this WP — no production caller imports it yet;
-    writers (WP02) and the freshness reader (WP03) both route through it so
-    there is exactly one recipe.
+    consolidate-charter-bundle (#2773): the input set is now the single
+    authoritative ``charter.yaml`` (the four legacy files were folded into it),
+    so the recipe hashes one file today; the per-file loop is retained so the
+    contract stays correct if the input set ever grows again.
+
+    This is the single canonical write-side hashing recipe (C-005): the writers
+    and the freshness reader both route through it so there is exactly one
+    recipe.
 
     Parameters
     ----------
@@ -156,7 +168,7 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
     str | None
         ``"sha256:<hex>"``, deterministic for fixed file content
         (mtime-agnostic). ``None`` — fail-safe, never raises — when
-        ``.kittify/charter/`` is missing OR any of the four files is
+        ``.kittify/charter/`` is missing OR any hashed file is
         individually missing or unreadable (``OSError``,
         ``UnicodeDecodeError`` — a non-UTF-8 file raises the latter, which is
         NOT an ``OSError`` subclass and must be caught explicitly). The
@@ -195,16 +207,14 @@ def first_missing_bundle_file(repo_root: Path) -> str | None:
 
     Callers that need to know *which* file is missing before doing work that
     assumes a complete bundle (issue #2758) use this instead of interpreting
-    a bare ``None`` from :func:`compute_bundle_content_hash`. Concretely:
-    ``sync()`` refreshes ``governance.yaml`` / ``directives.yaml`` /
-    ``metadata.yaml`` automatically, but ``references.yaml`` is written only
-    by ``charter generate`` (:func:`charter.compiler.compile_charter`) — a
-    synced-but-not-generated project has three of the four files present and
-    would otherwise silently persist an un-healable ``None`` bundle-content
-    hash into the synthesis manifest, which the freshness reader
-    (``specify_cli.charter_runtime.freshness.computer``) then reports as
-    permanently ``stale`` with no way for a re-run of ``synthesize`` to
-    self-heal (it never compiles ``references.yaml`` itself).
+    a bare ``None`` from :func:`compute_bundle_content_hash`. consolidate-charter-bundle
+    (#2773): the input set is now the single authoritative ``charter.yaml``, so
+    this returns that path when the bundle has not been generated yet — the
+    fail-loud chokepoints raise an actionable "run the migration / charter
+    generate" error instead of silently persisting an un-healable ``None``
+    bundle-content hash that the freshness reader
+    (``specify_cli.charter_runtime.freshness.computer``) would report as
+    permanently ``stale``.
 
     Parameters
     ----------
@@ -456,6 +466,7 @@ def _find_artifact(doctrine_root: Path, kind: str, slug: str) -> Path | None:
 
 __all__ = [
     "CANONICAL_MANIFEST",
+    "CHARTER_YAML",
     "CharterBundleManifest",
     "SCHEMA_VERSION",
     # synthesized-drg-stale-refresh (BUNDLE_CONTENT_HASH_FILES is intentionally

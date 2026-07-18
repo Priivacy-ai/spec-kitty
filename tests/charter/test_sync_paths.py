@@ -1,4 +1,11 @@
-"""Coverage for charter sync path helpers."""
+"""Coverage for charter sync path helpers.
+
+consolidate-charter-bundle (IC-04 / WP04, T028c): ``sync()``'s
+prose->triad write is retired -- it always reports ``synced=False`` /
+``files_written=[]`` now. Canonical-root resolution
+(``ensure_charter_bundle_fresh``) and the ``charter.yaml``-sourced
+governance/directives loaders are unaffected.
+"""
 
 from importlib import import_module
 from pathlib import Path
@@ -6,12 +13,6 @@ from pathlib import Path
 import pytest
 
 pytestmark = pytest.mark.fast
-
-EXPECTED_CHARTER_FILES = [
-    "governance.yaml",
-    "directives.yaml",
-    "metadata.yaml",
-]
 
 SAMPLE_CHARTER = """# Testing Standards
 
@@ -30,8 +31,8 @@ def test_sync_path_helpers_use_standard_bundle_paths(tmp_path: Path) -> None:
 
     result = charter_sync.sync(charter_path, charter_dir, force=True)
 
-    assert result.synced is True
-    assert result.files_written == EXPECTED_CHARTER_FILES
+    assert result.synced is False
+    assert result.files_written == []
 
     refresh_result = charter_sync.ensure_charter_bundle_fresh(tmp_path)
     assert refresh_result is not None
