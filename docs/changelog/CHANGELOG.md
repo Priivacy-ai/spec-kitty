@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-13'
+updated: '2026-07-18'
 ---
 # Changelog
 
@@ -87,6 +87,34 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Mission squash merge no longer clobbers target-newer acceptance provenance or traces (#2709).**
+  The supported squash merge ran `git merge --squash -X theirs` on every conflicting file,
+  silently reverting target-newer `meta.json` acceptance/VCS fields (and `traces/*.md`
+  sections) to the older mission-branch copies, and the coord→target projection
+  blind-overwrote the durable event log and `status.json`. Merges now reconcile **per
+  artifact class**: planning artifacts stay mission-authoritative (`-X theirs` intent from
+  #1732 preserved), while `meta.json` acceptance/VCS keys field-merge target-authoritative
+  with `acceptance_history` unioned and `traces/*.md` do a line-level union — via new
+  `spec-kitty merge-driver-meta` / `merge-driver-traces` git drivers whose activation is
+  scoped to the ephemeral squash merge (they no longer leak into a later `auto_rebase`). The
+  projection unions the event log via `merge_event_payloads` and rematerializes `status.json`
+  from the reduced log instead of a blind copy. Seeded by migration `m_3_2_6`. Ships with a
+  red-first reproduction and two class-closing architectural lints (no-blind-copy over the
+  projection path + driver-registry completeness sourced from the canonical artifact-kind
+  registry).
+- **Merge rollback and `--resume` stay coherent after a failed target advance (#2711).**
+  When target advancement failed after `approved → done` events were committed to the
+  coordination branch, rollback reverted only working-tree bytes — leaving a committed `done`
+  opposed to a reverted working `approved` — and `spec-kitty merge --resume` re-emitted a
+  fresh `done` (non-idempotent). Rollback now reverts the coordination `done` commit
+  (coord-worktree `git revert`, sourced from the canonical write-target ref; never a raw
+  `update-ref`), and `--resume` derives progress from the durable committed event log with
+  `MergeState.completed_wps` demoted to an advisory hint — so committed and working status
+  stay coherent and resume is `event_id`-stable. INV-5 (#1827) merge-phase ordering is
+  preserved. Ships with a red-first reproduction and a resume non-reemission property guard.
+  Tracked follow-ups: **#2786** (write a durable reconcile marker when the rollback revert
+  itself fails) and **#2794** (a `SPEC_KITTY_SYNC_MINIMAL_IMPORT` test-isolation leak that
+  skips the pre-review gate under the parallel CI suite).
 - **`--json` output is now plain regardless of terminal colour; CLI tests are colour-deterministic (#2632).**
   Under a colour-forcing harness (e.g. `FORCE_COLOR=3`) Rich syntax-highlighted `--json`
   output — splicing ANSI escapes into the payload so `json.loads` and `| jq` choked — and
