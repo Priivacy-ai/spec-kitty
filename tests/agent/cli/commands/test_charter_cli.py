@@ -198,6 +198,56 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
         assert data["references_count"] >= 1
 
 
+@pytest.mark.regression
+def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path) -> None:
+    """RED-FIRST P0 reproduction of #2772 — intentional expected-red, BLOCKING.
+
+    ``spec-kitty charter generate --force`` regenerates the human-facing
+    ``charter.md`` from the interview/default template, DESTROYING curated
+    prose: recompiling the bundle to add a single reference produced a
+    1237-line clobber of the curated v1.3.0 charter during the #2767 landing,
+    forcing a ``git checkout HEAD -- charter.md`` to recover it. ``charter.md``
+    is a curated reference and is NOT a charter-resolving input (resolving keys
+    off the structured bundle — ``config.yaml`` / ``references.yaml``), so
+    refresh / generate MUST preserve it.
+
+    This reproduces the defect through the exact ``generate --force`` entry
+    point named in the issue and asserts the curated prose survives. It fails
+    on main because of the product defect (not a test error). It is marked
+    ``@pytest.mark.regression`` for the red-first regime while KEEPING its
+    ``integration``/``git_repo`` slice (module ``pytestmark``) so a BLOCKING CI
+    job selects it — an open P0 is expected to red mainline (ADR 2026-07-17-1),
+    never shunted to the non-blocking ``regression-visibility`` lane. Un-mark
+    ``@regression`` when #2772 lands the preserve-curated-charter fix.
+    Tracking: #2772 (epic #2519).
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git_init(repo_root)
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    curated_sentinel = (
+        "CURATED-PROSE-SENTINEL-2772: hand-authored governance narrative "
+        "that charter refresh must never destroy."
+    )
+    (charter_dir / "charter.md").write_text(
+        f"# Curated Charter (v1.3.0)\n\n{curated_sentinel}\n", encoding="utf-8"
+    )
+
+    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = repo_root
+
+        result = runner.invoke(app, ["generate", "--force", "--json", "--no-from-interview"])
+
+    assert result.exit_code == 0, result.stdout
+    surviving = (charter_dir / "charter.md").read_text(encoding="utf-8")
+    assert curated_sentinel in surviving, (
+        "#2772: `charter generate --force` clobbered curated charter.md prose — "
+        "the curated sentinel was destroyed by regeneration; charter.md must be "
+        "preserved as a curated reference, not overwritten from the template."
+    )
+
+
 def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
