@@ -641,9 +641,14 @@ def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
     yields an ``error`` finding; a marker whose ref re-derives coherent is stale
     and yields NO finding (US2-S5, the load-bearing negative AC).
     """
+    from mission_runtime import MissionArtifactKind
+
     from specify_cli.coordination.coherence import coord_incoherent_done_wps
     from specify_cli.merge.state import iter_pending_coord_reconcile_markers
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        resolve_planning_read_dir,
+    )
 
     findings: list[DoctorFinding] = []
     for state in iter_pending_coord_reconcile_markers(repo_root):
@@ -652,9 +657,15 @@ def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
             continue
         coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
         try:
-            feature_dir = primary_feature_dir_for_mission(repo_root, state.mission_slug)
-        except ValueError:
-            # Unsafe mission_slug path segment — skip rather than crash the doctor.
+            # Same canonicalizing WORK_PACKAGE_TASK read seam the executor's mark/heal
+            # use (folds a bare handle → `<slug>-<mid8>`), so all three strand sites
+            # resolve the identical feature_dir — a raw resolver here would read a
+            # divergent path on a non-canonical slug and silently miss the strand.
+            feature_dir = resolve_planning_read_dir(
+                repo_root, state.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+            )
+        except (ValueError, MissionSelectorAmbiguous):
+            # Unsafe/ambiguous mission_slug — skip rather than crash the doctor.
             continue
         remaining = coord_incoherent_done_wps(
             coord_ref, candidate_wps, repo_root=repo_root, feature_dir=feature_dir,
@@ -705,8 +716,13 @@ def _fix_stranded_reverts(findings: list[DoctorFinding], repo_root: Path) -> lis
     ``--fix`` run twice is byte-stable and the marker is cleared exactly once.
     Never re-implements the revert. Returns the mission slugs healed on this call.
     """
+    from mission_runtime import MissionArtifactKind
+
     from specify_cli.coordination.coherence import repair_coord_strand
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        resolve_planning_read_dir,
+    )
 
     healed: list[str] = []
     for f in findings:
@@ -718,7 +734,15 @@ def _fix_stranded_reverts(findings: list[DoctorFinding], repo_root: Path) -> lis
         if parsed is None or not isinstance(mission_id, str) or not isinstance(mission_slug, str):
             continue
         coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
-        feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        try:
+            # Mirror the check + the executor: the canonicalizing WORK_PACKAGE_TASK
+            # read seam (one feature_dir authority across all three strand sites).
+            feature_dir = resolve_planning_read_dir(
+                repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+            )
+        except (ValueError, MissionSelectorAmbiguous):
+            # Unsafe/ambiguous mission_slug — skip rather than crash the fix pass.
+            continue
         outcome = repair_coord_strand(
             coord_ref=coord_ref,
             captured_sha=captured_sha,
