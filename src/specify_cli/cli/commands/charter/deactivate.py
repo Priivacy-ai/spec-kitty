@@ -42,7 +42,9 @@ from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 from charter.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter.activate import (
+    RESYNTHESIZE_HELP,
     render_pack_config_error,
+    run_resynthesize_pipeline,
     validate_pack_config,
 )
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
@@ -174,6 +176,11 @@ def deactivate_cmd(
             "removed. Omit to deactivate only the named artifact."
         ),
     ),
+    resynthesize: bool = typer.Option(
+        False,
+        "--resynthesize/--no-resynthesize",
+        help=RESYNTHESIZE_HELP,
+    ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade."""
@@ -229,11 +236,14 @@ def deactivate_cmd(
     # FR-015/016: shared-reference-safe cascade deactivation via the WP11 engine.
     # Only runs when a scope was supplied and the direct deactivation actually
     # removed the target (so we never cascade off a no-op removal).
-    if scope is None or not result.deactivated:
-        return
-    target_urn = _source_urn(kind, artifact_id, layer_roots)
-    if target_urn is None:
-        return
-    _render_cascade_deactivation(
-        manager, ctx_project, target_urn, scope, repo_root, layer_roots
-    )
+    if scope is not None and result.deactivated:
+        target_urn = _source_urn(kind, artifact_id, layer_roots)
+        if target_urn is not None:
+            _render_cascade_deactivation(
+                manager, ctx_project, target_urn, scope, repo_root, layer_roots
+            )
+
+    # FR-007: opt-in eager refresh, symmetric with activate_cmd -- run AFTER
+    # cascade so it reconciles the complete post-deactivation config state.
+    if resynthesize:
+        run_resynthesize_pipeline(repo_root)

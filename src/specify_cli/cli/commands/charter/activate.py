@@ -23,6 +23,7 @@ WP11 scoped cascade engine into the CLI surface:
 
 from __future__ import annotations
 
+import contextlib
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
@@ -49,7 +50,15 @@ from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
-__all__ = ["activate_cmd"]
+__all__ = ["activate_cmd", "run_resynthesize_pipeline"]
+
+RESYNTHESIZE_HELP = (
+    "Eagerly refresh the derived bundle/DRG after this activation via the "
+    "EXISTING synthesize pipeline (the same one `charter generate` + "
+    "`charter synthesize` use) -- reconciles the freshness signal to fresh "
+    "immediately. Default: off -- activation stays a fast config-only write "
+    "and the signal reports stale until a later reconcile (NFR-001)."
+)
 
 
 
@@ -251,6 +260,59 @@ def _render_no_cascade_warning(
     console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
 
 
+def run_resynthesize_pipeline(repo_root: Path) -> None:
+    """Eagerly refresh the derived bundle/DRG via the EXISTING synthesize pipeline (FR-007).
+
+    ``--resynthesize`` opts into the SAME production entry points
+    ``spec-kitty charter generate`` uses (recompiles ``references.yaml`` from
+    the current activation state) and ``spec-kitty charter synthesize`` uses
+    (re-stamps ``bundle_content_hash`` against the freshly-recompiled bundle
+    and regenerates the project DRG layer) -- single authority: no parallel
+    reconciliation logic is built here (C-007-style reuse). Shared by
+    ``activate_cmd`` and ``deactivate_cmd`` (FR-007 is symmetric).
+
+    Both commands resolve their own project root via ``find_repo_root()``
+    (cwd-based -- neither accepts a ``repo_root`` parameter), so this scopes
+    the calls with a temporary cwd switch rather than threading a new
+    parameter through either command -- keeps the two owned files
+    (``activate.py``/``deactivate.py``) as the only touched surface (C-001).
+
+    Both are ``@charter_app.command()`` callables: Typer resolves unset
+    parameters to ``OptionInfo``/``ArgumentInfo`` sentinel objects when the
+    function is called directly (bypassing Click's context machinery), not
+    to the declared default value -- so every parameter is passed explicitly
+    here with its production default; never rely on the bare function
+    signature default when calling a Typer command body in-process.
+
+    Imports are deliberately local: this whole call graph (evidence
+    collection, doctrine service construction, git staging) is expensive and
+    must stay off the default (no-flag) activation hot path (NFR-001).
+    """
+    from specify_cli.cli.commands.charter.generate import generate as _generate
+    from specify_cli.cli.commands.charter.synthesize import (
+        charter_synthesize as _synthesize,
+    )
+
+    with contextlib.chdir(repo_root):
+        _generate(
+            mission_type=None,
+            mission=None,
+            template_set=None,
+            from_interview=True,
+            profile="minimal",
+            force=True,
+            json_output=False,
+        )
+        _synthesize(
+            adapter="generated",
+            dry_run=False,
+            json_output=False,
+            skip_code_evidence=False,
+            skip_corpus=False,
+            dry_run_evidence=False,
+        )
+
+
 def activate_cmd(
     ctx: typer.Context,
     kind: str | None = typer.Argument(None, help="Activation kind (e.g. directive, agent-profile)."),
@@ -263,6 +325,11 @@ def activate_cmd(
             "comma-separated kind list (e.g. 'agent-profile,tactic'). "
             "Omit to skip cascade (referenced artifacts are reported as a warning)."
         ),
+    ),
+    resynthesize: bool = typer.Option(
+        False,
+        "--resynthesize/--no-resynthesize",
+        help=RESYNTHESIZE_HELP,
     ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
@@ -320,11 +387,15 @@ def activate_cmd(
     # merged DRG (pack_manager's own cascade is deferred — the live wiring is
     # here). Resolve the source URN; mission-type / non-DRG kinds short-circuit.
     source_urn = _source_urn(kind, artifact_id, layer_roots)
-    if source_urn is None:
-        return
-    if scope is None:
-        _render_no_cascade_warning(source_urn, repo_root, layer_roots)
-    else:
-        _render_cascade_activation(
-            manager, ctx_project, source_urn, scope, repo_root, layer_roots
-        )
+    if source_urn is not None:
+        if scope is None:
+            _render_no_cascade_warning(source_urn, repo_root, layer_roots)
+        else:
+            _render_cascade_activation(
+                manager, ctx_project, source_urn, scope, repo_root, layer_roots
+            )
+
+    # FR-007: opt-in eager refresh, run AFTER cascade so it reconciles the
+    # complete post-activation config state -- not just the direct target.
+    if resynthesize:
+        run_resynthesize_pipeline(repo_root)

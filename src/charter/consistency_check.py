@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from ruamel.yaml import YAML
 
@@ -498,6 +499,13 @@ def _check_reference_id_parity(
     a *verification_errors* entry (not silently treated as "nothing to
     check against", which is reserved for the file genuinely not existing
     yet).
+
+    Campsite note (#2759/T010): the forward and reverse directions are
+    pre-extracted into :func:`_check_reference_id_forward_parity` and
+    :func:`_check_reference_id_reverse_parity` so this orchestrator stays
+    well under the complexity ceiling once
+    ``specify_cli.charter_runtime.freshness.computer`` gains a read-path
+    consumer of this whole check (WP03) -- pure refactor, no behavior change.
     """
     try:
         references_by_kind = _load_reference_ids_by_kind(ctx)
@@ -517,6 +525,37 @@ def _check_reference_id_parity(
     pack_context = ctx.require_pack_context()
     org_roots = list(pack_context.pack_roots[1:])
 
+    _check_reference_id_forward_parity(
+        raw_activated_by_kind,
+        references_by_kind,
+        doctrine_root=doctrine_root,
+        org_roots=org_roots,
+        reference_id_divergences=reference_id_divergences,
+        suggestions=suggestions,
+    )
+    _check_reference_id_reverse_parity(
+        raw_activated_by_kind,
+        references_by_kind,
+        reference_id_divergences=reference_id_divergences,
+        suggestions=suggestions,
+    )
+
+
+def _check_reference_id_forward_parity(
+    raw_activated_by_kind: dict[str, list[str] | None],
+    references_by_kind: dict[str, frozenset[str]],
+    *,
+    doctrine_root: Path,
+    org_roots: list[Path],
+    reference_id_divergences: list[str],
+    suggestions: list[str],
+) -> None:
+    """Forward direction (every kind): config.activated_* -> references.yaml.
+
+    Every explicitly-activated config stem MUST resolve to a canonical id in
+    the compiled reference set (the #2524 dangler class). See
+    :func:`_check_reference_id_parity` for the full contract.
+    """
     for cli_kind in YAML_KEY_MAP:
         try:
             kind_enum = ArtifactKind.from_operator_token(cli_kind)
@@ -545,18 +584,34 @@ def _check_reference_id_parity(
                     f"regenerate the compiled reference set."
                 )
 
+
+def _check_reference_id_reverse_parity(
+    raw_activated_by_kind: dict[str, list[str] | None],
+    references_by_kind: dict[str, frozenset[str]],
+    *,
+    reference_id_divergences: list[str],
+    suggestions: list[str],
+) -> None:
+    """Reverse direction (paradigms only): references.yaml -> config.activated_paradigms.
+
+    Paradigms are rendered 1:1 with no DRG-transitive expansion, so a
+    compiled paradigm reference with no matching config activation is
+    unambiguously stale. See :func:`_check_reference_id_parity` for why this
+    is scoped to paradigms only.
+    """
     paradigm_list = raw_activated_by_kind.get("paradigm")
-    if paradigm_list is not None:
-        known_paradigm_stems = frozenset(paradigm_list)
-        for ref_id in references_by_kind.get("paradigm", frozenset()):
-            if ref_id not in known_paradigm_stems:
-                reference_id_divergences.append(f"paradigm/{ref_id}")
-                suggestions.append(
-                    f"paradigm/{ref_id}: Resolves in "
-                    f".kittify/charter/references.yaml but is not in "
-                    f"config.activated_paradigms. Run 'charter deactivate "
-                    f"paradigm {ref_id}' or reconcile config.yaml."
-                )
+    if paradigm_list is None:
+        return
+    known_paradigm_stems = frozenset(paradigm_list)
+    for ref_id in references_by_kind.get("paradigm", frozenset()):
+        if ref_id not in known_paradigm_stems:
+            reference_id_divergences.append(f"paradigm/{ref_id}")
+            suggestions.append(
+                f"paradigm/{ref_id}: Resolves in "
+                f".kittify/charter/references.yaml but is not in "
+                f"config.activated_paradigms. Run 'charter deactivate "
+                f"paradigm {ref_id}' or reconcile config.yaml."
+            )
 
 
 def _check_graph_kind_parity(

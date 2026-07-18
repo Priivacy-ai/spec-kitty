@@ -30,6 +30,7 @@ from specify_cli.cli.commands.charter._synthesis import (
     _materialize_fresh_doctrine,
     _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
+    _raise_if_bundle_incomplete,
 )
 
 # NOTE: ``find_repo_root`` and the patchable synthesis helpers are intentionally
@@ -377,6 +378,12 @@ def charter_synthesize(  # noqa: C901
             for f in staged_files:
                 console.print(f"  [dim]staged:[/dim] {f}")
             return
+
+        # #2758: fail closed BEFORE the real-run write path can persist an
+        # un-healable None bundle-content hash into the synthesis manifest
+        # (see _raise_if_bundle_incomplete docstring). Dry-run never reaches
+        # write_pipeline.promote(), so it is intentionally not gated here.
+        _raise_if_bundle_incomplete(repo_root)
 
         from charter.synthesizer import synthesize
 
