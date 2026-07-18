@@ -61,7 +61,7 @@ from tests.git.protected_target_fixtures import (  # noqa: F401 — pytest fixtu
     protected_target_repo,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

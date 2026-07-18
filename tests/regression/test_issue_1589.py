@@ -22,7 +22,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.git_repo]
 
 runner = CliRunner()
 

@@ -25,7 +25,7 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.lanes.compute import compute_lanes
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = [pytest.mark.fast]
 
 _LEGACY_BRANCH = "kitty/mission-042-foo-lane-a"
 _MODERN_BRANCH = "kitty/mission-foo-01KNXQS9-lane-a"

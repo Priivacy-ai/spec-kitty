@@ -35,7 +35,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.status.store import EVENTS_FILENAME
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
