@@ -49,7 +49,10 @@ from charter.context_renderers.section_bodies import render_critical_section_bod
 from charter.compact import extract_section_anchors, render_compact_view
 from doctrine.drg.models import DRGGraph
 
-pytestmark = pytest.mark.fast
+# Uses subprocess `git init` (see below), so it must carry ``git_repo`` and
+# must NOT be ``fast`` (fast excludes subprocess users) per the marker-correctness
+# arch gate (docs/context/testing-taxonomy.md).
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

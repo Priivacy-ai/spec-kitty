@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 91  # justification: +1 (90->91): m_unify_charter_activation_finalize (#2773, migration_id consolidate_charter_bundle_fold) is the charter-bundle fold migration, auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register, never statically imported — same sibling shape as every other migration here. Filename prefix-extends m_unify_charter_activation to sort strictly after it at the tied 3.2.6 target.
+  category_1_auto_discovered_migrations: 92  # justification: 92 auto-discovered migrations on the rebased-onto-upstream/main tree. One is m_unify_charter_activation_finalize (#2773, migration_id consolidate_charter_bundle_fold) — the charter-bundle fold migration, auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register, never statically imported, filename prefix-extends m_unify_charter_activation to sort strictly after it at the tied 3.2.6 target. The count reflects the current merged tree (this mission rebased onto upstream/main af9dd7303).
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
