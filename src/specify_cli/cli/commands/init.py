@@ -55,6 +55,10 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 
 _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
+# C-006 (#2709): the meta.json field-merge and traces union drivers register on
+# the same surfaces as the event-log driver.
+_META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
+_TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-traces"
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
@@ -169,7 +173,12 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
     lines: list[str] = []
     if attributes_path.exists():
         lines = attributes_path.read_text(encoding="utf-8").splitlines()
-    required_entries = (_EVENT_LOG_GITATTRIBUTES_ENTRY, *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES)
+    required_entries = (
+        _EVENT_LOG_GITATTRIBUTES_ENTRY,
+        _META_GITATTRIBUTES_ENTRY,
+        _TRACES_GITATTRIBUTES_ENTRY,
+        *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES,
+    )
     missing = [entry for entry in required_entries if entry not in lines]
     if not missing:
         return False

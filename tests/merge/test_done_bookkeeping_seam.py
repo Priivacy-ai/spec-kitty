@@ -172,6 +172,85 @@ def test_reconcile_empty_when_no_completions(tmp_path: Path) -> None:
     ) == set()
 
 
+# --- _durable_done_wps_on_coordination_ref (#2711 FR-007) -------------------
+
+
+def test_durable_done_empty_when_placement_unresolvable(tmp_path: Path) -> None:
+    # An unresolvable placement (non-coord / legacy) yields no durable-done set,
+    # so the caller falls back to the transactional on-disk check.
+    with patch.object(db, "resolve_placement_only", side_effect=RuntimeError("no mission")):
+        assert (
+            db._durable_done_wps_on_coordination_ref(
+                repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01"]
+            )
+            == set()
+        )
+
+
+def test_durable_done_reduces_committed_coordination_ref(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    lanes = {"WP01": Lane.DONE, "WP02": Lane.APPROVED}
+    with (
+        patch.object(
+            db, "resolve_placement_only", return_value=SimpleNamespace(ref="kitty/mission-m")
+        ),
+        patch(
+            "specify_cli.coordination.status_service.read_event_log",
+            return_value=[object()],
+        ),
+        patch(
+            "specify_cli.coordination.status_service.wp_lane_actor_from_events",
+            side_effect=lambda _events, wp_id: (lanes[wp_id], None),
+        ),
+    ):
+        assert db._durable_done_wps_on_coordination_ref(
+            repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01", "WP02"]
+        ) == {"WP01"}
+
+
+def test_durable_done_empty_when_committed_log_empty(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    with (
+        patch.object(
+            db, "resolve_placement_only", return_value=SimpleNamespace(ref="kitty/mission-m")
+        ),
+        patch("specify_cli.coordination.status_service.read_event_log", return_value=[]),
+    ):
+        assert (
+            db._durable_done_wps_on_coordination_ref(
+                repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01"]
+            )
+            == set()
+        )
+
+
+def test_reconcile_confirms_via_durable_log_when_on_disk_absent(tmp_path: Path) -> None:
+    # FR-007: the committed coordination ref is authoritative — a WP confirmed
+    # there survives even when the transactional on-disk check would drop it.
+    from specify_cli.merge.state import MergeState
+
+    state = MergeState(
+        mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01", "WP02"]
+    )
+    state.completed_wps = ["WP01", "WP02"]
+    saved: list[MergeState] = []
+    with (
+        patch.object(
+            db, "_durable_done_wps_on_coordination_ref", return_value={"WP01"}
+        ),
+        patch.object(db, "_has_transition_to", return_value=False),
+        patch.object(db, "save_state", side_effect=lambda s, _r: saved.append(s)),
+    ):
+        confirmed = db._reconcile_completed_wps_for_resume(
+            feature_dir=tmp_path, mission_slug="m", merge_state=state, repo_root=tmp_path
+        )
+    assert confirmed == {"WP01"}
+    assert state.completed_wps == ["WP01"]
+    assert saved == [state]
+
+
 # --- _resolve_wp_path -------------------------------------------------------
 
 

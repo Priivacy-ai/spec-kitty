@@ -72,6 +72,10 @@ class MergeState:
     mission_slug: str  # Display alias for the feature
     target_branch: str
     wp_order: list[str]
+    # #2711 FR-007: ADVISORY HINT ONLY. The authority for resume progress is the
+    # durable event log (the committed coordination ref); this list is confirmed
+    # against it in ``done_bookkeeping._reconcile_completed_wps_for_resume`` and a
+    # stale entry (no durable ``done``) is dropped so the resume re-emits.
     completed_wps: list[str] = field(default_factory=list)
     current_wp: str | None = None
     has_pending_conflicts: bool = False

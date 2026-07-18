@@ -21,6 +21,7 @@ never imports the command shim.
 
 from __future__ import annotations
 
+import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -103,7 +104,7 @@ from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, resolve_placement_only
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -208,6 +209,14 @@ class _MergeRunState:
     # Rollback snapshots
     pre_target_bookkeeping_snapshots: dict[Path, bytes | None] = field(default_factory=dict)
     final_bookkeeping_snapshots: dict[Path, bytes | None] = field(default_factory=dict)
+
+    # #2711 FR-006 (Option A): the coordination-branch ref + tip SHA captured
+    # BEFORE the pre-target ``done`` emit. On a target-advance rollback the
+    # committed ``done`` is reverted back to this tip in lockstep with the
+    # working-byte restore, so the committed reduction never strands ``done``
+    # while the working tree rolls back to ``approved`` (the split-brain).
+    pre_target_coord_ref: str | None = None
+    pre_target_coord_sha: str | None = None
 
 
 def _phase_gates_and_state(run: _MergeRunState) -> None:
@@ -379,6 +388,9 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
                 run.merge_state_path,
             )
         )
+        # #2711 FR-006: capture the coordination-branch tip BEFORE the ``done``
+        # emit so a rollback can revert the committed ``done`` coherently.
+        _capture_pre_target_coord_ref_sha(run)
         # Modern coordination-backed missions must carry done events in the
         # mission branch before it is merged to target.
         try:
@@ -396,19 +408,131 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
             raise
 
 
+def _capture_pre_target_coord_ref_sha(run: _MergeRunState) -> None:
+    """Capture the coordination-branch ref + tip SHA BEFORE the pre-target
+    ``done`` emit (#2711 / FR-006).
+
+    The ref is sourced from the canonical write-target the ``done`` commit
+    resolves to (``resolve_placement_only(..., kind=STATUS_STATE).ref``) — NOT
+    an inline ``meta.get("coordination_branch")`` (the retired D-2 CWD-divergence
+    class). The captured tip is the coherent rollback anchor consumed by
+    :func:`_revert_coord_done_commit`. A placement that cannot be resolved (a
+    non-coord topology, or a legacy mission) leaves both fields ``None`` so the
+    rollback revert is a proven no-op.
+    """
+    try:
+        coord_ref = resolve_placement_only(
+            run.main_repo, run.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        ).ref
+    except Exception:  # noqa: BLE001 — unresolvable placement: skip the coherent revert
+        return
+    ret, sha, _err = run_command(
+        ["git", "rev-parse", coord_ref],
+        capture=True,
+        check_return=False,
+        cwd=run.main_repo,
+    )
+    if ret == 0 and sha.strip():
+        run.pre_target_coord_ref = coord_ref
+        run.pre_target_coord_sha = sha.strip()
+
+
+def _coord_worktree_root(run: _MergeRunState) -> Path | None:
+    """Resolve the coordination worktree carrying the pre-target ``done`` commit.
+
+    Derived from the resolved status surface
+    (``canonical_events_path`` == ``<coord-worktree>/kitty-specs/<slug>/status.events.jsonl``).
+    Returns ``None`` for a non-coord topology (no coordination worktree — the
+    ``single_branch`` / ``lanes`` no-op case).
+    """
+    events_path = run.canonical_events_path
+    if events_path is None:
+        return None
+    # Strip ``status.events.jsonl`` / ``<slug>`` / ``kitty-specs`` -> worktree root.
+    worktree_root = events_path.parents[2]
+    if not is_under_worktrees_segment(worktree_root):
+        return None
+    return worktree_root
+
+
+def _revert_coord_done_commit(run: _MergeRunState) -> None:
+    """Revert the pre-target ``done`` commit on the coordination branch (#2711 / FR-006).
+
+    On a target-advance rollback the committed coordination ``done`` must be
+    reversed in lockstep with the working-tree byte restore, or the committed
+    reduction (``done``) diverges from the rolled-back working tree (``approved``)
+    — the #2711 split-brain, which also breaks resume dedup / idempotency.
+
+    Reverses every commit made since the captured pre-emit tip via a coord-worktree
+    ``git revert`` — a forward reversing commit that resyncs HEAD + index + working
+    tree coherently. This is the AC-B3-symmetric inverse of the ``safe_commit``
+    (``git commit``) that recorded the ``done``: NEVER a raw ``git update-ref``
+    (AC-B3); ``advance_branch_ref`` cannot serve here because moving the ref back
+    to the captured tip is the non-fast-forward move it refuses by design.
+    Subprocess env routes through ``_make_merge_env`` (AC-F1).
+    """
+    from specify_cli.lanes.merge import _make_merge_env
+
+    coord_ref = run.pre_target_coord_ref
+    captured_sha = run.pre_target_coord_sha
+    if not coord_ref or not captured_sha:
+        return  # no coordination ref captured (non-coord topology) — no-op
+    coord_worktree = _coord_worktree_root(run)
+    if coord_worktree is None:
+        return
+    env = _make_merge_env()
+    head = subprocess.run(
+        ["git", "-C", str(coord_worktree), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if head.returncode != 0 or head.stdout.strip() == captured_sha:
+        return  # nothing committed on the coordination branch since capture — no-op
+    revert = subprocess.run(
+        ["git", "-C", str(coord_worktree), "revert", "--no-edit", f"{captured_sha}..HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if revert.returncode != 0:
+        subprocess.run(
+            ["git", "-C", str(coord_worktree), "revert", "--abort"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        logger.warning(
+            "#2711: could not revert coordination 'done' commit(s) on %s (%s..HEAD); "
+            "committed/working coherence may be degraded: %s",
+            coord_ref,
+            captured_sha[:12],
+            (revert.stderr or revert.stdout or "").strip(),
+        )
+
+
 def _restore_pre_target_if_at_baseline(run: _MergeRunState) -> None:
-    """Roll back the pre-target snapshots iff the target never advanced (INV-6).
+    """Roll back the pre-target state iff the target never advanced (INV-6).
 
     Behavior-preserving extraction of the repeated mission-to-target rollback
     guard (identical at every failure exit). Restores ONLY when done events were
     recorded pre-target AND the target branch still points at the pre-merge
     baseline — i.e. the mission→target merge made no progress.
+
+    #2711 FR-006 (Option A): the coherent revert of the committed coordination
+    ``done`` runs BEFORE the working-byte restore so both legs converge on the
+    pre-emit (``approved``) reduction — the committed ref no longer strands a
+    ``done`` the working tree has rolled back.
     """
     if run.done_marked_before_target and _target_branch_still_at_baseline(
         run.main_repo,
         run.lanes_manifest.target_branch,
         run.target_baseline_sha,
     ):
+        _revert_coord_done_commit(run)
         _restore_final_bookkeeping_snapshots(run.pre_target_bookkeeping_snapshots)
 
 

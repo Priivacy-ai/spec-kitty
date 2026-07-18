@@ -35,7 +35,7 @@ from pathlib import Path
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.file_lock import MachineFileLock
 from specify_cli.lanes.merge import (
-    _ensure_event_log_merge_driver_config,
+    _ensure_merge_driver_git_config,
     _make_merge_env,
 )
 from specify_cli.lanes.models import ExecutionLane
@@ -878,7 +878,12 @@ def attempt_auto_rebase(
             halt_reason=halt_reason,
         )
 
-    _ensure_event_log_merge_driver_config(repo_root)
+    # Define the custom merge drivers (self-heal for freshly-init'd repos) but do
+    # NOT seed ``.git/info/attributes``: auto-rebase must keep its own in-process
+    # event-log union classifier (R-STATUS-EVENTS-JSONL-UNION) as the fallback for
+    # repos without a committed ``.gitattributes`` mapping. Pre-activating the git
+    # driver here would pre-empt that classifier (#2709/#2711 regression).
+    _ensure_merge_driver_git_config(repo_root)
 
     merge_result = _run(
         ["git", "merge", "--no-edit", "--no-ff", "--no-commit", mission_branch],

@@ -7,12 +7,29 @@ import pytest
 from specify_cli.lanes.merge import (
     LaneMergeResult,
     MissionMergeResult,
+    _ensure_info_attributes,
+    _git_common_dir,
     _merge_branch_into,
+    _remove_info_attributes,
     consolidate_lane_into_mission,
     integrate_mission_into_target,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.merge.config import MergeStrategy
+
+
+def _info_attributes_driver_lines(repo):
+    """Return the ``merge=spec-kitty-*`` driver lines in ``$GIT_COMMON_DIR/info/attributes``."""
+    common_dir = _git_common_dir(repo)
+    assert common_dir is not None
+    attributes_path = common_dir / "info" / "attributes"
+    if not attributes_path.exists():
+        return []
+    return [
+        line
+        for line in attributes_path.read_text(encoding="utf-8").splitlines()
+        if "merge=spec-kitty-" in line
+    ]
 
 pytestmark = pytest.mark.git_repo
 
@@ -353,3 +370,123 @@ class TestMergeMissionToTarget:
         assert _git_stdout(repo, "rev-parse", source_branch) == source_before
         assert _git_stdout(repo, "rev-parse", "main") == target_before
         assert not (repo / ".git" / "rebase-merge").exists()
+
+
+class TestSquashDoesNotLeakInfoAttributes:
+    """#2709/#2711: the squash merge activates the custom drivers via
+    ``$GIT_COMMON_DIR/info/attributes`` for the duration of the ephemeral merge
+    only, and MUST tear that seeding down afterwards. If it persisted, a later
+    ``auto_rebase`` in the same repo would find the git driver pre-activated and
+    resolve ``status.events.jsonl`` via ``spec-kitty merge-driver-event-log`` on
+    PATH before its in-process ``R-STATUS-EVENTS-JSONL-UNION`` classifier runs,
+    re-coupling the two paths the split was meant to keep apart."""
+
+    def test_squash_merge_tears_down_info_attributes_but_keeps_config(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+
+        _run(["git", "branch", "kitty/mission-010-feat"], repo)
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "src/feature.py", "feature\n", "feature work")
+        _run(["git", "checkout", "main"], repo)
+
+        assert _info_attributes_driver_lines(repo) == []
+
+        result = integrate_mission_into_target(
+            repo, "010-feat", manifest, strategy=MergeStrategy.SQUASH
+        )
+        assert result.success is True
+
+        # info/attributes activation is gone post-merge: a later auto_rebase must
+        # fall back to its in-process union classifier, not the git driver.
+        assert _info_attributes_driver_lines(repo) == []
+
+        # ...but the git-config driver *definitions* persist (intended, inert
+        # without an active attribute mapping — the self-heal surface).
+        driver = subprocess.run(
+            ["git", "config", "--local", "--get", "merge.spec-kitty-event-log.driver"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        assert driver == "spec-kitty merge-driver-event-log %O %A %B"
+
+    def test_repeated_squash_merges_do_not_accumulate_info_attributes(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+
+        _run(["git", "branch", "kitty/mission-010-feat"], repo)
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "src/feature.py", "feature\n", "feature work")
+        _run(["git", "checkout", "main"], repo)
+
+        integrate_mission_into_target(
+            repo, "010-feat", manifest, strategy=MergeStrategy.SQUASH
+        )
+        integrate_mission_into_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+            allow_already_applied=True,
+        )
+        assert _info_attributes_driver_lines(repo) == []
+
+
+class TestInfoAttributesSeedTeardownSeam:
+    """Unit coverage for the pure seed/teardown seam (test-scaffolding-as-design-smell:
+    the behavior is testable without driving a full merge)."""
+
+    def test_seed_returns_added_lines_and_teardown_removes_exactly_them(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        info_dir = repo / ".git" / "info"
+        info_dir.mkdir(parents=True, exist_ok=True)
+        attributes_path = info_dir / "attributes"
+        operator_line = "*.bin binary"
+        attributes_path.write_text(operator_line + "\n", encoding="utf-8")
+
+        added = _ensure_info_attributes(repo)
+
+        assert added  # non-empty: driver lines were appended
+        assert all("merge=spec-kitty-" in line for line in added)
+        contents = attributes_path.read_text(encoding="utf-8").splitlines()
+        assert operator_line in contents
+        assert all(line in contents for line in added)
+
+        _remove_info_attributes(repo, added)
+
+        # Operator line survives; every seeded driver line is gone.
+        remaining = attributes_path.read_text(encoding="utf-8").splitlines()
+        assert remaining == [operator_line]
+
+    def test_seed_is_idempotent_and_empty_teardown_is_noop(self, tmp_path):
+        repo = _make_repo(tmp_path)
+
+        first = _ensure_info_attributes(repo)
+        assert first  # created + populated
+
+        second = _ensure_info_attributes(repo)
+        assert second == []  # already present → nothing added
+
+        # A no-op teardown (nothing was added the second time) must not disturb
+        # the lines the first seeding created.
+        attributes_path = _git_common_dir(repo) / "info" / "attributes"
+        before = attributes_path.read_text(encoding="utf-8")
+        _remove_info_attributes(repo, second)
+        assert attributes_path.read_text(encoding="utf-8") == before
+
+    def test_teardown_unlinks_file_it_created(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        attributes_path = _git_common_dir(repo) / "info" / "attributes"
+        # Fresh repo: git init does not create info/attributes.
+        assert not attributes_path.exists()
+
+        added = _ensure_info_attributes(repo)
+        assert added
+        assert attributes_path.exists()
+
+        _remove_info_attributes(repo, added)
+
+        # Restored to prior state: the file we created is gone entirely.
+        assert not attributes_path.exists()

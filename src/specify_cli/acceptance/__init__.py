@@ -69,6 +69,24 @@ logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
+# FR-004 (#2709): canonical acceptance/VCS provenance field shapes reconciled by
+# the ``meta.json`` squash merge driver. These are the target-authoritative scalar
+# keys ``record_acceptance``/``set_vcs_lock`` (``mission_metadata``) stamp; the
+# squash driver overlays the target-branch (accepted-newer) value for each, while
+# ``ACCEPTANCE_HISTORY_FIELD`` is unioned (append-only) across both sides. Kept here
+# as the single canonical field-shape source (DIRECTIVE_044) so the driver never
+# re-hardcodes the key list.
+ACCEPTANCE_HISTORY_FIELD = "acceptance_history"
+ACCEPTANCE_PROVENANCE_FIELDS: tuple[str, ...] = (
+    "accepted_at",
+    "accepted_by",
+    "accepted_from_commit",
+    "acceptance_mode",
+    "accept_commit",
+    "vcs",
+    "vcs_locked_at",
+)
+
 SPEC_FILE = "spec.md"
 PLAN_FILE = "plan.md"
 TASKS_FILE = "tasks.md"
@@ -1328,6 +1346,8 @@ def perform_acceptance(
 
 
 __all__ = [
+    "ACCEPTANCE_HISTORY_FIELD",
+    "ACCEPTANCE_PROVENANCE_FIELDS",
     "AcceptanceError",
     "AcceptanceMode",
     "AcceptanceResult",
