@@ -69,3 +69,9 @@ tests/upgrade/test_migration_robustness.py::TestConcurrentMigration::test_concur
 # @pytest.mark.slow — a legitimate new slow test, not a budget-motivated re-mark.
 tests/specify_cli/missions/test_read_path_resolver_redundant_cast_gate.py::test_read_path_resolver_is_mypy_clean
 tests/specify_cli/widen/test_interview_decision_id_narrowing_gate.py::test_interview_decision_id_narrowing_is_mypy_clean
+# Deliberate regen (pre-existing debt, NOT the doctrine-activation-freshness mission):
+# tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow carries a class-level @pytest.mark.slow
+# (added by an earlier documentation-mission slice) and this authored-template case was
+# absent from the baseline — main was already red on test_marker_baseline. Legitimate slow
+# e2e test, not a budget re-mark.
+tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::test_documentation_mission_create_resolves_authored_template
