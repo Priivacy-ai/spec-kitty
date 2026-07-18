@@ -736,9 +736,10 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
 @pytest.mark.slow
 # Known-open defect (#2782, P0): consistently red on main — the sync layer hits an
 # auth-failure/connection-refused path instead of the private-team-missing skip.
-# Marked regression so it routes to the non-blocking regression-visibility gate
-# (the blocking integration-tests-sync job now deselects `regression`) until #2782
-# is triaged (product-skip bug vs test-env-setup).
+# `@regression` is a SIGNAL, not a mute: this test still runs and FAILS honestly in
+# its blocking job (a green there would hide a real bug). The marker + #2782 tell a
+# reviewer/implementer "known-tracked P0 — don't spend time fixing it unless #2782 is
+# in your scope", and the non-blocking `regression visibility` gate catalogs it.
 @pytest.mark.regression
 def test_mission_create_json_strict_when_sync_skips_ingress(
     tmp_path: pathlib.Path,

@@ -55,7 +55,6 @@
 scripts/benchmarks/bench_queue_enqueue.py::CP001
 tests/audit/test_audit_classifiers.py::CP001
 tests/contract/test_handoff_fixtures.py::CP001
-tests/delivery/test_poison_batch_2736.py::CP001
 tests/delivery/test_receivers.py::CP001
 tests/e2e/test_mission_create_clean_output.py::CP001
 tests/integration/test_offline_queue_overflow.py::CP001
