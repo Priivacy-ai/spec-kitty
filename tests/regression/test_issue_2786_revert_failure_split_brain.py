@@ -1,9 +1,13 @@
-"""Scope: #2786 — a FAILED coord ``done`` revert during rollback is swallowed (INTENTIONAL red-first P0).
+"""Scope: #2786 — a FAILED coord ``done`` revert during rollback is swallowed (regression guard; #2786 FIXED).
 
-This module is an INTENTIONAL, issue-pinned red-first P0 reproduction for
-**#2786**. It is expected to FAIL on ``main`` and stays RED until #2786 is fixed
-— per ADR ``docs/adr/3.x/2026-07-17-1`` (a P0 defect must carry an honest,
-main-breaking reproduction; it is NOT deselected or xfail-masked).
+This module reproduces **#2786** and now guards its fix. It began as an
+INTENTIONAL, issue-pinned red-first P0 reproduction (per ADR
+``docs/adr/3.x/2026-07-17-1``, expected to fail on ``main`` while the P0 was
+open). #2786 is now **FIXED** — the rollback marks-not-raises and a strand-gated
+``git revert`` heal on ``--resume`` restores coherence — so the reproduction
+drives the strand and asserts coherence AFTER the heal. The ``regression`` marker
+(which flagged the intentional-red-on-``main`` phase) is removed now that the
+defect is closed; the test stays a green regression guard via its ``git_repo`` marker.
 
 Defect (#2786)
 --------------
@@ -42,8 +46,10 @@ the rolled-back working tree reduces to ``approved`` — the swallowed-revert
 split-brain. A non-vacuity witness proves the revert branch was actually hit and
 returned non-zero, so the red cannot pass as a setup artefact.
 
-Do NOT fix ``_revert_coord_done_commit`` here — the fix is deferred to #2786; this
-module is the honest red that the fix will flip green.
+#2786 is FIXED — the rollback marks-not-raises (durable ``pending_coord_reconcile``
+marker) and the resume heal reverts the stranded coord ``done`` via a strand-gated
+``git revert``; this module verifies coherence is restored after the heal and guards
+against regression.
 """
 
 from __future__ import annotations
@@ -77,7 +83,7 @@ from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
     _working_coord_events,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 MISSION_SLUG = "merge-rollback-2711-01KXRRB7"  # harness slug (isolated per tmp repo)
 _INJECTED_REVERT_FAILURE = "injected #2786 coord revert conflict"
