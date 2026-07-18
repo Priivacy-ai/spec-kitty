@@ -65,3 +65,35 @@ def test_apply_is_idempotent(tmp_path: Path) -> None:
     assert first.success is True
     assert second.success is True
     assert second.changes_made == []
+
+
+def test_can_apply_rejects_missing_path(tmp_path: Path) -> None:
+    absent = tmp_path / "does-not-exist"
+    ok, reason = MetaTracesMergeDriverMigration().can_apply(absent)
+    assert ok is False
+    assert "does not exist" in reason
+
+
+def test_can_apply_accepts_existing_path(tmp_path: Path) -> None:
+    ok, reason = MetaTracesMergeDriverMigration().can_apply(tmp_path)
+    assert ok is True
+    assert reason == ""
+
+
+def test_dry_run_reports_change_without_writing(tmp_path: Path) -> None:
+    _git(["init", "-b", "main"], tmp_path)
+    result = MetaTracesMergeDriverMigration().apply(tmp_path, dry_run=True)
+    assert result.success is True
+    assert any("Would install" in change for change in result.changes_made)
+    assert not (tmp_path / ".gitattributes").exists()  # dry run wrote nothing
+
+
+def test_config_missing_false_without_git(tmp_path: Path) -> None:
+    """No ``.git`` — driver config cannot be missing (nothing to configure)."""
+    assert MetaTracesMergeDriverMigration()._config_missing(tmp_path) is False
+
+
+def test_config_missing_true_when_git_config_absent(tmp_path: Path) -> None:
+    """A git repo with no merge-driver config reported as config-missing."""
+    _git(["init", "-b", "main"], tmp_path)
+    assert MetaTracesMergeDriverMigration()._config_missing(tmp_path) is True
