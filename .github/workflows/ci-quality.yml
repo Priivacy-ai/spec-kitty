@@ -2868,21 +2868,23 @@ jobs:
           exit "$ec"
 
   # ---------------------------------------------------------------------------
-  # regression-visibility: runs `-m regression` for real so every red-first P0
-  # reproduction test (@pytest.mark.regression) has an explicit, routed CI home
-  # and its expected-red signal stays VISIBLE — the marker-completeness gate
-  # (tests/architectural/test_marker_job_completeness.py) requires that no
-  # registered marker be silently CI-invisible (#2774). Per the
-  # red-main-release-discipline procedure and docs/guides/testing-flakiness.md it
-  # is intentionally NON-BLOCKING: it MUST NOT be added to the `quality-gate`
-  # aggregation below or to branch-protection required checks, so an
-  # expected-red P0 reproduction can never turn main red or block an unrelated
-  # PR. It is EXPECTED to be red while open P0s exist; that red is the honest,
-  # tracked signal — never retried to green. Tolerates pytest exit code 5 (no
-  # regression tests currently registered) as green.
+  # regression-tests: runs `-m regression` for real so every red-first P0
+  # reproduction test (@pytest.mark.regression) has an explicit, routed CI home,
+  # and it is BLOCKING — it IS a member of the `quality-gate` aggregation below.
+  # An open P0 red-first reproduction is expected to red mainline and, because
+  # CI is the release authority, that red must gate releases: a non-blocking
+  # regression lane would FAKE GREEN on P0s and lose the very signal the marker
+  # exists to give (ADR 2026-07-17-1; issue #2772-family course-correction of
+  # the #2774 visibility-only design). The marker-completeness gate
+  # (tests/architectural/test_marker_job_completeness.py) still requires that no
+  # registered marker be silently CI-invisible; this job is that routed home.
+  # It is EXPECTED to be red while open P0s exist — that red is the honest,
+  # tracked, release-gating signal, never retried to green; maintainers clear it
+  # by fixing the product defect. Tolerates pytest exit code 5 (no regression
+  # tests currently registered) as green.
   # ---------------------------------------------------------------------------
-  regression-visibility:
-    name: regression visibility (non-blocking)
+  regression-tests:
+    name: regression tests (blocking)
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
     if: ${{ (always() && ( github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
@@ -2897,7 +2899,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
-      - name: Run regression red-first reproductions (visible, never blocks merge)
+      - name: Run regression red-first reproductions (blocking — gates releases)
         env:
           PWHEADLESS: "1"
         run: |
@@ -3893,6 +3895,7 @@ jobs:
       - timing-nfr-serial
       - e2e-cross-cutting
       - restart-daemon-nfr-timing
+      - regression-tests
       - build-wheel
       - clean-install-verification
       - consumer-compatibility
