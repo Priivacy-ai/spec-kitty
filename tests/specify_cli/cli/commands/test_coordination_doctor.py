@@ -617,7 +617,9 @@ def test_stranded_check_emits_error_for_live_strand(tmp_path: Path) -> None:
             _doctor_event("WP-B", "approved", event_id="01B00", from_lane="in_review"),
         ],
     )
-    _save_marker_state(repo, stranded_wp_ids=["WP-A"])
+    # An EXISTING coord worktree so the live strand surfaces as a healable `error`
+    # (a pruned worktree is the distinct STUCK-warning case, covered separately).
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"], coord_worktree=str(repo))
 
     findings = cd._check_stranded_coord_revert(repo)
 
@@ -644,7 +646,8 @@ def test_run_coordination_health_json_exits_1_on_live_strand(
             _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
         ],
     )
-    _save_marker_state(repo, stranded_wp_ids=["WP-A"])
+    # Existing coord worktree → the live strand is a healable `error` (exit 1).
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"], coord_worktree=str(repo))
 
     # Isolate the exit code to the stranded-revert check (git-version/tracked
     # checks are environment-dependent and never emit errors here).
@@ -753,12 +756,99 @@ def _bake_stranding_done(repo: Path, tmp_path: Path) -> tuple[str, Path]:
     return captured_sha, worktree
 
 
+def _bake_stranding_done_dirty(repo: Path, tmp_path: Path) -> tuple[str, Path]:
+    """Bake a stranding ``done`` commit, then leave the coord worktree DIRTY.
+
+    Reuses :func:`_bake_stranding_done` (HEAD advances to the committed ``done``)
+    and then rolls the WORKING ``status.events.jsonl`` back to ``approved`` WITHOUT
+    committing — reproducing the realistic post-rollback state where the byte
+    restore leaves the coord worktree DIRTY (working ``approved`` vs HEAD ``done``).
+    ``git revert`` refuses over that divergence (exit 128), so a heal that does not
+    clean-to-HEAD first cannot repair it.
+    """
+    captured_sha, worktree = _bake_stranding_done(repo, tmp_path)
+    wt_events = worktree / "kitty-specs" / _DOCTOR_MISSION_SLUG / "status.events.jsonl"
+    # Roll the working tree back to the pre-``done`` (``approved``) content, mirroring
+    # the rollback byte-restore, without committing → the worktree is now dirty.
+    wt_events.write_text(
+        _json.dumps(
+            _doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review"),
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return captured_sha, worktree
+
+
+def _porcelain(worktree: Path) -> str:
+    return subprocess.run(
+        ["git", "-C", str(worktree), "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
 def _committed_coord_events(repo: Path) -> bytes:
     return subprocess.run(
         ["git", "-C", str(repo), "show", f"coord:{_DOCTOR_EVENTS_REL}"],
         check=True,
         capture_output=True,
     ).stdout
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_run_coordination_health_fix_heals_dirty_coord_worktree(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`--fix` heals a strand whose coord worktree is DIRTY (the HIGH, #2786/#2367-B).
+
+    The realistic post-rollback state: the coord worktree's WORKING
+    ``status.events.jsonl`` is byte-restored to ``approved`` while HEAD is still the
+    committed ``done``. ``git revert`` refuses over that dirty tree, so the pre-fix
+    ``repair_coord_strand`` (no clean-to-HEAD) leaves the marker + strand and
+    ``doctor coordination --fix`` returns exit 1. The self-sufficient primitive
+    scoped-cleans the mission status paths to HEAD first, so ``--fix`` HEALS it:
+    committed ref coherent, worktree clean, marker cleared.
+    """
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [_doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review")],
+    )
+    captured_sha, worktree = _bake_stranding_done_dirty(repo, tmp_path)
+    _save_marker_state(
+        repo,
+        stranded_wp_ids=["WP-A"],
+        captured_sha=captured_sha,
+        coord_worktree=str(worktree),
+    )
+    feature_dir = repo / "kitty-specs" / _DOCTOR_MISSION_SLUG
+
+    # Preconditions: the coord worktree is genuinely DIRTY and WP-A is stranded done.
+    assert _porcelain(worktree), "fixture precondition: coord worktree must be dirty"
+    assert coord_incoherent_done_wps(
+        "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == ["WP-A"]
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    # Healed: exit 0, committed ref coherent, worktree clean, marker cleared.
+    assert exc.value.exit_code == 0
+    assert coord_incoherent_done_wps(
+        "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == []
+    assert _porcelain(worktree) == "", "the heal must leave the coord worktree clean"
+    healed_state = load_state(repo, _DOCTOR_MISSION_ID)
+    assert healed_state is not None
+    assert healed_state.pending_coord_reconcile is None
 
 
 @pytest.mark.git_repo
@@ -833,10 +923,14 @@ def test_fix_stranded_reverts_direct_returns_healed_slug(tmp_path: Path) -> None
     findings = cd._check_stranded_coord_revert(repo)
     assert [f.error_code for f in findings] == [cd._STRANDED_COORD_REVERT_CODE]
 
-    assert cd._fix_stranded_reverts(findings, repo) == [_DOCTOR_MISSION_SLUG]
+    healed, warnings = cd._fix_stranded_reverts(findings, repo)
+    assert healed == [_DOCTOR_MISSION_SLUG]
+    assert warnings == []
     # Marker cleared -> re-checking finds nothing -> a second fix heals nothing.
     assert cd._check_stranded_coord_revert(repo) == []
-    assert cd._fix_stranded_reverts(findings, repo) == []
+    healed_again, warnings_again = cd._fix_stranded_reverts(findings, repo)
+    assert healed_again == []
+    assert warnings_again == []
 
 
 # ---------------------------------------------------------------------------
@@ -907,7 +1001,9 @@ def _seed_bare_handle_fixture(repo: Path) -> None:
     marker = {
         "coord_ref": "coord",
         "captured_sha": "deadbeef",
-        "coord_worktree": "/tmp/coord-wt",
+        # An existing worktree path so the live strand stays a healable `error`
+        # (the pruned-worktree STUCK-warning case is covered by its own test).
+        "coord_worktree": str(repo),
         "stranded_wp_ids": ["WP-A"],
         "revert_error": None,
         "detected_at": "2026-07-18T10:05:00+00:00",
@@ -985,3 +1081,155 @@ def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
     monkeypatch.setattr(rpr, "resolve_planning_read_dir", _raw)
 
     assert cd._check_stranded_coord_revert(repo) == []
+
+
+# ---------------------------------------------------------------------------
+# FR-007 pruned/unresolvable coord worktree → distinct STUCK diagnostic
+# (not a silent skip, not a looping `error` whose hint points back at `--fix`).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_stranded_check_pruned_worktree_emits_stuck_warning(tmp_path: Path) -> None:
+    """A live strand whose coord worktree is PRUNED → a ``warning`` STUCK finding.
+
+    ``--fix`` cannot revert a strand whose coordination worktree no longer exists
+    (there is nothing to run the revert in). Rather than emit the healable ``error``
+    (whose ``next_step`` loops the user back to a ``--fix`` that can never succeed),
+    the check surfaces a distinct ``warning`` with a manual-recovery hint.
+    """
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [
+            _doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review"),
+            _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
+        ],
+    )
+    pruned = tmp_path / "does-not-exist-coord-wt"
+    assert not pruned.exists()
+    _save_marker_state(repo, stranded_wp_ids=["WP-A"], coord_worktree=str(pruned))
+
+    findings = cd._check_stranded_coord_revert(repo)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.severity == "warning"
+    assert finding.error_code == cd._STRANDED_COORD_REVERT_STUCK_CODE
+    # The recovery hint must NOT loop the user back at plain `--fix`.
+    assert finding.next_step is not None
+    assert "no longer exists" in finding.message
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_run_coordination_health_pruned_worktree_exits_0_with_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A pruned-worktree STUCK strand is a ``warning`` (exit 0), surfaced in output."""
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [
+            _doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review"),
+            _doctor_event("WP-A", "done", event_id="01A01", from_lane="approved"),
+        ],
+    )
+    _save_marker_state(
+        repo,
+        stranded_wp_ids=["WP-A"],
+        coord_worktree=str(tmp_path / "pruned-coord-wt"),
+    )
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True)
+    # A warning does not fail the gate, but the STUCK code IS surfaced (not dropped).
+    assert exc.value.exit_code == 0
+    assert cd._STRANDED_COORD_REVERT_STUCK_CODE in capsys.readouterr().out
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_fix_stranded_reverts_pruned_worktree_yields_warning_not_silent(
+    tmp_path: Path,
+) -> None:
+    """`_fix_stranded_reverts` on a strand finding whose worktree is pruned WARNS.
+
+    Directly exercises the fix-path defensive branch (a worktree pruned between the
+    check and the fix): the shared primitive returns ``worktree_missing`` and the
+    fixer surfaces a ``warning`` rather than silently dropping the marker.
+    """
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    finding = cd.DoctorFinding(
+        severity="error",
+        message="live strand",
+        next_step=cd._STRANDED_COORD_REVERT_HINT,
+        error_code=cd._STRANDED_COORD_REVERT_CODE,
+        extra={
+            "mission_id": _DOCTOR_MISSION_ID,
+            "mission_slug": _DOCTOR_MISSION_SLUG,
+            "coord_ref": "coord",
+            "captured_sha": "deadbeef",
+            "coord_worktree": str(tmp_path / "pruned"),
+            "candidate_wps": ["WP-A"],
+            "stranded_wp_ids": ["WP-A"],
+        },
+    )
+
+    healed, warnings = cd._fix_stranded_reverts([finding], repo)
+
+    assert healed == []
+    assert [w.error_code for w in warnings] == [cd._STRANDED_COORD_REVERT_STUCK_CODE]
+
+
+# ---------------------------------------------------------------------------
+# Safety-net warning: an un-parseable marker must not be silently dropped.
+# ---------------------------------------------------------------------------
+
+
+def _save_raw_marker(repo: Path, marker: dict[str, object]) -> None:
+    """Persist a merge state carrying an arbitrary (possibly malformed) marker."""
+    (repo / ".kittify").mkdir(parents=True, exist_ok=True)
+    save_state(
+        MergeState(
+            mission_id=_DOCTOR_MISSION_ID,
+            mission_slug=_DOCTOR_MISSION_SLUG,
+            target_branch="main",
+            wp_order=["WP-A"],
+            current_wp="WP-A",
+            pending_coord_reconcile=marker,
+        ),
+        repo,
+    )
+
+
+def test_stranded_check_unparseable_marker_emits_warning(tmp_path: Path) -> None:
+    """An enumerated-but-unparseable marker yields a ``warning``, not a silent skip.
+
+    The marker is present (so the enumeration yields it) but malformed (empty
+    ``captured_sha``), so ``_parse_reconcile_marker`` returns ``None``. A safety-net
+    checker must surface a ``warning`` (reviewer-renata LOW) rather than ``continue``.
+    """
+    repo = tmp_path / "repo"
+    _save_raw_marker(
+        repo,
+        {
+            "coord_ref": "coord",
+            "captured_sha": "",  # malformed → unparseable.
+            "coord_worktree": "/tmp/wt",
+            "stranded_wp_ids": ["WP-A"],
+            "revert_error": None,
+            "detected_at": "2026-07-18T10:05:00+00:00",
+        },
+    )
+
+    findings = cd._check_stranded_coord_revert(repo)
+
+    assert len(findings) == 1
+    assert findings[0].severity == "warning"
+    assert findings[0].error_code == cd._MARKER_UNPARSEABLE_CODE
