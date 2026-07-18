@@ -2204,7 +2204,7 @@ jobs:
             --ignore=tests/sync/test_daemon_orphan_classification.py \
             --ignore=tests/sync/test_daemon_cleanup_boundary.py \
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
-            -m 'not windows_ci and (git_repo or integration) and not regression' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/sync \
