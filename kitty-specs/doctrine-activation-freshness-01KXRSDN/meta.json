@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "3cdada30101ae87505643be974a2912f934635cc",
+  "coordination_branch": "kitty/mission-doctrine-activation-freshness-01KXRSDN",
+  "created_at": "2026-07-17T19:38:58.569962+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine-activation freshness integrity",
+  "mission_id": "01KXRSDNM9G3QG0E8QSGXZX8YE",
+  "mission_number": 183,
+  "mission_slug": "doctrine-activation-freshness-01KXRSDN",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Epic #2519: config.yaml activated_* and answers.yaml selected_* are disjoint ledgers with no reconciler. charter/activation_engine.py commit_plan writes ONLY config.yaml — none of the 4 hashed bundle files — so the content-identity freshness signal (#2732) is blind to activation by construction. Recurring revision-driven drift class: #2770 (shipped-DRG stale), #2759 (activate/deactivate skip bundle refresh), #2758 (compute_bundle_content_hash None on missing references.yaml that sync never writes), #2157 (implement gate bounces prerequisites one-at-a-time). Folds those 4. Design per architect-alphonso grounding: option (c) --resynthesize + wire existing consistency_check parity, NOT eager-always regen (layering inversion C-001 + hot-path cost + upgrade-migration harm). #2760 OUT (upgrade-overlay-revalidation, DRG-model lane #2721). MUST NOT regress the just-landed #2732 content-identity machinery.",
+  "purpose_tldr": "Close the activate-then-refresh seam so a doctrine mutation can never silently dangle the derived freshness signal: wire the built-but-unwired consistency_check parity into the freshness/preflight path, fix the references.yaml hash-input bug, aggregate the one-at-a-time implement gate, add an opt-in --resynthesize, and durably un-pin the 4 @regression DRG-staleness tests.",
+  "slug": "doctrine-activation-freshness-01KXRSDN",
+  "target_branch": "feat/doctrine-activation-freshness",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-17T21:11:22.876567+00:00"
+}
