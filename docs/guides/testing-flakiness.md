@@ -142,6 +142,40 @@ the cause, do not retry:
   a Tier-1 budget gate with a generous threshold, or remove the wall-clock
   dependency.
 
+## Test-run baseline-red gotcha
+
+A red test is not automatically *your* red. A local or backgrounded `pytest` run over
+anything broad (the full suite, `tests/merge/`, `tests/architectural/`, the regression job)
+will surface failures you did not cause. **Classify every failure before you act on it** —
+misattribution wastes effort and, worse, tempts an agent to green-wash a signal the project
+deliberately keeps red.
+
+Three baseline-red categories that are **not yours to fix**:
+
+1. **Pre-existing known-P0 reds.** Per [ADR 2026-07-17-1](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
+   an open P0 bug is *expected* to red mainline (e.g. #2736 batch poisoning, #2772 charter
+   clobber, #1834 accept-overwrite). They carry `@pytest.mark.regression` and reference a
+   tracking issue. **Leave them red** — do not deselect, quarantine, or "fix" them in an
+   unrelated change (that is the fold-first policy in [pr-landing.md](pr-landing.md)).
+2. **CI-environment failures.** Auth state (`logged_out_on_connected_teamspace` during
+   `upgrade`) and the sync disable toggles — `SPEC_KITTY_SYNC_MINIMAL_IMPORT` /
+   `SPEC_KITTY_SYNC_DISABLE`, which the pre-review gate honors as a *skip* — make some CI jobs
+   red while the same tests pass locally. These are configuration, not your diff.
+3. **Stale-install false reds.** Product code that shells out to `spec-kitty` (e.g. the
+   `merge-driver-meta`/`-traces` commands) only fires when an up-to-date `spec-kitty` is
+   installed. Between landing a change and `pip install -e .`, coverage/gate jobs report
+   false reds for lines that are actually exercised via subprocess.
+
+**The attribution test:** a failure is yours to fold only if it is **red on your branch and
+green on the base**. Confirm the base state by running the same node id against
+`upstream/main` — e.g. from a throwaway worktree with
+`PYTHONPATH="$(pwd)/src" python -m pytest <nodeid>` — or by checking the tracker for a P0
+label. When you *do* add a red-first P0 reproduction on purpose (per the ADR), mark it
+`regression`, docstring the issue, and make sure it fails for the product reason, not setup.
+
+This applies to **dispatched subagents** as much as the orchestrator: an implementer that runs
+the suite in its worktree must not report the baseline reds as regressions or try to fix them.
+
 ## See also
 
 - [Running the test suite in parallel](testing-parallel.md) — per-worker HOME
