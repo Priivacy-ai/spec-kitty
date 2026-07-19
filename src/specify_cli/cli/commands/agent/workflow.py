@@ -582,6 +582,38 @@ def _commit_via_legacy_safe_commit(
     wp_id: str,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
+    # #2684: nothing-to-commit is a benign no-op, not a hard failure. When the
+    # phase-1 snapshot authority is ON, the claim's status transition is emitted
+    # AND committed by the transactional emit path (``start_implementation_status``)
+    # *before* this legacy follow-up commit runs, and the WP-file dual-write is
+    # disabled — so every requested path is already byte-identical to HEAD and
+    # there is genuinely nothing left to stage. Pre-#2684 the redundant ``git
+    # commit`` merely warned; the mission's stricter transactional emit now makes
+    # the empty commit hard-fail (and rolls the event log back), refusing an
+    # already-persisted claim. Detect the no-op and return successfully WITHOUT
+    # rolling back the (correctly-persisted) event log. ``git status --porcelain``
+    # reports both modified AND untracked paths, so a genuine first-time write
+    # (new status.json) still has a non-empty pending set and proceeds to commit.
+    porcelain = subprocess.run(
+        ["git", "status", "--porcelain", "--", *[str(p) for p in paths]],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if porcelain.returncode == 0 and not porcelain.stdout.strip():
+        # State already present at HEAD (persisted by the transactional emit).
+        _record_receipt(
+            target_branch,
+            message,
+            "committed",
+            sha=None,
+            wp_id=wp_id,
+        )
+        return
+
     # Legacy mission-branch workflow commits land on ``target_branch`` (a lane /
     # mission branch), which is normally not protected. STANDARD asserts no
     # protected-branch flow: a protected ``target_branch`` (legacy missions

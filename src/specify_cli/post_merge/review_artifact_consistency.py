@@ -11,7 +11,7 @@ import re
 
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
 from specify_cli.status import materialize
-from specify_cli.status.models import ReviewOverride
+from specify_cli.status import ReviewOverride
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
 REJECTED_REVIEW_ARTIFACT_INVARIANT = (

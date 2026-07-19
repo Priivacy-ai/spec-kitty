@@ -248,19 +248,21 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
     exactly as the pre-rewire single body did.
 
     WP04/T015 (FR-003/FR-008/C-001): the canonical subtask-completion surface
-    (``CHECKBOX`` / ``INLINE_SUBTASKS``) is no longer a durable ``tasks.md``
-    byte-write — the durable record becomes an ``InnerStateChanged`` emit
-    (``_ms_emit_subtask_state``, called by ``_do_mark_status`` after this
-    phase). Resolution against those two formats still runs (a task id still
-    needs to map to its owning WP and target ``Status``), but any row mutation
-    a resolver produces for them is discarded rather than persisted — the
-    ``CHECKBOX`` resolver runs against a throwaway copy of ``lines`` so its
-    in-place mutation never leaks into the file that gets written. ``PIPE_TABLE``
-    is a distinct, non-canonical surface (the review gate's
+    (``CHECKBOX`` / ``INLINE_SUBTASKS``) is re-sourced from an
+    ``InnerStateChanged`` emit (``_ms_emit_subtask_state``, called by
+    ``_do_mark_status`` after this phase) once the phase-1 snapshot authority is
+    active. #2684 flag-OFF dual-write: while that authority is INACTIVE (the
+    pre-cutover default), ``emit._infer_subtasks_complete`` still reads the
+    ``CHECKBOX`` byte off ``tasks.md``, so the checkbox flip is persisted at flag
+    OFF (legacy authority = dual-write). At flag ON the ``CHECKBOX`` resolver runs
+    against a throwaway copy of ``lines`` so its in-place mutation never leaks
+    into the file that gets written (event-sourced only). ``PIPE_TABLE`` is a
+    distinct, non-canonical surface (the review gate's
     ``iter_wp_section_subtask_rows`` never reads it) and keeps its existing
-    durable write.
+    durable write regardless of flag.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.status import phase1_snapshot_authority_active
     with _tasks.feature_status_lock(st.main_repo_root, st.mission_slug):
         if not st.tasks_md.exists():
             _tasks._output_error(st.json_output, f"tasks.md not found: {st.tasks_md}")
@@ -271,15 +273,26 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
         results: list[TaskIdResult] = []
         artifact_mutated = False
 
+        # #2684 flag-OFF dual-write: at flag OFF the CHECKBOX byte in ``tasks.md``
+        # is still the completion authority the review gate re-sources from
+        # (``emit._infer_subtasks_complete`` reads ``count_wp_section_subtask_rows``
+        # off ``tasks.md`` when the phase-1 snapshot authority is inactive). So the
+        # checkbox flip MUST be persisted at flag OFF (legacy authority = dual-write),
+        # exactly as before the eviction. At flag ON the reduced snapshot is the
+        # sole authority, so the checkbox stays event-sourced-only (probe copy).
+        legacy_checkbox_write = not phase1_snapshot_authority_active(st.feature_dir)
+
         # Update all requested tasks in a single pass.
         for task_id in st.task_ids:
             before_content = "\n".join(lines)
-            # WP04/T015: probe the checkbox resolver against a throwaway copy —
-            # its in-place row mutation must never reach the persisted ``lines``,
-            # since the canonical subtask surface is no longer durably written.
-            checkbox_probe = list(lines)
+            # WP04/T015: at flag ON, probe the checkbox resolver against a throwaway
+            # copy — its in-place row mutation must never reach the persisted
+            # ``lines`` since the canonical subtask surface is not durably written.
+            # At flag OFF, mutate ``lines`` directly so the legacy checkbox byte is
+            # persisted (dual-write, see ``legacy_checkbox_write`` above).
+            checkbox_lines = lines if legacy_checkbox_write else list(lines)
             result = (
-                _resolve_checkbox(task_id, checkbox_probe, st.status)
+                _resolve_checkbox(task_id, checkbox_lines, st.status)
                 or _resolve_pipe_table(task_id, lines, st.status)
                 or _tasks._resolve_inline_subtasks(task_id, before_content, st.status, st.feature_dir)
                 or _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir)
@@ -291,9 +304,12 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                 )
             )
             results.append(result)
-            if (
+            if result.outcome == TaskIdResolutionOutcome.UPDATED and (
                 result.format == TaskIdResolutionFormat.PIPE_TABLE
-                and result.outcome == TaskIdResolutionOutcome.UPDATED
+                or (
+                    legacy_checkbox_write
+                    and result.format == TaskIdResolutionFormat.CHECKBOX
+                )
             ):
                 artifact_mutated = True
 
@@ -332,8 +348,8 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     topology during ``_ms_resolve_read_dir`` — never ``Path.cwd()`` (C-003/#2647).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import Lane, Status, WPInnerStateDelta
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import Lane, Status, WPInnerStateDelta
 
     if not st.updated_tasks:
         return

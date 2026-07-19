@@ -456,8 +456,8 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
     # Lazy imports: the snapshot read is I/O and only runs once the shell supplies
     # a feature_dir, so the pure decision core keeps a minimal import graph.
     from specify_cli.status import reduce
-    from specify_cli.status.emit import _phase1_snapshot_authority_active
-    from specify_cli.status.store import read_event_stream
+    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
+    from specify_cli.status import read_event_stream
 
     if not _phase1_snapshot_authority_active(feature_dir):
         return None

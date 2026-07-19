@@ -18,7 +18,7 @@ from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 from specify_cli.status_lanes import CANONICAL_LANES
 
 if TYPE_CHECKING:
-    from specify_cli.status.models import EventStream
+    from specify_cli.status import EventStream
 
 LANES: tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
@@ -347,12 +347,12 @@ def activity_entries(
     if feature_dir is None or wp_id is None:
         return entries
 
-    from specify_cli.status.emit import _phase1_snapshot_authority_active  # noqa: PLC0415
+    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active  # noqa: PLC0415
 
     if not _phase1_snapshot_authority_active(feature_dir):
         return entries
 
-    from specify_cli.status.store import read_event_stream  # noqa: PLC0415
+    from specify_cli.status import read_event_stream  # noqa: PLC0415
 
     stream = read_event_stream(feature_dir)
     return entries + _snapshot_activity_entries(stream, wp_id)
@@ -402,7 +402,7 @@ class WorkPackage:
         if self._snapshot_state_loaded:
             return self._snapshot_state_cache
 
-        from specify_cli.status.emit import _phase1_snapshot_authority_active  # noqa: PLC0415
+        from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active  # noqa: PLC0415
 
         # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
         # feature_dir is the parent of the tasks/ directory
@@ -412,8 +412,8 @@ class WorkPackage:
             self._snapshot_state_cache = None
             return None
 
-        from specify_cli.status.reducer import reduce as _reduce_snapshot  # noqa: PLC0415
-        from specify_cli.status.store import read_event_stream  # noqa: PLC0415
+        from specify_cli.status import reduce as _reduce_snapshot  # noqa: PLC0415
+        from specify_cli.status import read_event_stream  # noqa: PLC0415
 
         wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
         stream = read_event_stream(feature_dir)

@@ -384,6 +384,9 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
+        # TODO(triage): deferred backfill library (#2684 runtime-state eviction);
+        # CLI wiring tracked in #2816.
+        "specify_cli.migration.backfill_runtime_state",
     }
 )
 

@@ -741,6 +741,16 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
 # reviewer/implementer "known-tracked P0 — don't spend time fixing it unless #2782 is
 # in your scope", and the non-blocking `regression visibility` gate catalogs it.
 @pytest.mark.regression
+@pytest.mark.skipif(
+    not os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"),
+    reason=(
+        "SPEC_KITTY_ENABLE_SAAS_SYNC not set — this case needs a reachable SaaS "
+        "backend: `mission create` runs a real final sync, and without a backend "
+        "the batch endpoint returns Connection refused, preempting the "
+        "'direct ingress skipped' diagnostic the assertion requires. Skip when "
+        "SaaS sync is inactive (operator direction; sibling SaaS gate C-006)."
+    ),
+)
 def test_mission_create_json_strict_when_sync_skips_ingress(
     tmp_path: pathlib.Path,
 ) -> None:

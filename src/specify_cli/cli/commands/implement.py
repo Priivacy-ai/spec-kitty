@@ -1478,7 +1478,7 @@ def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
     cannot capture a baseline (C-007 best-effort, D3a legacy-claim semantics).
     """
     from specify_cli.core.process_liveness import capture_creation_time_baseline
-    from specify_cli.status.emit import build_claim_policy_metadata
+    from specify_cli.status import build_claim_policy_metadata
 
     baseline = capture_creation_time_baseline(shell_pid)
     if baseline is None:
@@ -1498,7 +1498,7 @@ def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
     ``status_phase`` to ``"1"`` (post WP03 backfill+verify / WP05 reader
     cutover), it is torn down.
     """
-    from specify_cli.status.emit import _phase1_snapshot_authority_active
+    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
 
     return not _phase1_snapshot_authority_active(feature_dir)
 

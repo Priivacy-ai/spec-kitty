@@ -20,7 +20,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from specify_cli.status.models import ReviewOverride
+from specify_cli.status import ReviewOverride
 
 TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
 REVIEW_ARTIFACT_VERDICTS = frozenset({"approved", "rejected"})
