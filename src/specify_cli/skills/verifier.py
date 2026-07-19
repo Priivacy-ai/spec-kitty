@@ -8,9 +8,7 @@ import shutil
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
-from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
@@ -218,6 +216,8 @@ def repair_skills(
 
     Returns ``(repaired_count, failed_count)``; retirements count as repairs.
     """
+    from specify_cli.skills.installer import _safe_unlink
+
     manifest = load_manifest(project_path)
     if manifest is None:
         manifest = ManagedSkillManifest()
@@ -266,39 +266,34 @@ def repair_skills(
             failed += 1
             continue
         try:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            delivery_mode = entry.delivery_mode
-            if entry.delivery_mode == "symlink":
-                global_root = get_primary_global_skill_root(entry.agent_key)
-                if global_root is None:
-                    raise OSError(f"No global skill root configured for agent {entry.agent_key}")
-                global_source = global_root / entry.skill_name / entry.source_file
-                if not global_source.exists() or entry.source_file == SKILL_MANIFEST_FILENAME:
-                    _sync_skill_to_global_root(skill, global_root)
-                if dest.exists() or dest.is_symlink():
-                    if dest.is_symlink() or dest.is_file():
-                        dest.unlink()
-                    else:
-                        shutil.rmtree(dest)
-                try:
-                    dest.symlink_to(global_source)
-                except OSError:
-                    _copy_skill_file(
-                        source_path,
-                        dest,
-                        project_path,
-                        entry.skill_name,
-                        entry.source_file,
-                    )
-                    delivery_mode = "copy"
-            else:
-                _copy_skill_file(
-                    source_path,
-                    dest,
-                    project_path,
-                    entry.skill_name,
-                    entry.source_file,
+            # An ancestor directory that is a symlink escaping the project
+            # root would make every operation below act on out-of-repo
+            # paths — refuse before touching anything.
+            if is_external_symlink(dest.parent, project_path):
+                raise OSError(
+                    f"Refusing to repair through out-of-repo symlinked directory: {dest.parent}"
                 )
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            # Repairs always land a copy (#2412) — a symlink into the
+            # machine-local global root dangles in dev-containers and is
+            # unreadable to sandboxed agent harnesses. Clear any existing
+            # destination first: unlinking a symlink at dest removes only
+            # the link inode (its target is never written), a pre-#2412
+            # projection symlink would make _copy_skill_file refuse the
+            # write, and an installer-delivered copy may carry the
+            # canonical root's read-only mode.
+            if dest.exists() or dest.is_symlink():
+                if dest.is_symlink() or dest.is_file():
+                    _safe_unlink(dest)
+                else:
+                    shutil.rmtree(dest)
+            _copy_skill_file(
+                source_path,
+                dest,
+                project_path,
+                entry.skill_name,
+                entry.source_file,
+            )
             new_hash = compute_content_hash(dest)
             # Update the manifest entry with the new hash
             manifest.add_entry(
@@ -310,7 +305,7 @@ def repair_skills(
                     agent_key=entry.agent_key,
                     content_hash=new_hash,
                     installed_at=entry.installed_at,
-                    delivery_mode=delivery_mode,
+                    delivery_mode="copy",
                 )
             )
             repaired += 1
@@ -381,25 +376,6 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
         return None
 
     return _expected_content_hash(source_path, entry.skill_name, entry.source_file)
-
-
-def _sync_skill_to_global_root(skill: Any, global_root: Path) -> None:
-    """Refresh one global canonical skill directory before relinking a project file."""
-    safe_skill_name = assert_safe_path_segment(skill.name)
-    dest_dir = global_root / safe_skill_name
-    dest_dir.parent.mkdir(parents=True, exist_ok=True)
-    if dest_dir.exists() or dest_dir.is_symlink():
-        if dest_dir.is_symlink() or dest_dir.is_file():
-            dest_dir.unlink()
-        else:
-            shutil.rmtree(dest_dir)
-    shutil.copytree(skill.skill_dir, dest_dir)
-    skill_md = dest_dir / SKILL_MANIFEST_FILENAME
-    if skill_md.is_file():
-        content = skill_md.read_text(encoding="utf-8")
-        normalized = ensure_skill_frontmatter(content, skill.name)
-        if normalized != content:
-            skill_md.write_text(normalized, encoding="utf-8")
 
 
 def _project_managed_path(project_path: Path, installed_path: str) -> Path:

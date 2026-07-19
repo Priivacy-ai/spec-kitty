@@ -414,6 +414,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   best-effort), and flips `meta.json` `status_phase` to snapshot-authority only for verified
   missions; the same seed→verify→flip path ships as an auto-discovered upgrade migration for
   consumer repos.
+- **Skill projection delivers copies, never absolute symlinks (#2412, ADR 2026-07-19-1).**
+  Projected skill files under `.claude/skills/`, `.agents/skills/`, etc. used to be
+  absolute symlinks into the user-global canonical root — which dangle when the repo
+  is mounted into a dev-container or synced to a remote box, are unreadable to agent
+  harnesses sandboxed to the repo root, and all break at once if the global root
+  moves. `_project_skill_file` now always delivers a real copy (the pre-existing
+  Windows fallback path, promoted): hash-equal destinations are left untouched
+  (idempotent re-runs), legacy symlinks are replaced with copies organically on each
+  project's next init/upgrade/repair run (no migration needed), and `repair_skills`
+  always repairs to a copy, healing pre-existing `delivery_mode: symlink` manifest
+  entries as it goes. Freshness is preserved because every install run re-projects
+  the full skill set; copies inherit the canonical root's read-only mode. Supersedes
+  the per-project-symlink half of ADR 2026-04-08-3 (the global canonical root is
+  unchanged).
 - **`charter generate` seeds a starter `charter.md` companion when absent (#2800).**
   After the #2773 inversion `charter generate` produced no `charter.md` at all, leaving a
   fresh project without the display-only rationale companion and no signal one should exist.

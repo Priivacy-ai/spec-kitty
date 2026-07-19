@@ -207,8 +207,8 @@ class TestInstallSharedRootAgent:
         project = tmp_path / "project"
         project.mkdir()
 
-        def raise_symlink_unavailable(self: Path, target: str | Path, target_is_directory: bool = False) -> None:
-            raise OSError("symlinks unavailable")
+        def fail_if_symlinked(self: Path, target: str | Path, target_is_directory: bool = False) -> None:
+            pytest.fail("skill projection must never create symlinks (#2412)")
 
         real_unlink = Path.unlink
 
@@ -217,7 +217,7 @@ class TestInstallSharedRootAgent:
                 raise PermissionError(self)
             real_unlink(self, missing_ok=missing_ok)
 
-        monkeypatch.setattr(Path, "symlink_to", raise_symlink_unavailable)
+        monkeypatch.setattr(Path, "symlink_to", fail_if_symlinked)
         monkeypatch.setattr(Path, "unlink", windows_like_unlink)
 
         skill = _make_skill(skills_root, "my-skill")
@@ -583,3 +583,120 @@ class TestInstallCopiesReferencesAndScripts:
         assert "SKILL.md" in source_files
         assert "references/arch.md" in source_files
         assert "scripts/run.sh" in source_files
+
+
+# ── #2412: copy delivery, never symlinks ─────────────────────────────
+
+
+class TestCopyDelivery:
+    """Skill projection delivers copies, never symlinks (#2412 / ADR 2026-07-19-1)."""
+
+    def test_projection_is_copy_never_symlink(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+
+        def fail_if_symlinked(self: Path, target: str | Path, target_is_directory: bool = False) -> None:
+            pytest.fail("skill projection must never create symlinks (#2412)")
+
+        monkeypatch.setattr(Path, "symlink_to", fail_if_symlinked)
+
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        skill = _make_skill(skills_root, "my-skill", references=["arch.md"])
+        entries = install_skills_for_agent(project, "codex", [skill])
+
+        for entry in entries:
+            installed = project / entry.installed_path
+            assert not installed.is_symlink()
+            assert installed.is_file()
+            assert entry.delivery_mode == "copy"
+
+    def test_reinstall_replaces_legacy_symlink_with_copy(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A pre-#2412 project carries absolute symlinks into the global root;
+        the next install run converts them to copies — no migration needed."""
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        skill = _make_skill(skills_root, "my-skill")
+
+        # Simulate the legacy projection: dest is an absolute symlink to a
+        # (machine-local) canonical file outside the repo.
+        legacy_target = tmp_path / "home" / ".agents" / "skills" / "my-skill" / "SKILL.md"
+        legacy_target.parent.mkdir(parents=True, exist_ok=True)
+        legacy_target.write_text("legacy canonical content\n", encoding="utf-8")
+        dest = project / ".agents" / "skills" / "my-skill" / "SKILL.md"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.symlink_to(legacy_target)
+
+        entries = install_skills_for_agent(project, "codex", [skill])
+
+        assert not dest.is_symlink()
+        assert dest.is_file()
+        assert dest.read_text(encoding="utf-8") == skill.skill_md.read_text(encoding="utf-8")
+        assert entries[0].delivery_mode == "copy"
+
+    def test_reinstall_leaves_hash_equal_copy_untouched(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-running install over an up-to-date copy is a no-op for that file
+        (idempotent — no rewrite churn on every upgrade)."""
+        from specify_cli.skills.installer import _project_skill_file
+
+        source = tmp_path / "global" / "SKILL.md"
+        source.parent.mkdir(parents=True)
+        source.write_text("canonical\n", encoding="utf-8")
+        project = tmp_path / "project"
+        dest = project / ".agents" / "skills" / "my-skill" / "SKILL.md"
+        dest.parent.mkdir(parents=True)
+
+        mode, _ = _project_skill_file(source, dest, project)
+        assert mode == "copy"
+
+        import shutil as shutil_module
+
+        def fail_if_copied(src: object, dst: object, **kwargs: object) -> None:
+            pytest.fail("hash-equal destination must not be rewritten")
+
+        monkeypatch.setattr(shutil_module, "copy2", fail_if_copied)
+        mode, _ = _project_skill_file(source, dest, project)
+        assert mode == "copy"
+        assert dest.read_text(encoding="utf-8") == "canonical\n"
+
+    def test_divergent_copy_archived_then_replaced(self, tmp_path: Path) -> None:
+        """User-modified content at the destination is archived to the backup
+        root before the fresh copy lands (behavior preserved from symlink era)."""
+        from specify_cli.skills.installer import _project_skill_file
+
+        source = tmp_path / "global" / "SKILL.md"
+        source.parent.mkdir(parents=True)
+        source.write_text("canonical\n", encoding="utf-8")
+        project = tmp_path / "project"
+        dest = project / ".agents" / "skills" / "my-skill" / "SKILL.md"
+        dest.parent.mkdir(parents=True)
+        dest.write_text("user edited\n", encoding="utf-8")
+
+        archived: list[Path] = []
+        mode, backup_root = _project_skill_file(
+            source, dest, project, archived_paths=archived
+        )
+
+        assert mode == "copy"
+        assert dest.read_text(encoding="utf-8") == "canonical\n"
+        assert backup_root is not None
+        assert len(archived) == 1
+        assert archived[0].read_text(encoding="utf-8") == "user edited\n"
+
+    def test_copy_preserves_read_only_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Copies inherit the canonical root's read-only mode — the projection
+        is managed content, not user-editable (drift is detected and repaired)."""
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        skill = _make_skill(skills_root, "my-skill")
+        install_skills_for_agent(project, "codex", [skill])
+
+        installed = project / ".agents" / "skills" / "my-skill" / "SKILL.md"
+        assert not installed.stat().st_mode & stat.S_IWRITE
