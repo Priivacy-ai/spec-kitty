@@ -36,6 +36,7 @@ from .reducer import (
     materialize_snapshot,
     materialize_to_json,
     reduce,
+    wp_snapshot_state,
 )
 from .store import (
     is_retrospective_lifecycle_event,
@@ -363,6 +364,7 @@ __all__ = [
     "validate_materialization_drift",
     "validate_transition",
     "validate_transition_legality",
+    "wp_snapshot_state",
     "wp_state_for",
     "registered_worktree_paths",
     "scan_workspace_husks",

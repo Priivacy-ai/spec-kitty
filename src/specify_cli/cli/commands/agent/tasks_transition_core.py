@@ -455,18 +455,15 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
 
     # Lazy imports: the snapshot read is I/O and only runs once the shell supplies
     # a feature_dir, so the pure decision core keeps a minimal import graph.
-    from specify_cli.status import reduce
     from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
-    from specify_cli.status import read_event_stream
+    from specify_cli.status import wp_snapshot_state
 
     if not _phase1_snapshot_authority_active(feature_dir):
         return None
 
-    stream = read_event_stream(feature_dir)
-    if not stream.transitions and not stream.annotations:
-        return None
-    snapshot = reduce(stream.transitions, stream.annotations)
-    wp_state = snapshot.work_packages.get(req.task_id)
+    # Shared reduce->get accessor (IC-08). An empty log -> no entry -> None ->
+    # legacy fallback, identical to the prior explicit empty-stream guard.
+    wp_state = wp_snapshot_state(feature_dir, req.task_id)
     if wp_state is None:
         return None
     subtasks = wp_state.get("subtasks") or {}

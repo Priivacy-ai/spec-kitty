@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import typer
 
@@ -505,23 +505,18 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
         # until this mission is explicitly cut over (flag ON).
         return [task_id for task_id, checked in roster if not checked]
 
-    from specify_cli.status import reduce as _reduce_events
     from specify_cli.status import Lane
-    from specify_cli.status import read_event_stream
+    from specify_cli.status import wp_snapshot_state
 
-    stream = read_event_stream(feature_dir)
-    if not stream.transitions and not stream.annotations:
-        # Pre-backfill: nothing recorded in the log yet — tolerate the legacy
-        # fallback rather than falsely reporting every subtask incomplete.
-        return _legacy_unchecked_subtask_ids(content, wp_id)
-
-    snapshot = _reduce_events(stream.transitions, stream.annotations)
-    wp_state = snapshot.work_packages.get(wp_id)
+    # Shared reduce->get accessor (IC-08). An empty log reduces to no entry ->
+    # None, identical to the prior explicit empty-stream guard (both fall back to
+    # the legacy tasks.md read below).
+    wp_state = wp_snapshot_state(feature_dir, wp_id)
     if wp_state is None or "subtasks" not in wp_state:
-        # This WP has never had a subtask-completion event recorded (e.g. a
-        # pre-WP04 mission whose subtasks were checked the legacy way) — the
-        # snapshot slot is silent, not authoritative; fall back rather than
-        # wrongly report already-checked legacy rows as incomplete.
+        # Pre-backfill / never event-sourced (e.g. a pre-WP04 mission whose
+        # subtasks were checked the legacy way) — the snapshot slot is silent,
+        # not authoritative; fall back rather than wrongly report already-checked
+        # legacy rows as incomplete.
         return _legacy_unchecked_subtask_ids(content, wp_id)
 
     subtasks = wp_state.get("subtasks") or {}
@@ -703,7 +698,9 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
     if not candidates:
         return []
 
-    return _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch)
+    # cast: the _tasks seam attribute resolves to Any (module-attr indirection),
+    # erasing _filter_by_planning_tip_content's -> list[str]; type-only.
+    return cast("list[str]", _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch))
 
 
 def _list_wp_branch_specs_changes_for_guard(worktree_path: Path, base_branch: str) -> list[str]:

@@ -123,10 +123,11 @@ _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
     "_mark_status_json_payload",
 )
 
-_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
+_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 22 symbols (#2816: +gated runtime seam)
     "_default_status_ports",
     "_StatusState",
     "_st_resolve_dirs",
+    "_st_gated_runtime_fields",
     "_st_resolve_execution_mode",
     "_st_load_work_packages",
     "_st_apply_review_flags",
@@ -422,5 +423,7 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     ``_mt_pre_review_dirty_paths`` (63 -> 65). Net tasks-surface total
     141 -> 142. WP04 (#2684, subtask-emit + reader-delegate) added
     ``_legacy_unchecked_subtask_ids`` (tasks_shared 20 -> 21) and
-    ``_ms_emit_subtask_state`` (tasks_mark_status 13 -> 14): 142 -> 144."""
-    assert len(SYMBOL_TO_MODULE) == 144  # golden-count: cardinality-is-contract
+    ``_ms_emit_subtask_state`` (tasks_mark_status 13 -> 14): 142 -> 144.
+    #2816 Phase B (bypass-reader gating) added ``_st_gated_runtime_fields``
+    (tasks_status_cmd 21 -> 22): 144 -> 145."""
+    assert len(SYMBOL_TO_MODULE) == 145  # golden-count: cardinality-is-contract
