@@ -141,8 +141,15 @@ def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
 
 
 def test_generate_command_success(tmp_path: Path) -> None:
-    """consolidate-charter-bundle WP03: ``generate`` writes ``charter.yaml``
-    only -- ``charter.md``/``references.yaml`` are never written (Landmine 3)."""
+    """consolidate-charter-bundle WP03: ``generate`` writes ``charter.yaml`` as
+    the authoritative source; ``references.yaml`` is never written (Landmine 3).
+
+    ``charter.md`` is a display-only companion the *compiler*
+    (``write_compiled_charter``) never emits — but the ``generate`` *command*
+    seeds a minimal starter when absent (#2773 / ADR 2026-07-18-1), so the
+    companion is discoverable and the FR-009 affordance holds. The seed is
+    create-if-absent and never clobbers a curated file (that invariant is
+    pinned separately by the ``--force`` preservation test below)."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _git_init(repo_root)
@@ -156,7 +163,10 @@ def test_generate_command_success(tmp_path: Path) -> None:
         assert result.exit_code == 0
         assert "generated and synced" in result.stdout
         assert (repo_root / ".kittify" / "charter" / "charter.yaml").exists()
-        assert not (repo_root / ".kittify" / "charter" / "charter.md").exists()
+        # charter.md seeded (was absent) as a starter companion, not resolving.
+        charter_md = repo_root / ".kittify" / "charter" / "charter.md"
+        assert charter_md.is_file()
+        assert "curated companion" in charter_md.read_text(encoding="utf-8")
         assert not (repo_root / ".kittify" / "charter" / "references.yaml").exists()
         assert (repo_root / ".kittify" / "charter" / "library").exists()
 

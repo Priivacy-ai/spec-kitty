@@ -153,22 +153,29 @@ def charter_synthesize(  # noqa: C901
         # has written YAMLs under .kittify/charter/generated/), the production
         # adapter has nothing to load and would raise GeneratedArtifactMissingError.
         # The intercept below takes the bounded fresh-project path: it requires
-        # charter.md to exist (the upstream chain produced it) AND no
-        # agent-authored YAMLs to be present. When both signals fire, we
-        # materialize the minimal .kittify/doctrine/ artifact set documented in
-        # T031 so the runtime can advance via the built-in doctrine fallback.
+        # the authoritative charter.yaml to exist (the upstream `charter
+        # generate` produced it) AND no agent-authored doctrine YAMLs to be
+        # present. When both signals fire, we materialize the minimal
+        # .kittify/doctrine/ artifact set documented in T031 so the runtime can
+        # advance via the built-in doctrine fallback.
         #
-        # When charter.md is absent we fall through to the existing pipeline so
-        # callers that mock charter.synthesizer.synthesize (legacy unit tests)
-        # keep their established behaviour. Real operators always reach this
-        # path AFTER `charter generate`, so charter.md is reliably present in
-        # the realistic fresh-project flow.
-        charter_md = repo_root / ".kittify" / "charter" / "charter.md"
+        # Gating signal re-pointed from charter.md to charter.yaml for the
+        # consolidate-charter-bundle inversion (#2773): post-inversion
+        # `charter generate` writes the authoritative charter.yaml and NEVER
+        # writes charter.md (a hand-curated companion — see generate.py /
+        # data-model.md Landmine 3). Keying the fresh-project intercept on
+        # charter.md therefore never fired on a real fresh project and let
+        # synthesize fall through to the production adapter (crash). charter.yaml
+        # is the artifact `generate` reliably produces, so it is the correct
+        # fresh-project signal. When it is absent we fall through to the
+        # existing pipeline so callers that mock charter.synthesizer.synthesize
+        # (legacy unit tests) keep their established behaviour.
+        charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
         is_fresh_project_synthesize = (
             adapter == "generated"
             and not _has_generated_artifacts(repo_root)
             and not dry_run_evidence
-            and charter_md.is_file()
+            and charter_yaml.is_file()
         )
 
         if is_fresh_project_synthesize:

@@ -186,6 +186,41 @@ def _sync_charter_if_present(charter_path: Path, charter_dir: Path) -> Any:
     return sync_charter(charter_path, charter_dir, force=True)
 
 
+_CHARTER_MD_COMPANION_SEED = """\
+# Project Charter — curated companion
+
+<!--
+This file is a hand-authored, display-only companion to the authoritative
+`.kittify/charter/charter.yaml`. It holds the human *rationale* behind your
+project's governance and doctrine.
+
+It is NEVER a charter-resolving input, and `charter generate` NEVER overwrites
+it — this starter was written only because the file was absent. Edit it freely.
+-->
+"""
+
+
+def _seed_charter_md_companion_if_absent(charter_path: Path) -> bool:
+    """Create a starter ``charter.md`` companion IFF one is not already present.
+
+    consolidate-charter-bundle (#2773 / ADR 2026-07-18-1): ``charter.md`` is a
+    hand-authored, display-only companion that the compiler
+    (``write_compiled_charter``) never emits and that no path ever *overwrites*.
+    To keep the companion discoverable and honor the FR-009 affordance that
+    ``charter generate`` yields a ``charter.md``, the ``generate`` command seeds
+    a minimal starter ONLY when the file is absent. An existing (curated)
+    ``charter.md`` is left byte-for-byte untouched, so the never-clobber
+    invariant (#2772 / IC-03) is preserved.
+
+    Returns ``True`` when a starter was written, ``False`` when a pre-existing
+    file was kept.
+    """
+    if charter_path.exists():
+        return False
+    charter_path.write_text(_CHARTER_MD_COMPANION_SEED, encoding="utf-8")
+    return True
+
+
 def _finalize_sync_result(sync_result: Any) -> tuple[list[str], list[str]]:
     """Raise on a sync error; return ``(warnings, files_written)``.
 
@@ -352,6 +387,7 @@ def generate(
             (charter_dir / "library").mkdir(exist_ok=True)
 
         charter_path = charter_dir / "charter.md"
+        _seed_charter_md_companion_if_absent(charter_path)
         sync_result = _sync_charter_if_present(charter_path, charter_dir)
         sync_warnings, sync_files = _finalize_sync_result(sync_result)
 
