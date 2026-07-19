@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "mission_slug": "charter-deadcode-noop-campsite-01KXW0NY",
+  "mission_id": "01KXW0NY335CXZTP3KXAGFV8EQ",
+  "mission_branch": "kitty/mission-charter-deadcode-noop-campsite-01KXW0NY",
+  "target_branch": "feat/charter-deadcode-noop-campsite",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/__init__.py",
+        "src/charter/generator.py",
+        "tests/charter/test_generator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/extractor.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/charter/test_activate_resolves_no_answers_edit.py",
+        "tests/charter/test_charter_context_spdd_reasons.py",
+        "tests/charter/test_chokepoint_coverage.py",
+        "tests/charter/test_extractor.py",
+        "tests/charter/test_extractor_activations.py",
+        "tests/charter/test_extractor_selection.py",
+        "tests/charter/test_sync_authority_paths.py",
+        "tests/charter/test_sync_references.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/charter/test_context_noop_stability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/specify_cli/charter_runtime/test_preflight_noop_stability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-19T02:29:21.070856+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
