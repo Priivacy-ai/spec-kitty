@@ -157,7 +157,7 @@ class TestOverrideWinsOnUrnLane:
         assert name_result.tier == urn_result.tier == ResolutionTier.OVERRIDE
 
     def test_legacy_tier_also_wins_over_package_default_on_urn_lane(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Sanity: the URN lane honours the *full* 5-tier chain, not just
         override -- legacy still beats package default.
@@ -168,20 +168,18 @@ class TestOverrideWinsOnUrnLane:
             content="# Legacy customization",
         )
 
-        # ``_warn_legacy_asset`` suppresses the DeprecationWarning (emitting a
-        # one-time stderr nudge instead) when a global runtime is configured,
-        # i.e. when ``get_kittify_home()/cache/version.lock`` exists. Under
-        # per-worker HOME isolation that state depends on test ordering, so
-        # point the home at a non-existent dir to make the warning deterministic
-        # -- the same mechanism the dedicated legacy-warning tests in
-        # ``test_resolver_unit.py`` use.
-        with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            warnings.catch_warnings(record=True) as caught,
-        ):
+        # ``_warn_legacy_asset`` emits the DeprecationWarning only when NO global
+        # runtime is configured; when ``_is_global_runtime_configured()`` is True
+        # (``get_kittify_home()/cache/version.lock`` exists) it SUPPRESSES the
+        # warning and prints a one-time stderr nudge instead. On a dev box / CI
+        # where the real ``~/.kittify`` is bootstrapped, that predicate is True and
+        # the assertion captures 0 warnings (the #2812 flake). Point SPEC_KITTY_HOME
+        # -- the env seam ``get_kittify_home`` reads FIRST and uncached -- at a
+        # fresh empty dir so the emit branch runs deterministically. Using the env
+        # (not a ``patch(...)``) makes this immune to the module-reload / patch-
+        # binding ordering that defeated a predicate patch in full-suite runs.
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty_home"))
+        with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             result = resolve_template_by_urn(
                 "template:software-dev/spec-template.md", project

@@ -1289,7 +1289,7 @@ jobs:
     needs: [changes, fast-tests-next]
     if: >-
       always() &&
-      (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true') &&
+      (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.platform == 'true') &&
       needs.fast-tests-next.result != 'failure'
     steps:
       - uses: actions/checkout@v6
@@ -3955,7 +3955,7 @@ jobs:
               "fast-tests-status": ["status", "sync"],
               "fast-tests-review": ["review", "status"],
               "fast-tests-next": ["next", "status"],
-              "mission-loader-coverage": ["next", "core_misc"],
+              "mission-loader-coverage": ["next", "core_misc", "platform"],
               "fast-tests-lanes": ["lanes", "status", "merge"],
               "fast-tests-dashboard": ["dashboard", "status"],
               "fast-tests-upgrade": ["upgrade", "status"],
