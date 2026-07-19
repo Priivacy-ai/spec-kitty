@@ -54,6 +54,11 @@ def create_aware_midpoint(
     makes it element-generic across ``dict`` and structured event types alike.
 
     For ``len(events) < 2`` there is no interior boundary, so ``0`` is returned.
+
+    For a 2-element same-key batch no cut can both keep the pair together and
+    leave both slices non-empty, so the returned index is the edge value ``0``;
+    callers that recurse on both halves MUST clamp the result into
+    ``1 <= i <= len - 1`` first.
     """
     naive = len(events) // 2
     if naive == 0:

@@ -978,20 +978,13 @@ def _parse_error_response(
         combined = error_msg
         if details_raw:
             combined = f"{error_msg}\nDetails: {details_raw}"
-        result.error_messages.append(combined)
-        result.error_count = len(events)
-        result.failed_ids = [e.get("event_id") for e in events]
-        category = categorize_error(combined)
-        for evt in events:
-            eid = evt.get("event_id", "unknown")
-            result.event_results.append(
-                BatchEventResult(
-                    event_id=eid,
-                    status="failed_transient",
-                    error=combined,
-                    error_category=category,
-                )
-            )
+        _record_all_events_failed(
+            result,
+            events,
+            error=combined,
+            category=categorize_error(combined),
+            transient=True,
+        )
 
 
 def batch_sync(  # noqa: C901
