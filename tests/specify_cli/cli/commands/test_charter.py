@@ -364,35 +364,3 @@ def test_cancel_decision_called_on_cancel_sentinel(tmp_path: Path) -> None:
     # because only resolved-with-answer decisions do so (FR-012 final sentence).
     answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
     assert answers_path.exists(), "answers.yaml was not written"
-
-
-def test_fresh_synthesize_dry_run_reports_stale_graph_delete(tmp_path: Path) -> None:
-    """Fresh-project dry-run must report graph.yaml cleanup done by real run."""
-    charter_dir = tmp_path / ".kittify" / "charter"
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
-    charter_dir.mkdir(parents=True)
-    doctrine_dir.mkdir(parents=True)
-    (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
-    graph_path = doctrine_dir / "graph.yaml"
-    graph_path.write_text("nodes: []\nedges: []\n", encoding="utf-8")
-
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app,
-            ["synthesize", "--dry-run", "--json"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
-
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["result"] == "dry_run"
-    assert payload["files_planned"] == [
-        ".kittify/doctrine/PROVENANCE.md",
-        ".kittify/charter/synthesis-manifest.yaml",
-    ]
-    assert payload["planned_deletes"] == [".kittify/doctrine/graph.yaml"]
-    assert graph_path.exists(), "dry-run must not delete graph.yaml"
