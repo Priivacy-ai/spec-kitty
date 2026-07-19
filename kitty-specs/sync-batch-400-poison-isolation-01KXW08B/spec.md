@@ -206,7 +206,7 @@ the contract so a future change can't silently make the CLI paper over server st
 - **SaaS transition-matrix alignment** (accept `in_progress → planned` un-forced) → **spec-kitty-saas#509**.
 - **SaaS `wp_status_event_without_create` reducer semantics + accrued ~487 orphan backfill** →
   **spec-kitty-saas#510** (settle-vs-recompute treated as a risk; post-deploy metric measurement).
-- Everything editable in this CLI repo is **folded in** (bisection, dormant-path fix, #2755 de-dup as a
+- Everything editable in this CLI repo is **folded in** (bisection, live offline-queue fix, #2755 de-dup as a
   shared mechanism, CLI contract test). The deferral boundary equals the repo boundary — nothing in-repo
   is deferred (planner-priti confirmed the fold is at its correct maximum).
 
@@ -251,8 +251,10 @@ The P0 delivery fix (US1/US2, FR-001–004/008) was clean as first written; the 
   drain (needs a drain harness — WP03).
 - **[MED, renata] NFR-002/003 narrated.** Now pinned with POST-count + termination + no-duplicate-accepted assertions.
 - **[HIGH-coupling, priti] the P0 gate was welded to the P2 refactor.** SC-004 decoupled from the P0
-  release gate; WP sequencing puts WP05b last + release-optional so the P0 ships on WP01+WP02→WP03.
-  **Tracker:** #2755 wired as *superseded-by #2736, closes-if-WP05b-lands* (not `blocked_by`).
+  release gate; WP sequencing puts the #2755 retrofit last + release-optional so the P0 ships on the
+  primitive + bisection alone. (This audit trail predates `/spec-kitty.tasks`; the final numbering is
+  WP01 primitive → WP02 P0 bisection, WP03 FSM contract, WP04 live queue fix, WP05 = the #2755 retrofit.)
+  **Tracker:** #2755 wired as *superseded-by #2736, closes when the retrofit (WP05) lands* (not `blocked_by`).
 - **Concessions (all three):** the red-first anchor is honestly RED for the product reason; FR-004
   matches the test (culprit correctly rejected, non-terminal); the FSM force-free contract (FR-007/C-003)
   is code-true; the fold is at its correct maximum (deferral boundary = repo boundary).
