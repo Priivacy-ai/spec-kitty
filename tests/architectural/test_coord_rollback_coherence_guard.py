@@ -344,7 +344,7 @@ def test_only_raw_restore_call_routes_through_the_primitive() -> None:
     """
     tree, parents = _load_executor_ast()
     raw_calls = _calls_named(tree, _RAW_RESTORE)
-    assert len(raw_calls) == 1, (
+    assert len(raw_calls) == 1, (  # golden-count: cardinality-is-contract
         f"expected EXACTLY ONE raw {_RAW_RESTORE}( call (inside the {_PRIMITIVE} "
         f"primitive); found {len(raw_calls)} at lines {[c.lineno for c in raw_calls]}. "
         "A restore call OUTSIDE the primitive can strand a committed coord ``done`` "
@@ -396,7 +396,7 @@ def test_site_691_dead_for_coord_and_site_701_coord_reachable_and_routed() -> No
         for c in _calls_named(tree, _PRIMITIVE)
         if _enclosing_function(c, parents) == _RECORD_DONE_PHASE
     ]
-    assert len(calls) == 2, (
+    assert len(calls) == 2, (  # golden-count: cardinality-is-contract
         f"expected exactly two routed restore sites in {_RECORD_DONE_PHASE} "
         f"(dead-for-coord ≈691 + coord-reachable ≈701); found {len(calls)} at "
         f"{sorted(c.lineno for c in calls)}"
@@ -412,13 +412,13 @@ def test_site_691_dead_for_coord_and_site_701_coord_reachable_and_routed() -> No
         elif not gated and _PROJECT_CALLEE in try_callees:
             coord_reachable.append(c)
 
-    assert len(dead_for_coord) == 1, (
+    assert len(dead_for_coord) == 1, (  # golden-count: cardinality-is-contract
         "site ≈691 must be dead-for-coord: the restore in the "
         f"{_RECORD_DONE_CALLEE} except handler must sit INSIDE "
         f"``if not run.{_DONE_GATE_TOKEN}:`` — got "
         f"{[c.lineno for c in dead_for_coord]} matching"
     )
-    assert len(coord_reachable) == 1, (
+    assert len(coord_reachable) == 1, (  # golden-count: cardinality-is-contract
         "site ≈701 must be coord-reachable-and-routed: the restore in the "
         f"{_PROJECT_CALLEE} except handler must route through {_PRIMITIVE} and NOT "
         f"be gated by ``run.{_DONE_GATE_TOKEN}`` — got "
