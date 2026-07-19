@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "b1b77b74d12cc108bdff12e5acb29aee598fbcad",
+  "coordination_branch": "kitty/mission-sync-batch-400-poison-isolation-01KXW08B",
+  "created_at": "2026-07-19T01:36:07.858942+00:00",
+  "flattened": false,
+  "friendly_name": "Sync batch-400 poison isolation (bisection)",
+  "mission_id": "01KXW08BNJPJR342RBG5JHAG3Y",
+  "mission_number": null,
+  "mission_slug": "sync-batch-400-poison-isolation-01KXW08B",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Sync batch-400 poison isolation (bisection) on fix/2736-batch-400-poisoning-isolation so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "One invalid event no longer poisons its whole sync batch — bisect the whole-batch 400 to isolate the culprit and deliver every innocent event (P0 #2736).",
+  "slug": "sync-batch-400-poison-isolation-01KXW08B",
+  "target_branch": "fix/2736-batch-400-poisoning-isolation",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-19T02:52:27.967902+00:00"
+}
