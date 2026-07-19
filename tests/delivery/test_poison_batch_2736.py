@@ -1,17 +1,22 @@
-"""RED-FIRST P0 reproduction of the poison-batch delivery defect (#2736).
+"""Regression guard for the poison-batch delivery fix (#2736).
+
+Formerly the RED-FIRST P0 reproduction (ADR 2026-07-17-1); now green and guarding
+the fix (the ``@pytest.mark.regression`` marker was removed once it passed).
 
 The server validates an events batch all-or-nothing: one genuinely-invalid event
 makes it reject the **whole** batch with HTTP 400 carrying a single top-level
-``error`` string and no per-event ``details`` granularity. On the CLI side,
-``receivers._map_400`` then fans that batch-level error out to **every** event in
-the batch, so a batch of N events where only one is invalid comes back as N
-``rejected`` results — the N-1 innocent events never deliver and each inherits a
-misleading reason that has nothing to do with them.
+``error`` string and no per-event ``details`` granularity. The CLI's
+``receivers._map_400`` **used to** fan that batch-level error out to every event,
+so a batch of N events where only one was invalid came back as N ``rejected``
+results — the N-1 innocent events never delivered and each inherited a misleading
+reason that had nothing to do with them.
 
-This module reproduces that behaviour through the pre-existing receiver delivery
-entry point (:meth:`ExternalReceiver.deliver`, the same batch-post path the
-Teamspace receiver uses), with a content-aware fake poster standing in for the
-all-or-nothing server. No network, deterministic.
+The receiver now **bisects** a whole-batch 400 (split → re-POST both halves →
+recurse to singletons), isolating the culprit and delivering every innocent. This
+module guards that fix through the receiver delivery entry point
+(:meth:`ExternalReceiver.deliver`, the same batch-post path the Teamspace receiver
+uses), with a content-aware fake poster standing in for the all-or-nothing server.
+No network, deterministic.
 """
 from __future__ import annotations
 
