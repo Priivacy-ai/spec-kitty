@@ -29,17 +29,23 @@ runner = CliRunner()
 
 
 def _write_governance_with_selections(repo_root: Path) -> None:
-    """Write a minimal governance.yaml declaring one selected styleguide."""
+    """Write a minimal charter.yaml declaring one selected styleguide.
+
+    consolidate-charter-bundle (#2773) retired the compiled ``governance.yaml``
+    and folded selections under ``charter.yaml``'s ``governance.doctrine``
+    section, which is what ``_read_project_selections`` now reads.
+    """
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "governance.yaml").write_text(
+    (charter_dir / "charter.yaml").write_text(
         textwrap.dedent(
             """
-            doctrine:
-              selected_styleguides:
-                - my-project-styleguide
-              selected_directives:
-                - PROJECT_DIRECTIVE_01
+            governance:
+              doctrine:
+                selected_styleguides:
+                  - my-project-styleguide
+                selected_directives:
+                  - PROJECT_DIRECTIVE_01
             """
         ).lstrip(),
         encoding="utf-8",

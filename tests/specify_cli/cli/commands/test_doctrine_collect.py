@@ -285,8 +285,9 @@ def test_read_project_selections_missing_file(tmp_path: Path) -> None:
 def test_read_project_selections_reads_lists(tmp_path: Path) -> None:
     charter = tmp_path / ".kittify" / "charter"
     charter.mkdir(parents=True)
-    (charter / "governance.yaml").write_text(
-        "doctrine:\n  selected_directives:\n    - d1\n    - d2\n", encoding="utf-8"
+    (charter / "charter.yaml").write_text(
+        "governance:\n  doctrine:\n    selected_directives:\n      - d1\n      - d2\n",
+        encoding="utf-8",
     )
     selections = collect._read_project_selections(tmp_path)
     assert selections["directives"] == ["d1", "d2"]
@@ -295,7 +296,7 @@ def test_read_project_selections_reads_lists(tmp_path: Path) -> None:
 def test_read_project_selections_malformed_degrades(tmp_path: Path) -> None:
     charter = tmp_path / ".kittify" / "charter"
     charter.mkdir(parents=True)
-    (charter / "governance.yaml").write_text("::: bad :::\n", encoding="utf-8")
+    (charter / "charter.yaml").write_text("::: bad :::\n", encoding="utf-8")
     selections = collect._read_project_selections(tmp_path)
     assert all(v == [] for v in selections.values())
 
