@@ -26,9 +26,6 @@ wrapper that does). The carve-out list is explicit and narrow:
     the chokepoint.
   * ``src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py`` —
     bootstrap migration.
-  * ``src/charter/extractor.py``
-    — producers of governance/directives/metadata.yaml; they WRITE, not
-    READ, those files.
   * ``src/charter/hasher.py`` — metadata.yaml consumer used by the chokepoint itself.
   * ``src/charter/schemas.py`` — only string constants for YAML filenames.
 
@@ -57,8 +54,6 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/sync.py",
         "src/charter/bundle.py",
         "src/charter/resolution.py",
-        # Producers (they WRITE, not read manifest derivatives)
-        "src/charter/extractor.py",
         # Project init stamps the top-level ``.kittify/metadata.yaml`` file.
         # This is project bootstrap metadata, not the charter bundle's
         # ``.kittify/charter/metadata.yaml`` derivative surface.

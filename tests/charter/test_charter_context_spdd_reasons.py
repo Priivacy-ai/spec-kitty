@@ -414,9 +414,9 @@ class TestSelectedTacticsRoundTrip:
     ) -> None:
         from charter.charter_yaml_io import save_charter_yaml
         from charter.compiler import compile_charter
-        from charter.extractor import Extractor
         from charter.interview import default_interview
         from charter.pack_context import PackContext
+        from charter.schemas import DoctrineSelectionConfig, GovernanceConfig
 
         # 1. Build a PackContext that activates ONLY the canvas-fill tactic
         #    (every other kind explicitly narrowed to empty so nothing else
@@ -454,11 +454,22 @@ class TestSelectedTacticsRoundTrip:
         assert "reasons-canvas-fill" in compiled.selected_tactics
         assert "selected_tactics: [reasons-canvas-fill]" in compiled.markdown
 
-        # 3. Round-trip: re-extract the charter back into a GovernanceConfig
-        #    and confirm selected_tactics survived the markdown -> YAML hop.
-        extractor = Extractor()
-        result = extractor.extract(compiled.markdown)
-        assert "reasons-canvas-fill" in result.governance.doctrine.selected_tactics
+        # 3. WP02 (charter-deadcode-noop-campsite): charter.extractor is
+        #    retired, so the round-trip is reconstructed directly from the
+        #    already-available ``compiled`` selection fields instead of
+        #    re-parsing ``compiled.markdown`` via ``Extractor().extract()``
+        #    -- this is the same data the extractor used to scrape back out
+        #    of the rendered markdown.
+        governance = GovernanceConfig(
+            doctrine=DoctrineSelectionConfig(
+                selected_paradigms=compiled.selected_paradigms,
+                selected_directives=compiled.selected_directives,
+                selected_tactics=compiled.selected_tactics,
+                available_tools=compiled.available_tools,
+                template_set=compiled.template_set,
+            )
+        )
+        assert "reasons-canvas-fill" in governance.doctrine.selected_tactics
 
         # 4. Write charter.yaml's governance: section the way the
         #    hand-authored charter would carry it, then let the activation
@@ -466,7 +477,7 @@ class TestSelectedTacticsRoundTrip:
         charter_yaml_path = _charter_yaml_path(tmp_path)
         save_charter_yaml(
             charter_yaml_path,
-            {"governance": result.governance.model_dump(mode="json")},
+            {"governance": governance.model_dump(mode="json")},
         )
 
         clear_activation_cache()
