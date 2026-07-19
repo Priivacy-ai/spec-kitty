@@ -806,6 +806,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2582,6 +2588,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/2026-07-19-migration-contract-step-ownership-field-report.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md
   tag: current
   divio_type: none
@@ -3213,6 +3225,18 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/2026-04-14-windows-compatibility-hardening-mission-review.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2684-task-move-cluster-scoping.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2684-task-move-cluster-spec.md
   tag: current
   divio_type: none
   owning_workstream: none
