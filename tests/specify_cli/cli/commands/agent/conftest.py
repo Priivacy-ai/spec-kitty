@@ -33,6 +33,8 @@ from collections.abc import Iterator
 
 import pytest
 
+from specify_cli.core.env import SYNC_DISABLE_ENV_VARS
+
 
 @pytest.fixture(autouse=True)
 def _portable_cli_render_env() -> Iterator[None]:
@@ -54,7 +56,7 @@ def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> No
 
     The pre-review regression gate reuses the sync layer's process-wide opt-outs
     ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` / ``SPEC_KITTY_SYNC_DISABLE`` (see
-    ``tasks_move_task._PRE_REVIEW_GATE_DISABLE_ENV_VARS``). In the whole-tree
+    the canonical ``core.env.SYNC_DISABLE_ENV_VARS``). In the whole-tree
     parallel run (``-n auto --dist loadfile``) one of those vars can be present in
     the xdist worker — leaked mid-run from a sibling test or daemon path — which
     silently *skips* the gate and reds the gate-observability tests that assert it
@@ -66,5 +68,5 @@ def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> No
     themselves inside the test body (after this fixture runs), so they are
     unaffected. No production behaviour changes — this only isolates the test env.
     """
-    monkeypatch.delenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", raising=False)
-    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
+    for _name in SYNC_DISABLE_ENV_VARS:
+        monkeypatch.delenv(_name, raising=False)

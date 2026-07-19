@@ -24,6 +24,8 @@ deletion).
 
 import os
 
+from specify_cli.core.env import is_truthy
+
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
 _LOCAL_COMMIT_MODULE = ".local_commit"
@@ -401,10 +403,10 @@ def register_default_handlers() -> None:
 # Initial registration at import time. Subsequent code (production or
 # tests) can call ``register_default_handlers()`` again to repair the
 # registry after a wipe.
-if os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT") != "1":
+if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
     register_default_handlers()
 
-if os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT") != "1":
+if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
     with _contextlib.suppress(ImportError):
         # Register dossier emitter (WP01 inversion). The wrapper routes
         # through get_emitter() lazily so the late-binding behavior of the
