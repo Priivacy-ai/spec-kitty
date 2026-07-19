@@ -412,7 +412,7 @@ def _marker() -> dict[str, object]:
     return {
         "coord_ref": "coord",
         "captured_sha": "deadbeef",
-        "coord_worktree": "/tmp/coord-wt",
+        "coord_worktree": "/sentinel/coord-wt",
         "stranded_wp_ids": ["WP-A"],
         "revert_error": None,
         "detected_at": "2026-07-18T10:05:00+00:00",

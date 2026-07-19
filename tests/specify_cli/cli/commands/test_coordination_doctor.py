@@ -21,7 +21,7 @@ from specify_cli.cli.commands import _coordination_doctor as cd
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
 from specify_cli.merge.state import MergeState, load_state, save_state
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # --- _detect_git_version -----------------------------------------------------
@@ -578,7 +578,7 @@ def _save_marker_state(
     stranded_wp_ids: list[str],
     coord_ref: str = "coord",
     captured_sha: str = "deadbeef",
-    coord_worktree: str = "/tmp/coord-wt",
+    coord_worktree: str = "/sentinel/coord-wt",
 ) -> None:
     marker = {
         "coord_ref": coord_ref,
@@ -716,7 +716,7 @@ def test_parse_reconcile_marker_rejects_empty_strand() -> None:
     base = {
         "coord_ref": "coord",
         "captured_sha": "deadbeef",
-        "coord_worktree": "/tmp/wt",
+        "coord_worktree": "/sentinel/wt",
         "stranded_wp_ids": [],
     }
     assert cd._parse_reconcile_marker(base) is None
@@ -725,7 +725,7 @@ def test_parse_reconcile_marker_rejects_empty_strand() -> None:
     assert cd._parse_reconcile_marker({**base, "stranded_wp_ids": ["WP-A"]}) == (
         "coord",
         "deadbeef",
-        "/tmp/wt",
+        "/sentinel/wt",
         ["WP-A"],
     )
 
@@ -1224,7 +1224,7 @@ def test_stranded_check_unparseable_marker_emits_warning(tmp_path: Path) -> None
         {
             "coord_ref": "coord",
             "captured_sha": "",  # malformed → unparseable.
-            "coord_worktree": "/tmp/wt",
+            "coord_worktree": "/sentinel/wt",
             "stranded_wp_ids": ["WP-A"],
             "revert_error": None,
             "detected_at": "2026-07-18T10:05:00+00:00",
