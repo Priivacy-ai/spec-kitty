@@ -130,7 +130,14 @@ class TestRegistration:
 
         assert not hasattr(activate_mod, "charter_activate_app")
         assert not hasattr(deactivate_mod, "charter_deactivate_app")
-        assert activate_mod.__all__ == ["activate_cmd"]
+        # FR-020 pins that the DEAD ``charter_activate_app`` sub-app export is
+        # gone (the two ``assert not hasattr`` lines above). ``activate.py``
+        # legitimately also exports ``run_resynthesize_pipeline`` — the public
+        # activate=>refresh-or-fail-closed freshness seam entry point added by
+        # #2519 (it is imported by the ``charter status``/resynthesize CLI). It
+        # is a live public symbol, not a dead sub-app, so it belongs in
+        # ``__all__``.
+        assert activate_mod.__all__ == ["activate_cmd", "run_resynthesize_pipeline"]
         assert deactivate_mod.__all__ == ["deactivate_cmd"]
 
 
