@@ -19,6 +19,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **WP runtime-state evicted into the append-only event log (#2684, #2093).**
+  Runtime-mutable work-package state — `shell_pid`, subtask completion,
+  `## Activity Log` notes, `tracker_refs`, `agent`/`assignee`, and review-cycle
+  fields — is folded through a single off-axis `InnerStateChanged` event and read
+  from the reduced status snapshot, so `tasks/WP##.md` stops mutating on runtime
+  events (byte-stable dossier content hash, AC-5). **Shipped as dual-write behind
+  the phase-1 flag** (`_phase1_dual_write_enabled`, default off): the event log is
+  the authority at `status_phase: 1`, while legacy frontmatter remains the default,
+  sanctioned migration-window fallback. The corpus `backfill → verify → cutover`,
+  the unconditional flag flip, and the legacy-fallback deletion are deferred to
+  follow-up #2816.
+
 - **Charter bundle consolidated into an authoritative `charter.yaml` (#2773).**
   The four compiled bundle files (`governance.yaml`, `directives.yaml`,
   `metadata.yaml`, `references.yaml`) plus `config.yaml`'s `activated_*` keys
@@ -98,6 +110,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   baseline is regenerated accordingly.
 
 ### 🐛 Fixed
+
+- **Honest force-provenance on evidence-gated backward edges (#2684, #2736, #2810).**
+  Persisted `StatusEvent.force` is now truthful — falsy on the evidence-gated
+  review-rejection edges (`build_transition_plan` asks the FSM instead of
+  auto-promoting `force`) and truthful on genuine guard-bypasses (leaving a
+  terminal `done`). Fixes the false-force stamp found during #2736 / PR #2810.
+
+- **Off-axis emit sites resolve their write target from stored topology, never `Path.cwd()` (#2647).**
+  Runtime-state events can no longer be written against the wrong feature
+  directory when the CLI runs from a foreign working directory.
+
+- **Rollback to `planned` releases the prior claim (#2512).**
+  A rolled-back work package no longer retains a stale `shell_pid`/`agent` in the
+  reduced snapshot, so the next resume/re-claim is not blocked by a dead claim.
 
 - **Fresh-project `charter synthesize` no longer crashes after the `charter.yaml` inversion (#2800, #2773).**
   Post-#2773, `charter generate` stopped writing `charter.md`, but the fresh-project
