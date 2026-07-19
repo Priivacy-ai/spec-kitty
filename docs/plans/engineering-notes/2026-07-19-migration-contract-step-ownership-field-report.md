@@ -1,6 +1,6 @@
 ---
 title: 'Field report: a migration-contract step with no owning WP (caught at closeout, not planning)'
-description: 'Field report from mission #2684: a staged-migration mission passed finalize-tasks, three adversarial squads, and /analyze with an ordered migration contract whose middle steps (wire backfill, flip the flag unconditional) had no owning work package — surfaced only at the closeout WP. Includes a proposed post-tasks contract-step-ownership lint.'
+description: 'Field report: a #2684 staged migration passed every planning gate with a contract step no WP owned, caught only at closeout. Proposes a step-ownership lint.'
 doc_status: draft
 updated: '2026-07-19'
 related:
