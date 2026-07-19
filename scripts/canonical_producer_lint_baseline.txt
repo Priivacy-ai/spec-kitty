@@ -55,6 +55,7 @@
 scripts/benchmarks/bench_queue_enqueue.py::CP001
 tests/audit/test_audit_classifiers.py::CP001
 tests/contract/test_handoff_fixtures.py::CP001
+tests/delivery/test_batch_bisection_ordering.py::CP001
 tests/delivery/test_poison_batch_2736.py::CP001
 tests/delivery/test_receivers.py::CP001
 tests/e2e/test_mission_create_clean_output.py::CP001
@@ -68,6 +69,7 @@ tests/specify_cli/audit/test_detectors_row_family.py::CP001
 tests/specify_cli/core/test_contract_gate.py::CP002
 tests/status/test_lifecycle_events.py::CP001
 tests/sync/test_background.py::CP001
+tests/sync/test_batch_400_no_details_poison_2736.py::CP001
 tests/sync/test_batch_error_surfacing.py::CP001
 tests/sync/test_batch_retry_hygiene.py::CP001
 tests/sync/test_batch_sync.py::CP001
