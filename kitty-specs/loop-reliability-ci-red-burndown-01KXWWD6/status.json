@@ -1,0 +1,63 @@
+{
+  "event_count": 42,
+  "last_event_id": "01KXX166XWM51Z238APKS96MP2",
+  "materialized_at": "2026-07-19T11:11:40.476987+00:00",
+  "mission_number": "",
+  "mission_slug": "loop-reliability-ci-red-burndown-01KXWWD6",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXX163Q1ABNVFV3WEB4H9R4X",
+      "last_transition_at": "2026-07-19T11:11:37.185342+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXX164BN4VHY6G8HHDAPVSST",
+      "last_transition_at": "2026-07-19T11:11:37.845348+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXX16511H4TYTMSBZTAF5N4Q",
+      "last_transition_at": "2026-07-19T11:11:38.529045+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXX165N6QC7T94HDYRF725TC",
+      "last_transition_at": "2026-07-19T11:11:39.174298+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXX166995YMT8VRG7W5PP8P9",
+      "last_transition_at": "2026-07-19T11:11:39.817417+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXX166XWM51Z238APKS96MP2",
+      "last_transition_at": "2026-07-19T11:11:40.476987+00:00"
+    }
+  }
+}
