@@ -1,3 +1,11 @@
+---
+title: 'Feature spec: evict runtime-mutable WP state into the event log (#2684)'
+description: 'Consolidated feature spec for the #2684 runtime-state eviction: field-by-field authority, the InnerStateChanged event model, migration contract, and acceptance criteria.'
+doc_status: active
+updated: '2026-07-19'
+related:
+- docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
+---
 # Feature Specification: Evict runtime-mutable WP state into the event log
 
 **Feature Branch**: `mission-prep/2684-wp-runtime-state-eviction`
