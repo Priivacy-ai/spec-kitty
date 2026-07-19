@@ -1551,7 +1551,7 @@ def append_history(
         _fail_wp_not_found(cmd, wp, mission)
         return
 
-    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import emit as status_emit
     from specify_cli.status import WPInnerStateDelta
     from specify_cli.status import StoreError
 
@@ -1562,7 +1562,7 @@ def append_history(
     entry_text = f"- [{timestamp}] {actor}: {note}"
 
     try:
-        emit_inner_state_changed(
+        status_emit.emit_inner_state_changed(
             mission_dir,
             wp,
             WPInnerStateDelta(note=entry_text),
