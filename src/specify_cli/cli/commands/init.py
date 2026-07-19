@@ -34,7 +34,6 @@ from specify_cli.core.agent_config import (
 )
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
-    copy_charter_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     get_local_repo_root,
@@ -761,7 +760,6 @@ def init(  # noqa: C901
                         use_global = _has_global_runtime() and template_mode == "package"
                         if use_global:
                             _prepare_project_minimal(project_path)
-                            copy_charter_templates(project_path)
                             pkg_templates = _get_package_templates_root()
                             if pkg_templates is not None:
                                 templates_root = pkg_templates
