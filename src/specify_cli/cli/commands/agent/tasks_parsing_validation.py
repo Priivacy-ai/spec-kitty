@@ -44,6 +44,7 @@ from specify_cli.core.constants import (
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from specify_cli.review.artifacts import _latest_review_cycle_path
 from specify_cli.status import Lane, StatusEvent
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.task_utils import extract_scalar, split_frontmatter
@@ -305,18 +306,10 @@ def _self_review_fallback_option_error(
 # ---------------------------------------------------------------------------
 
 
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
 def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
     """Return (verdict_value, artifact_path) for the latest review-cycle-N.md.
 
-    Scans *wp_dir* for ``review-cycle-<N>.md`` files, picks the highest-numbered
-    one, and returns the ``verdict`` frontmatter value together with the artifact
-    path so callers can name the file in error messages.
+    Returns ``(verdict, path)`` for the latest review-cycle artifact.
 
     Returns (None, None) when no review-cycle artifacts exist.
     Returns (None, artifact_path) when the artifact exists but verdict is absent
@@ -325,29 +318,26 @@ def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | N
     If the verdict is present but not in :data:`_VALID_VERDICTS`, a warning is
     logged (but the value is still returned — callers decide what to do with it).
     """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
+    latest_path = _latest_review_cycle_path(wp_dir)
+    if latest_path is None:
         return None, None
-    artifact = cycles[-1]
     try:
-        text = artifact.read_text(encoding="utf-8")
-        frontmatter_str, _, _ = split_frontmatter(text)
+        frontmatter_str, _, _ = split_frontmatter(
+            latest_path.read_text(encoding="utf-8")
+        )
         if not frontmatter_str:
-            return None, artifact
+            return None, latest_path
         verdict = extract_scalar(frontmatter_str, "verdict")
-        if verdict is not None and verdict not in _VALID_VERDICTS:
-            logger.warning(
-                "Warning: %s has unrecognized verdict '%s' — expected one of %s",
-                artifact.name,
-                verdict,
-                sorted(_VALID_VERDICTS),
-            )
-        return verdict, artifact
     except Exception:  # noqa: BLE001 — review-cycle artifact may be malformed; fail-open
-        return None, artifact
+        return None, latest_path
+    if verdict is not None and verdict not in _VALID_VERDICTS:
+        logger.warning(
+            "Warning: %s has unrecognized verdict '%s' — expected one of %s",
+            latest_path.name,
+            verdict,
+            sorted(_VALID_VERDICTS),
+        )
+    return verdict, latest_path
 
 
 def _review_artifact_dir_for_wp(tasks_dir: Path, wp: dict[str, object]) -> Path | None:

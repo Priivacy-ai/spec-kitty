@@ -1,0 +1,7 @@
+source_id,type,reference,purpose
+S-001,tracker,"https://github.com/Priivacy-ai/spec-kitty/issues/2626","Reported scenario and outcomes"
+S-002,code,"src/specify_cli/cli/commands/agent/workflow.py; src/specify_cli/cli/commands/agent/workflow_executor.py","Review ordering and placement transaction"
+S-003,code,"src/specify_cli/workspace/context.py; src/specify_cli/lanes/lifecycle_sync.py","Workspace resolution and lifecycle recomposition"
+S-004,code,"src/specify_cli/cli/commands/agent/tasks_move_task.py","Move-task transition and commit truth"
+S-005,code,"src/specify_cli/cli/commands/agent/tasks_mark_status.py","Mark-status TASKS_INDEX routing"
+S-006,tests,"tests/integration/test_lane_lifecycle_sync.py; tests/specify_cli/cli/commands/test_workspace_husk_resolution_1833.py; tests/agent/test_workflow_review_lane_gate.py","Existing partial coverage and gaps"

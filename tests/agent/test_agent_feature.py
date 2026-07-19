@@ -1230,16 +1230,24 @@ class TestSetupPlanCommand:
         _write_committed_substantive_spec(tmp_path, feature_dir)
         mock_find.return_value = feature_dir
 
-        mock_resolve_template.side_effect = FileNotFoundError("missing")
+        # Distinctive resolver-failure detail so the assertion proves the
+        # command SURFACES the underlying cause (not a swallowed/generic string).
+        mock_resolve_template.side_effect = FileNotFoundError("plan-template.md")
 
         # Execute
         result = runner.invoke(app, ["setup-plan", "--json"])
 
-        # Verify
+        # Verify: a plan-template resolution failure is surfaced as a clean
+        # exit-1 structured JSON error carrying the underlying cause. Post-#2689
+        # (templates-as-config, PR #2689) the setup-plan seam no longer wraps
+        # this in the retired bespoke "Plan template not found" string; the
+        # resolver's own message flows through the structured {"error": ...}
+        # payload. Asserting the cause substring is wrapping-agnostic (it also
+        # survives a future friendly wrap like "Plan template not found: ...").
         assert result.exit_code == 1
         output = json.loads(result.stdout)
         assert "error" in output
-        assert "Plan template not found" in output["error"]
+        assert "plan-template.md" in output["error"]
 
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")

@@ -8,22 +8,36 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
-from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import re
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
-from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
+from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
+    candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
+)
+
+from specify_cli.review.artifacts import (
+    AffectedFile,
+    ReviewCycleArtifact,
+    _review_cycle_suffix,
+)
+
 from specify_cli.status import ReviewResult
 
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
+REVIEW_CYCLE_MIGRATION_REQUIRED_CODE = "REVIEW_CYCLE_MIGRATION_REQUIRED"
 
 _REVIEW_CYCLE_FILE_RE = re.compile(r"^review-cycle-(?P<cycle>[1-9][0-9]*)\.md$")
+_WP_ID_FROM_SLUG_RE = re.compile(r"^(WP\d+)\b")
+
+ReviewCycleCompatibilityState = Literal["canonical", "empty", "migration_required"]
 
 
 class ReviewCycleError(ValueError):
@@ -47,13 +61,53 @@ class ReviewCyclePointerParts:
 
 
 @dataclass(frozen=True)
+class ReviewCycleCompatibility:
+    """Compatibility classification for review-cycle read attempts."""
+
+    state: ReviewCycleCompatibilityState
+    reason: str
+    reason_code: str | None
+    canonical_home: Path
+    opposite_home: Path
+    diagnostics: tuple[str, ...] = ()
+    latest_cycle: int | None = None
+    latest_path: Path | None = None
+
+
+def _serialize_json_migration_payload(
+    mission_slug: str,
+    wp_id: str,
+    compatibility: ReviewCycleCompatibility,
+) -> dict[str, Any]:
+    """Build the exact migration payload for typed migration refusal."""
+    return {
+        "status": "error",
+        "error_code": REVIEW_CYCLE_MIGRATION_REQUIRED_CODE,
+        "mission_slug": mission_slug,
+        "wp_id": wp_id,
+        "artifact_kind": "review_cycle",
+        "state": compatibility.state,
+        "canonical_home": str(compatibility.canonical_home),
+        "opposite_home": str(compatibility.opposite_home),
+        "reason": compatibility.reason,
+        "diagnostics": list(compatibility.diagnostics),
+        "recovery": "resolve review-cycle migration before retrying rejection writes or reads",
+    }
+
+
+@dataclass(frozen=True)
 class ResolvedReviewCyclePointer:
     """Resolution result for review feedback references."""
 
     reference: str
     path: Path | None
     kind: Literal["canonical", "legacy", "sentinel", "path"]
+    state: ReviewCycleCompatibilityState = "empty"
     warnings: tuple[str, ...] = ()
+    reason: str | None = None
+    canonical_home: Path | None = None
+    opposite_home: Path | None = None
+    diagnostics: tuple[str, ...] = ()
 
     @property
     def is_resolved(self) -> bool:
@@ -79,9 +133,186 @@ def _validate_segment(name: str, value: str) -> str:
     contract (C-001: migrate, don't wrap — no parallel mechanism).
     """
     try:
-        return assert_safe_path_segment(value)
+        return cast(str, assert_safe_path_segment(value))
     except ValueError as exc:
         raise ReviewCycleError(f"{name} is not a safe path segment: {exc}") from exc
+
+
+def _expected_wp_id_from_slug(wp_slug: str) -> str | None:
+    """Infer a WP identifier from a canonical slug (``WPXX-...``)."""
+    match = _WP_ID_FROM_SLUG_RE.match(wp_slug)
+    if match is None:
+        return None
+    return match.group(1)
+
+
+def _canonical_and_opposite_homes(
+    repo_root: Path, mission_slug: str, wp_slug: str
+) -> tuple[Path, Path]:
+    """Return canonical and opposite review-cycle homes for typed compatibility checks."""
+    canonical_home = (
+        candidate_feature_dir_for_mission(repo_root, mission_slug)
+        / "tasks"
+        / wp_slug
+    )
+    opposite_home = (
+        primary_feature_dir_for_mission(
+            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+        )
+        / "tasks"
+        / wp_slug
+    )
+    return canonical_home, opposite_home
+
+
+def _scan_home_for_compatibility(
+    home: Path,
+    mission_slug: str,
+    wp_id: str | None,
+    *,
+    role: str,
+) -> ReviewCycleCompatibility:
+    """Scan a review-cycle home and report canonical validity diagnostics."""
+    if not home.exists() or not home.is_dir():
+        return ReviewCycleCompatibility(
+            state="empty",
+            reason="no-review-cycle-home",
+            reason_code=None,
+            canonical_home=home,
+            opposite_home=home,
+        )
+
+    diagnostics: list[str] = []
+    valid_pairs: list[tuple[int, Path]] = []
+    for candidate in home.glob("review-cycle-*.md"):
+        suffix = _review_cycle_suffix(candidate)
+        if suffix is None:
+            diagnostics.append(f"{role}: malformed review-cycle filename: {candidate.name}")
+            continue
+
+        try:
+            artifact = validate_review_artifact_file(candidate)
+        except ValueError as exc:
+            diagnostics.append(f"{role}: unreadable or invalid artifact {candidate.name}: {exc}")
+            continue
+
+        if artifact.cycle_number != suffix:
+            diagnostics.append(
+                f"{role}: cycle-number mismatch for {candidate.name}: suffix={suffix}, artifact={artifact.cycle_number}"
+            )
+            continue
+        if artifact.mission_slug != mission_slug:
+            diagnostics.append(
+                f"{role}: mission_slug mismatch for {candidate.name}: "
+                f"expected {mission_slug}, got {artifact.mission_slug}"
+            )
+            continue
+        if wp_id and artifact.wp_id != wp_id:
+            diagnostics.append(
+                f"{role}: wp_id mismatch for {candidate.name}: expected {wp_id}, got {artifact.wp_id}"
+            )
+            continue
+        valid_pairs.append((suffix, candidate))
+
+    if diagnostics:
+        reason = diagnostics[0]
+    elif valid_pairs:
+        reason = "valid-home"
+    else:
+        reason = "no-valid-review-cycle-artifacts"
+
+    latest_cycle: int | None = None
+    latest_path: Path | None = None
+    if valid_pairs:
+        latest_cycle, latest_path = max(valid_pairs, key=lambda item: item[0])
+
+    state: ReviewCycleCompatibilityState = "migration_required"
+    if diagnostics:
+        state = "migration_required"
+    elif valid_pairs:
+        state = "canonical"
+    else:
+        state = "empty"
+
+    return ReviewCycleCompatibility(
+        state=state,
+        reason=reason,
+        reason_code="REVIEW_CYCLE_HOME_INVALID" if diagnostics else None,
+        canonical_home=home,
+        opposite_home=home,
+        diagnostics=tuple(diagnostics),
+        latest_cycle=latest_cycle,
+        latest_path=latest_path,
+    )
+
+
+def resolve_review_cycle_compatibility(
+    repo_root: Path,
+    mission_slug: str,
+    wp_slug: str,
+    wp_id: str | None = None,
+) -> ReviewCycleCompatibility:
+    """Classify the typed review-cycle compatibility state for canonical access."""
+    canonical_home, opposite_home = _canonical_and_opposite_homes(
+        repo_root, mission_slug, wp_slug
+    )
+    expected_wp_id = wp_id
+    if expected_wp_id is None:
+        expected_wp_id = _expected_wp_id_from_slug(wp_slug)
+
+    canonical_scan = _scan_home_for_compatibility(
+        canonical_home,
+        mission_slug=mission_slug,
+        wp_id=expected_wp_id,
+        role="canonical",
+    )
+    opposite_scan = _scan_home_for_compatibility(
+        opposite_home,
+        mission_slug=mission_slug,
+        wp_id=expected_wp_id,
+        role="opposite",
+    )
+
+    if canonical_scan.state == "migration_required":
+        return canonical_scan
+
+    if canonical_scan.state == "canonical":
+        return canonical_scan
+
+    if opposite_scan.state == "canonical":
+        return ReviewCycleCompatibility(
+            state="migration_required",
+            reason="opposite-home-only-review-cycle-history",
+            reason_code="OPPOSITE_HOME_ONLY",
+            canonical_home=canonical_scan.canonical_home,
+            opposite_home=opposite_scan.canonical_home,
+            diagnostics=opposite_scan.diagnostics,
+            latest_cycle=opposite_scan.latest_cycle,
+            latest_path=opposite_scan.latest_path,
+        )
+
+    if opposite_scan.state == "migration_required":
+        return ReviewCycleCompatibility(
+            state="migration_required",
+            reason="opposite-home-invalid-review-cycle-history",
+            reason_code=opposite_scan.reason_code,
+            canonical_home=canonical_scan.canonical_home,
+            opposite_home=opposite_scan.canonical_home,
+            diagnostics=(
+                *opposite_scan.diagnostics,
+                "opposite-home review-cycle history is present but incompatible",
+            ),
+            latest_cycle=opposite_scan.latest_cycle,
+            latest_path=opposite_scan.latest_path,
+        )
+
+    return ReviewCycleCompatibility(
+        state="empty",
+        reason="no-review-cycle-history",
+        reason_code=None,
+        canonical_home=canonical_scan.canonical_home,
+        opposite_home=opposite_scan.canonical_home,
+    )
 
 
 def _resolve_git_common_dir(repo_root: Path) -> Path | None:
@@ -179,7 +410,45 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
         return ResolvedReviewCyclePointer(reference=value, path=None, kind="sentinel")
 
     if value.startswith("review-cycle://"):
-        parts = validate_review_cycle_pointer(value)
+        try:
+            parts = validate_review_cycle_pointer(value)
+        except ReviewCycleError:
+            compatibility = ReviewCycleCompatibility(
+                state="migration_required",
+                reason="malformed review-cycle pointer",
+                reason_code="MALFORMED_POINTER",
+                canonical_home=repo_root,
+                opposite_home=repo_root,
+            )
+            return ResolvedReviewCyclePointer(
+                reference=value,
+                path=None,
+                kind="canonical",
+                state="migration_required",
+                reason=compatibility.reason,
+                canonical_home=compatibility.canonical_home,
+                opposite_home=compatibility.opposite_home,
+                diagnostics=(compatibility.reason,),
+            )
+
+        compatibility = resolve_review_cycle_compatibility(
+            repo_root,
+            mission_slug=parts.mission_slug,
+            wp_slug=parts.wp_slug,
+            wp_id=_expected_wp_id_from_slug(parts.wp_slug),
+        )
+        if compatibility.state == "migration_required":
+            return ResolvedReviewCyclePointer(
+                reference=value,
+                path=None,
+                kind="canonical",
+                state="migration_required",
+                reason=compatibility.reason,
+                canonical_home=compatibility.canonical_home,
+                opposite_home=compatibility.opposite_home,
+                diagnostics=compatibility.diagnostics,
+            )
+
         # #2136/#2164: resolve the mission dir through the SAME topology-aware fold
         # the WRITE seam uses (``create_rejected_review_cycle`` →
         # ``candidate_feature_dir_for_mission``) rather than a raw
@@ -190,18 +459,41 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
         # written. The shared resolver converges every handle form on the one dir and
         # propagates ``MissionSelectorAmbiguous`` (no silent pick — C-009).
         candidate = (
-            candidate_feature_dir_for_mission(repo_root, parts.mission_slug)
-            / "tasks"
-            / parts.wp_slug
-            / parts.filename
+            compatibility.canonical_home / parts.filename
         ).resolve()
         if not candidate.exists() or not candidate.is_file():
-            return ResolvedReviewCyclePointer(reference=value, path=None, kind="canonical")
+            return ResolvedReviewCyclePointer(
+                reference=value,
+                path=None,
+                kind="canonical",
+                state=compatibility.state,
+                canonical_home=compatibility.canonical_home,
+                opposite_home=compatibility.opposite_home,
+            )
         try:
             validate_review_artifact_file(candidate)
         except ValueError:
-            return ResolvedReviewCyclePointer(reference=value, path=None, kind="canonical")
-        return ResolvedReviewCyclePointer(reference=value, path=candidate, kind="canonical")
+            return ResolvedReviewCyclePointer(
+                reference=value,
+                path=None,
+                kind="canonical",
+                state="migration_required",
+                reason="target artifact is malformed",
+                canonical_home=compatibility.canonical_home,
+                opposite_home=compatibility.opposite_home,
+                diagnostics=(
+                    *compatibility.diagnostics,
+                    f"target artifact malformed: {candidate.name}",
+                ),
+            )
+        return ResolvedReviewCyclePointer(
+            reference=value,
+            path=candidate,
+            kind="canonical",
+            state="canonical",
+            canonical_home=compatibility.canonical_home,
+            opposite_home=compatibility.opposite_home,
+        )
 
     if value.startswith("feedback://"):
         relative = value[len("feedback://") :]
@@ -269,6 +561,16 @@ def create_rejected_review_cycle(
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
     safe_wp_id = _validate_segment("wp_id", wp_id)
+
+    compatibility = resolve_review_cycle_compatibility(
+        main_repo_root,
+        mission_slug=safe_mission_slug,
+        wp_slug=safe_wp_slug,
+        wp_id=safe_wp_id,
+    )
+    if compatibility.state == "migration_required":
+        raise ReviewCycleError(f"{compatibility.reason}: {compatibility.reason_code or 'review-cycle migration required'}")
+
     sub_artifact_dir = candidate_feature_dir_for_mission(main_repo_root, safe_mission_slug) / "tasks" / safe_wp_slug
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
     filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
