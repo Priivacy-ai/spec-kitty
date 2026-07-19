@@ -99,6 +99,32 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Fresh-project `charter synthesize` no longer crashes after the `charter.yaml` inversion (#2800, #2773).**
+  Post-#2773, `charter generate` stopped writing `charter.md`, but the fresh-project
+  synthesize intercept still gated on `charter.md` being present — so on a real fresh
+  project the intercept never fired and `charter synthesize` fell through to the production
+  adapter, exiting 1 with `'str' object has no attribute 'get'`. The intercept now gates on
+  the authoritative `charter.yaml` (what `generate` writes), restoring the fresh-project seed
+  path and aligning with the inversion invariant that `charter.md` is display-only, never a
+  resolving signal.
+- **Pre-review regression gate no longer silently skipped by a leaked sync toggle in the parallel suite (#2800, #2794).**
+  The gate reuses the sync layer's process-wide `SPEC_KITTY_SYNC_MINIMAL_IMPORT` /
+  `SPEC_KITTY_SYNC_DISABLE` opt-outs; in a whole-tree `-n auto` run one could leak into an
+  xdist worker and skip the gate, reding the gate-observability tests. An autouse fixture now
+  unsets both toggles before every agent test, making them worker- and order-independent. No
+  production behaviour change; the deliberate gate↔sync coupling is tracked for a dedicated
+  opt-out in #2801.
+- **CI test-suite remediation: stale fixtures from two recent merges brought back to green (#2800).**
+  The `charter.yaml` consolidation (#2773) and the coord-rollback transactionality mission
+  (#2786) merged with un-flagged test-fixture debt a CI path-filter hid until #2800 surfaced
+  it: charter selection/bundle/synthesize/freshness fixtures still seeding the retired
+  `governance.yaml`/`metadata.yaml` triad; arch-gate remainders (golden-count, tmp-literal,
+  marker drift); a #2709 regression fixture missing the canonical `force` event field; and 89
+  mechanical `mypy --strict` errors in the agent test package. Fixtures re-pointed onto
+  `charter.yaml`, gates re-based, and tests whose premise encoded a retired flow removed
+  outright per the standing-order §4 remediation framework (now amended to codify
+  *superseded-design → remove*). The legacy-topology bootstrap CWD gap a strict-xfail guards
+  is now tracked in #2802.
 - **Mission squash merge no longer clobbers target-newer acceptance provenance or traces (#2709).**
   The supported squash merge ran `git merge --squash -X theirs` on every conflicting file,
   silently reverting target-newer `meta.json` acceptance/VCS fields (and `traces/*.md`
@@ -254,6 +280,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **`charter generate` seeds a starter `charter.md` companion when absent (#2800).**
+  After the #2773 inversion `charter generate` produced no `charter.md` at all, leaving a
+  fresh project without the display-only rationale companion and no signal one should exist.
+  `generate` now writes a minimal starter `charter.md` **only when the file is absent**
+  (create-if-absent); an existing curated companion is left byte-for-byte untouched,
+  preserving the #2772 never-clobber invariant. `charter.md` remains display-only, never a
+  resolving input. ADR 2026-07-18-1 amended.
 - **Internal: the coord-authority trio is decomposed into ports + pure cores
   (#2464, #2465).** The three coord-authority god-modules are restructured
   behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores
