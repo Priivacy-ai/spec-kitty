@@ -129,30 +129,41 @@ def _write_minimal_kittify(repo: Path) -> None:
 
 
 def _write_charter_with_typo(repo: Path, typo_id: str) -> None:
-    """Write a charter.md whose selected_styleguides contains a typo'd ID."""
+    """Seed a charter that selects a deliberately typo'd styleguide ID.
+
+    #2773 consolidated the compiled bundle into the authoritative
+    ``.kittify/charter/charter.yaml``; doctrine selections are now read from
+    ``governance.doctrine.selected_<kind>`` (via
+    ``charter.sync.load_governance_config``), NOT from a fenced YAML block in
+    the curated ``charter.md``. The typo'd ID therefore lives in
+    ``charter.yaml`` so the catalog-miss warning path is exercised end-to-end.
+    A minimal ``charter.md`` companion is still written because the bootstrap
+    charter-context path requires the curated ``charter.md`` to exist.
+    """
     charter_dir = repo / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
 
-    charter_md = textwrap.dedent(f"""\
+    charter_md = textwrap.dedent("""\
         # Test Project Charter
 
         > Version: 1.0.0
 
         ## Purpose
 
-        Integration-test charter that selects a deliberately typo'd styleguide
-        so the catalog-miss warning path is exercised end-to-end.
-
-        ## Doctrine Selection
-
-        ```yaml
-        template_set: software-dev-default
-        available_tools: [git, pytest]
-        selected_styleguides:
-          - {typo_id}
-        ```
+        Integration-test charter whose authoritative doctrine selection (in
+        the sibling charter.yaml) names a deliberately typo'd styleguide so the
+        catalog-miss warning path is exercised end-to-end.
         """)
     (charter_dir / "charter.md").write_text(charter_md, encoding="utf-8")
+
+    charter_yaml = textwrap.dedent(f"""\
+        schema_version: '2.0.0'
+        governance:
+          doctrine:
+            selected_styleguides:
+              - {typo_id}
+        """)
+    (charter_dir / "charter.yaml").write_text(charter_yaml, encoding="utf-8")
 
 
 def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:

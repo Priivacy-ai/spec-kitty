@@ -3,24 +3,45 @@
 `charter.yaml` is the git-tracked, authorable project charter. Full field table in `data-model.md`. This contract fixes the observable guarantees consumers may rely on.
 
 ## Shape (top-level keys)
+A concrete, round-trippable instance (executed against `charter.schemas.CharterYaml` by the FR-140 round-trip gate). `governance`/`directives`/`overrides` are shown at their empty defaults; the FLAT root activation lists carry sample values.
 ```yaml
+# pydantic_model: charter.schemas.CharterYaml
+# expect: valid
 schema_version: "2.0.0"
-governance: { ... }          # GovernanceConfig — AUTHORED
-directives: [ ... ]          # DirectivesConfig — AUTHORED
-catalog:                     # DERIVED-but-committed projection
-  mission: <str>
-  template_set: <str>
-  languages: [ <str>, ... ]
-  references: [ {id, kind, title, summary, source_path, local_path}, ... ]
+governance: {}                       # GovernanceConfig — AUTHORED
+directives:                          # DirectivesConfig — AUTHORED
+  directives: []
+catalog:                             # DERIVED-but-committed projection
+  mission: consolidate-charter-bundle
+  template_set: default
+  languages:
+    - python
+  references:
+    - id: DIRECTIVE_001
+      kind: directive
+      title: Single canonical authority
+      summary: Illustrative catalog reference item.
+      source_path: .kittify/charter/charter.md
+      local_path: .kittify/doctrine/directives/DIRECTIVE_001.md
 # --- activation: FLAT root keys (NOT nested), identical shape to packs/default.yaml ---
-activated_kinds: [ ... ]          # AUTHORED
-mission_type_activations: [ ... ]  # AUTHORED
-activated_directives: [ ... ]      # AUTHORED
-activated_tactics: [ ... ]         # AUTHORED
+activated_kinds:
+  - directive
+  - tactic
+mission_type_activations:
+  - software-dev
+activated_directives:
+  - DIRECTIVE_001
+activated_tactics: []
 # ... one flat root list per kind (styleguides/toolguides/paradigms/procedures/agent_profiles/mission_step_contracts)
-overrides: { ... }           # AUTHORED — project doctrine overrides (forward-compat)
+activated_styleguides: []
+activated_toolguides: []
+activated_paradigms: []
+activated_procedures: []
+activated_agent_profiles: []
+activated_mission_step_contracts: []
+overrides: {}                        # AUTHORED — project doctrine overrides (forward-compat)
 metadata:
-  generated_at: <iso8601>
+  generated_at: "2026-01-01T00:00:00+00:00"
   bundle_schema_version: 2
 ```
 

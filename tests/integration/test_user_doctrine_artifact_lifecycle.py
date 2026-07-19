@@ -214,6 +214,63 @@ def _write_charter(repo_root: Path, body: str) -> Path:
     return charter_path
 
 
+# ---------------------------------------------------------------------------
+# #2773 authoritative charter.yaml selection surfaces
+# ---------------------------------------------------------------------------
+#
+# #2773 consolidated the compiled bundle into the git-tracked, authoritative
+# ``.kittify/charter/charter.yaml``. Doctrine selections and the activation
+# registry are hand-authored there under the ``governance:`` section and read
+# via ``charter.sync.load_governance_config`` (the fenced-YAML-in-``charter.md``
+# extractor is retired). These helpers seed that authoritative surface; the
+# curated ``charter.md`` remains a required companion for the bootstrap
+# charter-context path, so callers still write it too.
+
+
+# Global selection: charter.yaml governance.doctrine.selected_styleguides.
+# ``catalog.languages`` is the authoritative #2773 source for the active
+# project language set (``charter.language_scope.infer_repo_languages``). The
+# caveman styleguide is scoped ``applies_to_languages: [python, generic]``, so a
+# python project charter is required for it to survive language-scope filtering
+# — exactly the scenario this test pins (a python-scoped styleguide surfacing in
+# a python project's implement prompt).
+_CHARTER_YAML_SELECTING_STYLEGUIDE = textwrap.dedent(
+    """\
+    schema_version: '2.0.0'
+    governance:
+      doctrine:
+        selected_styleguides:
+          - caveman-comments
+    catalog:
+      languages:
+        - python
+    """
+)
+
+
+# Context-scoped activation registry: charter.yaml governance.activations.
+_CHARTER_YAML_CONTEXT_SCOPED_ACTIVATION = textwrap.dedent(
+    """\
+    schema_version: '2.0.0'
+    governance:
+      activations:
+        - activation_context:
+            action: write_comment
+          doctrine_pack_id: project
+          artifact_id: caveman-comments
+          artifact_kind: styleguide
+    """
+)
+
+
+def _write_charter_yaml(repo_root: Path, body: str) -> Path:
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    charter_yaml_path = charter_dir / "charter.yaml"
+    charter_yaml_path.write_text(body, encoding="utf-8")
+    return charter_yaml_path
+
+
 def _contains_body_or_fetch_with_when_doing(text: str, *body_markers: str) -> bool:
     """Verbatim-OR-fetch-with-conditional contract (mirrors the WP-prompt test)."""
     if all(marker in text for marker in body_markers):
@@ -262,6 +319,9 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_SELECTING_STYLEGUIDE)
+    # #2773: the authoritative selection lives in charter.yaml, not in a fenced
+    # YAML block inside charter.md (extractor retired).
+    _write_charter_yaml(repo_root, _CHARTER_YAML_SELECTING_STYLEGUIDE)
 
     result = build_charter_context(
         repo_root,
@@ -364,42 +424,55 @@ def test_case_1_styleguide_via_charter_directive_wrapper_works_today(
 def test_case_1_selected_styleguides_field_round_trips(
     project_with_caveman_styleguide: Path,
 ) -> None:
-    """The charter body declares ``selected_styleguides: [caveman-comments]``
-    in its YAML resolution-hints block. After ``charter sync`` runs, the
-    persisted ``governance.yaml`` MUST carry the field with the styleguide
-    id preserved.
+    """The charter declares ``selected_styleguides: [caveman-comments]``. The
+    persisted, authoritative charter surface MUST carry the field with the
+    styleguide id preserved AND the canonical loader MUST surface it as a
+    populated ``DoctrineSelectionConfig.selected_styleguides``.
 
-    Fails today because ``DoctrineSelectionConfig.selected_styleguides``
-    does not exist — the extractor cannot copy a field whose schema does
-    not declare it. Mission B WP04 adds the field; the extractor in
-    ``charter.extractor`` is then taught to read it.
+    #2773 consolidated the compiled bundle into the git-tracked, authoritative
+    ``.kittify/charter/charter.yaml``; the prose->triad ``governance.yaml``
+    scrape (and the extractor) is retired. Selections are hand-authored under
+    ``governance.doctrine`` in ``charter.yaml`` and read via
+    ``charter.sync.load_governance_config``. This test therefore round-trips
+    through the authoritative reader instead of the retired ``governance.yaml``
+    derivative — the real invariant it always pinned is that
+    ``DoctrineSelectionConfig.selected_styleguides`` exists and carries the
+    declared id.
     """
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.sync import ensure_charter_bundle_fresh, load_governance_config
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_SELECTING_STYLEGUIDE)
+    _write_charter_yaml(repo_root, _CHARTER_YAML_SELECTING_STYLEGUIDE)
 
+    # The freshness pipeline is now inert w.r.t. extraction (#2773) but must
+    # not clobber the authoritative charter.yaml selection.
     ensure_charter_bundle_fresh(repo_root)
 
-    governance_yaml = repo_root / ".kittify" / "charter" / "governance.yaml"
-    assert governance_yaml.exists(), (
-        "`charter sync` MUST emit `.kittify/charter/governance.yaml` after "
-        "processing the charter body. If this fails the bundle pipeline itself "
-        "broke — see src/charter/sync.py:ensure_charter_bundle_fresh."
+    charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+    assert charter_yaml.exists(), (
+        "The authoritative `.kittify/charter/charter.yaml` MUST persist the "
+        "declared doctrine selection (#2773 consolidated bundle)."
     )
-    governance_text = governance_yaml.read_text(encoding="utf-8")
+    charter_text = charter_yaml.read_text(encoding="utf-8")
     assert (
-        "selected_styleguides" in governance_text
-        and "caveman-comments" in governance_text
+        "selected_styleguides" in charter_text
+        and "caveman-comments" in charter_text
     ), (
-        "`governance.yaml` MUST round-trip the charter's "
-        "`selected_styleguides: [caveman-comments]` declaration. Today the "
-        "extractor drops it because `DoctrineSelectionConfig` has no such "
-        "field. Mission B WP04 adds the field to "
-        "src/charter/schemas.py:DoctrineSelectionConfig and teaches the "
-        "extractor to populate it from the charter's fenced YAML block. "
-        "Observed governance.yaml content:\n"
-        f"---\n{governance_text}\n---"
+        "`charter.yaml` MUST carry the charter's "
+        "`selected_styleguides: [caveman-comments]` declaration under "
+        "`governance.doctrine`. Observed charter.yaml content:\n"
+        f"---\n{charter_text}\n---"
+    )
+
+    # The canonical reader MUST surface the field as a populated
+    # DoctrineSelectionConfig.selected_styleguides (the field's existence and
+    # round-trip is the real invariant this test always pinned).
+    governance = load_governance_config(repo_root)
+    assert "caveman-comments" in governance.doctrine.selected_styleguides, (
+        "`load_governance_config(...).doctrine.selected_styleguides` MUST "
+        "round-trip the charter.yaml declaration. Observed: "
+        f"{governance.doctrine.selected_styleguides!r}"
     )
 
 
@@ -437,6 +510,10 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_WITH_CONTEXT_SCOPED_ACTIVATION)
+    # #2773: the activation registry is a top-level governance field in the
+    # authoritative charter.yaml (governance.activations), read via
+    # load_governance_config — not a fenced YAML block inside charter.md.
+    _write_charter_yaml(repo_root, _CHARTER_YAML_CONTEXT_SCOPED_ACTIVATION)
 
     result = build_charter_context(
         repo_root,
