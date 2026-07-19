@@ -172,6 +172,7 @@ def _bootstrap_coord_mission(
         "event_id": "01HXYZDONE0000000000000001",
         "execution_mode": "worktree",
         "feature_slug": MISSION_SLUG,
+        "force": False,
         "from_lane": "approved",
         "to_lane": "done",
         "wp_id": "WP01",
