@@ -149,7 +149,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   mechanical `mypy --strict` errors in the agent test package. Fixtures re-pointed onto
   `charter.yaml`, gates re-based, and tests whose premise encoded a retired flow removed
   outright per the standing-order §4 remediation framework (now amended to codify
-  *superseded-design → remove*). The legacy-topology bootstrap CWD gap a strict-xfail guards
+  _superseded-design → remove_). The legacy-topology bootstrap CWD gap a strict-xfail guards
   is now tracked in #2802.
 - **Sync batch-400 poison isolation — one invalid event no longer strands its whole batch (#2736; closes #2755).**
   A whole-batch HTTP 400 with no per-event `details` made the CLI fan the batch-level error onto **every**
@@ -195,13 +195,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   skips the pre-review gate under the parallel CI suite).
 - **A failed coordination-`done` revert during rollback no longer silently re-opens the
   #2711 split-brain (#2786), and the coordination write-set rolls back transactionally
-  (#2367 Mechanism B).** When the rollback's coord-`done` `git revert` itself *failed* (#2786),
+  (#2367 Mechanism B).** When the rollback's coord-`done` `git revert` itself _failed_ (#2786),
   or when a merge aborted mid-way through `_record_merged_wps_done_for_merge` before any revert
   ran (#2367-B), rollback restored only working-tree bytes and left a committed `done` opposed to
   a reverted working `approved` — a silently-stranded split-brain. Rollback now **marks-not-raises**:
   a durable `MergeState.pending_coord_reconcile` marker records the stranded WP(s) — derived from
   the **committed** coordination ref (the reliable authority; a working-tree diff is empty at the
-  revert-failure point) over *this merge's own* pre-target `done` write-set, so a legitimately
+  revert-failure point) over _this merge's own_ pre-target `done` write-set, so a legitimately
   pre-existing-`done` WP is never re-stranded. `spec-kitty merge --resume` heals via a strand-gated,
   idempotent `git revert` (byte-stable on re-run), and `spec-kitty doctor coordination` detects the
   strand (re-verifying incoherence from the committed ref, not marker-presence) with a `--fix`. A
