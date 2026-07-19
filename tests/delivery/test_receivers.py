@@ -405,11 +405,50 @@ def test_transport_timeout_maps_transient_without_poisoning_retries() -> None:
     assert results[0].http_status is None
 
 
+def test_transport_failure_error_carries_underlying_exception_text() -> None:
+    """The TRANSIENT result surfaces WHY the transport failed, not a bare constant.
+
+    A connection-refused vs timeout vs DNS failure must be distinguishable on the
+    ledger: the mapped ``transient`` error threads the underlying exception text
+    through (``transport failure: <exc>``) so operators can diagnose the transport
+    without losing the classification.
+    """
+    batch = [_event("01JMBY0000000000000000000Q")]
+    poster = _FakePoster(raise_exc=requests.ConnectionError("boom"))
+    external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
+    results = list(external.deliver(batch))
+    assert results[0].outcome is DeliveryOutcome.TRANSIENT
+    assert results[0].http_status is None
+    error = results[0].error or ""
+    assert "transport failure" in error
+    assert "boom" in error
+
+
 def test_empty_batch_returns_empty_results() -> None:
     teamspace = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN)
     stub = StubReceiver()
     assert list(teamspace.deliver([])) == []
     assert list(stub.deliver([])) == []
+
+
+def test_bisect_send_is_self_defending_on_empty_batch() -> None:
+    """``_bisect_send([])`` returns ``[]`` directly — never recurses.
+
+    ``deliver()`` already guards the empty case, but the recursive leaf must be
+    self-defending. A poison-400 response (whole-batch 400, no details) drives
+    the split arm, where the midpoint clamp ``max(1, min(mid, len - 1))`` yields
+    ``1`` for ``len == 0`` — splitting ``[]`` into ``[][:1] + [][1:]`` == two more
+    empty batches, i.e. an infinite recursion (``RecursionError``) if a future
+    caller reached ``_bisect_send([])`` directly. The first-line empty guard
+    short-circuits before any POST, so no ``RecursionError`` can occur.
+    """
+    # A poster that would classify even an empty POST as the #2736 poison
+    # signature — the exact response that would otherwise trigger the split arm.
+    poison_poster = _FakePoster(_FakeResponse(400, {"error": "batch validation failed"}))
+    external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poison_poster)
+    assert external._bisect_send([]) == []
+    # The guard returns BEFORE posting: a self-defending leaf never hits the wire.
+    assert poison_poster.calls == []
 
 
 def test_gate_decision_blocked_is_inverse_of_satisfied() -> None:
