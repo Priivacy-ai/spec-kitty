@@ -1,6 +1,6 @@
 ---
 title: 06 — Unified Charter Bundle
-description: 'The unified charter bundle architecture: the canonical bundle manifest, its module and JSON Schema, introduced as the charter chokepoint (01KP5Q2G) and inverted to a single-file authoritative charter.yaml model by consolidate-charter-bundle.'
+description: 'The unified charter bundle architecture: the canonical manifest, its module and JSON Schema, inverted to a single-file authoritative charter.yaml model (#2773).'
 doc_status: active
 updated: '2026-07-18'
 ---
