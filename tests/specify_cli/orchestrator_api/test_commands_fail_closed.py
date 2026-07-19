@@ -11,6 +11,15 @@ branch the operator happens to have checked out.
 Pre-fix, this went RED: a forced ``ActionContextError`` fell through to the
 ``git branch --show-current`` fallback and returned a ``CommitTarget``
 pointing at it instead of raising.
+
+WP08 (runtime-state-eviction, FR-007 / T031) note: ``append-history`` no
+longer calls ``_resolve_history_commit_args`` at all (it emits a ``note``
+``InnerStateChanged`` annotation instead of committing a WP-file edit), so the
+resolver's own fail-closed contract (the first two tests below) is pinned as a
+standalone unit guarantee for any future WP-prompt-file commit caller. The
+former end-to-end ``append-history`` regression test is replaced with the
+command's *current* structured-envelope contract: a failed emit still returns
+``_fail(...)``'s JSON error, never a bare traceback (see the last test below).
 """
 
 from __future__ import annotations
@@ -106,20 +115,23 @@ def test_resolve_history_commit_args_error_never_carries_current_branch_ref(
             )
 
 
-def test_append_history_surfaces_structured_error_code_on_placement_failure(
+def test_append_history_surfaces_structured_error_code_on_emit_failure(
     tmp_path: Path,
 ) -> None:
-    """End-to-end: the ``append-history`` command envelope carries the
-    structured ``PLACEMENT_RESOLUTION_REQUIRED`` error code -- not a generic
-    ``HISTORY_COMMIT_FAILED`` -- and does not commit to the current branch.
+    """End-to-end (WP08 / T031): a failed ``InnerStateChanged`` emit still
+    surfaces the orchestrator-api's own structured ``HISTORY_COMMIT_FAILED``
+    envelope -- never a bare traceback -- even though ``append-history`` no
+    longer routes through ``_resolve_history_commit_args``/
+    ``resolve_placement_only`` at all (that WP-file-commit placement seam is
+    unreachable from this command post-WP08; see the module docstring).
     """
     repo_root, _primary = _seed_mission(tmp_path)
 
     with (
         patch.object(orch, "_get_main_repo_root", return_value=repo_root),
         patch(
-            "mission_runtime.resolve_placement_only",
-            side_effect=ActionContextError("PLACEMENT_UNRESOLVED", "boom"),
+            "specify_cli.status.emit.emit_inner_state_changed",
+            side_effect=ValueError("boom"),
         ),
     ):
         result = runner.invoke(
@@ -140,4 +152,4 @@ def test_append_history_surfaces_structured_error_code_on_placement_failure(
 
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
-    assert envelope["error_code"] == "PLACEMENT_RESOLUTION_REQUIRED"
+    assert envelope["error_code"] == "HISTORY_COMMIT_FAILED"

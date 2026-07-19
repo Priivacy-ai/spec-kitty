@@ -20,6 +20,29 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Fields that carry runtime mutable state and must be removed.
+#
+# WP03/FR-010 extension — the runtime-state eviction adds the remaining
+# frontmatter-carried runtime fields to this set so a corpus strip removes them
+# once the canonical event log is authoritative:
+#   - ``shell_pid_created_at``: the PID-reuse baseline co-written with
+#     ``shell_pid`` at claim time (now folded into the reduced-snapshot slot).
+#   - the ``review_artifact_override_*`` quartet
+#     (``review_artifact_override_{at,actor,wp_id,reason}``): the exact
+#     frontmatter keys the write half in
+#     ``cli.commands.agent.tasks_materialization._persist_review_artifact_override``
+#     emits — enumerated concretely, never glob-guessed.
+#   - ``reviewer_shell_pid``: the reviewer-side claim PID.
+#   - ``history``: **moved out of STATIC_FIELDS and into here** (mirroring
+#     ``progress``) so the stripper actually removes it. ``STATIC_FIELDS`` is a
+#     documentation/allowlist only; the stripper is driven purely by
+#     ``MUTABLE_FIELDS``, so a field left solely in ``STATIC_FIELDS`` is never
+#     removed. Per FR-010 ``history[]`` is dead+mis-filed — this WP only
+#     *reclassifies + strips* it; the outright deletion of the field and its
+#     writer ``add_history_entry`` is WP07/T028 territory.
+#
+# ``progress`` (already a member below) is **retired** here per FR-010: it is
+# kept in ``MUTABLE_FIELDS`` deliberately so the strip removes it — this is an
+# explicit retirement, NOT a silent drop. See ``RETIRED_FIELDS`` below.
 MUTABLE_FIELDS: frozenset[str] = frozenset(
     {
         "lane",
@@ -30,10 +53,33 @@ MUTABLE_FIELDS: frozenset[str] = frozenset(
         "shell_pid",
         "assignee",
         "agent",
+        # WP03/FR-010 additions
+        "shell_pid_created_at",
+        "review_artifact_override_at",
+        "review_artifact_override_actor",
+        "review_artifact_override_wp_id",
+        "review_artifact_override_reason",
+        "reviewer_shell_pid",
+        "history",
+    }
+)
+
+#: Fields deliberately retired (not silently dropped) by the runtime-state
+#: eviction. They remain in :data:`MUTABLE_FIELDS` so the corpus strip removes
+#: them; this marker records that the removal is intentional and gives a reader
+#: a single place to see *why* a once-live field is gone. ``history`` and
+#: ``progress`` are the two dead fields (FR-010) — both proven zero-reader
+#: before deletion (see ``backfill_runtime_state.assert_zero_readers``).
+RETIRED_FIELDS: frozenset[str] = frozenset(
+    {
+        "progress",
+        "history",
     }
 )
 
 # Fields that are part of the immutable WP definition and must be preserved.
+# NOTE: ``history`` was removed from this set in WP03/FR-010 and moved into
+# ``MUTABLE_FIELDS`` (the two moves are a pair) so the stripper removes it.
 STATIC_FIELDS: frozenset[str] = frozenset(
     {
         "work_package_id",
@@ -53,7 +99,6 @@ STATIC_FIELDS: frozenset[str] = frozenset(
         "base_branch",
         "base_commit",
         "created_at",
-        "history",
     }
 )
 

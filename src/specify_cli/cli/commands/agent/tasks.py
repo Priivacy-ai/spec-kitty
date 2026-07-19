@@ -173,7 +173,8 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _materialize_inline_subtask_status as _materialize_inline_subtask_status,
     # WP09: ``_persist_inline_subtask_status`` left with ``_resolve_inline_subtasks``
     # (now imported directly by ``tasks_mark_status``); zero external refs via ``tasks``.
-    _persist_review_artifact_override_in_coord as _persist_review_artifact_override_in_coord,
+    # ``_persist_review_artifact_override_in_coord`` deleted in WP09 (FR-009): the
+    # primary/coord frontmatter mirror collapsed into the single review emit.
     _persist_review_feedback as _persist_review_feedback,
     _update_pipe_table_status as _update_pipe_table_status,
 )
@@ -306,6 +307,7 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _filter_by_planning_tip_content as _filter_by_planning_tip_content,
     _filter_runtime_state_paths as _filter_runtime_state_paths,
     _find_mission_slug as _find_mission_slug,
+    _legacy_unchecked_subtask_ids as _legacy_unchecked_subtask_ids,
     _list_wp_branch_mission_specs_changes as _list_wp_branch_mission_specs_changes,
     _list_wp_branch_specs_changes_for_guard as _list_wp_branch_specs_changes_for_guard,
     _mark_status_json_payload as _mark_status_json_payload,
@@ -401,21 +403,21 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _lane_deliverable_paths as _lane_deliverable_paths,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
-    # WP06 (coord-shadows-arm-closeout-01KXAST2, FR-010, T027): the
-    # rollback-to-planned claim-marker clear (pure helper) + the umbrella
-    # reset seam that consolidates it with the subtask uncheck join the
-    # family surface like every other def — same seam-bridge rule.
-    _mt_clear_rollback_claim_markers as _mt_clear_rollback_claim_markers,
+    # WP06 (wp-runtime-state-eviction, FR-006/FR-008, T023): the god-write cut
+    # deleted the rollback-to-planned claim-marker clear, the subtask-uncheck
+    # trio, the umbrella reset seam, and the tracker-refs frontmatter writer —
+    # runtime state is now event-sourced (InnerStateChanged), so their
+    # re-exports are dropped here (seam-mirror of the authoritative-surface
+    # deletion; the six unit test modules that imported them are WP10 dead-symbol
+    # reconciliation).
     _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
     _mt_commit_wp_file as _mt_commit_wp_file,
     _mt_complete_deferred_for_review_readiness as _mt_complete_deferred_for_review_readiness,
     # WP07 (#2649, T034/T035): helpers extracted out of ``_mt_commit_wp_file``
-    # (folds #2604) and ``_mt_uncheck_rollback_subtasks`` join the family
-    # surface like every other def — same seam-bridge rule.
+    # (folds #2604) join the family surface like every other def — same
+    # seam-bridge rule.
     _mt_wp_commit_message as _mt_wp_commit_message,
     _mt_report_commit_outcome as _mt_report_commit_outcome,
-    _mt_attempt_uncheck_write as _mt_attempt_uncheck_write,
-    _mt_commit_uncheck_tasks_md as _mt_commit_uncheck_tasks_md,
     _mt_current_event_lane as _mt_current_event_lane,
     _mt_done_ancestry_facts as _mt_done_ancestry_facts,
     _mt_emit_transitions as _mt_emit_transitions,
@@ -433,7 +435,6 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
-    _mt_persist_tracker_refs as _mt_persist_tracker_refs,
     _mt_persist_wp_file as _mt_persist_wp_file,
     _mt_pre_review_block_enabled as _mt_pre_review_block_enabled,
     _mt_pre_review_changed_files as _mt_pre_review_changed_files,
@@ -458,8 +459,6 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_targets as _mt_resolve_targets,
-    _mt_reset_for_planned_rollback as _mt_reset_for_planned_rollback,
-    _mt_uncheck_rollback_subtasks as _mt_uncheck_rollback_subtasks,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
@@ -474,6 +473,21 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # fallback-write helper join the family surface like every other def.
     _mt_untracked_planning_artifact_paths as _mt_untracked_planning_artifact_paths,
     _write_wp_fallback as _write_wp_fallback,
+    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the six
+    # event-sourcing helpers WP06/WP07 added to ``tasks_move_task`` when the
+    # god-write was cut — the off-axis runtime-state emitter, the flag-OFF
+    # dual-write bridge, the claim-triple policy_metadata packer, the review
+    # planner, the rollback subtask-reset delta builder, and the shell-pid
+    # baseline reader — join the family surface like every other def (same
+    # seam-bridge rule). They were added natively without their paired
+    # re-exports; the compat-surface guard's superset check flags exactly this
+    # gap, so it is completed here at closeout.
+    _mt_dual_write_wp_file as _mt_dual_write_wp_file,
+    _mt_emit_runtime_state as _mt_emit_runtime_state,
+    _mt_hop_policy_metadata as _mt_hop_policy_metadata,
+    _mt_plan_review_result as _mt_plan_review_result,
+    _mt_rollback_subtasks_reset as _mt_rollback_subtasks_reset,
+    _mt_shell_pid_baseline as _mt_shell_pid_baseline,
 )
 
 
@@ -704,6 +718,7 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _ms_commit as _ms_commit,
     _ms_dossier_sync as _ms_dossier_sync,
     _ms_emit_history as _ms_emit_history,
+    _ms_emit_subtask_state as _ms_emit_subtask_state,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
     _ms_resolve_context as _ms_resolve_context,

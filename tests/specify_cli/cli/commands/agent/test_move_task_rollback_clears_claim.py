@@ -1,149 +1,247 @@
-"""#2512: move-task --to planned clears stale agent/shell_pid claim markers.
+"""#2512: ``move-task --to planned`` RELEASES a stale agent/shell_pid claim.
 
 Field repro: an agent process was killed by macOS idle-sleep, leaving
-``agent: "claude-code"`` and ``shell_pid: "41417"`` in the WP frontmatter.
-``move-task WPxx --to planned`` reset the event-log lane back to ``planned``
-but did NOT clear those fields, so the next orchestrator resume call failed
-with ``LANE_ALLOCATION_FAILED`` (the allocator's liveness check was absent).
+``agent: "claude-code"`` / ``shell_pid: "41417"`` behind. ``move-task WPxx --to
+planned`` reset the event-log lane back to ``planned`` but did NOT clear the
+claim, so the next orchestrator resume call failed ``LANE_ALLOCATION_FAILED``.
 
-Fix: when ``target_lane == Lane.PLANNED``, delete ``agent`` and ``shell_pid``
-from the frontmatter BEFORE any caller-supplied value is re-planted, so a plain
-rollback always leaves the WP with a clean claim state.
+Re-pointed for the WP-runtime-state eviction (WP10 closeout). The god-write is
+cut (WP06, FR-006/FR-007/FR-008): runtime state — including the claim triple —
+is event-sourced, so the claim now lives in the reduced snapshot (the
+``planned -> claimed`` transition's ``policy_metadata``), NOT WP frontmatter.
+The old frontmatter clearer (``_mt_clear_rollback_claim_markers``) was deleted
+with the god-write; the release is now emitted off-axis as an
+``InnerStateChanged`` from ``_mt_emit_runtime_state`` (#2512 delta).
+
+These tests drive the real ``move-task`` entry point at ``status_phase: 1``
+(flag ON — the event-sourced write path, the shipped dual-write end-state) and
+assert:
+
+* a rolled-back WP exposes **no live claim** — the reduced snapshot's
+  ``agent``/``shell_pid`` slots are released (falsy) where they were live before
+  (proof-of-drive positive control);
+* the WP file stays **byte-stable** across the rollback (event-only, AC-5);
+* an explicit ``--agent`` on rollback RE-PLANTS a fresh claim (override case).
 """
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import Result
+from typer.testing import CliRunner
 
-from specify_cli.task_utils import extract_scalar
+from charter.hasher import hash_content
+from specify_cli.cli.commands.agent import tasks as tasks_module
+from specify_cli.cli.commands.agent.tasks import app as tasks_app
+from specify_cli.status import Lane
+from specify_cli.status.models import StatusEvent
+from specify_cli.status.reducer import reduce as reduce_snapshot
+from specify_cli.status.store import append_event, read_event_stream
+from tests.lane_test_utils import write_single_lane_manifest
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_WP_FRONTMATTER_WITH_STALE_CLAIM = """\
----
-work_package_id: WP03
-title: "Engine Telemetry"
-agent: "claude-code"
-shell_pid: "41417"
-dependencies: []
----
-
-Body text.
-"""
-
-
-def _make_wp_file(tmp_path: Path) -> Path:
-    wp_path = tmp_path / "WP03.md"
-    wp_path.write_text(_WP_FRONTMATTER_WITH_STALE_CLAIM, encoding="utf-8")
-    return wp_path
+_MISSION_SLUG = "001-rollback-clears-claim"
+_STALE_PID = 41417
+_STALE_AGENT = "claude-code"
 
 
-def _run_persist_wp_file(
-    tmp_path: Path,
-    *,
-    target_lane_value: str,
-    agent: str | None = None,
-    shell_pid: str | None = None,
-) -> str:
-    """Exercise _mt_persist_wp_file in isolation via _MoveTaskState."""
-    from specify_cli.status.models import Lane
-    from specify_cli.cli.commands.agent.tasks_move_task import (
-        _MoveTaskState,
-        _mt_persist_wp_file,
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+
+
+def _content_hash(path: Path) -> str:
+    return hash_content(path.read_text(encoding="utf-8"))
+
+
+def _seed_claim_to_in_review(feature_dir: Path) -> None:
+    """Seed genesis -> planned -> claimed(claim triple) -> ... -> in_review.
+
+    The ``planned -> claimed`` transition carries the claim triple on its
+    ``policy_metadata`` (FR-004), exactly as the real claim path does, so the
+    reduced snapshot exposes a LIVE claim before the rollback under test.
+    """
+    hops = [
+        (Lane.GENESIS, Lane.PLANNED, None),
+        (
+            Lane.PLANNED,
+            Lane.CLAIMED,
+            {"shell_pid": _STALE_PID, "agent": _STALE_AGENT},
+        ),
+        (Lane.CLAIMED, Lane.IN_PROGRESS, None),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, None),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, None),
+    ]
+    for idx, (frm, to, policy_metadata) in enumerate(hops, start=1):
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"seed-{idx}",
+                mission_slug=_MISSION_SLUG,
+                wp_id="WP01",
+                from_lane=frm,
+                to_lane=to,
+                at=f"2026-01-01T00:00:0{idx}+00:00",
+                actor="fixture",
+                force=True,
+                execution_mode="worktree",
+                policy_metadata=policy_metadata,
+            ),
+        )
+
+
+def _build_flag_on_mission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, wp_agent: str = "reviewer"
+) -> tuple[Path, Path]:
+    """Materialise a ``status_phase: 1`` (flag ON) lanes mission with WP01
+    seeded to ``in_review`` carrying a live claim. Returns ``(repo, feature_dir)``.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "wp10@example.invalid")
+    _git(repo, "config", "user.name", "WP10 Rollback Claim")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("auto_commit: false\n", encoding="utf-8")
+
+    feature_dir = repo / "kitty-specs" / _MISSION_SLUG
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["status_phase"] = "1"  # flag ON: event-only writes, byte-stable WP file
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01 - Core\n\n(no subtasks)\n", encoding="utf-8"
     )
-    from specify_cli.task_utils import WorkPackage, split_frontmatter
-
-    wp_path = _make_wp_file(tmp_path)
-    front, body, padding = split_frontmatter(
-        wp_path.read_text(encoding="utf-8-sig")
-    )
-    wp = WorkPackage(
-        feature="review-context-depth-01KX2EQ9",
-        path=wp_path,
-        current_lane="in_review",
-        relative_subpath=Path("tasks/WP03.md"),
-        frontmatter=front,
-        body=body,
-        padding=padding,
+    # No ``lane``/``agent``/``shell_pid`` frontmatter fields -> the flag-ON lane
+    # mirror is a no-op and the file is byte-stable across the driven rollback.
+    (tasks_dir / "WP01-core.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Core\n"
+        f"agent: {wp_agent}\n"
+        "subtasks: []\n"
+        "tracker_refs: []\n"
+        "dependencies: []\n"
+        "---\n\n# WP01\n\n## Activity Log\n",
+        encoding="utf-8",
     )
 
-    decision_mock = MagicMock()
-    decision_mock.skip_primary = True  # skip the actual git commit
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "seed rollback-clears-claim fixture")
+    _seed_claim_to_in_review(feature_dir)
 
-    st = _MoveTaskState(
-        task_id="WP03",
-        to=target_lane_value,
-        mission=None,
-        agent=agent,
-        assignee=None,
-        shell_pid=shell_pid,
-        note=None,
-        review_feedback_file=None,
-        approval_ref=None,
-        reviewer=None,
-        self_review_fallback=False,
-        intended_reviewer=None,
-        reviewer_failure_reason=None,
-        done_override_reason=None,
-        force=False,
-        tracker_ref=None,
-        skip_review_artifact_check=False,
-        auto_commit=False,
-        json_output=True,
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr(tasks_module, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(
+        tasks_module, "_validate_ready_for_review", lambda *_a, **_k: (True, [])
     )
-    st.target_lane = Lane(target_lane_value)
-    st.old_lane = Lane.IN_REVIEW
-    st.wp = wp
-    st.decision = decision_mock
-    st.final_hop_actor = agent or "user"
-    st.main_repo_root = tmp_path
-    st.target_branch = "main"
-    st.mission_slug = "review-context-depth-01KX2EQ9"
-    st.resolved_auto_commit = False
-    st.note_text = None
-
-    ports = MagicMock()
-    ports.coord.commit_artifact.return_value = MagicMock(status="committed")
-
-    with patch(
-        "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory",
-        side_effect=lambda path, content, **_: path.write_text(content, encoding="utf-8"),
-    ):
-        _mt_persist_wp_file(st, ports)
-
-    return wp_path.read_text(encoding="utf-8")
+    monkeypatch.setattr(tasks_module, "get_mission_type", lambda *_a, **_k: "software-dev")
+    return repo, feature_dir
 
 
-def test_rollback_to_planned_clears_agent(tmp_path: Path) -> None:
-    """Rolling a WP back to planned must erase the agent claim field."""
-    result = _run_persist_wp_file(tmp_path, target_lane_value="planned")
-    front = result.split("---")[1]
-    assert extract_scalar(front, "agent") is None
+def _snapshot_wp_state(feature_dir: Path) -> dict[str, object]:
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce_snapshot(stream.transitions, stream.annotations)
+    return snapshot.work_packages.get("WP01") or {}
 
 
-def test_rollback_to_planned_clears_shell_pid(tmp_path: Path) -> None:
-    """Rolling a WP back to planned must erase the shell_pid claim field."""
-    result = _run_persist_wp_file(tmp_path, target_lane_value="planned")
-    front = result.split("---")[1]
-    assert extract_scalar(front, "shell_pid") is None
+def _move(args: list[str]) -> Result:
+    return CliRunner().invoke(tasks_app, ["move-task", *args])
 
 
-def test_rollback_to_planned_replants_agent_if_provided(tmp_path: Path) -> None:
-    """An explicit --agent on rollback re-plants a fresh claim (override case)."""
-    result = _run_persist_wp_file(
-        tmp_path, target_lane_value="planned", agent="claude-code"
+def test_rollback_to_planned_releases_claim_in_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A plain rollback to planned RELEASES the prior claim: the reduced
+    snapshot's ``agent``/``shell_pid`` slots go falsy (no live claim), whereas
+    they were live before the rollback (proof-of-drive positive control)."""
+    repo, feature_dir = _build_flag_on_mission(tmp_path, monkeypatch)
+    feedback = repo / "feedback.md"
+    feedback.write_text("**Issue**: rework requested.\n", encoding="utf-8")
+
+    # Positive control: BEFORE the rollback the claim is live in the snapshot.
+    before = _snapshot_wp_state(feature_dir)
+    assert before.get("shell_pid") == _STALE_PID
+    assert before.get("agent") == _STALE_AGENT
+
+    result = _move(
+        [
+            "WP01", "--to", "planned", "--mission", _MISSION_SLUG,
+            "--review-feedback-file", str(feedback), "--no-auto-commit", "--json",
+        ]
     )
-    front = result.split("---")[1]
-    assert extract_scalar(front, "agent") == "claude-code"
+    assert result.exit_code == 0, result.output
+
+    after = _snapshot_wp_state(feature_dir)
+    # No live claim: both claim slots are released (falsy) after the rollback.
+    assert not after.get("shell_pid"), f"shell_pid not released: {after.get('shell_pid')!r}"
+    assert not after.get("agent"), f"agent not released: {after.get('agent')!r}"
 
 
-def test_forward_transition_preserves_agent(tmp_path: Path) -> None:
-    """Forward transitions (e.g. in_progress) must NOT strip existing claim."""
-    result = _run_persist_wp_file(tmp_path, target_lane_value="in_progress")
-    front = result.split("---")[1]
-    # No explicit agent provided, so the stale value should SURVIVE on forward
-    # transitions (claim is the implementer's, not the reviewer's to clear).
-    assert extract_scalar(front, "agent") == "claude-code"
+def test_rollback_release_is_event_only_wp_file_byte_stable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The #2512 release is event-only: a release ``InnerStateChanged`` is
+    persisted and the WP file stays byte-identical across the rollback (AC-5)."""
+    repo, feature_dir = _build_flag_on_mission(tmp_path, monkeypatch)
+    wp_file = feature_dir / "tasks" / "WP01-core.md"
+    feedback = repo / "feedback.md"
+    feedback.write_text("**Issue**: rework requested.\n", encoding="utf-8")
+
+    hash_before = _content_hash(wp_file)
+    annotations_before = len(read_event_stream(feature_dir).annotations)
+
+    result = _move(
+        [
+            "WP01", "--to", "planned", "--mission", _MISSION_SLUG,
+            "--review-feedback-file", str(feedback), "--no-auto-commit", "--json",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+
+    # Event-only: a release annotation landed...
+    stream = read_event_stream(feature_dir)
+    assert len(stream.annotations) > annotations_before, "no release annotation persisted"
+    release = [
+        a for a in stream.annotations
+        if a.wp_id == "WP01" and (a.delta.agent == "" or a.delta.shell_pid == 0)
+    ]
+    assert release, "no InnerStateChanged released the claim (agent=''/shell_pid=0)"
+    # ...and the WP file bytes did not change.
+    assert _content_hash(wp_file) == hash_before, "rollback rewrote tasks/WP01.md bytes"
+
+
+def test_rollback_with_explicit_agent_replants_claim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An explicit ``--agent`` on rollback RE-PLANTS a fresh claim (override
+    case): the snapshot ``agent`` slot carries the supplied value, not the
+    release sentinel. ``--force`` bypasses the orthogonal claim-owner mismatch
+    guard so the override path itself is what is exercised."""
+    repo, feature_dir = _build_flag_on_mission(tmp_path, monkeypatch)
+    feedback = repo / "feedback.md"
+    feedback.write_text("**Issue**: rework requested.\n", encoding="utf-8")
+
+    result = _move(
+        [
+            "WP01", "--to", "planned", "--mission", _MISSION_SLUG,
+            "--review-feedback-file", str(feedback), "--agent", "fresh-claimer",
+            "--force", "--no-auto-commit", "--json",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+
+    after = _snapshot_wp_state(feature_dir)
+    assert after.get("agent") == "fresh-claimer", (
+        "explicit --agent on rollback must re-plant a fresh claim, not release it"
+    )

@@ -24,7 +24,7 @@ from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
-from specify_cli.frontmatter import FrontmatterError, write_shell_pid_claim_to_file
+from specify_cli.frontmatter import FrontmatterError, write_shell_pid_claim
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
@@ -1465,6 +1465,44 @@ def _build_implement_json_payload(
     }
 
 
+def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
+    """Best-effort ``policy_metadata`` triple for the claim transition (WP07/T026).
+
+    Mirrors ``cli.commands.agent.workflow_executor._claim_policy_metadata``
+    (duplicated rather than imported to avoid a lower-layer -> agent-package
+    dependency): routes ``(shell_pid, shell_pid_created_at, agent)`` onto the
+    ``planned -> claimed`` transition's ``policy_metadata`` sidecar (FR-004)
+    using WP01's exact reducer-fold key names, omitting
+    ``shell_pid_created_at`` (never fabricating a value) when
+    :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
+    cannot capture a baseline (C-007 best-effort, D3a legacy-claim semantics).
+    """
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+    from specify_cli.status.emit import build_claim_policy_metadata
+
+    baseline = capture_creation_time_baseline(shell_pid)
+    if baseline is None:
+        return {"shell_pid": shell_pid, "agent": agent}
+    return build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
+
+
+def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
+    """FR-005/C-001 dual-write gate for the shell_pid claim frontmatter mirror.
+
+    Mirrors ``cli.commands.agent.workflow_executor._shell_pid_dual_write_active``
+    (duplicated rather than imported -- same lower-layer/agent-package
+    boundary reason as :func:`_claim_policy_metadata` above). Reuses WP01/
+    WP03's existing ``status/emit.py::_phase1_dual_write_enabled``
+    compatibility-bridge flag: while unset/off (the pre-verify default),
+    the frontmatter mirror stays MANDATORY; once an operator flips
+    ``status_phase`` to ``"1"`` (post WP03 backfill+verify / WP05 reader
+    cutover), it is torn down.
+    """
+    from specify_cli.status.emit import _phase1_dual_write_enabled
+
+    return not _phase1_dual_write_enabled(feature_dir)
+
+
 def _start_wp_implementation_status(
     *,
     feature_dir: Path,
@@ -1477,6 +1515,8 @@ def _start_wp_implementation_status(
 ) -> Any:
     """Call ``start_implementation_status``, translating claim-conflict /
     transition failures into a printed error + ``typer.Exit(1)``."""
+    import os as _os
+
     try:
         return start_implementation_status(
             feature_dir=feature_dir,
@@ -1486,6 +1526,11 @@ def _start_wp_implementation_status(
             workspace_context=f"{status_execution_mode}:{workspace_path}",
             execution_mode=status_execution_mode,
             repo_root=repo_root,
+            # WP07/T026 (FR-004/FR-014): the claim triple rides the
+            # planned -> claimed transition's policy_metadata sidecar
+            # instead of the removed frontmatter pre-write (see the deleted
+            # write_shell_pid_claim_to_file call this replaces below).
+            policy_metadata=_claim_policy_metadata(_os.getppid(), effective_actor),
         )
     except WorkPackageClaimConflict as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -1725,9 +1770,22 @@ def implement(
     status_result = None
     status_execution_mode = _execution_mode_for_workspace(resolved_workspace)
     try:
-        import os as _os
+        # WP07/T028 (FR-004/FR-008/FR-014): the pre-write claim triple now
+        # rides the planned -> claimed transition's policy_metadata sidecar
+        # (see _start_wp_implementation_status below) instead of this
+        # direct WP-file mutation. The frontmatter mirror is a bounded
+        # FR-005/C-001 dual-write bridge, active only until WP05's
+        # shell_pid reader cuts over (see _shell_pid_dual_write_active);
+        # once torn down, this becomes a byte-identical no-op on the WP
+        # file (SC-001/SC-005).
+        if _shell_pid_dual_write_active(feature_dir):
+            import os as _os
+            from specify_cli.task_utils.support import build_document, split_frontmatter
 
-        write_shell_pid_claim_to_file(wp_file, _os.getppid())
+            _wp_text = wp_file.read_text(encoding="utf-8-sig")
+            _wp_front, _wp_body, _wp_padding = split_frontmatter(_wp_text)
+            _wp_front = write_shell_pid_claim(_wp_front, _os.getppid())
+            wp_file.write_text(build_document(_wp_front, _wp_body, _wp_padding), encoding="utf-8")
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # When --base is provided, validate the ref and build a patched

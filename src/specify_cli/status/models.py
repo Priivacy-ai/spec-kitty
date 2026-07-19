@@ -8,6 +8,7 @@ StatusSnapshot, AgentAssignment, and RetrospectiveSnapshot.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -91,6 +92,12 @@ def get_all_lane_values() -> frozenset[str]:
 
 
 ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+
+#: A subtask's completion status reuses the canonical lane/status enum
+#: vocabulary (``Lane``) rather than introducing a divergent string type
+#: (data-model.md §WPInnerStateDelta). A subtask is "done" when its status is
+#: ``Lane.DONE``.
+Status = Lane
 
 
 @dataclass(frozen=True)
@@ -316,6 +323,203 @@ class StatusEvent:
             policy_metadata=data.get("policy_metadata"),
             mission_id=data.get("mission_id"),  # None for legacy events
         )
+
+
+@dataclass(frozen=True)
+class ReviewOverride:
+    """Review-cycle override slot carried by an ``InnerStateChanged`` delta.
+
+    Pinned shape (do NOT reuse the review-result shape near
+    ``wp_state._check_review_result`` and do NOT invent
+    ``review_artifact_override_*`` fields): WP03/WP09 reference these exact
+    four fields and the :meth:`complete` predicate verbatim.
+    """
+
+    at: str
+    actor: str
+    wp_id: str
+    reason: str
+
+    @property
+    def complete(self) -> bool:
+        """True only when all four fields are non-empty."""
+        return bool(self.at and self.actor and self.wp_id and self.reason)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "at": self.at,
+            "actor": self.actor,
+            "wp_id": self.wp_id,
+            "reason": self.reason,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> ReviewOverride:
+        return cls(
+            at=str(data["at"]),
+            actor=str(data["actor"]),
+            wp_id=str(data["wp_id"]),
+            reason=str(data["reason"]),
+        )
+
+
+@dataclass(frozen=True)
+class WPInnerStateDelta:
+    """Typed partial runtime-state payload for an ``InnerStateChanged`` event.
+
+    Every field is optional; an absent (``None``) field leaves the
+    corresponding reduced-snapshot slot untouched. This is deliberately a
+    typed dataclass rather than a free ``dict[str, Any]`` (C-002).
+
+    ``tracker_refs`` is the *additive* channel (unions into the snapshot slot);
+    ``tracker_refs_replace`` is the *replace* channel (wholesale-replaces the
+    slot) that WP08's ``--replace`` needs so a replace does not resurrect stale
+    refs. Both are delta inputs; the reduced snapshot exposes a single
+    ``tracker_refs`` slot.
+    """
+
+    shell_pid: int | None = None
+    shell_pid_created_at: str | None = None
+    subtasks: Mapping[str, Status] | None = None
+    note: str | None = None
+    tracker_refs: list[str] | None = None
+    tracker_refs_replace: list[str] | None = None
+    agent: str | None = None
+    assignee: str | None = None
+    review: ReviewOverride | None = None
+
+    def is_empty(self) -> bool:
+        """True when the delta touches no slot (all fields ``None``)."""
+        return (
+            self.shell_pid is None
+            and self.shell_pid_created_at is None
+            and self.subtasks is None
+            and self.note is None
+            and self.tracker_refs is None
+            and self.tracker_refs_replace is None
+            and self.agent is None
+            and self.assignee is None
+            and self.review is None
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Emit only present fields so the reducer's "absent leaves slot
+        untouched" rule is unambiguous on the wire.
+        """
+        d: dict[str, Any] = {}
+        if self.shell_pid is not None:
+            d["shell_pid"] = self.shell_pid
+        if self.shell_pid_created_at is not None:
+            d["shell_pid_created_at"] = self.shell_pid_created_at
+        if self.subtasks is not None:
+            d["subtasks"] = {sid: str(status) for sid, status in self.subtasks.items()}
+        if self.note is not None:
+            d["note"] = self.note
+        if self.tracker_refs is not None:
+            d["tracker_refs"] = list(self.tracker_refs)
+        if self.tracker_refs_replace is not None:
+            d["tracker_refs_replace"] = list(self.tracker_refs_replace)
+        if self.agent is not None:
+            d["agent"] = self.agent
+        if self.assignee is not None:
+            d["assignee"] = self.assignee
+        if self.review is not None:
+            d["review"] = self.review.to_dict()
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> WPInnerStateDelta:
+        subtasks_raw = data.get("subtasks")
+        subtasks: dict[str, Status] | None = None
+        if subtasks_raw is not None:
+            subtasks = {str(sid): Status(value) for sid, value in subtasks_raw.items()}
+        review_raw = data.get("review")
+        review = ReviewOverride.from_dict(review_raw) if review_raw is not None else None
+        shell_pid_raw = data.get("shell_pid")
+        tracker_refs_raw = data.get("tracker_refs")
+        tracker_refs_replace_raw = data.get("tracker_refs_replace")
+        return cls(
+            shell_pid=int(shell_pid_raw) if shell_pid_raw is not None else None,
+            shell_pid_created_at=data.get("shell_pid_created_at"),
+            subtasks=subtasks,
+            note=data.get("note"),
+            tracker_refs=list(tracker_refs_raw) if tracker_refs_raw is not None else None,
+            tracker_refs_replace=(
+                list(tracker_refs_replace_raw)
+                if tracker_refs_replace_raw is not None
+                else None
+            ),
+            agent=data.get("agent"),
+            assignee=data.get("assignee"),
+            review=review,
+        )
+
+
+@dataclass(frozen=True)
+class InnerStateChanged:
+    """Off-axis (non-transition) runtime-state annotation event.
+
+    Shares the append-only ``status.events.jsonl`` file with ``StatusEvent``
+    but carries **no** ``from_lane``/``to_lane`` and can never traverse the
+    FSM: it bypasses ``validate_transition`` and never increments
+    ``force_count``. The reducer folds its typed :class:`WPInnerStateDelta`
+    into the per-WP runtime slots in a dedicated post-transition pass.
+    """
+
+    event_id: str  # ULID
+    wp_id: str
+    at: str  # ISO 8601 UTC
+    actor: str
+    delta: WPInnerStateDelta
+    kind: str = "annotation"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "kind": self.kind,
+            "wp_id": self.wp_id,
+            "at": self.at,
+            "actor": self.actor,
+            "delta": self.delta.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> InnerStateChanged:
+        """Decode an annotation dict.
+
+        Distinct from :meth:`StatusEvent.from_dict` (which hard-requires the
+        ``from_lane``/``to_lane`` keys). Validates ``event_id`` against
+        ``ULID_PATTERN`` and requires ``kind == "annotation"``.
+        """
+        event_id = data["event_id"]
+        if not isinstance(event_id, str) or not ULID_PATTERN.match(event_id):
+            raise ValueError(f"InnerStateChanged.event_id is not a valid ULID: {event_id!r}")
+        kind = data.get("kind")
+        if kind != "annotation":
+            raise ValueError(f"InnerStateChanged requires kind == 'annotation', got {kind!r}")
+        delta_raw = data["delta"]
+        return cls(
+            event_id=event_id,
+            kind=kind,
+            wp_id=str(data["wp_id"]),
+            at=str(data["at"]),
+            actor=str(data["actor"]),
+            delta=WPInnerStateDelta.from_dict(delta_raw),
+        )
+
+
+@dataclass(frozen=True)
+class EventStream:
+    """Read-shape container partitioning the event log by kind.
+
+    ``read_event_stream`` surfaces both lane ``transitions`` and off-axis
+    ``annotations`` to the reducer without changing the on-disk file. Lane
+    events continue to flow through the existing ``read_events`` list shape;
+    this container is the reducer's annotation-aware read path.
+    """
+
+    transitions: list[StatusEvent] = field(default_factory=list)
+    annotations: list[InnerStateChanged] = field(default_factory=list)
 
 
 @dataclass

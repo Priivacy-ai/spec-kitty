@@ -35,13 +35,20 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     MoveTaskRequest,
     RefuseExit1,
     TransitionPlan,
+    _guard_subtasks,
     arbiter_persist_signal,
     build_transition_plan,
     decide_transition,
     override_persist_signal,
 )
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from specify_cli.status.models import (
+    InnerStateChanged,
+    Lane,
+    ReviewResult,
+    StatusEvent,
+    WPInnerStateDelta,
+)
+from specify_cli.status.store import append_annotations_atomic_verified, append_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -414,6 +421,141 @@ def test_unchecked_subtasks_bypassed_by_force() -> None:
 
 
 # ---------------------------------------------------------------------------
+# T008 (FR-003): _guard_subtasks re-sourced to the reduced-snapshot subtasks slot
+# ---------------------------------------------------------------------------
+
+
+def _phase1_feature_dir(
+    tmp_path: Path,
+    *,
+    wp_id: str,
+    subtasks: dict[str, Lane] | None,
+) -> Path:
+    """Seed a phase-1 (``status_phase: 1``) feature dir with a WP in the event log.
+
+    ``subtasks`` (when given) is recorded ONLY in the reduced snapshot via an
+    ``InnerStateChanged`` annotation — never in a ``tasks.md`` checkbox surface.
+    Returns the feature_dir.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "t008-mission"
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"status_phase": "1"}), encoding="utf-8"
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=("01KX" + wp_id).ljust(26, "0")[:26],
+            mission_slug="t008-mission",
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+            reason="seed",
+        ),
+    )
+    if subtasks is not None:
+        append_annotations_atomic_verified(
+            feature_dir,
+            [
+                InnerStateChanged(
+                    event_id=("01KXANN" + wp_id).ljust(26, "0")[:26],
+                    wp_id=wp_id,
+                    at="2026-01-01T00:01:00+00:00",
+                    actor="test",
+                    delta=WPInnerStateDelta(subtasks=subtasks),
+                )
+            ],
+        )
+    return feature_dir
+
+
+def test_guard_subtasks_passes_on_snapshot_completion_with_tasks_md_absent(
+    tmp_path: Path,
+) -> None:
+    """SC-003: completion recorded in the snapshot passes the gate even though the
+    legacy ``unchecked_subtasks`` tuple still reports them unchecked AND no
+    ``tasks.md`` exists — proving the snapshot slot is the resolution source."""
+    feature_dir = _phase1_feature_dir(
+        tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.DONE}
+    )
+    assert not (feature_dir / "tasks.md").exists()
+    req = _base_request(
+        task_id="WP01",
+        target_lane="for_review",
+        unchecked_subtasks=("T001", "T002"),  # legacy (tasks.md) still stale
+        feature_dir=feature_dir,
+    )
+    assert _guard_subtasks(req) is None
+
+
+def test_guard_subtasks_refuses_genuinely_incomplete_from_snapshot(
+    tmp_path: Path,
+) -> None:
+    """The refusal branch survives the re-source: a subtask still ``in_progress``
+    in the snapshot is refused with the canonical unchecked-subtasks message."""
+    feature_dir = _phase1_feature_dir(
+        tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS}
+    )
+    req = _base_request(
+        task_id="WP01",
+        target_lane="for_review",
+        unchecked_subtasks=(),  # legacy says clear; snapshot must still refuse
+        feature_dir=feature_dir,
+    )
+    outcome = _guard_subtasks(req)
+    assert isinstance(outcome, RefuseExit1)
+    assert "unchecked subtasks" in outcome.error
+    assert "T002" in outcome.error
+    assert "T001" not in outcome.error  # the DONE subtask is not listed
+
+
+def test_guard_subtasks_zero_snapshot_subtasks_passes(tmp_path: Path) -> None:
+    """A WP present in the snapshot with zero subtasks has nothing to block on."""
+    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={})
+    req = _base_request(
+        task_id="WP01",
+        target_lane="for_review",
+        unchecked_subtasks=("T001",),  # legacy would refuse; snapshot overrides
+        feature_dir=feature_dir,
+    )
+    assert _guard_subtasks(req) is None
+
+
+def test_guard_subtasks_falls_back_to_legacy_when_dir_absent() -> None:
+    """WP02 runtime window (``feature_dir=None``): the guard falls back to the
+    legacy ``unchecked_subtasks`` tuple until WP04 wires the dir through (C-001)."""
+    req = _base_request(
+        target_lane="for_review",
+        unchecked_subtasks=("T001", "T002"),
+        feature_dir=None,
+    )
+    outcome = _guard_subtasks(req)
+    assert isinstance(outcome, RefuseExit1)
+    assert "T001" in outcome.error
+
+
+def test_guard_subtasks_flag_off_uses_legacy_tuple(tmp_path: Path) -> None:
+    """Flag gate: with ``status_phase`` not 1, the guard reads the legacy tuple even
+    when a feature_dir is supplied (legacy ``tasks.md`` path until WP03 verify)."""
+    feature_dir = tmp_path / "kitty-specs" / "legacy-mission"
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    # No meta.json / status_phase != 1 -> _phase1_dual_write_enabled is False.
+    req = _base_request(
+        task_id="WP01",
+        target_lane="for_review",
+        unchecked_subtasks=("T009",),
+        feature_dir=feature_dir,
+    )
+    outcome = _guard_subtasks(req)
+    assert isinstance(outcome, RefuseExit1)
+    assert "T009" in outcome.error
+
+
+# ---------------------------------------------------------------------------
 # review-currency
 # ---------------------------------------------------------------------------
 
@@ -529,7 +671,35 @@ def test_for_review_to_in_progress_force_sets_force_override_ref() -> None:
     assert plan.transition_targets == ["in_progress"]
 
 
-def test_non_force_backward_is_rewound_and_forced() -> None:
+def test_non_force_backward_with_evidence_is_force_free() -> None:
+    """FR-015: ``approved -> in_progress`` with its edge-specific evidence
+    (``review_ref``, threaded here as ``arb_review_ref``) is legal *force-free* per
+    the FSM, so ``build_transition_plan`` must NOT auto-promote ``emit_force``. The
+    canonical rewind reason is still synthesised — only the false-force bit is gone.
+
+    (Re-pointed from ``test_non_force_backward_is_rewound_and_forced``: the old
+    assertion pinned the false-force auto-promotion this WP removes.)
+    """
+    plan = build_transition_plan(
+        old_lane="approved",
+        target_lane="in_progress",
+        force=False,
+        review_feedback_pointer=None,
+        arb_review_ref="feedback://arbiter/WP01/review-cycle-1.md",
+        note_text=None,
+    )
+    # Evidence-gated backward edge is force-free (honest provenance), not forced.
+    assert plan.emit_force is False
+    assert plan.emit_reason is not None
+    assert plan.emit_reason.startswith("backward rewind: approved -> in_progress")
+    # A backward edge stays single-hop even when force-free (no forward expansion).
+    assert plan.transition_targets == ["in_progress"]
+
+
+def test_non_force_backward_without_evidence_stays_forced() -> None:
+    """FR-015 (honest force): ``approved -> in_progress`` with NO ``review_ref``
+    evidence is FSM-rejected force-free, so ``emit_force`` stays truthfully ``True``.
+    Guards against over-suppression the other way (silent provenance loss)."""
     plan = build_transition_plan(
         old_lane="approved",
         target_lane="in_progress",
@@ -538,10 +708,103 @@ def test_non_force_backward_is_rewound_and_forced() -> None:
         arb_review_ref=None,
         note_text=None,
     )
-    # A backward move is auto-promoted to force with a canonical rewind reason.
     assert plan.emit_force is True
     assert plan.emit_reason is not None
     assert plan.emit_reason.startswith("backward rewind: approved -> in_progress")
+
+
+def test_in_progress_to_planned_reason_evidence_is_force_free() -> None:
+    """FR-015: ``in_progress -> planned`` is force-free with a ``reason`` (the
+    always-synthesised rewind reason satisfies the FSM's reason-only guard)."""
+    plan = build_transition_plan(
+        old_lane="in_progress",
+        target_lane="planned",
+        force=False,
+        review_feedback_pointer="feedback://WP01/review-cycle-1.md",
+        arb_review_ref=None,
+        note_text=None,
+    )
+    assert plan.emit_force is False
+    assert plan.transition_targets == ["planned"]
+    assert plan.emit_reason is not None
+    assert plan.emit_reason.startswith("backward rewind: in_progress -> planned")
+
+
+def test_approved_to_planned_review_ref_evidence_is_force_free() -> None:
+    """FR-015: ``approved -> planned`` is force-free with ``review_ref`` evidence
+    (threaded via ``review_feedback_pointer`` on the planned-rollback path)."""
+    plan = build_transition_plan(
+        old_lane="approved",
+        target_lane="planned",
+        force=False,
+        review_feedback_pointer="feedback://WP01/review-cycle-1.md",
+        arb_review_ref=None,
+        note_text=None,
+    )
+    assert plan.emit_force is False
+    assert plan.transition_targets == ["planned"]
+    assert plan.emit_review_ref == "feedback://WP01/review-cycle-1.md"
+
+
+def test_in_review_backward_without_review_result_stays_forced() -> None:
+    """WP02 window: the two ``in_review -> *`` edges need a structured
+    ``review_result`` (a scalar reason/ref is rejected, ``wp_state.py:624``). WP02
+    supplies none, so they honestly stay ``emit_force=True`` until WP06 threads it."""
+    plan = build_transition_plan(
+        old_lane="in_review",
+        target_lane="in_progress",
+        force=False,
+        review_feedback_pointer=None,
+        arb_review_ref=None,
+        note_text=None,
+    )
+    assert plan.emit_force is True
+
+
+def test_in_review_backward_with_review_result_seam_is_force_free() -> None:
+    """The ``review_result`` param is the WP06 seam: once a structured review
+    outcome is threaded, the same edge-agnostic FSM query flips ``in_review -> *``
+    force-free. WP02 adds the param (default ``None``); this pins the seam shape."""
+    plan = build_transition_plan(
+        old_lane="in_review",
+        target_lane="in_progress",
+        force=False,
+        review_feedback_pointer=None,
+        arb_review_ref=None,
+        note_text=None,
+        review_result=ReviewResult(
+            reviewer="renata",
+            verdict="rejected",
+            reference="feedback://WP01/review-cycle-1.md",
+        ),
+    )
+    assert plan.emit_force is False
+    assert plan.transition_targets == ["in_progress"]
+
+
+def test_review_result_param_defaults_to_none() -> None:
+    """DoD: ``build_transition_plan`` accepts an optional ``review_result`` param
+    defaulting to ``None`` (WP02 never populates it)."""
+    import inspect
+
+    sig = inspect.signature(build_transition_plan)
+    assert "review_result" in sig.parameters
+    assert sig.parameters["review_result"].default is None
+
+
+def test_genuine_force_backward_without_explicit_force_stays_forced() -> None:
+    """Non-vacuous positive control: ``for_review -> in_progress`` has no FSM edge,
+    so it is rejected force-free and ``emit_force`` stays ``True`` even without an
+    explicit ``--force``. Fails loudly if T007 over-suppresses genuine force."""
+    plan = build_transition_plan(
+        old_lane="for_review",
+        target_lane="in_progress",
+        force=False,
+        review_feedback_pointer=None,
+        arb_review_ref=None,
+        note_text=None,
+    )
+    assert plan.emit_force is True
 
 
 def test_backward_reason_appends_user_note() -> None:

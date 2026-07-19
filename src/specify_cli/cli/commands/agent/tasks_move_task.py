@@ -50,7 +50,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import typer
 
@@ -67,7 +67,6 @@ from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _collect_status_artifacts,
     _persist_review_artifact_override,
-    _persist_review_artifact_override_in_coord,
     _resolve_wp_slug,
 )
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
@@ -89,10 +88,8 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import is_truthy
 from specify_cli.core.paths import is_worktree_context
-from specify_cli.core.subtask_rows import uncheck_wp_section_subtask_rows
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.core.vcs.git import merge_base_changed_files
-from specify_cli.frontmatter import write_shell_pid_claim
 from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
@@ -112,7 +109,6 @@ from specify_cli.task_utils import (
     WorkPackage,
     append_activity_log,
     build_document,
-    delete_scalar,
     ensure_lane,
     extract_scalar,
     set_scalar,
@@ -202,16 +198,19 @@ class _MoveTaskState:
     canonical_lane: str | None = None
     review_feedback_pointer: str | None = None
     rejected_review_result: ReviewResult | None = None
+    # SC-007: the structured review outcome (reviewer + verdict + reference) WP06
+    # threads into ``build_transition_plan`` (WP02's optional ``review_result``
+    # seam) so the two ``in_review -> *`` edges it owns are force-free instead of
+    # ``force=True``. ``None`` off the in_review-exit edges (WP02 owns the rest).
+    plan_review_result: ReviewResult | None = None
     # --- phase E/F: emit + persist ---
     event: StatusEvent | None = None
     final_hop_actor: str | None = None
-    # --- phase G: rollback-uncheck (out-of-lock, #2576) ---
-    # Set when the read/write half of ``_mt_uncheck_rollback_subtasks`` fails
-    # so the failure is SURFACED (result envelope + error log) instead of
-    # silently leaving ``- [x]`` rows on a WP rolled back to ``planned``
-    # (#2513 could otherwise re-manifest without any signal). ``None`` means
-    # either the uncheck succeeded or there was nothing to uncheck.
-    rollback_uncheck_error: str | None = None
+    # True once the claim triple (``shell_pid``/``shell_pid_created_at``/``agent``)
+    # rode a real ``planned -> claimed`` transition's ``policy_metadata`` sidecar
+    # (FR-004), so :func:`_mt_emit_runtime_state` does NOT re-emit it as an
+    # off-axis ``InnerStateChanged`` delta.
+    claim_emitted: bool = False
 
 
 # --- phase A: resolve targets (I/O) -----------------------------------------
@@ -582,16 +581,13 @@ def _mt_fire_override_persist(st: _MoveTaskState) -> None:
     if not (override_persist_signal(st.request) and st.verdict_artifact_path is not None):
         return
     override_reason = st.note.strip() if isinstance(st.note, str) else ""
+    # FR-009 (WP09): a single topology-resolved ``InnerStateChanged`` ``review``
+    # emit is authoritative for both the primary and coord worktrees, so the
+    # former ``_persist_review_artifact_override_in_coord`` mirror is collapsed
+    # away — one emit, no coord frontmatter stamp.
     _persist_review_artifact_override(
         st.verdict_artifact_path,
         repo_root=st.main_repo_root,
-        wp_id=st.task_id,
-        actor=st.agent or "operator",
-        reason=override_reason,
-    )
-    _persist_review_artifact_override_in_coord(
-        st.verdict_artifact_path,
-        coord_feature_dir=st.mt_feature_dir,
         wp_id=st.task_id,
         actor=st.agent or "operator",
         reason=override_reason,
@@ -1298,7 +1294,20 @@ def _mt_finalize_plan(st: _MoveTaskState) -> None:
             "[yellow]⚠️  Proceeding with done override; reason recorded in "
             "history/events.[/yellow]"
         )
-    if decision.planned_rollback or decision.arbiter_forward:
+    # SC-007: WP06 owns the two ``in_review -> *`` edges re-scoped from WP02.
+    # Build the structured review outcome BEFORE the plan rebuild so it can be
+    # threaded into ``build_transition_plan`` (WP02's optional ``review_result``
+    # seam) — the FSM then accepts those backward edges force-free instead of
+    # promoting ``emit_force=True``.
+    st.plan_review_result = _mt_plan_review_result(st)
+    if (
+        decision.planned_rollback
+        or decision.arbiter_forward
+        or (
+            st.old_lane == Lane.IN_REVIEW
+            and st.target_lane in (Lane.PLANNED, Lane.IN_PROGRESS)
+        )
+    ):
         st.emit_plan = build_transition_plan(
             old_lane=str(st.old_lane),
             target_lane=str(st.target_lane),
@@ -1306,7 +1315,42 @@ def _mt_finalize_plan(st: _MoveTaskState) -> None:
             review_feedback_pointer=st.review_feedback_pointer,
             arb_review_ref=st.arb_review_ref,
             note_text=st.note_text,
+            review_result=st.plan_review_result,
         )
+
+
+def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
+    """Structured review outcome justifying a force-free exit from ``in_review``.
+
+    SC-007: WP06 owns the two ``in_review -> *`` edges re-scoped from WP02
+    (``in_review -> planned`` and ``in_review -> in_progress``). It threads this
+    ``ReviewResult`` (reviewer + verdict + reference) into
+    :func:`build_transition_plan` (WP02's optional ``review_result`` seam) so the
+    FSM accepts the backward edge force-free — the review outcome justifies the
+    reverse transition instead of a raw ``force`` flag. Returns ``None`` off the
+    in_review exit so every other edge is untouched (WP02 owns the other 3 edges
+    and the ``build_transition_plan`` signature — WP06 only consumes them).
+
+    A rejection to ``planned`` already minted a structured result via the review
+    cycle (:attr:`rejected_review_result`); reuse it so its ``reference`` matches
+    the emitted ``review_ref`` (the ``_check_review_result_consistency`` guard).
+    """
+    if st.old_lane != Lane.IN_REVIEW:
+        return None
+    if st.rejected_review_result is not None:
+        return st.rejected_review_result
+    reviewer = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+    if st.target_lane in (Lane.APPROVED, Lane.DONE):
+        verdict = "approved"
+        reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (
+            f"approval:{st.task_id}"
+        )
+    else:
+        verdict = "changes_requested"
+        reference = (
+            st.review_feedback_pointer or st.note_text or f"review:{st.task_id}"
+        ).strip() or f"review:{st.task_id}"
+    return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)
 
 
 # --- phase E: emit the lane transition(s) via commit_status ------------------
@@ -1357,6 +1401,11 @@ def _mt_hop_review_result(
             verdict=review_section.get("verdict", Lane.APPROVED),
             reference=review_section.get("reference", f"auto-forward:{st.task_id}"),
         )
+    # SC-007: a force-free ``in_review -> {planned,in_progress}`` exit carries the
+    # same structured review outcome threaded into the plan (WP06) so the
+    # commit-time FSM guard accepts it without a ``force`` flag.
+    if in_review and st.plan_review_result is not None:
+        return st.plan_review_result
     return None
 
 
@@ -1378,6 +1427,51 @@ def _mt_hop_actor(
     )
 
 
+def _mt_shell_pid_baseline(pid: int) -> str | None:
+    """Best-effort PID-reuse identity baseline for a claim (D3b / #2580).
+
+    Mirrors ``frontmatter.write_shell_pid_claim``'s baseline capture WITHOUT
+    resurrecting a WP-file write — WP07 owns that symbol; WP06 only records the
+    baseline alongside ``shell_pid`` in the event stream (claim ``policy_metadata``
+    or an ``InnerStateChanged`` delta). Degrades to ``None`` when uncapturable
+    (a claim still succeeds; ``stale_detection`` treats an absent baseline as a
+    legacy claim, zero regression).
+    """
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+
+    # cast: the specify_cli.* boundary makes the return type Any under
+    # follow_imports=skip; the real signature is ``str | None``.
+    return cast("str | None", capture_creation_time_baseline(pid))
+
+
+def _mt_hop_policy_metadata(
+    st: _MoveTaskState, target: str
+) -> dict[str, Any] | None:
+    """Resolve the ``policy_metadata`` sidecar for one emit hop.
+
+    FR-004: the claim triple (``shell_pid``/``shell_pid_created_at``/``agent``)
+    rides the real ``planned -> claimed`` transition's ``policy_metadata`` — the
+    reducer's claim fold extracts those exact keys into the snapshot runtime
+    slots (``build_claim_policy_metadata`` is the WP01 shape authority). The
+    pre-review-gate metadata rides the ``* -> for_review`` hop. ``None``
+    otherwise.
+    """
+    if target == Lane.CLAIMED and st.shell_pid:
+        from specify_cli.status.emit import build_claim_policy_metadata
+
+        pid = int(st.shell_pid)
+        baseline = _mt_shell_pid_baseline(pid)
+        return cast(
+            "dict[str, Any]",
+            build_claim_policy_metadata(
+                pid, baseline or "", st.agent or st.actor or "unknown"
+            ),
+        )
+    if target == Lane.FOR_REVIEW and st.pre_review_gate_metadata is not None:
+        return {"pre_review_gate": st.pre_review_gate_metadata}
+    return None
+
+
 def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit each lane hop through the coord WRITE ``commit_status`` capability."""
     assert st.emit_plan is not None
@@ -1393,6 +1487,11 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
         hop_review_result = _mt_hop_review_result(
             st, event, current_event_lane, target, hop_actor
         )
+        hop_policy_metadata = _mt_hop_policy_metadata(st, target)
+        if target == Lane.CLAIMED and st.shell_pid:
+            # FR-004: the claim triple rode this transition's policy_metadata —
+            # do NOT re-emit it as an off-axis InnerStateChanged delta.
+            st.claim_emitted = True
         event = ports.coord.commit_status(
             TransitionRequest(
                 feature_dir=st.feature_dir,
@@ -1403,11 +1502,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 force=emit_force,
                 reason=emit_reason,
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
-                policy_metadata=(
-                    {"pre_review_gate": st.pre_review_gate_metadata}
-                    if target == Lane.FOR_REVIEW and st.pre_review_gate_metadata is not None
-                    else None
-                ),
+                policy_metadata=hop_policy_metadata,
                 review_ref=emit_review_ref,
                 workspace_context=f"move-task:{st.main_repo_root}",
                 subtasks_complete=(
@@ -1704,70 +1799,182 @@ def _mt_commit_wp_file(
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
 
 
-def _mt_persist_tracker_refs(st: _MoveTaskState, skip_target_commit: bool) -> None:
-    """T040 / FR-011: persist ``--tracker-ref`` values into the WP frontmatter."""
+def _mt_rollback_subtasks_reset(
+    st: _MoveTaskState, ports: TasksPorts
+) -> dict[str, Lane]:
+    """Subtask-reset delta for a rollback to ``planned`` (#2513, via the log).
+
+    A WP rolled back to ``planned`` must be fully re-implemented — leaving its
+    completion state intact would let the review gate pass immediately on the
+    next ``for_review`` with no work re-done. With subtask completion
+    event-sourced (WP04), the intent is now expressed as an ``InnerStateChanged``
+    ``subtasks`` delta resetting every roster row to ``planned`` (the gate
+    re-blocks off the snapshot) rather than unchecking the ``tasks.md`` checkbox
+    bytes — so ``tasks.md`` stays byte-stable (AC-5).
+
+    The roster (which task ids belong to this WP) is the authored ``tasks.md``
+    section — static design intent — read through the TASKS_INDEX (primary)
+    read dir, never ``Path.cwd()`` (SC-008 / #2647). Returns an empty mapping
+    when there is no roster (nothing to re-block on).
+    """
+    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
+
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    feature_dir = ports.fs.planning_read_dir(
+        handle, kind=MissionArtifactKind.TASKS_INDEX
+    )
+    tasks_md = feature_dir / TASKS_MD_FILENAME
+    if not tasks_md.exists():
+        return {}
+    content = tasks_md.read_text(encoding="utf-8")
+    roster = [
+        task_id for task_id, _checked in iter_wp_section_subtask_rows(content, st.task_id)
+    ]
+    return dict.fromkeys(roster, Lane.PLANNED)
+
+
+def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """Emit the move-task runtime-state deltas as off-axis ``InnerStateChanged``.
+
+    The god-write is cut (FR-006/FR-007/FR-008, AC-5): the WP file stops carrying
+    runtime state — the event log carries it.
+
+    - The claim triple (``shell_pid``/``shell_pid_created_at``/``agent``) for a
+      real ``planned -> claimed`` transition already rode that transition's
+      ``policy_metadata`` sidecar (FR-004; see :func:`_mt_hop_policy_metadata`)
+      and is flagged on ``st.claim_emitted`` — it is NOT re-emitted here. A
+      reassignment/refresh OUTSIDE the claim transition is an off-axis delta.
+    - ``assignee``, the Activity-Log ``note`` (FR-007), and the ``tracker_refs``
+      **union** (FR-006) are off-axis deltas.
+    - A rollback to ``planned`` carries a ``subtasks`` reset so the review gate
+      re-blocks off the snapshot (#2513, via the log — not the checkbox).
+
+    Every emit resolves its write target from ``st.feature_dir`` — resolved from
+    stored topology in :func:`_mt_resolve_targets` — never ``Path.cwd()``
+    (SC-008 / #2647; ``emit_inner_state_changed`` re-canonicalizes it there too).
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    assert st.wp is not None
-    if not (st.tracker_ref_values and not skip_target_commit):
+    from specify_cli.status.emit import emit_inner_state_changed
+    from specify_cli.status.models import WPInnerStateDelta
+
+    fields: dict[str, Any] = {}
+    if not st.claim_emitted:
+        if st.agent:
+            fields["agent"] = st.agent
+        if st.shell_pid:
+            pid = int(st.shell_pid)
+            fields["shell_pid"] = pid
+            baseline = _mt_shell_pid_baseline(pid)
+            if baseline is not None:
+                fields["shell_pid_created_at"] = baseline
+    if st.assignee:
+        fields["assignee"] = st.assignee
+    # FR-007: a USER-supplied Activity-Log note becomes a ``note`` annotation. The
+    # synthetic ``Moved to <lane>`` fallback the old god-write wrote is already
+    # captured by the transition's ``reason`` — re-emitting it would only add a
+    # redundant trailing annotation, so it is not emitted off-axis (the flag-OFF
+    # dual-write still writes the full history line to the WP file).
+    if st.note_text:
+        fields["note"] = st.note_text
+    if st.tracker_ref_values:
+        fields["tracker_refs"] = list(st.tracker_ref_values)
+    if st.target_lane == Lane.PLANNED:
+        reset = _mt_rollback_subtasks_reset(st, ports)
+        if reset:
+            fields["subtasks"] = reset
+        # #2512: a rollback to ``planned`` RELEASES the prior claim so the
+        # rolled-back WP exposes no live claim marker. Field repro: an agent
+        # process was killed (macOS idle-sleep) leaving ``agent``/``shell_pid``
+        # behind; the rollback reset the lane but not the claim, so the next
+        # resume failed ``LANE_ALLOCATION_FAILED``. With the god-write cut the
+        # claim now lives in the reduced snapshot (the claim transition's
+        # ``policy_metadata``), and it was released in NEITHER surface — so the
+        # release is emitted here off-axis as an ``InnerStateChanged`` clearing
+        # both slots (empty ``agent`` / zero ``shell_pid`` fold to a falsy,
+        # released snapshot slot). Event-only: under flag ON the WP file stays
+        # byte-stable (AC-5). Skipped when the SAME move re-plants a fresh claim
+        # (an explicit ``--agent``/``--shell-pid`` override already set the
+        # field above).
+        if "agent" not in fields:
+            fields["agent"] = ""
+        if "shell_pid" not in fields:
+            fields["shell_pid"] = 0
+
+    delta = WPInnerStateDelta(**fields)
+    if delta.is_empty():
         return
     try:
-        from specify_cli.frontmatter import write_frontmatter as _write_fm
-        from specify_cli.status import read_wp_frontmatter as _read_wp_fm
-
-        wp_meta, body = _read_wp_fm(st.wp.path)
-        existing = list(wp_meta.tracker_refs or [])
-        merged = sorted(set(existing) | set(st.tracker_ref_values))
-        if merged != existing:
-            updated = wp_meta.update(tracker_refs=merged)
-            _write_fm(st.wp.path, updated.model_dump(exclude_none=True), body)
-    except Exception as _tr_exc:  # pragma: no cover - defensive
+        emit_inner_state_changed(
+            st.feature_dir,
+            st.task_id,
+            delta,
+            actor=st.final_hop_actor or st.actor,
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
         if not st.json_output:
             _tasks.console.print(
-                f"[yellow]Warning:[/yellow] Failed to persist --tracker-ref: {_tr_exc}"
+                f"[yellow]Warning:[/yellow] Runtime-state emission failed: {exc}"
             )
 
 
-def _mt_clear_rollback_claim_markers(frontmatter: str) -> str:
-    """FR-010 / #2512: strip the ``agent``/``shell_pid`` claim markers.
-
-    Rolling a WP back to ``planned`` releases the implementation claim — clear
-    the markers so a stale pid cannot block the next allocator call (liveness
-    check) or mislead the orchestrator resume path. The caller may immediately
-    re-plant them via ``_mt_persist_wp_file`` if ``--agent``/``--shell-pid``
-    are provided, but on a plain rollback those flags are absent.
-
-    Pure string transform — no I/O, no lock interaction — so it can be called
-    from inside ``_mt_persist_wp_file``'s in-lock frontmatter mutation without
-    changing what runs under ``feature_status_lock``. This is one of the two
-    "reset on rollback" seams; see ``_mt_reset_for_planned_rollback`` for the
-    umbrella entry point and why the two resets cannot share a single call
-    site.
-    """
-    frontmatter = delete_scalar(frontmatter, "agent")
-    frontmatter = delete_scalar(frontmatter, "shell_pid")
-    return frontmatter
-
-
 def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """Apply operational frontmatter + history, then write/commit the WP file."""
+    """Record the move-task runtime state — event-sourced, no god-write.
+
+    The god-write is cut (FR-006/FR-007/FR-008, AC-5): runtime state becomes
+    ``InnerStateChanged`` annotations (plus the claim ``policy_metadata`` that
+    rode the transition), and the WP file is no longer rewritten for runtime
+    fields.
+
+    Dual-write window — matches WP01's read side (flag ON -> snapshot) and WP07's
+    write side, gated on the shared ``_phase1_dual_write_enabled`` flag:
+
+    - **flag OFF (default / pre-cutover)** — dual-write: emit the events AND keep
+      the legacy WP-file god-write (``agent``/``assignee``/``shell_pid`` +
+      Activity-Log) so pre-cutover readers still observe frontmatter state.
+    - **flag ON (mission cut over)** — event-only: no WP-file runtime write at
+      all; ``tasks/WP##.md`` bytes are stable across the move-task actions
+      (AC-5 / the SC-007-adjacent hash regression, T025).
+
+    The three deleted tails (``tracker_refs`` frontmatter, the rollback
+    claim-marker clear, the ``tasks.md`` uncheck) are NOT resurrected in either
+    branch — they are cut to emits unconditionally (FR-006; #2513-via-snapshot).
+    """
+    from specify_cli.status.emit import _phase1_dual_write_enabled
+
+    assert st.wp is not None and st.decision is not None
+    _mt_emit_runtime_state(st, ports)
+    if _phase1_dual_write_enabled(st.feature_dir):
+        return
+    _mt_dual_write_wp_file(st, ports)
+
+
+def _mt_dual_write_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """flag-OFF legacy god-write (``agent``/``assignee``/``shell_pid`` + history).
+
+    Kept only for the pre-cutover dual-write window; retired once every mission
+    runs flag ON (WP01 read side is already flag ON -> snapshot). Mirrors the
+    former ``_mt_persist_wp_file`` body EXCEPT the three deleted tails and the
+    ``write_shell_pid_claim`` call (WP07 owns that symbol) — ``shell_pid`` +
+    baseline are co-written inline to preserve the #2580 pairing invariant.
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.wp is not None and st.decision is not None
     wp = st.wp
     wp_content = wp.path.read_text(encoding="utf-8-sig")
     updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-    if st.target_lane == Lane.PLANNED:
-        updated_front = _mt_clear_rollback_claim_markers(updated_front)
     if st.assignee:
         updated_front = set_scalar(updated_front, "assignee", st.assignee)
     if st.agent:
         updated_front = set_scalar(updated_front, "agent", st.agent)
     if st.shell_pid:
-        # #2580: the ONE canonical claim-write helper (frontmatter.py) so
-        # ``shell_pid`` is never written without its PID-reuse baseline
-        # (``shell_pid_created_at``) — the same symbol WP01 designates and
-        # ``workflow_executor.py`` already routes through. Closes the 4th
-        # divergent writer this bare ``set_scalar`` call was.
-        updated_front = write_shell_pid_claim(updated_front, int(st.shell_pid))
+        pid = int(st.shell_pid)
+        updated_front = set_scalar(updated_front, "shell_pid", str(pid))
+        baseline = _mt_shell_pid_baseline(pid)
+        if baseline is not None:
+            updated_front = set_scalar(updated_front, "shell_pid_created_at", baseline)
     timestamp = datetime.now(UTC).strftime(_tasks.UTC_SECOND_TIMESTAMP_FORMAT)
     agent_name = st.final_hop_actor or "unknown"
     shell_pid_val = st.shell_pid or extract_scalar(updated_front, "shell_pid") or ""
@@ -1784,140 +1991,6 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
         write_text_within_directory(
             wp.path, updated_doc, root=st.main_repo_root, encoding="utf-8"
         )
-    _mt_persist_tracker_refs(st, skip_target_commit)
-
-
-# --- phase G: subtask uncheck on planned rollback (#2513) --------------------
-
-
-def _mt_attempt_uncheck_write(st: _MoveTaskState, tasks_md: Path, feature_dir: Path) -> bool:
-    """Read/transform/write ``tasks.md``; return ``True`` iff a write landed.
-
-    Extracted from ``_mt_uncheck_rollback_subtasks`` (T035) so the read/write
-    half's failure handling stays a single, focused unit. #2576: ANY failure
-    here (read or write) is recorded on ``st.rollback_uncheck_error`` and
-    logged at error level — NEVER re-raised, since the caller must still
-    reach ``_mt_release_review_lock``. This handler is DISTINCT from the
-    commit-failure handler in :func:`_mt_commit_uncheck_tasks_md` — the two
-    failure modes MUST NOT be merged into one (C-001).
-    """
-    try:
-        original = tasks_md.read_text(encoding="utf-8")
-        updated = uncheck_wp_section_subtask_rows(original, st.task_id)
-        if updated == original:
-            return False  # nothing to uncheck — no write, no commit
-        write_text_within_directory(tasks_md, updated, root=feature_dir, encoding="utf-8")
-        return True
-    except Exception as exc:
-        # #2576: SEPARATE from the commit-failure handler — this one must be
-        # recorded on state, not swallowed, or a WP rolled back to ``planned``
-        # can silently keep its subtask rows checked (#2513).
-        st.rollback_uncheck_error = str(exc)
-        logging.getLogger(__name__).error(
-            "Failed to uncheck subtask rows for %s in %s — rollback to "
-            "planned left tasks.md unchanged (stale checked rows, #2513 "
-            "risk): %s",
-            st.task_id,
-            st.mission_slug,
-            exc,
-        )
-        return False
-
-
-def _mt_commit_uncheck_tasks_md(
-    st: _MoveTaskState, ports: TasksPorts, handle: MissionHandle, tasks_md: Path
-) -> None:
-    """Auto-commit the ``tasks.md`` uncheck. Extracted from
-    ``_mt_uncheck_rollback_subtasks`` (T035): the uncheck already landed on
-    disk by construction (called only after a successful write) — only the
-    auto-commit bookkeeping can fail here, and it is logged as a warning and
-    swallowed, matching the pre-existing (#2513) behavior for this leg.
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
-    commit_msg = f"chore: Uncheck {st.task_id} subtasks on rollback to planned (spec {spec_number})"
-    try:
-        ports.coord.commit_artifact(
-            handle,
-            (tasks_md.resolve(),),
-            commit_msg,
-            kind=MissionArtifactKind.TASKS_INDEX,
-            policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
-        )
-    except Exception as exc:  # pragma: no cover - defensive
-        logging.getLogger(__name__).warning(
-            "Failed to auto-commit subtask uncheck for %s in %s: %s",
-            st.task_id,
-            st.mission_slug,
-            exc,
-        )
-
-
-def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """Uncheck ``- [x] T### …`` rows for *st.task_id*'s section on rollback to planned.
-
-    A WP rolled back to ``planned`` must be fully re-implemented.  Leaving its
-    subtask rows checked is a lie — the gate would pass immediately on the next
-    ``for_review`` transition without any work being re-done (#2513).
-
-    Read/write path: ``tasks.md`` is a TASKS_INDEX (primary-partition) artifact
-    — resolve through ``ports.fs.planning_read_dir(kind=TASKS_INDEX)`` so a
-    coord-topology mission's ``-coord`` husk cannot shadow the real primary
-    (same anchor as the subtask gate and ``mark-status``).  Auto-commit
-    follows the same ``commit_artifact`` route used by ``mark-status``.
-
-    This runs OUT-OF-LOCK by design (C-001): it must not hold
-    ``feature_status_lock`` while it performs its own commit, and a bare
-    uncaught exception here would skip ``_mt_release_review_lock`` (D2
-    ordering in ``_mt_execute``). So the two failure modes are handled by two
-    SEPARATE helpers and MUST NOT be merged into one handler:
-
-    - Read/write failure (#2576, :func:`_mt_attempt_uncheck_write`): would
-      leave stale ``- [x]`` rows on a ``planned`` WP *without any signal* —
-      the exact silent re-manifestation of #2513 this WP closes. Caught,
-      routed through ``write_text_within_directory`` (house guard), and
-      SURFACED on ``st.rollback_uncheck_error`` (never swallowed) plus an
-      error-level log line, but never re-raised.
-    - Commit failure (:func:`_mt_commit_uncheck_tasks_md`): the uncheck
-      already landed on disk; only the auto-commit bookkeeping failed.
-      Logged as a warning and swallowed — matches the pre-existing (#2513)
-      behavior for this leg.
-    """
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
-    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
-    tasks_md = feature_dir / TASKS_MD_FILENAME
-    if not tasks_md.exists():
-        return
-    if not _mt_attempt_uncheck_write(st, tasks_md, feature_dir):
-        return
-    if not st.resolved_auto_commit:
-        return
-    _mt_commit_uncheck_tasks_md(st, ports, handle, tasks_md)
-
-
-def _mt_reset_for_planned_rollback(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """FR-010: single named seam for "reset on rollback to planned".
-
-    A rollback to ``planned`` triggers two independent resets (#2512, #2513):
-    clearing the ``agent``/``shell_pid`` claim markers, and unchecking the
-    WP's subtask rows so the gate cannot pass on stale progress. The two
-    resets run at different points relative to ``_tasks.feature_status_lock``
-    today — the claim-marker clear happens *inside* the lock, as part of
-    ``_mt_persist_wp_file``'s in-memory frontmatter mutation
-    (``_mt_clear_rollback_claim_markers``), while the subtask uncheck needs to
-    run *after* the lock exits (it does its own commit via
-    ``ports.coord.commit_artifact`` and must not hold the status lock while
-    doing so). Merging them into one physical call site would require either
-    widening the lock's scope or restructuring its boundary — both are real
-    behavior changes that FR-010 explicitly rules out ("no new reset
-    behavior"). This function is therefore the umbrella *entry point* for the
-    out-of-lock half: a future reader searching for "what happens on rollback
-    to planned" finds this one clearly-named seam (and, via its docstring,
-    the in-lock counterpart) instead of a bare conditional at the
-    ``_mt_execute`` call site.
-    """
-    _mt_uncheck_rollback_subtasks(st, ports)
 
 
 # --- phase H: review-lock release + result output ----------------------------
@@ -1968,8 +2041,10 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
                 fallback_approved=True,
             )
         _mt_persist_wp_file(st, ports)
-    if st.target_lane == Lane.PLANNED:
-        _mt_reset_for_planned_rollback(st, ports)
+    # The rollback-to-``planned`` reset is now the ``subtasks`` reset delta emitted
+    # inside ``_mt_persist_wp_file`` (#2513-via-snapshot) — the out-of-lock uncheck
+    # seam is gone. The review-lock release still runs last on the rollback path
+    # (D2 ordering preserved).
     _mt_release_review_lock(st)
 
 
@@ -2008,13 +2083,6 @@ def _mt_output(st: _MoveTaskState) -> None:
         result["review_feedback"] = st.review_feedback_pointer
     if st.pre_review_gate_metadata is not None:
         result["pre_review_gate"] = st.pre_review_gate_metadata
-    if st.rollback_uncheck_error is not None:
-        # #2576: a failed rollback-uncheck write must be visible in the
-        # command result, not just the log — the caller (or a human reading
-        # ``--json`` output) needs to know tasks.md may still have stale
-        # ``- [x]`` rows for this WP.
-        result["rollback_uncheck_failed"] = True
-        result["rollback_uncheck_error"] = st.rollback_uncheck_error
     _tasks._output_result(
         st.json_output,
         result,

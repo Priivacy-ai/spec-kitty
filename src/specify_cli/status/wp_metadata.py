@@ -594,6 +594,52 @@ class _Builder:
         return WPMetadata.model_validate(base_data)
 
 
+def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> WPMetadata:
+    """Re-point WPMetadata's *runtime* fields to the reduced snapshot (FR-005).
+
+    ``shell_pid``, ``shell_pid_created_at``, ``agent``, and ``assignee`` are
+    *dynamic* (event-log-authoritative) per the field-authority table
+    (data-model.md); every other field -- including ``agent_profile`` (the
+    authored design-intent slot, distinct from the runtime ``agent``
+    reassignment slot) -- stays frontmatter-canonical and is left untouched.
+
+    Behind the phase-1 dual-write flag
+    (:func:`specify_cli.status.emit._phase1_dual_write_enabled`):
+
+    - OFF: *metadata* is returned unchanged -- today's frontmatter-
+      authoritative behavior, zero regression.
+    - ON: the reduced snapshot is the sole source for the four runtime
+      fields above (C-001 -- no partial fallback to frontmatter once the
+      flag resolves to the snapshot). An absent snapshot entry for this WP
+      degrades each field to ``None`` (a legitimate "no runtime state yet"
+      result, not a signal to keep the frontmatter value).
+
+    A lazy (function-local) import of ``status.emit``/``status.reducer``/
+    ``status.store`` avoids a ``status.wp_metadata`` <-> ``status.emit``
+    circular import -- ``emit.py`` already imports :func:`read_wp_frontmatter`
+    from this module at module scope.
+    """
+    from specify_cli.status.emit import _phase1_dual_write_enabled  # noqa: PLC0415
+
+    feature_dir = path.parent.parent
+    if not _phase1_dual_write_enabled(feature_dir):
+        return metadata
+
+    from specify_cli.status.reducer import reduce as _reduce_snapshot  # noqa: PLC0415
+    from specify_cli.status.store import read_event_stream  # noqa: PLC0415
+
+    stream = read_event_stream(feature_dir)
+    snapshot = _reduce_snapshot(stream.transitions, stream.annotations)
+    wp_state = snapshot.work_packages.get(metadata.work_package_id) or {}
+
+    return metadata.update(
+        shell_pid=wp_state.get("shell_pid"),
+        shell_pid_created_at=wp_state.get("shell_pid_created_at"),
+        agent=wp_state.get("agent"),
+        assignee=wp_state.get("assignee"),
+    )
+
+
 def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     """Load and validate WP frontmatter.
 
@@ -602,6 +648,14 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     Uses ``strict=False`` so that non-string values in optional fields
     (e.g. ``agent`` stored as a dict in some legacy WP files) are coerced
     rather than causing validation failures.
+
+    FR-005: the runtime fields (``shell_pid``, ``shell_pid_created_at``,
+    ``agent``, ``assignee``) are re-pointed to the reduced event-sourced
+    snapshot once the phase-1 dual-write flag resolves ON for this WP's
+    feature directory -- see :func:`_resolve_runtime_fields_from_snapshot`.
+    Frontmatter-authored fields (``agent_profile``, ``title``,
+    ``dependencies``, ...) are always frontmatter-canonical, unaffected by
+    the flag.
 
     Raises:
         FrontmatterError: On I/O or YAML parse failures.
@@ -613,7 +667,9 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
 
     fm = FrontmatterManager()
     frontmatter_dict, body = fm.read(path)
-    return WPMetadata.model_validate(frontmatter_dict, strict=False), body
+    metadata = WPMetadata.model_validate(frontmatter_dict, strict=False)
+    metadata = _resolve_runtime_fields_from_snapshot(path, metadata)
+    return metadata, body
 
 
 __all__ = ["WPMetadata", "read_wp_frontmatter"]

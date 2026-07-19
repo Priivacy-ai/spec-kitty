@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 import re
 
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
 from specify_cli.status import materialize
+from specify_cli.status.models import ReviewOverride
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
 REJECTED_REVIEW_ARTIFACT_INVARIANT = (
@@ -71,6 +74,26 @@ def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
     return candidates
 
 
+def _snapshot_review_override(state: Mapping[str, Any]) -> ReviewOverride | None:
+    """Resolve the event-sourced ``review`` override from a reduced WP snapshot.
+
+    FR-009 (WP09): the reduced ``review`` snapshot slot is the single authority
+    for override recognition — this post-merge consistency check is the third leg
+    of the both-halves pair (alongside the write emit and the merge-gate read), so
+    it must resolve the override from the same slot rather than re-parsing artifact
+    frontmatter. Returns ``None`` when the slot is absent or malformed; an
+    incomplete override is carried through and rejected by ``ReviewOverride``'s
+    ``complete`` predicate downstream.
+    """
+    review_raw = state.get("review")
+    if not isinstance(review_raw, Mapping):
+        return None
+    try:
+        return ReviewOverride.from_dict(review_raw)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _review_cycle_number(path: Path) -> int:
     match = re.search(r"review-cycle-(\d+)\.md$", path.name)
     return int(match.group(1)) if match else 0
@@ -116,12 +139,15 @@ def find_rejected_review_artifact_conflicts(
         if state is None:
             continue
         lane = str(state.get("lane", ""))
+        snapshot_override = _snapshot_review_override(state)
         for artifact_dir in _artifact_dirs_for_wp(feature_dir, wp_id):
             latest_path = _latest_review_artifact_path(artifact_dir)
             if latest_path is None:
                 continue
             try:
-                rejected = rejected_review_artifact_for_terminal_lane(artifact_dir, lane)
+                rejected = rejected_review_artifact_for_terminal_lane(
+                    artifact_dir, lane, snapshot_override=snapshot_override
+                )
             except ValueError as exc:
                 findings.append(
                     ReviewArtifactSchemaFinding(

@@ -51,6 +51,7 @@ unit-testable (NFR-002).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
@@ -60,7 +61,12 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _self_review_fallback_option_error,
 )
-from specify_cli.status import Lane, resolve_lane_alias
+from specify_cli.status import (
+    GuardContext,
+    Lane,
+    resolve_lane_alias,
+    validate_transition,
+)
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
 _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
@@ -126,6 +132,14 @@ class MoveTaskRequest:
     # Approval evidence inputs (reviewer auto-detected / approval-ref defaulted).
     effective_reviewer: str | None
     effective_approval_ref: str | None
+    # FR-003 / T008 subtask-gate re-source seam (default None in the WP02 window).
+    # When the shell supplies ``feature_dir`` (WP04 upstream re-point), ``_guard_subtasks``
+    # resolves "unchecked" from the WP01 reduced-snapshot ``subtasks`` slot behind the
+    # ``_phase1_dual_write_enabled`` flag; while ``feature_dir`` is None (or the flag is
+    # off) it falls back to the legacy ``unchecked_subtasks`` tuple (tasks.md-derived).
+    # The legacy fallback is retired in WP10 once every writer emits the slot (C-001).
+    feature_dir: Path | None = None
+    repo_root: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -178,14 +192,31 @@ def build_transition_plan(
     review_feedback_pointer: str | None,
     arb_review_ref: str | None,
     note_text: str | None,
+    review_result: object | None = None,
 ) -> TransitionPlan:
     """Compute the canonical lane, hop list, force flag, reason, and review_ref.
 
     Reproduces ``move_task`` lines building ``emit_review_ref`` / ``canonical_lane``
-    / ``emit_reason`` / ``emit_force`` / the backward-rewind auto-promotion /
-    ``transition_targets`` — verbatim (FR-004). ``review_feedback_pointer`` and
+    / ``emit_reason`` / ``transition_targets``. ``review_feedback_pointer`` and
     ``arb_review_ref`` are threaded in by the shell after it runs the
     planned-rollback / arbiter side effects (they are ``None`` on the happy path).
+
+    FR-015 (force provenance): a backward edge is NOT blindly auto-promoted to
+    ``emit_force=True`` anymore. Instead we **ask the FSM** whether the edge is
+    legal *force-free* given the evidence we actually carry at the plan layer
+    (``reason`` / ``review_ref``, plus ``review_result`` when the caller supplies
+    it) and only promote ``emit_force`` when the FSM genuinely rejects it. This is
+    edge-agnostic — there is deliberately **no hard-coded edge list** (it would rot
+    if the transition matrix changes; ``contracts/emit-force.md``).
+
+    ``review_result`` is the seam WP06 threads its structured review outcome
+    (reviewer + verdict + reference) into for the two ``in_review -> *`` edges. In
+    the WP02 window it is always ``None``, so those two edges are FSM-rejected
+    force-free and honestly stay ``emit_force=True`` (WP02 supplies no valid
+    evidence for them); WP06 populates it and flips them force-free. The three
+    plan-reachable edges (``in_progress -> planned``, ``approved -> in_progress``,
+    ``approved -> planned``) resolve force-free here from the ``reason`` /
+    ``review_ref`` evidence WP02 already carries.
     """
     canonical_lane = resolve_lane_alias(target_lane)
 
@@ -216,7 +247,21 @@ def build_transition_plan(
         )
 
     if not force and _is_backward_transition(old_lane, canonical_lane):
-        emit_force = True
+        # FR-015: ask the FSM whether this backward edge is legal WITHOUT force,
+        # given the plan-layer evidence we carry. Only promote emit_force when the
+        # FSM genuinely rejects the force-free transition. Edge-agnostic by design —
+        # the query works for ANY backward edge; only the evidence supplied differs,
+        # so the three plan-reachable edges resolve force-free while the two
+        # in_review->* edges (review_result=None in WP02) do not.
+        ctx_with_evidence = GuardContext(
+            reason=emit_reason,
+            review_ref=emit_review_ref,
+            review_result=review_result,
+        )
+        legal_force_free, _ = validate_transition(
+            old_lane, canonical_lane, ctx_with_evidence
+        )
+        emit_force = not legal_force_free
         original_reason = (
             None
             if emit_reason is None or emit_reason.startswith("move-task: ")
@@ -381,16 +426,75 @@ def _guard_planned_rollback(req: MoveTaskRequest) -> RefuseExit1 | None:
     return None
 
 
+def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None:
+    """Incomplete subtask ids from the WP01 reduced-snapshot ``subtasks`` slot.
+
+    FR-003 / T008: re-source the review gate's notion of "unchecked" from the
+    event-sourced snapshot rather than ``tasks.md`` bytes. Returns the tuple of
+    subtask ids whose reduced status is not the done-equivalent, or ``None`` to
+    signal "snapshot source unavailable — use the legacy ``unchecked_subtasks``
+    fallback".
+
+    The snapshot is authoritative only when it is actually available:
+
+    * ``req.feature_dir`` is None (the WP02 runtime window, before WP04 wires the
+      dir through) — return ``None`` (legacy fallback).
+    * the feature is not in phase-1 (``_phase1_dual_write_enabled`` False, i.e.
+      before WP03 verifies the backfill) — return ``None`` (legacy ``tasks.md``).
+    * the event stream is empty or the WP has no reduced entry yet (writers not
+      cut over) — return ``None`` (C-001 symmetric-window: a snapshot-first reader
+      must never strand a WP whose slot has not been populated).
+
+    A WP present in the snapshot with zero subtasks yields an empty tuple (guard
+    passes — nothing to block on), mirroring ``_infer_subtasks_complete``'s
+    ``total == 0`` branch. The legacy fallback is retired in WP10.
+    """
+    feature_dir = req.feature_dir
+    if feature_dir is None:
+        return None
+
+    # Lazy imports: the snapshot read is I/O and only runs once the shell supplies
+    # a feature_dir, so the pure decision core keeps a minimal import graph.
+    from specify_cli.status import reduce
+    from specify_cli.status.emit import _phase1_dual_write_enabled
+    from specify_cli.status.store import read_event_stream
+
+    if not _phase1_dual_write_enabled(feature_dir):
+        return None
+
+    stream = read_event_stream(feature_dir)
+    if not stream.transitions and not stream.annotations:
+        return None
+    snapshot = reduce(stream.transitions, stream.annotations)
+    wp_state = snapshot.work_packages.get(req.task_id)
+    if wp_state is None:
+        return None
+    subtasks = wp_state.get("subtasks") or {}
+    return tuple(
+        str(sid)
+        for sid, status in subtasks.items()
+        if str(status) != str(Lane.DONE)
+    )
+
+
 def _guard_subtasks(req: MoveTaskRequest) -> RefuseExit1 | None:
     if req.target_lane not in _REVIEW_GATE_LANES or req.force:
         return None
-    if not req.unchecked_subtasks:
+    # FR-003 / T008: prefer the reduced-snapshot subtasks slot; fall back to the
+    # legacy tasks.md-derived tuple during the migration window (C-001).
+    snapshot_unchecked = _snapshot_unchecked_subtasks(req)
+    unchecked = (
+        snapshot_unchecked
+        if snapshot_unchecked is not None
+        else req.unchecked_subtasks
+    )
+    if not unchecked:
         return None
     error = f"Cannot move {req.task_id} to {req.target_lane} - unchecked subtasks:\n"
-    for task in req.unchecked_subtasks:
+    for task in unchecked:
         error += f"  - [ ] {task}\n"
     error += "\nMark these complete first:\n"
-    for task in req.unchecked_subtasks[:3]:
+    for task in unchecked[:3]:
         error += f"  spec-kitty agent tasks mark-status {task} --status done\n"
     error += "\nOr use --force to override (not recommended)"
     return RefuseExit1(error)

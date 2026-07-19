@@ -1,11 +1,20 @@
-"""Contract: ``append-history`` commits the WP prompt file to the PRIMARY surface.
+"""Contract: ``append-history`` emits a ``note`` annotation, not a WP-file write.
 
 write-surface-coherence WP03 (FR-003 / T013): a WP prompt file is a
-``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind. So ``append-history`` commits it
-to the mission's primary ``target_branch`` for every topology, directly from the
-primary checkout — NOT through the coordination worktree (the planning→coord
-transit is removed, C-005). This re-pins the prior regression (which asserted the
-removed coord-transit contract) onto the primary surface.
+``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind, so its *existence* is still
+checked on the mission's primary ``target_branch`` for every topology.
+
+WP08 / FR-007 / T031 (runtime-state-eviction): ``append-history`` no longer
+mutates the WP prompt file's ``## Activity Log`` section at all. It emits an
+``InnerStateChanged`` ``note``-append delta via WP01's
+``emit_inner_state_changed``, landing on the coord-aware STATUS-partition
+mission directory (the coordination worktree for a coord-topology mission,
+exactly as every other STATUS read/write in ``orchestrator_api`` resolves it)
+-- never the primary ``target_branch`` WP file, and never a
+``Path.cwd()``-derived join (C-003 / #2647). This re-pins the prior
+WP-file-commit regression test onto the new event-sourced contract: the WP
+file is byte-unchanged, and the coordination branch/worktree carries the
+annotation.
 
 Uses git (unlike ``test_orchestrator_commands_integration.py``, which is git-free).
 """
@@ -22,6 +31,7 @@ from typer.testing import CliRunner
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.orchestrator_api.commands import app
+from specify_cli.status.store import read_event_stream
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -114,7 +124,7 @@ def _invoke_append_history(repo: Path) -> object:
         )
 
 
-def test_append_history_commits_to_primary_target_branch(coord_repo: Path) -> None:
+def test_append_history_emits_note_annotation_wp_file_unchanged(coord_repo: Path) -> None:
     result = _invoke_append_history(coord_repo)
 
     assert result.exit_code == 0, result.output
@@ -122,17 +132,16 @@ def test_append_history_commits_to_primary_target_branch(coord_repo: Path) -> No
     assert data["success"] is True
     assert data["data"]["wp_id"] == "WP01"
 
-    # FR-003 / T013: the WP-prompt edit (WORK_PACKAGE_TASK, a primary kind) is
-    # committed on the PRIMARY feature target_branch, with the note.
+    # WP08 / FR-007: the WP prompt file is byte-unchanged -- no more direct
+    # ``## Activity Log`` mutation, on either branch.
     committed = _git(
         coord_repo,
         "show",
         f"{TARGET_BRANCH}:kitty-specs/{MISSION_DIRNAME}/tasks/WP01.md",
     )
-    assert "Starting implementation" in committed.stdout
+    assert committed.stdout == _WP_FILE
+    assert "Starting implementation" not in committed.stdout
 
-    # And the coordination branch carries NO such commit — the planning→coord
-    # transit is removed (C-005). The WP edit never touches the coord branch.
     coord_show = subprocess.run(
         ["git", "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/tasks/WP01.md"],
         cwd=coord_repo,
@@ -140,6 +149,20 @@ def test_append_history_commits_to_primary_target_branch(coord_repo: Path) -> No
         text=True,
     )
     assert "Starting implementation" not in coord_show.stdout, (
-        "WP-prompt edit leaked onto the coordination branch — planning→coord "
-        "transit was not removed (FR-003 / C-005)."
+        "WP-prompt edit leaked onto the coordination branch -- append-history "
+        "must no longer write the WP file at all (WP08 / FR-007)."
     )
+
+    # The annotation itself lands in the coordination worktree's STATUS
+    # partition (the same coord-aware surface every other STATUS read/write
+    # in this module resolves through) -- never a Path.cwd()-derived join.
+    coord_worktree = CoordinationWorkspace.worktree_path(coord_repo, MISSION_SLUG, MID8)
+    feature_dir = coord_worktree / "kitty-specs" / MISSION_DIRNAME
+    stream = read_event_stream(feature_dir)
+    assert not stream.transitions
+    assert len(stream.annotations) == 1
+    annotation = stream.annotations[0]
+    assert annotation.wp_id == "WP01"
+    assert annotation.actor == "claude"
+    assert annotation.delta.note is not None
+    assert "Starting implementation" in annotation.delta.note
