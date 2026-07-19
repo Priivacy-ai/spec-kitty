@@ -347,11 +347,9 @@ def _infer_subtasks_complete_from_snapshot(feature_dir: Path, wp_id: str) -> boo
     zero subtasks returns ``True`` (matches the legacy ``total == 0`` branch —
     nothing to block on).
     """
-    stream = _store.read_event_stream(feature_dir)
-    if not stream.transitions and not stream.annotations:
-        return False
-    snapshot = _reducer.reduce(stream.transitions, stream.annotations)
-    wp_state = snapshot.work_packages.get(wp_id)
+    # Shared reduce->get accessor (IC-08). An empty log reduces to no entry ->
+    # None -> fail-closed False, identical to the prior explicit empty-stream guard.
+    wp_state = _reducer.wp_snapshot_state(feature_dir, wp_id)
     if wp_state is None:
         return False
     subtasks = wp_state.get("subtasks") or {}
@@ -367,26 +365,63 @@ def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
 
 
-# Two-usage foot-gun (full SPLIT into a second predicate is DEFERRED to #2816):
-# the two owners read this flag with OPPOSITE meanings —
-#   * runtime slots (#2684, ``_mt_persist_wp_file``): active -> event-only, SKIP
-#     the WP-file god-write (the reduced snapshot is the authority);
-#   * legacy lane-mirror (``_mirror_phase1_frontmatter_lane``): active -> the
-#     ``lane`` field is still frontmatter-authored (mirror the canonical lane).
-def _phase1_snapshot_authority_active(feature_dir: Path) -> bool:
-    """Return True when this feature explicitly requests phase-1 mirroring.
+def _read_status_phase(feature_dir: Path) -> int | None:
+    """Return the parsed ``status_phase`` int from meta.json, or ``None``.
 
-    Uses on_malformed="none" so both missing and malformed meta.json degrade
-    to False (non-phase-1) without raising.  A missing-but-logged-warning
-    case for malformed files is preserved by checking the file existence first.
+    ``None`` covers a missing meta.json, a malformed meta.json, and a
+    non-numeric ``status_phase`` — every "the feature did not declare a numeric
+    phase" case, degrading to OFF at both gate call sites without raising.
+    Uses ``on_malformed="none"`` so both missing and malformed degrade to
+    ``None``; a malformed-but-present file still logs the warning (existence
+    check first).
     """
     meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
     if meta is None:
         if (feature_dir / "meta.json").exists():
-            logger.warning("Invalid meta.json in %s; skipping phase-1 lane mirror", feature_dir)
-        return False
+            logger.warning("Invalid meta.json in %s; skipping phase-1 gating", feature_dir)
+        return None
     status_phase = meta.get("status_phase")
-    return str(status_phase).strip() == "1"
+    try:
+        return int(str(status_phase).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+# Two distinct migration concerns key on ``status_phase`` today, but with
+# OPPOSITE intent — so they now have distinct names (the #2816 split) rather than
+# one overloaded predicate whose name lied:
+#   * runtime slots (#2684, ``_mt_persist_wp_file``) — ``_phase1_snapshot_authority_active``:
+#     active -> event-only, SKIP the WP-file god-write (the reduced snapshot is
+#     the authority);
+#   * legacy lane-mirror (``_mirror_phase1_frontmatter_lane``) — ``_legacy_lane_mirror_enabled``:
+#     active -> the ``lane`` field is still frontmatter-authored (mirror the
+#     canonical lane).
+# Both currently resolve identically (``status_phase >= 1``); keeping them
+# separate lets the corpus cutover retire the lane-mirror independently later.
+def _phase1_snapshot_authority_active(feature_dir: Path) -> bool:
+    """Return True when the reduced snapshot is the runtime-slot authority.
+
+    Phase-2 recognition (>= 1, not ``== "1"``): a mission advanced to
+    ``status_phase: 2`` is still (at least) authority-active — a strict ``"1"``
+    equality would silently fall a phase-2 mission back to the legacy
+    frontmatter lane. Non-numeric / missing / malformed -> OFF.
+    """
+    phase = _read_status_phase(feature_dir)
+    return phase is not None and phase >= 1
+
+
+def _legacy_lane_mirror_enabled(feature_dir: Path) -> bool:
+    """Return True when the transitional frontmatter ``lane`` mirror is active.
+
+    Distinct concern from :func:`_phase1_snapshot_authority_active` (the
+    runtime-slot authority gate): this one governs whether
+    :func:`_mirror_phase1_frontmatter_lane` still writes the legacy ``lane``
+    field. Behaviour is identical to the authority gate for now (both key on
+    ``status_phase >= 1``); the split exists so the names no longer lie and the
+    lane-mirror can be retired independently of the runtime-slot cutover.
+    """
+    phase = _read_status_phase(feature_dir)
+    return phase is not None and phase >= 1
 
 
 def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
@@ -415,7 +450,7 @@ def _mirror_phase1_frontmatter_lane(feature_dir: Path, wp_id: str, lane: str) ->
     It never creates a new ``lane`` field; it only updates an already-present
     field so stale consumers can observe the canonical state during cutover.
     """
-    if not _phase1_snapshot_authority_active(feature_dir):
+    if not _legacy_lane_mirror_enabled(feature_dir):
         return
 
     wp_file = _find_wp_file(feature_dir, wp_id)

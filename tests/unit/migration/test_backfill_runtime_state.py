@@ -21,10 +21,11 @@ from specify_cli.migration.strip_frontmatter import (
     STATIC_FIELDS,
     strip_mutable_fields,
 )
-from specify_cli.status.models import Lane, WPInnerStateDelta
+from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
+    append_events_atomic_verified,
     read_event_stream,
 )
 from specify_cli.status.wp_state import annotate
@@ -217,6 +218,55 @@ def test_scalar_value_mismatch_aborts(tmp_path: Path) -> None:
     result = b.verify_backfill(feature_dir)
     assert result.ok is False
     assert any("shell_pid mismatch" in m for m in result.mismatches)
+
+
+def test_count_mismatch_legacy_wp_absent_from_snapshot_aborts(tmp_path: Path) -> None:
+    """Count-parity fault: a WP with legacy runtime state but NO seed events.
+
+    WP02 carries evictable frontmatter runtime state but has no transitions, so it
+    has no claim anchor and the backfill skips its seeds — the reduced snapshot has
+    no WP02 entry while the legacy reader sees it. Verify must abort fail-closed on
+    the ``absent-from-snapshot`` branch (never a silent green)."""
+    feature_dir = build_mission(tmp_path)
+    (feature_dir / "tasks" / "WP02-extra.md").write_text(
+        "---\nwork_package_id: WP02\ntitle: Extra\nagent: ghost:model:profile\n---\n\n# WP02 body\n",
+        encoding="utf-8",
+    )
+    b.backfill_runtime_state(feature_dir)
+    result = b.verify_backfill(feature_dir)
+    assert result.ok is False
+    assert any("absent from snapshot" in m for m in result.mismatches)
+
+
+def test_count_mismatch_snapshot_only_wp_no_legacy_row_aborts(tmp_path: Path) -> None:
+    """Count-parity fault: a snapshot-only WP with no legacy row.
+
+    A claim seed for WP99 (which has no WP file / no legacy runtime) folds a
+    ``shell_pid`` into the snapshot while the legacy reader sees nothing for it.
+    Verify must abort on the ``snapshot carries runtime state but legacy reader has
+    none`` count-parity branch."""
+    feature_dir = build_mission(tmp_path)
+    b.backfill_runtime_state(feature_dir)
+    append_events_atomic_verified(
+        feature_dir,
+        [
+            StatusEvent(
+                event_id="01BBBBBBBBBBBBBBBBBBBBBBB9",
+                mission_slug=feature_dir.name,
+                wp_id="WP99",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.CLAIMED,
+                at=CLAIMED_AT,
+                actor="attacker",
+                force=True,
+                execution_mode="worktree",
+                policy_metadata={"shell_pid": 12321, "agent": "ghost"},
+            )
+        ],
+    )
+    result = b.verify_backfill(feature_dir)
+    assert result.ok is False
+    assert any("legacy reader has none" in m for m in result.mismatches)
 
 
 def test_verify_runs_pre_strip_inverting_order_is_caught(tmp_path: Path) -> None:

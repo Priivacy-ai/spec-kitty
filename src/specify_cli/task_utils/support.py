@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
@@ -49,17 +49,19 @@ def find_repo_root(start: Path | None = None) -> Path:
 
     detected_root = locate_project_root(current)
     if detected_root is not None:
-        return get_main_repo_root(detected_root)
+        # cast: follow_imports=skip erases get_main_repo_root's -> Path signature
+        # at this specify_cli.* boundary; type-only, no behaviour change.
+        return cast(Path, get_main_repo_root(detected_root))
 
     # Fallback: support plain git repositories that do not contain .kittify yet.
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
         if git_path.is_dir():
-            return get_main_repo_root(candidate)
+            return cast(Path, get_main_repo_root(candidate))
 
         if git_path.is_file():
-            resolved = get_main_repo_root(candidate)
+            resolved = cast(Path, get_main_repo_root(candidate))
             if resolved != candidate:
                 return resolved
 
@@ -412,13 +414,10 @@ class WorkPackage:
             self._snapshot_state_cache = None
             return None
 
-        from specify_cli.status import reduce as _reduce_snapshot  # noqa: PLC0415
-        from specify_cli.status import read_event_stream  # noqa: PLC0415
+        from specify_cli.status import wp_snapshot_state  # noqa: PLC0415
 
         wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
-        stream = read_event_stream(feature_dir)
-        snapshot = _reduce_snapshot(stream.transitions, stream.annotations)
-        wp_state = snapshot.work_packages.get(wp_id) or {}
+        wp_state = wp_snapshot_state(feature_dir, wp_id) or {}
 
         self._snapshot_state_loaded = True
         self._snapshot_state_cache = wp_state
@@ -456,7 +455,9 @@ class WorkPackage:
         # feature_dir is the parent of the tasks/ directory
         feature_dir = self.path.parent.parent
         wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
-        return get_wp_lane(feature_dir, wp_id)
+        # cast: get_wp_lane's -> str return is erased to Any at the specify_cli.*
+        # follow_imports=skip boundary; type-only narrowing, no behaviour change.
+        return cast("str | None", get_wp_lane(feature_dir, wp_id))
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
@@ -589,7 +590,9 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
 
     from specify_cli.status import get_wp_lane
 
-    return get_wp_lane(feature_dir, wp_id)
+    # cast: get_wp_lane's -> str return is erased to Any at the specify_cli.*
+    # follow_imports=skip boundary; type-only, no behaviour change.
+    return cast(str, get_wp_lane(feature_dir, wp_id))
 
 
 __all__ = [

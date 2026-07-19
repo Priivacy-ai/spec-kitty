@@ -24,11 +24,19 @@ ON, the event-sourced read path):
    are purely event-sourced and MUST NOT appear in the static schema —
    re-homing any of them turns this red.
 
-3. **The phase-1 flag is the SOLE sanctioned migration-window fallback** — the
-   tolerated-gate set is exactly ``{_phase1_snapshot_authority_active}`` (NOT empty, as
-   a post-cutover world would assume — the corpus cutover is deferred). A
-   SECOND, competing authority gate introduced into the reader path turns this
-   red.
+3. **The phase-1 flag is the SOLE sanctioned reader-authority gate** — hardened
+   two ways (#2816):
+   (a) the reader-module list is **DERIVED** by AST-walking
+   ``src/specify_cli/{status,cli,core,task_utils}`` for ``extract_scalar(...,
+   "<dynamic field>")`` reads (never a hardcoded list), so a NEW ungated bypass
+   reader auto-joins the derived set and trips the allow-list tripwire; and
+   (b) the tolerated gate is asserted by **imported-symbol IDENTITY** — every
+   name that resolves to the one canonical ``phase1_snapshot_authority_active``
+   object (its ``__name__`` plus every facade alias pointing at the same object)
+   — never a name-substring heuristic. A differently-named second authority gate
+   (``*_authority_active``) anywhere on the reader path, or a new bypass reader,
+   turns this red. The writer-side ``*_dual_write_*`` helpers and the lane-mirror
+   gate are deliberately NOT reader-authority gates and are excluded.
 
 Refactor-stable: every arm keys on imported symbol / slot-name identity and
 runtime behavior, never on line numbers or source text of a specific call.
@@ -65,12 +73,6 @@ _EVENT_SLOTS: frozenset[str] = frozenset(_RUNTIME_SLOTS)
 _TOLERATED_MIGRATION_WINDOW_SLOTS: frozenset[str] = frozenset(
     {"subtasks", "assignee", "agent", "shell_pid", "shell_pid_created_at"}
 )
-
-#: The single sanctioned migration-window authority gate. NOT empty: the corpus
-#: ``backfill -> verify -> cutover`` is deferred, so the flag-gated frontmatter
-#: fallback is retained. A second gate here is a #2093 regression.
-_TOLERATED_MIGRATION_GATES: frozenset[str] = frozenset({"_phase1_snapshot_authority_active"})
-
 
 def _feature_with_flag(tmp_path: Path, *, flag_on: bool) -> tuple[Path, Path]:
     """Build a minimal ``kitty-specs/<slug>`` feature dir + WP file.
@@ -227,14 +229,56 @@ def test_no_field_is_dual_homed_static_and_event() -> None:
 
 
 # ===========================================================================
-# Arm 3 — the phase-1 flag is the SOLE sanctioned migration-window fallback
+# Arm 3 — the phase-1 flag is the SOLE sanctioned reader-authority gate
 # ===========================================================================
+#
+# Hardened (#2816): the reader-module list is DERIVED (AST-walk for dynamic-field
+# extract_scalar reads), and the tolerated gate is asserted by imported-symbol
+# IDENTITY, not a name substring.
 
-_READER_AUTHORITY_MODULES = (
-    "src/specify_cli/task_utils/support.py",
-    "src/specify_cli/status/wp_metadata.py",
-    "src/specify_cli/core/stale_detection.py",
-    "src/specify_cli/status/emit.py",
+import specify_cli.status as _status_facade  # noqa: E402
+from specify_cli.status.emit import _phase1_snapshot_authority_active as _CANONICAL_GATE  # noqa: E402
+
+#: The dynamic runtime-state fields whose authority is the event log
+#: (data-model.md). A frontmatter read of any of these via ``extract_scalar`` is
+#: a reader-authority site the invariant tracks.
+_DYNAMIC_RUNTIME_FIELDS: frozenset[str] = frozenset(
+    {
+        "agent",
+        "assignee",
+        "shell_pid",
+        "shell_pid_created_at",
+        "tracker_refs",
+        "reviewer",
+        "reviewer_agent",
+        "reviewer_shell_pid",
+        "review_status",
+        "reviewed_by",
+        "approved_by",
+        "review_feedback",
+    }
+)
+
+_READER_AUTHORITY_ROOTS = ("status", "cli", "core", "task_utils")
+
+#: The curated baseline of modules that legitimately read a dynamic runtime field
+#: via ``extract_scalar``. A module APPEARING in the AST-derived set but NOT here
+#: is a NEW ungated bypass reader (the tripwire). Sanctioned-gated seams
+#: (``support.py`` WorkPackage fallbacks; ``tasks_status_cmd.py`` gated status
+#: board) sit alongside PRE-EXISTING ungated readers deliberately left OUT of the
+#: #2816 scope (``tasks_move_task.py`` current_agent/shell_pid ownership read;
+#: ``workflow_cores.py`` review_status/review_feedback read) — those are tracked
+#: as remaining #2093 debt, not fixed here; the tripwire only forbids NEW ones.
+#: ``tasks.py`` add-history is intentionally ABSENT: it now routes through
+#: ``WorkPackage.agent``/``.shell_pid`` (the ``support.py`` seam already listed),
+#: so it holds no independent frontmatter-authority path.
+_SANCTIONED_READER_MODULES: frozenset[str] = frozenset(
+    {
+        "src/specify_cli/task_utils/support.py",
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/workflow_cores.py",
+    }
 )
 
 
@@ -246,15 +290,62 @@ def _repo_root() -> Path:
     raise AssertionError("could not locate repo root from test file")
 
 
-def _referenced_gate_symbols(module_path: Path) -> set[str]:
-    """Every referenced identifier on the reader-authority path that plays a
-    migration-flag role (name contains ``dual_write``, or ``phase`` + a gate
-    suffix ``enabled``/``authority``). AST-based so it survives
-    relocation/renaming of surrounding code — the ``authority`` arm tracks the
-    ``_phase1_snapshot_authority_active`` rename (the sanctioned gate no longer
-    ends in ``enabled``).
+def _iter_root_modules(root: Path) -> list[Path]:
+    modules: list[Path] = []
+    for pkg in _READER_AUTHORITY_ROOTS:
+        modules.extend(sorted((root / "src" / "specify_cli" / pkg).rglob("*.py")))
+    return modules
+
+
+def _sanctioned_gate_names() -> frozenset[str]:
+    """Every identifier that resolves, BY IDENTITY, to the one canonical gate.
+
+    The private ``__name__`` plus every ``specify_cli.status`` facade attribute
+    whose value ``is`` the canonical object. Derived from the live object's
+    identity — not a hardcoded string — so the arm tracks any future rename of
+    the gate or its facade alias automatically (2b).
     """
-    tree = ast.parse(module_path.read_text(encoding="utf-8"))
+    aliases = {name for name, value in vars(_status_facade).items() if value is _CANONICAL_GATE}
+    return frozenset(aliases | {_CANONICAL_GATE.__name__})
+
+
+def _reads_dynamic_field_via_extract_scalar(tree: ast.AST) -> bool:
+    """True if the module calls ``extract_scalar(<any>, "<dynamic field>")``."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else None
+        if name != "extract_scalar" or len(node.args) < 2:
+            continue
+        field_arg = node.args[1]
+        if isinstance(field_arg, ast.Constant) and field_arg.value in _DYNAMIC_RUNTIME_FIELDS:
+            return True
+    return False
+
+
+def _derive_reader_authority_modules(root: Path) -> set[str]:
+    """AST-derived reader modules — the hardened replacement for the old hardcoded
+    tuple. Any module under the four roots that reads a dynamic runtime field via
+    ``extract_scalar`` is a reader-authority site; a NEW one auto-joins."""
+    derived: set[str] = set()
+    for path in _iter_root_modules(root):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        if _reads_dynamic_field_via_extract_scalar(tree):
+            derived.add(path.relative_to(root).as_posix())
+    return derived
+
+
+def _referenced_authority_gates(tree: ast.AST) -> set[str]:
+    """Referenced identifiers that play a snapshot-vs-frontmatter READER-AUTHORITY
+    gate role — name ends with ``_authority_active`` (the sanctioned
+    ``_phase1_snapshot_authority_active`` / its facade alias, and any competing
+    sibling). Writer-side ``*_dual_write_*`` helpers and the lane-mirror
+    (``_legacy_lane_mirror_enabled``) gate are NOT reader-authority gates and are
+    deliberately excluded so this arm tracks the ONE reader concern."""
     gates: set[str] = set()
     for node in ast.walk(tree):
         name: str | None = None
@@ -264,31 +355,63 @@ def _referenced_gate_symbols(module_path: Path) -> set[str]:
             name = node.attr
         elif isinstance(node, ast.FunctionDef):
             name = node.name
-        if name and (
-            "dual_write" in name
-            or ("phase" in name and name.endswith("enabled"))
-            or ("phase" in name and "authority" in name)
-        ):
+        if name and name.endswith("_authority_active"):
             gates.add(name)
     return gates
 
 
-def test_phase1_flag_is_the_sole_tolerated_migration_gate() -> None:
-    """Across the reader-authority modules, the ONLY migration-window authority
-    gate is ``_phase1_snapshot_authority_active``. A second dual-write / phase flag
-    (competing authority) fails here."""
-    root = _repo_root()
-    discovered: set[str] = set()
-    for rel in _READER_AUTHORITY_MODULES:
-        discovered |= _referenced_gate_symbols(root / rel)
+def test_facade_reexports_the_exact_gate_object() -> None:
+    """2b precondition: the public facade export IS the private emit gate object
+    (identity), so identity-based tolerance below cannot be spoofed by a
+    same-named but distinct symbol."""
+    assert _status_facade.phase1_snapshot_authority_active is _CANONICAL_GATE
 
-    assert discovered, "expected the phase-1 gate to appear on the reader path"
-    unexpected = discovered - _TOLERATED_MIGRATION_GATES
+
+def test_reader_authority_gate_is_solely_the_canonical_phase1_gate() -> None:
+    """Across every module under the reader-authority roots, the only
+    ``*_authority_active`` reader gate is the canonical
+    ``phase1_snapshot_authority_active`` object (by identity). A differently-named
+    second authority gate turns this red; writer-side dual-write / lane-mirror
+    gates are excluded by construction."""
+    root = _repo_root()
+    sanctioned = _sanctioned_gate_names()
+    discovered: set[str] = set()
+    for path in _iter_root_modules(root):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        discovered |= _referenced_authority_gates(tree)
+
+    assert discovered, "expected the phase-1 authority gate to appear on the reader path"
+    unexpected = discovered - sanctioned
     assert not unexpected, (
-        "a migration-window authority gate OTHER than the sanctioned "
-        f"_phase1_snapshot_authority_active was found on the reader path: {sorted(unexpected)} "
+        "a reader-authority gate OTHER than the canonical "
+        f"phase1_snapshot_authority_active was found: {sorted(unexpected)} "
         "(a second authority path is the #2093 split-brain this mission closes)"
     )
-    # The tolerated set is non-empty and really present (the deferred cutover
-    # keeps exactly one sanctioned fallback — NOT the post-cutover empty set).
-    assert discovered >= _TOLERATED_MIGRATION_GATES
+    # Non-vacuous: the sanctioned identity really is present (deferred cutover
+    # keeps exactly one sanctioned gate — NOT the post-cutover empty set).
+    assert discovered >= sanctioned
+
+
+def test_no_new_ungated_bypass_reader_of_dynamic_fields() -> None:
+    """The AST-DERIVED set of dynamic-field ``extract_scalar`` readers must not
+    exceed the curated sanctioned baseline. A NEW module reading a runtime field
+    from frontmatter outside the sanctioned seam trips this — the hardened
+    replacement for the old hardcoded module tuple."""
+    root = _repo_root()
+    derived = _derive_reader_authority_modules(root)
+
+    # Non-vacuous: the derivation really finds the known readers (a broken AST
+    # walk that discovered nothing would otherwise pass silently).
+    assert derived, "expected the AST derivation to discover the known reader modules"
+
+    new_bypass = derived - _SANCTIONED_READER_MODULES
+    assert not new_bypass, (
+        "a NEW module reads a dynamic runtime field via extract_scalar outside the "
+        f"sanctioned gated seam (#2093 bypass): {sorted(new_bypass)}. Route the read "
+        "through the phase-1 gated seam (WorkPackage / wp_snapshot_state + the flag) "
+        "and, only if it is a genuinely sanctioned reader, add it to "
+        "_SANCTIONED_READER_MODULES."
+    )

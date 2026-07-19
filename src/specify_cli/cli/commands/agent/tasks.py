@@ -569,6 +569,7 @@ from specify_cli.cli.commands.agent.tasks_status_cmd import (
     _st_apply_review_flags as _st_apply_review_flags,
     _st_board_cell as _st_board_cell,
     _st_emit_json as _st_emit_json,
+    _st_gated_runtime_fields as _st_gated_runtime_fields,
     _st_load_work_packages as _st_load_work_packages,
     _st_render_active as _st_render_active,
     _st_render_arbiter as _st_render_arbiter,
@@ -917,10 +918,13 @@ def add_history(
         # Load work package
         wp = locate_work_package(repo_root, mission_slug, task_id)
 
-        # Build history entry
+        # Build history entry. Route agent/shell_pid through the gated
+        # WorkPackage.agent/.shell_pid seam (flag ON -> reduced snapshot; flag OFF
+        # -> frontmatter fallback) rather than a bare extract_scalar, so this
+        # reader never bypasses the phase-1 authority gate (#2093).
         timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-        agent_name = agent or extract_scalar(wp.frontmatter, "agent") or "unknown"
-        shell_pid_val = shell_pid or extract_scalar(wp.frontmatter, "shell_pid") or ""
+        agent_name = agent or wp.agent or "unknown"
+        shell_pid_val = shell_pid or wp.shell_pid or ""
 
         shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
         history_entry = f"- {timestamp} – {agent_name} – {shell_part}{note}"

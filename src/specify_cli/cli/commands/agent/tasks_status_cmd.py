@@ -175,6 +175,33 @@ def _st_resolve_dirs(st: _StatusState) -> None:
         raise typer.Exit(1)
 
 
+def _st_gated_runtime_fields(
+    front: str, feature_dir: Path, wp_id: str | None
+) -> tuple[str, str]:
+    """Return ``(agent, shell_pid)`` through the phase-1 authority gate (#2093).
+
+    Flag ON (``phase1_snapshot_authority_active``) -> the reduced snapshot's
+    runtime slots are authoritative; flag OFF (or an unidentifiable WP) -> the
+    frontmatter ``extract_scalar`` fallback, the tolerated migration-window read.
+    Mirrors ``WorkPackage.agent``/``.shell_pid`` so the status board never
+    bypasses the gate the rest of the reader path honours.
+    """
+    from specify_cli.status import phase1_snapshot_authority_active, wp_snapshot_state
+
+    if wp_id and phase1_snapshot_authority_active(feature_dir):
+        state = wp_snapshot_state(feature_dir, wp_id) or {}
+        agent_val = state.get("agent")
+        shell_pid_val = state.get("shell_pid")
+        return (
+            str(agent_val) if agent_val is not None else "",
+            str(shell_pid_val) if shell_pid_val is not None else "",
+        )
+    return (
+        extract_scalar(front, "agent") or "",
+        extract_scalar(front, "shell_pid") or "",
+    )
+
+
 def _st_resolve_execution_mode(
     front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None
 ) -> tuple[str, str]:
@@ -247,6 +274,10 @@ def _st_load_work_packages(st: _StatusState) -> None:
         execution_mode, workspace_kind = _st_resolve_execution_mode(
             front, st.main_repo_root, st.mission_slug, wp_id
         )
+        # Route agent/shell_pid through the phase-1 authority gate (#2093); the
+        # static agent_profile stays frontmatter-canonical (design intent, not a
+        # runtime slot).
+        _st_agent, _st_shell_pid = _st_gated_runtime_fields(front, st.feature_dir, wp_id)
         st.work_packages.append(
             {
                 "id": wp_id,
@@ -254,9 +285,9 @@ def _st_load_work_packages(st: _StatusState) -> None:
                 "lane": lane,
                 "phase": extract_scalar(front, "phase") or "Unknown Phase",
                 "file": wp_file.name,
-                "agent": extract_scalar(front, "agent") or "",
+                "agent": _st_agent,
                 "agent_profile": extract_scalar(front, "agent_profile") or "",
-                "shell_pid": extract_scalar(front, "shell_pid") or "",
+                "shell_pid": _st_shell_pid,
                 # PID-reuse identity baseline (FR-005/#2575), co-written with
                 # shell_pid at claim time. Threaded here so check_doing_wps_for_staleness
                 # can compare it (recycled-PID -> stale-eligible). Both the JSON

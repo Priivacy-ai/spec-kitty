@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from specify_cli.core.paths import safe_mission_slug
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -327,6 +328,30 @@ def reduce(
         work_packages=wp_states,
         summary=summary,
     )
+
+
+def wp_snapshot_state(feature_dir: Path, wp_id: str) -> Mapping[str, Any] | None:
+    """Return the reduced per-WP runtime state for *wp_id*, or ``None`` if absent.
+
+    The single shared spelling of the ``read_event_stream(feature_dir)`` ->
+    ``reduce(...)`` -> ``snapshot.work_packages.get(wp_id)`` idiom that was
+    reimplemented across ~6 modules (IC-08 / #2093). Behaviour-preserving:
+
+    - An empty event log (no transitions and no annotations) reduces to an empty
+      snapshot, so the lookup returns ``None`` — identical to the pre-existing
+      ``if not stream.transitions and not stream.annotations`` early-outs.
+    - A WP with no reduced entry returns ``None``.
+
+    This accessor is **ungated**: the phase-1 dual-write flag gating stays at each
+    call site (a snapshot-first reader vs. a frontmatter fallback is a call-site
+    decision, not this accessor's). Callers that want an empty-dict sentinel add
+    ``or {}``; callers that branch on absence use the ``None`` directly.
+    """
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce(stream.transitions, stream.annotations)
+    # cast: work_packages values are dict[str, Any], so .get() is Any|None at the
+    # follow_imports=skip boundary; narrow to the declared read-only Mapping.
+    return cast("Mapping[str, Any] | None", snapshot.work_packages.get(wp_id))
 
 
 def _runtime_only_wp_state(actor: str) -> dict[str, Any]:

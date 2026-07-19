@@ -617,6 +617,57 @@ def _snapshot_review(snap_wp: dict[str, Any]) -> dict[str, Any] | None:
     return review if isinstance(review, dict) else None
 
 
+def _detect_conflicting_seed_annotations(feature_dir: Path) -> list[str]:
+    """Fail-closed value-parity guard: reject ambiguous same-slot seed annotations.
+
+    The reducer folds same-``at`` annotations in ``(at, event_id)`` order and
+    merges per field (scalars replace; ``subtasks`` merge per key). Because seed
+    ``event_id``s are content-namespaced ULIDs (arbitrary order, per the honesty
+    bound), a *tampered* annotation that assigns a divergent value to a slot the
+    legitimate seed also writes is **masked** whenever the legit seed happens to
+    sort last — the reduced value heals back to the legacy value and the plain
+    reduced-vs-legacy compare passes (a coin-flip on ULID luck, not fail-closed).
+
+    Backfill emits exactly ONE annotation per ``(wp, field)``, so two annotations
+    assigning *different* values to the same runtime slot (or the same subtask
+    key) for one WP is corruption, regardless of which one the reducer currently
+    lets win. Detect it directly on the raw stream and abort — this closes the
+    real safety hole (#2816 hardening). Each conflict is reported under its field
+    label (``"<field> mismatch"``) so the abort reads as a value mismatch.
+
+    ``tracker_refs`` (additive union) and ``note`` (append) are order-independent
+    by construction and are intentionally excluded.
+    """
+    stream = read_event_stream(feature_dir)
+    scalar_values: dict[tuple[str, str], set[str]] = {}
+    subtask_values: dict[tuple[str, str], set[str]] = {}
+    for ann in stream.annotations:
+        delta = ann.delta
+        wp = ann.wp_id
+        for slot, value in (
+            ("shell_pid", delta.shell_pid),
+            ("shell_pid_created_at", delta.shell_pid_created_at),
+            ("agent", delta.agent),
+            ("assignee", delta.assignee),
+        ):
+            if value is not None:
+                scalar_values.setdefault((wp, slot), set()).add(str(value))
+        if delta.review is not None:
+            scalar_values.setdefault((wp, "review"), set()).add(repr(sorted(delta.review.to_dict().items())))
+        if delta.subtasks is not None:
+            for subtask_id, status in delta.subtasks.items():
+                subtask_values.setdefault((wp, subtask_id), set()).add(str(status))
+
+    mismatches: list[str] = []
+    for (wp, slot), values in sorted(scalar_values.items()):
+        if len(values) > 1:
+            mismatches.append(f"{wp}: {slot} mismatch (conflicting seed annotations: {sorted(values)})")
+    for (wp, subtask_id), values in sorted(subtask_values.items()):
+        if len(values) > 1:
+            mismatches.append(f"{wp}: subtasks mismatch (conflicting seed annotation for {subtask_id}: {sorted(values)})")
+    return mismatches
+
+
 def verify_backfill(feature_dir: Path) -> VerifyResult:
     """Fail-closed parity check: reduced snapshot == OLD reader, by count + value.
 
@@ -689,6 +740,11 @@ def verify_backfill(feature_dir: Path) -> VerifyResult:
         legacy_review = runtime.review.to_dict() if (runtime.review is not None and runtime.review.complete) else None
         if legacy_review != _snapshot_review(snap_wp):
             mismatches.append(f"{wp_id}: review mismatch (legacy={legacy_review} snapshot={_snapshot_review(snap_wp)})")
+
+    # Value-parity hardening: a tampered same-slot annotation can be masked in the
+    # reduced compare above by same-`at` ULID-tiebreak ordering. Scan the raw
+    # annotations for conflicting same-slot assignments and abort fail-closed.
+    mismatches.extend(_detect_conflicting_seed_annotations(feature_dir))
 
     return VerifyResult(ok=not mismatches, wp_count=len(legacy), mismatches=tuple(mismatches))
 

@@ -27,8 +27,7 @@ from typing import Any, cast
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
-from specify_cli.status import reduce as _reduce_snapshot
-from specify_cli.status import read_event_stream as _read_event_stream
+from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
@@ -274,10 +273,11 @@ def _read_wp_runtime_snapshot_state(feature_dir: Path, wp_id: str) -> dict[str, 
     Returns an empty dict when the WP has no reduced snapshot entry (never
     claimed, or the event log is empty) -- a valid, authoritative "no runtime
     state yet" result, not a signal to fall back to frontmatter.
+
+    Delegates to the shared ``status.reducer.wp_snapshot_state`` accessor (IC-08
+    dedup); ``or {}`` preserves the empty-dict "no runtime state yet" contract.
     """
-    stream = _read_event_stream(feature_dir)
-    snapshot = _reduce_snapshot(stream.transitions, stream.annotations)
-    return snapshot.work_packages.get(wp_id) or {}
+    return _wp_snapshot_state(feature_dir, wp_id) or {}
 
 
 def _resolve_claim_liveness_inputs(

@@ -625,12 +625,9 @@ def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> W
     if not _phase1_snapshot_authority_active(feature_dir):
         return metadata
 
-    from specify_cli.status.reducer import reduce as _reduce_snapshot  # noqa: PLC0415
-    from specify_cli.status.store import read_event_stream  # noqa: PLC0415
+    from specify_cli.status.reducer import wp_snapshot_state  # noqa: PLC0415
 
-    stream = read_event_stream(feature_dir)
-    snapshot = _reduce_snapshot(stream.transitions, stream.annotations)
-    wp_state = snapshot.work_packages.get(metadata.work_package_id) or {}
+    wp_state = wp_snapshot_state(feature_dir, metadata.work_package_id) or {}
 
     return metadata.update(
         shell_pid=wp_state.get("shell_pid"),

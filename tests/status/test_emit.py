@@ -24,6 +24,7 @@ from specify_cli.status.emit import (
     _derive_from_lane,
     _find_wp_file,
     _legacy_alias_collapses_to_current_lane,
+    _legacy_lane_mirror_enabled,
     _load_mission_id,
     _mirror_phase1_frontmatter_lane,
     _phase1_snapshot_authority_active,
@@ -920,6 +921,32 @@ class TestPhase1CompatibilityBridge:
 
         assert _phase1_snapshot_authority_active(feature_dir) is False
 
+    def test_status_phase_1_is_authority_active(self, feature_dir: Path) -> None:
+        (feature_dir / "meta.json").write_text('{"status_phase": "1"}', encoding="utf-8")
+        assert _phase1_snapshot_authority_active(feature_dir) is True
+        assert _legacy_lane_mirror_enabled(feature_dir) is True
+
+    def test_status_phase_2_is_treated_as_authority_active(self, feature_dir: Path) -> None:
+        """A mission advanced to ``status_phase: 2`` must stay authority-active.
+
+        Regression for the ``== "1"`` bug: strict equality would silently fall a
+        phase-2 mission back to the legacy frontmatter lane. ``>= 1`` semantics
+        keep both the runtime-slot authority gate and the lane-mirror gate ON.
+        """
+        (feature_dir / "meta.json").write_text('{"status_phase": 2}', encoding="utf-8")
+        assert _phase1_snapshot_authority_active(feature_dir) is True
+        assert _legacy_lane_mirror_enabled(feature_dir) is True
+
+    def test_status_phase_0_is_off(self, feature_dir: Path) -> None:
+        (feature_dir / "meta.json").write_text('{"status_phase": "0"}', encoding="utf-8")
+        assert _phase1_snapshot_authority_active(feature_dir) is False
+        assert _legacy_lane_mirror_enabled(feature_dir) is False
+
+    def test_non_numeric_status_phase_is_off(self, feature_dir: Path) -> None:
+        (feature_dir / "meta.json").write_text('{"status_phase": "later"}', encoding="utf-8")
+        assert _phase1_snapshot_authority_active(feature_dir) is False
+        assert _legacy_lane_mirror_enabled(feature_dir) is False
+
     def test_find_wp_file_handles_missing_tasks_and_multiple_matches(
         self,
         feature_dir: Path,
@@ -947,7 +974,9 @@ class TestPhase1CompatibilityBridge:
         wp_file.write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
 
         write_mock = MagicMock()
-        monkeypatch.setattr(emit_module, "_phase1_snapshot_authority_active", lambda feature_dir: True)
+        # The lane mirror gates on _legacy_lane_mirror_enabled (the #2816 split),
+        # not the runtime-slot authority gate — patch the gate it actually reads.
+        monkeypatch.setattr(emit_module, "_legacy_lane_mirror_enabled", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
         # WPMetadata with no lane field — mirror should be a no-op (no lane to update)
         monkeypatch.setattr(
@@ -972,7 +1001,9 @@ class TestPhase1CompatibilityBridge:
         wp_file.parent.mkdir()
         wp_file.write_text("---\nwork_package_id: WP01\nlane: planned\n---\n", encoding="utf-8")
 
-        monkeypatch.setattr(emit_module, "_phase1_snapshot_authority_active", lambda feature_dir: True)
+        # The lane mirror gates on _legacy_lane_mirror_enabled (the #2816 split),
+        # not the runtime-slot authority gate — patch the gate it actually reads.
+        monkeypatch.setattr(emit_module, "_legacy_lane_mirror_enabled", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
 
         # Part 1: read_wp_frontmatter raises FrontmatterError → logged as "Failed to read"
