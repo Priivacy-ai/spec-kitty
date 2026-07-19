@@ -194,13 +194,13 @@ class TestRequestDataclasses:
         )
         assert request.wp_id == "WP01"
         with pytest.raises(AttributeError):
-            request.wp_id = "WP02"  # type: ignore[misc]
+            request.wp_id = "WP02"
 
     def test_review_request_is_frozen(self) -> None:
         request = cores.ReviewRequest(wp_id="WP01", mission="my-mission", agent="reviewer-renata")
         assert request.agent == "reviewer-renata"
         with pytest.raises(AttributeError):
-            request.agent = "someone-else"  # type: ignore[misc]
+            request.agent = "someone-else"
 
 
 # ---------------------------------------------------------------------------

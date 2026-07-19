@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -102,7 +103,7 @@ def _make_bootstrap_result(
 
 
 # Common set of patches needed to run finalize_tasks without real git/filesystem
-def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature"):
+def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature") -> dict[str, Any]:
     """Return a dict of patch targets -> mock values for finalize_tasks.
 
     WP02 (T027): finalize_tasks now routes git commits through
@@ -815,7 +816,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         def _commit_for_mission_spy(**kwargs: object) -> CommitRouterResult:
             nonlocal captured_files
             # ``files`` is a tuple[Path, ...] keyword arg.
-            captured_files = list(kwargs.get("files", ()))  # type: ignore[arg-type]
+            captured_files = list(kwargs.get("files", ()))
             return CommitRouterResult(
                 status="committed",
                 placement_ref="main",

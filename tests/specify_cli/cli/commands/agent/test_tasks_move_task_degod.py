@@ -86,7 +86,7 @@ def _make_state(tmp_path: Path, **overrides: object) -> _MoveTaskState:
         "resolved_auto_commit": True,
     }
     kwargs.update(overrides)
-    return _MoveTaskState(**kwargs)  # type: ignore[arg-type]
+    return _MoveTaskState(**kwargs)
 
 
 def _make_uncheck_ports(feature_dir: Path) -> MagicMock:

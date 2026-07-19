@@ -140,7 +140,7 @@ class TestFinalizeTasksBootstrap:
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """finalize-tasks invokes bootstrap_canonical_state after dependency parsing."""
         mission_slug = "060-test"
         feature_dir = _build_minimal_feature(tmp_path, mission_slug)
@@ -192,7 +192,7 @@ class TestFinalizeTasksBootstrap:
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """--validate-only passes dry_run=True to bootstrap."""
         mission_slug = "060-test"
         _build_minimal_feature(tmp_path, mission_slug)
@@ -254,7 +254,7 @@ class TestBodyNotesNoLane:
         mock_emit: MagicMock,
         mock_safe_commit: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """move_task history entry must not contain 'lane='."""
         mission_slug = "060-test"
         feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "claimed")
@@ -328,7 +328,7 @@ class TestBodyNotesNoLane:
         mock_branch: MagicMock,
         mock_emit_history: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """add_history entry must not contain 'lane='."""
         mission_slug = "060-test"
         feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "in_progress")
@@ -405,7 +405,7 @@ class TestMoveTaskHardFail:
         mock_lock: MagicMock,
         _mock_emit_error_logged: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """move_task exits with error when WP has no canonical status events."""
         mission_slug = "060-test"
         feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "planned")
@@ -483,7 +483,7 @@ class TestMoveTaskHardFail:
         mock_emit: MagicMock,
         mock_safe_commit: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """move_task succeeds when WP has canonical event."""
         mission_slug = "060-test"
         feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "planned")
@@ -562,7 +562,7 @@ class TestTypedFrontmatterMigration:
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """finalize-tasks writes dependencies to WP frontmatter using WPMetadata.update().
 
         After migration, the written frontmatter is produced by model_dump(exclude_none=True),
@@ -623,7 +623,7 @@ class TestTypedFrontmatterMigration:
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """Dependency conflict detection uses typed WPMetadata.dependencies attribute."""
         mission_slug = "060-conflict-test"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -666,7 +666,7 @@ class TestTypedFrontmatterMigration:
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """When tasks.md has no deps but frontmatter has existing deps, preserve them."""
         mission_slug = "060-preserve-test"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -717,7 +717,7 @@ class TestTypedFrontmatterMigration:
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
-    ):
+    ) -> None:
         """map-requirements reads/writes requirement_refs via WPMetadata."""
         mission_slug = "060-reqmap-test"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -759,7 +759,7 @@ class TestStatusCanonicalStaleFields:
     def test_status_json_includes_nested_stale_and_legacy_fields_for_planning_artifact(
         self,
         tmp_path: Path,
-    ):
+    ) -> None:
         mission_slug = "077-status-json"
         feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
 
@@ -797,7 +797,7 @@ class TestStatusCanonicalStaleFields:
     def test_status_human_output_shows_repo_root_planning_stale_label(
         self,
         tmp_path: Path,
-    ):
+    ) -> None:
         mission_slug = "077-status-human"
         feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
 
@@ -824,7 +824,7 @@ class TestStatusCanonicalStaleFields:
     def test_status_json_falls_back_only_for_missing_lanes(
         self,
         tmp_path: Path,
-    ):
+    ) -> None:
         mission_slug = "077-status-missing-lanes"
         _build_wp_file(tmp_path, mission_slug, "WP01")
 
@@ -840,7 +840,7 @@ class TestStatusCanonicalStaleFields:
     def test_status_json_defaults_legacy_execution_mode_to_code_change(
         self,
         tmp_path: Path,
-    ):
+    ) -> None:
         """Per FR-019, legacy WPs without execution_mode and without strong body
         signals default to ``code_change`` rather than hard-failing the status
         command. This preserves zero-migration compatibility for older missions.
