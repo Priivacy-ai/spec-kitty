@@ -39,7 +39,7 @@ is authoritative; server aligns via spec-kitty-saas#509).
 **Storage**: the append-only delivery ledger (`SqliteDeliveryLedger`) + the sync queue (non-destructive FIFO
 drain, `ORDER BY timestamp ASC, id ASC`) — both unchanged in shape
 **Testing**: pytest ATDD/red-first — the merged `tests/delivery/test_poison_batch_2736.py` (RED anchor),
-new straddle-ordering + ledger-residual + bounded/idempotent tests, the dormant-path focused test, the
+new straddle-ordering + ledger-residual + bounded/idempotent tests, the live offline-queue-disposition test, the
 CLI FSM contract test; a **drain harness** (`deliver()` → record → `select_undelivered` → re-drain) is new
 test infrastructure (IC-01)
 **Target Platform**: Linux/macOS dev + CI
@@ -51,7 +51,7 @@ bounded (NFR-002); the happy `sync now` path is untouched (NFR-001)
 cycle, uncaught by the layer gate — alphonso), not a policy-owning authority (paula); ordering is the
 bisect adapter's sequential recursion, not the primitive; touched functions ≤ CC-15; ATDD red-first; no
 direct push to origin/main
-**Scale/Scope**: 1 new pure primitive module + 1 receiver-adapter change + 1 dormant-path in-context fix +
+**Scale/Scope**: 1 new pure primitive module + 1 receiver-adapter change + 1 live offline-queue in-context fix +
 1 contract test + the drain-harness test infra; ~6 WPs (P0 = 3 of them)
 
 ## Charter Check
@@ -109,7 +109,7 @@ tests/
 ├── delivery/
 │   ├── test_poison_batch_2736.py         # MODIFY: order-recording poster; culprit-singleton assertion
 │   └── test_batch_bisection_ordering.py  # NEW: straddle fixture + receipt-order + drain-harness residual-set
-├── sync/                                 # NEW focused test for the dormant-path in-context fix
+├── sync/                                 # NEW focused test for the live offline-queue in-context fix
 ├── architectural/                        # NEW: single-authority guard (behavioral delegation + AST //2)
 └── status/                               # NEW: CLI FSM force-free contract test
 ```
