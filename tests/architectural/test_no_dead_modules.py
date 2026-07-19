@@ -336,12 +336,11 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # doctrine.missions.mission_step_repository: live caller landed in
         # charter.mission_steps (charter-pack-activation-layer-01KSYE4V WP09)
         #
-        # charter.extractor: the prose->triad scraper (SECTION_MAPPING,
-        # write_extraction_result, extract_with_ai) is retired by
-        # consolidate-charter-bundle WP04 — sync() no longer scrapes, so the
-        # Extractor class has zero non-test src/ callers. Full class deletion is
-        # deferred (test-only references remain); tracked as a follow-up.
-        "charter.extractor",
+        # charter.extractor removed: the prose->triad scraper (SECTION_MAPPING,
+        # write_extraction_result, extract_with_ai, and the retirement husk
+        # left behind, Extractor/_detect_catalog_references) is fully deleted
+        # by charter-deadcode-noop-campsite WP02 -- module removed, test-only
+        # references retired/reconstructed. Category fully drained (1->0).
     }
 )
 

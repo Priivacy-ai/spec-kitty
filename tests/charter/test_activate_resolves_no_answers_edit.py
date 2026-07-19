@@ -16,13 +16,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from charter.charter_yaml_io import save_charter_yaml
 from charter.compiler import compile_charter
-from charter.extractor import Extractor
 from charter.interview import default_interview, read_interview_answers
 from charter.pack_context import PackContext
+from charter.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
 from doctrine.service import DoctrineService
 from doctrine.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
@@ -95,7 +96,7 @@ def _answers_path(project_root: Path) -> Path:
     return project_root / ".kittify" / "charter" / "interview" / "answers.yaml"
 
 
-def _activate(project_root: Path) -> object:
+def _activate(project_root: Path) -> Result:
     return runner.invoke(
         charter_app,
         ["activate", "--repo-root", str(project_root), _TARGET_KIND, _TARGET_ID],
@@ -103,7 +104,7 @@ def _activate(project_root: Path) -> object:
     )
 
 
-def _deactivate(project_root: Path) -> object:
+def _deactivate(project_root: Path) -> Result:
     return runner.invoke(
         charter_app,
         ["deactivate", "--repo-root", str(project_root), _TARGET_KIND, _TARGET_ID],
@@ -210,19 +211,32 @@ class TestSpddActivationDoesNotFlip:
             pack_context=pack_context,
         )
 
-        extraction = Extractor().extract(compiled.markdown)
-        # IC-04 (WP04) retirement: write_extraction_result (governance.yaml
-        # / directives.yaml / metadata.yaml triad emitter) is retired.
-        # governance/directives are hand-authored sections directly inside
-        # charter.yaml now (data-model.md); is_spdd_reasons_active reads
-        # them from there (doctrine/spdd_reasons/activation.py).
+        # WP02 (charter-deadcode-noop-campsite): charter.extractor is
+        # retired. Instead of re-parsing ``compiled.markdown`` back into a
+        # GovernanceConfig via ``Extractor().extract(...)``, reconstruct the
+        # doctrine-selection config directly from the already-available
+        # ``interview.selected_*`` / ``compiled`` fields -- this is exactly
+        # the data the extractor used to scrape back out of the rendered
+        # markdown, so the live ``is_spdd_reasons_active`` assertion below
+        # keeps covering the same activation path without the retired
+        # scraper.
+        governance = GovernanceConfig(
+            doctrine=DoctrineSelectionConfig(
+                selected_paradigms=interview.selected_paradigms,
+                selected_directives=interview.selected_directives,
+                selected_tactics=compiled.selected_tactics,
+                available_tools=interview.available_tools,
+                template_set=compiled.template_set,
+            )
+        )
+        directives = DirectivesConfig()
         charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
         save_charter_yaml(
             charter_yaml_path,
             {
                 "schema_version": "2.0.0",
-                "governance": extraction.governance.model_dump(mode="json"),
-                "directives": extraction.directives.model_dump(mode="json"),
+                "governance": governance.model_dump(mode="json"),
+                "directives": directives.model_dump(mode="json"),
                 "catalog": {
                     "mission": interview.mission,
                     "template_set": "software-dev-default",

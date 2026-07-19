@@ -891,26 +891,11 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 
 
 # ---------- C. consolidate-charter-bundle (01KXSYB9) WP04 extractor retirement ----------
-# WP04 (IC-04) retires ``charter.sync.sync``'s prose->triad scrape -- the
-# extraction pipeline's ONLY production caller (governance/directives are
-# hand-authored in charter.yaml now; see ``charter.sync.load_governance_config``
-# / ``load_directives_config``). ``Extractor`` itself is intentionally NOT
-# deleted: its still-live doctrine-selection + activation-registry scan
-# (unconditional, independent of the retired ``SECTION_MAPPING`` dispatch) is
-# exercised directly by ``tests/charter/test_extractor_activations.py`` /
-# ``test_extractor_selection.py`` / ``test_sync_authority_paths.py`` /
-# ``test_charter_context_spdd_reasons.py``, none of which are WP04's to
-# rewrite. Follow-up tracker: consolidate-charter-bundle-01KXSYB9 (wire a real
-# caller for the doctrine-selection/activation scan, or delete ``Extractor``
-# and its remaining test dependents in a dedicated follow-up).
-
-_CATEGORY_C_WP_IN_FLIGHT_EXTRACTOR_RETIREMENT: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.extractor::Extractor -- library primitive, test-only callers
-        # post-WP04 (see block comment above)
-        SymbolKey("Extractor", "ee6d759dbb877705e8bad8e35dea7c782a5afa008e82fada58afbfbd8701905e"),
-    }
-)
+# charter-deadcode-noop-campsite WP02: ``charter.extractor`` (the ``Extractor``
+# class this category used to allowlist) is fully deleted -- the module has
+# zero non-test src/ callers, and its test-only dependents were retired or
+# reconstructed without it. Category fully drained (formerly gated here
+# pending final class deletion; now closed).
 
 
 # ---------- C. consolidate-charter-bundle WP01 shared write-helper vocabulary ----------
@@ -971,7 +956,6 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE
-    | _CATEGORY_C_WP_IN_FLIGHT_EXTRACTOR_RETIREMENT
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
 )
 
@@ -1383,7 +1367,7 @@ def _symbol_has_caller(
       -- the parent re-exports the name via its own ``__all__``;
     * any submodule of ``mod_dotted`` (``X.startswith(mod_dotted + ".")``)
       -- this covers package ``__init__.py`` re-exports: a name listed
-      in ``charter.__all__`` and imported via ``charter.generator``
+      in ``charter.__all__`` and imported via ``charter.compiler``
       proves the symbol is live runtime code.
 
     The third rule is necessary because the WP08 anti-pattern we gate
