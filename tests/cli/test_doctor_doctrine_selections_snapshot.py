@@ -14,8 +14,8 @@ c) the exact provenance suffix format.
 
 To minimise environmental coupling the fixture seeds:
 
-* a project charter (``governance.yaml``) with a known selected_<kind> list
-  for two kinds and empty for the rest,
+* a project charter (``charter.yaml`` ``governance.doctrine`` section) with a
+  known selected_<kind> list for two kinds and empty for the rest,
 * a single org pack with an ``org-charter.yaml`` declaring one required
   artifact (so the snapshot exercises the ``source: org-required`` branch),
 * no project-layer doctrine artifacts (so the project-selected ids fall
@@ -60,16 +60,17 @@ def _seed_project_charter(repo_root: Path) -> None:
     # NOT in the catalog so it surfaces as ``source: charter`` (declared
     # but not resolved).  Together with the org-required toolguide below
     # this gives the snapshot one kind with multiple sources.
-    (charter_dir / "governance.yaml").write_text(
+    (charter_dir / "charter.yaml").write_text(
         textwrap.dedent(
             """
-            doctrine:
-              selected_styleguides:
-                - my-project-styleguide
-                - shared-team-styleguide
-              selected_directives:
-                - DIRECTIVE_032
-                - PROJECT_DIRECTIVE_01
+            governance:
+              doctrine:
+                selected_styleguides:
+                  - my-project-styleguide
+                  - shared-team-styleguide
+                selected_directives:
+                  - DIRECTIVE_032
+                  - PROJECT_DIRECTIVE_01
             """
         ).lstrip(),
         encoding="utf-8",
