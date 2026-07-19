@@ -1,0 +1,159 @@
+{
+  "mission_slug": "wp-runtime-state-eviction-01KXWN13",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Generic non-transition InnerStateChanged event carrying a typed WPInnerStateDelta; wire discriminator + distinct read path surface it to reduce(); arch test asserts it can never be reduced as a lane transition.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_innerstatechanged_invariants.py + src/specify_cli/status/models.py (WPInnerStateDelta typed partial); WP01 lane-a commit de458f935 (\"InnerStateChanged event class + reducer fold foundation\").",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Unconditional (event model + wire discriminator landed, not flag-gated). Verified by static read of the arch invariant test + models.py, not a live run."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Reducer branches on event kind; a lane transition preserves untouched runtime slots (per-field independence); off-axis delta applies typed per-field merge (replace/union/append) via an event-kind partition fold; never increments force_count.",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/status/test_innerstatechanged_reducer_fold.py + src/specify_cli/status/reducer.py; WP01 lane-a commit de458f935.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Unconditional fold behavior. The phase-1 frontmatter mirror (_mirror_phase1_frontmatter_lane) is the flag-gated dual-write layer; the fold itself is unconditional."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Subtask completion recorded as an InnerStateChanged subtasks delta; _guard_subtasks and done-inference resolve from the reduced snapshot, not tasks.md bytes.",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_issue_2684_subtask_completion_event_sourced.py (P0 red test flips green for the reduced-snapshot mechanism, NOT a HistoryAdded read) + tests/specify_cli/cli/commands/agent/test_check_unchecked_subtasks_snapshot_source.py; WP02 lane-b 2ae3720fc (gate) + WP04 lane-d 954bbff95 (reader).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Correctly flag-gated per the re-scoped design: WP04 commit message states the subtask-reader re-source runs at flag ON (_phase1_dual_write_enabled ON -> snapshot). Headline P0 proof green for the right mechanism."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Claim (shell_pid, shell_pid_created_at) rides the planned->claimed transition via the policy_metadata sidecar; a resume refresh of an already-in_progress WP is recorded as an InnerStateChanged delta (not a lane transition).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_runtime_frontmatter_claim.py (class TestResumeShellPidRefresh, T029a) + WP01 policy_metadata->snapshot fold; WP07 lane-g commit 9878963e9.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Resume refresh emitted as an InnerStateChanged annotation (never policy_metadata) confirmed in the test. Claim writer is dual-write behind the flag; the emit/fold mechanism is landed."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Claim-liveness (stale_detection) and model readers WorkPackage.{shell_pid,agent,assignee} + WPMetadata coercion resolve from the reduced snapshot; the frontmatter fallback is retained behind a flag until backfill is verified, then removed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_stale_detection_snapshot_liveness.py (505-line two-sided liveness suite); WP05 lane-e commit 89caec97b (\"liveness + model readers from snapshot (flag-gated)\").",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "FLAG-ON SCOPE / ADJUDICATION: verified at flag ON (status_phase:1) where the reduced snapshot wins; frontmatter fallback is RETAINED behind _phase1_dual_write_enabled (default OFF). The unconditional reader cutover (frontmatter-fallback removal) is DEFERRED per the tasks.md deferred note + WP10 RE-SCOPE banner. Schema has no 'deferred' verdict; recorded as pass with this explicit flag-ON caveat rather than an honesty-blocking 'fail'."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "tracker_refs evicted (runtime, event-sourced union delta from map-requirements and move-task); removed as a WP-file write and struck from the static authored schema / WP_FIELD_ORDER so it is not dual-homed; dead _mt_persist_tracker_refs deleted.",
+      "proof_type": "automated_test",
+      "evidence": "tracker_refs confirmed ABSENT from WP_FIELD_ORDER in src/specify_cli/frontmatter.py (WP07 lane-g 9878963e9); union emit + _mt_persist_tracker_refs delete in WP06 lane-f cd9e5f69c; map-requirements emit WP08 lane-h 781e6d151.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Dual-home strike verified by direct inspection of WP_FIELD_ORDER (tracker_refs=False). Enforced going forward by the FR-013 arch test's no-dual-home arm."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "## Activity Log notes recorded as InnerStateChanged note appends from all six writers (including the external orchestrator_api/commands.py); the section renders from events with no content loss.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_render_parity_golden.py (SC-004 golden: event-sourced activity/history/review render matches a legacy-sourced golden, dropped-entry mutation bites); WP10 lane-j 228950996; note-append emit WP04/WP06/WP08.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Note eviction landed across writers incl the external orchestrator_api writer. Render parity is proven at flag ON (status_phase:1) by the golden test. Minor flag-ON caveat on the render source shares FR-005/013's deferred-cutover context."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "No implement/mark-status/move-task/review action writes tasks/WP##.md or the tasks.md subtask surface; the four shell_pid writers, agent/assignee writers, subtask checkbox write/uncheck, and the move-task god-write are cut, with orphaned tails deleted.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_ac5_hash_guard.py (SOLE SC-001/SC-005 full-lifecycle proof-of-drive hash guard, bites on a re-introduced writer) WP10 lane-j 228950996; tests/integration/test_wp_file_hash_stability.py WP06 lane-f cd9e5f69c (scoped god-write slice).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "FLAG-ON SCOPE / ADJUDICATION: byte-stability of the WP file across the driven lifecycle is proven at status_phase:1 (flag ON). The default (flag OFF) still dual-writes frontmatter as the sanctioned migration-window safety net; the unconditional writer cutover is DEFERRED (tasks.md deferred note). Recorded as pass with the flag-ON caveat, not an unconditional-cutover claim."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Evict all review-cycle state; migrate review_artifact_override_* as a matched pair (write + read half + merge-gate override recognition); delete the dead verdict-field read fallbacks only after the FR-011 backfill seeds legacy approvals as events.",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_2684_review_override_recognition.py (both-halves override recognition: complete event-sourced override -> merge not blocked; incomplete/absent -> gate fires); WP09 lane-i commit 4b4adb548.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "ADJUDICATION: the substantive both-halves override eviction (write + read + merge-gate recognition) LANDED and is tested. The FR-009 dead verdict-field fallback DELETE (workflow_cores.py:340-348 / done_bookkeeping.py:104-105, subtask T037) is DEFERRED per the WP10 RE-SCOPE banner: the fallbacks are RETAINED as the sanctioned migration-window safety net, gated on the un-wired backfill CLI (migration.md makes fallback teardown the FINAL step). Pass scoped to the eviction; fallback-delete tail deferred."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Extend canonical MUTABLE_FIELDS (shell_pid_created_at, review_artifact_override_*, reviewer_shell_pid); move history out of STATIC_FIELDS; retire progress and delete history[] outright (incl its sole writer add_history_entry + dead-symbol allowlist entry) after a zero-reader verification.",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/migration/strip_frontmatter.py (history moved into MUTABLE_FIELDS, progress retired) WP03 lane-c 5cf5b75a1; add_history_entry deleted + allowlist reconciled WP07 lane-g 9878963e9 / WP10 test_no_dead_symbols.py; history confirmed ABSENT from WP_FIELD_ORDER.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "history absence from WP_FIELD_ORDER verified by direct inspection. MUTABLE_FIELDS extension and progress retirement confirmed in strip_frontmatter.py comments/definition."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Migration order backfill -> verify -> reader cutover -> writer cutover -> delete fallbacks + land AC-5 hash guard; seed transition + InnerStateChanged events with deterministic namespaced ULIDs (idempotent); fail-closed verify aborts before cutover on a count+value parity mismatch.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_migration_backfill.py + tests/unit/migration/test_backfill_runtime_state.py (SC-006 first-run seeds & matches old reader, NFR-002 idempotent second run seeds 0, corrupt-seed verify aborts before cutover); src/specify_cli/migration/backfill_runtime_state.py; WP03 lane-c commit 5cf5b75a1.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "LIBRARY-SCOPED / ADJUDICATION: the backfill ENGINE/LIBRARY + fail-closed verify + idempotency are landed and tested at the unit/integration level. The corpus backfill -> verify(fail-closed) -> cutover CLI WIRING (flipping the flag unconditional across the ~12 read/write sites and deleting the T037 fallbacks) was NOT built and is DEFERRED to a follow-up mission per the tasks.md deferred note. Pass scoped to engine/library only; the CLI wiring is the named deferred item."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Every new off-axis emit site resolves its write target from stored topology/target branch, never Path.cwd() (does not reopen #2647).",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_sc008_topology_resolution.py (genuine git worktree fixture; emit destination derives from stored topology, red against a Path.cwd()-derived resolution); WP08 lane-h commit 781e6d151 + WP06 emit sites.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Proven (#2647/SC-008). Non-vacuous: the fixture would go green against a naive cwd-rooted implementation, so the assertion bites on the real destination-resolution mechanism."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "A refactor-stable architectural test asserts no consumer reads a dynamic frontmatter field as authority (the #2093 invariant), distinguishing authority-read from tolerated migration-window fallback-read, and that no field appears in both the static authored schema and the event-sourced slot set.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_2093_authority_invariant.py (asserts, at status_phase:1, snapshot wins over divergent frontmatter; WP_FIELD_ORDER ∩ _RUNTIME_SLOTS == only the tolerated IC-08 cosmetic slots; _phase1_dual_write_enabled is the SOLE tolerated migration gate); WP10 lane-j commit 228950996.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "FLAG-ON SCOPE / ADJUDICATION: the arch invariant is asserted in the SHIPPED dual-write end-state (status_phase:1, flag ON), with the tolerated-gate set == {_phase1_dual_write_enabled} (explicitly NOT the empty post-cutover set). The unconditional form (empty tolerated set after corpus cutover) is DEFERRED. The test is honest about this by construction (arm-3 asserts the tolerated set is non-empty and exactly the one sanctioned flag). Recorded as pass at flag ON, not as an unconditional-cutover claim."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "This mission owns the implement.py shell_pid-writer restructuring; the former #2160 co-sequence is retired, so the writer cutover proceeds without an external blocks/blocked_by gate.",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/cli/commands/agent/implement.py claim-writer restructuring + tests/specify_cli/cli/commands/agent/test_implement_runtime_frontmatter_claim.py; WP07 lane-g commit 9878963e9 (\"claim writers -> policy_metadata + frontmatter cleanup\").",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Mission owns the implement.py:1730 restructuring; no external #2160 gate. Claim writer restructured to policy_metadata; landed as dual-write behind the flag consistent with the re-scoped end-state."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Fix the false-force provenance bug: suppress emit_force on the five evidence-gated review-rejection backward edges by asking the FSM (validate_transition legal force-free), keeping genuine force where required; command-layer test asserts persisted StatusEvent.force is falsy for the five edges; existing tests re-pointed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_2684_force_provenance.py (reads persisted StatusEvent.force off status.events.jsonl: falsy for the evidence-gated edges + truthy genuine-force positive control leaving terminal done); WP02 lane-b commit 2ae3720fc (3 edges) + WP06 (2 in_review edges).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": null,
+      "notes": "Proven (force-provenance/FR-015). Non-vacuous positive control asserts genuine force stays truthfully True, guarding against over-suppression. Existing plan-level force tests re-pointed (SC-007 delete-the-assertion-not-the-test)."
+    }
+  ],
+  "negative_invariants": []
+}
