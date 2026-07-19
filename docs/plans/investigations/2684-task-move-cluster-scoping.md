@@ -100,8 +100,8 @@ ownership on `tasks_move_task.py`; do not fold in.
 `analysis_report.py::_normalize_tasks_md`), #2513 & #2576 (rollback uncheck), #2510 (coord husk
 fail-open), #2567/#2324/#2346/#2574 (subtask parser consolidation), **#2580** (the 4th `shell_pid`
 writer routed through `write_shell_pid_claim` — confirms the "4 writers" inventory),
-#2575/#1231/#2369/#2512 (shell_pid-liveness precedent chain this generalizes), #2154/#2155 (via PR
-#2181, #2160 core), #2648/#2649/#2650 (#2533 write-side + degod/SSOT-consolidation of the exact
+\#2575/#1231/#2369/#2512 (shell_pid-liveness precedent chain this generalizes), #2154/#2155 (via PR
+\#2181, #2160 core), #2648/#2649/#2650 (#2533 write-side + degod/SSOT-consolidation of the exact
 files #2684 edits), #2740, #2504.
 
 **Out of scope but related:** #2736 (P0 catfooding mission that *re-confirmed* #2684; its fix is sync
@@ -143,7 +143,7 @@ Split by **field-class**, do not unify into one store:
 **Target invariant** (enforced by a refactor-stable architectural test — the generalization of the
 shipped phase-2 lane-authority guard): no consumer ever *reads a dynamic frontmatter field as
 authority*; static fields are never mirrored into events; `agent_profile` is split intent-vs-binding.
-#2684 accepts this verbatim and deliberately stops at "file holds only static intent," **not** "file
+\#2684 accepts this verbatim and deliberately stops at "file holds only static intent," **not** "file
 is derived" (that is the 3.3.x YAML-flip — §9).
 
 ## 5. Field-by-field authority inventory (grep-verified on `main`)
@@ -348,7 +348,7 @@ Per the governance boundary (no new `spec-kitty` tickets without HiC approval), 
 2. **`tracker_refs` authority re-decision** (§14.1) — small decision ticket; must resolve before
    writer cutover.
 3. **Migration/backfill contract as its own sub-issue** under #2684 (§8) — deterministic ULID seeding
-   + honest reconstruction contract is substantial.
+   - honest reconstruction contract is substantial.
 4. **3.3.x YAML-authoritative / markdown-derived WP-prompt flip** epic — explicitly out of #2684
    scope; requires re-ratification by the #2400 owner; gated on this mission.
 

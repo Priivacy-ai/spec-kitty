@@ -960,7 +960,7 @@ _CATEGORY_C_DEFERRED_RUNTIME_STATE_BACKFILL_CUTOVER: frozenset[SymbolKey] = froz
         SymbolKey("find_field_readers", "3b0c9aaa14e0863941f50d5975928440ff2b07310fe479a2dc02bab0944b35f1"),  #find_field_readers
         SymbolKey("read_legacy_runtime", "acf431e87f04d494b93de4cf7d92679053bd9dfd7b1441e36e676dcf0f6741a3"),  #read_legacy_runtime
         SymbolKey("run_backfill_and_verify", "13efe09d26c64daa02fb1c8fe075792a632c79c1b75c384f5e81b4e1055dd4c0"),  #run_backfill_and_verify
-        SymbolKey("verify_backfill", "25cf9b482e4bfd9f179eca33c1634a6bfa8f02bcd1d98279f78a74435b2e63fc"),  #verify_backfill
+        SymbolKey("verify_backfill", "35e7ca0dd774dd97bd6501276a44262443c4774ea56bcd14f79403582d8bdbb0"),  #verify_backfill
     }
 )
 
