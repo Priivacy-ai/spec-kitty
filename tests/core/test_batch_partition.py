@@ -133,6 +133,11 @@ class _OutboundEventStub:
     payload: dict[str, Any] = field(default_factory=dict)
 
 
+def _stub_key(event: _OutboundEventStub) -> str:
+    """Key accessor for the payload-nested stub (mirrors :func:`_key` for dicts)."""
+    return str(event.payload["wp_id"])
+
+
 def test_create_aware_works_with_key_nested_in_payload() -> None:
     events = [
         _OutboundEventStub(payload={"wp_id": "WP-A"}),
@@ -141,13 +146,10 @@ def test_create_aware_works_with_key_nested_in_payload() -> None:
         _OutboundEventStub(payload={"wp_id": "WP-C"}),
     ]
 
-    def key_of(event: _OutboundEventStub) -> str:
-        return str(event.payload["wp_id"])
-
-    idx = create_aware_midpoint(events, key_of)
+    idx = create_aware_midpoint(events, _stub_key)
     assert idx != len(events) // 2  # snapped off the adjacent WP-B pair
-    left = [key_of(e) for e in events[:idx]]
-    right = [key_of(e) for e in events[idx:]]
+    left = [_stub_key(e) for e in events[:idx]]
+    right = [_stub_key(e) for e in events[idx:]]
     assert left.count("WP-B") in (0, 2)
     assert right.count("WP-B") in (0, 2)
 
@@ -161,7 +163,5 @@ def test_same_index_for_equivalent_key_streams_across_shapes() -> None:
     stub_events = [_OutboundEventStub(payload={"wp_id": k}) for k in keys]
 
     dict_idx = create_aware_midpoint(dict_events, _key)
-    stub_idx = create_aware_midpoint(
-        stub_events, lambda e: str(e.payload["wp_id"])
-    )
+    stub_idx = create_aware_midpoint(stub_events, _stub_key)
     assert dict_idx == stub_idx

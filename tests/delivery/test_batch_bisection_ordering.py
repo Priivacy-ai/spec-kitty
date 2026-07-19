@@ -36,7 +36,7 @@ from specify_cli.delivery.receivers import (
     OutboundEvent,
 )
 
-from .test_poison_batch_2736 import _AllOrNothingBatchPoster
+from ._poison_batch_poster import _AllOrNothingBatchPoster
 
 pytestmark = pytest.mark.fast
 
@@ -198,7 +198,7 @@ def _first_redrain_index(poster: _AllOrNothingBatchPoster, redrain: list[Outboun
 
 
 def _assert_no_singleton_reposted(poster: _AllOrNothingBatchPoster) -> None:
-    singletons = [tuple(post) for post in poster.receipt_log if len(post) == 1]
+    singletons = poster.singleton_post_tuples()
     # The lone culprit is re-POSTed once on the re-drain; drop that intentional repeat
     # before asserting termination of the *first* drain's bisection.
     culprit_singleton = (_DRAIN_CULPRIT,)
@@ -219,7 +219,7 @@ def test_all_invalid_batch_is_bounded_and_every_event_isolated() -> None:
     assert len(poster.receipt_log) <= 2 * n - 1
     for event in events:
         assert {event.event_id} in poster.singleton_posts()
-    singletons = [tuple(post) for post in poster.receipt_log if len(post) == 1]
+    singletons = poster.singleton_post_tuples()
     assert len(singletons) == len(set(singletons))  # termination: none repeated
 
 

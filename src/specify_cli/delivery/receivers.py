@@ -362,7 +362,7 @@ def _detail_reason(detail: Mapping[str, Any], fallback: str) -> str:
 
 def _map_400(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """HTTP 400 → per-event ``rejected`` (content rejection; payload retained, retryable)."""
-    top_error = str(body.get("error", "batch validation failed")) if body else "batch validation failed"
+    top_error = str((body or {}).get("error", "batch validation failed"))
     by_id = {detail.get("event_id"): detail for detail in _structured_details(body)}
     out: list[DeliveryResult] = []
     for event in events:
@@ -570,11 +570,14 @@ class _HttpReceiver:
             if len(events) == 1:
                 return _map_400(events, body)
             mid = create_aware_midpoint(events, key_of=_wp_id_of)
-            # R1 (#2736): the primitive returns an EDGE index (0 or len) for a
-            # degenerate batch whose straddling events share a wp_id (e.g. a
-            # 2-element same-wp_id create/status pair). Feeding that raw index back
-            # would make one half empty and the other the full batch, so the right
-            # recursion never shrinks -> RecursionError (NFR-002 termination breach).
+            # R1 (#2736): the primitive returns an EDGE index for a degenerate
+            # batch whose straddling events share a wp_id. For a 2-element
+            # same-wp_id create/status pair the reachable edge value is ``0``
+            # (``len`` is unreachable — the right-nudge only snaps left). Feeding
+            # that raw index back would make one half empty and the other the full
+            # batch, so the right recursion never shrinks -> RecursionError
+            # (NFR-002 termination breach). The two-sided clamp keeps ``len``
+            # guarded defensively even though only ``0`` is reachable today.
             # Clamp to 0 < mid < len so both halves are strictly non-empty and
             # smaller. Only reached when len > 1, so len - 1 >= 1 — always valid.
             # Splitting a same-key pair is correct: the sequential left-before-right
