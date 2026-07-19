@@ -48,9 +48,12 @@ from charter.pack_manager import CharterPackManager
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.cli.commands.charter import charter_app
 
+from charter.charter_yaml_io import update_charter_yaml_section
+
 from tests.specify_cli.charter_preflight._fixtures import (
     init_git_repo,
     seed_charter,
+    seed_charter_yaml,
     seed_manifest,
     write_metadata,
 )
@@ -158,8 +161,36 @@ def _seed_project_graph(repo: Path) -> Path:
     return graph_path
 
 
-def _seed_synthesized_repo(repo: Path, ref_entries: list[dict[str, str]]) -> Path:
-    """Build a fully-synthesized, freshness-``fresh`` repo and return its charter dir."""
+def _seed_synthesized_repo(
+    repo: Path,
+    ref_entries: list[dict[str, str]],
+    activation: dict[str, list[str]] | None = None,
+) -> Path:
+    """Build a fully-synthesized, freshness-``fresh`` repo and return its charter dir.
+
+    Post-#2773 the freshness read-path resolves ``.kittify/charter/charter.yaml``
+    (``compute_bundle_content_hash`` hashes that one authoritative file, the
+    retired ``governance.yaml``/``directives.yaml``/``metadata.yaml`` triad no
+    longer feeds it -- see ``freshness/computer.py`` docstring). So a genuinely
+    ``fresh`` seed must:
+
+    1. seed ``charter.yaml`` (:func:`seed_charter_yaml`) -- the resolving source;
+    2. bake any pre-existing ``activation`` state INTO ``charter.yaml`` (its
+       post-#2773 home, data-model.md) BEFORE stamping the manifest, so the
+       stamped ``bundle_content_hash`` matches a fresh recompute of the seeded
+       charter.yaml (precondition reads ``fresh``);
+    3. write ``.kittify/config.yaml`` with a repo-root-relative ``charter:``
+       pointer so ``activate``/``deactivate`` route their write INTO
+       ``charter.yaml`` (the migrated-project path). That write flips the
+       whole-file hash away from the stamped manifest hash, which is exactly
+       what makes the default (no-``--resynthesize``) path observably ``stale``
+       after the mutation (the "spurious authoring-staleness" the freshness
+       computer documents as expected, self-clearing behaviour).
+
+    The retired triad + ``charter.md``/``metadata.yaml`` seeding is kept as a
+    harmless companion (some non-freshness consumers under test still reference
+    it); it no longer drives freshness on its own.
+    """
     init_git_repo(repo)
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
@@ -167,8 +198,19 @@ def _seed_synthesized_repo(repo: Path, ref_entries: list[dict[str, str]]) -> Pat
     (charter_dir / "governance.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
     (charter_dir / "directives.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
     _write_references(charter_dir, ref_entries)
+    charter_yaml_path = seed_charter_yaml(repo)
+    if activation:
+        # Bake the pre-mutation activation state into charter.yaml BEFORE the
+        # manifest is stamped, so the recomputed bundle hash covers it and the
+        # precondition reads ``fresh``.
+        update_charter_yaml_section(charter_yaml_path, "activation", activation)
     seed_manifest(repo, built_in_only=False)
     _seed_project_graph(repo)
+    # Migrated-project shape: config.yaml points at charter.yaml so activation
+    # writes land in charter.yaml (the hash input), not the legacy config keys.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "charter: .kittify/charter/charter.yaml\n", encoding="utf-8"
+    )
     return charter_dir
 
 
@@ -330,7 +372,6 @@ def test_activate_resynthesize_reconciles_signal_to_fresh(
 ) -> None:
     """CT-04: ``charter activate <kind> <id> --resynthesize`` leaves the signal FRESH."""
     charter_dir = _seed_synthesized_repo(tmp_path, ref_entries=[])
-    _write_config(tmp_path, "activated_directives: []\n")
     assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
 
     _reconcile_via_fakes(
@@ -353,7 +394,6 @@ def test_activate_without_resynthesize_stays_stale_and_spawns_no_synthesis(
 ) -> None:
     """CT-04: default ``charter activate`` leaves the signal STALE, zero synthesis calls."""
     _seed_synthesized_repo(tmp_path, ref_entries=[])
-    _write_config(tmp_path, "activated_directives: []\n")
     assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
@@ -375,10 +415,9 @@ def test_deactivate_resynthesize_reconciles_signal_to_fresh(
             _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_A}", "paradigm"),
             _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_B}", "paradigm"),
         ],
-    )
-    _write_config(
-        tmp_path,
-        f"activated_paradigms:\n  - {_REAL_PARADIGM_STEM_A}\n  - {_REAL_PARADIGM_STEM_B}\n",
+        activation={
+            "activated_paradigms": [_REAL_PARADIGM_STEM_A, _REAL_PARADIGM_STEM_B],
+        },
     )
     assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
 
@@ -407,10 +446,9 @@ def test_deactivate_without_resynthesize_stays_stale_and_spawns_no_synthesis(
             _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_A}", "paradigm"),
             _reference_entry(f"PARADIGM:{_REAL_PARADIGM_STEM_B}", "paradigm"),
         ],
-    )
-    _write_config(
-        tmp_path,
-        f"activated_paradigms:\n  - {_REAL_PARADIGM_STEM_A}\n  - {_REAL_PARADIGM_STEM_B}\n",
+        activation={
+            "activated_paradigms": [_REAL_PARADIGM_STEM_A, _REAL_PARADIGM_STEM_B],
+        },
     )
     assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
