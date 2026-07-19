@@ -517,6 +517,49 @@ def test_empty_cone_composite_is_no_coverage_not_clean(
 
 
 # ---------------------------------------------------------------------------
+# #2534 — consumer repo (no live gate-coverage authority) degrades calmly
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
+    tmp_path: Path,
+) -> None:
+    """#2534 (calm-degrade regression guard): in a consumer repo (``spec-kitty
+    init``, NOT the spec-kitty source repo) the WP's fixture repo has no ``tests/architectural/_gate_coverage.py``
+    of its own — exactly like every real consumer checkout. Deliberately does
+    NOT monkeypatch ``_pre_review_gate_filter_groups``/``_pre_review_gate_composite_routing``
+    (unlike every other test in this file) so the REAL
+    ``pre_review_gate.GateAuthoritiesUnavailable`` path fires through the REAL
+    ``move-task --to for_review`` entry point.
+
+    Before the fix, the surfaced reason names the spec-kitty-internal
+    ``tests.architectural._gate_coverage`` module and reads like a failure —
+    alarming and meaningless to an operator in a consumer repo. After the fix
+    it must be a calm, plainly-worded, non-blocking warn.
+    """
+    repo = _build_base_repo(tmp_path, extra_base_files={"src/wp01/foo.py": "VALUE = 1\n"})
+    _write_file(repo, "src/wp01/foo.py", "VALUE = 2\n")
+    _git_commit_all(repo, "wip: touch owned file")
+
+    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+    _seed_baseline(feature_dir, "WP01-test", failed=0)
+    ports, router = _fake_ports(feature_dir)
+
+    _run_move(tmp_path, ports=ports, workspace_resolution=_fixture_workspace(repo))
+
+    assert len(router.status_calls) == 1  # never blocked
+    metadata = _gate_metadata(router.status_calls[0])
+    assert metadata["outcome"] == "no_coverage"
+    assert metadata["blocked"] is False
+    reason = metadata["reason"] or ""
+    assert "tests.architectural._gate_coverage" not in reason
+    assert "src/specify_cli/" not in reason
+    assert reason == tasks_move_task._PRE_REVIEW_CONSUMER_REPO_REASON
+
+
+# ---------------------------------------------------------------------------
 # T004 — opt-in block: blocks without --force, --force bypasses + is recorded
 # ---------------------------------------------------------------------------
 

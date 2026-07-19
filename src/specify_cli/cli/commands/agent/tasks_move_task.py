@@ -44,7 +44,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import os
 import traceback
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
@@ -87,7 +86,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import first_set_sync_disable_env
 from specify_cli.core.paths import is_worktree_context
 from specify_cli.core.subtask_rows import uncheck_wp_section_subtask_rows
 from specify_cli.core.utils import write_text_within_directory
@@ -755,19 +754,18 @@ _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
 _PRE_REVIEW_FRONTMATTER_KEY = "pre_review_test_scope"
 
-#: #2573 fast-follow (FR-002): env vars the gate honors as a "skip the
-#: subprocess" signal, ordered by precedence for the skip-reason message.
-#: ``SPEC_KITTY_SYNC_DISABLE`` is the sync layer's existing "keep this
-#: process light" toggle (also consumed by the sync daemon per
-#: ``docs/plans/loop-friction-fastfollow-spec.md`` FR-002/FR-006);
-#: ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` is the sibling "minimal import, no
-#: heavy registration" signal (``sync/__init__.py``, ``sync/daemon.py``,
-#: ``specify_cli/__init__.py``). Neither was ever wired to the gate's own
-#: multi-minute subprocess before this fix — the gate reuses the SAME
-#: signals rather than inventing a third env var.
-_PRE_REVIEW_GATE_DISABLE_ENV_VARS: tuple[str, ...] = (
-    "SPEC_KITTY_SYNC_DISABLE",
-    "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+#: #2534 — the calm, operator-facing reason for a consumer repo (``spec-kitty
+#: init``, not the spec-kitty source repo) that legitimately has no
+#: ``tests/architectural/_gate_coverage.py`` authority of its own. Deliberately
+#: never names that internal module or any ``src/specify_cli/`` path — an
+#: operator in a consumer repo has never heard of either and the absence is
+#: expected, not a defect. Distinct from the detailed, internal-audience
+#: message ``GateAuthoritiesUnavailable`` still carries for a genuinely-broken
+#: authority INSIDE the spec-kitty source repo (see
+#: ``_mt_pre_review_gate_verdict``'s ``except`` branch below).
+_PRE_REVIEW_CONSUMER_REPO_REASON = (
+    "automated pre-review regression scoping is not available in this repo — "
+    "review proceeds without it (non-blocking)"
 )
 
 
@@ -823,11 +821,13 @@ def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
 
 
 def _mt_pre_review_gate_env_disable_reason() -> str | None:
-    """#2573 FR-002: the first honored disable env var, or ``None`` if none set."""
-    for env_var in _PRE_REVIEW_GATE_DISABLE_ENV_VARS:
-        if is_truthy(os.environ.get(env_var)):
-            return f"{env_var} is set"
-    return None
+    """#2573 FR-002: the first honored disable env var, or ``None`` if none set.
+
+    The gate honors the SAME sync-disable vocabulary as the daemon (``core.env.
+    SYNC_DISABLE_ENV_VARS``) rather than inventing a third env var.
+    """
+    env_var = first_set_sync_disable_env()
+    return f"{env_var} is set" if env_var else None
 
 
 def _mt_pre_review_gate_skip_reason(st: _MoveTaskState) -> str | None:
@@ -1023,10 +1023,18 @@ def _mt_pre_review_gate_verdict(
             progress_callback=progress_callback,
         )
     except pre_review_gate.GateAuthoritiesUnavailable as exc:
-        return _mt_empty_scope_verdict(
-            f"gate authorities unavailable — unverified: {exc}",
-            excluded_scope_files=tuple(changed_files),
+        # #2534: a consumer repo (``spec-kitty init``) legitimately never carries
+        # ``tests/architectural/_gate_coverage.py`` — that absence is expected,
+        # not a defect, so it gets the calm consumer-facing reason and never
+        # names the internal module. A genuinely-broken authority INSIDE the
+        # spec-kitty source repo (``is_consumer_repo=False``) keeps the
+        # detailed, internal-audience message — a real signal there.
+        reason = (
+            _PRE_REVIEW_CONSUMER_REPO_REASON
+            if exc.is_consumer_repo
+            else f"gate authorities unavailable — unverified: {exc}"
         )
+        return _mt_empty_scope_verdict(reason, excluded_scope_files=tuple(changed_files))
 
 
 def _mt_pre_review_gate_metadata(

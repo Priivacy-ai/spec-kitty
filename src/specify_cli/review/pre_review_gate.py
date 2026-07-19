@@ -128,12 +128,40 @@ class GateAuthoritiesUnavailable(RuntimeError):
     :func:`derive_test_scope`'s caller), never as a hard failure — an
     inability to compute coverage must be surfaced, not silently swallowed
     or escalated to a crash.
+
+    ``is_consumer_repo`` (#2534) distinguishes WHY the authority is missing:
+    ``True`` when ``repo_root`` itself never carried
+    ``tests/architectural/_gate_coverage.py`` (a legitimate ``spec-kitty
+    init`` consumer checkout — this is the expected, common case), ``False``
+    when the module SHOULD exist there (inside the spec-kitty source repo)
+    but genuinely failed to load — a real signal worth the detailed,
+    internal-audience message. Callers (the ``move-task --to for_review``
+    CLI hook) use this flag to pick a calm consumer-facing message instead of
+    naming this internal module to an operator who has never heard of it.
     """
+
+    def __init__(self, message: str, *, is_consumer_repo: bool) -> None:
+        super().__init__(message)
+        self.is_consumer_repo = is_consumer_repo
 
 
 # ---------------------------------------------------------------------------
 # Live-authority loading (FR-002/FR-006)
 # ---------------------------------------------------------------------------
+
+
+def _is_spec_kitty_source_repo(repo_root: Path) -> bool:
+    """True iff ``repo_root`` is the spec-kitty SOURCE repo, not a consumer checkout.
+
+    The single robust signal is direct filesystem presence of
+    ``tests/architectural/_gate_coverage.py`` under ``repo_root`` — that file
+    IS the authority :func:`_load_gate_coverage_module` is about to import,
+    so checking for it directly (rather than a proxy such as a
+    ``src/specify_cli/`` package, which a consumer project could coincidentally
+    also carry, e.g. while developing spec-kitty itself as a dependency)
+    means the discriminator can never diverge from the thing it discriminates.
+    """
+    return (repo_root / "tests" / "architectural" / "_gate_coverage.py").is_file()
 
 
 def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
@@ -152,17 +180,20 @@ def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
     repo_str = str(resolved_root)
     if repo_str not in sys.path:
         sys.path.insert(0, repo_str)
+    is_consumer_repo = not _is_spec_kitty_source_repo(resolved_root)
     try:
         module = importlib.import_module(_GATE_COVERAGE_MODULE_NAME)
     except ImportError as exc:
         raise GateAuthoritiesUnavailable(
             f"{_GATE_COVERAGE_MODULE_NAME} is not importable under {resolved_root}: {exc}",
+            is_consumer_repo=is_consumer_repo,
         ) from exc
     module_file = getattr(module, "__file__", None)
     if module_file is None or resolved_root not in Path(module_file).resolve().parents:
         raise GateAuthoritiesUnavailable(
             f"{_GATE_COVERAGE_MODULE_NAME} resolved to {module_file!r}, outside "
             f"{resolved_root} — refusing a cross-repo authorities import.",
+            is_consumer_repo=is_consumer_repo,
         )
     return module
 

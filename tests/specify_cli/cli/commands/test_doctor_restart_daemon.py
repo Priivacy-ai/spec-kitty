@@ -216,6 +216,9 @@ def test_happy_path_exits_zero_and_reports_new_pid(
     assert launch_calls[0]["kwargs"] == {
         "intent": DaemonIntent.REMOTE_REQUIRED,
         "health_wait_seconds": 3.0,
+        # Explicit restart forces past the #2573b disable-env skip (those envs
+        # suppress only implicit auto-start, not a directly-requested restart).
+        "force_explicit": True,
     }
 
     payload = json.loads(result.stdout.strip())
