@@ -134,25 +134,23 @@ def _project_skill_file(
 ) -> tuple[str, Path | None]:
     """Project a global canonical skill file into the project.
 
-    Prefers a symlink so future CLI upgrades only need to refresh the
-    global canonical roots. Falls back to a copy when symlinks are unavailable.
+    Delivers a copy, never a symlink (#2412): an absolute symlink into the
+    user-global canonical root dangles when the repo is mounted into a
+    dev-container or read by a sandboxed agent harness that cannot resolve
+    paths outside the project root. Copies stay fresh because every
+    init/upgrade/repair run re-projects the full skill set. Pre-#2412
+    symlinks found at the destination are replaced with copies here.
     """
     if dest.is_symlink():
-        try:
-            if dest.resolve() == source_file.resolve():
-                return DELIVERY_SYMLINK, backup_root
-        except OSError:
-            pass
         _safe_unlink(dest)
     elif dest.exists():
         try:
             if dest.is_file() and compute_content_hash(dest) == compute_content_hash(source_file):
-                _safe_unlink(dest)
-            else:
-                backup_root = _ensure_backup_root(project_path, backup_root)
-                if archived_paths is not None:
-                    archived_paths.append(backup_root / dest.relative_to(project_path))
-                backup_root = _archive_existing_path(dest, project_path, backup_root)
+                return DELIVERY_COPY, backup_root
+            backup_root = _ensure_backup_root(project_path, backup_root)
+            if archived_paths is not None:
+                archived_paths.append(backup_root / dest.relative_to(project_path))
+            backup_root = _archive_existing_path(dest, project_path, backup_root)
         except OSError:
             backup_root = _ensure_backup_root(project_path, backup_root)
             if archived_paths is not None:
@@ -160,12 +158,8 @@ def _project_skill_file(
             backup_root = _archive_existing_path(dest, project_path, backup_root)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        dest.symlink_to(source_file)
-        return DELIVERY_SYMLINK, backup_root
-    except OSError:
-        shutil.copy2(source_file, dest)
-        return DELIVERY_COPY, backup_root
+    shutil.copy2(source_file, dest)
+    return DELIVERY_COPY, backup_root
 
 
 def _project_skill_files(

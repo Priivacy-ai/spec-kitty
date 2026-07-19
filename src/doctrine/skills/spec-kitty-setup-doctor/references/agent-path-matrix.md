@@ -56,9 +56,12 @@ exclusively through wrapper slash commands in the wrapper root.
 
 ## Notes
 
-- The shared root `.agents/skills/` is created once and symlinked or referenced
-  by all shared-root-capable agents. The canonical managed copy lives in
-  `~/.agents/skills/`; project roots should project to it rather than snapshot it.
+- The shared root `.agents/skills/` is created once and referenced by all
+  shared-root-capable agents. Files are projected from the canonical managed
+  copy in `~/.agents/skills/` as plain copies, never symlinks — an absolute
+  symlink dangles when the repo is mounted into a dev-container and is
+  unreadable to sandboxed harnesses (#2412). The projection is refreshed on
+  every init/upgrade/repair run.
 - Managed canonical files under the user home are read-only. If a project replaces
   one of its projected files locally, that is treated as drift and can be repaired.
 - Wrapper roots contain slash-command files (e.g., `spec-kitty.implement.md`)

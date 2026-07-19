@@ -363,9 +363,11 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="spec-kitty init/upgrade skill projection",
         notes=(
             "Shared Agent-Skills projection root for codex/vibe/pi/letta. "
-            "Files are projected from the user-global canonical root, "
-            "preferring absolute symlinks (delivery_mode: symlink) -- "
-            "machine-local by construction, never commit (#2412). Unlike "
+            "Files are projected from the user-global canonical root as "
+            "copies (delivery_mode: copy) -- absolute symlinks were retired "
+            "because they dangle in dev-containers and defeat sandboxed "
+            "harnesses (#2412, ADR 2026-07-19-1). Still machine-generated "
+            "state regenerated on every init/upgrade, never commit. Unlike "
             ".claude/ etc., .agents/ is NOT in GitignoreManager's "
             "AGENT_DIRECTORIES, so this surface is its only ignore coverage. "
             "Collapses to the .agents/skills/ gitignore entry."

@@ -1,8 +1,14 @@
 ---
 title: 'ADR 3 (2026-04-08): Global Skill Installation with Per-Project Symlinks'
-status: Accepted
+status: Superseded
 date: '2026-04-08'
 ---
+
+> **Superseded (2026-07-19):** the per-project **symlink** wiring decided here is
+> replaced by copy delivery — absolute symlinks dangle in dev-containers and are
+> unreadable to sandboxed agent harnesses (#2412). The **global canonical
+> install** half of this decision stands unchanged and is reaffirmed in
+> [ADR 2026-07-19-1](2026-07-19-1-skill-projection-copies-not-symlinks.md).
 
 ## Context and Problem Statement
 

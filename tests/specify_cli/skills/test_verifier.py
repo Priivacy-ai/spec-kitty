@@ -259,8 +259,9 @@ def test_repair_handles_missing_source(tmp_path: Path) -> None:
     assert failed == 1
 
 
-def test_repair_rejects_external_symlink_destination(tmp_path: Path) -> None:
-    """Repair must not write through a managed-skill symlink escaping the repo."""
+def test_repair_heals_external_symlink_destination(tmp_path: Path) -> None:
+    """A symlink at the managed path is replaced with a copy; its target is
+    never written (#2412 — repairs always land copies)."""
     canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
     registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
 
@@ -285,9 +286,107 @@ def test_repair_rejects_external_symlink_destination(tmp_path: Path) -> None:
     verify_result = VerifyResult(ok=False, missing=[entry])
 
     repaired, failed = repair_skills(repo, verify_result, registry)
+    assert repaired == 1
+    assert failed == 0
+    # The security property: the symlink target is never written.
+    assert external.read_text(encoding="utf-8") == "EXTERNAL"
+    # The link itself is replaced by a real, repo-local copy.
+    assert not link_path.is_symlink()
+    assert link_path.read_text(encoding="utf-8") == canonical
+
+
+def test_repair_refuses_external_symlinked_ancestor(tmp_path: Path) -> None:
+    """An ancestor directory that symlink-escapes the repo makes every path
+    operation act outside the repo — repair must refuse, not heal."""
+    canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
+    registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
+
+    external_dir = tmp_path / "home" / "hijacked-skills" / "test-skill"
+    external_dir.mkdir(parents=True, exist_ok=True)
+    external_file = external_dir / "SKILL.md"
+    external_file.write_text("EXTERNAL", encoding="utf-8")
+
+    repo = tmp_path / "repo"
+    skills_root = repo / ".claude" / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+    # The skill DIRECTORY is a symlink out of the repo.
+    os.symlink(external_dir, skills_root / "test-skill", target_is_directory=True)
+
+    entry = _make_entry(
+        skill_name="test-skill",
+        source_file="SKILL.md",
+        installed_path=".claude/skills/test-skill/SKILL.md",
+        content_hash="sha256:stale",
+    )
+    save_manifest(ManagedSkillManifest(entries=[entry]), repo)
+
+    verify_result = VerifyResult(ok=False, missing=[entry])
+
+    repaired, failed = repair_skills(repo, verify_result, registry)
     assert repaired == 0
     assert failed == 1
-    assert external.read_text(encoding="utf-8") == "EXTERNAL"
+    assert external_file.read_text(encoding="utf-8") == "EXTERNAL"
+
+
+def test_repair_converts_legacy_symlink_entry_to_copy(tmp_path: Path) -> None:
+    """A pre-#2412 manifest entry (delivery_mode=symlink, dangling link on
+    disk) repairs to a real copy and the manifest entry flips to copy."""
+    canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
+    registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
+
+    repo = tmp_path / "repo"
+    installed_path = ".agents/skills/test-skill/SKILL.md"
+    dest = repo / installed_path
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    # Dangling absolute symlink — the classic dev-container failure mode.
+    os.symlink(tmp_path / "gone-global-root" / "SKILL.md", dest)
+
+    entry = _make_entry(
+        skill_name="test-skill",
+        source_file="SKILL.md",
+        installed_path=installed_path,
+        agent_key="codex",
+        content_hash="sha256:stale",
+        delivery_mode="symlink",
+    )
+    save_manifest(ManagedSkillManifest(entries=[entry]), repo)
+
+    verify_result = VerifyResult(ok=False, missing=[entry])
+
+    repaired, failed = repair_skills(repo, verify_result, registry)
+    assert repaired == 1
+    assert failed == 0
+    assert not dest.is_symlink()
+    assert dest.read_text(encoding="utf-8") == canonical
+
+    reloaded = load_manifest(repo)
+    assert reloaded is not None
+    assert reloaded.entries[0].delivery_mode == "copy"
+
+
+def test_repair_overwrites_read_only_copy(tmp_path: Path) -> None:
+    """Installer-delivered copies inherit the canonical root's read-only
+    mode; repair must still be able to replace a drifted one."""
+    canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
+    registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
+
+    installed_path = ".claude/skills/test-skill/SKILL.md"
+    entry = _setup_manifest_and_file(
+        tmp_path,
+        installed_path=installed_path,
+        content="drifted content",
+    )
+    dest = tmp_path / installed_path
+    dest.chmod(0o444)
+    actual_hash = compute_content_hash(dest)
+    save_manifest(ManagedSkillManifest(entries=[entry]), tmp_path)
+
+    verify_result = VerifyResult(ok=False, drifted=[(entry, actual_hash)])
+
+    repaired, failed = repair_skills(tmp_path, verify_result, registry)
+    assert repaired == 1
+    assert failed == 0
+    assert dest.read_text(encoding="utf-8") == canonical
 
 
 def test_repair_updates_manifest(tmp_path: Path) -> None:
@@ -372,8 +471,15 @@ def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
     assert failed == 1
 
 
-def test_repair_rejects_unsafe_skill_name_for_global_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Repair refuses global-root sync when the manifest skill name is unsafe."""
+def test_repair_unsafe_skill_name_never_touches_global_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Repair never builds global-root paths from the manifest skill name.
+
+    Pre-#2412, repairing a delivery_mode=symlink entry resynced the global
+    root using the skill name as a path segment, so an unsafe name had to be
+    rejected. Copy-only repair takes source from the registry (traversal-
+    guarded) and dest from installed_path (traversal-guarded); the skill name
+    is never a filesystem path, and the global root is never written.
+    """
     registry = _create_registry(tmp_path, "..evil", {"SKILL.md": "# bad\n"})
     entry = _make_entry(
         skill_name="..evil",
@@ -388,8 +494,13 @@ def test_repair_rejects_unsafe_skill_name_for_global_sync(tmp_path: Path, monkey
 
     repaired, failed = repair_skills(tmp_path, verify_result, registry)
 
-    assert repaired == 0
-    assert failed == 1
+    assert repaired == 1
+    assert failed == 0
+    # The repaired copy stays inside the repo under the literal dirname...
+    dest = tmp_path / ".claude" / "skills" / "..evil" / "SKILL.md"
+    assert dest.is_file() and not dest.is_symlink()
+    # ...and the global root is never created or written.
+    assert not (tmp_path / "_global").exists()
 
 
 # ── retired-skill reconciliation (#2409) ─────────────────────────────
