@@ -174,6 +174,18 @@ def test_dry_run_evidence_on_spec_kitty_repo(
         env=env,
     )
 
+    # Auth-env guard: `charter synthesize` performs a connected-teamspace auth check.
+    # In a logged-out environment (e.g. CI without credentials) the child emits a
+    # `logged_out_on_connected_teamspace` banner and exits non-zero before doing real
+    # work — that is an environment condition, not a product regression, so skip rather
+    # than red the suite. Detection mirrors the canonical banner check used elsewhere
+    # (e.g. tests/specify_cli/invocation/cli/test_profiles.py).
+    if "logged_out_on_connected_teamspace" in result.stderr:
+        pytest.skip(
+            "charter synthesize requires connected-teamspace auth; skipping in a "
+            "logged-out environment (e.g. CI without credentials)."
+        )
+
     # Structural guard (#2672 mode b): the real repo manifest must never be mutated by
     # this --dry-run-evidence invocation. Checked eagerly here (in addition to the
     # fixture's unconditional restore) so a regression fails LOUDLY with a clear message
