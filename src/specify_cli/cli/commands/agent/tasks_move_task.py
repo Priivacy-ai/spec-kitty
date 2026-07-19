@@ -109,6 +109,7 @@ from specify_cli.task_utils import (
     WorkPackage,
     append_activity_log,
     build_document,
+    delete_scalar,
     ensure_lane,
     extract_scalar,
     set_scalar,
@@ -1920,32 +1921,37 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
 
 
 def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """Record the move-task runtime state — event-sourced, no god-write.
+    """Record the move-task runtime state — event-sourced first, WP-file second.
 
-    The god-write is cut (FR-006/FR-007/FR-008, AC-5): runtime state becomes
-    ``InnerStateChanged`` annotations (plus the claim ``policy_metadata`` that
-    rode the transition), and the WP file is no longer rewritten for runtime
-    fields.
-
-    Dual-write window — matches WP01's read side (flag ON -> snapshot) and WP07's
-    write side, gated on the shared ``_phase1_dual_write_enabled`` flag:
+    Runtime state is always emitted as ``InnerStateChanged`` annotations (plus
+    the claim ``policy_metadata`` that rode the transition). Whether the WP file
+    *also* carries that runtime state is gated on the shared
+    ``_phase1_snapshot_authority_active`` flag — matching WP01's read side
+    (flag ON -> snapshot) and WP07's write side:
 
     - **flag OFF (default / pre-cutover)** — dual-write: emit the events AND keep
       the legacy WP-file god-write (``agent``/``assignee``/``shell_pid`` +
-      Activity-Log) so pre-cutover readers still observe frontmatter state.
-    - **flag ON (mission cut over)** — event-only: no WP-file runtime write at
-      all; ``tasks/WP##.md`` bytes are stable across the move-task actions
-      (AC-5 / the SC-007-adjacent hash regression, T025).
+      Activity-Log, plus the #2512 rollback claim-marker clear on
+      rollback->planned) so pre-cutover readers still observe frontmatter state.
+    - **flag ON (mission cut over)** — event-only *for runtime state*: this
+      function writes NO runtime fields to the WP file. The bytes are NOT
+      guaranteed untouched by the whole pipeline, though — ``emit.py``'s legacy
+      lane-mirror (``_mirror_phase1_frontmatter_lane``) still frontmatter-authors
+      an already-present ``lane`` field at flag ON. The AC-5 hash guard holds
+      because the flag-ON rollback fixtures carry no ``lane`` field, so the
+      mirror is a no-op and ``tasks/WP##.md`` stays byte-stable across the
+      move-task actions (T025 hash regression).
 
-    The three deleted tails (``tracker_refs`` frontmatter, the rollback
-    claim-marker clear, the ``tasks.md`` uncheck) are NOT resurrected in either
-    branch — they are cut to emits unconditionally (FR-006; #2513-via-snapshot).
+    Two of the three deleted tails (``tracker_refs`` frontmatter, the ``tasks.md``
+    uncheck) are cut to emits unconditionally (FR-006; #2513-via-snapshot). The
+    third — the rollback claim-marker clear — is re-added to the flag-OFF branch
+    only (#2512), because flag-OFF ``stale_detection`` still reads frontmatter.
     """
-    from specify_cli.status.emit import _phase1_dual_write_enabled
+    from specify_cli.status.emit import _phase1_snapshot_authority_active
 
     assert st.wp is not None and st.decision is not None
     _mt_emit_runtime_state(st, ports)
-    if _phase1_dual_write_enabled(st.feature_dir):
+    if _phase1_snapshot_authority_active(st.feature_dir):
         return
     _mt_dual_write_wp_file(st, ports)
 
@@ -1965,6 +1971,15 @@ def _mt_dual_write_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     wp = st.wp
     wp_content = wp.path.read_text(encoding="utf-8-sig")
     updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+    # #2512 (flag-OFF only): rolling back to ``planned`` RELEASES the claim, so
+    # strip the frontmatter ``agent``/``shell_pid`` markers a stale pid could
+    # otherwise leave behind (flag-OFF ``stale_detection`` reads frontmatter).
+    # Cleared BEFORE the set_scalar block so an explicit ``--agent``/``--shell-pid``
+    # on the rollback still re-plants a fresh claim. Flag-ON never reaches here
+    # (event-only), so this cannot rewrite frontmatter at flag ON (AC-5).
+    if st.target_lane == Lane.PLANNED:
+        updated_front = delete_scalar(updated_front, "agent")
+        updated_front = delete_scalar(updated_front, "shell_pid")
     if st.assignee:
         updated_front = set_scalar(updated_front, "assignee", st.assignee)
     if st.agent:

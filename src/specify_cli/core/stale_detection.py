@@ -10,7 +10,7 @@ period, the WP is considered stale.
 
 FR-005 (claim-liveness re-point): claim-liveness inputs (``shell_pid`` /
 ``shell_pid_created_at``) resolve from the reduced event-sourced snapshot when
-the phase-1 dual-write flag (:func:`specify_cli.status.emit._phase1_dual_write_enabled`)
+the phase-1 dual-write flag (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`)
 resolves ON for the WP's feature directory; the frontmatter-extracted values the
 caller still supplies remain the tolerated migration-window fallback (flag OFF).
 Once ON, the snapshot is the sole authority for this call -- it is never
@@ -26,7 +26,7 @@ from typing import Any, cast
 
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
-from specify_cli.status.emit import _phase1_dual_write_enabled
+from specify_cli.status.emit import _phase1_snapshot_authority_active
 from specify_cli.status.reducer import reduce as _reduce_snapshot
 from specify_cli.status.store import read_event_stream as _read_event_stream
 from specify_cli.workspace.context import resolve_workspace_for_wp
@@ -304,7 +304,7 @@ def _resolve_claim_liveness_inputs(
     ``str`` here so the return shape matches what callers have always passed
     (frontmatter is always string-typed).
     """
-    if feature_dir is None or not _phase1_dual_write_enabled(feature_dir):
+    if feature_dir is None or not _phase1_snapshot_authority_active(feature_dir):
         return shell_pid, shell_pid_baseline
 
     wp_state = _read_wp_runtime_snapshot_state(feature_dir, wp_id)

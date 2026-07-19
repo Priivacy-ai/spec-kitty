@@ -336,7 +336,7 @@ def activity_entries(
 
     SC-004 (behind the FR-005 flag): when *feature_dir* and *wp_id* are BOTH
     supplied and the phase-1 dual-write flag
-    (:func:`specify_cli.status.emit._phase1_dual_write_enabled`) resolves ON
+    (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`) resolves ON
     for *feature_dir*, the reduced snapshot's event-sourced transition history
     and ``note`` annotations for *wp_id* are folded in ADDITION to the
     body-parsed rows above — never in place of them (:func:`_snapshot_activity_entries`).
@@ -347,9 +347,9 @@ def activity_entries(
     if feature_dir is None or wp_id is None:
         return entries
 
-    from specify_cli.status.emit import _phase1_dual_write_enabled  # noqa: PLC0415
+    from specify_cli.status.emit import _phase1_snapshot_authority_active  # noqa: PLC0415
 
-    if not _phase1_dual_write_enabled(feature_dir):
+    if not _phase1_snapshot_authority_active(feature_dir):
         return entries
 
     from specify_cli.status.store import read_event_stream  # noqa: PLC0415
@@ -387,7 +387,7 @@ class WorkPackage:
         """Return the reduced-snapshot per-WP runtime state, flag-gated (FR-005).
 
         Returns ``None`` ONLY when the phase-1 dual-write flag
-        (:func:`specify_cli.status.emit._phase1_dual_write_enabled`) resolves
+        (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`) resolves
         OFF for this WP's feature directory -- the sole signal telling
         callers to fall back to frontmatter (today's behavior). When the flag
         is ON, an absent snapshot entry is a valid authoritative empty
@@ -402,12 +402,12 @@ class WorkPackage:
         if self._snapshot_state_loaded:
             return self._snapshot_state_cache
 
-        from specify_cli.status.emit import _phase1_dual_write_enabled  # noqa: PLC0415
+        from specify_cli.status.emit import _phase1_snapshot_authority_active  # noqa: PLC0415
 
         # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
         # feature_dir is the parent of the tasks/ directory
         feature_dir = self.path.parent.parent
-        if not _phase1_dual_write_enabled(feature_dir):
+        if not _phase1_snapshot_authority_active(feature_dir):
             self._snapshot_state_loaded = True
             self._snapshot_state_cache = None
             return None

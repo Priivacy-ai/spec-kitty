@@ -543,7 +543,7 @@ def test_guard_subtasks_flag_off_uses_legacy_tuple(tmp_path: Path) -> None:
     when a feature_dir is supplied (legacy ``tasks.md`` path until WP03 verify)."""
     feature_dir = tmp_path / "kitty-specs" / "legacy-mission"
     (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
-    # No meta.json / status_phase != 1 -> _phase1_dual_write_enabled is False.
+    # No meta.json / status_phase != 1 -> _phase1_snapshot_authority_active is False.
     req = _base_request(
         task_id="WP01",
         target_lane="for_review",

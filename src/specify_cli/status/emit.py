@@ -302,7 +302,7 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
 def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     """Infer subtask completion for a WP, flag-gated on the read source.
 
-    Two read paths, selected by :func:`_phase1_dual_write_enabled`:
+    Two read paths, selected by :func:`_phase1_snapshot_authority_active`:
 
     - **flag ON** — re-source from the reduced snapshot ``subtasks`` slot
       (:func:`_infer_subtasks_complete_from_snapshot`). This is the target
@@ -322,7 +322,7 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     subtask rows / no subtasks in the snapshot) is "nothing to block on" and
     returns ``True``.
     """
-    if _phase1_dual_write_enabled(feature_dir):
+    if _phase1_snapshot_authority_active(feature_dir):
         return _infer_subtasks_complete_from_snapshot(feature_dir, wp_id)
 
     tasks_path = feature_dir / TASKS_MD_FILENAME
@@ -367,7 +367,13 @@ def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
 
 
-def _phase1_dual_write_enabled(feature_dir: Path) -> bool:
+# Two-usage foot-gun (full SPLIT into a second predicate is DEFERRED to #2816):
+# the two owners read this flag with OPPOSITE meanings —
+#   * runtime slots (#2684, ``_mt_persist_wp_file``): active -> event-only, SKIP
+#     the WP-file god-write (the reduced snapshot is the authority);
+#   * legacy lane-mirror (``_mirror_phase1_frontmatter_lane``): active -> the
+#     ``lane`` field is still frontmatter-authored (mirror the canonical lane).
+def _phase1_snapshot_authority_active(feature_dir: Path) -> bool:
     """Return True when this feature explicitly requests phase-1 mirroring.
 
     Uses on_malformed="none" so both missing and malformed meta.json degrade
@@ -409,7 +415,7 @@ def _mirror_phase1_frontmatter_lane(feature_dir: Path, wp_id: str, lane: str) ->
     It never creates a new ``lane`` field; it only updates an already-present
     field so stale consumers can observe the canonical state during cutover.
     """
-    if not _phase1_dual_write_enabled(feature_dir):
+    if not _phase1_snapshot_authority_active(feature_dir):
         return
 
     wp_file = _find_wp_file(feature_dir, wp_id)

@@ -26,7 +26,7 @@ from specify_cli.status.emit import (
     _legacy_alias_collapses_to_current_lane,
     _load_mission_id,
     _mirror_phase1_frontmatter_lane,
-    _phase1_dual_write_enabled,
+    _phase1_snapshot_authority_active,
     _saas_fan_out,
     emit_status_transition,
     emit_status_transition_batch,
@@ -907,7 +907,7 @@ class TestPhase1CompatibilityBridge:
         (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
 
         with caplog.at_level("WARNING"):
-            assert _phase1_dual_write_enabled(feature_dir) is False
+            assert _phase1_snapshot_authority_active(feature_dir) is False
 
         assert "Invalid meta.json" in caplog.text
 
@@ -918,7 +918,7 @@ class TestPhase1CompatibilityBridge:
         """Missing meta.json silently disables phase-1 mirroring (returns False)."""
         assert not (feature_dir / "meta.json").exists()
 
-        assert _phase1_dual_write_enabled(feature_dir) is False
+        assert _phase1_snapshot_authority_active(feature_dir) is False
 
     def test_find_wp_file_handles_missing_tasks_and_multiple_matches(
         self,
@@ -947,7 +947,7 @@ class TestPhase1CompatibilityBridge:
         wp_file.write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
 
         write_mock = MagicMock()
-        monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
+        monkeypatch.setattr(emit_module, "_phase1_snapshot_authority_active", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
         # WPMetadata with no lane field — mirror should be a no-op (no lane to update)
         monkeypatch.setattr(
@@ -972,7 +972,7 @@ class TestPhase1CompatibilityBridge:
         wp_file.parent.mkdir()
         wp_file.write_text("---\nwork_package_id: WP01\nlane: planned\n---\n", encoding="utf-8")
 
-        monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
+        monkeypatch.setattr(emit_module, "_phase1_snapshot_authority_active", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
 
         # Part 1: read_wp_frontmatter raises FrontmatterError → logged as "Failed to read"

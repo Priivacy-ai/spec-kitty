@@ -272,3 +272,40 @@ def test_annotation_fold_does_not_rescan_transitions_ie_o_events() -> None:
     assert few == many
     # And it is a small constant (a single dedup walk), not per-annotation.
     assert few <= 2
+
+
+@pytest.mark.parametrize("stream_order", ["file_order", "reversed"])
+def test_same_field_annotations_resolve_by_timestamp_not_stream_order(
+    stream_order: str,
+) -> None:
+    """Two annotations writing the SAME field resolve to the later-``at`` value
+    regardless of their order in the stream.
+
+    The fold sorts annotations by ``(at, event_id)`` (mirroring the transition
+    pass) so a same-field conflict is broken by timestamp, not merge-order —
+    otherwise a parallel-worktree merge that interleaves the two rows
+    non-deterministically would flip the winner (the #2684 alphonso finding).
+    """
+    t1 = _transition(_ulid("T01"), "WP01", "genesis", "planned", "2026-01-01T00:00:00Z")
+    # Earlier timestamp -> "early"; later timestamp -> "late". The later-``at``
+    # value MUST win. The event_ids are chosen so ULID order does NOT rescue a
+    # naive tie-break (A_late's id sorts BEFORE A_early's).
+    ann_early = _annotation(
+        _ulid("Z_EARLY"), "WP01", "2026-01-02T00:00:00Z",
+        WPInnerStateDelta(assignee="early"),
+    )
+    ann_late = _annotation(
+        _ulid("A_LATE"), "WP01", "2026-01-02T09:00:00Z",
+        WPInnerStateDelta(assignee="late"),
+    )
+
+    annotations = [ann_early, ann_late]
+    if stream_order == "reversed":
+        annotations = list(reversed(annotations))
+
+    snapshot = reduce([t1], annotations)
+
+    assert snapshot.work_packages["WP01"]["assignee"] == "late", (
+        "same-field annotation conflict must resolve to the later-`at` write, "
+        f"not the stream/file-order last write (order={stream_order})"
+    )
