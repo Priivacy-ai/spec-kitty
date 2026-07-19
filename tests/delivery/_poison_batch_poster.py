@@ -71,10 +71,19 @@ class _AllOrNothingBatchPoster:
                 results.append({"event_id": eid, "status": "success"})
         return _FakeResponse(200, {"results": results})
 
+    def _singleton_posts(self) -> list[list[str]]:
+        """The size-1 POSTs (each isolated a single event), in receipt order.
+
+        Single source of truth for "a POST that isolated one event" — the set-view
+        and tuple-view accessors below both derive from this, so the singleton
+        predicate (a size-1 batch *is* the isolation contract) lives in one place.
+        """
+        return [post for post in self.receipt_log if len(post) == 1]  # golden-count: cardinality-is-contract
+
     def singleton_posts(self) -> list[set[str]]:
         """The size-1 POSTs, as id-sets — where an isolated culprit must land."""
-        return [set(post) for post in self.receipt_log if len(post) == 1]
+        return [set(post) for post in self._singleton_posts()]
 
     def singleton_post_tuples(self) -> list[tuple[str, ...]]:
         """The size-1 POSTs, as ordered id-tuples (for repeat/termination checks)."""
-        return [tuple(post) for post in self.receipt_log if len(post) == 1]
+        return [tuple(post) for post in self._singleton_posts()]

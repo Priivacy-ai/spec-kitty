@@ -45,6 +45,8 @@ import pytest
 from specify_cli.status.models import GuardContext, Lane, ReviewResult
 from specify_cli.status.wp_state import wp_state_for
 
+pytestmark = pytest.mark.fast
+
 # --- Evidence-only, no-force contexts (force defaults to False on GuardContext) ---
 
 _ACTOR = "claude"

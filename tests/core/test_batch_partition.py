@@ -14,7 +14,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+import pytest
+
 from specify_cli.core.batch_partition import create_aware_midpoint, split_in_half
+
+pytestmark = pytest.mark.fast
 
 
 # --------------------------------------------------------------------------- #
