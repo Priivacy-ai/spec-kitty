@@ -46,3 +46,25 @@ def _portable_cli_render_env() -> Iterator[None]:
     finally:
         console.set_plain(False)
         err_console.set_plain(False)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unset the sync-disable toggles the pre-review gate reuses, per test (#2794).
+
+    The pre-review regression gate reuses the sync layer's process-wide opt-outs
+    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` / ``SPEC_KITTY_SYNC_DISABLE`` (see
+    ``tasks_move_task._PRE_REVIEW_GATE_DISABLE_ENV_VARS``). In the whole-tree
+    parallel run (``-n auto --dist loadfile``) one of those vars can be present in
+    the xdist worker — leaked mid-run from a sibling test or daemon path — which
+    silently *skips* the gate and reds the gate-observability tests that assert it
+    RUNS (issue #2794). Unsetting both toggles before every test in this package
+    makes those tests worker- and order-independent, and neutralises the
+    ``monkeypatch.setenv`` "restore-to-a-leaked-value" perpetuation.
+
+    The escape-hatch tests that assert the gate is *skipped* set these toggles
+    themselves inside the test body (after this fixture runs), so they are
+    unaffected. No production behaviour changes — this only isolates the test env.
+    """
+    monkeypatch.delenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
