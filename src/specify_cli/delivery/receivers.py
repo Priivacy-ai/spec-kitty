@@ -520,9 +520,13 @@ class _HttpReceiver:
     ) -> tuple[int | None, Mapping[str, Any] | None]:
         """POST *events* once and return ``(status, body)``; a single clean send seam.
 
-        A transport-level timeout/connection error returns ``(None, None)`` so the
-        recursion can classify the whole batch as ``transient`` without splitting it
-        (splitting a transport failure would only multiply transients).
+        A transport-level timeout/connection error returns ``(None, {"error": <exc>})``
+        — a ``None`` status still signals "do not split" to the recursion (classify the
+        whole batch as ``transient`` without splitting it, since splitting a transport
+        failure would only multiply transients), while the body's ``error`` threads the
+        underlying exception detail (timeout vs connection-refused vs DNS) through to
+        the mapped result so it is not lost behind the bare ``transport failure``
+        constant.
         """
         headers = {**self.auth_headers(), _H_CONTENT_ENCODING: _GZIP, _H_CONTENT_TYPE: _JSON}
         payload = gzip.compress(_build_payload(events))
@@ -530,8 +534,8 @@ class _HttpReceiver:
             response = self._poster(
                 self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS
             )
-        except requests.RequestException:
-            return None, None
+        except requests.RequestException as exc:
+            return None, {"error": str(exc)}
         return response.status_code, _safe_json(response)
 
     def _bisect_send(self, events: Sequence[OutboundEvent]) -> list[DeliveryResult]:
@@ -544,13 +548,22 @@ class _HttpReceiver:
         can, so the recursion must). The ``len == 1`` base maps the isolated culprit to
         its own ``rejected`` reason; every other response defers to the shared mapper.
         """
+        if not events:
+            # Self-defending leaf (mirrors deliver()'s guard): the midpoint clamp
+            # ``max(1, min(mid, len - 1))`` collapses to ``1`` for ``len == 0``, which
+            # would split ``[]`` into two more empty batches and recurse forever if a
+            # future caller ever reached _bisect_send([]) directly. Short-circuit
+            # before any POST.
+            return []
         status, body = self._attempt_batch_send(events)
         if status is None:
+            detail = body.get("error") if body else None
+            error = f"{_TRANSPORT_ERROR_PREFIX}: {detail}" if detail else _TRANSPORT_ERROR_PREFIX
             return _all_outcome(
                 events,
                 DeliveryOutcome.TRANSIENT,
                 http_status=None,
-                error=_TRANSPORT_ERROR_PREFIX,
+                error=error,
                 body=None,
             )
         if _is_poison_400(status, body):
