@@ -122,7 +122,7 @@ def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
 def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
     """FR-005/C-001 dual-write gate for the shell_pid claim frontmatter mirror.
 
-    Reuses WP01/WP03's existing ``status/emit.py::_phase1_dual_write_enabled``
+    Reuses WP01/WP03's existing ``status/emit.py::_phase1_snapshot_authority_active``
     compatibility-bridge flag (``meta.json`` ``status_phase: "1"``): while the
     flag is unset/off (the pre-verify default -- true for every mission
     today), the frontmatter mirror stays MANDATORY so a fresh claim is never
@@ -132,9 +132,9 @@ def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
     the mirror is torn down -- WP07 owns that teardown; WP10 only verifies it
     via the FR-013 no-dual-home arch test.
     """
-    from specify_cli.status.emit import _phase1_dual_write_enabled
+    from specify_cli.status.emit import _phase1_snapshot_authority_active
 
-    return not _phase1_dual_write_enabled(feature_dir)
+    return not _phase1_snapshot_authority_active(feature_dir)
 
 
 def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:

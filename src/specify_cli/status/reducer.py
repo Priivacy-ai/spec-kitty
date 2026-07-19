@@ -293,7 +293,13 @@ def reduce(
     # transition, never interleaved by timestamp). A single O(annotations) walk
     # keyed by wp_id; it does NOT re-scan the transition list. An annotation for
     # a wp_id with no prior transition materialises a runtime-only WP entry.
-    for annotation in annotations:
+    #
+    # Sort by ``(at, event_id)`` — the SAME key as the transition pass (Step 2) —
+    # so two annotations touching the same field resolve by timestamp, not by
+    # merge/file order. Without this, a parallel-worktree merge that interleaves
+    # the rows non-deterministically would flip the winner (#2684 determinism).
+    sorted_annotations = sorted(annotations, key=lambda a: (a.at, a.event_id))
+    for annotation in sorted_annotations:
         wp_state = wp_states.get(annotation.wp_id)
         if wp_state is None:
             wp_state = _runtime_only_wp_state(annotation.actor)

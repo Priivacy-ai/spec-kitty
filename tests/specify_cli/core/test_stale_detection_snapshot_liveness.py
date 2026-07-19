@@ -8,7 +8,7 @@ than spread across per-module test files this WP does not own.
 Central proof (T021, this file's namesake): ``check_wp_staleness``'s
 claim-liveness decision is driven by the reduced event-sourced snapshot, not
 frontmatter, once the FR-005 phase-1 dual-write flag
-(``specify_cli.status.emit._phase1_dual_write_enabled``) resolves ON — a live
+(``specify_cli.status.emit._phase1_snapshot_authority_active``) resolves ON — a live
 snapshot PID under EMPTY frontmatter reads live (SC-002/AC-2 live side), and
 mutating ONLY the snapshot's PID (never the frontmatter/args) flips it stale
 (SC-002/AC-2 dead side). Both polarities are made deterministic by

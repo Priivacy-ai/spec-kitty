@@ -1492,15 +1492,15 @@ def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
     Mirrors ``cli.commands.agent.workflow_executor._shell_pid_dual_write_active``
     (duplicated rather than imported -- same lower-layer/agent-package
     boundary reason as :func:`_claim_policy_metadata` above). Reuses WP01/
-    WP03's existing ``status/emit.py::_phase1_dual_write_enabled``
+    WP03's existing ``status/emit.py::_phase1_snapshot_authority_active``
     compatibility-bridge flag: while unset/off (the pre-verify default),
     the frontmatter mirror stays MANDATORY; once an operator flips
     ``status_phase`` to ``"1"`` (post WP03 backfill+verify / WP05 reader
     cutover), it is torn down.
     """
-    from specify_cli.status.emit import _phase1_dual_write_enabled
+    from specify_cli.status.emit import _phase1_snapshot_authority_active
 
-    return not _phase1_dual_write_enabled(feature_dir)
+    return not _phase1_snapshot_authority_active(feature_dir)
 
 
 def _start_wp_implementation_status(

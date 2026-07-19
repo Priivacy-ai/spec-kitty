@@ -172,7 +172,7 @@ def _build_single_branch_mission_with_in_progress_wp(
     assert meta.get("coordination_branch") is None, "single_branch mission is coordination-less"
 
     # #2684 target state requires the phase-1 cutover ON; the foundation
-    # convention (status/emit.py::_phase1_dual_write_enabled) is flag ON ->
+    # convention (status/emit.py::_phase1_snapshot_authority_active) is flag ON ->
     # snapshot-sourced completion, flag OFF -> legacy tasks.md (the pre-cutover
     # default). This out-of-map edit flips this pinned test onto that flag so
     # the invariant-1 assertion exercises the event-sourced reader, not the

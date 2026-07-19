@@ -76,7 +76,7 @@ def _ulid(suffix: str) -> str:
 def _seed_feature_dir(tmp_path: Path, tasks_md: str) -> Path:
     """Minimal primary-partition mission dir: ``kitty-specs/<slug>/tasks.md``.
 
-    No ``meta.json`` is written by default — ``_phase1_dual_write_enabled``
+    No ``meta.json`` is written by default — ``_phase1_snapshot_authority_active``
     (``status/emit.py``) treats a missing/malformed ``meta.json`` as False,
     which is the default, PRE-CUTOVER state every mission starts in (legacy
     ``tasks.md`` remains the tolerated authority). Snapshot-sourced fixtures
@@ -95,7 +95,7 @@ def _seed_phase1_flag(feature_dir: Path) -> None:
     """Opt a fixture's mission into the phase-1 dual-write cutover.
 
     Matches the foundation convention (``status/emit.py::
-    _phase1_dual_write_enabled`` / WP01's ``_infer_subtasks_complete`` / WP02's
+    _phase1_snapshot_authority_active`` / WP01's ``_infer_subtasks_complete`` / WP02's
     ``_snapshot_unchecked_subtasks``): flag ON -> snapshot-sourced completion,
     flag OFF (the default, no ``meta.json``) -> legacy ``tasks.md``.
     """

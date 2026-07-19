@@ -25,7 +25,7 @@ ON, the event-sourced read path):
    re-homing any of them turns this red.
 
 3. **The phase-1 flag is the SOLE sanctioned migration-window fallback** — the
-   tolerated-gate set is exactly ``{_phase1_dual_write_enabled}`` (NOT empty, as
+   tolerated-gate set is exactly ``{_phase1_snapshot_authority_active}`` (NOT empty, as
    a post-cutover world would assume — the corpus cutover is deferred). A
    SECOND, competing authority gate introduced into the reader path turns this
    red.
@@ -69,7 +69,7 @@ _TOLERATED_MIGRATION_WINDOW_SLOTS: frozenset[str] = frozenset(
 #: The single sanctioned migration-window authority gate. NOT empty: the corpus
 #: ``backfill -> verify -> cutover`` is deferred, so the flag-gated frontmatter
 #: fallback is retained. A second gate here is a #2093 regression.
-_TOLERATED_MIGRATION_GATES: frozenset[str] = frozenset({"_phase1_dual_write_enabled"})
+_TOLERATED_MIGRATION_GATES: frozenset[str] = frozenset({"_phase1_snapshot_authority_active"})
 
 
 def _feature_with_flag(tmp_path: Path, *, flag_on: bool) -> tuple[Path, Path]:
@@ -248,8 +248,11 @@ def _repo_root() -> Path:
 
 def _referenced_gate_symbols(module_path: Path) -> set[str]:
     """Every referenced identifier on the reader-authority path that plays a
-    migration-flag role (name contains ``dual_write`` or ``phase`` + a gate
-    suffix). AST-based so it survives relocation/renaming of surrounding code.
+    migration-flag role (name contains ``dual_write``, or ``phase`` + a gate
+    suffix ``enabled``/``authority``). AST-based so it survives
+    relocation/renaming of surrounding code — the ``authority`` arm tracks the
+    ``_phase1_snapshot_authority_active`` rename (the sanctioned gate no longer
+    ends in ``enabled``).
     """
     tree = ast.parse(module_path.read_text(encoding="utf-8"))
     gates: set[str] = set()
@@ -261,14 +264,18 @@ def _referenced_gate_symbols(module_path: Path) -> set[str]:
             name = node.attr
         elif isinstance(node, ast.FunctionDef):
             name = node.name
-        if name and ("dual_write" in name or ("phase" in name and name.endswith("enabled"))):
+        if name and (
+            "dual_write" in name
+            or ("phase" in name and name.endswith("enabled"))
+            or ("phase" in name and "authority" in name)
+        ):
             gates.add(name)
     return gates
 
 
 def test_phase1_flag_is_the_sole_tolerated_migration_gate() -> None:
     """Across the reader-authority modules, the ONLY migration-window authority
-    gate is ``_phase1_dual_write_enabled``. A second dual-write / phase flag
+    gate is ``_phase1_snapshot_authority_active``. A second dual-write / phase flag
     (competing authority) fails here."""
     root = _repo_root()
     discovered: set[str] = set()
@@ -279,7 +286,7 @@ def test_phase1_flag_is_the_sole_tolerated_migration_gate() -> None:
     unexpected = discovered - _TOLERATED_MIGRATION_GATES
     assert not unexpected, (
         "a migration-window authority gate OTHER than the sanctioned "
-        f"_phase1_dual_write_enabled was found on the reader path: {sorted(unexpected)} "
+        f"_phase1_snapshot_authority_active was found on the reader path: {sorted(unexpected)} "
         "(a second authority path is the #2093 split-brain this mission closes)"
     )
     # The tolerated set is non-empty and really present (the deferred cutover

@@ -438,7 +438,7 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     (C-001: reader/writer switch atomically).
 
     Re-sourcing is gated behind the shared
-    ``status/emit.py::_phase1_dual_write_enabled`` flag (do not fork a second
+    ``status/emit.py::_phase1_snapshot_authority_active`` flag (do not fork a second
     one, #2093/FR-013), using the same ON/OFF convention as the WP01 canonical
     (``status/emit.py::_infer_subtasks_complete``) and WP02
     (``tasks_transition_core.py::_snapshot_unchecked_subtasks``) readers of
@@ -498,9 +498,9 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     if not roster:
         return []
 
-    from specify_cli.status.emit import _phase1_dual_write_enabled
+    from specify_cli.status.emit import _phase1_snapshot_authority_active
 
-    if not _phase1_dual_write_enabled(feature_dir):
+    if not _phase1_snapshot_authority_active(feature_dir):
         # Default / pre-cutover: tasks.md remains the tolerated authority
         # until this mission is explicitly cut over (flag ON).
         return [task_id for task_id, checked in roster if not checked]

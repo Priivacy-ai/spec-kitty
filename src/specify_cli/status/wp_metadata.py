@@ -604,7 +604,7 @@ def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> W
     reassignment slot) -- stays frontmatter-canonical and is left untouched.
 
     Behind the phase-1 dual-write flag
-    (:func:`specify_cli.status.emit._phase1_dual_write_enabled`):
+    (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`):
 
     - OFF: *metadata* is returned unchanged -- today's frontmatter-
       authoritative behavior, zero regression.
@@ -619,10 +619,10 @@ def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> W
     circular import -- ``emit.py`` already imports :func:`read_wp_frontmatter`
     from this module at module scope.
     """
-    from specify_cli.status.emit import _phase1_dual_write_enabled  # noqa: PLC0415
+    from specify_cli.status.emit import _phase1_snapshot_authority_active  # noqa: PLC0415
 
     feature_dir = path.parent.parent
-    if not _phase1_dual_write_enabled(feature_dir):
+    if not _phase1_snapshot_authority_active(feature_dir):
         return metadata
 
     from specify_cli.status.reducer import reduce as _reduce_snapshot  # noqa: PLC0415
