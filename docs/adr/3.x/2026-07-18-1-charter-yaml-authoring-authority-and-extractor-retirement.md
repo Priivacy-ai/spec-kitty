@@ -80,6 +80,10 @@ This aligns with ADR 2026-07-15-1 ("Doctrine offers, charter activates, runtime 
 * The doctrine language-scoping tier-3 `charter.md` fallback (`language_scope.py:103`) is orthogonal; it is **folded into this mission** as FR-009/IC-08 (migrated off `charter.md` prose to the structured catalog `languages`), so `charter.md` is behaviorally inert by mission end.
 * `#2772` is folded (the guard) / superseded (the derive path stops writing `charter.md` once the extractor retires).
 
+#### Amendment (2026-07-19, #2800 landing pass)
+
+The original outcome — the *compiler* (`write_compiled_charter`) never writes `charter.md` — is preserved. But "generate never writes charter.md **at all**" left a fresh project with no companion and no signal that one should exist (and stranded the FR-009 golden-path affordance). Refined: the **`charter generate` command** now seeds a minimal starter `charter.md` **only when the file is absent** (`_seed_charter_md_companion_if_absent`). This is *create-if-absent* — an existing curated `charter.md` is left byte-for-byte untouched, so the never-clobber invariant (#2772 / IC-03, pinned by `test_generate_force_preserves_curated_charter_prose_2772`) is fully preserved, and the companion is discoverable. `charter.md` remains display-only and never a resolving input.
+
 ### Confirmation
 
 * #2773 ships `charter.yaml` with authorable governance/directive/catalog fields; its migration is a deterministic idempotent yaml→yaml fold (second run reports 0 changes).
