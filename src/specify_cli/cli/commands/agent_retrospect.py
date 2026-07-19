@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +26,7 @@ from typing_extensions import Annotated
 from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, ResolvedMission, resolve_mission
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.paths import locate_project_root
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
     apply_proposals,
@@ -178,7 +178,7 @@ def _build_json_envelope(
     envelope: dict[str, object] = {
         "schema_version": "1",
         "command": "agent.retrospect.synthesize",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_utc_iso(),
         "dry_run": dry_run,
         "status": status,
         "outcome": outcome,
@@ -280,7 +280,7 @@ def _create_empty_retrospective_record(
         gen_record directly without re-reading the YAML via the Pydantic reader.
     """
     del feature_dir
-    now = datetime.now(timezone.utc).isoformat()
+    now = now_utc_iso()
     gen_actor = GenActor(kind=actor.kind, id=actor.id)
     record = GenRetrospectiveRecord(
         schema_version=1,

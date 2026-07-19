@@ -34,6 +34,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
 from specify_cli.invocation.adapters import resolve_sync_routing
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
@@ -203,15 +204,13 @@ def _log_propagation_error(
 ) -> None:
     """Append propagation failure to the local error log.  Never raises."""
     try:
-        import datetime  # noqa: PLC0415
-
         error_log = repo_root / PROPAGATION_ERRORS_PATH
         error_log.parent.mkdir(parents=True, exist_ok=True)
         entry = {
             "invocation_id": record.invocation_id,
             "event": record.event,
             "error": error,
-            "at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "at": now_utc_iso(),
         }
         with error_log.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")

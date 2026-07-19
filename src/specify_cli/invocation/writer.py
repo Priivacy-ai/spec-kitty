@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import datetime
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
@@ -168,7 +168,7 @@ class InvocationWriter:
         path = self.invocation_path(invocation_id)
         if not path.exists():
             raise InvocationError(f"Invocation record not found: {invocation_id}")
-        at_ts = at or datetime.datetime.now(datetime.UTC).isoformat()
+        at_ts = at or now_utc_iso()
         entry: dict[str, object] = {
             "event": "artifact_link" if ref is not None else "commit_link",
             "invocation_id": invocation_id,

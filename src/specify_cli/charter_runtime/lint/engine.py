@@ -13,10 +13,11 @@ Zero LLM calls.  All checks are pure graph traversal.
 
 from __future__ import annotations
 
-import datetime
 import logging
 import time
 from pathlib import Path
+
+from specify_cli.core.time_utils import now_utc_iso
 
 from .findings import DecayReport, GraphState, LintFinding
 from .checks.orphan import OrphanChecker
@@ -106,7 +107,7 @@ class LintEngine:
             )
             empty = DecayReport(
                 findings=[],
-                scanned_at=datetime.datetime.now(datetime.UTC).isoformat(),
+                scanned_at=now_utc_iso(),
                 feature_scope=feature_scope,
                 duration_seconds=0.0,
                 drg_node_count=0,
@@ -139,7 +140,7 @@ class LintEngine:
 
         report = DecayReport(
             findings=all_findings,
-            scanned_at=datetime.datetime.now(datetime.UTC).isoformat(),
+            scanned_at=now_utc_iso(),
             feature_scope=feature_scope,
             duration_seconds=round(duration, 3),
             drg_node_count=len(list(getattr(drg, "nodes", []))),
