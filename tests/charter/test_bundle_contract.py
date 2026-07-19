@@ -39,9 +39,30 @@ _CHARTER_BODY = """\
 - Derivatives regenerate on demand.
 """
 
+# Schema-plausible ``charter.yaml`` body (manifest v2.0.0). The v2 manifest
+# (``CANONICAL_MANIFEST.tracked_files = [charter.md, charter.yaml]``) tracks
+# BOTH files as authored — this mirrors the minimal round-trippable instance
+# from ``kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/
+# charter-yaml-schema.md`` and the ``_CHARTER_YAML_BODY`` fixture already used
+# by ``tests/charter/test_bundle_content_hash.py``.
+_CHARTER_YAML_BODY = """\
+schema_version: '2.0.0'
+governance: {}
+directives:
+  directives: []
+catalog:
+  mission: bundle-contract-fixture
+  template_set: default
+  languages: []
+  references: []
+metadata:
+  generated_at: '2026-01-01T00:00:00+00:00'
+  bundle_schema_version: 2
+"""
+
 
 def _init_fixture(repo_root: Path) -> Path:
-    """Initialize a git repo with charter.md tracked; return the root."""
+    """Initialize a git repo with charter.md + charter.yaml tracked; return the root."""
     subprocess.run(["git", "init", "--quiet", str(repo_root)], check=True)
     subprocess.run(
         ["git", "-C", str(repo_root), "config", "user.email", "bundle@example.com"],
@@ -56,14 +77,24 @@ def _init_fixture(repo_root: Path) -> Path:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text(_CHARTER_BODY, encoding="utf-8")
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML_BODY, encoding="utf-8")
 
-    # Stage + commit charter.md + .gitignore (the only tracked state).
+    # Stage + commit charter.md + charter.yaml + .gitignore (the only tracked
+    # state) — the v2 manifest tracks both charter files as authored.
     subprocess.run(
-        ["git", "-C", str(repo_root), "add", ".gitignore", ".kittify/charter/charter.md"],
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "add",
+            ".gitignore",
+            ".kittify/charter/charter.md",
+            ".kittify/charter/charter.yaml",
+        ],
         check=True,
     )
     subprocess.run(
-        ["git", "-C", str(repo_root), "commit", "-q", "-m", "fixture: charter.md"],
+        ["git", "-C", str(repo_root), "commit", "-q", "-m", "fixture: charter.md + charter.yaml"],
         check=True,
     )
     return repo_root

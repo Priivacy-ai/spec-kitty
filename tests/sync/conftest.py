@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from specify_cli.core.env import SYNC_DISABLE_ENV_VARS
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.clock import LamportClock
@@ -134,6 +135,38 @@ def emitter(
         _git_resolver=mock_git_resolver,  # Pre-populate with mock git resolver
     )
     return em
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unset the sync-disable toggles the pre-review gate reuses, per test (#2794/#2809).
+
+    Mirrors the fixture at
+    ``tests/specify_cli/cli/commands/agent/conftest.py`` (added under #2794).
+    The pre-review regression gate reuses the sync layer's process-wide
+    opt-outs ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` / ``SPEC_KITTY_SYNC_DISABLE``
+    (the canonical ``core.env.SYNC_DISABLE_ENV_VARS``). In the
+    whole-tree parallel run (``-n auto --dist loadfile``) one of those vars
+    can be present in the xdist worker -- leaked mid-run from a sibling test
+    or daemon path -- which silently *skips* sync-dependent assertions in
+    ``tests/sync/`` and reds tests that assert a live sync diagnostic fired
+    (issue #2809). Unsetting both toggles before every test in this package
+    makes those tests worker- and order-independent, and neutralises the
+    ``monkeypatch.setenv`` "restore-to-a-leaked-value" perpetuation.
+
+    Tests that need a toggle set set it themselves inside the test body
+    (after this fixture runs), so they are unaffected. No production
+    behaviour changes -- this only isolates the test env.
+
+    Note (#2782): this fixture only guards against a *leaked toggle*
+    silently disabling sync. It does not -- and cannot -- paper over a
+    genuine live-connection failure in the sync layer (e.g. a real
+    ``Connection refused`` from the ``final_sync`` phase); that failure
+    mode is tracked separately under #2782 and is orthogonal to what this
+    fixture isolates.
+    """
+    for _name in SYNC_DISABLE_ENV_VARS:
+        monkeypatch.delenv(_name, raising=False)
 
 
 @pytest.fixture

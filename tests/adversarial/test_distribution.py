@@ -233,5 +233,20 @@ class TestUpgradeWithAllMissions:
             cwd=str(project_dir),
         )
 
+        # Auth-env guard: `spec-kitty upgrade` performs a connected-teamspace auth
+        # check. In a logged-out environment (e.g. CI without credentials) the
+        # child emits a `logged_out_on_connected_teamspace` banner and exits
+        # non-zero before doing real work — that is an environment condition,
+        # not a product regression, so skip rather than red the suite. Detection
+        # mirrors the canonical banner check used elsewhere (e.g.
+        # tests/charter/evidence/test_orchestrator.py::test_dry_run_evidence_on_spec_kitty_repo).
+        if "logged_out_on_connected_teamspace" in upgrade_result.stdout or (
+            "logged_out_on_connected_teamspace" in upgrade_result.stderr
+        ):
+            pytest.skip(
+                "spec-kitty upgrade requires connected-teamspace auth; skipping in a "
+                "logged-out environment (e.g. CI without credentials)."
+            )
+
         # Upgrade should complete (may report "already up to date")
         assert upgrade_result.returncode == 0, f"Upgrade failed: {upgrade_result.stderr}"
