@@ -26,9 +26,9 @@ from typing import Any, cast
 
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
-from specify_cli.status.emit import _phase1_snapshot_authority_active
-from specify_cli.status.reducer import reduce as _reduce_snapshot
-from specify_cli.status.store import read_event_stream as _read_event_stream
+from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
+from specify_cli.status import reduce as _reduce_snapshot
+from specify_cli.status import read_event_stream as _read_event_stream
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"

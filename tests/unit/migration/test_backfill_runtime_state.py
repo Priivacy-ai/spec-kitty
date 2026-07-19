@@ -30,6 +30,8 @@ from specify_cli.status.store import (
 from specify_cli.status.wp_state import annotate
 from tests.unit.migration._backfill_fixture import CLAIMED_AT, build_mission
 
+pytestmark = [pytest.mark.fast]
+
 SRC_ROOT = Path(specify_cli.__file__).resolve().parent
 
 

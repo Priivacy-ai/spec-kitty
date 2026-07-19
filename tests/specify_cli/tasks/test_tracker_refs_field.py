@@ -4,7 +4,8 @@ Covers:
 - Backward compatibility — WP frontmatter without ``tracker_refs`` still loads.
 - Field present and populated round-trips correctly.
 - Legacy scalar-string form is normalised to a list.
-- ``map-requirements --tracker-ref '#1298' --wp WP01`` persists into frontmatter.
+- ``map-requirements --tracker-ref '#1298' --wp WP01`` persists into the
+  event-sourced snapshot (tracker_refs is evicted from frontmatter; #2684).
 """
 
 from __future__ import annotations
@@ -158,10 +159,21 @@ class TestMapRequirementsTrackerRef:
                 "--json",
             ],
         )
-        # Even if the wrapping output prints non-zero on lint-validate warnings,
-        # the persistence side-effect is what we assert.  Read the resulting WP.
-        wp_file = repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
-        meta, _ = read_wp_frontmatter(wp_file)
-        assert "#1298" in meta.tracker_refs, (
-            f"--tracker-ref did not persist. CLI exit={result.exit_code} stdout={result.stdout!r}"
+        # #2684 re-point: ``tracker_refs`` is event-sourced, NOT a frontmatter
+        # field. It was intentionally evicted from the WP frontmatter to the
+        # canonical event log (WP07/T029, FR-006/FR-013); dual-homing it in
+        # frontmatter is the #2093 violation the WP10 arch gate catches, so this
+        # holds at flag OFF too (there is no legacy frontmatter write to restore).
+        # The reducer owns the tracker_refs union, so assert on the reduced
+        # snapshot's WP slot — the surface production readers consume — rather
+        # than a frontmatter field.
+        from specify_cli.status import read_event_stream, reduce
+
+        feature_dir = repo / "kitty-specs" / mission_slug
+        stream = read_event_stream(feature_dir)
+        snapshot = reduce(stream.transitions, stream.annotations)
+        wp01 = snapshot.work_packages.get("WP01", {})
+        assert "#1298" in wp01.get("tracker_refs", []), (
+            "--tracker-ref did not persist to the event-sourced snapshot. "
+            f"CLI exit={result.exit_code} stdout={result.stdout!r} wp01={wp01!r}"
         )

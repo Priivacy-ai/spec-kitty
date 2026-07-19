@@ -498,7 +498,7 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     if not roster:
         return []
 
-    from specify_cli.status.emit import _phase1_snapshot_authority_active
+    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
 
     if not _phase1_snapshot_authority_active(feature_dir):
         # Default / pre-cutover: tasks.md remains the tolerated authority
@@ -506,8 +506,8 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
         return [task_id for task_id, checked in roster if not checked]
 
     from specify_cli.status import reduce as _reduce_events
-    from specify_cli.status.models import Lane
-    from specify_cli.status.store import read_event_stream
+    from specify_cli.status import Lane
+    from specify_cli.status import read_event_stream
 
     stream = read_event_stream(feature_dir)
     if not stream.transitions and not stream.annotations:

@@ -1551,9 +1551,9 @@ def append_history(
         _fail_wp_not_found(cmd, wp, mission)
         return
 
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import WPInnerStateDelta
-    from specify_cli.status.store import StoreError
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
+    from specify_cli.status import StoreError
 
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     # Byte-identical to the historical rendered Activity Log line (FR-007

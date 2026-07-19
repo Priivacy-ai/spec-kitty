@@ -23,10 +23,24 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 
-def _write_mission(repo: Path, slug: str, tasks_content: str, wp_ids: tuple[str, ...] = ()) -> Path:
+def _write_mission(
+    repo: Path,
+    slug: str,
+    tasks_content: str,
+    wp_ids: tuple[str, ...] = (),
+    *,
+    status_phase: str | None = None,
+) -> Path:
     mission_dir = repo / "kitty-specs" / slug
     mission_dir.mkdir(parents=True)
-    (mission_dir / "meta.json").write_text(json.dumps({"mission_id": "01TESTMISSION"}), encoding="utf-8")
+    # ``status_phase="1"`` cuts the mission over to the phase-1 snapshot authority
+    # (event-sourced subtask completion). Default (None) = flag OFF, the
+    # pre-cutover legacy state where tasks.md remains the completion authority
+    # (#2684 flag-OFF dual-write: the CHECKBOX byte is written at flag OFF).
+    meta: dict[str, str] = {"mission_id": "01TESTMISSION"}
+    if status_phase is not None:
+        meta["status_phase"] = status_phase
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     (mission_dir / "tasks.md").write_text(tasks_content, encoding="utf-8")
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir()
@@ -206,9 +220,16 @@ def test_unknown_id_not_found(tmp_path: Path) -> None:
 
 
 def test_mixed_formats(tmp_path: Path) -> None:
-    """WP04/T015: checkbox + inline resolution both succeed, but neither
+    """WP04/T015 (flag ON): checkbox + inline resolution both succeed, but neither
     mutates tasks.md — completion for the canonical subtask surface is
-    event-sourced, not a markdown byte-write."""
+    event-sourced, not a markdown byte-write.
+
+    #2684: this byte-stability holds only once the mission is cut over to the
+    phase-1 snapshot authority (``status_phase=1``); at flag OFF the CHECKBOX byte
+    is the completion authority BOTH readers (``_infer_subtasks_complete`` and the
+    review gate ``_check_unchecked_subtasks``) consult, so it is dual-written.
+    This test pins the event-sourced (flag ON) surface explicitly.
+    """
     slug = "006-mixed-formats"
     original = "# Tasks\n\n## WP01\n- [ ] T001 Checkbox\nSubtasks: T002\n\n## WP03\n"
     mission_dir = _write_mission(
@@ -216,6 +237,7 @@ def test_mixed_formats(tmp_path: Path) -> None:
         slug,
         original,
         wp_ids=("WP03",),
+        status_phase="1",
     )
 
     payload = _invoke_mark_status(tmp_path, slug, "T001", "T002", "WP03")
@@ -233,13 +255,19 @@ def test_mixed_formats(tmp_path: Path) -> None:
 
 
 def test_existing_checkbox_unchanged(tmp_path: Path) -> None:
-    """WP04/T015: the canonical checkbox row is genuinely left unchanged —
+    """WP04/T015 (flag ON): the canonical checkbox row is genuinely left unchanged —
     resolution succeeds (mapping the id to its owning WP + target Status),
     but the durable completion record is the InnerStateChanged emit, not a
-    tasks.md byte-write (C-001)."""
+    tasks.md byte-write (C-001).
+
+    #2684: byte-stability holds under the phase-1 snapshot authority
+    (``status_phase=1``). At flag OFF the checkbox is the legacy completion
+    authority and is dual-written (see ``test_atomic_status_commits_unit`` and
+    ``test_mark_status_checkbox_dual_written_at_flag_off`` below).
+    """
     slug = "007-checkbox"
     original = "# Tasks\n\n## WP01\n- [ ] T001 First task\n"
-    mission_dir = _write_mission(tmp_path, slug, original)
+    mission_dir = _write_mission(tmp_path, slug, original, status_phase="1")
 
     payload = _invoke_mark_status(tmp_path, slug, "T001")
 
@@ -247,6 +275,31 @@ def test_existing_checkbox_unchanged(tmp_path: Path) -> None:
     assert result["outcome"] == "updated"
     assert result["format"] == "checkbox"
     assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == original
+
+
+def test_mark_status_checkbox_dual_written_at_flag_off(tmp_path: Path) -> None:
+    """#2684 flag-OFF dual-write: at the default (pre-cutover) state the CHECKBOX
+    byte IS flipped in tasks.md.
+
+    The review gate (``tasks_shared._check_unchecked_subtasks``) and the
+    done-inference reader (``emit._infer_subtasks_complete``) BOTH read the
+    tasks.md checkbox while the phase-1 snapshot authority is inactive, so
+    ``mark-status`` must persist the flip or a completed subtask would stay
+    invisible to the flag-OFF review gate. This is the same flag-OFF legacy-write
+    class the #2512 fix restored.
+    """
+    slug = "008-checkbox-flag-off"
+    original = "# Tasks\n\n## WP01\n- [ ] T001 First task\n- [ ] T002 Second task\n"
+    mission_dir = _write_mission(tmp_path, slug, original)  # flag OFF (default)
+
+    payload = _invoke_mark_status(tmp_path, slug, "T001")
+
+    result = _result_by_id(payload, "T001")
+    assert result["outcome"] == "updated"
+    assert result["format"] == "checkbox"
+    content = (mission_dir / "tasks.md").read_text(encoding="utf-8")
+    assert "- [x] T001 First task" in content
+    assert "- [ ] T002 Second task" in content
 
 
 def test_history_added_uses_owning_wp_for_checkbox_task(tmp_path: Path) -> None:

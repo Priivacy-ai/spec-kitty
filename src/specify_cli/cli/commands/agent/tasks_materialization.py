@@ -58,8 +58,8 @@ def _persist_review_artifact_override(
     mirror collapses to this one emit. Only the *storage* changes; the approval
     handler still fires the override at exactly the same moment.
     """
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import ReviewOverride, WPInnerStateDelta
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import ReviewOverride, WPInnerStateDelta
 
     # Resolve the emit target from the caller-resolved artifact path (stored
     # topology), never ``Path.cwd()`` (C-003 / #2647). Review artifacts live at

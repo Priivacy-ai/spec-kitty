@@ -1466,7 +1466,7 @@ def _mt_hop_policy_metadata(
     otherwise.
     """
     if target == Lane.CLAIMED and st.shell_pid:
-        from specify_cli.status.emit import build_claim_policy_metadata
+        from specify_cli.status import build_claim_policy_metadata
 
         pid = int(st.shell_pid)
         baseline = _mt_shell_pid_baseline(pid)
@@ -1863,8 +1863,8 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     (SC-008 / #2647; ``emit_inner_state_changed`` re-canonicalizes it there too).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import WPInnerStateDelta
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
@@ -1955,7 +1955,7 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     third — the rollback claim-marker clear — is re-added to the flag-OFF branch
     only (#2512), because flag-OFF ``stale_detection`` still reads frontmatter.
     """
-    from specify_cli.status.emit import _phase1_snapshot_authority_active
+    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
 
     assert st.wp is not None and st.decision is not None
     _mt_emit_runtime_state(st, ports)

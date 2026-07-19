@@ -413,8 +413,8 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
     """
     from specify_cli.frontmatter import write_frontmatter
     from specify_cli.status import read_wp_frontmatter
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import WPInnerStateDelta
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
 
     assert st.mapping_plan is not None
     for wp_id in st.new_mappings:

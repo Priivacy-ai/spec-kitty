@@ -106,7 +106,7 @@ def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
     fabricated value.
     """
     from specify_cli.core.process_liveness import capture_creation_time_baseline
-    from specify_cli.status.emit import build_claim_policy_metadata
+    from specify_cli.status import build_claim_policy_metadata
 
     baseline = capture_creation_time_baseline(shell_pid)
     if baseline is None:
@@ -132,7 +132,7 @@ def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
     the mirror is torn down -- WP07 owns that teardown; WP10 only verifies it
     via the FR-013 no-dual-home arch test.
     """
-    from specify_cli.status.emit import _phase1_snapshot_authority_active
+    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
 
     return not _phase1_snapshot_authority_active(feature_dir)
 
@@ -836,8 +836,8 @@ def _implement_emit_resume_refresh(
     import os
 
     from specify_cli.core.process_liveness import capture_creation_time_baseline
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import WPInnerStateDelta
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
 
     shell_pid = os.getppid()
     baseline = capture_creation_time_baseline(shell_pid)
@@ -1435,8 +1435,8 @@ def review_claim_transition(
 
     from specify_cli.core.utils import write_text_within_directory
     from specify_cli.status import start_review_status
-    from specify_cli.status.emit import emit_inner_state_changed
-    from specify_cli.status.models import WPInnerStateDelta
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
     from specify_cli.task_utils import split_frontmatter
 
     w = _wf()
