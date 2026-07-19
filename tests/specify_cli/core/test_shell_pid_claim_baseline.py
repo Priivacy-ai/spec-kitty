@@ -1,11 +1,22 @@
 """Tests for the PID-reuse identity baseline claim-write helper (#2575, WP02).
 
 Covers:
-- FR-004/FR-005: the ONE claim-write helper (:func:`write_shell_pid_claim`)
-  co-writes ``shell_pid`` and its creation-time baseline via a single write
-  mechanism (``set_scalar`` string mutation), and the file-based route used by
-  ``spec-kitty implement`` (:func:`write_shell_pid_claim_to_file`) round-trips
-  through the same mechanism.
+- FR-004/FR-005: the ONE remaining claim-write helper
+  (:func:`write_shell_pid_claim`) co-writes ``shell_pid`` and its
+  creation-time baseline via a single write mechanism (``set_scalar``
+  string mutation). It is still live -- ``tasks_move_task.py``'s
+  ``_mt_persist_wp_file`` (WP06/#2580) is the one remaining direct caller
+  outside this WP's ``owned_files`` -- but the canonical implementation-
+  and review-claim writers (``workflow_executor.py``, WP07/T026-T027) now
+  route the claim triple onto the claim transition's ``policy_metadata``
+  sidecar instead, calling this helper only as a bounded FR-005/C-001
+  dual-write bridge. The former file-based wrapper
+  (``write_shell_pid_claim_to_file``, used by the old ``spec-kitty
+  implement`` pre-write) was deleted in WP07/T028 -- its sole caller
+  (``cli/commands/implement.py:1730``) was removed in the same cut; see
+  ``test_implement_runtime_frontmatter_claim.py`` (WP07,
+  ``tests/specify_cli/cli/commands/agent/``) for the policy_metadata-based
+  replacement coverage.
 - FR-004/FR-005/D3a: ``core.stale_detection``'s claim-liveness consumer
   compares the baseline when present (mismatch -> not-alive -> falls through
   to the commit-timestamp heuristic, never a hard-stale flag) and preserves
@@ -24,7 +35,6 @@ from specify_cli.core.stale_detection import LIVE_CLAIM_PROCESS_REASON, check_wp
 from specify_cli.frontmatter import (
     SHELL_PID_BASELINE_FIELD,
     write_shell_pid_claim,
-    write_shell_pid_claim_to_file,
 )
 from specify_cli.task_utils.support import extract_scalar
 from specify_cli.status.wp_metadata import WPMetadata
@@ -77,26 +87,6 @@ def test_write_shell_pid_claim_omits_baseline_when_uncapturable(monkeypatch: pyt
 
     assert extract_scalar(updated, "shell_pid") == "999999"
     assert extract_scalar(updated, SHELL_PID_BASELINE_FIELD) is None
-
-
-def test_write_shell_pid_claim_to_file_round_trips(tmp_path: Path) -> None:
-    """T011/T016: the file-based route (spec-kitty implement) round-trips through the same helper."""
-    wp_file = tmp_path / "WP01.md"
-    wp_file.write_text(
-        "---\nwork_package_id: WP01\ntitle: Example\nhistory: []\n---\n\n# Body\n",
-        encoding="utf-8",
-    )
-    own_pid = os.getpid()
-
-    write_shell_pid_claim_to_file(wp_file, own_pid)
-
-    written = wp_file.read_text(encoding="utf-8")
-    assert f'shell_pid: "{own_pid}"' in written
-    baseline = capture_creation_time_baseline(own_pid)
-    assert baseline is not None
-    assert f'{SHELL_PID_BASELINE_FIELD}: "{baseline}"' in written
-    # Body must survive the round trip untouched.
-    assert "# Body" in written
 
 
 # ── T009 coverage: WPMetadata parses the new additive field ────────────────

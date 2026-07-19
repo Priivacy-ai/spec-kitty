@@ -310,16 +310,11 @@ def test_patched_protection_policy_intercepts_commit_wp_file(tmp_path: Path) -> 
     assert wp_file.read_text(encoding="utf-8") == "updated"
 
 
-def test_patched_console_intercepts_tracker_ref_warning(tmp_path: Path) -> None:
-    """``tasks.console`` bites through ``_mt_persist_tracker_refs``'s defensive
-    warning leg (human output; the moved body prints via ``_tasks.console``)."""
-    st = _make_state(json_output=False)
-    st.tracker_ref_values = ("#1298",)
-    st.wp = cast(Any, SimpleNamespace(path=tmp_path / "missing" / "WP01-x.md"))
-    with patch(f"{_TASKS}.console") as console_mock:
-        tasks_move_task._mt_persist_tracker_refs(st, skip_target_commit=False)
-    assert console_mock.print.call_count == 1
-    assert "Failed to persist --tracker-ref" in console_mock.print.call_args.args[0]
+# (WP10 closeout) ``test_patched_console_intercepts_tracker_ref_warning`` removed:
+# it drove ``_mt_persist_tracker_refs``, the frontmatter tracker-refs writer the
+# god-write cut (WP06, FR-006) DELETED — tracker refs are now an off-axis
+# ``InnerStateChanged`` union delta, so there is no longer a WP-file write leg to
+# warn about. The remaining seam bindings above still pin the compat surface.
 
 
 def test_patched_output_helpers_intercept_mt_output(tmp_path: Path) -> None:

@@ -20,6 +20,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from specify_cli.status.models import ReviewOverride
+
 TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
 REVIEW_ARTIFACT_VERDICTS = frozenset({"approved", "rejected"})
 
@@ -293,12 +295,27 @@ class ReviewCycleArtifact:
         return len(candidates) + 1
 
 
-def latest_review_artifact_verdict(sub_artifact_dir: Path) -> LatestReviewArtifactVerdict | None:
+def latest_review_artifact_verdict(
+    sub_artifact_dir: Path,
+    *,
+    snapshot_override: ReviewOverride | None = None,
+) -> LatestReviewArtifactVerdict | None:
     """Return verdict metadata for the highest-numbered review artifact.
 
     This helper is intentionally limited to review artifact state.  Callers can
     use it in merge or status gates, but it does not decide whether a workflow
     transition should pass.
+
+    FR-009 (WP09): override recognition resolves from the reduced ``review``
+    snapshot slot. ``snapshot_override`` is the event-sourced
+    :class:`ReviewOverride` for this WP (supplied by the caller that already
+    materialized the snapshot); it is the single authority. The artifact
+    frontmatter parse (``ReviewCycleArtifact.has_complete_override``) is retained
+    ONLY as an FR-005 migration-window fallback — snapshot-first, not dual — so a
+    not-yet-backfilled legacy on-disk override is still honored until WP03's
+    backfill verify passes and WP10 deletes the fallback. An *incomplete* override
+    (missing any of ``at``/``actor``/``wp_id``/``reason``) is never honored on
+    either leg (``ReviewOverride.complete`` mirrors the legacy predicate).
     """
     candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
     if not candidates:
@@ -311,25 +328,34 @@ def latest_review_artifact_verdict(sub_artifact_dir: Path) -> LatestReviewArtifa
     candidates.sort(key=_cycle_num)
     path = candidates[-1]
     artifact = ReviewCycleArtifact.from_file(path)
+    snapshot_complete = snapshot_override is not None and snapshot_override.complete
+    has_override = snapshot_complete or artifact.has_complete_override
     return LatestReviewArtifactVerdict(
         path=path,
         cycle_number=artifact.cycle_number,
         verdict=artifact.verdict,
-        has_override=artifact.has_complete_override,
+        has_override=has_override,
     )
 
 
 def rejected_review_artifact_for_terminal_lane(
     sub_artifact_dir: Path,
     lane: str,
+    *,
+    snapshot_override: ReviewOverride | None = None,
 ) -> LatestReviewArtifactVerdict | None:
     """Return the latest rejected artifact when a WP is approved or done.
 
-    A rejected artifact carrying a complete approval override (actor + reason) is
-    NOT a conflict: the override is the recorded approval that the approval gate
-    honored, so the terminal-lane consistency gate must honor it too (#1924).
+    A rejected artifact carrying a complete approval override is NOT a conflict:
+    the override is the recorded approval that the approval gate honored, so the
+    terminal-lane consistency gate must honor it too (#1924). Per FR-009 (WP09)
+    the override is resolved from the event-sourced ``review`` snapshot slot
+    (``snapshot_override``) with the artifact-frontmatter parse retained only as a
+    migration-window fallback.
     """
-    state = latest_review_artifact_verdict(sub_artifact_dir)
+    state = latest_review_artifact_verdict(
+        sub_artifact_dir, snapshot_override=snapshot_override
+    )
     if state is None:
         return None
     if (

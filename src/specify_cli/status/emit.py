@@ -42,6 +42,7 @@ from .wp_metadata import read_wp_frontmatter
 from .models import (
     DoneEvidence,
     GuardContext,
+    InnerStateChanged,
     Lane,
     RepoEvidence,
     ReviewApproval,
@@ -49,8 +50,10 @@ from .models import (
     StatusEvent,
     TransitionRequest,
     VerificationResult,
+    WPInnerStateDelta,
 )
 from .transitions import resolve_lane_alias, validate_transition
+from .wp_state import annotate
 from . import store as _store
 from . import reducer as _reducer
 from .adapters import fire_dossier_sync, fire_saas_fanout
@@ -214,6 +217,26 @@ def append_event_jsonl(events_path: Path, event: StatusEvent) -> None:
     _store.append_event_verified(feature_dir, event)
 
 
+def build_claim_policy_metadata(
+    shell_pid: int,
+    shell_pid_created_at: str,
+    agent: str,
+) -> dict[str, Any]:
+    """Return the ``planned -> claimed`` ``policy_metadata`` sidecar.
+
+    Pinned keys — ``shell_pid``, ``shell_pid_created_at``, ``agent`` — are the
+    exact keys the reducer's claim fold (``reducer._wp_state_from_event``)
+    extracts into the snapshot runtime slots. Defining the builder here gives
+    the claim-writer WP and the reducer a single agreed shape; downstream WPs
+    import this exact symbol rather than re-deriving the dict.
+    """
+    return {
+        "shell_pid": shell_pid,
+        "shell_pid_created_at": shell_pid_created_at,
+        "agent": agent,
+    }
+
+
 def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     """Derive the current lane for a WP from canonical reduced state.
 
@@ -277,21 +300,31 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
 
 
 def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
-    """Infer subtask completion from ``tasks.md``'s canonical T### rows for a WP section.
+    """Infer subtask completion for a WP, flag-gated on the read source.
 
-    Row semantics are fully delegated to WP01's canonical, fence-aware,
-    first-``WPxx``-heading counter (``core.subtask_rows.count_wp_section_subtask_rows``)
-    — the same counter the lane-transition guard and the dashboard use — so this
-    function never re-derives its own divergent regex/heading walk.
+    Two read paths, selected by :func:`_phase1_dual_write_enabled`:
 
-    ``total == 0`` (the WP section genuinely has no ``T###`` rows, including
-    when the WP heading itself is never found) is "nothing to block on" and
-    returns ``True`` (complete) per the spec's zero-rows edge case.
+    - **flag ON** — re-source from the reduced snapshot ``subtasks`` slot
+      (:func:`_infer_subtasks_complete_from_snapshot`). This is the target
+      state (FR-003).
+    - **flag OFF** — the pre-WP03 default: read the legacy ``tasks.md`` text via
+      the canonical, fence-aware, first-``WPxx``-heading counter
+      (``core.subtask_rows.count_wp_section_subtask_rows``).
 
-    A genuinely-absent ``tasks.md`` is NOT treated as "no subtasks exist" —
-    per FR-002/FR-003, an unprovable completeness state must **block**, never
-    fail open. Returns ``False`` in that case.
+    The gate is mandatory: WP01 lands **before** WP03 flips/verifies the flag,
+    so an ungated snapshot cut would read an empty snapshot and return ``False``
+    for every WP the moment WP01 merges — silently breaking the done-inference
+    gate before any writer has populated the slot.
+
+    Both paths are **fail-closed**: an absent snapshot (flag on) or an absent
+    ``tasks.md`` (flag off) returns ``False`` — per FR-002/FR-003 an unprovable
+    completeness state must block, never fail open. ``total == 0`` (a WP with no
+    subtask rows / no subtasks in the snapshot) is "nothing to block on" and
+    returns ``True``.
     """
+    if _phase1_dual_write_enabled(feature_dir):
+        return _infer_subtasks_complete_from_snapshot(feature_dir, wp_id)
+
     tasks_path = feature_dir / TASKS_MD_FILENAME
     if not tasks_path.exists():
         return False
@@ -299,6 +332,33 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     done, total = count_wp_section_subtask_rows(content, wp_id)
     if total == 0:
         return True
+    return done == total
+
+
+def _infer_subtasks_complete_from_snapshot(feature_dir: Path, wp_id: str) -> bool:
+    """Snapshot-sourced completion inference (phase-1 dual-write path).
+
+    Reads the annotation-aware event stream, reduces it, and counts done-vs-total
+    from the WP's reduced ``subtasks`` slot (a subtask is done when its status is
+    ``Lane.DONE``).
+
+    Fail-closed: an empty event stream, or a WP with no reduced entry, returns
+    ``False`` (an unprovable completeness state must block). A WP present with
+    zero subtasks returns ``True`` (matches the legacy ``total == 0`` branch —
+    nothing to block on).
+    """
+    stream = _store.read_event_stream(feature_dir)
+    if not stream.transitions and not stream.annotations:
+        return False
+    snapshot = _reducer.reduce(stream.transitions, stream.annotations)
+    wp_state = snapshot.work_packages.get(wp_id)
+    if wp_state is None:
+        return False
+    subtasks = wp_state.get("subtasks") or {}
+    total = len(subtasks)
+    if total == 0:
+        return True
+    done = sum(1 for status in subtasks.values() if str(status) == str(Lane.DONE))
     return done == total
 
 
@@ -782,6 +842,72 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
             fire_dossier_sync(feature_dir, mission_slug, repo_root)
 
     return events
+
+
+def emit_inner_state_changed(
+    feature_dir: Path,
+    wp_id: str,
+    delta: WPInnerStateDelta,
+    *,
+    actor: str,
+    mission_slug: str,
+    at: str | None = None,
+    repo_root: Path | None = None,
+) -> InnerStateChanged:
+    """Persist a single off-axis ``InnerStateChanged`` annotation.
+
+    This is the public emit API downstream WPs call to record runtime-state
+    changes (``shell_pid``, subtask marks, notes, tracker refs, reassignment,
+    review overrides) without traversing the FSM.
+
+    Pipeline:
+        1. Resolve the write target via ``canonicalize_feature_dir(feature_dir)``
+           — never ``Path.cwd()`` (FR-012 / C-003 / #2647).
+        2. Mint a real ULID and build the typed event via the sanctioned
+           ``wp_state.annotate()`` non-transition seam (which refuses an empty
+           delta and validates ``wp_id``).
+        3. Persist through the durability-verified store append seam under the
+           per-feature status lock, then best-effort materialize the snapshot.
+
+    Args:
+        feature_dir: kitty-specs feature directory (canonicalized here).
+        wp_id: Target work-package id (e.g. ``"WP01"``).
+        delta: Typed partial runtime-state payload. An empty delta is refused.
+        actor: Identity of the actor causing the change.
+        mission_slug: Mission identifier — used only as the status-lock key.
+        at: Optional ISO-8601 occurrence timestamp; defaults to now.
+        repo_root: Optional repo root for status-lock resolution.
+
+    Returns:
+        The persisted :class:`InnerStateChanged`.
+
+    Raises:
+        ValueError: for a malformed ``wp_id`` or an empty delta.
+        specify_cli.status.store.StoreError: if persistence/readback fails.
+    """
+    feature_dir = canonicalize_feature_dir(feature_dir)
+
+    event = annotate(
+        wp_id,
+        delta,
+        actor=actor,
+        at=at or now_utc_iso(),
+        event_id=_generate_ulid(),
+    )
+
+    lock_root = _feature_status_lock_root(feature_dir, repo_root)
+    with feature_status_lock(lock_root, mission_slug):
+        _store.append_annotations_atomic_verified(feature_dir, [event])
+        try:
+            _reducer.materialize(feature_dir)
+        except Exception:
+            logger.warning(
+                "Materialization failed after annotation %s was persisted; "
+                "run 'status materialize' to recover",
+                event.event_id,
+            )
+
+    return event
 
 
 def _saas_fan_out(

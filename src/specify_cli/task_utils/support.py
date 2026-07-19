@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
@@ -16,6 +16,9 @@ from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 # Canonical lane tuple — imported from the leaf module to avoid pulling in the
 # full status orchestration package during cold command imports.
 from specify_cli.status_lanes import CANONICAL_LANES
+
+if TYPE_CHECKING:
+    from specify_cli.status.models import EventStream
 
 LANES: tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
@@ -238,7 +241,13 @@ def append_activity_log(body: str, entry: str) -> str:
     return body[: match.start(1)] + section + body[match.end(1) :]
 
 
-def activity_entries(body: str) -> list[dict[str, str]]:
+def _parse_activity_entries_from_body(body: str) -> list[dict[str, str]]:
+    """Parse ``## Activity Log`` rows out of a WP-file body (the legacy source).
+
+    Pre-FR-005 sole implementation of :func:`activity_entries`; retained
+    verbatim as the migration-window fallback parser (flag OFF, or no
+    *feature_dir*/*wp_id* supplied).
+    """
     # Match both en-dash (–) and hyphen (-) as separators
     # Agent names can contain hyphens (e.g., "cursor-agent", "claude-reviewer")
     # Use \S+ to match non-whitespace including hyphens within the agent name
@@ -265,6 +274,90 @@ def activity_entries(body: str) -> list[dict[str, str]]:
     return entries
 
 
+def _snapshot_activity_entries(stream: EventStream, wp_id: str) -> list[dict[str, str]]:
+    """Fold event-sourced transition + note history into activity-log rows (SC-004).
+
+    Draws directly from the same annotation-aware read seam
+    (``status.store.read_event_stream``) the reducer folds through — not a
+    second parser (#2093 / FR-013). Produces one row per lane transition for
+    *wp_id* (``lane=<to_lane>``, ``note=<reason or "Moved to <to_lane>">``) and
+    one row per note annotation (the annotation's own note text), each
+    carrying its own event timestamp/actor for per-entry fidelity, sorted
+    chronologically by occurrence time.
+    """
+    rows: list[tuple[str, dict[str, str]]] = []
+    for event in stream.transitions:
+        if event.wp_id != wp_id:
+            continue
+        rows.append(
+            (
+                event.at,
+                {
+                    "timestamp": event.at,
+                    "agent": event.actor,
+                    "lane": str(event.to_lane),
+                    "note": event.reason or f"Moved to {event.to_lane}",
+                    "shell_pid": "",
+                },
+            )
+        )
+    for annotation in stream.annotations:
+        if annotation.wp_id != wp_id or annotation.delta.note is None:
+            continue
+        rows.append(
+            (
+                annotation.at,
+                {
+                    "timestamp": annotation.at,
+                    "agent": annotation.actor,
+                    "lane": "",
+                    "note": annotation.delta.note,
+                    "shell_pid": "",
+                },
+            )
+        )
+    rows.sort(key=lambda item: item[0])
+    return [entry for _at, entry in rows]
+
+
+def activity_entries(
+    body: str,
+    *,
+    feature_dir: Path | None = None,
+    wp_id: str | None = None,
+) -> list[dict[str, str]]:
+    """Return the WP's activity-log rows as ``{timestamp, agent, lane, note, shell_pid}`` dicts.
+
+    Parses the ``## Activity Log`` section out of *body* (the pre-FR-005
+    behavior; see :func:`_parse_activity_entries_from_body`). This is always
+    computed and always included in the result — it is the tolerated
+    migration-window fallback (a WP whose legacy entries have not yet been
+    migrated must not lose them, SC-004 "no content loss").
+
+    SC-004 (behind the FR-005 flag): when *feature_dir* and *wp_id* are BOTH
+    supplied and the phase-1 dual-write flag
+    (:func:`specify_cli.status.emit._phase1_dual_write_enabled`) resolves ON
+    for *feature_dir*, the reduced snapshot's event-sourced transition history
+    and ``note`` annotations for *wp_id* are folded in ADDITION to the
+    body-parsed rows above — never in place of them (:func:`_snapshot_activity_entries`).
+    Omitting *feature_dir*/*wp_id* (every call site prior to this WP)
+    reproduces today's exact output.
+    """
+    entries = _parse_activity_entries_from_body(body)
+    if feature_dir is None or wp_id is None:
+        return entries
+
+    from specify_cli.status.emit import _phase1_dual_write_enabled  # noqa: PLC0415
+
+    if not _phase1_dual_write_enabled(feature_dir):
+        return entries
+
+    from specify_cli.status.store import read_event_stream  # noqa: PLC0415
+
+    stream = read_event_stream(feature_dir)
+    return entries + _snapshot_activity_entries(stream, wp_id)
+
+
 @dataclass
 class WorkPackage:
     feature: str
@@ -274,6 +367,13 @@ class WorkPackage:
     frontmatter: str
     body: str
     padding: str
+    # Per-instance snapshot-state cache (FR-005): populated lazily by
+    # ``_snapshot_wp_state`` on first access so ``assignee``/``agent``/
+    # ``shell_pid`` share a single reduce() per WorkPackage instance rather
+    # than one per property access. Excluded from ``__init__``/``__eq__``/
+    # ``repr`` -- pure memoization, not part of the value's identity.
+    _snapshot_state_cache: dict[str, Any] | None = field(default=None, init=False, repr=False, compare=False)
+    _snapshot_state_loaded: bool = field(default=False, init=False, repr=False, compare=False)
 
     @property
     def work_package_id(self) -> str | None:
@@ -283,16 +383,69 @@ class WorkPackage:
     def title(self) -> str | None:
         return extract_scalar(self.frontmatter, "title")
 
+    def _snapshot_wp_state(self) -> dict[str, Any] | None:
+        """Return the reduced-snapshot per-WP runtime state, flag-gated (FR-005).
+
+        Returns ``None`` ONLY when the phase-1 dual-write flag
+        (:func:`specify_cli.status.emit._phase1_dual_write_enabled`) resolves
+        OFF for this WP's feature directory -- the sole signal telling
+        callers to fall back to frontmatter (today's behavior). When the flag
+        is ON, an absent snapshot entry is a valid authoritative empty
+        result (``{}``, "no runtime state yet"), NOT a fallback signal (C-001
+        -- no partial fallback to frontmatter once the flag resolves to the
+        snapshot).
+
+        Memoized per instance (one reduce() per ``WorkPackage``, not one per
+        property read) -- correctness is unaffected since a ``WorkPackage``
+        is a point-in-time read, never mutated in place after construction.
+        """
+        if self._snapshot_state_loaded:
+            return self._snapshot_state_cache
+
+        from specify_cli.status.emit import _phase1_dual_write_enabled  # noqa: PLC0415
+
+        # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
+        # feature_dir is the parent of the tasks/ directory
+        feature_dir = self.path.parent.parent
+        if not _phase1_dual_write_enabled(feature_dir):
+            self._snapshot_state_loaded = True
+            self._snapshot_state_cache = None
+            return None
+
+        from specify_cli.status.reducer import reduce as _reduce_snapshot  # noqa: PLC0415
+        from specify_cli.status.store import read_event_stream  # noqa: PLC0415
+
+        wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
+        stream = read_event_stream(feature_dir)
+        snapshot = _reduce_snapshot(stream.transitions, stream.annotations)
+        wp_state = snapshot.work_packages.get(wp_id) or {}
+
+        self._snapshot_state_loaded = True
+        self._snapshot_state_cache = wp_state
+        return wp_state
+
     @property
     def assignee(self) -> str | None:
+        wp_state = self._snapshot_wp_state()
+        if wp_state is not None:
+            value = wp_state.get("assignee")
+            return str(value) if value is not None else None
         return extract_scalar(self.frontmatter, "assignee")
 
     @property
     def agent(self) -> str | None:
+        wp_state = self._snapshot_wp_state()
+        if wp_state is not None:
+            value = wp_state.get("agent")
+            return str(value) if value is not None else None
         return extract_scalar(self.frontmatter, "agent")
 
     @property
     def shell_pid(self) -> str | None:
+        wp_state = self._snapshot_wp_state()
+        if wp_state is not None:
+            value = wp_state.get("shell_pid")
+            return str(value) if value is not None else None
         return extract_scalar(self.frontmatter, "shell_pid")
 
     @property

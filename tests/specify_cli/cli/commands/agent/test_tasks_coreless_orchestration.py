@@ -109,6 +109,34 @@ def _build_mark_fixture(tmp_path: Path, mission_slug: str) -> Path:
     return feature_dir
 
 
+def _build_mark_fixture_pipe_table(tmp_path: Path, mission_slug: str) -> Path:
+    """Primary planning surface: meta.json + a tasks.md with a resolvable
+    pipe-table row.
+
+    WP04/T015 (FR-003/FR-008): the canonical ``CHECKBOX``/``INLINE_SUBTASKS``
+    subtask-completion surface is event-sourced, not a tasks.md byte-write —
+    so this module's remaining tasks.md-mutation/auto-commit-routing tests
+    exercise the ``PIPE_TABLE`` surface instead, which is a distinct,
+    non-canonical row format the review gate never reads and keeps its
+    pre-existing durable write (unaffected by T015).
+    """
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug, "mission_type": "software-dev"}),
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\n\n"
+        "| ID | Description | Status |\n"
+        "|----|-------------|--------|\n"
+        "| T001 | Do the thing | [ ] |\n",
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
 def _build_finalize_fixture(tmp_path: Path, mission_slug: str) -> Path:
     """Primary planning surface: meta.json + tasks.md + one WP frontmatter file."""
     (tmp_path / ".kittify").mkdir(exist_ok=True)
@@ -140,8 +168,14 @@ def test_mark_status_read_dir_routes_through_fs_port_tasks_index(
 ) -> None:
     """T033: the tasks.md write surface resolves via ``FsReader.planning_read_dir``
     keyed ``TASKS_INDEX`` (#2154), and a ``--no-auto-commit`` run never touches the
-    coord ``commit_artifact`` seam."""
-    feature_dir = _build_mark_fixture(tmp_path, _MISSION)
+    coord ``commit_artifact`` seam.
+
+    WP04/T015: uses the pipe-table fixture — the ``PIPE_TABLE`` row format is the
+    one surface this WP leaves durably tasks.md-written (canonical
+    ``CHECKBOX``/``INLINE_SUBTASKS`` completion is event-sourced instead), so this
+    routing assertion still has a real write to observe.
+    """
+    feature_dir = _build_mark_fixture_pipe_table(tmp_path, _MISSION)
     ports, fs, coord = _fake_ports(feature_dir, MissionArtifactKind.TASKS_INDEX)
 
     with setup_mocked_env(tmp_path, mission_slug=_MISSION, target_branch="wip-lane"), patch(
@@ -160,8 +194,8 @@ def test_mark_status_read_dir_routes_through_fs_port_tasks_index(
     assert ("planning_read_dir", MissionArtifactKind.TASKS_INDEX) in fs.calls
     # No auto-commit => the coord WRITE capability is untouched.
     assert coord.artifact_calls == []
-    # The checkbox row was durably flipped on disk.
-    assert "- [x] T001" in (feature_dir / "tasks.md").read_text(encoding="utf-8")
+    # The pipe-table row was durably flipped on disk.
+    assert "[D]" in (feature_dir / "tasks.md").read_text(encoding="utf-8")
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["summary"]["updated"] == 1
@@ -171,8 +205,11 @@ def test_mark_status_auto_commit_routes_via_commit_artifact_tasks_index(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """T033: an auto-commit run routes the tasks.md commit through the coord
-    ``commit_artifact`` capability, keyed ``TASKS_INDEX`` with the tasks.md file."""
-    feature_dir = _build_mark_fixture(tmp_path, _MISSION)
+    ``commit_artifact`` capability, keyed ``TASKS_INDEX`` with the tasks.md file.
+
+    WP04/T015: uses the pipe-table fixture (see the previous test's note).
+    """
+    feature_dir = _build_mark_fixture_pipe_table(tmp_path, _MISSION)
     ports, _fs, coord = _fake_ports(feature_dir, MissionArtifactKind.TASKS_INDEX)
 
     with setup_mocked_env(

@@ -39,7 +39,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import typer
 
@@ -88,6 +88,53 @@ def _wf() -> ModuleType:
 
     module: ModuleType = _workflow_module
     return module
+
+
+def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
+    """Best-effort ``policy_metadata`` triple for a claim transition (WP07/T026-T027).
+
+    Routes the ``(shell_pid, shell_pid_created_at, agent)`` triple onto the
+    claim transition's ``policy_metadata`` sidecar (FR-004) using WP01's
+    :func:`~specify_cli.status.emit.build_claim_policy_metadata` builder --
+    the exact key names WP01's reducer fold (``planned -> claimed``) reads.
+
+    ``shell_pid_created_at`` capture is best-effort (C-007, mirrors the
+    former :func:`~specify_cli.frontmatter.write_shell_pid_claim` contract):
+    when :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
+    cannot capture a baseline, the key is OMITTED (never fails the claim,
+    D3a legacy-claim semantics) rather than calling the builder with a
+    fabricated value.
+    """
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+    from specify_cli.status.emit import build_claim_policy_metadata
+
+    baseline = capture_creation_time_baseline(shell_pid)
+    if baseline is None:
+        return {"shell_pid": shell_pid, "agent": agent}
+    # Explicit local annotation re-narrows the import from ``Any`` back to
+    # ``dict[str, Any]`` -- the project's ``follow_imports = "skip"`` mypy
+    # config for ``specify_cli.*`` means a cross-module late import is
+    # otherwise seen as ``Any`` (same pattern as :func:`_wf` above).
+    metadata: dict[str, Any] = build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
+    return metadata
+
+
+def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
+    """FR-005/C-001 dual-write gate for the shell_pid claim frontmatter mirror.
+
+    Reuses WP01/WP03's existing ``status/emit.py::_phase1_dual_write_enabled``
+    compatibility-bridge flag (``meta.json`` ``status_phase: "1"``): while the
+    flag is unset/off (the pre-verify default -- true for every mission
+    today), the frontmatter mirror stays MANDATORY so a fresh claim is never
+    invisible to a still frontmatter-reading liveness check. Once an operator
+    flips ``status_phase`` to ``"1"`` (post WP03 backfill+verify, once WP05's
+    reader has cut over to the reduced snapshot), this returns ``False`` and
+    the mirror is torn down -- WP07 owns that teardown; WP10 only verifies it
+    via the FR-013 no-dual-home arch test.
+    """
+    from specify_cli.status.emit import _phase1_dual_write_enabled
+
+    return not _phase1_dual_write_enabled(feature_dir)
 
 
 def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:
@@ -646,6 +693,11 @@ def _implement_start_claim(
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
             allow_rework=current_lane in {Lane.FOR_REVIEW, Lane.APPROVED, Lane.IN_REVIEW},
+            # WP07/T026 (FR-004/FR-014): the claim triple rides the
+            # planned -> claimed transition's policy_metadata sidecar
+            # instead of a separate WP-file write -- WP01's reducer folds
+            # these exact keys into the reduced snapshot.
+            policy_metadata=_claim_policy_metadata(int(shell_pid), actor),
         )
     except WorkPackageClaimConflict as exc:
         print(f"Error: {exc}")
@@ -689,24 +741,31 @@ def _implement_write_claim_and_commit(
     # parameter type.
     assert agent, "agent must be non-empty; caller validates this before calling _implement_write_claim_and_commit"
 
-    # Update operational metadata in frontmatter (NO lane — event log is sole authority)
-    updated_front = wp.frontmatter
-    updated_front = set_scalar(updated_front, "agent", agent)
-    updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
+    # WP07/T026 (FR-004/FR-008/FR-014): the claim triple now rides the
+    # transition's policy_metadata sidecar (see _implement_start_claim) --
+    # the WP file is NOT mutated for the claim itself. The frontmatter
+    # mirror below is a bounded FR-005/C-001 dual-write bridge, active only
+    # until WP05's shell_pid reader cuts over (see
+    # _shell_pid_dual_write_active); once torn down, this function is a
+    # byte-identical no-op on the WP file (SC-001/SC-005).
+    if _shell_pid_dual_write_active(feature_dir):
+        # Update operational metadata in frontmatter (NO lane — event log is sole authority)
+        updated_front = set_scalar(wp.frontmatter, "agent", agent)
+        updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
 
-    # Build history entry (no lane= segment; event log is sole lane authority)
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    if current_lane != Lane.IN_PROGRESS:
-        history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
-    else:
-        history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via action command"
+        # Build history entry (no lane= segment; event log is sole lane authority)
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if current_lane != Lane.IN_PROGRESS:
+            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
+        else:
+            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via action command"
 
-    # Add history entry to body
-    updated_body = append_activity_log(wp.body, history_entry)
+        # Add history entry to body
+        updated_body = append_activity_log(wp.body, history_entry)
 
-    # Build and write updated document
-    updated_doc = build_document(updated_front, updated_body, wp.padding)
-    wp.path.write_text(updated_doc, encoding="utf-8")
+        # Build and write updated document
+        updated_doc = build_document(updated_front, updated_body, wp.padding)
+        wp.path.write_text(updated_doc, encoding="utf-8")
 
     # Auto-commit to target branch (enables instant status sync)
     actual_wp_path = wp.path.resolve()
@@ -751,6 +810,48 @@ def _implement_trigger_dossier_sync(repo_root: Path, mission_slug: str) -> None:
             mission_slug,
             dossier_sync_exc,
         )
+
+
+def _implement_emit_resume_refresh(
+    *,
+    feature_dir: Path,
+    wp_id: str,
+    mission_slug: str,
+    actor: str,
+    repo_root: Path,
+) -> None:
+    """WP07/T029a (FR-004/US3): refresh ``shell_pid`` on resume/re-claim of an
+    already ``in_progress`` WP via an off-axis ``InnerStateChanged``
+    annotation.
+
+    Resume is NOT a ``planned -> claimed`` transition, so this never routes
+    through ``policy_metadata`` (that sidecar is reserved for the real claim
+    transition, T026/T027). Historically this path wrote nothing at all (a
+    true no-op) -- it still writes nothing to the WP file here (no
+    frontmatter mutation, no dual-write bridge needed: SC-001/SC-005
+    byte-stability holds unconditionally across a resume). Best-effort:
+    never raises (C-007) -- an annotation failure must never block a
+    resumed WP's liveness.
+    """
+    import os
+
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+    from specify_cli.status.emit import emit_inner_state_changed
+    from specify_cli.status.models import WPInnerStateDelta
+
+    shell_pid = os.getppid()
+    baseline = capture_creation_time_baseline(shell_pid)
+    try:
+        emit_inner_state_changed(
+            feature_dir,
+            wp_id,
+            WPInnerStateDelta(shell_pid=shell_pid, shell_pid_created_at=baseline),
+            actor=actor,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+        )
+    except Exception:  # noqa: BLE001 -- best-effort annotation, never blocks a resume
+        logger.warning("Resume PID-refresh annotation failed for %s (non-fatal)", wp_id, exc_info=True)
 
 
 def implement_claim_transition(
@@ -857,6 +958,24 @@ def implement_claim_transition(
         wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     else:
         print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to in_progress.")
+
+    # WP07/T029a (FR-004/US3): a resume/re-claim of an already in_progress WP
+    # never drives a fresh planned -> claimed transition (``current_lane``
+    # was captured BEFORE the branch above, so this is true whether the
+    # ``if`` branch above hit ``start_implementation_status``'s own
+    # IN_PROGRESS -> IN_PROGRESS no-op, or the bare-resume ``else`` printed
+    # its warning and did nothing else). Historically this path never
+    # refreshed shell_pid anywhere -- refresh it now via an off-axis
+    # InnerStateChanged annotation so a resumed WP's liveness is decided by
+    # the CURRENT shell, not a stale/dead PID from the original claim (US3).
+    if current_lane == Lane.IN_PROGRESS:
+        _implement_emit_resume_refresh(
+            feature_dir=wf_feature_dir,
+            wp_id=normalized_wp_id,
+            mission_slug=mission_slug,
+            actor=agent or wp_agent_assignment.tool or "unknown",
+            repo_root=main_repo_root,
+        )
 
     return ImplementClaimResult(
         wp=wp,
@@ -1316,6 +1435,8 @@ def review_claim_transition(
 
     from specify_cli.core.utils import write_text_within_directory
     from specify_cli.status import start_review_status
+    from specify_cli.status.emit import emit_inner_state_changed
+    from specify_cli.status.models import WPInnerStateDelta
     from specify_cli.task_utils import split_frontmatter
 
     w = _wf()
@@ -1337,6 +1458,7 @@ def review_claim_transition(
     import os
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
+    claim_policy_metadata = _claim_policy_metadata(int(shell_pid), agent)
 
     with w.feature_status_lock(main_repo_root, mission_slug):
         # WP06 T027: capture pre-emit event-log size for
@@ -1355,6 +1477,14 @@ def review_claim_transition(
                 workspace_context=f"action-review:{main_repo_root}",
                 execution_mode=status_execution_mode,
                 repo_root=main_repo_root,
+                # WP07/T027 (FR-004/FR-014): mirror T026 -- carry the claim
+                # triple on the for_review -> in_review transition's
+                # policy_metadata sidecar too (provenance on the event even
+                # though WP01's reducer only special-cases the
+                # planned -> claimed fold; see the emit_inner_state_changed
+                # annotation below for the snapshot-slot write this
+                # transition alone does not perform).
+                policy_metadata=claim_policy_metadata,
             )
         except WorkPackageClaimConflict as exc:
             print(f"Error: {exc}")
@@ -1363,22 +1493,48 @@ def review_claim_transition(
             print(f"Error: {exc}")
             raise typer.Exit(1) from exc
 
-        # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
-        wp_content = wp.path.read_text(encoding="utf-8-sig")
-        updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-        updated_front = set_scalar(updated_front, "agent", agent)
-        updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
+        # WP07/T027: the for_review -> in_review transition is NOT the
+        # planned -> claimed exception WP01's reducer folds policy_metadata
+        # for, so the review-claim's shell_pid must reach the reduced
+        # snapshot via an off-axis InnerStateChanged annotation instead
+        # (same runtime slot, different write path -- FR-004). Best-effort:
+        # never blocks the review claim (C-007).
+        try:
+            emit_inner_state_changed(
+                feature_dir,
+                normalized_wp_id,
+                WPInnerStateDelta(
+                    shell_pid=int(shell_pid),
+                    shell_pid_created_at=claim_policy_metadata.get("shell_pid_created_at"),
+                    agent=agent,
+                ),
+                actor=agent,
+                mission_slug=mission_slug,
+                repo_root=main_repo_root,
+            )
+        except Exception:  # noqa: BLE001 -- best-effort annotation, never blocks the review claim
+            logger.warning("Review-claim shell_pid annotation failed for %s (non-fatal)", normalized_wp_id, exc_info=True)
 
-        # Build history entry (no lane= segment; event log is sole lane authority)
-        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
+        # WP07/T027 (FR-005/C-001): bounded dual-write bridge -- see
+        # _shell_pid_dual_write_active. Once WP05's reader cuts over this
+        # whole block is a no-op (WP file byte-stable across the claim).
+        if _shell_pid_dual_write_active(feature_dir):
+            # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
+            wp_content = wp.path.read_text(encoding="utf-8-sig")
+            updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+            updated_front = set_scalar(updated_front, "agent", agent)
+            updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
 
-        # Add history entry to body
-        updated_body = append_activity_log(updated_body, history_entry)
+            # Build history entry (no lane= segment; event log is sole lane authority)
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
 
-        # Build and write updated document
-        updated_doc = build_document(updated_front, updated_body, updated_padding)
-        write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+            # Add history entry to body
+            updated_body = append_activity_log(updated_body, history_entry)
+
+            # Build and write updated document
+            updated_doc = build_document(updated_front, updated_body, updated_padding)
+            write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
 
         # Atomic commit: WP file + all status artifacts (#211, #212)
         actual_wp_path = wp.path.resolve()

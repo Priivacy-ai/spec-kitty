@@ -61,7 +61,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # treats the union as one required key-set). Counts noted per group for
 # traceability against the seam files' own docstring counts at authoring
 # time (finalize=8, map_requirements=15, shared=20, status_cmd=21,
-# move_task=65, mark_status=13 — 142 total).
+# move_task=65, mark_status=13 — 142 total). WP04 (#2684) added two net-new
+# natively-defined symbols atop that baseline: ``_legacy_unchecked_subtask_ids``
+# (shared=21) and ``_ms_emit_subtask_state`` (mark_status=14) — 144 total.
 # ---------------------------------------------------------------------------
 
 _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
@@ -112,6 +114,7 @@ _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
     "_mission_identity_payload",
     "_resolve_git_common_dir",
     "_check_unchecked_subtasks",
+    "_legacy_unchecked_subtask_ids",
     "_validate_ready_for_review",
     "_wp_branch_merged_into_target",
     "_filter_by_planning_tip_content",
@@ -176,19 +179,31 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     # complexity headroom (folds #2604).
     "_mt_wp_commit_message",
     "_mt_report_commit_outcome",
-    "_mt_persist_tracker_refs",
-    # #2160 (coord-shadows-arm-closeout, FR-010): rollback-to-planned claim-marker
-    # clear + the umbrella reset entry point join the family surface.
-    "_mt_clear_rollback_claim_markers",
+    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the god-write
+    # cut (WP06/WP07, FR-006/FR-007/FR-008) DELETED the frontmatter-writing
+    # runtime-state family — ``_mt_persist_tracker_refs`` (tracker refs now an
+    # off-axis union delta), ``_mt_clear_rollback_claim_markers`` /
+    # ``_mt_uncheck_rollback_subtasks`` / ``_mt_attempt_uncheck_write`` /
+    # ``_mt_commit_uncheck_tasks_md`` / ``_mt_reset_for_planned_rollback`` (the
+    # rollback-to-planned reset is now an event-sourced ``InnerStateChanged``
+    # ``subtasks`` delta). Their rows are removed from this guard; the six
+    # event-sourcing helpers that REPLACED them are added below. The unit test
+    # modules that imported the deleted symbols are reconciled in the same
+    # closeout.
     "_mt_persist_wp_file",
-    "_mt_uncheck_rollback_subtasks",
-    # WP07 (#2649, T035): helpers extracted out of
-    # ``_mt_uncheck_rollback_subtasks`` for complexity headroom, preserving
-    # the #2576/#2513 dual-handler split (C-001).
-    "_mt_attempt_uncheck_write",
-    "_mt_commit_uncheck_tasks_md",
-    "_mt_reset_for_planned_rollback",
     "_mt_release_review_lock",
+    # WP10 closeout: the six event-sourcing helpers WP06/WP07 added to the
+    # move_task seam (off-axis runtime-state emit, flag-OFF dual-write bridge,
+    # claim-triple policy_metadata packer, review planner, rollback
+    # subtask-reset delta builder, shell-pid baseline reader). Each is a
+    # genuine native def with an identity re-export on ``tasks`` (added at
+    # closeout), so it joins the compat surface like every other def.
+    "_mt_dual_write_wp_file",
+    "_mt_emit_runtime_state",
+    "_mt_hop_policy_metadata",
+    "_mt_plan_review_result",
+    "_mt_rollback_subtasks_reset",
+    "_mt_shell_pid_baseline",
     "_mt_execute",
     "_mt_output",
     "_do_move_task",
@@ -235,6 +250,7 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
     "_ms_report_none_resolved",
     "_ms_commit",
     "_ms_apply_updates",
+    "_ms_emit_subtask_state",
     "_ms_emit_history",
     "_ms_dossier_sync",
     "_ms_output",
@@ -404,5 +420,7 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     (pre-review transitions observable/interruption-safe) added
     ``_mt_complete_deferred_for_review_readiness`` and
     ``_mt_pre_review_dirty_paths`` (63 -> 65). Net tasks-surface total
-    141 -> 142."""
-    assert len(SYMBOL_TO_MODULE) == 142  # golden-count: cardinality-is-contract
+    141 -> 142. WP04 (#2684, subtask-emit + reader-delegate) added
+    ``_legacy_unchecked_subtask_ids`` (tasks_shared 20 -> 21) and
+    ``_ms_emit_subtask_state`` (tasks_mark_status 13 -> 14): 142 -> 144."""
+    assert len(SYMBOL_TO_MODULE) == 144  # golden-count: cardinality-is-contract

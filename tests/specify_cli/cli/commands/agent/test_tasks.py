@@ -700,10 +700,17 @@ class TestSkipReviewArtifactCheck:
         assert not guard_triggered, (
             f"Verdict guard fired despite --skip-review-artifact-check.\nOutput:\n{result.output}"
         )
-        artifact_text = artifact.read_text(encoding="utf-8")
-        assert "review_artifact_override_at:" in artifact_text
-        assert "review_artifact_override_actor:" in artifact_text
-        assert "review_artifact_override_reason:" in artifact_text
+        # FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+        # slot, not stamped onto the artifact frontmatter.
+        from specify_cli.status import materialize
+
+        review = materialize(feature_dir).work_packages["WP01"]["review"]
+        assert review["actor"]
+        assert review["reason"] == (
+            "Arbiter override: latest rejection was superseded by manual release review"
+        )
+        assert review["at"]
+        assert "review_artifact_override" not in artifact.read_text(encoding="utf-8")
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
@@ -799,15 +806,24 @@ class TestSkipReviewArtifactCheck:
         # It must be the review-currency guard, NOT the rejected-verdict guard.
         assert "rejected review artifact" not in result.output
         mock_emit.assert_not_called()
-        # Partial write preserved: the override frontmatter is on disk despite the
-        # exit-1 refusal (OLD timing reproduced).
-        artifact_text = artifact.read_text(encoding="utf-8")
-        assert "review_artifact_override_at:" in artifact_text, (
+        # FR-004 partial-write-on-refusal, now event-sourced (FR-009 / WP09): the
+        # review override is emitted at its OLD guard position (ahead of the later
+        # refusing guard), so the ``review`` snapshot slot carries the override even
+        # though the operation exits 1. The transition emit (mock_emit) is still not
+        # called — only the off-axis override annotation is persisted.
+        from specify_cli.status import materialize
+
+        review = materialize(feature_dir).work_packages["WP01"].get("review")
+        assert review is not None, (
             "Override evidence was NOT persisted before the later guard refused — "
-            f"partial-write-on-refusal timing broken.\nArtifact:\n{artifact_text}"
+            "partial-write-on-refusal timing broken."
         )
-        assert "review_artifact_override_actor:" in artifact_text
-        assert "review_artifact_override_reason:" in artifact_text
+        assert review["reason"] == (
+            "Arbiter override: rejection superseded by manual release review"
+        )
+        assert review["actor"]
+        assert review["at"]
+        assert "review_artifact_override" not in artifact.read_text(encoding="utf-8")
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")

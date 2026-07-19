@@ -75,33 +75,41 @@ def _result_by_id(payload: dict[str, Any], task_id: str) -> dict[str, Any]:
 
 
 def test_inline_subtasks_single(tmp_path: Path) -> None:
+    """WP04/T015: inline-Subtasks completion is event-sourced, not a tasks.md
+    byte-write — the row stays byte-identical (no checkbox is materialized)."""
     slug = "001-inline-single"
-    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\nSubtasks: T001\n")
+    original = "# Tasks\n\n## WP01\nSubtasks: T001\n"
+    mission_dir = _write_mission(tmp_path, slug, original)
 
     payload = _invoke_mark_status(tmp_path, slug, "T001")
 
     result = _result_by_id(payload, "T001")
     assert result["outcome"] == "updated"
     assert result["format"] == "inline_subtasks"
-    assert "- [x] T001" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
+    assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == original
 
 
 def test_inline_subtasks_multiple(tmp_path: Path) -> None:
+    """WP04/T015: a batch inline-Subtasks mark resolves every id but leaves
+    tasks.md byte-stable (completion is event-sourced, not materialized)."""
     slug = "002-inline-multiple"
-    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\nSubtasks: T001, T002, T003\n")
+    original = "# Tasks\n\n## WP01\nSubtasks: T001, T002, T003\n"
+    mission_dir = _write_mission(tmp_path, slug, original)
 
     payload = _invoke_mark_status(tmp_path, slug, "T001", "T002", "T003")
 
     assert payload["summary"] == {"updated": 3, "already_satisfied": 0, "not_found": 0}
     content = (mission_dir / "tasks.md").read_text(encoding="utf-8")
+    assert content == original
     for task_id in ("T001", "T002", "T003"):
         result = _result_by_id(payload, task_id)
         assert result["outcome"] == "updated"
         assert result["format"] == "inline_subtasks"
-        assert f"- [x] {task_id}" in content
 
 
 def test_generated_bold_inline_subtasks_are_markable(tmp_path: Path) -> None:
+    """WP04/T015: resolution still succeeds for the generated bold-Subtasks
+    surface, but tasks.md stays byte-stable (event-sourced completion)."""
     slug = "003-generated-bold-inline"
     tasks_md = generate_tasks_md_from_manifest(
         WpsManifest(
@@ -123,7 +131,7 @@ def test_generated_bold_inline_subtasks_are_markable(tmp_path: Path) -> None:
     result = _result_by_id(payload, "T014")
     assert result["outcome"] == "updated"
     assert result["format"] == "inline_subtasks"
-    assert "- [x] T014" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
+    assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == tasks_md
 
 
 def test_wp_id_rejected_with_move_task_guidance(tmp_path: Path) -> None:
@@ -198,36 +206,47 @@ def test_unknown_id_not_found(tmp_path: Path) -> None:
 
 
 def test_mixed_formats(tmp_path: Path) -> None:
+    """WP04/T015: checkbox + inline resolution both succeed, but neither
+    mutates tasks.md — completion for the canonical subtask surface is
+    event-sourced, not a markdown byte-write."""
     slug = "006-mixed-formats"
+    original = "# Tasks\n\n## WP01\n- [ ] T001 Checkbox\nSubtasks: T002\n\n## WP03\n"
     mission_dir = _write_mission(
         tmp_path,
         slug,
-        "# Tasks\n\n## WP01\n- [ ] T001 Checkbox\nSubtasks: T002\n\n## WP03\n",
+        original,
         wp_ids=("WP03",),
     )
 
     payload = _invoke_mark_status(tmp_path, slug, "T001", "T002", "WP03")
 
     assert _result_by_id(payload, "T001")["format"] == "checkbox"
+    assert _result_by_id(payload, "T001")["outcome"] == "updated"
     assert _result_by_id(payload, "T002")["format"] == "inline_subtasks"
+    assert _result_by_id(payload, "T002")["outcome"] == "updated"
     assert _result_by_id(payload, "WP03")["format"] == "wp_id"
     assert _result_by_id(payload, "WP03")["outcome"] == "not_found"
     assert "move-task" in _result_by_id(payload, "WP03")["message"]
     content = (mission_dir / "tasks.md").read_text(encoding="utf-8")
-    assert "- [x] T001" in content
-    assert "- [x] T002" in content
+    assert content == original
+    assert "- [ ] T001 Checkbox" in content
 
 
 def test_existing_checkbox_unchanged(tmp_path: Path) -> None:
+    """WP04/T015: the canonical checkbox row is genuinely left unchanged —
+    resolution succeeds (mapping the id to its owning WP + target Status),
+    but the durable completion record is the InnerStateChanged emit, not a
+    tasks.md byte-write (C-001)."""
     slug = "007-checkbox"
-    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\n- [ ] T001 First task\n")
+    original = "# Tasks\n\n## WP01\n- [ ] T001 First task\n"
+    mission_dir = _write_mission(tmp_path, slug, original)
 
     payload = _invoke_mark_status(tmp_path, slug, "T001")
 
     result = _result_by_id(payload, "T001")
     assert result["outcome"] == "updated"
     assert result["format"] == "checkbox"
-    assert "- [x] T001 First task" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
+    assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == original
 
 
 def test_history_added_uses_owning_wp_for_checkbox_task(tmp_path: Path) -> None:

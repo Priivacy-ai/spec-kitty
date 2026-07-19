@@ -29,9 +29,7 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 import uuid
-from contextlib import suppress
 from datetime import datetime, UTC
 from pathlib import Path
 from dataclasses import dataclass
@@ -45,12 +43,6 @@ import typer
 from mission_runtime import CommitTarget
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
-from specify_cli.git.commit_helpers import (
-    SafeCommitBackstopError,
-    SafeCommitError,
-    SafeCommitRecoveryFailed,
-    safe_commit,
-)
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -1523,94 +1515,64 @@ def append_history(
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     note: str = typer.Option(..., "--note", help="History note to append"),
 ) -> None:
-    """Append a history entry to a WP prompt file."""
+    """Append a history entry via an ``InnerStateChanged`` ``note`` annotation.
+
+    WP08 / FR-007 / T031: this cross-package (ACL-boundary) writer no longer
+    mutates the WP prompt file's ``## Activity Log`` section directly -- it
+    emits a ``note``-append delta through WP01's ``emit_inner_state_changed``.
+    The write target is the coord-aware STATUS-partition mission directory
+    (:func:`_resolve_mission_dir_or_fail` -- the SAME seam every other STATUS
+    read/write in this module uses, e.g. ``accept_mission``'s
+    ``materialize(mission_dir)``), never a ``Path.cwd()``-derived join
+    (C-003 / #2647 -- see the SC-008 test).
+    """
     cmd = "append-history"
 
     main_repo_root = _get_main_repo_root()
-    # Existence/identity gate via the coord-aware read seam (typed miss envelope).
-    _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    # Existence/identity gate via the coord-aware read seam (typed miss
+    # envelope). This is also the STATUS-partition mission directory the
+    # annotation below is emitted into.
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    # FR-003 / T013: the WP prompt file is a WORK_PACKAGE_TASK (primary kind), so
-    # it is authored and committed on the PRIMARY checkout — never the coordination
-    # worktree (the planning→coord transit is removed, C-005). Resolve the WP file
-    # through the canonical per-kind read seam (``_planning_read_dir`` →
-    # ``resolve_planning_read_dir``, the same seam the sibling planning reads use),
-    # NOT a raw handle-blind ``primary_feature_dir_for_mission`` call: that primitive
-    # composes the handle verbatim, so a bare ``mid8`` / full ULID / numeric handle
-    # would land on a DIVERGENT dir than where the WP prompt actually lives (the
-    # #2136/#2164 write/placement divergence). The seam folds the handle to its
-    # canonical ``<slug>-<mid8>`` dir for every form (and propagates
-    # ``MissionSelectorAmbiguous`` — no silent pick). The kind is PRIMARY so the
-    # resolved dir is the primary surface — a coord-anchored path would trip
-    # SAFE_COMMIT_PATH_POLICY (.worktrees/ staging).
+    # FR-003 / T013: the WP prompt file is a WORK_PACKAGE_TASK (primary kind),
+    # so its EXISTENCE is checked on the PRIMARY checkout -- never the
+    # coordination worktree (the planning→coord transit is removed, C-005).
+    # Resolve it through the canonical per-kind read seam (``_planning_read_dir``
+    # → ``resolve_planning_read_dir``, the same seam the sibling planning reads
+    # use), NOT a raw handle-blind ``primary_feature_dir_for_mission`` call: that
+    # primitive composes the handle verbatim, so a bare ``mid8`` / full ULID /
+    # numeric handle would land on a DIVERGENT dir than where the WP prompt
+    # actually lives (the #2136/#2164 write/placement divergence). The seam
+    # folds the handle to its canonical ``<slug>-<mid8>`` dir for every form
+    # (and propagates ``MissionSelectorAmbiguous`` -- no silent pick).
     primary_mission_dir = _planning_read_dir(main_repo_root, mission)
     wp_path = _resolve_wp_file(primary_mission_dir / "tasks", wp)
     if wp_path is None:
         _fail_wp_not_found(cmd, wp, mission)
         return
 
-    from specify_cli.task_utils import (
-        split_frontmatter,
-        build_document,
-        append_activity_log,
-    )
-
-    raw = wp_path.read_text(encoding="utf-8")
-    fm, body, padding = split_frontmatter(raw)
+    from specify_cli.status.emit import emit_inner_state_changed
+    from specify_cli.status.models import WPInnerStateDelta
+    from specify_cli.status.store import StoreError
 
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Byte-identical to the historical rendered Activity Log line (FR-007
+    # no-content-loss): the note carries the fully-formatted entry so no
+    # information is lost even before a dedicated notes-render surface lands.
     entry_text = f"- [{timestamp}] {actor}: {note}"
-    new_body = append_activity_log(body, entry_text)
 
     try:
-        wp_path.write_text(build_document(fm, new_body, padding), encoding="utf-8")
-
-        commit_worktree_root, commit_target = _resolve_history_commit_args(
-            main_repo_root, mission
-        )
-        safe_commit(
+        emit_inner_state_changed(
+            mission_dir,
+            wp,
+            WPInnerStateDelta(note=entry_text),
+            actor=actor,
+            mission_slug=mission,
             repo_root=main_repo_root,
-            worktree_root=commit_worktree_root,
-            target=commit_target,
-            message=f"hist: append activity log entry for {mission}/{wp}",
-            paths=(wp_path,),
         )
-    except (SafeCommitError, SafeCommitBackstopError) as exc:
-        if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
-            with suppress(OSError):
-                wp_path.write_text(raw, encoding="utf-8")
-        if isinstance(exc, SafeCommitError):
-            data = exc.to_dict()
-        else:
-            data = {
-                "error_code": exc.error_code,
-                "message": str(exc),
-                "requested": list(exc.requested),
-                "unexpected": [
-                    {"path": unexpected.path, "status_code": unexpected.status_code}
-                    for unexpected in exc.unexpected
-                ],
-            }
-        _fail(cmd, exc.error_code, str(exc), data=data)
-        return
-    except subprocess.CalledProcessError as exc:
-        with suppress(OSError):
-            wp_path.write_text(raw, encoding="utf-8")
-        message = exc.stderr.strip() if exc.stderr else str(exc)
-        _fail(cmd, "HISTORY_COMMIT_FAILED", message)
-        return
-    except PlacementResolutionRequired as exc:
-        # FR-004 (C-005): a fail-closed placement-resolution refusal carries
-        # its own structured error_code -- it must NOT be flattened into the
-        # generic HISTORY_COMMIT_FAILED below, which would hide the D11
-        # fail-closed signal from the machine-contract consumer.
-        with suppress(OSError):
-            wp_path.write_text(raw, encoding="utf-8")
-        _fail(cmd, exc.error_code, str(exc), data=exc.to_dict())
-        return
-    except (OSError, RuntimeError) as exc:
-        with suppress(OSError):
-            wp_path.write_text(raw, encoding="utf-8")
+    except (ValueError, StoreError) as exc:
+        # A failed emit still surfaces the orchestrator-api's own structured
+        # envelope (never a bare traceback) -- ``_fail`` is typed ``NoReturn``.
         _fail(cmd, "HISTORY_COMMIT_FAILED", str(exc))
         return
 

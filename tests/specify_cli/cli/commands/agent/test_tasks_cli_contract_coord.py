@@ -397,8 +397,19 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
             "--skip-review-artifact-check", "--note", "arbiter release: rejection superseded",
             "--no-auto-commit",
         ])
+    # FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+    # slot, not stamped onto the artifact frontmatter. Capture the reduced slot as
+    # the durable override evidence.
+    from specify_cli.status import materialize as _materialize
+
+    _review_slot = _materialize(fd).work_packages.get("WP01", {}).get("review") or {}
     out["rejected_verdict_override"] = Scenario(
-        code, text, evidence={"artifact_text": artifact.read_text(encoding="utf-8")}
+        code,
+        text,
+        evidence={
+            "review_override": _review_slot,
+            "artifact_text": artifact.read_text(encoding="utf-8"),
+        },
     )
 
     # planning-artifact-WP done (FR-008a): ancestry check SKIPPED for a non-code_change WP.
@@ -452,7 +463,12 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         code, text, _ = _invoke(["move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--no-auto-commit"])
     out["wp_file_write"] = Scenario(code, text, evidence={"wp_body": wp_file.read_text(encoding="utf-8")})
 
-    # tracker-ref frontmatter persistence.
+    # tracker-ref event-sourced union delta (WP06 FR-006): the move-task
+    # god-write is cut, so tracker refs land in the reduced ``tracker_refs``
+    # snapshot slot, NOT the WP frontmatter. Capture the reduced slot (mirroring
+    # the ``rejected_verdict_override`` review-slot capture above) plus the WP
+    # body so the re-pointed test can assert BOTH the union delta AND the
+    # absence of a frontmatter stamp.
     fd = _simple_mission(mkdir(), f"tracker-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress")])
     wp_file = fd / "tasks" / "WP01-fixture.md"
@@ -461,7 +477,19 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
             "move-task", "WP01", "--to", "for_review", "--mission", fd.name,
             "--tracker-ref", "#1298", "--tracker-ref", "JIRA-7", "--no-auto-commit", "--json",
         ])
-    out["tracker_ref"] = Scenario(code, text, evidence={"wp_body": wp_file.read_text(encoding="utf-8")})
+    from specify_cli.status import materialize as _materialize
+
+    _tracker_slot = list(
+        _materialize(fd).work_packages.get("WP01", {}).get("tracker_refs") or []
+    )
+    out["tracker_ref"] = Scenario(
+        code,
+        text,
+        evidence={
+            "wp_body": wp_file.read_text(encoding="utf-8"),
+            "tracker_refs": _tracker_slot,
+        },
+    )
 
     # --- extra move_task arms (coverage breadth for the T007 ratchet) ---
     # self-review fallback approval.
@@ -653,12 +681,18 @@ class TestMoveTaskDecisionBranchesFrozen:
         assert "--skip-review-artifact-check" in sc.output
 
     def test_rejected_verdict_override_reopens_path(self, scenarios: dict[str, Scenario]) -> None:
-        """--skip-review-artifact-check + --note durably overrides the rejection."""
+        """--skip-review-artifact-check + --note durably overrides the rejection.
+
+        FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+        slot, not stamped onto the artifact frontmatter.
+        """
         sc = scenarios["rejected_verdict_override"]
         assert sc.exit_code == 0, sc.output
-        assert "review_artifact_override_reason" in sc.evidence["artifact_text"], (
-            "override evidence must be stamped durably into the review artifact"
-        )
+        assert sc.evidence["review_override"].get("reason") == (
+            "arbiter release: rejection superseded"
+        ), "override evidence must be event-sourced into the review snapshot slot"
+        # The artifact frontmatter must carry no override evidence anymore.
+        assert "review_artifact_override" not in sc.evidence["artifact_text"]
 
     def test_planning_artifact_done_skips_ancestry(self, scenarios: dict[str, Scenario]) -> None:
         """FR-008a: a planning-artifact WP reaches done WITHOUT merge ancestry."""
@@ -722,12 +756,24 @@ class TestMoveTaskSideEffects:
         activity_lines = [line for line in body.splitlines() if line.startswith("- ")]
         assert activity_lines, "move_task must append an activity-log entry to the WP file"
 
-    def test_tracker_ref_frontmatter_persisted(self, scenarios: dict[str, Scenario]) -> None:
-        """--tracker-ref values land in the WP frontmatter tracker_refs."""
+    def test_tracker_ref_event_sourced_union_delta(self, scenarios: dict[str, Scenario]) -> None:
+        """--tracker-ref values land in the event-sourced ``tracker_refs`` slot.
+
+        WP10 closeout re-point (FR-006 union delta): the move-task god-write is
+        cut, so tracker refs are recorded off-axis in the reduced snapshot's
+        ``tracker_refs`` slot rather than stamped onto WP frontmatter — the WP
+        body must NOT carry them.
+        """
         sc = scenarios["tracker_ref"]
         assert sc.exit_code == 0, sc.output
-        body = sc.evidence["wp_body"]
-        assert "#1298" in body and "JIRA-7" in body, "tracker refs must persist to WP frontmatter"
+        refs = sc.evidence["tracker_refs"]
+        assert "#1298" in refs and "JIRA-7" in refs, (
+            f"tracker refs must union into the event-sourced slot; got {refs!r}"
+        )
+        # Two-sided: the god-write cut means they are NOT stamped onto the WP body.
+        assert "#1298" not in sc.evidence["wp_body"], (
+            "tracker refs must NOT be written to WP frontmatter (god-write cut)"
+        )
 
 
 # Per-function branch-coverage floors, MEASURED from this harness's drives on the
