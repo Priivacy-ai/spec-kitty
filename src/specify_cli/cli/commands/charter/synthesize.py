@@ -161,15 +161,14 @@ def charter_synthesize(  # noqa: C901
         #
         # Gating signal re-pointed from charter.md to charter.yaml for the
         # consolidate-charter-bundle inversion (#2773): post-inversion
-        # `charter generate` writes the authoritative charter.yaml and NEVER
-        # writes charter.md (a hand-curated companion — see generate.py /
-        # data-model.md Landmine 3). Keying the fresh-project intercept on
-        # charter.md therefore never fired on a real fresh project and let
-        # synthesize fall through to the production adapter (crash). charter.yaml
-        # is the artifact `generate` reliably produces, so it is the correct
-        # fresh-project signal. When it is absent we fall through to the
-        # existing pipeline so callers that mock charter.synthesizer.synthesize
-        # (legacy unit tests) keep their established behaviour.
+        # charter.yaml is the authoritative charter the compiler writes, while
+        # charter.md is a display-only companion (INV-3 — never a resolving
+        # signal). Pre-#2773 this keyed on charter.md, which never fired on a
+        # real fresh project once generate stopped emitting charter.md, so
+        # synthesize fell through to the production adapter and crashed.
+        # charter.yaml is the canonical fresh-project signal; when it is absent
+        # we fall through to the existing pipeline so callers that mock
+        # charter.synthesizer.synthesize keep their established behaviour.
         charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
         is_fresh_project_synthesize = (
             adapter == "generated"

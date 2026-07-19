@@ -91,10 +91,30 @@ and make recurring tool/process gaps visible instead of re-discovered.
 
 ## 4. Test Remediation & Bug-Fix Discipline
 
-- **Judge the test, not git-blame.** A failing test is one of three things:
-  *stale* → re-pin the assertion; *a stub/scaffold* → delete it; *valid and
-  current* → the **product** is wrong, fix the product. Never retry-to-green;
-  never soften a good test to make a build pass.
+- **Judge the test, not git-blame.** A failing test is one of four things:
+  *stale assertion* (same valid scenario, outdated expected value) → re-pin it;
+  *a stub/scaffold* → delete it; *encodes a superseded product direction/design*
+  → **remove it outright** (see next bullet); *valid and current* → the
+  **product** is wrong, fix the product. Never retry-to-green; never soften a
+  good test to make a build pass.
+- **When a test no longer represents the desired design, delete it — do not
+  teach the product to serve the dead usage.** This is the sharp edge of "fix
+  the test, not the code." If a test's very *premise* — its setup, the flow it
+  drives — exercises a pattern the product has intentionally retired, the test
+  is not re-pinnable: its whole scenario is dead, so removing it is the correct
+  remediation. Adding a non-canonical fallback branch to the product so the old
+  test still passes is a **regression**: it resurrects the dead path and
+  violates canonical-source discipline (§6). Worked example (#2773): after the
+  `charter.yaml` authority inversion, `charter synthesize` requires the
+  canonical `charter.yaml`; tests that seeded a `charter.md`-only project and
+  asserted success were driving the retired pre-inversion flow — the fix was to
+  **delete** them, not to re-add a `charter.md` gate to the resolver. Guard
+  rails: this is distinct from a *stale assertion* (keep the test, re-pin the
+  value) and, crucially, from *deleting a good test to dodge a real product
+  failure* — the latter is forbidden (§7). The test on your bench: "Does the
+  desired product design still want this behavior to exist at all?" If no →
+  remove. If yes, but the expected value moved → re-pin. If yes, and the product
+  now does the wrong thing → fix the product.
 - **Red-first reproduction.** Write the RED test **first**, through the
   **pre-existing** entry point (not the fix's brand-new API), and prove it red
   against pre-fix code. A test that's green before *and* after the fix captures
