@@ -252,11 +252,14 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
     # operator sees a notice.
     stale_owner_cleaned = "Unhealthy" in stop_message or "invalid" in stop_message
 
-    # Step 4 — respawn the daemon at the foreground binding.
+    # Step 4 — respawn the daemon at the foreground binding. This is an explicit
+    # user restart, so force past the #2573b disable-env skip (SPEC_KITTY_SYNC_*):
+    # those envs suppress implicit auto-start, not a directly-requested restart.
     try:
         outcome = ensure_sync_daemon_running(
             intent=DaemonIntent.REMOTE_REQUIRED,
             health_wait_seconds=_RESTART_HEALTH_WAIT_SECONDS,
+            force_explicit=True,
         )
     except Exception as exc:  # noqa: BLE001 — surface as respawn_failed per contract
         return RestartResult(

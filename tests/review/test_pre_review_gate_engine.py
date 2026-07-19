@@ -83,6 +83,50 @@ FAKE_ROUTING: dict[str, pre_review_gate._CompositeRoute] = {
 _DUMMY_ROOT = Path(".")
 
 
+# ---------------------------------------------------------------------------
+# Live-authority loading: consumer-repo detection (#2534)
+# ---------------------------------------------------------------------------
+#
+# ``tests/architectural/_gate_coverage.py`` only ever exists inside the
+# spec-kitty SOURCE repo itself. Any project that ran ``spec-kitty init``
+# (a "consumer repo") legitimately lacks it — that absence must degrade to a
+# calm, non-blocking warn (never a message naming the internal module), while
+# a genuinely-broken authority INSIDE the source repo keeps its detailed,
+# internal-audience message. ``GateAuthoritiesUnavailable.is_consumer_repo``
+# is the discriminator the CLI hook (``tasks_move_task._mt_pre_review_gate_verdict``)
+# branches on to pick the message shape.
+
+
+@pytest.mark.fast
+def test_is_spec_kitty_source_repo_true_when_gate_coverage_module_present(tmp_path: Path) -> None:
+    gate_coverage = tmp_path / "tests" / "architectural" / "_gate_coverage.py"
+    gate_coverage.parent.mkdir(parents=True)
+    gate_coverage.write_text("", encoding="utf-8")
+
+    assert pre_review_gate._is_spec_kitty_source_repo(tmp_path) is True
+
+
+@pytest.mark.fast
+def test_is_spec_kitty_source_repo_false_for_a_bare_consumer_checkout(tmp_path: Path) -> None:
+    """A bare consumer repo (no ``tests/architectural/_gate_coverage.py`` of
+    its own) must NOT be misidentified as the spec-kitty source repo."""
+    (tmp_path / "src").mkdir()
+
+    assert pre_review_gate._is_spec_kitty_source_repo(tmp_path) is False
+
+
+@pytest.mark.fast
+def test_load_gate_coverage_module_marks_consumer_repo_on_missing_module(tmp_path: Path) -> None:
+    """#2534 (calm-degrade regression guard): a consumer repo (no
+    ``tests/architectural/_gate_coverage.py``) raises ``GateAuthoritiesUnavailable``
+    with ``is_consumer_repo=True`` so the CLI hook can compose a calm warn instead
+    of naming the internal module."""
+    with pytest.raises(pre_review_gate.GateAuthoritiesUnavailable) as excinfo:
+        pre_review_gate._load_gate_coverage_module(tmp_path)
+
+    assert excinfo.value.is_consumer_repo is True
+
+
 def _derive(changed_files: list[str]) -> ScopeResult:
     return pre_review_gate.derive_test_scope(
         changed_files,
