@@ -115,7 +115,7 @@ class TestWriteFailureSurfaced:
             "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory",
             side_effect=OSError("disk full"),
         ):
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         assert st.rollback_uncheck_error is not None
         assert "disk full" in st.rollback_uncheck_error
@@ -135,7 +135,7 @@ class TestWriteFailureSurfaced:
             "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory",
             side_effect=OSError("disk full"),
         ):
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         # The write never landed — rows remain checked on disk...
         result = tasks_md.read_text(encoding="utf-8")
@@ -159,7 +159,7 @@ class TestWriteFailureSurfaced:
         ):
             # Must not propagate — a caller downstream (_mt_release_review_lock)
             # still needs to run.
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
     def test_write_failure_logs_at_error_level(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -179,7 +179,7 @@ class TestWriteFailureSurfaced:
                 side_effect=OSError("disk full"),
             ),
         ):
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         assert any(record.levelno == logging.ERROR for record in caplog.records)
         assert any("disk full" in record.getMessage() for record in caplog.records)
@@ -196,7 +196,7 @@ class TestWriteFailureSurfaced:
         ports = _make_ports(feature_dir)
 
         with patch.object(Path, "read_text", side_effect=OSError("permission denied")):
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         assert st.rollback_uncheck_error is not None
         assert "permission denied" in st.rollback_uncheck_error
@@ -217,7 +217,7 @@ class TestWriteRoutedThroughHouseGuard:
         with patch(
             "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory"
         ) as mock_write:
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         mock_write.assert_called_once()
         call_args, call_kwargs = mock_write.call_args
@@ -236,7 +236,7 @@ class TestWriteRoutedThroughHouseGuard:
         st = _make_state(tmp_path, resolved_auto_commit=False)
         ports = _make_ports(feature_dir)
 
-        _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+        _mt_uncheck_rollback_subtasks(st, ports)
 
         result = tasks_md.read_text(encoding="utf-8")
         assert "- [ ] T001" in result
@@ -260,7 +260,7 @@ class TestFailureHandlerSeparateFromCommitHandler:
             "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory",
             side_effect=OSError("disk full"),
         ):
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         # The write failed before the commit step is ever reached.
         ports.coord.commit_artifact.assert_not_called()
@@ -283,7 +283,7 @@ class TestFailureHandlerSeparateFromCommitHandler:
 
         with patch("specify_cli.cli.commands.agent.tasks.ProtectionPolicy") as mock_pp:
             mock_pp.resolve.return_value = MagicMock()
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         # The write itself succeeded — only the commit bookkeeping failed —
         # so the new field stays None; this is the pre-existing #2513 leg.
@@ -330,8 +330,8 @@ class TestOutOfLockOrderingPreserved:
             ),
         ):
             # Simulates the exact post-lock call order in _mt_execute.
-            _mt_reset_for_planned_rollback(st, ports)  # type: ignore[arg-type]
-            _mt_release_review_lock(st)  # type: ignore[arg-type]
+            _mt_reset_for_planned_rollback(st, ports)
+            _mt_release_review_lock(st)
 
         # The uncheck failure was recorded...
         assert st.rollback_uncheck_error is not None

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 import typer
@@ -95,7 +96,7 @@ def test_already_materialized_workspace_is_consumed_without_re_resolution(
     Guards the single-resolution invariant: the helper must NOT call
     ``resolve_workspace_for_wp`` (a second authority).
     """
-    resolve_calls: list[tuple] = []
+    resolve_calls: list[tuple[Any, ...]] = []
     monkeypatch.setattr(
         workflow,
         "resolve_workspace_for_wp",
@@ -124,7 +125,7 @@ def test_create_then_consume_resolved_context_no_no_workspace_error(
     resolved". The fix is that the already-resolved workspace is re-stat'd via
     ``.exists`` — NOT re-resolved through a second authority.
     """
-    re_resolution_calls: list[tuple] = []
+    re_resolution_calls: list[tuple[Any, ...]] = []
     monkeypatch.setattr(
         workflow,
         "resolve_workspace_for_wp",

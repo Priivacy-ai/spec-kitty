@@ -23,7 +23,7 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 
-def test_resolved_agent_string_agent():
+def test_resolved_agent_string_agent() -> None:
     """String agent field produces correct tool/model."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -39,7 +39,7 @@ def test_resolved_agent_string_agent():
     assert assignment.role is None
 
 
-def test_resolved_agent_dict_agent():
+def test_resolved_agent_dict_agent() -> None:
     """Dict agent field produces correct tool/model/profile_id/role."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -54,7 +54,7 @@ def test_resolved_agent_dict_agent():
     assert assignment.role == "reviewer"
 
 
-def test_resolved_agent_none_agent_with_model():
+def test_resolved_agent_none_agent_with_model() -> None:
     """None agent falls back to 'unknown' tool, uses model field."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -68,7 +68,7 @@ def test_resolved_agent_none_agent_with_model():
     assert assignment.model == "claude-haiku-4"
 
 
-def test_resolved_agent_none_agent_no_model():
+def test_resolved_agent_none_agent_no_model() -> None:
     """None agent with no model gives 'unknown' defaults."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -82,7 +82,7 @@ def test_resolved_agent_none_agent_no_model():
     assert assignment.model == "unknown-model"
 
 
-def test_resolved_agent_string_no_model():
+def test_resolved_agent_string_no_model() -> None:
     """String agent with no model field falls back to 'unknown-model'."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -96,7 +96,7 @@ def test_resolved_agent_string_no_model():
     assert assignment.model == "unknown-model"
 
 
-def test_resolved_agent_dict_no_tool():
+def test_resolved_agent_dict_no_tool() -> None:
     """Dict agent without 'tool' falls back to 'unknown'."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -109,7 +109,7 @@ def test_resolved_agent_dict_no_tool():
     assert assignment.model == "gpt-5"
 
 
-def test_resolved_agent_dict_no_model_uses_meta_model():
+def test_resolved_agent_dict_no_model_uses_meta_model() -> None:
     """Dict agent without 'model' falls back to WPMetadata.model field."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -123,7 +123,7 @@ def test_resolved_agent_dict_no_model_uses_meta_model():
     assert assignment.model == "claude-sonnet-4-6"
 
 
-def test_resolved_agent_uses_agent_profile_fallback():
+def test_resolved_agent_uses_agent_profile_fallback() -> None:
     """None agent falls back to agent_profile for profile_id."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -136,7 +136,7 @@ def test_resolved_agent_uses_agent_profile_fallback():
     assert assignment.profile_id == "claude:sonnet:implementer"
 
 
-def test_resolved_agent_uses_role_fallback():
+def test_resolved_agent_uses_role_fallback() -> None:
     """None agent falls back to role field."""
     from specify_cli.status.wp_metadata import WPMetadata
 
@@ -149,7 +149,7 @@ def test_resolved_agent_uses_role_fallback():
     assert assignment.role == "implementer"
 
 
-def test_resolved_agent_returns_agent_assignment_type():
+def test_resolved_agent_returns_agent_assignment_type() -> None:
     """resolved_agent() always returns an AgentAssignment instance."""
     from specify_cli.status.models import AgentAssignment
     from specify_cli.status.wp_metadata import WPMetadata
@@ -244,7 +244,7 @@ def test_implement_command_calls_resolved_agent(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_workflow_source_has_no_doing_string():
+def test_workflow_source_has_no_doing_string() -> None:
     """Verify the 'doing' alias string literal does not appear in workflow.py source."""
     from specify_cli.cli.commands.agent import workflow as workflow_module
 
@@ -272,7 +272,7 @@ def test_workflow_source_has_no_doing_string():
     )
 
 
-def test_workflow_uses_lane_in_progress_not_doing_string():
+def test_workflow_uses_lane_in_progress_not_doing_string() -> None:
     """Verify workflow.py uses Lane.IN_PROGRESS for in_progress comparisons."""
     from specify_cli.cli.commands.agent import workflow as workflow_module
 
@@ -297,7 +297,9 @@ def test_auto_claim_failure_message_preserves_dependency_reason() -> None:
     assert "all dependencies must be approved or done" in message
 
 
-def test_preview_claimable_wp_for_mission_reads_repo_root_not_worktree(tmp_path, monkeypatch):
+def test_preview_claimable_wp_for_mission_reads_repo_root_not_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The auto-claim readiness preview resolves to the repository-root checkout's
     canonical event log (via get_main_repo_root), never a stale worktree-local copy.
 
@@ -354,19 +356,19 @@ def test_preview_claimable_wp_for_mission_reads_repo_root_not_worktree(tmp_path,
 # ---------------------------------------------------------------------------
 
 
-def test_agent_assignment_is_frozen():
+def test_agent_assignment_is_frozen() -> None:
     """AgentAssignment is a frozen dataclass (immutable)."""
     from specify_cli.status.models import AgentAssignment
 
     assignment = AgentAssignment(tool="claude", model="claude-opus-4-6")
     with pytest.raises((AttributeError, TypeError)):
-        assignment.tool = "other"  # type: ignore[misc]
+        assignment.tool = "other"
 
 
 import pytest
 
 
-def test_agent_assignment_optional_fields():
+def test_agent_assignment_optional_fields() -> None:
     """AgentAssignment profile_id and role are optional."""
     from specify_cli.status.models import AgentAssignment
 
@@ -375,7 +377,7 @@ def test_agent_assignment_optional_fields():
     assert assignment.role is None
 
 
-def test_agent_assignment_with_all_fields():
+def test_agent_assignment_with_all_fields() -> None:
     """AgentAssignment accepts all fields."""
     from specify_cli.status.models import AgentAssignment
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+from typing import Any
 
 import pytest
 import typer
@@ -46,7 +47,7 @@ def _make_coord_without_spec(coord_feature_dir: Path) -> None:
     (coord_feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
 
 
-def _patch_resolution(monkeypatch, repo_root: Path, coord_feature_dir: Path) -> None:
+def _patch_resolution(monkeypatch: pytest.MonkeyPatch, repo_root: Path, coord_feature_dir: Path) -> None:
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root",
         lambda: repo_root,
@@ -63,7 +64,9 @@ def _patch_resolution(monkeypatch, repo_root: Path, coord_feature_dir: Path) -> 
     )
 
 
-def test_record_analysis_writes_to_primary_when_coord_lacks_spec(tmp_path, monkeypatch):
+def test_record_analysis_writes_to_primary_when_coord_lacks_spec(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     slug = "sample-01KS"
     repo_root = tmp_path
     primary_feature_dir = repo_root / "kitty-specs" / slug
@@ -95,7 +98,9 @@ def test_record_analysis_writes_to_primary_when_coord_lacks_spec(tmp_path, monke
     assert not (coord_feature_dir / ANALYSIS_REPORT_FILENAME).exists()
 
 
-def test_record_analysis_writes_to_primary_without_coord_worktree(tmp_path, monkeypatch):
+def test_record_analysis_writes_to_primary_without_coord_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Regression: the no-coord-worktree path is unchanged (write still lands in primary)."""
     slug = "sample-01KS"
     repo_root = tmp_path
@@ -131,7 +136,7 @@ def test_record_analysis_writes_to_primary_without_coord_worktree(tmp_path, monk
 # resolves via the topology-blind ``primary_feature_dir_for_mission``.
 
 
-def test_implement_gate_finds_report_in_primary_not_coord(tmp_path):
+def test_implement_gate_finds_report_in_primary_not_coord(tmp_path: Path) -> None:
     slug = "sample-01KS"
     repo_root = tmp_path
     primary_feature_dir = repo_root / "kitty-specs" / slug
@@ -164,7 +169,9 @@ def test_implement_gate_finds_report_in_primary_not_coord(tmp_path):
 # (primary_ -> candidate_) fail this test.
 
 
-def test_analysis_report_gate_dir_uses_primary_not_candidate(tmp_path, monkeypatch):
+def test_analysis_report_gate_dir_uses_primary_not_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from specify_cli.cli.commands.agent import workflow as workflow_mod
 
     primary_sentinel = tmp_path / "PRIMARY" / "mission"
@@ -188,7 +195,9 @@ def test_analysis_report_gate_dir_uses_primary_not_candidate(tmp_path, monkeypat
 # assert its frontmatter identity directly.
 
 
-def test_record_analysis_persists_outer_wrapper_format_under_coord(tmp_path, monkeypatch):
+def test_record_analysis_persists_outer_wrapper_format_under_coord(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from specify_cli.analysis_report import ANALYSIS_REPORT_ARTIFACT_TYPE
     from specify_cli.frontmatter import FrontmatterManager
 
@@ -222,7 +231,9 @@ def test_record_analysis_persists_outer_wrapper_format_under_coord(tmp_path, mon
     assert frontmatter.get("schema") != "analysis-findings/v1"
 
 
-def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree(tmp_path, monkeypatch):
+def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """T014 / WP02: protected primary + coord topology → materialize-then-retry (exit 0).
 
     Previously (#1989 guard) the command refused with PROTECTED_BRANCH_REFUSED (exit 1).
@@ -305,9 +316,9 @@ def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree
     # so we patch it at the canonical module level (specify_cli.coordination.commit_router)
     # so that any `from specify_cli.coordination.commit_router import commit_for_mission`
     # inside the record_analysis body picks up the stub.
-    commit_router_calls: list[dict] = []
+    commit_router_calls: list[dict[str, Any]] = []
 
-    def _fake_commit_for_mission(**kwargs):
+    def _fake_commit_for_mission(**kwargs: Any) -> CommitRouterResult:
         commit_router_calls.append(kwargs)
         return CommitRouterResult(
             status="committed",

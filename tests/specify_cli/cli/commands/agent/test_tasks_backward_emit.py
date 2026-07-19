@@ -27,9 +27,14 @@ mocks of ``emit_status_transition`` or ``validate_transition``.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from typer.testing import CliRunner
+
+if TYPE_CHECKING:
+    from click.testing import Result
+    from spec_kitty_events.conformance import FixtureCase
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
@@ -136,7 +141,7 @@ def _invoke_move(
     tmp_path: Path,
     mission_slug: str,
     args: list[str],
-):
+) -> Result:
     """Run move_task end-to-end with the standard mocked env."""
     with setup_mocked_env(
         tmp_path,
@@ -454,7 +459,7 @@ class TestBackwardEmitFeedbackRef:
 # ---------------------------------------------------------------------------
 
 
-def _load_approved_rewind_fixture():
+def _load_approved_rewind_fixture() -> FixtureCase | None:
     """Return Mission 1's ``wp-status-changed-approved-rewind-valid``
     fixture, or ``None`` when the installed events package predates it.
 

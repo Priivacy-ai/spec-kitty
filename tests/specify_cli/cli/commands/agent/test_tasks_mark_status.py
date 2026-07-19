@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -43,7 +44,7 @@ def _null_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-d
     yield
 
 
-def _invoke_mark_status(repo: Path, slug: str, *ids: str, expected_exit_code: int = 0) -> dict:
+def _invoke_mark_status(repo: Path, slug: str, *ids: str, expected_exit_code: int = 0) -> dict[str, Any]:
     with (
         patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=repo),
         patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
@@ -69,7 +70,7 @@ def _invoke_mark_status(repo: Path, slug: str, *ids: str, expected_exit_code: in
     return json.loads(result.stdout)
 
 
-def _result_by_id(payload: dict, task_id: str) -> dict:
+def _result_by_id(payload: dict[str, Any], task_id: str) -> dict[str, Any]:
     return next(result for result in payload["results"] if result["id"] == task_id)
 
 

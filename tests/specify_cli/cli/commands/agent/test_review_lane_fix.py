@@ -69,21 +69,21 @@ def _is_review_claimed_execution_context(events: list[StatusEvent], wp_id: str =
 class TestIsReviewClaimedNewShape:
     """Verify the new canonical IN_REVIEW shape is recognized as review-claimed."""
 
-    def test_in_review_is_claimed_workflow(self):
+    def test_in_review_is_claimed_workflow(self) -> None:
         event = _make_event(Lane.IN_REVIEW)
         assert _is_review_claimed_workflow(event) is True
 
-    def test_in_review_is_claimed_execution_context(self):
+    def test_in_review_is_claimed_execution_context(self) -> None:
         event = _make_event(Lane.IN_REVIEW)
         assert _is_review_claimed_execution_context([event]) is True
 
-    def test_in_review_no_review_ref_still_claimed(self):
+    def test_in_review_no_review_ref_still_claimed(self) -> None:
         """IN_REVIEW is canonical — review_ref is not required for detection."""
         event = _make_event(Lane.IN_REVIEW, review_ref=None)
         assert _is_review_claimed_workflow(event) is True
         assert _is_review_claimed_execution_context([event]) is True
 
-    def test_in_review_with_review_ref_claimed(self):
+    def test_in_review_with_review_ref_claimed(self) -> None:
         """IN_REVIEW with explicit review_ref is also recognized."""
         event = _make_event(Lane.IN_REVIEW, review_ref="action-review-claim")
         assert _is_review_claimed_workflow(event) is True
@@ -97,34 +97,34 @@ class TestIsReviewClaimedNewShape:
 class TestIsReviewClaimedLegacyShape:
     """Verify the legacy IN_PROGRESS + review_ref shape is still recognized."""
 
-    def test_legacy_in_progress_with_review_ref_is_claimed_workflow(self):
+    def test_legacy_in_progress_with_review_ref_is_claimed_workflow(self) -> None:
         event = _make_event(Lane.IN_PROGRESS, review_ref="action-review-claim")
         assert _is_review_claimed_workflow(event) is True
 
-    def test_legacy_in_progress_with_review_ref_is_claimed_execution_context(self):
+    def test_legacy_in_progress_with_review_ref_is_claimed_execution_context(self) -> None:
         event = _make_event(Lane.IN_PROGRESS, review_ref="action-review-claim")
         assert _is_review_claimed_execution_context([event]) is True
 
-    def test_in_progress_without_review_ref_is_not_claimed_workflow(self):
+    def test_in_progress_without_review_ref_is_not_claimed_workflow(self) -> None:
         event = _make_event(Lane.IN_PROGRESS, review_ref=None)
         assert _is_review_claimed_workflow(event) is False
 
-    def test_in_progress_without_review_ref_is_not_claimed_execution_context(self):
+    def test_in_progress_without_review_ref_is_not_claimed_execution_context(self) -> None:
         event = _make_event(Lane.IN_PROGRESS, review_ref=None)
         assert _is_review_claimed_execution_context([event]) is False
 
-    def test_none_event_is_not_claimed_workflow(self):
+    def test_none_event_is_not_claimed_workflow(self) -> None:
         assert _is_review_claimed_workflow(None) is False
 
-    def test_empty_events_not_claimed_execution_context(self):
+    def test_empty_events_not_claimed_execution_context(self) -> None:
         assert _is_review_claimed_execution_context([]) is False
 
-    def test_other_lane_is_not_claimed_workflow(self):
+    def test_other_lane_is_not_claimed_workflow(self) -> None:
         for lane in (Lane.APPROVED, Lane.PLANNED, Lane.CLAIMED, Lane.FOR_REVIEW, Lane.DONE):
             event = _make_event(lane)
             assert _is_review_claimed_workflow(event) is False, f"Expected not claimed for {lane}"
 
-    def test_other_lane_is_not_claimed_execution_context(self):
+    def test_other_lane_is_not_claimed_execution_context(self) -> None:
         for lane in (Lane.APPROVED, Lane.PLANNED, Lane.CLAIMED, Lane.FOR_REVIEW, Lane.DONE):
             event = _make_event(lane)
             assert _is_review_claimed_execution_context([event]) is False, f"Expected not claimed for {lane}"
@@ -137,7 +137,7 @@ class TestIsReviewClaimedLegacyShape:
 class TestExecutionContextInReviewEntry:
     """execution_context._resolve_wp_id review path must find IN_REVIEW WPs."""
 
-    def test_most_recent_event_is_used_workflow(self):
+    def test_most_recent_event_is_used_workflow(self) -> None:
         """Only the latest event per WP matters for is_review_claimed."""
         # First event: legacy in_progress claim
         e1 = _make_event(Lane.IN_PROGRESS, review_ref="action-review-claim")
@@ -156,13 +156,13 @@ class TestExecutionContextInReviewEntry:
         # Latest event is back to for_review — should not be review-claimed
         assert _is_review_claimed_execution_context([e1, e2]) is False
 
-    def test_most_recent_in_review_event_is_claimed(self):
+    def test_most_recent_in_review_event_is_claimed(self) -> None:
         """If latest event per WP is IN_REVIEW, it is review-claimed."""
         e1 = _make_event(Lane.FOR_REVIEW)
         e2 = _make_event(Lane.IN_REVIEW)
         assert _is_review_claimed_execution_context([e1, e2]) is True
 
-    def test_different_wp_id_not_matched(self):
+    def test_different_wp_id_not_matched(self) -> None:
         """Events for a different WP ID don't affect the queried WP."""
         other_event = _make_event(Lane.IN_REVIEW, wp_id="WP02")
         assert _is_review_claimed_execution_context([other_event], wp_id="WP01") is False

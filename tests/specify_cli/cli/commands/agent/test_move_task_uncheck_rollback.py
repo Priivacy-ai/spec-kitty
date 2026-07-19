@@ -88,7 +88,7 @@ class TestMtUncheckRollbackSubtasks:
         st = _make_state(tmp_path, task_id="WP01")
         ports = _make_ports(feature_dir)
 
-        _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+        _mt_uncheck_rollback_subtasks(st, ports)
 
         result = tasks_md.read_text(encoding="utf-8")
         assert "- [ ] T001" in result
@@ -109,7 +109,7 @@ class TestMtUncheckRollbackSubtasks:
         st = _make_state(tmp_path, task_id="WP01")
         ports = _make_ports(feature_dir)
 
-        _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+        _mt_uncheck_rollback_subtasks(st, ports)
 
         # content unchanged; commit not called
         assert tasks_md.read_text(encoding="utf-8") == content
@@ -125,7 +125,7 @@ class TestMtUncheckRollbackSubtasks:
         st = _make_state(tmp_path, task_id="WP01")
         ports = _make_ports(feature_dir)
 
-        _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+        _mt_uncheck_rollback_subtasks(st, ports)
 
         ports.coord.commit_artifact.assert_not_called()
 
@@ -142,7 +142,7 @@ class TestMtUncheckRollbackSubtasks:
         # Patch ProtectionPolicy.resolve so it doesn't need a real repo
         with patch("specify_cli.cli.commands.agent.tasks.ProtectionPolicy") as mock_pp:
             mock_pp.resolve.return_value = MagicMock()
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
 
         ports.coord.commit_artifact.assert_called_once()
         call_kwargs = ports.coord.commit_artifact.call_args
@@ -159,7 +159,7 @@ class TestMtUncheckRollbackSubtasks:
         st = _make_state(tmp_path, task_id="WP01", resolved_auto_commit=False)
         ports = _make_ports(feature_dir)
 
-        _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+        _mt_uncheck_rollback_subtasks(st, ports)
 
         # File must still be written (the uncheck itself), but no commit
         result = tasks_md.read_text(encoding="utf-8")
@@ -180,6 +180,6 @@ class TestMtUncheckRollbackSubtasks:
 
         with patch("specify_cli.cli.commands.agent.tasks.ProtectionPolicy") as mock_pp:
             mock_pp.resolve.return_value = MagicMock()
-            _mt_uncheck_rollback_subtasks(st, ports)  # type: ignore[arg-type]
+            _mt_uncheck_rollback_subtasks(st, ports)
         # must not raise — the write still happened
         assert "- [ ] T001" in tasks_md.read_text(encoding="utf-8")
