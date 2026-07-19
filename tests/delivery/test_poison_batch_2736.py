@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import gzip
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
@@ -72,43 +72,61 @@ class _AllOrNothingBatchPoster:
 
     Decompresses the posted batch body and inspects which events it carries:
 
-    * if the single invalid event is present, the **whole** batch is rejected with
+    * if a genuinely-invalid event is present, the **whole** batch is rejected with
       HTTP 400 carrying only a top-level ``error`` string (no per-event
       ``details`` granularity) — exactly the all-or-nothing server contract;
-    * otherwise every event in the batch is accepted (HTTP 200, ``success``).
+    * otherwise every event in the batch is accepted (HTTP 200), and the server's
+      idempotency memory maps a repeat ``event_id`` to ``duplicate`` (NFR-003).
 
-    This is what lets a correct (bisecting) delivery path isolate the culprit down
-    to a singleton and still deliver every innocent event.
+    Two **ordered** receipt logs let a test pin isolation *ordering*, not just counts:
+
+    * :attr:`receipt_log` — one entry per POST, the exact ``event_id`` sequence in
+      **POST-execution order** (a bisecting path drives the culprit down to a size-1
+      POST while innocents POST in later halves);
+    * :attr:`accepted_receipts` — each genuinely-accepted (``success``) ``event_id``
+      appended on the 200/accept branch, again in **POST-execution order, never input
+      order**. Re-posted duplicates are not re-appended, so the accepted multiset holds
+      no duplicates (NFR-003).
     """
 
-    def __init__(self, *, invalid_event_id: str, batch_error: str) -> None:
-        self._invalid_event_id = invalid_event_id
+    def __init__(self, *, invalid_event_ids: Sequence[str], batch_error: str) -> None:
+        self._invalid_event_ids = frozenset(invalid_event_ids)
         self._batch_error = batch_error
-        self.posted_batches: list[frozenset[str]] = []
+        self.receipt_log: list[list[str]] = []
+        self.accepted_receipts: list[str] = []
+        self._accepted_ids: set[str] = set()
 
     def __call__(
         self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float
     ) -> _FakeResponse:
         payload = json.loads(gzip.decompress(data).decode("utf-8"))
         ids = [str(event["event_id"]) for event in payload["events"]]
-        self.posted_batches.append(frozenset(ids))
-        if self._invalid_event_id in ids:
+        self.receipt_log.append(list(ids))
+        if self._invalid_event_ids & set(ids):
             # Whole-batch 400: top-level error only, no per-event `details`.
             return _FakeResponse(400, {"error": self._batch_error})
-        return _FakeResponse(
-            200, {"results": [{"event_id": eid, "status": "success"} for eid in ids]}
-        )
+        results = []
+        for eid in ids:
+            if eid in self._accepted_ids:
+                results.append({"event_id": eid, "status": "duplicate"})
+            else:
+                self._accepted_ids.add(eid)
+                self.accepted_receipts.append(eid)  # genuine acceptance, POST-order
+                results.append({"event_id": eid, "status": "success"})
+        return _FakeResponse(200, {"results": results})
+
+    def singleton_posts(self) -> list[set[str]]:
+        """The size-1 POSTs, as id-sets — where an isolated culprit must land."""
+        return [set(post) for post in self.receipt_log if len(post) == 1]
 
 
-@pytest.mark.regression
 def test_one_invalid_event_does_not_poison_innocent_events() -> None:
     """One invalid event must not reject the innocent events sharing its batch.
 
-    RED-FIRST P0 reproduction of #2736 per ADR 2026-07-17-1
-    (docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
-    Intentionally FAILS until the product bug is fixed — a red mainline is the honest
-    signal of this release-blocking P0. Do NOT xfail/skip/quarantine to green; fix the
-    product. Tracking issue: #2736.
+    Formerly the RED-FIRST P0 reproduction of #2736 (ADR 2026-07-17-1). The receiver
+    now bisects a whole-batch 400 down to the singleton culprit, so the innocents
+    deliver and only the invalid event is rejected — the marker is removed and this
+    guards the fix as a normal regression test.
     """
     innocent = [_event(eid) for eid in _INNOCENT_EVENT_IDS]
     invalid = _event(_INVALID_EVENT_ID)
@@ -116,7 +134,7 @@ def test_one_invalid_event_does_not_poison_innocent_events() -> None:
     batch = [innocent[0], innocent[1], invalid, innocent[2]]
 
     poster = _AllOrNothingBatchPoster(
-        invalid_event_id=_INVALID_EVENT_ID, batch_error=_MISLEADING_BATCH_ERROR
+        invalid_event_ids=[_INVALID_EVENT_ID], batch_error=_MISLEADING_BATCH_ERROR
     )
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
 
@@ -138,3 +156,13 @@ def test_one_invalid_event_does_not_poison_innocent_events() -> None:
     invalid_result = results[_INVALID_EVENT_ID]
     assert invalid_result.outcome is DeliveryOutcome.REJECTED
     assert invalid_result.error == _MISLEADING_BATCH_ERROR
+
+    # 4) Isolation is *structural*: the culprit is driven down to a size-1 POST, so
+    #    the server only ever saw it alone. Membership in the singleton POSTs (NOT
+    #    receipt_log[-1]): the culprit is in the create/left half here, so the
+    #    right-half innocents POST after it and its singleton is not chronologically
+    #    last. A single-POST (unfixed) path produces no size-1 POST at all.
+    assert {_INVALID_EVENT_ID} in poster.singleton_posts(), (
+        "culprit was not isolated to its own size-1 POST; "
+        f"receipt_log={poster.receipt_log}"
+    )

@@ -125,6 +125,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   outright per the standing-order §4 remediation framework (now amended to codify
   *superseded-design → remove*). The legacy-topology bootstrap CWD gap a strict-xfail guards
   is now tracked in #2802.
+- **Sync batch-400 poison isolation — one invalid event no longer strands its whole batch (#2736; closes #2755).**
+  A whole-batch HTTP 400 with no per-event `details` made the CLI fan the batch-level error onto **every**
+  event as `rejected` (non-terminal), so the culprit re-poisoned every subsequent drain and the innocents
+  never delivered — the upstream cause of the `wp_status_event_without_create` projection anomaly. The
+  receiver now recursively **bisects** a poison batch (`delivery/receivers.py`): split → re-POST both halves
+  → recurse to singletons, isolating the culprit (kept `rejected`/retryable, never force-parked) and
+  delivering every innocent, with create-before-status ordering preserved by sequential left-before-right
+  recursion (and a split-point clamp so a same-`wp_id` create+status pair still terminates). The live
+  offline-queue path (`sync/batch.py` `_parse_error_response` no-`details` branch) now dispositions a
+  batch-level 400 as `failed_transient` (no `retry_count` bump) instead of poisoning innocents. A single
+  shared `core/batch_partition.py` primitive (`split_in_half` + `create_aware_midpoint`) de-duplicates the
+  batch-splitting math and **closes #2755** by retrofitting the 413 byte-shrink onto it, guarded by a
+  behavioral + AST single-authority test. CLI-side only, no server-contract change; the SaaS
+  transition-matrix and reducer alignment are tracked cross-repo (spec-kitty-saas#509 / #510).
 - **Mission squash merge no longer clobbers target-newer acceptance provenance or traces (#2709).**
   The supported squash merge ran `git merge --squash -X theirs` on every conflicting file,
   silently reverting target-newer `meta.json` acceptance/VCS fields (and `traces/*.md`

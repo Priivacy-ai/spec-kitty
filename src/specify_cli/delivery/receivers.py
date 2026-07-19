@@ -50,13 +50,15 @@ from __future__ import annotations
 
 import gzip
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import requests
+
+from specify_cli.core.batch_partition import create_aware_midpoint
 
 # -- Locked wire constants (S1192: hoisted, used across receivers/tests) --------
 BATCH_ENDPOINT_PATH = "/api/v1/events/batch/"
@@ -450,6 +452,39 @@ def _safe_json(response: HttpResponse) -> Mapping[str, Any] | None:
     return body if isinstance(body, Mapping) else None
 
 
+# -- Poison-batch bisection (FR-001..FR-004, #2736) -----------------------------
+
+
+def _is_poison_400(status: int | None, body: Mapping[str, Any] | None) -> bool:
+    """Whether a response is the #2736 poison signature: whole-batch 400, no details.
+
+    A content-rejection HTTP 400 that carries only a single top-level ``error`` (no
+    structured per-event ``details``) and is not an oversized/permanent failure. That
+    is the exact case where the all-or-nothing server hides *which* event is invalid,
+    so the culprit can only be found by bisection. A 400 that already carries per-event
+    ``details`` needs no bisection — it is mapped directly by :func:`map_batch_response`.
+    """
+    if status != 400:
+        return False
+    if _is_oversized(400, body):
+        return False
+    return not _structured_details(body)
+
+
+def _wp_id_of(event: OutboundEvent) -> Hashable:
+    """Create-aware split key: the event's ``wp_id`` when resolvable, else ``event_id``.
+
+    Falls back to the always-unique ``event_id`` so an event without a resolvable
+    ``wp_id`` can never falsely read as an adjacent same-key pair at the midpoint.
+    """
+    inner = event.payload.get("payload")
+    if isinstance(inner, Mapping):
+        wp_id = inner.get("wp_id")
+        if wp_id is not None:
+            return str(wp_id)
+    return event.event_id
+
+
 # -- The HTTP receivers (Teamspace + external share the transport) -------------
 
 
@@ -478,24 +513,62 @@ class _HttpReceiver:
         events = list(batch)
         if not events:
             return []
-        return self._post_batch(events)
+        return self._bisect_send(events)
 
-    def _post_batch(self, events: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+    def _attempt_batch_send(
+        self, events: Sequence[OutboundEvent]
+    ) -> tuple[int | None, Mapping[str, Any] | None]:
+        """POST *events* once and return ``(status, body)``; a single clean send seam.
+
+        A transport-level timeout/connection error returns ``(None, None)`` so the
+        recursion can classify the whole batch as ``transient`` without splitting it
+        (splitting a transport failure would only multiply transients).
+        """
         headers = {**self.auth_headers(), _H_CONTENT_ENCODING: _GZIP, _H_CONTENT_TYPE: _JSON}
         payload = gzip.compress(_build_payload(events))
         try:
             response = self._poster(
                 self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS
             )
-        except requests.RequestException as exc:
+        except requests.RequestException:
+            return None, None
+        return response.status_code, _safe_json(response)
+
+    def _bisect_send(self, events: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+        """Deliver *events*, recursively isolating a poison-batch culprit (#2736).
+
+        On the poison signature (:func:`_is_poison_400`) with ``len > 1`` the batch is
+        split at a create-aware midpoint and BOTH halves are re-POSTed **sequentially,
+        left-before-right** — that ordering is what guarantees a batch-spanning
+        create/status pair keeps ``create``-before-``status`` receipt order (no midpoint
+        can, so the recursion must). The ``len == 1`` base maps the isolated culprit to
+        its own ``rejected`` reason; every other response defers to the shared mapper.
+        """
+        status, body = self._attempt_batch_send(events)
+        if status is None:
             return _all_outcome(
                 events,
                 DeliveryOutcome.TRANSIENT,
                 http_status=None,
-                error=f"{_TRANSPORT_ERROR_PREFIX}: {exc}",
+                error=_TRANSPORT_ERROR_PREFIX,
                 body=None,
             )
-        return map_batch_response(events, http_status=response.status_code, body=_safe_json(response))
+        if _is_poison_400(status, body):
+            if len(events) == 1:
+                return _map_400(events, body)
+            mid = create_aware_midpoint(events, key_of=_wp_id_of)
+            # R1 (#2736): the primitive returns an EDGE index (0 or len) for a
+            # degenerate batch whose straddling events share a wp_id (e.g. a
+            # 2-element same-wp_id create/status pair). Feeding that raw index back
+            # would make one half empty and the other the full batch, so the right
+            # recursion never shrinks -> RecursionError (NFR-002 termination breach).
+            # Clamp to 0 < mid < len so both halves are strictly non-empty and
+            # smaller. Only reached when len > 1, so len - 1 >= 1 — always valid.
+            # Splitting a same-key pair is correct: the sequential left-before-right
+            # recursion still delivers create (left) before status (right).
+            mid = max(1, min(mid, len(events) - 1))
+            return self._bisect_send(events[:mid]) + self._bisect_send(events[mid:])
+        return map_batch_response(events, http_status=status, body=body)
 
 
 # -- Module-level gate sets (data, hoisted once) -------------------------------
