@@ -125,6 +125,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   A rolled-back work package no longer retains a stale `shell_pid`/`agent` in the
   reduced snapshot, so the next resume/re-claim is not blocked by a dead claim.
 
+- **Runtime-state backfill verify is now genuinely fail-closed on value tampering (#2684).**
+  The parity check could silently pass a tampered value when a correcting seed annotation
+  happened to sort last in a same-timestamp reduce fold (a content-hash-ULID coin-flip); it
+  now flags any two annotations assigning different values to one slot as corruption,
+  regardless of fold order. (The backfill CLI wiring itself remains deferred to #2816.)
+  The runtime-state eviction also hardens the dual-write end-state: bypass frontmatter reads
+  routed onto the gated snapshot seam, the phase-1 authority predicate split from the legacy
+  lane-mirror, and the #2093 authority invariant asserted by imported-symbol identity.
+
 - **Fresh-project `charter synthesize` no longer crashes after the `charter.yaml` inversion (#2800, #2773).**
   Post-#2773, `charter generate` stopped writing `charter.md`, but the fresh-project
   synthesize intercept still gated on `charter.md` being present — so on a real fresh
