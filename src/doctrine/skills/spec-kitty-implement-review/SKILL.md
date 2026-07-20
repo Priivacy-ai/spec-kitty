@@ -89,6 +89,48 @@ separate worktree, a review pass against a fixed diff, a focused debugging
 investigation, or validation that can run independently from the orchestrator's
 next scheduling decision.
 
+### Sleep Protection (Unattended Runs)
+
+Unattended implement-review runs are long-lived: a dispatched implementation
+agent can run for many minutes between the short-lived `spec-kitty` CLI calls
+that claim and move WPs. None of those CLI calls hold the host machine awake
+by themselves — only a process that stays alive for the whole session can. If
+the host sleeps mid-dispatch (default laptop power settings on macOS), the
+dispatched agent is silently killed or its connection drops, and nothing in
+the mission state records why. The failure then looks identical to a flaky or
+stalled agent (see the **Stale WP** entry under Troubleshooting).
+
+Before dispatching the first agent, hold a keep-awake assertion for the
+session and release it when the loop ends:
+
+```bash
+# macOS: idle-sleep assertion tied to this shell's own PID, backgrounded so
+# it does not block. Does NOT prevent lid-close sleep -- for a fully
+# unattended run, also disable lid-close sleep while plugged in, or keep
+# the lid open.
+caffeinate -i -w $$ &
+CAFFEINATE_PID=$!
+```
+
+Release it after Step 6 (accept/merge) or whenever the loop is explicitly
+halted:
+
+```bash
+kill "$CAFFEINATE_PID" 2>/dev/null || true
+```
+
+Linux has no default equivalent installed everywhere; if `systemd-inhibit` is
+available, prefer wrapping the outer orchestrating process invocation with it
+rather than backgrounding, since inhibitor scope is tied to the wrapped
+process's lifetime.
+
+**If `spec-kitty-orchestrator` is driving this run** (the standalone binary,
+not an agent-harness session following this skill), skip the above: the
+orchestrator already holds a macOS idle-sleep assertion for the duration of
+`orchestrate`/`resume` (on by default; `--no-caffeinate` to opt out — see its
+README). That coverage is internal to the binary and does not extend to an
+agent-harness session following this skill directly.
+
 ---
 
 ## The Mandatory Workflow Pattern
@@ -866,8 +908,21 @@ locks and commit status artifacts. If a locally patched or stale skill still
 uses `--full-auto`/`workspace-write`, rerun the lifecycle command from the
 repository-root checkout so its transactional status commit can complete.
 
-**Stale WP (in_progress but no agent activity)**: Force back to planned and
-re-dispatch:
+**Stale WP (in_progress but no agent activity)**: Before assuming the agent
+hung or is flaky, rule out host sleep — it produces the identical symptom
+(dead dispatch, partial uncommitted edit in the lane worktree, nothing in
+mission state explaining why) and is common on an unattended macOS laptop
+without the keep-awake guard from **Sleep Protection** above. Check for a
+sleep event since the WP was claimed:
+
+```bash
+pmset -g log | grep -i -E 'Sleep|Wake' | tail -5
+```
+
+If a sleep/wake pair falls inside the dispatch window, the kill is explained
+— start the keep-awake guard before force-moving and re-dispatching so it
+doesn't recur. Otherwise, force back to planned and re-dispatch:
+
 ```bash
 printf '%s\n' "Stale implementation lease recovered; redispatch required." > /tmp/stale-agent-feedback.md
 spec-kitty agent tasks move-task WP## --to planned \
