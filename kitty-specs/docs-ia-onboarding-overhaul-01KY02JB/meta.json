@@ -1,0 +1,57 @@
+{
+  "accept_commit": "f59f69472ce8ef2bc5d5c2f0730d19dbb2997a2e",
+  "acceptance_history": [
+    {
+      "accept_commit": "f59f69472ce8ef2bc5d5c2f0730d19dbb2997a2e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-20T19:44:51.050660+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "54b8062831a58f8cf0b591496df1e0a7767e84fb"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-20T19:44:51.050660+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "54b8062831a58f8cf0b591496df1e0a7767e84fb",
+  "baseline_merge_commit": "68a0d8e4171f537d2962685138808241b680e263",
+  "coordination_branch": "kitty/mission-docs-ia-onboarding-overhaul-01KY02JB",
+  "created_at": "2026-07-20T15:33:30.254028+00:00",
+  "documentation_state": {
+    "coverage_percentage": 0.5344827586206896,
+    "divio_types_selected": [
+      "tutorial",
+      "how-to",
+      "reference",
+      "explanation"
+    ],
+    "generators_configured": [
+      {
+        "config_path": "",
+        "language": "javascript",
+        "name": "jsdoc"
+      },
+      {
+        "config_path": "",
+        "language": "python",
+        "name": "sphinx"
+      }
+    ],
+    "iteration_mode": "gap_filling",
+    "last_audit_date": "2026-07-20T18:13:14.048384",
+    "target_audience": "end-users"
+  },
+  "flattened": false,
+  "friendly_name": "Docs Site IA & Onboarding Overhaul",
+  "mission_id": "01KY02JBGCYS2H0EFDS76WDRFR",
+  "mission_number": null,
+  "mission_slug": "docs-ia-onboarding-overhaul-01KY02JB",
+  "mission_type": "documentation",
+  "pr_bound": true,
+  "purpose_context": "docs.spec-kitty.ai currently buries its best onboarding content and opens with governance jargon instead of explaining who Spec Kitty is for and what it is good for. This mission restructures the site's information architecture with strict end-user/contributor segregation, restores a single discoverable discover-to-first-mission path, and fully documents previously-thin concepts (Ops vs Missions, mission types, Charter, and all doctrine artifact kinds). It also activates the published glossary by auto-linking canonical terms across docs with tooltips and click-through, backed by a doctrine-style check that flags non-canonical term usage.",
+  "purpose_tldr": "Restructure docs.spec-kitty.ai's IA to restore a clear discover-to-install-to-wow path, fully document core governance concepts, and activate the canonical glossary across docs.",
+  "slug": "docs-ia-onboarding-overhaul-01KY02JB",
+  "target_branch": "feat/docs-ia-onboarding-overhaul",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-20T16:36:52.010818+00:00"
+}
