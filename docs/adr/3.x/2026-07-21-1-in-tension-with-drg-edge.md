@@ -104,7 +104,9 @@ The anti-pattern targets must be **first-class, marked nodes**, not phantom node
 
 ### Decision 6 — Every `Relation` member is self-describing, with glossary parity
 
-Each `Relation` enum member MUST carry a human-readable description of its meaning at the point of definition (`src/doctrine/drg/models.py`), and the project glossary MUST hold the same definition. The three members introduced by this ADR — `in_tension_with`, `reconciles_tension`, `rejects` — each get a description in the enum and a matching glossary entry; this is also a standing rule applied to existing relations going forward. Single canonical authority (charter principle): the enum description and the glossary definition are the same text, so relation semantics cannot drift between code and docs. The terminology guard / glossary integrity pipeline is the enforcement surface.
+Each `Relation` enum member MUST carry a human-readable description of its meaning at the point of definition (`src/doctrine/drg/models.py`), and the project glossary MUST hold the same definition. The three members introduced by this ADR — `in_tension_with`, `reconciles_tension`, `rejects` — each get a description in the enum and a matching glossary entry; this is also a standing rule applied to existing relations going forward. Single canonical authority (charter principle): the enum description and the glossary definition are the same text (or, for the human-facing `docs/context` glossary, a definition drawn from it), so relation semantics cannot drift between code and docs.
+
+**Actual enforcement surfaces (as implemented):** `RELATION_DESCRIPTIONS` in `src/doctrine/drg/models.py` is the single canonical authority for the description text. `docs/architecture/doctrine-relationships.md` ("Tension vocabulary" section) mirrors that text verbatim for human readers, and `tests/doctrine/test_relation_doc_parity.py` is a content-equality test that fails red — naming the diverging relation — the moment that mirror drifts from the registry. The human-facing project glossary (`docs/context/doctrine.md`) additionally carries `in_tension_with`, `reconciles_tension`, and `rejects` as glossary entries, with definitions drawn from the registry text; the other nine pre-existing `Relation` members (`requires`, `suggests`, `refines`, `replaces`, `specializes_from`, `delegates_to`, `enhances`, `overrides`, `applies`, `scope`, `vocabulary`, `instantiates`) do not yet have individual `docs/context` glossary entries — backfilling those is out of scope here (spec.md Assumption A2) and is tracked as follow-up. There is no separate "terminology guard / glossary integrity pipeline" test wired to this parity obligation today; `test_relation_doc_parity.py` (scoped to `doctrine-relationships.md`) is the concrete, executable guard, and the `docs/context/doctrine.md` entries are presently maintained by convention rather than an automated content-equality check.
 
 ### Related operator directive (broader than this ADR) — cascade applies to ALL doctrine artefact kinds
 
@@ -139,7 +141,7 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 ### Confirmation
 
 - `Relation.IN_TENSION_WITH`, `Relation.RECONCILES_TENSION`, and `Relation.REJECTS` exist, each with a description; `graph.yaml` fragments validate.
-- The glossary defines `in_tension_with`, `reconciles_tension`, `rejects` with text matching the enum descriptions (Decision 6); glossary-integrity pipeline passes.
+- `docs/architecture/doctrine-relationships.md` defines `in_tension_with`, `reconciles_tension`, `rejects` with text matching the enum descriptions verbatim (Decision 6); `tests/doctrine/test_relation_doc_parity.py` passes. `docs/context/doctrine.md` additionally carries a human-glossary entry for each of the three relations, consistent with the enum descriptions.
 - `grep -rn "opposed_by" src/` returns zero hits after migration (field, schema, model, extractor, YAML).
 - `tests/doctrine/test_relationship_migration.py::test_built_in_relationships_authored_in_drg` still passes (no field-authored relationships).
 - Every `rejects` edge terminates at a node marked `tags: [anti-pattern]`/`[smell]` (Decision 5) — a test asserts no `rejects` edge points at an unmarked node.
@@ -161,7 +163,8 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 | Area | File | Impact |
 |---|---|---|
 | Enum | `src/doctrine/drg/models.py` | Add `IN_TENSION_WITH`, `RECONCILES_TENSION`, `REJECTS` to `Relation`; each member carries a description (Decision 6); document symmetric-not-transitive for `in_tension_with`. |
-| Glossary | glossary source (semantic-integrity pipeline) | Add matching definitions for `in_tension_with`, `reconciles_tension`, `rejects` — verbatim parity with the enum descriptions (Decision 6). |
+| Doc parity | `docs/architecture/doctrine-relationships.md`, `tests/doctrine/test_relation_doc_parity.py` | Mirror the enum descriptions verbatim for `in_tension_with`, `reconciles_tension`, `rejects`; enforce content-equality parity against `RELATION_DESCRIPTIONS` with a dedicated test (Decision 6). |
+| Glossary | `docs/context/doctrine.md` | Add human-glossary entries for `in_tension_with`, `reconciles_tension`, `rejects`, consistent with the enum descriptions (Decision 6). |
 | Node marker | anti-pattern/smell target nodes | Add `tags`/`labels: [anti-pattern]` (or `[smell]`) marker to anti-pattern nodes so `rejects` targets are first-class and validatable (Decision 5). |
 | Schema | `src/doctrine/schemas/directive.schema.yaml` | Remove `opposed_by` property + the `contradiction` definition. |
 | Schema | `src/doctrine/schemas/tactic.schema.yaml` | Remove `opposed_by` property + `contradiction` definition. |

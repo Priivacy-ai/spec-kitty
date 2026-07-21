@@ -2,7 +2,7 @@
 title: 'Context: Doctrine'
 description: 'Glossary context for the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints.'
 doc_status: active
-updated: '2026-05-30'
+updated: '2026-07-21'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -380,6 +380,42 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Doctrine Pack](#doctrine-pack), [Organisation Tier](#organisation-tier), [Charter-Mediated Selection](#charter-mediated-selection) |
+
+---
+
+### Tension — `in_tension_with` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A symmetric, non-transitive [Three-layer DRG](#three-layer-drg) relation marking two co-valid, co-activatable artefacts that compete on the same decision. Stored as a single canonical edge (lexicographically-smaller URN as source) and queryable from either endpoint; it does not imply that either side is deprecated, superseded, or wrong — both remain valid rules until an operator deactivates one side or activates a reconciler ([Reconciliation](#reconciliation--reconciles_tension-drg-relation)). Canonical source: `RELATION_DESCRIPTIONS[Relation.IN_TENSION_WITH]` in `src/doctrine/drg/models.py`; human-readable mirror and worked examples in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Reconciliation](#reconciliation--reconciles_tension-drg-relation), [Rejection](#rejection--rejects-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Reconciliation — `reconciles_tension` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation linking an active reconciliation artefact to one side of a declared [Tension](#tension--in_tension_with-drg-relation) pair. A tension pair is treated as resolved only when an active artefact carries this edge to **both** sides of the pair — an edge to just one side leaves the pair half-reconciled and still flagged. It is authored explicitly and is never inferred from an `in_tension_with` edge. Canonical source: `RELATION_DESCRIPTIONS[Relation.RECONCILES_TENSION]` in `src/doctrine/drg/models.py`; human-readable mirror in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Tension](#tension--in_tension_with-drg-relation), [Rejection](#rejection--rejects-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Rejection — `rejects` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from a good artefact to a marked anti-pattern or smell node (`NodeKind.ANTI_PATTERN`), expressing rejection of a named bad practice. It is distinct from [Tension](#tension--in_tension_with-drg-relation) — the target is not a competing equal, it is a bad practice — and from `replaces`/supersession, since the target was never a valid rule to begin with. Canonical source: `RELATION_DESCRIPTIONS[Relation.REJECTS]` in `src/doctrine/drg/models.py`; human-readable mirror in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Tension](#tension--in_tension_with-drg-relation), [Reconciliation](#reconciliation--reconciles_tension-drg-relation), [Three-layer DRG](#three-layer-drg) |
 
 ---
 
