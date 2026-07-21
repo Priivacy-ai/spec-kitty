@@ -29,6 +29,20 @@ Backfill (:func:`backfill_runtime_state`)
     ``claimed`` timestamp — the marks carry no real timestamp, so the clamp is
     deliberately fictional (see the honesty precondition below).
 
+    **Claim-anchor synthesis (#2848).** The ``claimed`` timestamp a WP's other
+    seeds clamp to normally comes from the event log (:func:`_claim_anchors`).
+    When that log is missing or truncated but the WP's frontmatter still carries
+    real claim state (``agent`` / ``shell_pid`` / ``shell_pid_created_at``),
+    treating the WP as "never claimed" would silently drop that data (the pre-fix
+    behavior: :func:`verify_backfill` returned a vacuous ``ok=True, wp_count=0``
+    and the mission still flipped to snapshot authority with an empty runtime).
+    :func:`_resolve_anchor` instead synthesizes a deterministic anchor from the
+    frontmatter itself (``shell_pid_created_at``, falling back to the mission's
+    ``meta.json`` ``created_at``) so the claim is seeded and recoverable via
+    :func:`~specify_cli.status.wp_view.reconstruct_wp_view`. A WP with no claim
+    fields at all (or claim fields but no honest timestamp anywhere to anchor
+    them to) remains genuinely never-claimed and is skipped, as before.
+
     NOTE on the emit seam: the public :func:`~specify_cli.status.emit.emit_inner_state_changed`
     mints a *random* ULID, which cannot satisfy the deterministic-idempotent seed
     contract. The backfill therefore reuses the exact internals that API is built
@@ -61,6 +75,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -168,6 +183,17 @@ class LegacyWPRuntime:
             or (self.review is not None and self.review.complete)
         )
 
+    def has_claim_state(self) -> bool:
+        """True when frontmatter carries claim state (``agent``/``shell_pid``/``shell_pid_created_at``).
+
+        Distinct from :meth:`has_evictable_state`: a WP can carry non-claim
+        runtime state (``assignee``/``tracker_refs``/``subtasks``) with no claim
+        at all. This narrower predicate drives claim-anchor synthesis (a
+        never-claimed WP must not get a fabricated claim just because it has an
+        assignee) — see :func:`_resolve_anchor`.
+        """
+        return self.shell_pid is not None or self.shell_pid_created_at is not None or self.agent is not None
+
 @dataclass
 class BackfillResult:
     """Per-mission result from :func:`backfill_runtime_state`.
@@ -180,7 +206,8 @@ class BackfillResult:
             unrecoverable per-mission error.
         seeded_count: Number of NEW seed events appended this run (0 on a re-run).
         reason: Human-readable explanation (populated on ``"skip"``/``"error"``).
-        warnings: Non-fatal per-WP warnings (e.g. a never-claimed WP skipped).
+        warnings: Non-fatal per-WP warnings (e.g. a never-claimed WP skipped, or a
+            claim anchor synthesized from frontmatter — #2848).
     """
 
     feature_dir: Path
@@ -359,9 +386,11 @@ def _claim_anchors(feature_dir: Path) -> dict[str, str]:
 
     The anchor is the ``at`` of the WP's first transition *into* ``claimed``; if
     the WP never entered ``claimed`` explicitly it falls back to the WP's earliest
-    transition ``at``. A WP with no transitions at all (never seeded) has no
-    anchor and is absent from the mapping — its subtask/claim seeds are skipped
-    (a never-claimed WP cannot honestly carry completed subtasks).
+    transition ``at``. A WP with no transitions at all is absent from this
+    mapping — this function is event-log-only. :func:`_resolve_anchor` layers
+    frontmatter-synthesized anchors on top of this for the missing/truncated-log
+    case (#2848); it is that layered resolver, not this one, that decides
+    whether a WP is genuinely never-claimed.
     """
     stream = read_event_stream(feature_dir)
     earliest: dict[str, str] = {}
@@ -372,6 +401,86 @@ def _claim_anchors(feature_dir: Path) -> dict[str, str]:
         if ev.to_lane == Lane.CLAIMED and (ev.wp_id not in claimed or ev.at < claimed[ev.wp_id]):
             claimed[ev.wp_id] = ev.at
     return {wp_id: claimed.get(wp_id, earliest[wp_id]) for wp_id in earliest}
+
+
+def _parse_epoch_or_iso(raw: str | None) -> str | None:
+    """Coerce a legacy timestamp string to ISO-8601 UTC, or ``None`` if unparseable.
+
+    ``shell_pid_created_at`` is written as a raw epoch-seconds float string (the
+    process-start baseline ``implement`` records); tolerate a genuine ISO-8601
+    string too, in case an older or hand-edited corpus carries one. Never
+    raises — an unparseable value is a signal to fall back, not an error.
+    """
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromtimestamp(float(text), tz=UTC).isoformat()
+    except ValueError:
+        pass
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.isoformat()
+
+
+def _synthesize_claim_anchor(feature_dir: Path, runtime: LegacyWPRuntime) -> str | None:
+    """Synthesize a deterministic claim anchor from frontmatter, or ``None``.
+
+    Used only when the event log carries no transition for this WP at all — a
+    missing/truncated log must not silently drop a real claim (#2848). Sourced
+    entirely from data already on disk (never the wall clock), so a re-run
+    reproduces the exact same anchor byte-for-byte:
+
+    1. ``shell_pid_created_at`` (the process-start baseline) if parseable.
+    2. The mission's ``meta.json`` ``created_at`` (mission-creation time) —
+       later than the true claim, but a real, deterministic, always-honest
+       lower bound when no per-WP timestamp survived.
+
+    Returns ``None`` when neither source yields a timestamp — that WP has claim
+    *fields* (e.g. a bare ``agent``) but no honest time to anchor them to, so it
+    is treated the same as genuinely never-claimed (fail-closed, no fabricated
+    time).
+    """
+    from_shell_pid = _parse_epoch_or_iso(runtime.shell_pid_created_at)
+    if from_shell_pid is not None:
+        return from_shell_pid
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    if meta is not None:
+        created_at = meta.get("created_at")
+        if isinstance(created_at, str) and created_at.strip():
+            return created_at
+    return None
+
+
+def _resolve_anchor(
+    feature_dir: Path,
+    wp_id: str,
+    runtime: LegacyWPRuntime,
+    event_log_anchors: dict[str, str],
+) -> tuple[str | None, bool]:
+    """Resolve *wp_id*'s claim anchor: ``(anchor, was_synthesized)``.
+
+    Prefers the event log. When the log carries no transition for this WP but
+    its frontmatter carries claim state (:meth:`LegacyWPRuntime.has_claim_state`),
+    synthesizes a deterministic anchor from that frontmatter instead of treating
+    the WP as never-claimed — a truncated/missing event log must not silently
+    drop a real claim (Defect: #2848). Returns ``(None, False)`` only for a
+    genuinely never-claimed WP: no event-log anchor AND no claim state (or claim
+    state with no honest timestamp) to synthesize from.
+    """
+    anchor = event_log_anchors.get(wp_id)
+    if anchor is not None:
+        return anchor, False
+    if not runtime.has_claim_state():
+        return None, False
+    synthesized = _synthesize_claim_anchor(feature_dir, runtime)
+    return synthesized, synthesized is not None
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +502,12 @@ def _build_seed_events(
     (post-transition, via the WP01 event-kind partition) is deterministic; the
     truthful ``review_artifact_override_at`` is preserved *inside* the delta's
     :class:`ReviewOverride`, not on the envelope.
+
+    When the event log carries no anchor for a WP that nonetheless has claim
+    state in frontmatter, the anchor is synthesized (:func:`_resolve_anchor`) so
+    a missing/truncated event log never silently drops a real claim (#2848). A
+    WP with neither an event-log anchor nor synthesizable claim state is
+    genuinely never-claimed and is skipped (warned, not failed).
     """
     slug = feature_dir.name
     mission_id = _mission_id(feature_dir)
@@ -400,11 +515,15 @@ def _build_seed_events(
     annotations: list[InnerStateChanged] = []
 
     for wp_id, runtime in sorted(legacy.items()):
-        anchor = anchors.get(wp_id)
+        anchor, synthesized = _resolve_anchor(feature_dir, wp_id, runtime, anchors)
         if anchor is None:
             if runtime.has_evictable_state():
                 warnings.append(f"{wp_id}: no claim anchor (never-claimed WP) — runtime seed skipped")
             continue
+        if synthesized:
+            warnings.append(
+                f"{wp_id}: no claim anchor in event log — synthesized from frontmatter claim state"
+            )
 
         # Claim state rides a seed planned->claimed transition whose
         # policy_metadata sidecar the reducer folds into the snapshot slots.
@@ -790,14 +909,17 @@ def verify_backfill(feature_dir: Path) -> VerifyResult:
 
     mismatches: list[str] = []
     # A WP is the backfill's responsibility to seed ONLY when it has a claim
-    # anchor: a never-claimed WP (no transition events) is skipped by
-    # _build_seed_events (warn, not fail), so verify mirrors that skip — an
-    # anchor-less WP is never a count mismatch (Defect 1, spec Edge Case).
+    # anchor: a never-claimed WP (no transition events AND no synthesizable
+    # frontmatter claim state) is skipped by _build_seed_events (warn, not
+    # fail), so verify mirrors that skip via the same _resolve_anchor — an
+    # anchor-less WP is never a count mismatch (Defect 1, spec Edge Case). A WP
+    # whose anchor was synthesized from frontmatter (#2848) IS counted here —
+    # that is precisely the case verify must stop treating as vacuous.
     anchors = _claim_anchors(feature_dir)
     seeded_wps = {
         wp_id
         for wp_id, runtime in legacy.items()
-        if runtime.has_evictable_state() and wp_id in anchors
+        if runtime.has_evictable_state() and _resolve_anchor(feature_dir, wp_id, runtime, anchors)[0] is not None
     }
 
     # Count parity, DATA-LOSS direction: a seeded WP whose snapshot carries no
