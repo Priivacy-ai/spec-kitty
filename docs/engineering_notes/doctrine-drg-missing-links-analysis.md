@@ -68,7 +68,7 @@ Relation usage vs. the full `Relation` enum in `src/doctrine/drg/models.py`:
    single largest *functional* connectivity gap in the built-in layer.
 
 3. **Two directives are genuinely disconnected (zero inbound of any relation):**
-   `directive:DIRECTIVE_035` (Bulk Edit Occurrence Classification) and
+   `directive:DIRECTIVE_035` (bulk edit occurrence classification) and
    `directive:DIRECTIVE_039` (Lynn Cole Engineering Culture). These are real orphans that
    would survive even after the `governs`/`scope` rule is reconciled — no action, procedure,
    paradigm, or mission-type references them.
@@ -158,7 +158,7 @@ Disconnected **paradigms** (3): `atomic-design`, `c4-incremental-detail-modeling
 Disconnected **toolguides** (2): `python-review-checks`, `rtk-search-tooling`.
 
 Notable content mismatches here: `occurrence-classification-workflow` (tactic) and
-`directive:DIRECTIVE_035` (Bulk Edit Occurrence Classification) are both orphaned yet are
+`directive:DIRECTIVE_035` (bulk edit occurrence classification) are both orphaned yet are
 obviously the same concern — a `tactic --suggests--> directive` (or an action scoping both)
 would connect the pair. Likewise `java-conventions` (styleguide) is orphaned while
 `agent_profile:java-jenny` exists; `plain-language`/`docs-accessibility` styleguides are

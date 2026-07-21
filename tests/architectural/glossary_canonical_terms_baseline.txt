@@ -7,7 +7,7 @@
 # Shrink this file as violations get fixed; never add new lines to
 # suppress a real new regression — that defeats the check's purpose.
 # Tracked for retirement: https://github.com/Priivacy-ai/spec-kitty/issues/2830
-docs/01KSMG8Y-closeout/retro.md:30: found "Work Package", expected canonical form "work package"
+docs/plans/engineering-notes/01KSMG8Y-closeout/retro.md:30: found "Work Package", expected canonical form "work package"
 docs/api/agent-subcommands.md:1105: found "Work package", expected canonical form "work package"
 docs/api/agent-subcommands.md:1351: found "Work package", expected canonical form "work package"
 docs/api/agent-subcommands.md:135: found "Work package", expected canonical form "work package"
