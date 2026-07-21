@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "mission_slug": "docs-ia-onboarding-overhaul-01KY02JB",
+  "mission_id": "01KY02JBGCYS2H0EFDS76WDRFR",
+  "mission_branch": "kitty/mission-docs-ia-onboarding-overhaul-01KY02JB",
+  "target_branch": "feat/docs-ia-onboarding-overhaul",
+  "lanes": [
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "scripts/docs/generate_kitty_specs_docs.py",
+        "scripts/docs/glossary_linker.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/architectural/test_glossary_canonical_terms.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/toc.yml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/guides/getting-started.md",
+        "docs/guides/your-first-mission.md",
+        "docs/index.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/context/mission-types.md",
+        "docs/context/ops-vs-missions.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/context/charter-overview.md",
+        "docs/guides/charter-governed-workflow.md",
+        "docs/guides/setup-governance.md",
+        "docs/guides/troubleshoot-charter.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/doctrine/create-a-doctrine-artifact.md",
+        "docs/doctrine/doctrine-kinds.md",
+        "docs/doctrine/index.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/adr/**",
+        "docs/api/**",
+        "docs/archive/**",
+        "docs/migrations/**",
+        "docs/operations/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP10"
+      ],
+      "write_scope": [
+        "docs/development/**",
+        "docs/development/terminology-sweep-report.md",
+        "docs/guides/build-custom-orchestrator.md",
+        "docs/guides/claude-code-workflow.md",
+        "docs/guides/contract-pinning.md",
+        "docs/guides/coverage-signals.md",
+        "docs/guides/implement-work-package.md",
+        "docs/guides/internal-hosted-readiness.md",
+        "docs/guides/keep-main-clean.md",
+        "docs/guides/manage-issue-tracker.md",
+        "docs/guides/merge-feature.md",
+        "docs/guides/orchestrator-quickstart.md",
+        "docs/guides/pr-landing.md",
+        "docs/guides/recover-from-implementation-crash.md",
+        "docs/guides/recover-from-interrupted-merge.md",
+        "docs/guides/red-main-and-release-readiness.md",
+        "docs/guides/review-artifacts-with-planbridge.md",
+        "docs/guides/review-work-package.md",
+        "docs/guides/run-external-orchestrator.md",
+        "docs/guides/run-mutation-tests.md",
+        "docs/guides/sync-workspaces.md",
+        "docs/guides/testing-flakiness.md",
+        "docs/guides/testing-parallel.md",
+        "docs/guides/tool-surface-upgrade-and-repair.md",
+        "docs/guides/use-operation-history.md",
+        "docs/guides/worktrees-with-mcp-agents.md",
+        "docs/guides/write-time-dependent-tests.md",
+        "scripts/docs/redirect_map.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-20T16:29:40.409415+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'docs/development/**' vs 'docs/development/terminology-sweep-report.md'; WP10 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 1
+    }
+  }
+}
