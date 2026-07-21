@@ -706,7 +706,7 @@ mission-canonical phrasing per Charter Terminology Canon, but that is a
 ## T007 coverage summary
 
 | TOC file | Inventory pages in scope | Entries before | Entries after | Change kind |
-|---|---:|---:|---:|---|
+| --- | ---: | ---: | ---: | --- |
 | `docs/toc.yml` | n/a (parent) | 9 | 9 (regrouped) | structural |
 | `docs/1x/toc.yml` | 5 | 5 | 5 | no changes |
 | `docs/2x/toc.yml` | 8 | 6 | 8 | additive + rename |
@@ -888,6 +888,7 @@ No other TOC file changes under the flip.
 ---
 
 ## Reviewer cross-check (from `tasks/WP03-navigation-update-plan.md`
+
 "Reviewer Guidance")
 
 - [x] Every TOC file appears at least once. **9 of 9 covered.**

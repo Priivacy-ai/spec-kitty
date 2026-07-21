@@ -19,17 +19,17 @@ The precipitating events: #2752 was merged with known reds (a CI-guard change wh
 
 ## Decision Drivers
 
-* **Honest signal over convenience.** A false green is worse than an honest red: it moves the cost of a defect downstream and destroys trust in CI.
-* **CI must mean one thing.** If CI status is sometimes decorative (kept green by hiding failures) and sometimes authoritative, it is authoritative for nothing.
-* **Protect expensive verification.** Manual QA and long/expensive automated runs are wasted if they execute against a base that is already known-broken.
-* **Reproduce, don't just assert.** A P0 that carries a failing test is unambiguous, self-documenting, and un-loseable; a P0 described only in prose drifts and gets forgotten.
-* **Recovery is the priority.** Red `main` is not acceptable as a resting state; it is an alarm that pulls maintainer attention to the front of the queue.
+- **Honest signal over convenience.** A false green is worse than an honest red: it moves the cost of a defect downstream and destroys trust in CI.
+- **CI must mean one thing.** If CI status is sometimes decorative (kept green by hiding failures) and sometimes authoritative, it is authoritative for nothing.
+- **Protect expensive verification.** Manual QA and long/expensive automated runs are wasted if they execute against a base that is already known-broken.
+- **Reproduce, don't just assert.** A P0 that carries a failing test is unambiguous, self-documenting, and un-loseable; a P0 described only in prose drifts and gets forgotten.
+- **Recovery is the priority.** Red `main` is not acceptable as a resting state; it is an alarm that pulls maintainer attention to the front of the queue.
 
 ## Considered Options
 
-* **Option A — Always-green mainline (green-washing).** Keep `main` green at all times: revert anything that reds it, and refuse to merge failing reproduction tests. *Rejected* — it hides P0s, lets releases ship on a false green, wastes QA on a secretly-broken base, and contradicts the transparency value.
-* **Option B — Honest mainline; CI is the release authority (chosen).** `main` is allowed to be red when it carries accepted release-blocking (P0) defects; CI status is the single authoritative release gate; failing reproduction tests for P0s are encouraged; expensive QA is gated on green; maintainers prioritize red recovery.
-* **Option C — Separate always-green release branch, `main` allowed red.** Maintain a parallel release line that is kept green while `main` may be red. *Rejected* — it splits the source of truth into two CI signals, adds branch-management overhead, and dilutes exactly the "CI means one thing" property Option B is designed to protect.
+- **Option A — Always-green mainline (green-washing).** Keep `main` green at all times: revert anything that reds it, and refuse to merge failing reproduction tests. *Rejected* — it hides P0s, lets releases ship on a false green, wastes QA on a secretly-broken base, and contradicts the transparency value.
+- **Option B — Honest mainline; CI is the release authority (chosen).** `main` is allowed to be red when it carries accepted release-blocking (P0) defects; CI status is the single authoritative release gate; failing reproduction tests for P0s are encouraged; expensive QA is gated on green; maintainers prioritize red recovery.
+- **Option C — Separate always-green release branch, `main` allowed red.** Maintain a parallel release line that is kept green while `main` may be red. *Rejected* — it splits the source of truth into two CI signals, adds branch-management overhead, and dilutes exactly the "CI means one thing" property Option B is designed to protect.
 
 ## Decision Outcome
 
@@ -45,20 +45,20 @@ The precipitating events: #2752 was merged with known reds (a CI-guard change wh
 
 #### Positive
 
-* Release readiness has a single, trustworthy gate — CI — that cannot be green-washed.
-* P0 defects are visible on `main` and, when reproduced by a test, self-documenting and un-loseable.
-* Expensive QA and manual-test effort is never spent validating a known-broken base.
-* The policy reinforces the existing red-first / never-retry-to-green discipline (see [testing-flakiness](../../development/testing-flakiness.md) and the landing-pass bin classification in [pr-landing](../../development/pr-landing.md)) by extending it from the PR scope to the mainline scope.
+- Release readiness has a single, trustworthy gate — CI — that cannot be green-washed.
+- P0 defects are visible on `main` and, when reproduced by a test, self-documenting and un-loseable.
+- Expensive QA and manual-test effort is never spent validating a known-broken base.
+- The policy reinforces the existing red-first / never-retry-to-green discipline (see [testing-flakiness](../../development/testing-flakiness.md) and the landing-pass bin classification in [pr-landing](../../development/pr-landing.md)) by extending it from the PR scope to the mainline scope.
 
 #### Negative
 
-* A red `main` is psychologically uncomfortable and can alarm contributors who read it as "the project is broken" rather than "a known P0 is being worked." Mitigation: the accompanying guide states the meaning plainly, and P0s that red `main` carry a filed issue.
-* The policy depends on maintainer discipline to actually prioritize recovery; without it, "red is allowed" could erode into "red is tolerated." The "not an acceptable resting state" rule and the QA-gating consequence are the counter-pressures.
+- A red `main` is psychologically uncomfortable and can alarm contributors who read it as "the project is broken" rather than "a known P0 is being worked." Mitigation: the accompanying guide states the meaning plainly, and P0s that red `main` carry a filed issue.
+- The policy depends on maintainer discipline to actually prioritize recovery; without it, "red is allowed" could erode into "red is tolerated." The "not an acceptable resting state" rule and the QA-gating consequence are the counter-pressures.
 
 #### Neutral
 
-* **No-direct-push is unchanged.** Changes still reach `main` only through pull requests and the Protect-Main workflow; this ADR governs what a red CI *means*, not how commits arrive.
-* A P0 reproduction test that reds `main` is expected to be tracked by its P0 issue, so the red is always traceable to an accepted defect.
+- **No-direct-push is unchanged.** Changes still reach `main` only through pull requests and the Protect-Main workflow; this ADR governs what a red CI *means*, not how commits arrive.
+- A P0 reproduction test that reds `main` is expected to be tracked by its P0 issue, so the red is always traceable to an accepted defect.
 
 ### Confirmation
 

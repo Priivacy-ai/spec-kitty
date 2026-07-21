@@ -43,7 +43,7 @@ for zero behaviour change). This is the friction #2071 exists to pay down.
 Ranked by co-change **volume** (maintenance tax actually paid):
 
 | test file | changes | co-src | ratio | top src partner |
-|---|--:|--:|--:|---|
+| --- | --: | --: | --: | --- |
 | `test_no_dead_symbols.py` | 54 | 45 | 0.83 | cli/commands×196 |
 | `test_no_dead_modules.py` | 36 | 29 | 0.81 | cli/commands×116 |
 | `test_single_mission_surface_resolver.py` | 21 | 16 | 0.76 | cli/commands×74 |
@@ -62,6 +62,7 @@ Perfect-coupling (`ratio = 1.00`, ≥4 changes) — every edit driven by product
 ## Verdicts
 
 ### 🔴 Rewrite / replace — highest tax, inherently shape-coupled
+
 - **`test_no_dead_symbols.py` (54 changes)** and **`test_no_dead_modules.py` (36)**.
   Whole-codebase symbol/module scanners driven by hand-maintained allowlists;
   they *must* be edited whenever any symbol moves — 90 edits between them, almost
@@ -72,6 +73,7 @@ Perfect-coupling (`ratio = 1.00`, ≥4 changes) — every edit driven by product
   are the biggest single lever.
 
 ### 🟠 Harden the drift-proof key — the fix already exists, propagate it
+
 - `tests/architectural/_ratchet_keys.py` already provides **`composite_key` /
   `code_tokens_by_line`**: a content-addressed `(enclosing_qualname, token_line)`
   key so a benign insertion above a guarded site does **not** flip the gate red.
@@ -87,6 +89,7 @@ Perfect-coupling (`ratio = 1.00`, ≥4 changes) — every edit driven by product
   line drift can red these gates again.
 
 ### 🟡 Audit the `ratio = 1.00` cluster — keep-if-behavioural, else convert
+
 Each of these changes *only* when production moves. Per the refactor-stable-tests
 doctrine, that is acceptable **only** if the test pins a *behavioural / negative
 invariant* (e.g. `test_safe_commit_import_boundary`, `test_layer_rules`,
@@ -96,6 +99,7 @@ call reads a specific string), it should be **converted to a behavioural
 assertion or deleted**, not re-pinned. This audit is one pass over ~13 files.
 
 ### 🟢 Leave — expected coupling
+
 The **core-package** integration tests (`agent/test_implement_command.py` 23/23,
 `agent/test_orchestrator_commands_integration.py` 21/21, `status/test_emit.py`
 21/19, …) show high coupling *by design* — they exercise the very commands they
@@ -105,6 +109,7 @@ Characterization tests register near-zero history (created this cycle) — nothi
 to judge yet; the point is to keep them behaviour-pinned so they *stay* low-churn.
 
 ## Recommended sequence
+
 1. Migrate `test_trio_seam_only._IO_ALLOWLIST_SITES` + the residual line-number
    staleness guards onto `_ratchet_keys.composite_key` (cheap, removes the exact
    friction this session hit).

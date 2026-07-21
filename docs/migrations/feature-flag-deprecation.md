@@ -74,8 +74,8 @@ or documentation.
 ## Suppressing the Warning During Cutover (historical)
 
 `SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` was used to silence the deprecation
-warning during the alias window. Now that `--feature` is fully removed (3.2.3,
-#1060), the variable is **inert** — it is accepted but has no effect, since
+warning during the alias window. Now that `--feature` is fully removed
+(3.2.3, #1060), the variable is **inert** — it is accepted but has no effect, since
 there is no warning left to suppress. See
 [Environment Variables](../api/environment-variables.md) for the current
 state.
