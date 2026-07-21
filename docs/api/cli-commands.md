@@ -2137,6 +2137,54 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty migrate backfill-runtime-state
+
+```
+ Usage: spec-kitty migrate backfill-runtime-state [OPTIONS]
+
+ Seed legacy runtime state as events, verify fail-closed, and flip
+ status_phase.
+
+ Drives the shared
+ :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`
+ helper over the corpus (or a single ``--mission``). For every mission it seeds
+ the frontmatter/checkbox runtime state into the event log, verifies the
+ reduced
+ snapshot equals the OLD reader by **count + value**, and flips ``meta.json``
+ ``status_phase`` to snapshot-authority **only** for missions that verify.
+
+ Per-mission best-effort (research D-03): a mission whose verify fails is left
+ un-flipped (``status_phase`` untouched) and named in the summary; other
+ missions
+ still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+
+ Exit codes:
+
+ - ``0`` — every visited mission flipped or is already migrated (verify ok, no
+ error)
+ - ``1`` — one or more missions failed verify / errored, or ``--mission`` named
+ an
+   unknown handle
+
+ Examples:
+
+     spec-kitty migrate backfill-runtime-state --dry-run
+
+     spec-kitty migrate backfill-runtime-state --mission my-mission-01ABCD
+
+     spec-kitty migrate backfill-runtime-state --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run                Seed nothing and flip nothing; report per-mission   │
+│                          would-seed counts and would-flip.                   │
+│ --mission        HANDLE  Scope to a single mission (mission_id / mid8 /      │
+│                          slug). Omit to process the whole corpus.            │
+│ --json                   Emit the per-mission cutover result list as         │
+│                          structured JSON.                                    │
+│ --help                   Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty migrate backfill-topology
 
 ```
