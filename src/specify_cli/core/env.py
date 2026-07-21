@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 
-__all__ = ["SYNC_DISABLE_ENV_VARS", "first_set_sync_disable_env", "is_truthy"]
+__all__ = ["first_set_sync_disable_env", "is_truthy"]
 
 # Private: the canonical truthy grammar is an implementation detail of
 # ``is_truthy`` — callers use the function, never the set (keeps a single public
