@@ -253,6 +253,81 @@ def test_half_reconciled_pair_still_flagged(
 
 
 # ---------------------------------------------------------------------------
+# Per-side bridging by two distinct reconcilers (ADR Decision 3, per-side rule)
+# ---------------------------------------------------------------------------
+
+
+_STEM_RECONCILER_2 = "001-architectural-integrity-standard"
+_URN_RECONCILER_2 = "directive:DIRECTIVE_001"
+
+
+@pytest.mark.doctrine
+def test_two_distinct_reconcilers_bridge_pair_per_side(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two DISTINCT active reconcilers, each bridging one side, clear the pair.
+
+    ADR Decision 3 (2026-07-21-1-in-tension-with-drg-edge.md) blesses
+    per-side bridging as the implemented general rule: a pair ``(A, B)`` is
+    resolved once EACH side carries an active ``reconciles_tension`` edge --
+    those edges need not originate from the SAME reconciler. Here
+    ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` (real built-in reconciler,
+    reused as R1) bridges ``_URN_024`` only, and ``directive:DIRECTIVE_001``
+    (a second, unrelated, real built-in directive reused as R2 purely as a
+    distinct activatable stem -- its actual doctrine content is irrelevant
+    here) bridges ``_URN_025`` only. Together they satisfy the per-side rule
+    for the whole pair, matching ``_tension_reconciled_urns``'s set-membership
+    semantics (``src/charter/consistency_check.py``): the reconciled-URN set
+    is built by unioning targets across ALL active ``reconciles_tension``
+    edges, regardless of which active artefact each edge originates from.
+    Both real stems are used (rather than a synthetic reconciler URN) so
+    each resolves through the genuine config-stem activation path -- the
+    same real-doctrine resolution ``test_half_reconciled_pair_still_flagged``
+    exercises for R1.
+    """
+    two_distinct_reconcilers_graph = _make_graph(
+        nodes=[
+            DRGNode(urn=_URN_024, kind=NodeKind.DIRECTIVE),
+            DRGNode(urn=_URN_025, kind=NodeKind.DIRECTIVE),
+            DRGNode(urn=_URN_RECONCILER, kind=NodeKind.DIRECTIVE),
+            DRGNode(urn=_URN_RECONCILER_2, kind=NodeKind.DIRECTIVE),
+        ],
+        edges=[
+            DRGEdge(source=_URN_024, target=_URN_025, relation=Relation.IN_TENSION_WITH),
+            # R1 bridges _URN_024 only.
+            DRGEdge(
+                source=_URN_RECONCILER,
+                target=_URN_024,
+                relation=Relation.RECONCILES_TENSION,
+            ),
+            # R2 (distinct active reconciler) bridges _URN_025 only.
+            DRGEdge(
+                source=_URN_RECONCILER_2,
+                target=_URN_025,
+                relation=Relation.RECONCILES_TENSION,
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        drg_helpers, "load_validated_graph", lambda repo_root: two_distinct_reconcilers_graph
+    )
+
+    ctx = _ctx_with_config(
+        tmp_path,
+        f"activated_directives:\n"
+        f"  - {_STEM_024}\n"
+        f"  - {_STEM_025}\n"
+        f"  - {_STEM_RECONCILER}\n"
+        f"  - {_STEM_RECONCILER_2}\n"
+        "activated_tactics: []\n",
+    )
+
+    findings = scan_unreconciled_tensions(ctx)
+
+    assert findings == []
+
+
+# ---------------------------------------------------------------------------
 # Dedup (Edge Case: symmetric authoring drift, INV-001)
 # ---------------------------------------------------------------------------
 

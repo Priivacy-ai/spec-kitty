@@ -77,9 +77,9 @@ Add `IN_TENSION_WITH = "in_tension_with"` to `Relation` (`src/doctrine/drg/model
 When two artefacts that are `in_tension_with` each other are both active (or both about to be activated), the tooling raises an operator-facing finding. A tension pair `(A, B)` is treated as **resolved** iff **either**:
 
 - **(a) Non-activation of one side** — A and B are not both in the active set; or
-- **(b) A reconciliation artefact bridges them** — there exists an **active** artefact `R` with edges `R --reconciles_tension--> A` and `R --reconciles_tension--> B`. `R` is a local (or built-in) doctrine artefact whose body carries the reconciliation guidance; the two `reconciles_tension` edges are how the graph records that `R` adjudicates this specific pair.
+- **(b) Reconciliation artefact(s) bridge both sides** — each side has an **active** `reconciles_tension` edge pointing at it. This is the implemented general rule: the checker tests **per-side URN membership** in the set of reconciled targets (any active artefact with a `reconciles_tension` edge into that URN counts), not "does a single artefact `R` carry edges to both." The common case is one active artefact `R` with edges `R --reconciles_tension--> A` and `R --reconciles_tension--> B`; the rule is equally satisfied by two **distinct** active artefacts `R1 --reconciles_tension--> A` and `R2 --reconciles_tension--> B`, each bridging one side. `R`/`R1`/`R2` are local (or built-in) doctrine artefacts whose bodies carry the reconciliation guidance; the `reconciles_tension` edge(s) are how the graph records that the adjudication reaches this specific pair — a single reconciler spanning both sides is a special case of per-side bridging, not a separate, stricter requirement.
 
-Add `RECONCILES_TENSION = "reconciles_tension"` to `Relation`. A pair is resolved by (b) only when **both** reconciliation edges are present and `R` is active — one edge alone does not resolve the pair.
+Add `RECONCILES_TENSION = "reconciles_tension"` to `Relation`. A pair is resolved by (b) only when **each** side has at least one active `reconciles_tension` edge pointing at it — a pair with only one side bridged (a half-reconciled pair, whichever artefact(s) are involved) is still flagged as unreconciled.
 
 **Where it hooks in:**
 - `charter pack consistency-check` (`run_consistency_check`, `src/charter/consistency_check.py`) is the natural home. It already loads the activation-filtered DRG (`filter_graph_by_activation`) and holds the per-kind activation set. Add a new finding category (e.g. `tension_unreconciled`) computed from the activated graph's `in_tension_with` pairs minus those satisfied by (a) or (b). Keep it advisory (see consequences) rather than flipping `coherent` to hard-fail by default.
@@ -88,7 +88,7 @@ Add `RECONCILES_TENSION = "reconciles_tension"` to `Relation`. A pair is resolve
 **Cascade integration (`REFERENCE_RELATIONS`).** Both new relations are deliberately **excluded** from `charter.cascade.REFERENCE_RELATIONS`:
 
 - `in_tension_with` must **not** cascade — activating `A` must never auto-activate its opponent `B`; that would manufacture the exact conflict we are trying to make visible.
-- `reconciles_tension` must **not** cascade — `R` reconciles `A` and `B` but does not *require* them; the reconciliation is only meaningful when `A` and `B` are already both active, so activating `R` must not drag them in.
+- `reconciles_tension` must **not** cascade — a reconciler (`R`, or `R1`/`R2` when the two sides are bridged separately) reconciles `A` and/or `B` but does not *require* them; the reconciliation is only meaningful when `A` and `B` are already both active, so activating a reconciler must not drag them in.
 
 So the cascade reference set stays `{REQUIRES, SUGGESTS, REFINES}`. The tension checker reads these two relations directly off the graph; it does not ride the cascade closure. This keeps the cascade engine's "pure reachability, no per-kind logic" contract intact.
 
