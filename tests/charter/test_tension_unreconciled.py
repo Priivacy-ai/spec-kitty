@@ -18,6 +18,13 @@ Covers:
 - ``test_fail_closed_on_scan_error``: FR-009 fail-closed -- a forced error
   lands in ``verification_errors``, never a silently empty finding list.
 - ``test_to_json_includes_tension_unreconciled_shape``: SC-001 JSON shape.
+- ``test_always_on_under_implicit_all_active``: D3 (decision
+  ``DM-01KY1XHEH2T9RDX8ZCHCSV2VA0``) -- ``run_consistency_check`` must NOT
+  short-circuit to ``coherent=True`` with an empty ``unreconciled_tensions``
+  when ``config.yaml`` carries no explicit activation list at all. Exercises
+  the ``run_consistency_check`` surface itself (not just the
+  ``scan_unreconciled_tensions`` helper), matching the reviewer-renata
+  finding that the pre-fix code returned before ever calling the scan.
 """
 
 from __future__ import annotations
@@ -310,6 +317,72 @@ def test_fail_closed_on_scan_error(
         f"{report.verification_errors}"
     )
     assert report.coherent is False
+
+
+# ---------------------------------------------------------------------------
+# Always-on under implicit all-active (D3, decision DM-01KY1XHEH2T9RDX8ZCHCSV2VA0)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.doctrine
+def test_always_on_under_implicit_all_active(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tension scan runs even when config.yaml has no explicit activation list.
+
+    Decision DM-01KY1XHEH2T9RDX8ZCHCSV2VA0 ("Always on: the tension check
+    runs regardless of explicit activation ... no short-circuit
+    special-case", FR-009) rejects the pre-fix behavior where
+    ``run_consistency_check`` returned ``ConsistencyReport(coherent=True)``
+    the moment ``_has_explicit_activation`` was False -- before
+    ``scan_unreconciled_tensions`` (and therefore ``_check_unreconciled_
+    tensions``) ever ran. That short-circuit made FR-011's reconciliation
+    artefact dead code under the (very common) backward-compat all-active
+    project shape, silently defeating SC-002 for exactly the projects most
+    likely to co-activate an unreconciled pair.
+
+    This test builds a config.yaml with NO activation keys at all --
+    implicit all-active, mirrored from ``test_no_activation_keys_skips_
+    doctrine_scan`` in test_consistency_check.py -- and, with the built-in
+    reconciler effectively "deactivated" (a synthetic graph with an
+    unreconciled ``in_tension_with`` edge and zero ``reconciles_tension``
+    edges, standing in for an org-authored unreconciled tension), asserts
+    the scan still ran: ``unreconciled_tensions`` is non-empty. Tensions
+    stay advisory (NFR-001) -- ``coherent`` must remain True even though a
+    finding was produced.
+    """
+    unreconciled_graph = _make_graph(
+        nodes=[
+            DRGNode(urn=_URN_024, kind=NodeKind.DIRECTIVE),
+            DRGNode(urn=_URN_025, kind=NodeKind.DIRECTIVE),
+        ],
+        edges=[
+            DRGEdge(source=_URN_024, target=_URN_025, relation=Relation.IN_TENSION_WITH),
+            # NOTE: no reconciles_tension edge anywhere in this graph --
+            # stands in for a "reconciler deactivated" / org-authored
+            # unreconciled tension under implicit all-active.
+        ],
+    )
+    monkeypatch.setattr(
+        drg_helpers, "load_validated_graph", lambda repo_root: unreconciled_graph
+    )
+
+    # Implicit all-active: no activated_directives/activated_tactics/... keys
+    # at all, so _has_explicit_activation(raw_activated_by_kind) is False.
+    ctx = _ctx_with_config(tmp_path, "# minimal valid project, no activation keys\n")
+
+    report = run_consistency_check(ctx)
+
+    # (1) Did NOT short-circuit: the scan ran and produced the finding.
+    assert report.verification_errors == []
+    assert len(report.unreconciled_tensions) == 1
+    assert report.unreconciled_tensions[0].pair == tuple(sorted((_URN_024, _URN_025)))
+    # Cross-check against the same-surface helper the mission treats as the
+    # single canonical authority (SC-001) -- both must agree on the finding.
+    assert scan_unreconciled_tensions(ctx) == report.unreconciled_tensions
+
+    # (2) NFR-001: tensions are advisory -- coherent stays True.
+    assert report.coherent is True
 
 
 # ---------------------------------------------------------------------------
