@@ -417,7 +417,9 @@ class WorkPackage:
         from specify_cli.status import wp_snapshot_state  # noqa: PLC0415
 
         wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
-        wp_state = wp_snapshot_state(feature_dir, wp_id) or {}
+        # dict(): wp_snapshot_state returns a Mapping; the cache/return contract
+        # here is dict[str, Any] | None, so materialize a real dict.
+        wp_state = dict(wp_snapshot_state(feature_dir, wp_id) or {})
 
         self._snapshot_state_loaded = True
         self._snapshot_state_cache = wp_state

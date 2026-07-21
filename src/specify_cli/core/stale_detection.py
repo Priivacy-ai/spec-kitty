@@ -277,7 +277,10 @@ def _read_wp_runtime_snapshot_state(feature_dir: Path, wp_id: str) -> dict[str, 
     Delegates to the shared ``status.reducer.wp_snapshot_state`` accessor (IC-08
     dedup); ``or {}`` preserves the empty-dict "no runtime state yet" contract.
     """
-    return _wp_snapshot_state(feature_dir, wp_id) or {}
+    # dict(): the shared accessor returns a Mapping; this function's contract is
+    # dict[str, Any], so materialize a real dict (``or {}`` keeps the empty-dict
+    # "no runtime state yet" result).
+    return dict(_wp_snapshot_state(feature_dir, wp_id) or {})
 
 
 def _resolve_claim_liveness_inputs(
