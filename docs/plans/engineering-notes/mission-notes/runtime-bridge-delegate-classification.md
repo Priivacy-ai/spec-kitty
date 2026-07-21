@@ -4,7 +4,7 @@ description: 'Forwarding-vs-real-seam classification of the 45 runtime_bridge co
 doc_status: active
 updated: '2026-07-13'
 related:
-- docs/notes/index.md
+- docs/plans/engineering-notes/mission-notes/index.md
 ---
 # runtime_bridge Compat-Delegate Classification (WP02 — FR-003 / #2561)
 

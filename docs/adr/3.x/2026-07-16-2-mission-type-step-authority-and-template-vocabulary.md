@@ -9,7 +9,7 @@ date: '2026-07-16'
 **Status:** Proposed · **Epic:** #2652 (mission-type unification) · **Builds on:** ADR
 `2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes` (S0/S4), the merged #2712 (mission_type as a
 DRG node + mission_type→action edges) and #2689 (`template_set` slot). **Grounding:** design + code +
-adversarial squad (see `docs/investigation/mission-type-step-model-unification.md`).
+adversarial squad (see `docs/plans/investigations/mission-type-step-model-unification.md`).
 
 ## Context
 
@@ -150,7 +150,7 @@ under #2721.
 
 ## References
 
-- `docs/investigation/mission-type-step-model-unification.md` (proposal + full grounding).
+- `docs/plans/investigations/mission-type-step-model-unification.md` (proposal + full grounding).
 - ADR `2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md` (Claim 4, S0/S4).
 - Merged: #2712 (mission_type DRG node + mission_type→action edges, graph sharding), #2689 (`template_set` slot).
 - Deferred edge class: #883 (mission_type→template). Epic: #2652.
