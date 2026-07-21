@@ -268,7 +268,7 @@ def _build_single_branch_mission_with_in_progress_wp(
     return repo, mission_slug, feature_dir
 
 
-def _invoke_move_to_for_review(mission_slug: str) -> "object":
+def _invoke_move_to_for_review(mission_slug: str) -> object:
     """Drive ``agent tasks move-task WP01 --to for_review`` through the real app.
 
     ``--skip-pre-review-gate`` bypasses ONLY the pre-review pytest gate
@@ -294,7 +294,7 @@ def _invoke_move_to_for_review(mission_slug: str) -> "object":
     )
 
 
-def _new_lane(result: "object") -> str | None:
+def _new_lane(result: object) -> str | None:
     """Extract ``new_lane`` from a ``--json`` move-task envelope, if present."""
     text = (result.stdout or "").strip()  # type: ignore[attr-defined]
     start, end = text.find("{"), text.rfind("}")
