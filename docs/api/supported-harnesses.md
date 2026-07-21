@@ -38,7 +38,7 @@ Full tier criteria and promotion rules are maintained in `docs/plans/3-2-doc-pub
 | Qwen Code | `qwen` | `.qwen/commands/` | slash_command | **supported** | https://github.com/QwenLM/qwen-code | `/spec-kitty.*` command set installed via standard installer. |
 | Amazon Q CLI | `q` | `.amazonq/prompts/` | prompt | **supported** | https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/ | Retained as legacy alongside Kiro rebrand per `CLAUDE.md`. |
 | GitHub Copilot | `copilot` | `.github/prompts/` | prompt | **supported** | https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot | Prompt-file mechanism; `/spec-kitty.*` set installed. |
-| Augment Code (Auggie) | `augment` | `.augment/commands/` | slash_command | **supported** | https://docs.augmentcode.com/auggie/overview | `/spec-kitty.*` command set installed via standard installer. |
+| Augment Code (Auggie) | `auggie` | `.augment/commands/` | slash_command | **supported** | https://docs.augmentcode.com/auggie/overview | `/spec-kitty.*` command set installed via standard installer. |
 | Roo Cline | `roo` | `.roo/commands/` (existing projects only) | slash_command | **deprecated** | https://docs.roocode.com/ | Roo Code shut down on 2026-05-15. `spec-kitty init --ai roo` is rejected; existing `.roo/` dirs are preserved and a deprecation notice is shown on `spec-kitty upgrade`. |
 | Kilo Code | `kilocode` | `.kilocode/workflows/` | workflow | **supported** | https://kilocode.ai/docs | Workflow mechanism; `/spec-kitty.*` set installed. |
 | Windsurf | `windsurf` | `.windsurf/workflows/` | workflow | **supported** | https://docs.windsurf.com/windsurf/cascade/workflows | Workflow mechanism; `/spec-kitty.*` set installed. |
