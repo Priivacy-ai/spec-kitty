@@ -42,22 +42,6 @@ references:
   - type: styleguide
     id: adversarial-squad-cadence
 
-opposed_by:
-  - type: paradigm
-    id: big-ball-of-mud
-    reason: >
-      A Big Ball of Mud is the failure mode brownfield onboarding is built
-      to interrupt. Where Big Ball of Mud lets coupling and concepts leak
-      without investigation, brownfield onboarding insists that the leaks
-      be mapped and named before they are either preserved or removed.
-  - type: paradigm
-    id: big-upfront-design
-    reason: >
-      Big Upfront Design assumes the right structure can be derived from
-      first principles before contact with the existing system. Brownfield
-      onboarding inverts the priority: the existing system is the primary
-      evidence, and design proposals must be grounded in what the codebase,
-      its history, and its SMEs already encode.
 # ---------------------------------------------------------------------------
 # Provisional notes -- iterate freely.
 # ---------------------------------------------------------------------------

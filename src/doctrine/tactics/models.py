@@ -10,7 +10,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.shared.models import Contradiction
 
 _RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
 
@@ -82,7 +81,6 @@ class Tactic(BaseModel):
     failure_modes: list[str] = Field(default_factory=list)
     applies_to_languages: list[str] = Field(default_factory=list)
     references: list[TacticReference] = Field(default_factory=list)
-    opposed_by: list[Contradiction] = Field(default_factory=list)
     notes: str | None = None
 
     @model_validator(mode="before")

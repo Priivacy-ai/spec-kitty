@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 
@@ -19,13 +19,32 @@ from charter.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
+from charter.pack_context import CharterPackConfigError, PackContext, resolve_charter_yaml_pointer
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
+if TYPE_CHECKING:  # pragma: no cover -- static-typing only, see lazy-import note below.
+    from charter.drg import DRGGraph
+
 __all__ = [
-    "ConsistencyReport",
     "run_consistency_check",
+    "scan_unreconciled_tensions",
 ]
+
+# ConsistencyReport / TensionFinding: kept out of __all__ per the symbol-level
+# dead-code gate (test_no_dead_symbols.py) -- no external caller imports
+# either by name (both are consumed via attribute access on
+# run_consistency_check()'s return value, same precedent as
+# CharterYamlCorruptError above).
+
+#: FR-010/SC-001: the two resolution-path strings, verbatim, for a
+#: ``tension_unreconciled`` finding (contracts/tension-finding.md). Hoisted to
+#: a module constant (Sonar S1192) since both :class:`TensionFinding`'s
+#: default and any future re-render of the same pair must never drift from
+#: these exact strings.
+_TENSION_RESOLUTION_PATHS: tuple[str, str] = (
+    "deactivate one side",
+    "activate a reconciler",
+)
 
 
 # Internal-only (not exported): raised and caught within this module to route a
@@ -109,6 +128,39 @@ _DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
+# TensionFinding (T024, FR-009/FR-010, contracts/tension-finding.md)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TensionFinding:
+    """A co-activated, unreconciled ``in_tension_with`` pair (FR-009).
+
+    Attributes:
+        pair: The sorted URN pair (lexicographically smaller first) --
+            authoring the tension in either direction, or discovering it from
+            either endpoint, produces exactly one ``TensionFinding`` keyed on
+            this same sorted tuple (INV-001, Edge Case: symmetric authoring
+            drift).
+        resolution_paths: Exactly two entries, always these verbatim strings
+            (SC-001) -- deliberately not free text, so both consumers
+            (consistency-check JSON, ``charter activate`` warning) render an
+            identical resolution vocabulary.
+    """
+
+    pair: tuple[str, str]
+    resolution_paths: tuple[str, str] = _TENSION_RESOLUTION_PATHS
+
+    def to_json_dict(self) -> dict[str, Any]:
+        """Serialise to the JSON shape from ``contracts/tension-finding.md``."""
+        return {
+            "type": "tension_unreconciled",
+            "pair": list(self.pair),
+            "resolution_paths": list(self.resolution_paths),
+        }
+
+
+# ---------------------------------------------------------------------------
 # ConsistencyReport
 # ---------------------------------------------------------------------------
 
@@ -151,6 +203,16 @@ class ConsistencyReport:
             An empty finding list must mean "verified coherent", never
             "could not verify"; this field is how the guard reports the
             latter instead of silently reporting the former.
+        unreconciled_tensions: FR-009/FR-010 -- co-activated
+            ``in_tension_with`` pairs (directive/tactic/styleguide/toolguide
+            nodes) with no active reconciler bridging both sides
+            (contracts/tension-finding.md). Deliberately additive/advisory
+            (NFR-001): unlike every other field above, this one is NEVER
+            folded into the ``coherent`` reduction below -- a tension is a
+            competing-doctrine signal for the operator to weigh, not a
+            config<->doctrine defect. Populated on the same fail-closed DRG
+            load as :attr:`graph_kind_gaps`; a scan failure lands in
+            ``verification_errors`` instead of silently reporting ``[]``.
         suggestions: Human-readable resolution instructions for each finding.
     """
 
@@ -161,6 +223,7 @@ class ConsistencyReport:
     reference_id_divergences: list[str] = field(default_factory=list)
     graph_kind_gaps: list[str] = field(default_factory=list)
     verification_errors: list[str] = field(default_factory=list)
+    unreconciled_tensions: list[TensionFinding] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
 
     def to_json(self) -> str:
@@ -174,6 +237,9 @@ class ConsistencyReport:
                 "reference_id_divergences": self.reference_id_divergences,
                 "graph_kind_gaps": self.graph_kind_gaps,
                 "verification_errors": self.verification_errors,
+                "unreconciled_tensions": [
+                    t.to_json_dict() for t in self.unreconciled_tensions
+                ],
                 "suggestions": self.suggestions,
             },
             indent=2,
@@ -786,6 +852,222 @@ def _check_graph_kind_parity(
 
 
 # ---------------------------------------------------------------------------
+# Tension scan (T025/T026/T027, FR-009/FR-010)
+# ---------------------------------------------------------------------------
+#
+# Deliberately does NOT reuse ``charter.drg.filter_graph_by_activation`` for
+# per-ID gating: that helper's per-artifact-ID gate compares a DRG node's
+# canonical id (e.g. ``DIRECTIVE_024``) directly against
+# ``PackContext.activated_directives``, which holds config *stems* (e.g.
+# ``024-locality-of-change``) -- the same stem<->canonical-id mismatch
+# ``_check_graph_kind_parity`` above already documents and works around.
+# Using it here would make every directive node vanish from the
+# "activation-filtered graph" regardless of what is actually activated,
+# which would make this scan a NO-OP for directive/directive tensions -- the
+# exact defect NFR-001 exists to prevent. Instead this reproduces BOTH the
+# kind-level gate (mirroring ``_check_graph_kind_parity``) AND a correct
+# per-ID gate, resolving each activated stem to its canonical URN via
+# ``resolve_artifact_urn`` (the same resolver ``_check_reference_id_parity``
+# already uses for this exact stem<->canonical bridge).
+
+
+def _resolve_activated_urns_for_kind(
+    cli_kind: str,
+    raw_activated_by_kind: dict[str, list[str] | None],
+    *,
+    doctrine_root: Path,
+    org_roots: list[Path],
+) -> frozenset[str] | None:
+    """Resolve *cli_kind*'s explicitly-activated config stems to canonical URNs.
+
+    Returns ``None`` when the kind has no explicit activation entry
+    (backward-compat: every DRG node of that kind is considered active,
+    matching :attr:`PackContext.activated_directives`-style ``None``
+    semantics elsewhere in this module).
+    """
+    raw_list = raw_activated_by_kind.get(cli_kind)
+    if raw_list is None:
+        return None
+    try:
+        kind_enum = ArtifactKind.from_operator_token(cli_kind)
+    except MissionTypeNotAnArtifactKind:
+        return frozenset()
+
+    urns: set[str] = set()
+    for stem in set(raw_list):
+        try:
+            urn = resolve_artifact_urn(
+                kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
+            )
+        except UnknownArtifactIdError:
+            continue  # Already reported by _check_unknown_references.
+        urns.add(urn)
+    return frozenset(urns)
+
+
+def _node_is_tension_scan_active(
+    urn: str,
+    pack_context: PackContext,
+    per_kind_urns: dict[str, frozenset[str] | None],
+) -> bool:
+    """Return whether *urn* survives both the kind-level and per-ID gate.
+
+    Mirrors the two-step decision ``_node_is_activated`` (``charter/drg.py``)
+    makes, except the per-ID gate is resolved through canonical URNs (see
+    module note above) instead of comparing raw config stems directly.
+    """
+    node_kind, _ = _split_urn(urn)
+    activated_kinds_member = _DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER.get(node_kind)
+    if activated_kinds_member is None or activated_kinds_member not in pack_context.activated_kinds:
+        return False
+
+    cli_kind = _DRG_SINGULAR_TO_CLI_KIND.get(node_kind)
+    if cli_kind is None:
+        return True  # No CLI-kind mapping (e.g. anti_pattern) -- kind gate suffices.
+
+    per_id_urns = per_kind_urns.get(cli_kind)
+    return per_id_urns is None or urn in per_id_urns
+
+
+def _build_tension_active_urns(
+    ctx: ProjectContext,
+    full_drg: DRGGraph,
+    pack_context: PackContext,
+) -> frozenset[str]:
+    """Return the set of node URNs active for tension-scan purposes."""
+    raw_activated_by_kind = _load_raw_activation_lists(ctx)
+    doctrine_root = resolve_doctrine_root()
+    org_roots = list(pack_context.pack_roots[1:])
+
+    per_kind_urns: dict[str, frozenset[str] | None] = {
+        cli_kind: _resolve_activated_urns_for_kind(
+            cli_kind,
+            raw_activated_by_kind,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+        )
+        for cli_kind in _CLI_KIND_TO_DRG_SINGULAR
+    }
+
+    return frozenset(
+        node.urn
+        for node in full_drg.nodes
+        if _node_is_tension_scan_active(node.urn, pack_context, per_kind_urns)
+    )
+
+
+def _tension_candidate_pairs(
+    full_drg: DRGGraph,
+    active_urns: frozenset[str],
+) -> set[tuple[str, str]]:
+    """T025: every co-activated ``in_tension_with`` edge, keyed on sorted pair.
+
+    Only ever iterates declared edges directly (no reachability/closure
+    step) -- ``A<->B`` + ``B<->C`` never synthesizes ``A<->C`` (INV-002).
+    """
+    from charter.drg import Relation  # noqa: PLC0415
+
+    pairs: set[tuple[str, str]] = set()
+    for edge in full_drg.edges:
+        if edge.relation != Relation.IN_TENSION_WITH:
+            continue
+        if edge.source in active_urns and edge.target in active_urns:
+            smaller, larger = sorted((edge.source, edge.target))
+            pairs.add((smaller, larger))
+    return pairs
+
+
+def _tension_reconciled_urns(
+    full_drg: DRGGraph,
+    active_urns: frozenset[str],
+) -> set[str]:
+    """T026: URNs with an active ``reconciles_tension`` edge from an active source.
+
+    General rule (not a single-reconciler special case): a side counts as
+    bridged when ANY active artefact carries a ``reconciles_tension`` edge to
+    it -- the same side being bridged by two different active reconcilers is
+    equivalent to being bridged by one.
+    """
+    from charter.drg import Relation  # noqa: PLC0415
+
+    reconciled: set[str] = set()
+    for edge in full_drg.edges:
+        if edge.relation != Relation.RECONCILES_TENSION:
+            continue
+        if edge.source in active_urns and edge.target in active_urns:
+            reconciled.add(edge.target)
+    return reconciled
+
+
+def scan_unreconciled_tensions(ctx: ProjectContext) -> list[TensionFinding]:
+    """Scan the activation-filtered DRG for unreconciled tension pairs (FR-009).
+
+    Single canonical authority for the tension-finding shape: both
+    ``run_consistency_check`` (JSON surface) and ``charter activate``'s
+    warning (FR-010) call this same function so the two surfaces can never
+    render the finding differently (SC-001).
+
+    Returns:
+        One :class:`TensionFinding` per co-activated, unreconciled
+        ``in_tension_with`` pair, sorted for deterministic output. A pair is
+        omitted only when some active artefact(s) carry a
+        ``reconciles_tension`` edge to BOTH sides -- a single-sided edge
+        (half-reconciled) still produces a finding (US2 sc2).
+
+    Raises:
+        Exception: Propagates any DRG load/validation failure untouched --
+            callers MUST fail closed (surface it in
+            ``ConsistencyReport.verification_errors``, never treat a raised
+            exception the same as a legitimately empty result).
+    """
+    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+
+    repo_root = ctx.require_repo_root()
+    pack_context = ctx.require_pack_context()
+    full_drg = load_validated_graph(repo_root)
+
+    active_urns = _build_tension_active_urns(ctx, full_drg, pack_context)
+    candidate_pairs = _tension_candidate_pairs(full_drg, active_urns)
+    if not candidate_pairs:
+        return []
+
+    reconciled_urns = _tension_reconciled_urns(full_drg, active_urns)
+    return [
+        TensionFinding(pair=pair)
+        for pair in sorted(candidate_pairs)
+        if not (pair[0] in reconciled_urns and pair[1] in reconciled_urns)
+    ]
+
+
+def _check_unreconciled_tensions(
+    ctx: ProjectContext,
+    unreconciled_tensions: list[TensionFinding],
+    verification_errors: list[str],
+    suggestions: list[str],
+) -> None:
+    """FR-009: fail-closed wrapper around :func:`scan_unreconciled_tensions`.
+
+    Mirrors ``_check_graph_kind_parity``'s fail-closed shape exactly: a DRG
+    load/traversal failure is a genuine "could not verify" condition and
+    lands in *verification_errors*, never a silent empty
+    *unreconciled_tensions* masquerading as "checked, found nothing"
+    (contracts/tension-finding.md, Error case).
+    """
+    try:
+        unreconciled_tensions.extend(scan_unreconciled_tensions(ctx))
+    except Exception as exc:  # noqa: BLE001 -- fail-closed signal below, not a silent pass.
+        verification_errors.append(
+            f"drg: Could not verify tension reconciliation "
+            f"({type(exc).__name__}: {exc})."
+        )
+        suggestions.append(
+            f"drg: Could not verify tension reconciliation "
+            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
+            f"'spec-kitty charter resynthesize' and retry."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Main function
 # ---------------------------------------------------------------------------
 
@@ -815,6 +1097,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     reference_id_divergences: list[str] = []
     graph_kind_gaps: list[str] = []
     verification_errors: list[str] = []
+    unreconciled_tensions: list[TensionFinding] = []
     suggestions: list[str] = []
 
     manager = CharterPackManager()
@@ -866,7 +1149,13 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     _check_graph_kind_parity(
         ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions
     )
+    _check_unreconciled_tensions(
+        ctx, unreconciled_tensions, verification_errors, suggestions
+    )
 
+    # NFR-001: unreconciled_tensions is deliberately excluded from this
+    # reduction -- a tension finding is additive/advisory, never a
+    # config<->doctrine defect on its own (contracts/tension-finding.md).
     coherent = not (
         unknown_references
         or missing_from_doctrine
@@ -883,5 +1172,6 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         reference_id_divergences=reference_id_divergences,
         graph_kind_gaps=graph_kind_gaps,
         verification_errors=verification_errors,
+        unreconciled_tensions=unreconciled_tensions,
         suggestions=suggestions,
     )

@@ -56,12 +56,3 @@ references:
     id: frozen-baseline-shrink-only-ratchet
   - type: paradigm
     id: brownfield-onboarding
-opposed_by:
-  - type: directive
-    id: DIRECTIVE_024
-    reason: >
-      Locality of Change constrains the SCOPE of new work to the minimum the goal
-      requires; it does NOT license leaving adjacent breakage in already-touched
-      code. Campsite cleaning of touched-area failures is within locality; broad
-      refactors are not. The two reconcile by fixing adjacent breakage by default
-      while deferring genuinely broad refactors with a rationale.

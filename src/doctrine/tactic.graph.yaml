@@ -110,8 +110,6 @@ nodes:
 - urn: tactic:cross-cutting-state-via-store
   kind: tactic
   label: Cross-Cutting State via Store
-- urn: tactic:database-driven-design
-  kind: tactic
 - urn: tactic:decision-marker-capture
   kind: tactic
   label: Decision Marker Capture
@@ -319,8 +317,6 @@ nodes:
 - urn: tactic:semantic-compression-semantic-consolidation
   kind: tactic
   label: Semantic Compression Semantic Consolidation
-- urn: tactic:single-diagram-architecture
-  kind: tactic
 - urn: tactic:split-brain-authority-detection
   kind: tactic
   label: Split Brain Authority Detection

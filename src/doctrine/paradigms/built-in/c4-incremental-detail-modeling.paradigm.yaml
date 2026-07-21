@@ -22,25 +22,3 @@ summary: >
 
 directive_refs:
   - DIRECTIVE_001
-
-opposed_by:
-  - type: paradigm
-    id: big-upfront-design
-    reason: >
-      Big Upfront Design attempts to specify every architectural detail
-      before implementation begins. C4 incremental detail modeling favours
-      progressive discovery -- start with a context diagram and add lower
-      levels only when they earn their keep.
-  - type: tactic
-    id: single-diagram-architecture
-    reason: >
-      A single all-in-one architecture diagram conflates audiences and
-      abstraction levels, producing a poster that nobody can review in a
-      reasonable time. C4 explicitly separates concerns into distinct levels.
-  - type: paradigm
-    id: code-is-the-documentation
-    reason: >
-      Relying solely on source code as documentation forces every
-      stakeholder -- including non-technical sponsors -- to read code to
-      understand system boundaries. C4 provides visual abstractions that
-      make architecture accessible without requiring code literacy.

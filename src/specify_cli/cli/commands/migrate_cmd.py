@@ -7,6 +7,9 @@ Subcommands:
   any ``meta.json`` that lacks one.  Idempotent and non-destructive.
 - ``spec-kitty migrate charter-encoding`` — Scan charter content for non-UTF-8
   encodings; normalize-or-fail-loud. Implements FR-026, FR-027, NFR-006.
+- ``spec-kitty migrate rewrite-opposed-by`` — Rewrite a downstream/org pack's
+  legacy ``opposed_by`` entries into ``in_tension_with``/``rejects`` DRG
+  edges. Implements FR-015.
 
 Usage examples::
 
@@ -15,6 +18,7 @@ Usage examples::
     spec-kitty migrate backfill-identity --mission 083-foo-bar
     spec-kitty migrate charter-encoding --dry-run
     spec-kitty migrate charter-encoding --yes --json
+    spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
 """
 
 from __future__ import annotations
@@ -536,6 +540,137 @@ def normalize_lifecycle(
         _print_normalize_lifecycle_summary(results, dry_run=dry_run)
 
     if payload["summary"]["error"]:
+        raise typer.Exit(1)
+
+
+@app.command(name="rewrite-opposed-by")
+def rewrite_opposed_by(
+    pack: Annotated[
+        Path,
+        typer.Option(
+            "--pack",
+            help="Root directory of the target pack to migrate (org pack or any "
+            "directory shaped like the built-in doctrine tree).",
+            metavar="PATH",
+        ),
+    ] = Path("."),
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Report planned rewrites without writing any files. "
+                "The JSON shape is identical to a live run."
+            ),
+        ),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a structured JSON report on stdout."),
+    ] = False,
+) -> None:
+    """Rewrite a pack's legacy ``opposed_by`` entries into DRG edges.
+
+    Scans every ``*.directive.yaml``/``*.tactic.yaml``/``*.paradigm.yaml``
+    file under ``--pack`` for ``opposed_by`` entries, classifies each as
+    tension-style (rewritten to an ``in_tension_with`` edge) or
+    anti-pattern-rejection-style (rewritten to a ``rejects`` edge, creating
+    the target ``anti_pattern`` node if absent), writes the new edges into
+    the pack's ``<kind>.graph.yaml`` fragments, and removes the migrated
+    ``opposed_by`` key from the source YAML.
+
+    This command is **idempotent** — once a pack has no remaining
+    ``opposed_by`` entries, running it again is a no-op.
+
+    **When to run:**
+
+    - Before upgrading to a spec-kitty release that drops ``opposed_by``
+      from the ``directive``/``tactic``/``paradigm`` schemas
+    - As part of CI checks on an org pack that still authors ``opposed_by``
+
+    Exit codes:
+
+    - ``0`` — every entry was rewritten (or, in ``--dry-run``, would be)
+    - ``1`` — one or more entries could not be unambiguously classified
+
+    Examples:
+
+        spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
+
+        spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --json
+
+        spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme
+    """
+    from specify_cli.migration.rewrite_opposed_by import rewrite_opposed_by_pack
+
+    pack_root = pack.resolve()
+    if not pack_root.is_dir():
+        _error(f"Pack root not found: {pack_root}")
+        raise typer.Exit(1)
+
+    result = rewrite_opposed_by_pack(pack_root, dry_run=dry_run)
+
+    if json_output:
+        payload = {
+            "dry_run": dry_run,
+            "pack_root": str(pack_root),
+            "summary": {
+                "rewritten": len(result.rewritten),
+                "unclassifiable": len(result.unclassifiable),
+            },
+            "rewritten": [
+                {
+                    "source_file": str(r.source_file),
+                    "source": f"{r.source_type}:{r.source_id}",
+                    "target": f"{r.target_type}:{r.target_id}",
+                    "relation": r.relation,
+                    "reason": r.reason,
+                    "created_anti_pattern_node": r.created_anti_pattern_node,
+                }
+                for r in result.rewritten
+            ],
+            "unclassifiable": [
+                {
+                    "source_file": str(u.source_file),
+                    "source": f"{u.source_type}:{u.source_id}",
+                    "target": f"{u.target_type}:{u.target_id}",
+                    "message": u.message,
+                }
+                for u in result.unclassifiable
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]rewrite-opposed-by summary[/bold]")
+        console.print(f"  Pack root      : {pack_root}")
+        console.print(f"  Rewritten      : {len(result.rewritten)}")
+        console.print(f"  Unclassifiable : {len(result.unclassifiable)}")
+
+        for r in result.rewritten:
+            verb = "would rewrite" if dry_run else "rewrote"
+            node_note = " (creates anti_pattern node)" if r.created_anti_pattern_node else ""
+            console.print(
+                f"  [green]{verb}[/green] {r.source_type}:{r.source_id} "
+                f"--{r.relation}--> {r.target_type}:{r.target_id}{node_note}"
+            )
+
+        if result.unclassifiable:
+            console.print("\n[red]Unclassifiable entries (manual review required):[/red]")
+            for u in result.unclassifiable:
+                console.print(f"  [red]{u.source_file}:[/red] {u.message}")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+        elif result.rewritten:
+            console.print(
+                f"\n[green]Done.[/green] {len(result.rewritten)} opposed_by "
+                "entry(ies) rewritten to DRG edges."
+            )
+        else:
+            console.print("\n[green]Done.[/green] No opposed_by entries found.")
+
+    if result.unclassifiable:
         raise typer.Exit(1)
 
 

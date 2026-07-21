@@ -359,8 +359,19 @@ class TestGraphWithStyleguideEdges:
         freshness twin survives the WP05 monolith->fragment migration — the
         ``graph.yaml`` monolith today, ``*.graph.yaml`` fragments afterwards
         (T029).
+
+        Post-WP03 (doctrine-tension-edges-01KY1WPC): "regenerated" means pure
+        extraction plus the enumerable hand-authored overlay
+        (``doctrine.drg.migration.hand_authored_overlay``) — a bare
+        regeneration can never mint the hand-authored tension/reconciliation/
+        rejection edges or anti-pattern nodes (C-005), so it would never match
+        the committed source even when nothing is actually stale.
         """
         import hashlib  # noqa: PLC0415 – local import to keep test self-contained
+
+        from doctrine.drg.migration.hand_authored_overlay import (  # noqa: PLC0415
+            write_reference_graph_with_overlay,
+        )
 
         def _source_hashes(doctrine_dir: Path) -> dict[str, str]:
             single = doctrine_dir / "graph.yaml"
@@ -376,12 +387,11 @@ class TestGraphWithStyleguideEdges:
                 for p in files
             }
 
-        generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        write_reference_graph_with_overlay(DOCTRINE_ROOT, tmp_path / "graph.yaml")
         committed = _source_hashes(built_in_graph_source())
         regenerated = _source_hashes(tmp_path)
         assert regenerated == committed, (
             "The committed built-in DRG source is stale after WP08 styleguide "
             "walk (DD-11 per-file byte-identity). Regenerate: "
-            "doctrine.drg.migration.extractor.generate_graph("
-            "Path('src/doctrine'), Path('src/doctrine/graph.yaml'))"
+            "spec-kitty doctrine regenerate-graph"
         )

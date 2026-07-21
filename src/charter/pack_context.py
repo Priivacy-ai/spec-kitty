@@ -153,6 +153,9 @@ class PackContext:
     activated_mission_step_contracts: frozenset[str] | None = None
     """Mission step contract IDs activated for this project (three-state)."""
 
+    activated_anti_patterns: frozenset[str] | None = None
+    """Anti-pattern node IDs activated for this project (three-state)."""
+
     # ------------------------------------------------------------------
     # Constructor
     # ------------------------------------------------------------------
@@ -214,6 +217,7 @@ class PackContext:
             activated_procedures=_read_activated_procedures(activation),
             activated_agent_profiles=_read_activated_agent_profiles(activation),
             activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
+            activated_anti_patterns=_read_activated_anti_patterns(activation),
         )
 
 
@@ -395,6 +399,11 @@ def _read_activated_mission_step_contracts(
 ) -> frozenset[str] | None:
     """Extract ``activated_mission_step_contracts`` from parsed config data (three-state)."""
     return _read_list_key(data, "activated_mission_step_contracts")
+
+
+def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_anti_patterns`` from parsed config data (three-state)."""
+    return _read_list_key(data, "activated_anti_patterns")
 
 
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:

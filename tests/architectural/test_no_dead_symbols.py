@@ -451,7 +451,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("ConsistencyReport", "986c5bad6aa5b227fbf959796bc1d7de84c782093342c0db1da44929f4d8d76e"),  # charter.consistency_check::ConsistencyReport
+        # charter.consistency_check::ConsistencyReport entry pruned
+        # (doctrine-tension-edges-01KY1WPC): removed from __all__ instead of
+        # re-pinning the hash -- no external caller imports it by name (only
+        # consumed via attribute access on run_consistency_check()'s return
+        # value), matching this file's own CharterYamlCorruptError precedent.
         # charter.invocation_context::ContextPreconditionError
         SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af"),
     }

@@ -370,26 +370,6 @@ def extract_artifact_edges(  # noqa: C901
                     )
                 )
 
-            # opposed_by
-            for opp in data.get("opposed_by", []) or []:
-                opp_type: str = opp.get("type", "")
-                opp_id: str = opp.get("id", "")
-                if not opp_type or not opp_id:
-                    continue
-                opp_kind = _kind_for_type(opp_type)
-                if opp_kind is None:
-                    continue
-                tgt_urn = artifact_to_urn(opp_type, opp_id)
-                _ensure_node(nodes_by_urn, tgt_urn, opp_kind)
-                _add_edge(
-                    DRGEdge(
-                        source=src_urn,
-                        target=tgt_urn,
-                        relation=Relation.REPLACES,
-                        reason=opp.get("reason"),
-                    )
-                )
-
     # --- Tactics ---
     tactics_dir = doctrine_root / "tactics" / "built-in"
     if tactics_dir.is_dir():
@@ -478,26 +458,6 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=Relation.REQUIRES,
-                    )
-                )
-
-            # opposed_by
-            for opp in data.get("opposed_by", []) or []:
-                opp_type = opp.get("type", "")
-                opp_id = opp.get("id", "")
-                if not opp_type or not opp_id:
-                    continue
-                opp_kind = _kind_for_type(opp_type)
-                if opp_kind is None:
-                    continue
-                tgt_urn = artifact_to_urn(opp_type, opp_id)
-                _ensure_node(nodes_by_urn, tgt_urn, opp_kind)
-                _add_edge(
-                    DRGEdge(
-                        source=src_urn,
-                        target=tgt_urn,
-                        relation=Relation.REPLACES,
-                        reason=opp.get("reason"),
                     )
                 )
 
@@ -1160,6 +1120,8 @@ def _node_to_dict(node: DRGNode) -> dict[str, Any]:
     d: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
     if node.label is not None:
         d["label"] = node.label.strip()
+    if node.tags:
+        d["tags"] = list(node.tags)
     return d
 
 

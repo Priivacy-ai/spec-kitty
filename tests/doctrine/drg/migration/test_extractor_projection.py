@@ -19,7 +19,6 @@ three invariants that re-point must hold (T012, FR-004/FR-010):
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +26,11 @@ import pytest
 
 from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.migration.extractor import extract_mission_type_edges, generate_graph
+from doctrine.drg.migration.hand_authored_overlay import (
+    HAND_AUTHORED_EDGES,
+    HAND_AUTHORED_NODES,
+    generate_reference_graph_with_overlay,
+)
 from doctrine.drg.models import Relation
 from doctrine.missions.mission_step_repository import MissionStepRepository
 
@@ -49,9 +53,23 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #: pre-existing upstream freshness drift this regeneration incidentally fixes).
 #: So the counts are (upstream-source-truth 281/757/11) + S-C's intentional
 #: +8/+8/+0 = 289/765/11.
-_EXPECTED_NODE_COUNT = 289
-_EXPECTED_EDGE_COUNT = 765
-_EXPECTED_ORPHAN_COUNT = 11
+#:
+#: Re-baselined again for WP03 of doctrine-tension-edges-01KY1WPC: retiring
+#: the contradiction-declaration field removes the 6 phantom paradigm/tactic-kind nodes and 10
+#: mis-minted ``replaces`` edges the field used to produce (2 directive<->
+#: directive + 8 paradigm->{paradigm,tactic}), and the new
+#: ``reconcile-change-scope-tensions`` directive (a plain built-in directive
+#: with no ordinary ``tactic_refs``/``references``) adds one orphan of its
+#: own in a PURE regeneration -- its only edges are the hand-authored
+#: ``reconciles_tension`` edges the extractor cannot mint (see
+#: ``doctrine.drg.migration.hand_authored_overlay``). So a bare
+#: ``generate_graph`` run now yields 289 - 6 + 1 = 284 nodes,
+#: 765 - 10 = 755 edges, 11 - 1 + 2 = 12 orphans (the new directive, plus its
+#: two tension partners each already had another edge keeping them non-orphan,
+#: so only the new directive itself is added to the orphan set).
+_EXPECTED_NODE_COUNT = 284
+_EXPECTED_EDGE_COUNT = 755
+_EXPECTED_ORPHAN_COUNT = 12
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).
@@ -101,17 +119,27 @@ class TestDRGZeroDelta:
         assert len(orphans) == _EXPECTED_ORPHAN_COUNT  # golden-count: cardinality-is-contract
 
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:
-        """A fresh regeneration matches the committed shipped graph exactly."""
+        """A fresh regeneration + the hand-authored overlay matches the shipped graph.
+
+        Post-WP03 (doctrine-tension-edges-01KY1WPC): the shipped graph also
+        carries hand-authored ``in_tension_with``/``reconciles_tension``/
+        ``rejects`` edges and ``anti_pattern`` nodes the extractor has no
+        frontmatter mechanism to mint (C-005). The reference is therefore
+        "pure regeneration + the enumerable overlay", not a bare regeneration.
+        """
         shipped = load_built_in_graph()
-        with tempfile.TemporaryDirectory() as tmp:
-            regenerated = generate_graph(DOCTRINE_ROOT, Path(tmp) / "graph.yaml")
+        regenerated = generate_reference_graph_with_overlay(DOCTRINE_ROOT)
 
         assert {n.urn for n in regenerated.nodes} == {n.urn for n in shipped.nodes}
         assert {
             (e.source, e.target, e.relation.value) for e in regenerated.edges
         } == {(e.source, e.target, e.relation.value) for e in shipped.edges}
-        assert len(regenerated.nodes) == len(shipped.nodes) == _EXPECTED_NODE_COUNT
-        assert len(regenerated.edges) == len(shipped.edges) == _EXPECTED_EDGE_COUNT
+        assert len(regenerated.nodes) == len(shipped.nodes) == _EXPECTED_NODE_COUNT + len(
+            HAND_AUTHORED_NODES
+        )
+        assert len(regenerated.edges) == len(shipped.edges) == _EXPECTED_EDGE_COUNT + len(
+            HAND_AUTHORED_EDGES
+        )
 
 
 @pytest.mark.doctrine

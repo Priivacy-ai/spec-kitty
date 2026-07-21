@@ -197,6 +197,7 @@ _SINGULAR_TO_PLURAL: dict[str, str] = {
     "procedure": "procedures",
     "agent_profile": "agent_profiles",
     "mission_step_contract": "mission_step_contracts",
+    "anti_pattern": "anti_patterns",
 }
 
 
@@ -212,6 +213,7 @@ _SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {
     "procedure":             "activated_procedures",
     "agent_profile":         "activated_agent_profiles",
     "mission_step_contract": "activated_mission_step_contracts",
+    "anti_pattern":          "activated_anti_patterns",
 }
 
 

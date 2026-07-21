@@ -243,11 +243,14 @@ test_no_dead_symbols:
   # (``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` 4->0, FR-002): the
   # aggregate ``_SYMBOL_ALLOWLIST`` still strictly decreases (317->313).
   category_b_grandfathered_legacy: 193
-  # 6->4 (org-doctrine close-out WP04): removed the now-wired
-  # charter.invocation_context::{OperationalContext,build_operational_context}
-  # (WP14 added live src/ callers). Remaining 4: the two require_active_*
-  # method entries, ContextPreconditionError, ConsistencyReport.
-  category_c_wp_in_flight_charter_scope: 4
+  # 6->4->1 (org-doctrine close-out WP04, then doctrine-tension-edges-01KY1WPC):
+  # removed the now-wired charter.invocation_context::{OperationalContext,
+  # build_operational_context} (WP14 added live src/ callers), then pruned
+  # the now-dangling charter.consistency_check::ConsistencyReport entry
+  # (removed from __all__ instead of re-pinning its hash after WP05 extended
+  # the dataclass -- no external caller imports it by name). Remaining 1:
+  # ContextPreconditionError.
+  category_c_wp_in_flight_charter_scope: 1
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from

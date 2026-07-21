@@ -29,7 +29,9 @@ from ruamel.yaml import YAML
 
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.drg.loader import built_in_graph_source, load_built_in_graph
-from doctrine.drg.migration.extractor import generate_graph
+from doctrine.drg.migration.hand_authored_overlay import (
+    generate_reference_graph_with_overlay,
+)
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from specify_cli.charter_runtime.lint._drg import load_merged_drg
 from specify_cli.charter_runtime.lint.findings import GraphState
@@ -40,10 +42,19 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture(scope="module")
 def reference_graph() -> DRGGraph:
-    """In-memory ``generate_graph`` return value (the non-vacuous reference)."""
+    """In-memory ``generate_graph`` return value + the hand-authored overlay
+    (the non-vacuous reference).
+
+    Post-WP03 (doctrine-tension-edges-01KY1WPC): merges in the enumerable
+    hand-authored ``in_tension_with``/``reconciles_tension``/``rejects``
+    edges and ``anti_pattern`` nodes (``doctrine.drg.migration.
+    hand_authored_overlay``) that the extractor cannot mint from frontmatter
+    (C-005), so ``test_pack_validator_builtin_urn_set_is_full`` compares the
+    shipped built-in URN universe against its true full reference rather than
+    a subset that would spuriously look "extra" on the shipped side.
+    """
     doctrine_root = built_in_graph_source()
-    with tempfile.TemporaryDirectory() as tmp:
-        return generate_graph(doctrine_root, Path(tmp) / "graph.yaml")
+    return generate_reference_graph_with_overlay(doctrine_root)
 
 
 def _lineage_children(graph: DRGGraph) -> list[str]:
