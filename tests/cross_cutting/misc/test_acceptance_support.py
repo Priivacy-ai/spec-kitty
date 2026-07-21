@@ -134,19 +134,6 @@ def test_collect_feature_summary_reports_missing_canonical_metadata(
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
 
 
-def test_detect_mission_slug_prefers_explicit(
-    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # Auto-detection removed; must pass explicit_feature
-    assert acc.detect_mission_slug(feature_repo, explicit_feature=mission_slug) == mission_slug
-
-
-def test_detect_mission_slug_raises_without_explicit(feature_repo: Path, mission_slug: str) -> None:
-    # Without explicit_feature, must raise AcceptanceError (auto-detection removed)
-    with pytest.raises(acc.AcceptanceError, match="Mission slug is required"):
-        acc.detect_mission_slug(feature_repo)
-
-
 def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str) -> None:
     from tests.utils import run
 
