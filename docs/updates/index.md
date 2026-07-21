@@ -16,7 +16,8 @@ What shipped, what's planned, and the historical record.
 - [Changelog](../changelog/index.md) — release history.
 - [Release goals](../release-goals/index.md) — declared intent of each release
   line, with links to that line's execution roadmap.
-- [Mission Runs](../kitty-specs/index.html) — mission specs and execution
-  history for this repository (dogfooding record).
+- **Mission Runs** (linked from the nav above) — mission specs and execution
+  history for this repository (dogfooding record). Generated at build time
+  from `kitty-specs/`, so it isn't a resolvable source-tree link here.
 - [Historical Archive](../archive/index.md) — preserved 1.x/2.x documentation,
   for reference only.
