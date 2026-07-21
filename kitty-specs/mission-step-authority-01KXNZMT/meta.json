@@ -12,6 +12,7 @@
   "purpose_context": "Today a mission-type step is authored twice — a flat action_sequence/template_set and a rich step.yaml the DRG never reads — a split-brain that lets the graph and the runtime disagree. This mission makes step.yaml the single authority, derives the flat forms as read-projections, points the DRG extractor at the step, and adds advisory recommended-role/model-tier offers behind a charter/runtime override seam.",
   "purpose_tldr": "Make step.yaml the single authority for mission-type steps; derive action_sequence/template_set as projections.",
   "slug": "mission-step-authority-01KXNZMT",
+  "status_phase": "1",
   "target_branch": "feat/mission-step-authority",
   "topology": "coord",
   "vcs": "git",

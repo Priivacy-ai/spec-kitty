@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
   "source_description": "Cross-repo Spec Kitty stability and hygiene hardening across merge/worktree safety, intake security, runtime state progression, cross-repo package contracts, sync recovery, and e2e coverage. Driven by start-here.md in the workspace root; covers issue lists across spec-kitty, spec-kitty-events, spec-kitty-tracker, spec-kitty-runtime, spec-kitty-tracker, and spec-kitty-end-to-end-testing repos.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

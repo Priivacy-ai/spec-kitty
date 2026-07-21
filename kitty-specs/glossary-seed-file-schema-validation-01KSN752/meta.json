@@ -9,6 +9,7 @@
   "purpose_context": "A non-normalized surface value in glossary seed YAML causes load_seed_file() to throw ValueError, which dashboard handlers catch silently — resulting in zero glossary terms shown. This mission adds schema-backed validation with DDD aggregate modeling at all write/edit/load/CI boundaries, following the existing doctrine schema validation pattern.",
   "purpose_tldr": "Validate glossary seed files at creation, edit, load, and CI boundaries so invalid glossary state is rejected with actionable errors before reaching dashboard or runtime code.",
   "slug": "glossary-seed-file-schema-validation-01KSN752",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-05-27T17:42:26.067720+00:00"

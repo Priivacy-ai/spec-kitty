@@ -7,5 +7,6 @@
   "mission_type": "research",
   "slug": "007-frontmatter-only-lane",
   "source_description": "Replace directory-based lane detection with frontmatter-only lane management. All WP files live in flat tasks/ directory and never move - only the lane: YAML field changes when transitioning between lanes.",
+  "status_phase": "1",
   "target_branch": "main"
 }

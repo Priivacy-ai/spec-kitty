@@ -8,5 +8,6 @@
   "purpose_context": "This mission advances autonomous runtime safety followups on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "autonomous runtime safety followups",
   "slug": "autonomous-runtime-safety-followups-01KS52BD",
+  "status_phase": "1",
   "target_branch": "main"
 }

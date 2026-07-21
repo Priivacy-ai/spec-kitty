@@ -25,6 +25,7 @@
   "purpose_tldr": "Close four #2533 follow-ups: fix move-task-from-a-worktree, harden the protected-branch commit fallback, and pay down the placement/commit maintainability debt.",
   "slug": "implement-loop-commit-hardening-01KXJ1ZX",
   "source_description": "Follow-up of #2533: closes #2647 (move-task cwd bug), #2648 (protected-branch commit fallback), #2649 (Sonar degod of implement.py/tasks_move_task.py), #2650 (consolidate the two partition-aware commit executors) — all sub-issues of #2160.",
+  "status_phase": "1",
   "target_branch": "mission/2533-pr-bound-coord-claim-precondition",
   "topology": "single_branch",
   "vcs": "git"

@@ -23,5 +23,6 @@
   "purpose_context": "This mission advances name vs authority remediation on feat/doctrine-glossary-consolidation-01KTNWFC so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "name vs authority remediation",
   "slug": "name-vs-authority-remediation-01KTYGTE",
+  "status_phase": "1",
   "target_branch": "feat/doctrine-glossary-consolidation-01KTNWFC"
 }

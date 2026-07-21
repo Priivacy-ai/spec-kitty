@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "045-mission-handoff-package-version-matrix",
   "source_description": "Team Prompt 1 (spec-kitty producer): Publish one canonical mission handoff package for the plan-context-bootstrap-fix wave on 2.x (event stream, artifact manifest snapshot, artifact tree snapshot, namespace tuple), plus a cross-repo version matrix note and test verification note. C-lite scope: commit concrete artifacts + minimal generator script; no new exporter subsystem.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

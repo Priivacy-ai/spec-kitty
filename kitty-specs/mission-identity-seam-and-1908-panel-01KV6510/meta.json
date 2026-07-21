@@ -12,6 +12,7 @@
   "purpose_tldr": "Establish one canonical authority for mission-identity branch/worktree naming (fixing a recurring mid8 regression class incl. a P1 merge-blocker) and close the remaining post-#1908 adversarial-panel robustness findings.",
   "slug": "mission-identity-seam-and-1908-panel-01KV6510",
   "source_description": "Cluster A (mid8 identity seam): #1978/#1949/#1918/#1899 under epic #1868. Cluster B (rest of post-#1908 panel, meta-tracker #1929): #1915/#1917/#1916. NOT a bulk edit.",
+  "status_phase": "1",
   "target_branch": "mission/mission-identity-seam-and-1908-panel",
   "vcs": "git"
 }

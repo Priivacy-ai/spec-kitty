@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "078-planning-artifact-and-query-consistency",
   "source_description": "Clarify the canonical runtime contract for planning-artifact work packages and fresh-run query mode so repository-root planning work and not-started mission runs behave consistently across workflow, status, stale detection, and docs.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

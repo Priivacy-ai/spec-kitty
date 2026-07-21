@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "stabilization-release-core-bug-fixes-01KPQJAN",
   "source_description": "Four validated bugs on current main: merge invariant false-positive on untracked files (#675), Gemini/Qwen shim generation format errors (#673), review-claim lane transition emits wrong state (#622), and intake path safety gaps (#723, #722, #720, #721).",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -9,6 +9,7 @@
   "purpose_tldr": "Close the remaining high-confidence release-readiness gaps before stable 3.2.0.",
   "slug": "stable-320-p1-release-confidence-01KQTPZC",
   "source_description": "../start-here.md",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

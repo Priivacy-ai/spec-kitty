@@ -24,6 +24,7 @@
   "purpose_context": "Spec Kitty resolves each mission type's rules, steps, and gates through two parallel trees with a hardcoded software-dev bias, so documentation, research, and plan missions can silently inherit software-development doctrine. This mission makes the doctrine MissionType artefact the load-bearing source of truth — routing governance, gates, and steps through one charter-mediated path and closing that leak — as the first slice of retiring the duplicate specify_cli tree.",
   "purpose_tldr": "Make the doctrine the single source of truth for what a mission type is, so non-software missions stop inheriting software-dev rules.",
   "slug": "mission-type-doctrine-authority-01KXH6GE",
+  "status_phase": "1",
   "target_branch": "mission/883-mission-type-governance-profiles",
   "topology": "lanes",
   "vcs": "git",

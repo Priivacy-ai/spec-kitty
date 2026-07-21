@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "028-cli-event-emission-sync",
   "source_description": "Wire real event emission into 8 CLI commands and ensure events are queued and synced to SaaS via the Feature 008 contract. Uses existing auth infrastructure from Feature 027 and spec-kitty-events library (Feature 003) for schemas/validation.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

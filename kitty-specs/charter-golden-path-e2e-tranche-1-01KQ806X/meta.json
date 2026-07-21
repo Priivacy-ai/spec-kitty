@@ -9,6 +9,7 @@
   "purpose_tldr": "Prove the shipped Charter epic works through public CLI from a fresh project, with no source-checkout pollution.",
   "slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
   "source_description": "First testing tranche for Priivacy-ai/spec-kitty#827 (parent epic #461): a product-repo, public-CLI Charter golden-path E2E test that proves the shipped Charter epic works through the operator path with zero source-checkout pollution. Brief lives at workspace-root start-here.md.",
+  "status_phase": "1",
   "target_branch": "test/charter-e2e-827-tranche-1",
   "vcs": "git"
 }

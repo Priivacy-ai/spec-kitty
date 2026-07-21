@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "049-fix-merge-target-resolution",
   "source_description": "CRITICAL: top-level spec-kitty merge in 2.0.5 defaults to repo primary branch instead of feature meta.json target_branch. merge.py line 721 calls resolve_primary_branch() and never consults feature metadata. The agent merge path (feature.py line 1336) already does the right thing. The merge template also routes agents to the broken top-level command path.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

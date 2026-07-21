@@ -24,6 +24,7 @@
   "purpose_context": "This mission resolves three tracked residuals surfaced by the mission-#133 post-merge audit so the tickets can close honestly: it delivers the post-mission follow-through surface (post-merge follow-up commits/PRs + mission re-opening) that #1802's epic still lacks, collapses the do/ask/advise ops trio into a unified spec-kitty dispatch with back-compat aliases (#1810, unblocking epic #1804), and curates the remaining DRG reference orphans (#1863).",
   "purpose_tldr": "Close #1863, #1802, #1804: deliver post-mission lifecycle, collapse ops to spec-kitty dispatch, curate DRG orphans.",
   "slug": "mission-lifecycle-dispatch-drg-closeout-01KV0S99",
+  "status_phase": "1",
   "target_branch": "feat/mission-lifecycle-dispatch-drg-closeout",
   "vcs": "git",
   "vcs_locked_at": "2026-06-13T16:56:14.625880+00:00"

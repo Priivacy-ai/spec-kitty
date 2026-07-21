@@ -6,5 +6,6 @@
   "mission_slug": "charter-doctrine-mission-type-configuration-01KSWJVX",
   "mission_type": "software-dev",
   "slug": "charter-doctrine-mission-type-configuration-01KSWJVX",
+  "status_phase": "1",
   "target_branch": "main"
 }

@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances lifecycle tooling friction on mission/lifecycle-tooling-friction so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "lifecycle tooling friction",
   "slug": "lifecycle-tooling-friction-01KW4V6C",
+  "status_phase": "1",
   "target_branch": "mission/lifecycle-tooling-friction",
   "topology": "lanes",
   "vcs": "git",

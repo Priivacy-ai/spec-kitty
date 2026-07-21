@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "046-doctrine-artifact-domain-models",
   "source_description": "",
+  "status_phase": "1",
   "target_branch": "feature/agent-profile-implementation",
   "vcs": "git"
 }

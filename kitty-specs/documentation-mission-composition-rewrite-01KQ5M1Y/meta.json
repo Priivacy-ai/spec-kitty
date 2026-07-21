@@ -9,6 +9,7 @@
   "purpose_tldr": "Move the built-in documentation mission onto the StepContractExecutor composition substrate so a fresh documentation mission starts and advances via spec-kitty next.",
   "slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
   "source_description": "Phase 6 WP6.4 — GitHub issue #502 (umbrella #461, epic #468). Modeled on landed research composition rewrite #504.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

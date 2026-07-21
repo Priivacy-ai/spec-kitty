@@ -6,6 +6,7 @@
   "mission_slug": "migration-shim-ownership-rules-01KPDYDW",
   "mission_type": "software-dev",
   "slug": "migration-shim-ownership-rules-01KPDYDW",
+  "status_phase": "1",
   "target_branch": "kitty/mission-migration-shim-ownership-rules-01KPDYDW",
   "vcs": "git",
   "vcs_locked_at": "2026-04-19T12:59:36.496232+00:00"

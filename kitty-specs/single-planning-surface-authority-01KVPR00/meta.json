@@ -10,6 +10,7 @@
   "purpose_context": "Spec Kitty's planning commands resolve where a mission's artifacts live using two incompatible primitives, so spec.md, plan.md, and WP requirement mappings can land on one branch surface while a later command reads another — producing silent 'not found' / 'all unmapped' failures mid-mission, plus a stale coordination worktree that leaks outdated status. This mission converges those planning reads and writes onto the single existing surface authority, and replaces a recovery command advertised across the code, docs, and an ADR but never actually registered — so operators stop hitting dead-ends.",
   "purpose_tldr": "Make every planning command read and write mission artifacts through one surface authority, and give operators a real worktree-repair command.",
   "slug": "single-planning-surface-authority-01KVPR00",
+  "status_phase": "1",
   "target_branch": "feat/single-planning-surface-authority",
   "topology": "lanes",
   "vcs": "git",

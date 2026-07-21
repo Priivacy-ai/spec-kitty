@@ -8,5 +8,6 @@
   "purpose_context": "Two Phase-4 blockers (#1141 silent queue replacement, #1182 sync-now misclassification) stalled the auth-boundary launch gate after rc15 scored 1/4. Once those fixes land and a post-rc15 RC is cut, this mission gates the release by: verifying fix substance, installing the RC, running the identity-boundary canary to 4/4 clean, collecting and attaching evidence to e2e#41, running the Teamspace MVP canary suite four times, and posting the release-tracker evidence comment to spec-kitty#1038.",
   "purpose_tldr": "Prove the auth identity-boundary contract holds end-to-end by running the deployed-dev canary 4/4 clean and attaching evidence to the Teamspace MVP release tracker.",
   "slug": "phase4-canary-gate-01KS1W46",
+  "status_phase": "1",
   "target_branch": "main"
 }

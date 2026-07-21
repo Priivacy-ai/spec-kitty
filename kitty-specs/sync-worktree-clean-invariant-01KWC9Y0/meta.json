@@ -13,6 +13,7 @@
   "purpose_tldr": "Stop read-only sync, tracker, and status commands from silently dirtying the worktree and blocking mission commands.",
   "slug": "sync-worktree-clean-invariant-01KWC9Y0",
   "source_description": "GitHub issue #2263 — read/sync/status paths must not dirty .kittify/config.yaml (worktree-clean invariant). Split from #2262; verified by adversarial-squad code-trace at HEAD 4f457d6.",
+  "status_phase": "1",
   "target_branch": "fix/sync-worktree-clean-invariant",
   "topology": "coord",
   "vcs": "git"

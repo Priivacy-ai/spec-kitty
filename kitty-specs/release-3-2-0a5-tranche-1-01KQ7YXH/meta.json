@@ -10,6 +10,7 @@
   "purpose_tldr": "Stabilize the 3.2.0a5 release train and trim confusing CLI surfaces; no new product features.",
   "slug": "release-3-2-0a5-tranche-1-01KQ7YXH",
   "source_description": "Stabilization tranche prepared in start-here.md (workspace root) covering GitHub issues #805, #705, #815, #635, #636, #790, #774, #735, #717. Bulk-edit mode is set because issue #815 removes the /spec-kitty.checklist command across ~30 template/registry/snapshot/doc files; an occurrence map is to be drafted during /spec-kitty.plan. Other issues are localized fixes.",
+  "status_phase": "1",
   "target_branch": "release/3.2.0a5-tranche-1",
   "vcs": "git"
 }

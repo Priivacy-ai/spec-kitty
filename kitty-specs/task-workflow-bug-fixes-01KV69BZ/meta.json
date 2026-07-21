@@ -11,6 +11,7 @@
   "purpose_context": "Two bugs block the standard map-requirements → finalize-tasks workflow. The P1 bug causes map-requirements to look for spec.md in the coordination worktree (where it does not exist) instead of the primary checkout. The P2 bug leaves the finalize-tasks --validate-only error for planned-new-files without an actionable YAML example and without regression test coverage, allowing silent re-regression.",
   "purpose_tldr": "Fix two task-workflow bugs: map-requirements spec.md path and finalize-tasks create_intent error hint",
   "slug": "task-workflow-bug-fixes-01KV69BZ",
+  "status_phase": "1",
   "target_branch": "fix/task-workflow-bug-fixes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-15T19:35:22.752978+00:00"

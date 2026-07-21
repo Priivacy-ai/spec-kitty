@@ -7,5 +7,6 @@
   "mission_type": "software-dev",
   "slug": "010-workspace-per-work-package-for-parallel-development",
   "source_description": "Create a new Feature based on the work(space/tree) per WP concept.",
+  "status_phase": "1",
   "target_branch": "main"
 }

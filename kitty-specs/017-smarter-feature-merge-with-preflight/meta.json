@@ -7,5 +7,6 @@
   "mission_type": "software-dev",
   "slug": "017-smarter-feature-merge-with-preflight",
   "source_description": "Improve the spec-kitty merge command based on post-mortem feedback from features 016 and 002. Key pain points: uncommitted changes blocking merge, sequential merge amplifying conflicts, no conflict forecast, manual cleanup required, no resume capability. Focus on git-first improvements with non-invasive status file handling.",
+  "status_phase": "1",
   "target_branch": "main"
 }

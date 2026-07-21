@@ -12,6 +12,7 @@
   "purpose_context": "Today every command re-derives which mission it is in via an uncached per-call walk of kitty-specs/ that no unit test can substitute, so the execution-context builder cannot be tested without a real filesystem. This mission introduces one injected MissionResolver seam (real + fake adapters) at the resolution shell, consolidating that single walk and two adjacent infra reads (Clock, InstalledVersion) behind the shipped default-param DI idiom, so downstream missions can build and verify mission context deterministically.",
   "purpose_tldr": "One canonical MissionResolver port so the mission execution-context builder is FS-free-testable — the enabler that unblocks the #1619 runtime-context root and de-risks the later #2160 degod.",
   "slug": "mission-resolver-port-01KX1C05",
+  "status_phase": "1",
   "target_branch": "feat/mission-resolver-port-2173",
   "topology": "coord"
 }

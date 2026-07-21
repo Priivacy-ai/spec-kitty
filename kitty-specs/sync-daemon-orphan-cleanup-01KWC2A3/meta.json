@@ -13,6 +13,7 @@
   "purpose_tldr": "Prevent stale Spec Kitty sync daemons from piling up across upgrades by safely auto-retiring provably-orphaned ones and clearly reporting the rest.",
   "slug": "sync-daemon-orphan-cleanup-01KWC2A3",
   "source_description": "GitHub issue #2261: Implement safe sync daemon orphan cleanup across upgrades (https://github.com/Priivacy-ai/spec-kitty/issues/2261)",
+  "status_phase": "1",
   "target_branch": "fix/sync-daemon-orphan-cleanup",
   "topology": "coord",
   "vcs": "git"

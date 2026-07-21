@@ -24,6 +24,7 @@
   "purpose_context": "spec-kitty consumes path segments (mission/feature slugs, WP ids) from untrusted on-disk content such as status.events.jsonl, meta.json, and frontmatter; without containment validation a crafted value can traverse outside the repo's derived and spec directories. This mission closes that vulnerability class through one canonical validation seam, building on the hardening already landed in PR #2036.",
   "purpose_tldr": "Guarantee no externally-influenced path segment can read or write outside its trusted repo-derived root, across the whole CLI.",
   "slug": "untrusted-path-containment-hardening-01KVFTFV",
+  "status_phase": "1",
   "target_branch": "automation/sonar-security-20260619",
   "vcs": "git",
   "vcs_locked_at": "2026-06-19T12:53:51.964693+00:00"

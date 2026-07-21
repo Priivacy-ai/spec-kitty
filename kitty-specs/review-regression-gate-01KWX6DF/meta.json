@@ -12,6 +12,7 @@
   "purpose_context": "Today the for_review transition runs NO tests (tasks_move_task.py) and review is scoped to owned_files only, so a WP that breaks a consumer outside its owned set sails through to approval. Phase 1 of epic 1931's M5: reuse review/baseline.py (runner + new-vs-preexisting JUnit diff) + derive the affected-shard scope from tests/architectural/ci_topology_census.json. Closes 572 + the per-WP-review-blind-spot facet of 1979; part of 2283 (CI-routing/venv facets are later phases).",
   "purpose_tldr": "Block a WP's move to for_review on newly-introduced test failures, auto-scoped to the consuming CI shards (not hand-declared)",
   "slug": "review-regression-gate-01KWX6DF",
+  "status_phase": "1",
   "target_branch": "fix/review-regression-gate",
   "topology": "coord",
   "vcs": "git",

@@ -10,6 +10,7 @@
   "purpose_context": "Mission commands today re-derive execution context, paths, and work-package status independently, so the same command can behave differently depending on where it runs. This mission stands up a single owned execution-state domain module with a clean, lean public API over the context objects, then incrementally routes the scattered call sites and status-facade bypasses through it while deleting the duplicated code paths. It is the next implementation slice of the execution-state and context domain-boundary redesign and unblocks reliable, location-independent mission execution.",
   "purpose_tldr": "Build one canonical execution-state domain surface and strangle duplicated path and status resolution out of the CLI.",
   "slug": "execution-state-canonical-surface-01KTG6P9",
+  "status_phase": "1",
   "target_branch": "feat/execution-state-strangler",
   "vcs": "git",
   "vcs_locked_at": "2026-06-08T04:11:50.488081+00:00"

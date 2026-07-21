@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "saas-mediated-cli-tracker-reflow",
   "source_description": "PRI-16: Migrate CLI tracker commands to SaaS client mode for linear/jira/github/gitlab. Hard break from direct-provider model. Remove Azure DevOps.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

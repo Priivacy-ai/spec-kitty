@@ -11,6 +11,7 @@
   "purpose_tldr": "Establish git as the durable record for decision events, add real-time local-commit WebSocket notifications, strip PII from all event envelopes, and reduce glossary queue noise.",
   "slug": "event-architecture-cli-git-truth-01KT119Y",
   "source_description": "spec-kitty #1546, #1547, #1548, #1549 — Epic: spec-kitty-saas #290 (Event Architecture Redesign)",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

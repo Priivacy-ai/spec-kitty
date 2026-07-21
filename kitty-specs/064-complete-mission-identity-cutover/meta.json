@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "064-complete-mission-identity-cutover",
   "source_description": "Clean up and complete the partially landed mission/build identity cutover on main, aligning to spec-kitty-events 3.0.0 and spec-kitty-saas upstream contracts.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

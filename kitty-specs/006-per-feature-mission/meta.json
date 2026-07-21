@@ -6,5 +6,6 @@
   "mission_slug": "006-per-feature-mission",
   "mission_type": "software-dev",
   "slug": "006-per-feature-mission",
+  "status_phase": "1",
   "target_branch": "main"
 }

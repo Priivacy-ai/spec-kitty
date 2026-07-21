@@ -9,6 +9,7 @@
   "purpose_tldr": "Close the 5 mission-review findings on #502 so the documentation mission is genuinely operator-runnable, smoke-verifiable, and integration-tested across all 6 actions.",
   "slug": "documentation-mission-composition-fixup-01KQ6N5X",
   "source_description": "Phase 6 #502 fix-up tranche following user mission-review findings on commit 1c03e2f4. Companion to landed mission 01KQ5M1Y190VANF39KMBWZP6SD.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

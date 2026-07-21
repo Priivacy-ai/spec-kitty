@@ -12,6 +12,7 @@
   "purpose_context": "charter activate today updates only the runtime config ledger while the compiled reference set derives from a separate authoring ledger, so activated artefacts silently dangle until hand-reconciled (this broke PR 2524). This mission unifies the activation surfaces so activation is coherent and a config-vs-answers divergence is caught by a fail-closed guard, unblocking the authoring and preflight follow-ups in epic 2519.",
   "purpose_tldr": "Make an activated doctrine artefact consistently active across config, answers, references and graph — no dangling.",
   "slug": "unify-charter-activation-surfaces-01KX5SJ9",
+  "status_phase": "1",
   "target_branch": "epic/2519-charter-authoring-lifecycle",
   "topology": "coord"
 }

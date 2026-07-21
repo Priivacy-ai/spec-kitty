@@ -22,6 +22,7 @@
   "mission_type": "software-dev",
   "slug": "decompose-agent-tasks-god-module-01KVWVAR",
   "source_description": "Priivacy-ai/spec-kitty issue #2058 (parent #1797). Decompose the agent/tasks.py god-module (4633 LOC, maxCC ~178) into cohesive testable seams; preserve the public `agent tasks` CLI surface; plus the PR #2060 follow-up to route the 3 planning-commit tails through commit_for_mission (output-preserving) and delete dead is_protected pre-checks.",
+  "status_phase": "1",
   "target_branch": "kitty/mission-decompose-agent-tasks-god-module-01KVWVAR",
   "vcs": "git"
 }

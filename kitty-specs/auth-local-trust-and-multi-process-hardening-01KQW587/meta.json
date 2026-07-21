@@ -9,6 +9,7 @@
   "purpose_tldr": "Make CLI hosted-auth and tracker-bound workflows fail truthfully, test hermetically, and behave reliably under local multi-process use.",
   "slug": "auth-local-trust-and-multi-process-hardening-01KQW587",
   "source_description": "CLI auth-adjacent trust, diagnostics, and local multi-process hardening from workspace start-here.md. Scope covers CLI #829, #907, #889, #977, and the CLI side of SaaS #77 without reopening shipped Tranche 2 or Tranche 2.5 auth.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "041-mission-glossary-semantic-integrity",
   "source_description": "/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/mission-collaboration-platform-ddd/sprint-s2-kickoff-prompt-spec-kitty-cli-2026-02-16.md",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

@@ -11,6 +11,7 @@
   "purpose_context": "This mission advances Sync batch-400 poison isolation (bisection) on fix/2736-batch-400-poisoning-isolation so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "One invalid event no longer poisons its whole sync batch — bisect the whole-batch 400 to isolate the culprit and deliver every innocent event (P0 #2736).",
   "slug": "sync-batch-400-poison-isolation-01KXW08B",
+  "status_phase": "1",
   "target_branch": "fix/2736-batch-400-poisoning-isolation",
   "topology": "coord",
   "vcs": "git",

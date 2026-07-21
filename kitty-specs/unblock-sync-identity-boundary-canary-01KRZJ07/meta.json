@@ -20,6 +20,7 @@
   "purpose_context": "The 2026-05-19 deployed-dev canary against spec-kitty-cli==3.2.0rc13 hit three CLI blockers (FORBIDDEN_KEY false positive on lifecycle rows, Rich ellipsis truncating queue DB paths, and a dead doctor restart-daemon remediation reference) that prevent the sync identity-boundary canary from turning green on scenarios 1, 2, and 4. A fourth scenario, 3, is gated by an unrelated harness rename landing separately in spec-kitty-end-to-end-testing#43 and is explicitly not in scope. Unblocking these scenarios restores the canary as a release gate for the sync surface.",
   "purpose_tldr": "Fix three CLI bugs surfaced by the 2026-05-19 rc13 canary so sync identity-boundary scenarios 1, 2, and 4 turn green again.",
   "slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-05-19T09:58:14.518198+00:00"

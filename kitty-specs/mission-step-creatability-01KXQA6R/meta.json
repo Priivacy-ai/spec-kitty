@@ -12,6 +12,7 @@
   "purpose_context": "A prior slice left three of four built-in mission types uncreatable (they carry no content templates) and shipped a flattened template_set field that duplicates the rich step model — a partial cutover that keeps a live split-brain vector for future contributors. This mission completes the cutover: it retires the duplicate persisted field, authors the missing per-type content on the one step authority, and graph-backs the mission-type to step to template chain, so the three types work again and there is a single place to author with no split-brain.",
   "purpose_tldr": "Make documentation/research/plan missions creatable again by authoring their content on the single step authority, and retire the transitional template_set field that duplicates it.",
   "slug": "mission-step-creatability-01KXQA6R",
+  "status_phase": "1",
   "target_branch": "feat/mission-step-creatability",
   "topology": "coord",
   "vcs": "git",

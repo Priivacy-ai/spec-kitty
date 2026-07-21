@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances Enforce the integration/core boundary inside specify_cli on feat/integration-boundary so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Add a generalized architectural boundary rule (core must not import integration) and invert the 3 verified core->integration leaks via the existing status/adapters.py registry; enforce-in-place, no physical extraction.",
   "slug": "integration-boundary-01KW0PBE",
+  "status_phase": "1",
   "target_branch": "feat/integration-boundary",
   "topology": "coord",
   "vcs": "git",

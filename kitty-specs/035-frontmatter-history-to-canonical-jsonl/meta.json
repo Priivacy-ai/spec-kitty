@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "035-frontmatter-history-to-canonical-jsonl",
   "source_description": "Comprehensive Upgrade Plan (0.x + 2.x): Frontmatter History -> Canonical JSONL. Replace bootstrap-only migration logic with full transition reconstruction from WP frontmatter history arrays. Shared migration engine used by both CLI and upgrade wrapper. Idempotent, force-flagged, with backup/restore safety. 2.x first, then 0.x backport.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

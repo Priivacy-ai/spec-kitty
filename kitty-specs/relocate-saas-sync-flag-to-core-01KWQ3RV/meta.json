@@ -12,6 +12,7 @@
   "purpose_context": "The architectural import boundary from #2172 keeps the core layer independent of integration-layer modules, but retains one documented exemption: a core readiness module reaches into an integration module solely to read a pure on/off SaaS-sync flag. This mission relocates that flag reader into the core layer where it belongs, repoints the core caller, and removes the exemption so the boundary is enforced with zero carve-outs — with no behavior change and a single canonical source for the flag.",
   "purpose_tldr": "Move the pure SaaS-sync feature-flag reader into the core layer so the last core-to-integration boundary exemption can be removed.",
   "slug": "relocate-saas-sync-flag-to-core-01KWQ3RV",
+  "status_phase": "1",
   "target_branch": "feat/relocate-saas-sync-flag-to-core",
   "topology": "coord",
   "vcs": "git",

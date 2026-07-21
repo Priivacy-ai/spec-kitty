@@ -12,6 +12,7 @@
   "purpose_context": "Operators and agents currently encounter blocking waits, misplaced status commits, stale workspace crashes, and allocator self-conflicts during the implement-review loop. This Mission restores a deterministic path from allocation through approval while preserving canonical status authority and trustworthy automation output.",
   "purpose_tldr": "Restore predictable, machine-safe implement-to-review transitions for multi-lane Missions.",
   "slug": "implement-review-loop-recovery-01KXG2TD",
+  "status_phase": "1",
   "target_branch": "fix/implement-review-loop-recovery",
   "topology": "lanes_with_coord"
 }

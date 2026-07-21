@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "053-orchestrator-api-json-contract-fidelity",
   "source_description": "Issue #304 / GH issue #3: Contract mismatch between the released 2.x CLI, the docs, and the tests. The orchestrator-api contract-version command has no --json flag, but docs tell callers to use it. Tests only invoke the sub-app directly, not the real top-level spec-kitty orchestrator-api entry path. When invoked through the root CLI, Typer emits prose stderr instead of JSON envelopes. Fix: remove stale --json references, ensure root CLI path produces JSON errors, tests exercise the real command path.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

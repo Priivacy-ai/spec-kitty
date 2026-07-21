@@ -34,5 +34,6 @@
   "purpose_tldr": "Bring Charter epic end-user documentation to parity with the shipped product.",
   "slug": "charter-end-user-docs-828-01KQCSYD",
   "source_issue": "https://github.com/Priivacy-ai/spec-kitty/issues/828",
+  "status_phase": "1",
   "target_branch": "main"
 }

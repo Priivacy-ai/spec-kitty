@@ -7,5 +7,6 @@
   "mission_type": "research",
   "slug": "019-autonomous-multi-agent-orchestration-research",
   "source_description": "Research all 12 agents supported by spec-kitty to understand their headless/CLI invocation capabilities. Goal: Enable fully autonomous workflow where agents hand off work based on WP state changes (e.g., for_review triggers review agent). Support parallel execution when dependencies allow. Allow user configuration of preferred implementation vs review agents.",
+  "status_phase": "1",
   "target_branch": "main"
 }

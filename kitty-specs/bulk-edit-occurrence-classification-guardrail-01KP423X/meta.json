@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "bulk-edit-occurrence-classification-guardrail-01KP423X",
   "source_description": "https://github.com/Priivacy-ai/spec-kitty/issues/393",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "062-fix-doctrine-migration-test-failures",
   "source_description": "Fix CI test failures caused by doctrine migration: update stale path references, assertion mismatches, and mock targets across 10 test files",
+  "status_phase": "1",
   "target_branch": "feature/agent-profile-implementation-rebased",
   "vcs": "git"
 }

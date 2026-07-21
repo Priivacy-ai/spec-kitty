@@ -9,6 +9,7 @@
   "purpose_context": "The merge command's preflight check currently tests whether origin/main is in sync before allowing any local branch integration to proceed. This is architecturally inverted: local merges have no dependency on remote state, and the push-safety invariant belongs at the publish layer. This mission corrects the boundary by splitting the safety predicate into local-merge and push-specific concerns, relocating the remote-state fetch to a push adapter, fixing MergeState to capture push intent for correct resume semantics, and updating tests and documentation to match the correct model.",
   "purpose_tldr": "Separate push-safety invariants from local-merge operations by relocating remote-state checks to the publish layer where they belong.",
   "slug": "merge-preflight-remote-state-boundary-separation-01KTBE5M",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-06-05T10:12:28.466987+00:00"

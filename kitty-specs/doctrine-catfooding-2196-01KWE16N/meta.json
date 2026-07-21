@@ -12,6 +12,7 @@
   "purpose_context": "The Quality & Tech-Debt Standing Orders that keep spec-driven missions honest (adversarial squads, campsite debt paydown, tracer files, test-remediation discipline, non-vacuous architectural gates, canonical-source unification, git/workflow discipline, mission hygiene) currently live outside the doctrine system as operator standing orders and session-memory notes — so the tooling cannot activate, enforce, or compile them. This mission converts those 8 sections into first-class doctrine artifacts, reconciling with the doctrine that already partially covers them rather than duplicating, then compiles the Spec Kitty Charter from the activated set. The result: Spec Kitty dogfoods its own governance, and consumers inherit the same hardened practices.",
   "purpose_tldr": "Turn Spec Kitty's battle-tested quality standing orders into activatable doctrine and have Spec Kitty govern its own development with the doctrine it ships.",
   "slug": "doctrine-catfooding-2196-01KWE16N",
+  "status_phase": "1",
   "target_branch": "design/doctrine-catfooding-2196",
   "topology": "coord",
   "vcs": "git",

@@ -7,5 +7,6 @@
   "mission_type": "research",
   "slug": "003-auto-protect-agent",
   "source_description": "Running spec-kitty init should not affect the user's git repo. To that end, all of the agent specific directories (eg .codex, .opencode, .claude and all of the others which will demand research), should ALL be added to .gitignore",
+  "status_phase": "1",
   "target_branch": "main"
 }

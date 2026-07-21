@@ -7,5 +7,6 @@
   "mission_type": "documentation",
   "slug": "014-comprehensive-end-user-documentation",
   "source_description": "a documentation mission that replaces this project's current documentation with a fresh, comprehensive, professional documentation that covers all use cases and all 4 types of docs.",
+  "status_phase": "1",
   "target_branch": "main"
 }

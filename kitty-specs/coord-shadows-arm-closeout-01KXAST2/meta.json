@@ -25,6 +25,7 @@
   "purpose_context": "Five external-contributor fixes for the coord-shadows-primary bug class were aggregated onto this branch but each patched a symptom. This mission aligns them into one coherent slice: a single canonical definition of a work-package subtask row, a fully-closed fail-open in the status gate (so a work package can never reach review with unfinished subtasks on any code path), a recovered execution lane that never re-leaks status files, and a live claim-liveness check that stops false 'stale' warnings. It closes the remaining children of epic #2160 plus two coupled friction issues.",
   "purpose_tldr": "Make the WP subtask and claim signals trustworthy, coord-correct, and cheap to update — closing the last read/gate arm of the coord-shadows-primary defect class.",
   "slug": "coord-shadows-arm-closeout-01KXAST2",
+  "status_phase": "1",
   "target_branch": "rework/ray-cluster-aggregation",
   "topology": "coord",
   "vcs": "git",

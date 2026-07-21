@@ -12,6 +12,7 @@
   "purpose_tldr": "Establish a single authoritative contract for what tool surfaces should exist for each configured tool, enabling reliable installation, verification, and repair across all supported harnesses.",
   "slug": "tool-surface-contract-01KV2K2P",
   "source_description": "GitHub issue #1945 (epic) with research gist and architecture gist. Child issues: #1936, #1944, #1937-#1943.",
+  "status_phase": "1",
   "target_branch": "feat/tool-surface-contract",
   "vcs": "git"
 }

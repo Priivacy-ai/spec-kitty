@@ -25,6 +25,7 @@
   "purpose_context": "After the runtime-bridge, tasks, doctor, merge, and mission god-module decompositions, the test suite accumulated development-assist scaffolding — inert timing/LOC recorders, per-seam shape and re-export duplicates of standing guards, and mock-wiring pins — that taxes every future refactor without protecting behavior. Separately, the deliverables-path security validator's failures are hidden behind xfail masks, so a green suite conceals live path-traversal, symlink, and null-byte holes. This mission surfaces and fixes the security gap and retires or consolidates the spent scaffolding with coverage provably preserved, restoring a suite that fails only when a real contract breaks.",
   "purpose_tldr": "Surface and fix a masked path-validation security hole and retire the development-assist test scaffolding left by the god-module decompositions, so the suite fails exactly when a real contract breaks.",
   "slug": "dev-assist-retire-path-hardening-01KXAVR0",
+  "status_phase": "1",
   "target_branch": "feat/dev-assist-retire-path-hardening",
   "topology": "lanes",
   "vcs": "git",

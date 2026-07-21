@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "042-local-mission-dossier-authority-parity-export",
   "source_description": "Implement local Mission Dossier projection as the source authority for artifact completeness, full-text local views, and SaaS parity export. Add mission dossier projection in local runtime with typed artifact catalog entries, index and expose full-text artifact coverage, add local dashboard/API endpoints, emit canonical dossier/parity events to sync pipeline, surface explicit missing expected artifacts.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

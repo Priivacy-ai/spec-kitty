@@ -12,6 +12,7 @@
   "purpose_context": "Spec Kitty's CI suite currently has one job that runs roughly seventy minutes fully serial and several others carrying avoidable overhead, slowing every pull request and main merge. This mission re-topologizes those jobs onto the project's existing test-shard machinery so contributors get fast, reliable CI feedback, while guaranteeing no test is skipped or run twice and that tests needing real ports or daemons keep serial isolation.",
   "purpose_tldr": "Make PR-gating CI fast by parallelizing and sharding the slowest test jobs, without dropping any test coverage.",
   "slug": "ci-test-topology-performance-01KXBJRT",
+  "status_phase": "1",
   "target_branch": "feat/ci-test-topology-performance",
   "topology": "coord"
 }
