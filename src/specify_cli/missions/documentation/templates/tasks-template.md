@@ -16,6 +16,7 @@ description: "Work package task list template for feature implementation"
 ## Subtask Format: `[Txxx] [P?] Description`
 - **[P]** indicates the subtask can proceed in parallel (different files/components).
 - Include precise file paths or modules.
+- Subtasks are **reference rows**, not checkboxes: record completion with `spec-kitty agent tasks mark-status <Txxx> --status done`. The reduced event-log snapshot is the sole subtask-completion authority.
 
 ## Path Conventions
 - **Single project**: `src/`, `tests/`
@@ -34,9 +35,9 @@ description: "Work package task list template for feature implementation"
 **Prompt**: `/tasks/WP01-setup-and-environment.md`
 
 ### Included Subtasks
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+T001 Create project structure per implementation plan
+T002 Initialize [language] project with [framework] dependencies
+T003 [P] Configure linting and formatting tools
 
 ### Implementation Notes
 - Major steps, commands, or configuration files required.
@@ -59,12 +60,12 @@ description: "Work package task list template for feature implementation"
 **Prompt**: `/tasks/WP02-foundational-platform.md`
 
 ### Included Subtasks
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities shared across stories
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+T004 Setup database schema and migrations framework
+T005 [P] Implement authentication/authorization framework
+T006 [P] Setup API routing and middleware structure
+T007 Create base models/entities shared across stories
+T008 Configure error handling and logging infrastructure
+T009 Setup environment configuration management
 
 ### Implementation Notes
 - Provide sequencing, infrastructure CLI commands, secrets requirements.
@@ -87,14 +88,14 @@ description: "Work package task list template for feature implementation"
 **Prompt**: `/tasks/WP03-user-story-1.md`
 
 ### Included Subtasks
-- [ ] T010 [P] Contract test for [endpoint] in `tests/contract/test_[name].py`
-- [ ] T011 [P] Integration test for [journey] in `tests/integration/test_[name].py`
-- [ ] T012 [P] Create [Entity1] model in `src/models/[entity1].py`
-- [ ] T013 [P] Create [Entity2] model in `src/models/[entity2].py`
-- [ ] T014 Implement [Service] in `src/services/[service].py` (depends on T012, T013)
-- [ ] T015 Implement [endpoint/feature] in `src/[location]/[file].py`
-- [ ] T016 Add validation and error handling
-- [ ] T017 Add story-specific logging and metrics
+T010 [P] Contract test for [endpoint] in `tests/contract/test_[name].py`
+T011 [P] Integration test for [journey] in `tests/integration/test_[name].py`
+T012 [P] Create [Entity1] model in `src/models/[entity1].py`
+T013 [P] Create [Entity2] model in `src/models/[entity2].py`
+T014 Implement [Service] in `src/services/[service].py` (depends on T012, T013)
+T015 Implement [endpoint/feature] in `src/[location]/[file].py`
+T016 Add validation and error handling
+T017 Add story-specific logging and metrics
 
 ### Implementation Notes
 - Enumerate the workflow (tests first if required, then models → services → endpoints).
@@ -117,11 +118,11 @@ description: "Work package task list template for feature implementation"
 **Prompt**: `/tasks/WP0N-polish-and-cross-cutting.md`
 
 ### Included Subtasks
-- [ ] T0XX Documentation updates in `docs/`
-- [ ] T0XX Code cleanup and refactoring
-- [ ] T0XX Performance optimization across stories
-- [ ] T0XX Security hardening
-- [ ] T0XX Validate quickstart.md scenario
+T0XX Documentation updates in `docs/`
+T0XX Code cleanup and refactoring
+T0XX Performance optimization across stories
+T0XX Security hardening
+T0XX Validate quickstart.md scenario
 
 ### Implementation Notes
 - Capture finishing touches and validation guidance.

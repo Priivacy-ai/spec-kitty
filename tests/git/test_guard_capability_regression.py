@@ -327,8 +327,8 @@ def test_status_commit_prechecks_honor_operator_hatch(
 
 
 # ---------------------------------------------------------------------------
-# (d) Behavioral CLI repro: mark-status with SPEC_KITTY_TEST_MODE=1 on a
-# protected target must be refused (the validation's live repro, inverted).
+# (d) Behavioral CLI repro: event-only mark-status on a protected target must
+# never create a git commit, including under SPEC_KITTY_TEST_MODE.
 # ---------------------------------------------------------------------------
 
 
@@ -342,12 +342,12 @@ def test_mark_status_test_mode_env_lands_no_commit_on_protected_target(
     protected_target_repo: ProtectedTargetRepo,  # noqa: F811
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``mark-status --auto-commit`` on protected main refuses under TEST_MODE.
+    """``mark-status --auto-commit`` on protected main remains commit-free.
 
-    The validated P1 repro: ``SPEC_KITTY_TEST_MODE=1`` defeated the pre-check
-    and the MERGE_BOOKKEEPING capability then landed the commit on protected
-    main. Both halves are fixed; the command must exit non-zero and leave
-    HEAD untouched. (``"true"`` is used so the version-checker's
+    Completion is event-sourced after #2816, so ``--auto-commit`` is a
+    compatibility input and no authored task artifact is committed. The
+    command succeeds locally while HEAD remains untouched. (``"true"`` is
+    used so the version-checker's
     ``SPEC_KITTY_TEST_MODE == "1"`` coupling stays out of the picture.)
     """
     from specify_cli.cli.commands.agent.tasks import app
@@ -392,14 +392,9 @@ def test_mark_status_test_mode_env_lands_no_commit_on_protected_target(
             ],
         )
 
-    assert result.exit_code == 1, (
-        "mark-status --auto-commit ran on the protected target under "
-        f"SPEC_KITTY_TEST_MODE (exit {result.exit_code}): {result.output}"
-    )
+    assert result.exit_code == 0, result.output
     assert _head_sha(repo.repo_root) == head_before, (
-        "mark-status landed a status commit on the protected target — the "
-        "TEST_MODE pre-check waiver + MERGE_BOOKKEEPING capability bypass "
-        "regressed (PR #1850 M1+M2)"
+        "event-only mark-status landed a commit on the protected target"
     )
 
 

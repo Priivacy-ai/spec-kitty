@@ -27,6 +27,7 @@ from .models import (
     ULID_PATTERN,
     VerificationResult,
     WPInnerStateDelta,
+    actor_identity_str,
     get_all_lanes,
     get_all_lane_values,
 )
@@ -50,6 +51,7 @@ from .store import (
     append_primary_checkout_event_verified,
     append_primary_checkout_events_atomic_verified,
     read_event_stream,
+    read_event_stream_from_text,
     read_events,
     read_events_from_text,
     read_events_raw,
@@ -77,15 +79,30 @@ from .wp_state import (
 )
 from .emit import (
     TransitionError,
-    _phase1_snapshot_authority_active as phase1_snapshot_authority_active,
     build_claim_policy_metadata,
+    build_resolved_actor,
     emit_inner_state_changed,
+    emit_resolved_binding,
     emit_status_transition,
+)
+from .resolved_binding import (
+    ResolvedBinding,
+)
+from .wp_view import (
+    AuthoredGroup,
+    ResolvedGroup,
+    WPView,
+    reconstruct_wp_view,
 )
 from .wp_metadata import (
     WPMetadata,
     _Builder,
+    read_authored_wp_frontmatter,
     read_wp_frontmatter,
+)
+from .wp_review import (
+    resolve_event_stream_review,
+    resolve_snapshot_review,
 )
 from .lane_reader import (
     CanonicalStatusNotFoundError,
@@ -111,9 +128,11 @@ from .progress import (
 )
 from .adapters import (
     fire_dossier_sync,
+    fire_resolved_binding_fanout,
     fire_saas_fanout,
     register_dossier_sync_handler,
     register_lifecycle_saas_fanout_handler,
+    register_resolved_binding_fanout_handler,
     register_saas_fanout_handler,
 )
 from .bootstrap import (
@@ -224,6 +243,7 @@ COORD_OWNED_STATUS_FILES = frozenset({EVENTS_FILENAME, SNAPSHOT_FILENAME})
 __all__ = [
     "ActiveWPStatus",
     "AgentAssignment",
+    "actor_identity_str",
     "ALLOWED_TRANSITIONS",
     "EventStream",
     "InnerStateChanged",
@@ -233,9 +253,18 @@ __all__ = [
     "annotate",
     "append_annotations_atomic_verified",
     "build_claim_policy_metadata",
+    "build_resolved_actor",
     "emit_inner_state_changed",
-    "phase1_snapshot_authority_active",
+    "emit_resolved_binding",
+    "ResolvedBinding",
+    "AuthoredGroup",
+    "ResolvedGroup",
+    "WPView",
+    "reconstruct_wp_view",
+    "resolve_event_stream_review",
     "read_event_stream",
+    "read_event_stream_from_text",
+    "read_authored_wp_frontmatter",
     "COORD_OWNED_STATUS_FILES",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
@@ -334,6 +363,7 @@ __all__ = [
     "merge_event_log_texts",
     "register_dossier_sync_handler",
     "register_lifecycle_saas_fanout_handler",
+    "register_resolved_binding_fanout_handler",
     "register_saas_fanout_handler",
     "summarize",
     "uninitialized_status_error",
@@ -351,6 +381,7 @@ __all__ = [
     "materialize",
     "materialize_to_json",
     "fire_dossier_sync",
+    "fire_resolved_binding_fanout",
     "fire_saas_fanout",
     "read_events",
     "read_events_from_text",
@@ -358,6 +389,7 @@ __all__ = [
     "read_wp_frontmatter",
     "reduce",
     "resolve_lane_alias",
+    "resolve_snapshot_review",
     "validate_derived_views",
     "validate_done_evidence",
     "validate_event_schema",

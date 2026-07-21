@@ -24,7 +24,7 @@ from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
-from specify_cli.frontmatter import FrontmatterError, write_shell_pid_claim
+from specify_cli.frontmatter import FrontmatterError
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
@@ -1486,23 +1486,6 @@ def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
     return build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
 
 
-def _shell_pid_dual_write_active(feature_dir: Path) -> bool:
-    """FR-005/C-001 dual-write gate for the shell_pid claim frontmatter mirror.
-
-    Mirrors ``cli.commands.agent.workflow_executor._shell_pid_dual_write_active``
-    (duplicated rather than imported -- same lower-layer/agent-package
-    boundary reason as :func:`_claim_policy_metadata` above). Reuses WP01/
-    WP03's existing ``status/emit.py::_phase1_snapshot_authority_active``
-    compatibility-bridge flag: while unset/off (the pre-verify default),
-    the frontmatter mirror stays MANDATORY; once an operator flips
-    ``status_phase`` to ``"1"`` (post WP03 backfill+verify / WP05 reader
-    cutover), it is torn down.
-    """
-    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
-
-    return not _phase1_snapshot_authority_active(feature_dir)
-
-
 def _start_wp_implementation_status(
     *,
     feature_dir: Path,
@@ -1527,9 +1510,8 @@ def _start_wp_implementation_status(
             execution_mode=status_execution_mode,
             repo_root=repo_root,
             # WP07/T026 (FR-004/FR-014): the claim triple rides the
-            # planned -> claimed transition's policy_metadata sidecar
-            # instead of the removed frontmatter pre-write (see the deleted
-            # write_shell_pid_claim_to_file call this replaces below).
+            # planned -> claimed transition's policy_metadata sidecar; the
+            # frontmatter pre-write mirror was removed in the #2816 cutover.
             policy_metadata=_claim_policy_metadata(_os.getppid(), effective_actor),
         )
     except WorkPackageClaimConflict as exc:
@@ -1770,22 +1752,11 @@ def implement(
     status_result = None
     status_execution_mode = _execution_mode_for_workspace(resolved_workspace)
     try:
-        # WP07/T028 (FR-004/FR-008/FR-014): the pre-write claim triple now
-        # rides the planned -> claimed transition's policy_metadata sidecar
-        # (see _start_wp_implementation_status below) instead of this
-        # direct WP-file mutation. The frontmatter mirror is a bounded
-        # FR-005/C-001 dual-write bridge, active only until WP05's
-        # shell_pid reader cuts over (see _shell_pid_dual_write_active);
-        # once torn down, this becomes a byte-identical no-op on the WP
-        # file (SC-001/SC-005).
-        if _shell_pid_dual_write_active(feature_dir):
-            import os as _os
-            from specify_cli.task_utils.support import build_document, split_frontmatter
-
-            _wp_text = wp_file.read_text(encoding="utf-8-sig")
-            _wp_front, _wp_body, _wp_padding = split_frontmatter(_wp_text)
-            _wp_front = write_shell_pid_claim(_wp_front, _os.getppid())
-            wp_file.write_text(build_document(_wp_front, _wp_body, _wp_padding), encoding="utf-8")
+        # WP04/T015 (FR-004/NFR-003/SC-004): the pre-write claim triple rides
+        # the planned -> claimed transition's policy_metadata sidecar (see
+        # _start_wp_implementation_status below). The former frontmatter
+        # dual-write mirror was removed in the #2816 unconditional cutover, so
+        # `spec-kitty implement` writes 0 runtime bytes to the WP file.
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # When --base is provided, validate the ref and build a patched

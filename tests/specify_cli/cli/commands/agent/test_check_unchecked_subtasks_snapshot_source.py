@@ -1,43 +1,27 @@
-"""Owned unit test (WP04/T017, #2684): ``_check_unchecked_subtasks`` follows
-the reduced-snapshot ``subtasks`` slot, not ``tasks.md`` bytes and not a
-``HistoryAdded`` narrative record.
+"""Owned unit test (WP04/T017, #2684; rerouted for #2816 IC-10 / WP13):
+``_check_unchecked_subtasks`` resolves subtask completion from the reduced
+event-log snapshot ``subtasks`` slot — never from ``tasks.md`` checkbox bytes,
+and never from a ``HistoryAdded`` narrative record.
 
-FR-003 / SC-003 (AC-3): the review gate's notion of "unchecked" must be
-event-sourced, not markdown-gated. WP01 ships the reducer + snapshot +
-``emit_inner_state_changed``; WP02 ships ``_guard_subtasks``'s own snapshot
-re-source (behind the ``req.feature_dir`` seam); WP04 owns the OTHER half of
-the wire: ``mark-status`` emits the completion delta (T015) and
-``_check_unchecked_subtasks`` (``tasks_shared.py:412``, T016) re-sources
-completion from that same reduced snapshot. This file is the owned,
-NON-VACUOUS proof that T016's wiring actually reads the right mechanism.
+FR-016 / SC-010: since the #2816 corpus cutover the guard's **roster** is the
+authored WP-frontmatter ``subtasks:`` list (static design intent) and its
+**completion** is *solely* the snapshot slot (populated by ``mark-status``'s
+``emit_inner_state_changed`` call). The markdown checkbox is retired as a
+subtask-completion proxy.
 
 **The crux (discriminating, not concordant)**: every fixture below makes
-``tasks.md`` and the reduced snapshot *disagree*. A concordant fixture (both
-sources say the same thing) would pass even if the reader silently reverted
-to the legacy markdown byte — only a contradiction proves the snapshot is the
-actual resolution source. Two directions are covered (mirror requirement):
+``tasks.md`` and the reduced snapshot *disagree*. A concordant fixture would
+pass even if the reader silently reverted to the checkbox byte — only a
+contradiction proves the snapshot is the actual resolution source. The checkbox
+bytes are pure noise to the rerouted guard; the roster comes from frontmatter.
 
-* snapshot-complete / markdown-unchecked -> gate must return ``[]``
-  (the log's completion is honored even though the checkbox is stale).
-* snapshot-incomplete / markdown-checked -> gate must return the incomplete
-  ids (a genuinely-incomplete WP is not waved through just because the
-  checkbox was hand-edited or never evicted back).
-
-A third test proves the gate never consults the ``HistoryAdded`` narrative
-emission path (``specify_cli.sync.events.emit_history_added``, the mechanism
-``_ms_emit_history`` fires) — a plausible-looking wrong implementation could
-have keyed off "was a HistoryAdded note ever recorded for this task" instead
-of the true ``subtasks`` slot; this pins that it does not.
-
-The already-merged regression test
-``tests/regression/test_issue_2684_subtask_completion_event_sourced.py`` is
-the end-to-end companion proof (real CLI, real event log) — it is NOT owned
-here and is not edited by this WP.
+A separate test proves the gate never consults the ``HistoryAdded`` narrative
+path — a plausible wrong implementation could key off "was a HistoryAdded note
+recorded" instead of the true ``subtasks`` slot; this pins that it does not.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -51,8 +35,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION_SLUG = "check-unchecked-snapshot-source"
 
-#: WP01's three canonical subtask rows — the authored roster (static design
-#: intent, per T016 step 2: membership always comes from tasks.md).
+#: WP01's three canonical subtask rows in tasks.md — deliberately CONTRADICTING
+#: the snapshot in every fixture, to prove they are ignored (the roster is the
+#: frontmatter ``subtasks:`` list, not these rows).
 _TASKS_MD_ALL_UNCHECKED = (
     "# Tasks\n\n## WP01 - repro\n"
     "- [ ] T001 alpha\n"
@@ -73,35 +58,22 @@ def _ulid(suffix: str) -> str:
     return ("01KX" + suffix).ljust(26, "0")[:26]
 
 
-def _seed_feature_dir(tmp_path: Path, tasks_md: str) -> Path:
-    """Minimal primary-partition mission dir: ``kitty-specs/<slug>/tasks.md``.
-
-    No ``meta.json`` is written by default — ``_phase1_snapshot_authority_active``
-    (``status/emit.py``) treats a missing/malformed ``meta.json`` as False,
-    which is the default, PRE-CUTOVER state every mission starts in (legacy
-    ``tasks.md`` remains the tolerated authority). Snapshot-sourced fixtures
-    must explicitly opt in via :func:`_seed_phase1_flag` (mirrors
-    ``tests/agent/cli/commands/test_tasks_helpers.py``'s
-    ``_check_unchecked_subtasks`` fixtures — no coord/lanes.json complexity
-    needed for a primary-partition read).
-    """
+def _seed_feature_dir(tmp_path: Path, tasks_md: str, *, roster: list[str] | None) -> Path:
+    """Primary-partition mission dir: ``kitty-specs/<slug>/`` with a WP file whose
+    frontmatter ``subtasks:`` list is the roster, plus a contradicting tasks.md."""
     feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
-    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
     (feature_dir / "tasks.md").write_text(tasks_md, encoding="utf-8")
+    if roster is not None:
+        lines = ["---", "work_package_id: WP01"]
+        if roster:
+            lines.append("subtasks:")
+            lines += [f"- {tid}" for tid in roster]
+        else:
+            lines.append("subtasks: []")
+        lines += ["---", "", "# WP01", ""]
+        (feature_dir / "tasks" / "WP01.md").write_text("\n".join(lines), encoding="utf-8")
     return feature_dir
-
-
-def _seed_phase1_flag(feature_dir: Path) -> None:
-    """Opt a fixture's mission into the phase-1 dual-write cutover.
-
-    Matches the foundation convention (``status/emit.py::
-    _phase1_snapshot_authority_active`` / WP01's ``_infer_subtasks_complete`` / WP02's
-    ``_snapshot_unchecked_subtasks``): flag ON -> snapshot-sourced completion,
-    flag OFF (the default, no ``meta.json``) -> legacy ``tasks.md``.
-    """
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"status_phase": "1"}), encoding="utf-8"
-    )
 
 
 def _seed_claim_transition(feature_dir: Path, wp_id: str) -> None:
@@ -123,7 +95,7 @@ def _seed_claim_transition(feature_dir: Path, wp_id: str) -> None:
 
 
 def _seed_subtasks_annotation(feature_dir: Path, wp_id: str, subtasks: dict[str, Lane]) -> None:
-    """Seed an ``InnerStateChanged`` ``subtasks`` delta — the T015 emit shape."""
+    """Seed an ``InnerStateChanged`` ``subtasks`` delta — the mark-status emit shape."""
     append_annotations_atomic_verified(
         feature_dir,
         [
@@ -142,11 +114,6 @@ def _check(tmp_path: Path, feature_dir: Path, wp_id: str) -> list[str]:
     with patch(
         "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
     ):
-        # cast: the project's mypy config sets follow_imports="skip" for
-        # specify_cli.* (see reducer.py's precedent comment), which makes this
-        # cross-module call resolve as ``Any`` under isolated-file mypy runs
-        # even though the real signature returns ``list[str]``. Type-only, no
-        # behaviour change.
         result: list[str] = _check_unchecked_subtasks(tmp_path, _MISSION_SLUG, wp_id, False)
         return result
 
@@ -158,14 +125,10 @@ def _check(tmp_path: Path, feature_dir: Path, wp_id: str) -> list[str]:
 
 def test_gate_follows_snapshot_complete_over_unchecked_markdown(tmp_path: Path) -> None:
     """Snapshot says DONE; tasks.md checkboxes are UNCHECKED — the gate must
-    return ``[]`` (complete), honoring the log over the stale markdown byte.
-
-    This is the exact #2684 eviction end-state: ``mark-status`` (T015) records
-    completion in the log without flipping the checkbox; a reader that still
-    trusted ``tasks.md`` would wrongly report all three subtasks incomplete.
-    """
-    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_UNCHECKED)
-    _seed_phase1_flag(feature_dir)  # flag ON -> snapshot-sourced completion
+    return ``[]`` (complete), honoring the log over the noise markdown byte."""
+    feature_dir = _seed_feature_dir(
+        tmp_path, _TASKS_MD_ALL_UNCHECKED, roster=["T001", "T002", "T003"]
+    )
     _seed_claim_transition(feature_dir, "WP01")
     _seed_subtasks_annotation(
         feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE, "T003": Lane.DONE}
@@ -175,18 +138,17 @@ def test_gate_follows_snapshot_complete_over_unchecked_markdown(tmp_path: Path) 
 
     assert result == [], (
         "the gate must resolve completion from the reduced snapshot, not the "
-        f"stale unchecked tasks.md bytes; got {result!r}"
+        f"unchecked tasks.md bytes; got {result!r}"
     )
 
 
 def test_gate_follows_snapshot_incomplete_over_checked_markdown(tmp_path: Path) -> None:
-    """Mirror case: snapshot says one subtask is still incomplete while
-    tasks.md shows every checkbox CHECKED — the gate must still refuse on the
-    log's incomplete id, not wave it through because the markdown was
-    hand-edited (or never evicted) to look done.
-    """
-    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_CHECKED)
-    _seed_phase1_flag(feature_dir)  # flag ON -> snapshot-sourced completion
+    """Mirror case: snapshot says one subtask is still incomplete while tasks.md
+    shows every checkbox CHECKED — the gate must still refuse on the log's
+    incomplete id, not wave it through because the markdown looks done."""
+    feature_dir = _seed_feature_dir(
+        tmp_path, _TASKS_MD_ALL_CHECKED, roster=["T001", "T002", "T003"]
+    )
     _seed_claim_transition(feature_dir, "WP01")
     _seed_subtasks_annotation(
         feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.IN_PROGRESS, "T003": Lane.DONE}
@@ -207,13 +169,13 @@ def test_gate_follows_snapshot_incomplete_over_checked_markdown(tmp_path: Path) 
 
 def test_gate_never_calls_history_added_emitter(tmp_path: Path) -> None:
     """``_ms_emit_history`` records a ``HistoryAdded`` narrative note via
-    ``specify_cli.sync.events.emit_history_added`` — a render-only Activity-Log
-    feed, structurally distinct from the ``subtasks`` authority slot. Pin that
-    ``_check_unchecked_subtasks`` never calls it (a wrong implementation could
-    plausibly key off "was a HistoryAdded note ever recorded" as a completion
-    heuristic instead of reading the true snapshot slot)."""
-    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_UNCHECKED)
-    _seed_phase1_flag(feature_dir)  # flag ON -> snapshot-sourced completion
+    ``specify_cli.sync.events.emit_history_added`` — a render-only feed,
+    structurally distinct from the ``subtasks`` authority slot. Pin that the
+    gate never calls it (a wrong impl could key off "was a HistoryAdded note
+    recorded" instead of reading the true snapshot slot)."""
+    feature_dir = _seed_feature_dir(
+        tmp_path, _TASKS_MD_ALL_UNCHECKED, roster=["T001", "T002", "T003"]
+    )
     _seed_claim_transition(feature_dir, "WP01")
     _seed_subtasks_annotation(
         feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE, "T003": Lane.DONE}
@@ -227,54 +189,34 @@ def test_gate_never_calls_history_added_emitter(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Companion sanity: the flag-gated legacy fallback (T016 step 3) still works
-# for the transitional dual-write compat window, and for a WP the log has
-# never touched (pre-backfill safety, avoiding a legacy-checked-WP regression).
+# Fail-closed (#2816 IC-10): an authored roster with a silent snapshot BLOCKS —
+# the retired legacy checkbox fallback did not become a silent open. An empty
+# authored roster is "nothing to block on".
 # ---------------------------------------------------------------------------
 
 
-def test_flag_off_uses_legacy_tasks_md_even_when_snapshot_contradicts(tmp_path: Path) -> None:
-    """The default, PRE-CUTOVER state (no ``meta.json`` / flag OFF) keeps
-    trusting ``tasks.md`` as the tolerated authority, even though the snapshot
-    disagrees. Matches the WP01/WP02 convention: flag OFF -> legacy, since
-    WP01 lands before WP03 flips/verifies the flag and the default must never
-    read an empty/pre-backfill snapshot."""
-    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_CHECKED)
-    # No _seed_phase1_flag(...) call: flag stays OFF (the default).
+def test_fail_closed_when_snapshot_silent(tmp_path: Path) -> None:
+    """A WP with an authored roster whose snapshot slot is silent must block
+    (every roster id incomplete), even though tasks.md shows every box checked —
+    the checkbox fallback is gone; unprovable completeness fails closed."""
+    feature_dir = _seed_feature_dir(
+        tmp_path, _TASKS_MD_ALL_CHECKED, roster=["T001", "T002", "T003"]
+    )
     _seed_claim_transition(feature_dir, "WP01")
-    _seed_subtasks_annotation(feature_dir, "WP01", {"T001": Lane.IN_PROGRESS})
+    # No subtasks annotation seeded: the snapshot slot is silent for WP01.
 
     result = _check(tmp_path, feature_dir, "WP01")
 
-    # tasks.md is fully checked; the pre-cutover (flag OFF) default trusts it.
-    assert result == []
+    assert result == ["T001", "T002", "T003"], (
+        "a silent snapshot must fail-closed (block), not fall back to the "
+        f"checked tasks.md bytes; got {result!r}"
+    )
 
 
-def test_wp_never_touched_by_log_falls_back_to_legacy_markdown(tmp_path: Path) -> None:
-    """Under the phase-1 cutover (flag ON), a WP the event log has never
-    recorded a ``subtasks`` slot for (e.g. a pre-WP04 mission whose subtasks
-    were checked the legacy way) must not be reported fully-incomplete just
-    because the snapshot is silent — it falls back to the legacy
-    ``tasks.md`` read (C-001 symmetric window; avoids a regression for
-    untouched WPs; T016 edge case)."""
-    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_CHECKED)
-    _seed_phase1_flag(feature_dir)  # flag ON -> exercises the snapshot path's fallback
+def test_empty_authored_roster_is_nothing_to_block_on(tmp_path: Path) -> None:
+    """A WP with no authored ``subtasks:`` roster returns ``[]`` regardless of
+    what the tasks.md checkboxes say."""
+    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_UNCHECKED, roster=[])
     _seed_claim_transition(feature_dir, "WP01")
-    # No subtasks annotation seeded at all: the snapshot has a WP01 entry
-    # (from the claim transition) but no "subtasks" key.
 
-    result = _check(tmp_path, feature_dir, "WP01")
-
-    assert result == []  # tasks.md says fully checked; legacy fallback honors it
-
-
-def test_no_events_at_all_falls_back_to_legacy_markdown(tmp_path: Path) -> None:
-    """Under the phase-1 cutover (flag ON), an empty event log (no
-    transitions, no annotations — pure pre-backfill) never crashes and
-    tolerates the legacy ``tasks.md`` fallback."""
-    feature_dir = _seed_feature_dir(tmp_path, _TASKS_MD_ALL_UNCHECKED)
-    _seed_phase1_flag(feature_dir)  # flag ON -> exercises the empty-stream fallback
-
-    result = _check(tmp_path, feature_dir, "WP01")
-
-    assert result == ["T001", "T002", "T003"]
+    assert _check(tmp_path, feature_dir, "WP01") == []

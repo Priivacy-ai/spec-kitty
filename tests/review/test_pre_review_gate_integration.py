@@ -927,7 +927,9 @@ def test_existing_transition_behavior_intact_when_no_workspace_resolvable(
     assert payload["result"] == "success"
     assert payload["new_lane"] == "for_review"
     assert payload["pre_review_gate"]["outcome"] == "no_coverage"
-    assert "Moved to for_review" in wp_file.read_text(encoding="utf-8")
+    # Runtime state is event-only after the #2816 cutover; the authored WP
+    # artifact remains byte-stable instead of receiving an Activity Log row.
+    assert "Moved to for_review" not in wp_file.read_text(encoding="utf-8")
 
 
 @pytest.mark.integration

@@ -283,7 +283,6 @@ class WPMetadata(BaseModel):
     mission_slug: str | None = None
     status: str | None = None  # legacy status field seen in some mission WPs
     wp_code: str | None = None
-    branch_strategy_override: str | None = None
 
     # ── Legacy aliases (consumed by model validator) ───────────
     work_package_title: str | None = None
@@ -603,27 +602,17 @@ def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> W
     authored design-intent slot, distinct from the runtime ``agent``
     reassignment slot) -- stays frontmatter-canonical and is left untouched.
 
-    Behind the phase-1 dual-write flag
-    (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`):
+    The reduced snapshot is the unconditional sole source for the four runtime
+    fields above (C-001 -- no partial fallback to frontmatter). An absent
+    snapshot entry for this WP degrades each field to ``None`` (a legitimate
+    "no runtime state yet" result, not a signal to keep the frontmatter value).
 
-    - OFF: *metadata* is returned unchanged -- today's frontmatter-
-      authoritative behavior, zero regression.
-    - ON: the reduced snapshot is the sole source for the four runtime
-      fields above (C-001 -- no partial fallback to frontmatter once the
-      flag resolves to the snapshot). An absent snapshot entry for this WP
-      degrades each field to ``None`` (a legitimate "no runtime state yet"
-      result, not a signal to keep the frontmatter value).
-
-    A lazy (function-local) import of ``status.emit``/``status.reducer``/
-    ``status.store`` avoids a ``status.wp_metadata`` <-> ``status.emit``
-    circular import -- ``emit.py`` already imports :func:`read_wp_frontmatter`
-    from this module at module scope.
+    A lazy (function-local) import of ``status.reducer`` avoids a
+    ``status.wp_metadata`` <-> ``status.emit`` circular import -- ``emit.py``
+    already imports :func:`read_wp_frontmatter` from this module at module
+    scope.
     """
-    from specify_cli.status.emit import _phase1_snapshot_authority_active  # noqa: PLC0415
-
     feature_dir = path.parent.parent
-    if not _phase1_snapshot_authority_active(feature_dir):
-        return metadata
 
     from specify_cli.status.reducer import wp_snapshot_state  # noqa: PLC0415
 
@@ -635,6 +624,20 @@ def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> W
         agent=wp_state.get("agent"),
         assignee=wp_state.get("assignee"),
     )
+
+
+def read_authored_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
+    """Load typed WP frontmatter without consulting mutable runtime state.
+
+    Planning-only consumers use this reader so a stale or corrupt status log
+    cannot affect static metadata such as ownership, dependencies, or execution
+    mode. Runtime consumers should use :func:`read_wp_frontmatter` or the
+    reconstructed WP view as appropriate.
+    """
+    from specify_cli.frontmatter import FrontmatterManager
+
+    frontmatter_dict, body = FrontmatterManager().read(path)
+    return WPMetadata.model_validate(frontmatter_dict, strict=False), body
 
 
 def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
@@ -660,13 +663,9 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     """
     from pydantic import ValidationError  # noqa: F401 — re-exported for callers
 
-    from specify_cli.frontmatter import FrontmatterManager
-
-    fm = FrontmatterManager()
-    frontmatter_dict, body = fm.read(path)
-    metadata = WPMetadata.model_validate(frontmatter_dict, strict=False)
+    metadata, body = read_authored_wp_frontmatter(path)
     metadata = _resolve_runtime_fields_from_snapshot(path, metadata)
     return metadata, body
 
 
-__all__ = ["WPMetadata", "read_wp_frontmatter"]
+__all__ = ["WPMetadata", "read_authored_wp_frontmatter", "read_wp_frontmatter"]

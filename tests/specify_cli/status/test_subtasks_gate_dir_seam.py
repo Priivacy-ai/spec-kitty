@@ -83,6 +83,12 @@ def _build_coord_mission_with_primary_tasks(
         encoding="utf-8",
     )
     (primary_dir / "tasks.md").write_text(tasks_md_body, encoding="utf-8")
+    primary_tasks_dir = primary_dir / "tasks"
+    primary_tasks_dir.mkdir()
+    (primary_tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nsubtasks: []\n---\n\n# WP01\n",
+        encoding="utf-8",
+    )
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "primary planning artifacts")
 
@@ -107,13 +113,13 @@ def _build_coord_mission_with_primary_tasks(
 
 def test_prepare_event_recovers_primary_when_repo_root_none(tmp_path: Path) -> None:
     """FR-002 (#2574): ``repo_root=None`` on a coord-topology mission must
-    recover the PRIMARY ``tasks.md`` via git ancestry, not silently read the
+    recover the PRIMARY authored WP roster via git ancestry, not silently read the
     coordination husk directly.
 
     Before T005 this is RED: ``_prepare_event`` read ``feature_dir`` (the
-    coord husk) unchanged when ``request.repo_root`` was ``None``, found no
-    ``tasks.md`` there, and failed the transition closed even though every
-    row in the PRIMARY ``tasks.md`` is checked.
+    coord husk) unchanged when ``request.repo_root`` was ``None`` and found no
+    authored WP roster there. The primary WP carries an explicit empty roster,
+    so resolving the correct planning partition permits the transition.
     """
     from specify_cli.coordination.status_transition import _prepare_event
 

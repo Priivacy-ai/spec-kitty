@@ -121,9 +121,14 @@ SaasFanOutHandler = Callable[..., None]
 
 LifecycleSaasFanOutHandler = Callable[..., None]
 
+# Callback signature: keyword-only, carries the resolved binding + WP identity
+# for the first-class ``WPResolvedBindingChanged`` bridge (FR-015 / IC-09).
+ResolvedBindingFanOutHandler = Callable[..., None]
+
 _dossier_handlers: list[DossierSyncHandler] = []
 _saas_handlers: list[SaasFanOutHandler] = []
 _lifecycle_saas_handlers: list[LifecycleSaasFanOutHandler] = []
+_resolved_binding_handlers: list[ResolvedBindingFanOutHandler] = []
 
 
 def _handler_key(cb: Callable[..., Any]) -> str:
@@ -187,11 +192,28 @@ def register_lifecycle_saas_fanout_handler(cb: LifecycleSaasFanOutHandler) -> No
     _lifecycle_saas_handlers.append(cb)
 
 
+def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -> None:
+    """Register a ``WPResolvedBindingChanged`` fan-out callback (idempotent by name).
+
+    Mirrors :func:`register_saas_fanout_handler`. The sync package registers the
+    handler that builds the concrete ``spec_kitty_events.WPResolvedBindingChanged``
+    payload once the events package ships it; until then the status layer's
+    version gate skips the fan-out (see ``emit._resolved_binding_fan_out``).
+    """
+    key = _handler_key(cb)
+    for idx, existing in enumerate(_resolved_binding_handlers):
+        if _handler_key(existing) == key:
+            _resolved_binding_handlers[idx] = cb
+            return
+    _resolved_binding_handlers.append(cb)
+
+
 def reset_handlers() -> None:
     """Clear all registered handlers (test-only utility)."""
     _dossier_handlers.clear()
     _saas_handlers.clear()
     _lifecycle_saas_handlers.clear()
+    _resolved_binding_handlers.clear()
 
 
 def fire_dossier_sync(
@@ -272,6 +294,45 @@ def fire_saas_fanout(**kwargs: Any) -> None:
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
                 kwargs.get("force"),
+                exc_info=True,
+            )
+
+
+def fire_resolved_binding_fanout(**kwargs: Any) -> None:
+    """Call all registered ``WPResolvedBindingChanged`` fan-out handlers with **kwargs.
+
+    Same non-raising / bounded contract as :func:`fire_saas_fanout`: exceptions
+    from a handler are caught and logged, never re-raised, so a resolved-binding
+    fan-out can never block canonical local persistence. An empty registry is a
+    no-op. The status layer only reaches here once its version gate confirms the
+    installed ``spec_kitty_events`` supports the event (FR-015 / IC-09).
+    """
+    logger.info(
+        "fire_resolved_binding_fanout: wp_id=%s mission_slug=%s handlers=%d",
+        kwargs.get("wp_id"),
+        kwargs.get("mission_slug"),
+        len(_resolved_binding_handlers),
+    )
+    for handler in _resolved_binding_handlers:
+        try:
+            _run_fanout_handler_bounded(handler, kwargs, label="Resolved-binding fan-out")
+        except _FanoutHandlerBusyError:
+            logger.warning(
+                "Resolved-binding fan-out handler still in flight from a prior "
+                "emit; skipped to avoid overlap (wp_id=%s)",
+                kwargs.get("wp_id"),
+            )
+        except TimeoutError:
+            logger.warning(
+                "Resolved-binding fan-out handler timed out; canonical status log "
+                "unaffected (wp_id=%s)",
+                kwargs.get("wp_id"),
+            )
+        except Exception:
+            logger.warning(
+                "Resolved-binding fan-out handler failed; canonical status log "
+                "unaffected (wp_id=%s)",
+                kwargs.get("wp_id"),
                 exc_info=True,
             )
 

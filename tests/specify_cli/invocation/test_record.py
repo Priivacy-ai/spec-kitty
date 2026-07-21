@@ -114,11 +114,16 @@ class TestOpStartedEvent:
 
     def test_mission_and_wp_present_when_set(self) -> None:
         event = OpStartedEvent(
-            **_started_kwargs(mission_id="01KTK5JBD69FQ8XVRFV1J630MJ", wp_id="WP01")  # type: ignore[arg-type]
+            **_started_kwargs(
+                mission_id="01KTK5JBD69FQ8XVRFV1J630MJ",
+                wp_id="WP01",
+                model_id="claude-opus-4-6",
+            )  # type: ignore[arg-type]
         )
         data = json.loads(event.to_jsonl_line())
         assert data["mission_id"] == "01KTK5JBD69FQ8XVRFV1J630MJ"
         assert data["wp_id"] == "WP01"
+        assert data["model_id"] == "claude-opus-4-6"
 
     def test_request_text_may_be_empty(self) -> None:
         # Empty only legitimate for query mode — no model-level gate (executor enforces).

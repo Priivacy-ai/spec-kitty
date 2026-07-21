@@ -9,16 +9,18 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.coordination.status_service import (
     EventLogReadContract,
     read_event_log,
+    read_event_stream_log,
     wp_lane_actor_from_events,
 )
 from specify_cli.coordination.transaction import BookkeepingTransaction
@@ -31,10 +33,20 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
-from specify_cli.status.models import DoneEvidence, GuardContext, Lane, StatusEvent, TransitionRequest
+from specify_cli.status.models import (
+    DoneEvidence,
+    EventStream,
+    GuardContext,
+    InnerStateChanged,
+    Lane,
+    StatusEvent,
+    TransitionRequest,
+    actor_identity_str,
+)
 from specify_cli.status.reducer import reduce as _reduce_events
 from specify_cli.status.store import read_events as _read_raw_events
 from specify_cli.status.transitions import is_terminal, resolve_lane_alias, validate_transition
+from specify_cli.status.wp_state import annotate as _annotate
 from specify_cli.workspace import canonicalize_feature_dir, delete_context
 
 
@@ -114,7 +126,7 @@ def _transaction_dir_name(mission_slug: str, mid8: str) -> str:
     routing stays byte-identical. The canonical, NNN-stripping ``mission_dir_name``
     is NOT used here.
     """
-    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
+    return cast(str, _seam_coord_mission_dir_name(mission_slug, mid8=mid8))
 
 
 def _transaction_topology_available(identity: _TransactionIdentity, mission_slug: str) -> bool:
@@ -130,9 +142,12 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
 
     from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
 
-    return _branch_exists(
-        identity.repo_root,
-        CoordinationWorkspace.branch_name(mission_slug, identity.mid8),
+    return cast(
+        bool,
+        _branch_exists(
+            identity.repo_root,
+            CoordinationWorkspace.branch_name(mission_slug, identity.mid8),
+        ),
     )
 
 
@@ -294,7 +309,7 @@ def _canonical_primary_feature_dir(
         # honoured downstream by ``_read_contract_from_transaction_target``.
         refusal_anchor: Path = exc.primary_candidate
         return refusal_anchor
-    return resolved.primary_anchor
+    return cast(Path, resolved.primary_anchor)
 
 
 def _resolve_write_target(
@@ -440,7 +455,11 @@ def _prepare_event(
 
     subtasks_complete = request.subtasks_complete
     implementation_evidence_present = request.implementation_evidence_present
-    if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
+    if (
+        not request.force
+        and from_lane == Lane.IN_PROGRESS
+        and resolved_lane == Lane.FOR_REVIEW
+    ):
         # T012/FR-002 (#2574 single seam): route through the canonical
         # resolve_subtasks_gate_dir seam (mirroring T010's aggregate.py wiring
         # and T011's emit.py wiring) so a coord-topology mission's
@@ -455,7 +474,11 @@ def _prepare_event(
         from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
         subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
-        subtasks_complete = _emit._infer_subtasks_complete(subtasks_dir, request.wp_id)
+        subtasks_complete = _emit._infer_subtasks_complete(
+            subtasks_dir,
+            request.wp_id,
+            status_dir=feature_dir,
+        )
     if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
         implementation_evidence_present = _emit._infer_implementation_evidence(feature_dir, request.wp_id)
 
@@ -472,7 +495,7 @@ def _prepare_event(
         resolved_lane,
         GuardContext(
             force=request.force,
-            actor=request.actor,
+            actor=actor_identity_str(request.actor),
             workspace_context=workspace_context,
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
@@ -507,6 +530,37 @@ def _prepare_event(
     )
 
 
+def _annotation_for_request(
+    request: TransitionRequest,
+    *,
+    at: str | None = None,
+) -> InnerStateChanged | None:
+    """Build the claim annotation carried by *request*, without I/O."""
+    if request.annotation_delta is None:
+        return None
+    if request.wp_id is None or request.actor is None:
+        raise TypeError("claim annotations require wp_id and actor")
+    return _annotate(
+        request.wp_id,
+        request.annotation_delta,
+        actor=request.actor,
+        at=at or datetime.now(UTC).isoformat(),
+        event_id=_emit._generate_ulid(),
+    )
+
+
+def _deferred_resolved_binding_fan_out(
+    annotation: InnerStateChanged,
+    mission_slug: str,
+) -> Callable[[], None]:
+    """Return a typed post-commit resolved-binding fan-out callback."""
+
+    def emit() -> None:
+        _emit._resolved_binding_fan_out(annotation, mission_slug)
+
+    return emit
+
+
 def _defer_dossier_sync(
     txn: BookkeepingTransaction,
     *,
@@ -526,6 +580,16 @@ def _read_events_from_transaction_target(
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
     return read_event_log(_read_contract_from_transaction_target(identity, mission_slug))
+
+
+def _read_event_stream_from_transaction_target(
+    identity: _TransactionIdentity,
+    mission_slug: str,
+) -> EventStream:
+    """Read transitions and annotations without creating a worktree."""
+    return read_event_stream_log(
+        _read_contract_from_transaction_target(identity, mission_slug)
+    )
 
 
 def read_current_wp_state_transactional(
@@ -713,6 +777,26 @@ def read_events_transactional(
     return _read_events_from_transaction_target(identity, mission_slug)
 
 
+def read_event_stream_transactional(
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path | None = None,
+) -> EventStream:
+    """Read the complete event stream from the transactional write target."""
+    identity = _identity_for_request(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP00",
+            to_lane=Lane.PLANNED,
+            actor="status-read",
+            repo_root=repo_root,
+        )
+    )
+    return _read_event_stream_from_transaction_target(identity, mission_slug)
+
+
 def has_transition_to_transactional(
     *,
     feature_dir: Path,
@@ -891,7 +975,12 @@ def emit_status_transition_transactional(
                 review_result=request.review_result,
                 policy_metadata=request.policy_metadata,
             )
-        txn.append_event(event)
+        annotation = _annotation_for_request(request)
+        txn.append_events([event, *([annotation] if annotation is not None else [])])
+        if annotation is not None:
+            txn.defer_outbound(
+                _deferred_resolved_binding_fan_out(annotation, mission_slug)
+            )
         queue_saas_emission(
             txn,
             event,
@@ -1000,8 +1089,32 @@ def emit_status_transition_batch_transactional(
             built.append((event, request))
             from_lane = resolved_lane
 
-        for event, request in built:
-            txn.append_event(event)
+        durability_unit: list[StatusEvent | InnerStateChanged] = []
+        annotations: list[InnerStateChanged | None] = []
+        for index, (event, request) in enumerate(built):
+            annotation = _annotation_for_request(
+                request,
+                at=(
+                    started_at
+                    + timedelta(microseconds=len(built) + index)
+                ).isoformat(),
+            )
+            durability_unit.append(event)
+            if annotation is not None:
+                durability_unit.append(annotation)
+            annotations.append(annotation)
+
+        # The batch is one logical lifecycle operation. Persist every lane hop
+        # and its annotations with one atomic file replacement so a hard crash
+        # cannot strand an intermediate lane without the binding that belongs
+        # to the completed start operation.
+        txn.append_events(durability_unit)
+
+        for (event, request), annotation in zip(built, annotations, strict=True):
+            if annotation is not None:
+                txn.defer_outbound(
+                    _deferred_resolved_binding_fan_out(annotation, mission_slug)
+                )
             queue_saas_emission(
                 txn,
                 event,

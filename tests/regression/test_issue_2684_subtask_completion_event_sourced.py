@@ -191,12 +191,20 @@ def _build_single_branch_mission_with_in_progress_wp(
     # WP01 carries three UNCHECKED canonical subtask rows.
     (feature_dir / "tasks.md").write_text(_TASKS_MD_UNCHECKED, encoding="utf-8")
     (feature_dir / "tasks").mkdir(exist_ok=True)
+    # #2816 IC-10: the guard's subtask roster is the authored frontmatter
+    # ``subtasks:`` list (static design intent) and completion is the reduced
+    # event-log snapshot slot. WP01 authors its three canonical subtasks here so
+    # the rerouted guard has a roster to block on (checkbox bytes are noise).
     (feature_dir / "tasks" / "WP01.md").write_text(
         "---\n"
         "work_package_id: WP01\n"
         "title: Issue 2684 repro WP\n"
         "execution_mode: code_change\n"
         "agent: claude\n"
+        "subtasks:\n"
+        "- T001\n"
+        "- T002\n"
+        "- T003\n"
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )

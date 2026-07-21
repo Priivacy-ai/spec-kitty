@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 92  # justification: 92 auto-discovered migrations on the rebased-onto-upstream/main tree. One is m_unify_charter_activation_finalize (#2773, migration_id consolidate_charter_bundle_fold) — the charter-bundle fold migration, auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register, never statically imported, filename prefix-extends m_unify_charter_activation to sort strictly after it at the tied 3.2.6 target. The count reflects the current merged tree (this mission rebased onto upstream/main af9dd7303).
+  category_1_auto_discovered_migrations: 93  # justification: 93 auto-discovered migrations after #2816 added m_zz_runtime_state_backfill, registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer; it sorts after the charter folds and performs the fail-closed corpus cutover on upgrade.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -82,7 +82,10 @@ test_no_dead_modules:
   # major release" burn-down floor for this wave.
   # 2 -> 3 (#2684 runtime-state eviction): migration.backfill_runtime_state is a
   # deferred backfill library; CLI wiring tracked in #2816 (TODO(triage)).
-  category_7_grandfathered_orphans: 3
+  # 3 -> 2 (#2816 runtime-state-corpus-cutover WP01): the backfill library now has a
+  # live src/ caller (migration.runtime_state_cutover), so it is no longer an orphan;
+  # the Cat-7 entry was removed. Shrink — reverses the #2684 deferral bump.
+  category_7_grandfathered_orphans: 2
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

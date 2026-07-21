@@ -501,18 +501,11 @@ class TestAgentActionReviewTextEnvelope:
         self._assert_skeleton(text)
 
     def test_coord_mission_prompt_skeleton(self, coord_repo_for_review: tuple[Path, str]) -> None:
-        """GAP (filed, not silently worked around -- DIRECTIVE_044): a
-        coord-materialized ``for_review`` WP claimed via ``agent action
-        review`` (no prior ``implement`` claim in this lane) crashes with a
-        raw, unwrapped ``FileNotFoundError`` on the not-yet-created lane
-        worktree path, BEFORE ``_prepare_review_workspace`` prints its own
-        "Creating workspace" / "Created workspace" lines (contrast with
-        ``TestAgentActionImplementTextEnvelope``'s coord case, which
-        succeeds end-to-end on the identical materialized-coord fixture
-        pattern). This is reproducible, real, CURRENT behaviour -- pinning
-        the crash itself (rather than forcing a workaround into the fixture)
-        is the correct characterization call; a future WP should file this
-        as its own tracked defect rather than silently "fixing" it here."""
+        """A coord review without lane commits fails with an actionable gate.
+
+        The former raw ``FileNotFoundError`` is gone; the command now reaches
+        the review commit guard and reports the refused coordination branch.
+        """
         repo_root, mission_slug = coord_repo_for_review
         result = runner.invoke(
             root_app,
@@ -521,7 +514,6 @@ class TestAgentActionReviewTextEnvelope:
 
         assert result.exit_code == 1
         text = normalize_envelope(result.output, repo_root)
-        assert "Error: [Errno 2] No such file or directory:" in text
-        assert ".worktrees/" in result.output  # pre-normalization: confirms it's the lane worktree path
+        assert "Error: [Errno 2]" not in text
         assert "[review] Commits recorded:" in text
         assert "[refused]" in text

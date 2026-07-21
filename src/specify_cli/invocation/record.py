@@ -30,7 +30,13 @@ from specify_cli.invocation.errors import LegacyRecordError
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
-def _validate_ulid(value: str) -> str:
+def validate_invocation_id(value: str) -> str:
+    """Return *value* when it is an exact Crockford-base32 ULID.
+
+    This is the canonical validation boundary for both event models and any
+    filesystem lookup keyed by an invocation ID. Callers must invoke it before
+    composing an ID into a path.
+    """
     if not _ULID_RE.fullmatch(value):
         raise ValueError(f"invocation_id must be a 26-char ULID, got {value!r}")
     return value
@@ -52,10 +58,11 @@ class OpStartedEvent(BaseModel):
     started_at: str = Field(min_length=1)  # ISO-8601 UTC
     mission_id: str | None = None
     wp_id: str | None = None
+    model_id: str | None = Field(default=None, min_length=1)
 
     model_config = {"frozen": True}
 
-    _ulid = field_validator("invocation_id")(_validate_ulid)
+    _ulid = field_validator("invocation_id")(validate_invocation_id)
 
     def to_jsonl_line(self) -> str:
         """Serialise to a single JSON line, omitting None fields."""
@@ -74,7 +81,7 @@ class OpCompletedEvent(BaseModel):
 
     model_config = {"frozen": True}
 
-    _ulid = field_validator("invocation_id")(_validate_ulid)
+    _ulid = field_validator("invocation_id")(validate_invocation_id)
 
     def to_jsonl_line(self) -> str:
         """Serialise to a single JSON line, omitting None fields."""

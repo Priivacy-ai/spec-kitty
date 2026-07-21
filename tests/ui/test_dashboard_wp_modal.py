@@ -93,7 +93,7 @@ def test_kanban_card_click_opens_modal_with_agent_identity(
     # Every assertion below is scoped to the modal's own identity section —
     # never `.card .badge` (populated pre-click regardless of the modal
     # render path) and never a page-global locator.
-    identity_section = page.locator(IDENTITY_SECTION_SELECTOR)
+    identity_section = page.locator(IDENTITY_SECTION_SELECTOR).filter(has_text="Agent:")
     expect(identity_section).to_be_visible()
     expect(identity_section.locator(".badge.agent")).to_have_text(dashboard["agent"])
     expect(identity_section.locator(".badge.model")).to_have_text(dashboard["model"])

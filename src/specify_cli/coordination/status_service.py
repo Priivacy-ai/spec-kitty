@@ -25,10 +25,10 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
-    from specify_cli.status import Lane, StatusEvent
+    from specify_cli.status import EventStream, InnerStateChanged, Lane, StatusEvent
 
 
 class StatusReadSource(enum.StrEnum):
@@ -65,7 +65,7 @@ def _is_coordination_worktree_path(path: Path) -> bool:
     """
     from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 
-    return is_under_worktrees_segment(path)
+    return cast(bool, is_under_worktrees_segment(path))
 
 
 @dataclass(frozen=True)
@@ -191,6 +191,68 @@ def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
     raise StatusContractError(f"unsupported status read source: {contract.source}")
 
 
+def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
+    """Read transitions and annotations from an explicit status source.
+
+    This is the annotation-aware counterpart to :func:`read_event_log`.  It
+    preserves the same source-label validation and branch-ref semantics while
+    returning the complete event stream required by runtime-state reducers.
+    """
+    from specify_cli.status import (  # noqa: PLC0415
+        EVENTS_FILENAME,
+        EventStream,
+        read_event_stream,
+        read_event_stream_from_text,
+    )
+
+    if not isinstance(contract, EventLogReadContract):
+        raise StatusContractError("read_event_stream_log requires EventLogReadContract")
+
+    if contract.source in {
+        StatusReadSource.PRIMARY_CHECKOUT,
+        StatusReadSource.COORDINATION_WORKTREE,
+    }:
+        if (
+            contract.source == StatusReadSource.PRIMARY_CHECKOUT
+            and _is_coordination_worktree_path(contract.feature_dir)
+        ):
+            raise StatusContractError(
+                "primary_checkout reads must not target coordination worktree paths"
+            )
+        if (
+            contract.source == StatusReadSource.COORDINATION_WORKTREE
+            and not _is_coordination_worktree_path(contract.feature_dir)
+        ):
+            raise StatusContractError(
+                "coordination_worktree reads require a coordination worktree path"
+            )
+        return read_event_stream(contract.feature_dir)
+
+    if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
+        if contract.repo_root is None or contract.destination_ref is None:
+            raise StatusContractError(
+                "coordination_branch_ref reads require repo_root and destination_ref"
+            )
+        events_ref = (
+            f"{contract.destination_ref}:"
+            f"kitty-specs/{contract.feature_dir.name}/{EVENTS_FILENAME}"
+        )
+        result = subprocess.run(
+            ["git", "-C", str(contract.repo_root), "show", events_ref],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode != 0:
+            return EventStream()
+        parser_feature_dir = contract.parser_feature_dir or contract.feature_dir
+        return read_event_stream_from_text(parser_feature_dir, result.stdout)
+
+    raise StatusContractError(f"unsupported status read source: {contract.source}")
+
+
 def wp_lane_actor_from_events(
     events: list[StatusEvent],
     wp_id: str,
@@ -213,19 +275,42 @@ def wp_lane_actor_from_events(
         lane = Lane(str(state.get("lane", Lane.GENESIS)))
     except ValueError:
         lane = Lane.GENESIS
+    from specify_cli.status import actor_identity_str  # noqa: PLC0415
+
     actor = state.get("actor")
-    actor_key = str(actor).strip() if actor is not None else ""
+    actor_key = actor_identity_str(actor) if actor is not None else ""
     return lane, actor_key or None
 
 
-def append_event_log(contract: EventLogWriteContract, event: StatusEvent) -> None:
+def append_event_log(
+    contract: EventLogWriteContract,
+    event: StatusEvent | InnerStateChanged,
+) -> None:
     """Append one event using an explicit mutating contract."""
     from specify_cli.status import store as _store
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_log requires EventLogWriteContract")
     _validate_write_contract(contract)
-    _store.append_event_verified(contract.feature_dir, event)
+    from specify_cli.status import InnerStateChanged  # noqa: PLC0415
+
+    if isinstance(event, InnerStateChanged):
+        _store.append_annotations_atomic_verified(contract.feature_dir, [event])
+    else:
+        _store.append_event_verified(contract.feature_dir, event)
+
+
+def append_event_stream_log(
+    contract: EventLogWriteContract,
+    events: list[StatusEvent | InnerStateChanged],
+) -> None:
+    """Atomically append one mixed transition/annotation durability unit."""
+    from specify_cli.status import store as _store
+
+    if not isinstance(contract, EventLogWriteContract):
+        raise StatusContractError("append_event_stream_log requires EventLogWriteContract")
+    _validate_write_contract(contract)
+    _store.append_event_stream_atomic_verified(contract.feature_dir, events)
 
 
 def _validate_write_contract(contract: EventLogWriteContract) -> None:
@@ -289,8 +374,9 @@ def merge_append_preserving_coordination_event_log_bytes(
 __all__ = [
     "EventLogReadContract",
     "EventLogWriteContract",
-    "append_event_log",
+    "append_event_stream_log",
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
+    "read_event_stream_log",
     "wp_lane_actor_from_events",
 ]

@@ -569,12 +569,10 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
 
     # 3. REAL back-to-back auto_commit=False claims (exercises WP02's vcs-lock fix).
     #
-    # A real claim leaves TWO uncommitted residues: meta.json's one-time vcs-lock
-    # self-write (``_ensure_vcs_in_meta``) AND the WP file's ``shell_pid`` stamp
-    # (``update_fields``). WP02's fix governs ONLY the lock-only meta diff, so to
-    # exercise EXACTLY that variable we commit the first claim's unrelated WP-file
-    # stamp, leaving meta.json's vcs-lock as the SOLE residue the second claim
-    # faces — mirroring the WP02 regression test's ``set_vcs_lock`` isolation.
+    # Post-cutover a real claim leaves only meta.json's one-time vcs-lock
+    # self-write (``_ensure_vcs_in_meta``); runtime claim state is event-sourced
+    # and the WP file is byte-stable. That directly produces the lock-only
+    # residue this regression needs to place in front of the second claim.
     meta_rel = (feature_dir / "meta.json").relative_to(repo).as_posix()
     with _claim_allocation_patched(repo, feature_dir) as create_mock:
         implement("WP01", mission=slug, auto_commit=False, recover=False)
@@ -582,10 +580,6 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         assert _read_meta(feature_dir).get("vcs") == "git", (
             "the real claim path must have written the vcs-lock self-write to meta.json"
         )
-        # Commit everything EXCEPT meta.json so the lock is the sole residue.
-        _git(repo, "add", "-A")
-        _git(repo, "restore", "--staged", meta_rel)
-        _git(repo, "commit", "-m", f"chore({slug}): WP01 claim WP-file stamp (non-lock residue)")
         dirty_paths = sorted(
             line[3:] for line in _git(repo, "status", "--porcelain").stdout.splitlines() if line.strip()
         )

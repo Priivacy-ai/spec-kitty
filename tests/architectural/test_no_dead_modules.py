@@ -259,6 +259,13 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # code. Same sibling shape as the two backfills above.
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
+        # runtime-state-corpus-cutover-01KXZ0AX WP02 (FR-010, #2816): auto-discovered
+        # corpus cutover migration for existing deployments. Auto-discovered via
+        # pkgutil.iter_modules + @MigrationRegistry.register; never statically
+        # imported by runtime code. Named m_zz_* (not a numeric-prefix name) so it
+        # sorts alphabetically AFTER the m_unify_charter_activation* folds at the
+        # same tied target_version="3.2.6" (see the module docstring).
+        "specify_cli.upgrade.migrations.m_zz_runtime_state_backfill",
     }
 )
 
@@ -384,9 +391,6 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # TODO(triage): deferred backfill library (#2684 runtime-state eviction);
-        # CLI wiring tracked in #2816.
-        "specify_cli.migration.backfill_runtime_state",
     }
 )
 

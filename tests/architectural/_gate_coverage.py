@@ -1573,9 +1573,13 @@ def _baseline_header(target: BaselineTarget) -> str:
     return (
         f"# E3 baseline (mission ci-test-topology-performance-01KXBJRT WP02). "
         f"REAL `pytest --collect-only` node-id UNION across every leg of "
-        f"job={target.job!r} (workflow={target.workflow!r}), captured "
-        "pre-WP06. Regenerate ONLY with an explicit provenance comment "
-        "(data-model E3) when a WP legitimately changes this job's "
+        f"job={target.job!r} (workflow={target.workflow!r}), refrozen by "
+        "mission runtime-state-corpus-cutover-01KXZ0AX WP06 (#2816): the "
+        "flag-OFF dual-write twin (test_move_task_rollback_clears_claim_flag_off) "
+        "was deleted and the flag-ON/flag-OFF split suite reconciled to the "
+        "single post-cutover snapshot-authority end-state, changing this job's "
+        "collected node-id set. Regenerate ONLY with an explicit provenance "
+        "comment (data-model E3) when a WP legitimately changes this job's "
         "selection: uv run python -m tests.architectural._gate_coverage "
         "--freeze-baselines"
     )

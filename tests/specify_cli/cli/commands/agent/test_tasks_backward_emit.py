@@ -78,6 +78,7 @@ def _build_feature_in_lane(
         f"title: Test {wp_id}\n"
         f"execution_mode: code_change\n"
         f"agent: testbot\n"
+        f"subtasks: []\n"
         f"owned_files:\n  - src/{wp_id.lower()}/**\n"
         f"authoritative_surface: src/{wp_id.lower()}/\n"
         f"---\n\n# {wp_id}\n\n## Activity Log\n",

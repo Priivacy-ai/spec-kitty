@@ -906,6 +906,7 @@ def _sentinel_mission(root: Path, slug: str) -> Path:
         "title: Fixture WP01\n"
         "execution_mode: code_change\n"
         "agent: testbot\n"
+        "subtasks: []\n"
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )

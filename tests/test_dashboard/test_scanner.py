@@ -5,9 +5,15 @@ import pytest
 
 from specify_cli.dashboard import scanner
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
-from specify_cli.status.models import NON_DISPLAY_LANES, Lane, StatusEvent
+from specify_cli.status.models import (
+    NON_DISPLAY_LANES,
+    InnerStateChanged,
+    Lane,
+    StatusEvent,
+    WPInnerStateDelta,
+)
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from specify_cli.status.store import append_annotations_atomic_verified, append_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -26,6 +32,24 @@ def _set_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
             force=True,
             execution_mode="direct_repo",
         ),
+    )
+    materialize(feature_dir)
+
+
+def _set_wp_subtasks(feature_dir: Path, wp_id: str, subtasks: dict[str, Lane]) -> None:
+    """Record subtask completion in the event log — the snapshot ``subtasks`` slot
+    is the SOLE dashboard authority since #2816 IC-10 (FR-016 / SC-010)."""
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id=("01KXANN" + wp_id).ljust(26, "0")[:26],
+                wp_id=wp_id,
+                at="2026-03-31T09:01:00+00:00",
+                actor="test",
+                delta=WPInnerStateDelta(subtasks=subtasks),
+            )
+        ],
     )
     materialize(feature_dir)
 
@@ -55,8 +79,9 @@ def _create_feature(tmp_path: Path, slug: str = "001-demo-feature", *, lane: str
 
 
 def test_wp_cards_report_subtask_progress(tmp_path):
-    """#2504: WP cards carry done/total counted from the body's canonical
-    checkbox rows — the same rows the lane-transition guard blocks on."""
+    """#2816 IC-10 (FR-016 / SC-010): WP cards carry done/total from the reduced
+    event-log ``subtasks`` snapshot slot — the SOLE subtask authority. The card
+    ignores the body's checkbox bytes entirely (the D-13 incoherence is gone)."""
     feature_dir = _create_feature(tmp_path)
     (feature_dir / "tasks" / "WP01-demo.md").write_text(
         """---
@@ -66,37 +91,38 @@ agent: codex
 ---
 # Work Package Prompt: Demo
 
-- [x] T001 Build the thing
+- [ ] T001 Build the thing
 - [ ] T002 Verify the thing
-- [x] T003 Document the thing
+- [ ] T003 Document the thing
 - [ ] swift test
 """,
         encoding="utf-8",
+    )
+    # The snapshot — not the (all-unchecked) body checkboxes — drives the badge.
+    _set_wp_subtasks(
+        feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.PLANNED, "T003": Lane.DONE}
     )
 
     lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
     task = next(t for lane in lanes.values() for t in lane)
 
     assert task["subtasks_done"] == 2
-    assert task["subtasks_total"] == 3  # the command row is not a subtask
+    assert task["subtasks_total"] == 3
     assert task["subtasks"] == ["T001", "T002", "T003"]  # frontmatter untouched
 
 
-def test_wp_progress_prefers_tasks_md_sections(tmp_path):
-    """Standard layout (#2504): the canonical ``- [ ] T###`` rows live in
-    tasks.md's per-WP sections (the guard's blocking source); the WP body
-    carries unnumbered acceptance checkboxes that must NOT count."""
+def test_wp_progress_ignores_tasks_md_checkboxes(tmp_path):
+    """#2816 IC-10: the badge reads the snapshot only — canonical ``- [ ] T###``
+    rows in tasks.md are noise (a raw checkbox edit cannot move the badge)."""
     feature_dir = _create_feature(tmp_path)
+    # Fully-CHECKED tasks.md rows that would once have read as done=3 — now inert.
     (feature_dir / "tasks.md").write_text(
         """# Tasks
 
 ## WP01 — Demo (depends: none)
 - [x] T001 Build the thing (WP01)
 - [x] T002 Wire the thing (WP01)
-- [ ] T003 Verify the thing (WP01)
-
-## WP02 — Other
-- [ ] T006 Unrelated row that must not count for WP01
+- [x] T003 Verify the thing (WP01)
 """,
         encoding="utf-8",
     )
@@ -107,12 +133,12 @@ subtasks: ["T001", "T002", "T003"]
 agent: codex
 ---
 # Work Package Prompt: Demo
-
-Acceptance criteria (unnumbered — not canonical subtask rows):
-- [ ] bounded concurrency; per-file fail-open
-- [ ] deterministic output
 """,
         encoding="utf-8",
+    )
+    # The snapshot records only 2 of 3 done; the fully-checked tasks.md is ignored.
+    _set_wp_subtasks(
+        feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE, "T003": Lane.PLANNED}
     )
 
     lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
@@ -122,15 +148,14 @@ Acceptance criteria (unnumbered — not canonical subtask rows):
     assert task["subtasks_total"] == 3
 
 
-def test_wp_without_checkbox_rows_reports_zero_totals(tmp_path):
-    """No checkbox rows → (0, 0); the frontend falls back to the plain
-    frontmatter count badge rather than showing a false 0/N."""
-    feature_dir = _create_feature(tmp_path)  # fixture body has no checkboxes
+def test_wp_without_snapshot_subtasks_reports_authored_total(tmp_path):
+    """An absent completion slot leaves every authored roster item unfinished."""
+    feature_dir = _create_feature(tmp_path)  # no subtasks annotation seeded
 
     lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
     task = next(t for lane in lanes.values() for t in lane)
 
-    assert task["subtasks_total"] == 0
+    assert task["subtasks_total"] == 1
     assert task["subtasks_done"] == 0
     assert task["subtasks"] == ["T1"]
 
@@ -585,8 +610,9 @@ agent:
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
 
     task = lanes["planned"][0]
-    assert task["agent"] == "codex"
-    assert task["model"] == "gpt-5.4"
+    assert task["agent"] == ""
+    assert task["model"] == ""
+    assert task["authored_model"] == ""
 
 
 def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):

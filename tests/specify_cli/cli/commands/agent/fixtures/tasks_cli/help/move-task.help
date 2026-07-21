@@ -20,6 +20,10 @@
 │                                                              [required]                          │
 │    --mission                                           TEXT  Mission slug                        │
 │    --agent                                             TEXT  Agent name                          │
+│    --model                                             TEXT  Dispatch-resolved model actual      │
+│    --profile                                           TEXT  Dispatch-resolved agent profile     │
+│                                                              actual                              │
+│    --invocation-id                                     TEXT  Authoritative dispatch Op record id │
 │    --assignee                                          TEXT  Assignee name (sets assignee when   │
 │                                                              moving to doing)                    │
 │    --shell-pid                                         TEXT  Shell PID                           │

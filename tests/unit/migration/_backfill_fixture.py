@@ -14,10 +14,43 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from specify_cli.migration.mission_state import deterministic_ulid
+
 MISSION_ID = "01JMISSIONULID0000000000AA"
 SLUG = "042-demo"
 CLAIMED_AT = "2026-01-02T03:04:05+00:00"
 IN_PROGRESS_AT = "2026-01-02T04:00:00+00:00"
+
+
+def corrupt_seed_value(
+    feature_dir: Path,
+    *,
+    field_name: str,
+    slot_name: str,
+    value: object,
+) -> None:
+    """Mutate one deterministic migration seed payload in place for fault tests."""
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    seed_id = str(
+        deterministic_ulid(
+            f"{meta['mission_id']}|WP01|{field_name}"
+        )
+    )
+    events_path = feature_dir / "status.events.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+    matched = False
+    for row in rows:
+        if row.get("event_id") != seed_id:
+            continue
+        container_name = "policy_metadata" if field_name == "claim" else "delta"
+        row[container_name][slot_name] = value
+        matched = True
+        break
+    assert matched, f"deterministic {field_name!r} seed not found"
+    events_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _transition(

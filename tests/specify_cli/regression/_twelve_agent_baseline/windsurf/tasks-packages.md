@@ -179,7 +179,7 @@ Body sections (in order):
    - **Steps**: numbered, with specific file paths and implementation details
    - **Files**: what to create/modify, approximate size
    - **Validation**: how to verify it works
-4. `## Definition of Done<!-- glossary:glossary:done -->` — verifiable checklist covering all subtasks
+4. `## Definition of Done<!-- glossary:glossary:done -->` — verifiable criteria covering all subtasks; per-subtask completion evidence is a `spec-kitty agent tasks mark-status <Txxx> --status done` record (event-sourced), not a ticked checkbox
 5. `## Risks` — known risks and mitigations
 6. `## Reviewer Guidance` — what reviewers should focus on
 

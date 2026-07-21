@@ -291,12 +291,20 @@ def review_feedback_root(feature_dir: Path) -> Path:
 
 
 def read_wp_events(feature_dir: Path, wp_id: str) -> list[StatusEvent]:
-    """Return canonical status events for a single work package."""
-    try:
-        from specify_cli.status import read_events as _read_status_events
+    """Return canonical status events for a single work package.
 
+    ``read_events`` returns ``[]`` for an absent log and raises ``StoreError``
+    only for a corrupt/invalid event log (invalid JSON or event structure) — the
+    single concrete status-store exception this read tolerates by degrading to an
+    empty list. Any other (genuinely-unexpected) exception propagates rather than
+    being swallowed by a broad handler (D-14 campsite / Sonar S110-S1181).
+    """
+    from specify_cli.status import StoreError
+    from specify_cli.status import read_events as _read_status_events
+
+    try:
         return [event for event in _read_status_events(feature_dir) if event.wp_id == wp_id]
-    except Exception:
+    except StoreError:
         return []
 
 
@@ -330,20 +338,24 @@ def resolve_review_feedback_context(
     wp_id: str,
     wp_frontmatter: str,
 ) -> tuple[bool, str | None, Path | None, str | None]:
-    """Resolve review-feedback presence and the canonical readable artifact."""
-    from specify_cli.task_utils import extract_scalar
+    """Resolve review-feedback presence and the canonical readable artifact.
+
+    IC-04 / FR-006a / FR-007: the canonical event read (``event.review_ref``,
+    source ``"canonical"``) is the sole authority post-cutover — the review
+    feedback pointer lives on ``event.review_ref``, so the legacy frontmatter
+    fallback (``review_status``/``review_feedback``) is deleted. A mission with
+    frontmatter ``review_status: has_feedback`` but NO canonical ``review_ref``
+    event now correctly returns "no feedback present" ``(False, None, None,
+    None)``; the frontmatter is no longer review authority.
+
+    ``wp_frontmatter`` is retained for the stable public signature (callers,
+    including ``workflow_executor``, pass it by keyword) but is no longer read.
+    """
+    del wp_frontmatter  # FR-006a/FR-007: frontmatter is no longer a review authority
 
     review_feedback_ref, review_feedback_file, _ = latest_review_feedback_reference(feature_dir, wp_id)
     if review_feedback_ref is not None:
         return True, review_feedback_ref, review_feedback_file, "canonical"
-
-    fm_review_status = extract_scalar(wp_frontmatter, "review_status")
-    fm_review_feedback = extract_scalar(wp_frontmatter, "review_feedback")
-    if fm_review_status and str(fm_review_status) == "has_feedback":
-        ref = str(fm_review_feedback).strip() if fm_review_feedback else None
-        feedback_root = review_feedback_root(feature_dir)
-        path = resolve_review_feedback_pointer(feedback_root, ref) if ref else None
-        return True, ref, path, "frontmatter"
 
     return False, None, None, None
 

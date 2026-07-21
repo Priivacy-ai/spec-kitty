@@ -37,9 +37,9 @@ from specify_cli.acceptance.matrix import (
 from specify_cli.cli.commands.accept import accept
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from specify_cli.status.store import append_annotations_atomic_verified, append_event
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -109,6 +109,7 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
         'assignee: "test-agent"\n'
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
+        "subtasks: []\n"
         "---\n"
         "# WP01\nDone.\n"
     )
@@ -127,6 +128,18 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
             execution_mode="direct_repo",
             reason="Test setup: skip to done",
         ),
+    )
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id="01JZZZZZZZZZZZZZZZZZZZZZZY",
+                wp_id="WP01",
+                at=datetime.now(UTC).isoformat(),
+                actor="test-agent",
+                delta=WPInnerStateDelta(agent="test-agent"),
+            )
+        ],
     )
     materialize(feature_dir)
 

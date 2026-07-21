@@ -9,11 +9,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
+from specify_cli.status.models import (
+    ActorField,
+    Lane,
+    StatusEvent,
+    TransitionRequest,
+    WPInnerStateDelta,
+    actor_identity_str,
+)
 from specify_cli.workspace import canonicalize_feature_dir
 
 _GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
@@ -22,12 +29,19 @@ _GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
 class WorkPackageClaimConflict(TransitionError):
     """Raised when another actor owns an implementation or review claim."""
 
-    def __init__(self, wp_id: str, claimed_by: str, requesting_actor: str, *, review: bool = False) -> None:
+    def __init__(
+        self,
+        wp_id: str,
+        claimed_by: str,
+        requesting_actor: ActorField,
+        *,
+        review: bool = False,
+    ) -> None:
         kind = "review" if review else "implementation"
         super().__init__(f"WP {wp_id} is already claimed for {kind} by '{claimed_by}'")
         self.wp_id = wp_id
         self.claimed_by = claimed_by
-        self.requesting_actor = requesting_actor
+        self.requesting_actor = actor_identity_str(requesting_actor)
 
 
 class WorkPackageStartRejected(TransitionError):
@@ -41,7 +55,7 @@ class WorkPackageStartResult:
     wp_id: str
     from_lane: Lane
     to_lane: Lane
-    actor: str
+    actor: ActorField
     events: tuple[StatusEvent, ...]
     no_op: bool = False
     claimed_by: str | None = None
@@ -60,13 +74,14 @@ def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    return resolve_status_lock_root(feature_dir, repo_root)
+    return cast(Path, resolve_status_lock_root(feature_dir, repo_root))
 
 
 def _actor_key(actor: object | None) -> str | None:
     if actor is None:
         return None
-    value = str(actor).strip()
+    typed_actor = cast(ActorField, actor) if isinstance(actor, (str, dict)) else str(actor)
+    value = actor_identity_str(typed_actor).strip()
     return value or None
 
 
@@ -85,7 +100,7 @@ def start_implementation_status(
     feature_dir: Path,
     mission_slug: str,
     wp_id: str,
-    actor: str,
+    actor: ActorField,
     workspace_context: str,
     execution_mode: str,
     repo_root: Path | None = None,
@@ -94,6 +109,7 @@ def start_implementation_status(
     sync_dossier: bool = True,
     allow_rework: bool = False,
     rework_reason: str = "Re-implementing after review feedback",
+    annotation_delta: WPInnerStateDelta | None = None,
 ) -> WorkPackageStartResult:
     """Idempotently move a WP into ``in_progress`` for an implementation actor."""
     # Lazy import breaks the status↔coordination cycle (status/__init__ imports
@@ -145,12 +161,20 @@ def start_implementation_status(
                         execution_mode=execution_mode,
                         repo_root=repo_root,
                         policy_metadata=policy_metadata,
+                        annotation_delta=annotation_delta,
                     ),
                 ],
                 ensure_sync_daemon=ensure_sync_daemon,
                 sync_dossier=sync_dossier,
             )
-            return WorkPackageStartResult(wp_id, Lane.PLANNED, Lane.IN_PROGRESS, actor, tuple(events), claimed_by=actor)
+            return WorkPackageStartResult(
+                wp_id,
+                Lane.PLANNED,
+                Lane.IN_PROGRESS,
+                actor,
+                tuple(events),
+                claimed_by=actor_identity_str(actor),
+            )
 
         if current_lane == Lane.CLAIMED:
             if not _actors_compatible(current_actor, actor, allow_generic_existing=True):
@@ -167,12 +191,20 @@ def start_implementation_status(
                         execution_mode=execution_mode,
                         repo_root=repo_root,
                         policy_metadata=policy_metadata,
+                        annotation_delta=annotation_delta,
                     )
                 ],
                 ensure_sync_daemon=ensure_sync_daemon,
                 sync_dossier=sync_dossier,
             )
-            return WorkPackageStartResult(wp_id, Lane.CLAIMED, Lane.IN_PROGRESS, actor, tuple(events), claimed_by=actor)
+            return WorkPackageStartResult(
+                wp_id,
+                Lane.CLAIMED,
+                Lane.IN_PROGRESS,
+                actor,
+                tuple(events),
+                claimed_by=actor_identity_str(actor),
+            )
 
         if current_lane == Lane.IN_PROGRESS:
             if not _actors_compatible(current_actor, actor, allow_generic_existing=True):
@@ -193,11 +225,19 @@ def start_implementation_status(
                     execution_mode=execution_mode,
                     repo_root=repo_root,
                     policy_metadata=policy_metadata,
+                    annotation_delta=annotation_delta,
                 ),
                 ensure_sync_daemon=ensure_sync_daemon,
                 sync_dossier=sync_dossier,
             )
-            return WorkPackageStartResult(wp_id, current_lane, Lane.IN_PROGRESS, actor, (event,), claimed_by=actor)
+            return WorkPackageStartResult(
+                wp_id,
+                current_lane,
+                Lane.IN_PROGRESS,
+                actor,
+                (event,),
+                claimed_by=actor_identity_str(actor),
+            )
 
     raise WorkPackageStartRejected(f"WP {wp_id} is in '{current_lane}', cannot start implementation")
 
@@ -207,7 +247,7 @@ def start_review_status(
     feature_dir: Path,
     mission_slug: str,
     wp_id: str,
-    actor: str,
+    actor: ActorField,
     workspace_context: str,
     execution_mode: str,
     repo_root: Path | None = None,
@@ -215,6 +255,7 @@ def start_review_status(
     ensure_sync_daemon: bool = True,
     sync_dossier: bool = True,
     review_ref: str | None = "action-review-claim",
+    annotation_delta: WPInnerStateDelta | None = None,
 ) -> WorkPackageStartResult:
     """Idempotently move a WP into ``in_review`` for a reviewer actor."""
     # Lazy import breaks the status↔coordination cycle (see start_implementation_status).
@@ -248,11 +289,19 @@ def start_review_status(
                     execution_mode=execution_mode,
                     repo_root=repo_root,
                     policy_metadata=policy_metadata,
+                    annotation_delta=annotation_delta,
                 ),
                 ensure_sync_daemon=ensure_sync_daemon,
                 sync_dossier=sync_dossier,
             )
-            return WorkPackageStartResult(wp_id, Lane.FOR_REVIEW, Lane.IN_REVIEW, actor, (event,), claimed_by=actor)
+            return WorkPackageStartResult(
+                wp_id,
+                Lane.FOR_REVIEW,
+                Lane.IN_REVIEW,
+                actor,
+                (event,),
+                claimed_by=actor_identity_str(actor),
+            )
 
         if current_lane == Lane.IN_REVIEW:
             if not _actors_compatible(current_actor, actor):

@@ -20,11 +20,9 @@ import pytest
 
 from specify_cli.migration import backfill_runtime_state as b
 from specify_cli.migration.strip_frontmatter import strip_mutable_fields
-from specify_cli.status.models import Lane, WPInnerStateDelta
+from specify_cli.status.models import Lane
 from specify_cli.status.reducer import materialize_snapshot
-from specify_cli.status.store import append_annotations_atomic_verified
-from specify_cli.status.wp_state import annotate
-from tests.unit.migration._backfill_fixture import CLAIMED_AT, build_mission
+from tests.unit.migration._backfill_fixture import build_mission, corrupt_seed_value
 
 pytestmark = pytest.mark.integration
 
@@ -74,18 +72,12 @@ def test_sc006_corrupt_seed_aborts_before_cutover(tmp_path: Path) -> None:
     b.backfill_runtime_state(feature_dir)
     assert b.verify_backfill(feature_dir).ok is True
 
-    # Inject a corrupt seed (mangled shell_pid) and re-run the fail-closed unit.
-    append_annotations_atomic_verified(
+    # Corrupt the deterministic claim seed and re-run the fail-closed unit.
+    corrupt_seed_value(
         feature_dir,
-        [
-            annotate(
-                "WP01",
-                WPInnerStateDelta(shell_pid=1),
-                actor="attacker",
-                at=CLAIMED_AT,
-                event_id="01CCCCCCCCCCCCCCCCCCCCCCC1",
-            )
-        ],
+        field_name="claim",
+        slot_name="shell_pid",
+        value=1,
     )
     with pytest.raises(b.BackfillVerificationError):
         b.run_backfill_and_verify(feature_dir)

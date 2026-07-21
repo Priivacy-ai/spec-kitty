@@ -115,6 +115,7 @@ def _create_lane_feature(
         'assignee: "test-agent"\n'
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
+        "subtasks: []\n"
         "---\n"
         "# WP01\nDone.\n"
     )

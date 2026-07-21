@@ -32,6 +32,13 @@ When `spec-kitty profile-invocation complete` is called, a `completed` event is 
 
 This is the unconditional minimum — it is always written, regardless of SaaS connectivity, charter state, or sync configuration. The data model is defined in `src/specify_cli/invocation/record.py`.
 
+Mission-scoped dispatchers may also record `mission_id`, `wp_id`, and the
+catalog-winning `model_id` on the `started` event. An implement or review claim
+that supplies `--invocation-id` treats those values as a provenance assertion:
+the requested ULID and the record's embedded ID, mission, WP, action, profile,
+and model must agree exactly. Uncorrelated legacy records remain readable, but
+cannot prove a resolved model actual for a claim.
+
 ## Mode-of-Work Taxonomy
 
 Every invocation belongs to one of four work modes. The mode determines which optional trail tiers are eligible — it does not override the mandatory Tier 1 rule.

@@ -90,6 +90,12 @@ def _drive_forward_chain(
     transition (the canary uses ``spec-kitty agent tasks move-task`` for
     each lane individually, which has the same effect at the emit layer).
     """
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tasks_dir / f"{wp_id}.md").write_text(
+        f"---\nwork_package_id: {wp_id}\nsubtasks: []\n---\n\n# {wp_id}\n",
+        encoding="utf-8",
+    )
     # Seed the WP out of the non-display 'genesis' state into 'planned' by
     # writing the seed event directly to the log (no emit → no fan-out call),
     # so the fan-out counts below reflect only the forward lane chain.
@@ -131,7 +137,7 @@ def _drive_forward_chain(
             actor=actor,
         )
     )
-    # in_progress → for_review (subtasks/evidence guards default to "inferred OK")
+    # in_progress → for_review (empty authored roster; evidence supplied)
     emit_status_transition(
         TransitionRequest(
             feature_dir=feature_dir,
@@ -139,7 +145,6 @@ def _drive_forward_chain(
             wp_id=wp_id,
             to_lane="for_review",
             actor=actor,
-            subtasks_complete=True,
             implementation_evidence_present=True,
         )
     )

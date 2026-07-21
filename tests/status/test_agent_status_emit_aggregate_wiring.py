@@ -426,9 +426,15 @@ def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> 
 
     class _StatusEmit:
         @staticmethod
-        def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
+        def _infer_subtasks_complete(
+            read_dir: Path,
+            wp_id: str,
+            *,
+            event_stream: object,
+        ) -> bool:
             assert read_dir == expected_primary_subtasks_dir
             assert wp_id == "WP07"
+            assert event_stream is not None
             return True
 
         @staticmethod
@@ -570,6 +576,12 @@ def test_emit_json_reports_coord_write_target_after_worktree_materialization(
         ),
         encoding="utf-8",
     )
+    tasks_dir = primary_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nsubtasks: []\n---\n",
+        encoding="utf-8",
+    )
     _write_events(
         primary_dir,
         [_status_event(slug, "WP01", "planned", "claimed", "01HXYZ0123456789ABCDEFGH40")],
@@ -602,7 +614,6 @@ def test_emit_json_reports_coord_write_target_after_worktree_materialization(
             "codex",
             "--mission",
             slug,
-            "--subtasks-complete",
             "--implementation-evidence-present",
             "--json",
         ],

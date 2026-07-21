@@ -384,24 +384,36 @@ def test_resolve_wp_slug_no_matching_file(tmp_path: Path) -> None:
 # _check_unchecked_subtasks
 # ---------------------------------------------------------------------------
 
-_TASKS_MD = """\
-## Work Packages
-
-### WP01 — Agent Config
-
-- [x] T001 Remove AgentSelectionConfig (WP01)
-- [ ] T002 Remove select_implementer (WP01)
-- [ ] T003 Fix load_agent_config (WP01)
-
-### WP02 — Init Surgery
-
-- [ ] T004 Remove flags (WP02)
-- [x] T005 Remove stages (WP02)
-"""
+def _write_wp_frontmatter(feature_dir: Path, wp_id: str, roster: list[str]) -> None:
+    """Author a WP file whose frontmatter ``subtasks:`` list is the guard roster."""
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    lines = ["---", f"work_package_id: {wp_id}", "subtasks:"]
+    lines += [f"- {tid}" for tid in roster]
+    lines += ["---", "", f"# {wp_id}", ""]
+    (feature_dir / "tasks" / f"{wp_id}.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def test_check_unchecked_subtasks_no_tasks_md(tmp_path: Path) -> None:
-    """Returns empty list when tasks.md doesn't exist."""
+def _seed_subtask_snapshot(feature_dir: Path, wp_id: str, subtasks: dict[str, object]) -> None:
+    """Record subtask completion in the event log — the guard's sole authority."""
+    from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
+    from specify_cli.status.store import append_annotations_atomic_verified
+
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id=("01KXANN" + wp_id).ljust(26, "0")[:26],
+                wp_id=wp_id,
+                at="2026-01-01T00:01:00+00:00",
+                actor="test",
+                delta=WPInnerStateDelta(subtasks=subtasks),  # type: ignore[arg-type]
+            )
+        ],
+    )
+
+
+def test_check_unchecked_subtasks_no_wp_file(tmp_path: Path) -> None:
+    """Returns empty list when the WP has no authored frontmatter roster."""
     with patch(
         "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
     ):
@@ -410,10 +422,14 @@ def test_check_unchecked_subtasks_no_tasks_md(tmp_path: Path) -> None:
 
 
 def test_check_unchecked_subtasks_finds_unchecked(tmp_path: Path) -> None:
-    """Returns unchecked task IDs in the target WP section."""
+    """Returns the roster ids the snapshot marks incomplete (not tasks.md bytes)."""
+    from specify_cli.status.models import Lane
+
     feature_dir = tmp_path / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text(_TASKS_MD, encoding="utf-8")
+    _write_wp_frontmatter(feature_dir, "WP01", ["T001", "T002", "T003"])
+    _seed_subtask_snapshot(
+        feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.IN_PROGRESS, "T003": Lane.PLANNED}
+    )
 
     with patch(
         "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
@@ -422,15 +438,16 @@ def test_check_unchecked_subtasks_finds_unchecked(tmp_path: Path) -> None:
 
     assert "T002" in result
     assert "T003" in result
-    assert "T001" not in result  # was checked
+    assert "T001" not in result  # done in the snapshot
 
 
-def test_check_unchecked_subtasks_all_checked(tmp_path: Path) -> None:
-    """Returns empty list when all subtasks in the WP are checked."""
-    content = "### WP01 — Config\n\n- [x] T001 Done (WP01)\n- [x] T002 Also done (WP01)\n"
+def test_check_unchecked_subtasks_all_done(tmp_path: Path) -> None:
+    """Returns empty list when every roster id is done in the snapshot."""
+    from specify_cli.status.models import Lane
+
     feature_dir = tmp_path / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text(content, encoding="utf-8")
+    _write_wp_frontmatter(feature_dir, "WP01", ["T001", "T002"])
+    _seed_subtask_snapshot(feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE})
 
     with patch(
         "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
@@ -440,56 +457,40 @@ def test_check_unchecked_subtasks_all_checked(tmp_path: Path) -> None:
 
 
 def test_check_unchecked_subtasks_only_target_wp(tmp_path: Path) -> None:
-    """Does not return unchecked tasks from a different WP section."""
+    """Each WP's roster + completion resolve independently (per-WP frontmatter)."""
+    from specify_cli.status.models import Lane
+
     feature_dir = tmp_path / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text(_TASKS_MD, encoding="utf-8")
+    _write_wp_frontmatter(feature_dir, "WP01", ["T001", "T002", "T003"])
+    _write_wp_frontmatter(feature_dir, "WP02", ["T004", "T005"])
+    _seed_subtask_snapshot(feature_dir, "WP01", {"T002": Lane.IN_PROGRESS})
+    _seed_subtask_snapshot(feature_dir, "WP02", {"T004": Lane.PLANNED, "T005": Lane.DONE})
 
     with patch(
         "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
     ):
         result = _check_unchecked_subtasks(tmp_path, "010-test", "WP02", False)
 
-    # WP02 has T004 unchecked and T005 checked
+    # WP02 has T004 not-done and T005 done.
     assert "T004" in result
     assert "T005" not in result
-    # WP01 tasks must not bleed in
+    # WP01 tasks must not bleed in.
     assert "T002" not in result
 
 
-# A realistic mission tail: WP02 is fully CHECKED, and the NEXT section is a
-# dependent WP whose heading MENTIONS WP01/WP02 in a ``(depends: ...)`` clause.
-_TASKS_MD_DEPENDS_MENTION = """\
-## Work Packages
-
-### WP02 — Init Surgery
-
-- [x] T004 Remove flags (WP02)
-- [x] T005 Remove stages (WP02)
-
-### WP03 — Wire-up (depends: WP01, WP02)
-
-- [ ] T006 Wire the new surface (WP03)
-- [ ] T007 Backfill the regression test (WP03)
-"""
-
-
-def test_check_unchecked_subtasks_next_wp_depends_mention_not_misattributed(
+def test_check_unchecked_subtasks_rosters_do_not_cross_contaminate(
     tmp_path: Path,
 ) -> None:
-    """#2346 / #2324 regression: a later ``### WP03 ... (depends: WP01, WP02)``
-    heading must NOT re-enter WP02's section and harvest WP03's unchecked rows
-    as WP02's. A heading belongs to its FIRST WPxx token, not any mention.
+    """#2346 / #2324 lineage: WP rosters come from per-WP frontmatter, so a
+    dependent WP's ids can never be misattributed to another WP. WP02 (all done)
+    reports nothing; WP03 reports its OWN incomplete ids."""
+    from specify_cli.status.models import Lane
 
-    Pre-fix (``^#{2,4}[^#].*{wp_id}\\b`` entry regex): scanning ``WP02`` matches
-    the WP03 heading (it mentions ``WP02``), ``continue``s past the exit check,
-    and wrongly returns WP03's ``T007`` as a WP02 blocker.
-    """
     feature_dir = tmp_path / "kitty-specs" / "010-test"
-    feature_dir.mkdir(parents=True)
-    (feature_dir / "tasks.md").write_text(
-        _TASKS_MD_DEPENDS_MENTION, encoding="utf-8"
-    )
+    _write_wp_frontmatter(feature_dir, "WP02", ["T004", "T005"])
+    _write_wp_frontmatter(feature_dir, "WP03", ["T006", "T007"])
+    _seed_subtask_snapshot(feature_dir, "WP02", {"T004": Lane.DONE, "T005": Lane.DONE})
+    _seed_subtask_snapshot(feature_dir, "WP03", {"T006": Lane.PLANNED, "T007": Lane.PLANNED})
 
     with patch(
         "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
@@ -497,10 +498,7 @@ def test_check_unchecked_subtasks_next_wp_depends_mention_not_misattributed(
         wp02 = _check_unchecked_subtasks(tmp_path, "010-test", "WP02", False)
         wp03 = _check_unchecked_subtasks(tmp_path, "010-test", "WP03", False)
 
-    # WP02 is fully checked; the dependent WP03 heading must not pull T006/T007
-    # into WP02's blocker list.
-    assert wp02 == [], f"WP02's subtasks are all checked; got {wp02!r}"
-    # WP03 still reports its OWN unchecked rows correctly.
+    assert wp02 == [], f"WP02's subtasks are all done; got {wp02!r}"
     assert wp03 == ["T006", "T007"]
 
 

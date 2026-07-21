@@ -337,32 +337,6 @@ class TestSnapshotFirstClaimLiveness:
         assert result.is_stale is False
         assert result.stale.reason == LIVE_CLAIM_PROCESS_REASON
 
-    def test_flag_off_falls_back_to_frontmatter_zero_regression(
-        self,
-        worktree_path: Path,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Flag OFF (no meta.json / no status_phase=1): today's frontmatter-sourced
-        behavior is unchanged even though a feature_dir is supplied."""
-        feature_dir = tmp_path / "kitty-specs" / "no-phase1-mission"
-        feature_dir.mkdir(parents=True)
-        # A snapshot claim exists, but since the flag is off it must be ignored.
-        _claim(feature_dir, WP_ID, 555006, "2026-01-01T00:00:00Z")
-        monkeypatch.setattr("specify_cli.core.stale_detection.is_process_alive", lambda pid: pid == 424242)
-
-        result = check_wp_staleness(
-            WP_ID,
-            worktree_path,
-            threshold_minutes=10,
-            shell_pid="424242",  # frontmatter-sourced, must win (flag off)
-            shell_pid_baseline=None,
-            feature_dir=feature_dir,
-        )
-
-        assert result.is_stale is False
-        assert result.stale.reason == LIVE_CLAIM_PROCESS_REASON
-
     def test_omitting_feature_dir_preserves_legacy_call_signature(self, worktree_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Every pre-WP05 call site (no ``feature_dir`` argument at all) sees
         byte-identical behavior."""
@@ -404,21 +378,6 @@ class TestWorkPackageSnapshotReaders:
 
         wp = _load_work_package(wp_file)
 
-        assert wp.assignee == "pedro"
-
-    def test_properties_fall_back_to_frontmatter_when_flag_off(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "kitty-specs" / "no-phase1-mission-2"
-        wp_file = _write_wp_file(
-            feature_dir,
-            WP_ID,
-            extra_frontmatter=('agent: "claude"\nassignee: "pedro"\nshell_pid: "424242"\n'),
-        )
-        # No meta.json under feature_dir -> flag off.
-
-        wp = _load_work_package(wp_file, feature="no-phase1-mission-2")
-
-        assert wp.shell_pid == "424242"
-        assert wp.agent == "claude"
         assert wp.assignee == "pedro"
 
     def test_activity_entries_folds_snapshot_notes_with_no_content_loss(self, feature_dir_phase1: Path) -> None:
@@ -474,20 +433,6 @@ class TestWPMetadataSnapshotCoercion:
         assert metadata.agent == "claude:opus:python-pedro:implementer"
         # Authored/static field -- unaffected by the flag (field-authority table).
         assert metadata.agent_profile == "python-pedro"
-
-    def test_read_wp_frontmatter_falls_back_to_frontmatter_when_flag_off(self, tmp_path: Path) -> None:
-        feature_dir = tmp_path / "kitty-specs" / "no-phase1-mission-3"
-        wp_file = _write_wp_file(
-            feature_dir,
-            WP_ID,
-            extra_frontmatter='agent: "claude"\nshell_pid: "999999"\n',
-        )
-        # No meta.json -> flag off.
-
-        metadata, _body = read_wp_frontmatter(wp_file)
-
-        assert metadata.shell_pid == 999999
-        assert metadata.agent == "claude"
 
     def test_read_wp_frontmatter_empty_snapshot_entry_yields_none_not_frontmatter(self, feature_dir_phase1: Path) -> None:
         """Flag ON but the WP was never claimed (no snapshot entry): the

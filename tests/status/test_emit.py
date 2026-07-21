@@ -27,7 +27,6 @@ from specify_cli.status.emit import (
     _legacy_lane_mirror_enabled,
     _load_mission_id,
     _mirror_phase1_frontmatter_lane,
-    _phase1_snapshot_authority_active,
     _saas_fan_out,
     emit_status_transition,
     emit_status_transition_batch,
@@ -409,7 +408,7 @@ class TestEmitStatusTransition:
                 lock_state["held"] = False
 
         real_derive = emit_module._derive_from_lane
-        real_append = emit_module._store.append_event_verified
+        real_append = emit_module._store.append_event_stream_atomic_verified
         real_materialize = emit_module._reducer.materialize
 
         def tracking_derive(*args: object, **kwargs: object):
@@ -429,7 +428,11 @@ class TestEmitStatusTransition:
 
         monkeypatch.setattr(emit_module, "feature_status_lock", tracking_lock, raising=False)
         monkeypatch.setattr(emit_module, "_derive_from_lane", tracking_derive)
-        monkeypatch.setattr(emit_module._store, "append_event_verified", tracking_append)
+        monkeypatch.setattr(
+            emit_module._store,
+            "append_event_stream_atomic_verified",
+            tracking_append,
+        )
         monkeypatch.setattr(emit_module._reducer, "materialize", tracking_materialize)
 
         event = emit_status_transition(
@@ -744,18 +747,18 @@ class TestDoneEvidence:
     def test_done_without_evidence_rejected(self, feature_dir: Path):
         """Transition to done without evidence is rejected."""
 
-        _seed_planned(feature_dir, "WP01", slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         # Move through the pipeline: planned → claimed → in_progress → for_review → in_review
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -765,7 +768,7 @@ class TestDoneEvidence:
         # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -773,7 +776,7 @@ class TestDoneEvidence:
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
@@ -783,7 +786,7 @@ class TestDoneEvidence:
         with pytest.raises(TransitionError, match="review_result|evidence"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
-                mission_slug="034-test",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",
                 actor="reviewer",
@@ -793,17 +796,17 @@ class TestDoneEvidence:
         """Transition to done with valid evidence via in_review succeeds."""
         from specify_cli.status.models import ReviewResult
 
-        _seed_planned(feature_dir, "WP01", slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -813,7 +816,7 @@ class TestDoneEvidence:
         # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -821,7 +824,7 @@ class TestDoneEvidence:
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
@@ -830,7 +833,7 @@ class TestDoneEvidence:
         review_result = ReviewResult(verdict="approved", reviewer="reviewer-1", reference="PR#42")
         event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="done",
             actor="reviewer",
@@ -846,17 +849,17 @@ class TestDoneEvidence:
         """Transition to done with malformed evidence is rejected."""
         from specify_cli.status.models import ReviewResult
 
-        _seed_planned(feature_dir, "WP01", slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -866,7 +869,7 @@ class TestDoneEvidence:
         # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -874,7 +877,7 @@ class TestDoneEvidence:
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
@@ -884,7 +887,7 @@ class TestDoneEvidence:
         with pytest.raises(TransitionError, match="review.reviewer"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
-                mission_slug="034-test",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",
                 actor="reviewer",
@@ -898,7 +901,15 @@ class TestDoneEvidence:
 
 
 class TestPhase1CompatibilityBridge:
-    def test_phase1_dual_write_disabled_on_invalid_meta(
+    """``status_phase`` gate parsing on the RETAINED lane-mirror gate.
+
+    The #2816 cutover deleted the runtime-slot authority predicate
+    (``_phase1_snapshot_authority_active``): runtime-slot reads are now
+    unconditional. The lane-mirror gate (``_legacy_lane_mirror_enabled``, C-004)
+    keeps the identical ``status_phase`` parsing contract these tests pin —
+    reconciled onto the surviving gate (SC-002)."""
+
+    def test_lane_mirror_disabled_on_invalid_meta(
         self,
         feature_dir: Path,
         caplog: pytest.LogCaptureFixture,
@@ -908,43 +919,39 @@ class TestPhase1CompatibilityBridge:
         (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
 
         with caplog.at_level("WARNING"):
-            assert _phase1_snapshot_authority_active(feature_dir) is False
+            assert _legacy_lane_mirror_enabled(feature_dir) is False
 
         assert "Invalid meta.json" in caplog.text
 
-    def test_phase1_dual_write_disabled_on_missing_meta(
+    def test_lane_mirror_disabled_on_missing_meta(
         self,
         feature_dir: Path,
     ) -> None:
-        """Missing meta.json silently disables phase-1 mirroring (returns False)."""
+        """Missing meta.json silently disables the lane mirror (returns False)."""
         assert not (feature_dir / "meta.json").exists()
 
-        assert _phase1_snapshot_authority_active(feature_dir) is False
+        assert _legacy_lane_mirror_enabled(feature_dir) is False
 
-    def test_status_phase_1_is_authority_active(self, feature_dir: Path) -> None:
+    def test_status_phase_1_enables_lane_mirror(self, feature_dir: Path) -> None:
         (feature_dir / "meta.json").write_text('{"status_phase": "1"}', encoding="utf-8")
-        assert _phase1_snapshot_authority_active(feature_dir) is True
         assert _legacy_lane_mirror_enabled(feature_dir) is True
 
-    def test_status_phase_2_is_treated_as_authority_active(self, feature_dir: Path) -> None:
-        """A mission advanced to ``status_phase: 2`` must stay authority-active.
+    def test_status_phase_2_keeps_lane_mirror_enabled(self, feature_dir: Path) -> None:
+        """A mission advanced to ``status_phase: 2`` must keep the lane mirror ON.
 
-        Regression for the ``== "1"`` bug: strict equality would silently fall a
-        phase-2 mission back to the legacy frontmatter lane. ``>= 1`` semantics
-        keep both the runtime-slot authority gate and the lane-mirror gate ON.
+        Regression for the ``== "1"`` bug: strict equality would silently drop a
+        phase-2 mission's lane mirror. ``>= 1`` semantics keep the retained
+        lane-mirror gate ON.
         """
         (feature_dir / "meta.json").write_text('{"status_phase": 2}', encoding="utf-8")
-        assert _phase1_snapshot_authority_active(feature_dir) is True
         assert _legacy_lane_mirror_enabled(feature_dir) is True
 
     def test_status_phase_0_is_off(self, feature_dir: Path) -> None:
         (feature_dir / "meta.json").write_text('{"status_phase": "0"}', encoding="utf-8")
-        assert _phase1_snapshot_authority_active(feature_dir) is False
         assert _legacy_lane_mirror_enabled(feature_dir) is False
 
     def test_non_numeric_status_phase_is_off(self, feature_dir: Path) -> None:
         (feature_dir / "meta.json").write_text('{"status_phase": "later"}', encoding="utf-8")
-        assert _phase1_snapshot_authority_active(feature_dir) is False
         assert _legacy_lane_mirror_enabled(feature_dir) is False
 
     def test_find_wp_file_handles_missing_tasks_and_multiple_matches(
@@ -1290,17 +1297,17 @@ class TestReviewRefGuard:
 
     def test_in_review_to_in_progress_requires_review_result(self, feature_dir: Path):
         """in_review -> in_progress without review_result is rejected."""
-        _seed_planned(feature_dir, "WP01", slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -1310,7 +1317,7 @@ class TestReviewRefGuard:
         # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -1318,7 +1325,7 @@ class TestReviewRefGuard:
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
@@ -1327,7 +1334,7 @@ class TestReviewRefGuard:
         with pytest.raises(TransitionError, match="review_result"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
-                mission_slug="034-test",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="in_progress",
                 actor="reviewer",
@@ -1337,17 +1344,17 @@ class TestReviewRefGuard:
         """in_review -> in_progress with review_result succeeds."""
         from specify_cli.status.models import ReviewResult
 
-        _seed_planned(feature_dir, "WP01", slug="034-test")
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -1357,7 +1364,7 @@ class TestReviewRefGuard:
         # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -1365,7 +1372,7 @@ class TestReviewRefGuard:
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_review",
             actor="reviewer",
@@ -1374,7 +1381,7 @@ class TestReviewRefGuard:
         review_result = ReviewResult(verdict="changes_requested", reviewer="reviewer", reference="PR#42-comment-3")
         event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
-            mission_slug="034-test",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="reviewer",

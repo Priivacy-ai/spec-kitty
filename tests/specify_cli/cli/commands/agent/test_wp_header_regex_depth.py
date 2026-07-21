@@ -1,17 +1,23 @@
-"""WP02 / FR-004: Regression tests for WP header regex depth across all 5 sites.
+"""WP02 / FR-004: Regression tests for WP header regex depth across the section-walk sites.
 
 Each site must accept ``##``, ``###``, ``####`` headings and reject ``#####``+.
 
 Sites under test:
 1. ``_parse_wp_sections_from_tasks_md()`` in mission.py
-2-3. ``_infer_subtasks_complete()`` in emit.py (section start + section end)
-4-5. ``_check_unchecked_subtasks()`` in tasks.py (section start + section end)
+2-3. ``iter_wp_section_subtask_rows()`` in core/subtask_rows.py — the canonical
+     WP-section walker (section start + section end), shared by the migration
+     backfill, the dashboard progress counter, and the ``move-task --to planned``
+     rollback writer.
+
+#2816 IC-10 rerouted the lane-transition guard (``emit._infer_subtasks_complete``)
+onto the event-log snapshot — roster from the WP ``subtasks:`` frontmatter,
+completion from the reduced ``subtasks`` slot — so the guard is NO LONGER a
+``tasks.md`` section-walk site and carries no heading-depth semantics. The
+heading-depth + canonical-only regressions live entirely on the walker surface
+below (its remaining consumers), where they are still load-bearing.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -66,12 +72,40 @@ class TestParseWpSectionsHeaderDepth:
 
 
 # ---------------------------------------------------------------------------
-# Sites 2-3: emit.py — _infer_subtasks_complete()
+# NOTE: ``emit._infer_subtasks_complete`` was formerly a header-depth site here.
+# #2816 IC-10 rerouted it off ``tasks.md`` onto the frontmatter roster + reduced
+# snapshot, so it no longer parses WP-section headings — its header-depth tests
+# were retired (superseded by the walker-surface tests below, which own the
+# remaining ``tasks.md`` section-walk consumers). The gate's own behavior is
+# covered by ``test_infer_subtasks_primary.py`` and ``test_diffcov_2684_*``.
 # ---------------------------------------------------------------------------
 
 
-class TestInferSubtasksCompleteHeaderDepth:
-    """_infer_subtasks_complete must detect WP sections at h2/h3/h4."""
+# ---------------------------------------------------------------------------
+# Sites 2-3: the canonical WP-section walker
+# ``core.subtask_rows.iter_wp_section_subtask_rows`` (section start + section
+# end). #2816 IC-10 rerouted the lane-transition guard onto the event-log
+# snapshot (roster from frontmatter, completion from the reduced ``subtasks``
+# slot), so the guard is no longer a section-walk site. The walker below is the
+# surface the backfill / dashboard / rollback still share, so the heading-depth
+# + canonical-only regressions live here now, on that surface.
+# ---------------------------------------------------------------------------
+
+
+def _walker_unchecked(content: str, wp_id: str) -> list[str]:
+    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
+
+    return [tid for tid, checked in iter_wp_section_subtask_rows(content, wp_id) if not checked]
+
+
+def _walker_found_any(content: str, wp_id: str) -> bool:
+    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
+
+    return bool(list(iter_wp_section_subtask_rows(content, wp_id)))
+
+
+class TestSectionWalkerHeaderDepth:
+    """The canonical WP-section walker must detect WP sections at h2/h3/h4."""
 
     @pytest.mark.parametrize(
         "depth,expected_found",
@@ -83,165 +117,35 @@ class TestInferSubtasksCompleteHeaderDepth:
         ],
         ids=["h2", "h3", "h4", "h5-boundary"],
     )
-    def test_wp_section_detection(
-        self,
-        depth: str,
-        expected_found: bool,
-        tmp_path: Path,
-    ) -> None:
+    def test_wp_section_detection(self, depth: str, expected_found: bool) -> None:
         """WP section start regex must match at h2-h4 depth only."""
-        from specify_cli.status.emit import _infer_subtasks_complete
-
-        feature_dir = tmp_path / "kitty-specs" / "test-feature"
-        feature_dir.mkdir(parents=True)
-        tasks_md = feature_dir / "tasks.md"
-        # Build tasks.md with one WP section containing an unchecked subtask
-        tasks_md.write_text(
-            f"{depth} WP01: Setup\n\n- [ ] T001 Do something\n",
-            encoding="utf-8",
-        )
-
-        result = _infer_subtasks_complete(feature_dir, "WP01")
-        if expected_found:
-            # Section found → unchecked task → should return False
-            assert result is False, f"Header '{depth} WP01' should be detected, finding unchecked subtask"
-        else:
-            # Section NOT found → returns True (no section = assumed complete)
-            assert result is True, f"Header '{depth} WP01' should NOT be detected (h5 boundary)"
-
-    def test_section_end_boundary(self, tmp_path: Path) -> None:
-        """Section-end regex must stop scanning at the next WP heading."""
-        from specify_cli.status.emit import _infer_subtasks_complete
-
-        feature_dir = tmp_path / "kitty-specs" / "test-feature"
-        feature_dir.mkdir(parents=True)
-        tasks_md = feature_dir / "tasks.md"
-        # WP01 has all checked; WP02 has unchecked — must NOT bleed.
-        tasks_md.write_text(
-            "### WP01: Setup\n\n- [x] T001 Done\n\n### WP02: Core\n\n- [ ] T002 Not done\n",
-            encoding="utf-8",
-        )
-
-        result = _infer_subtasks_complete(feature_dir, "WP01")
-        assert result is True, "WP01 section should be complete (unchecked is in WP02)"
-
-    def test_section_end_boundary_h4(self, tmp_path: Path) -> None:
-        """Section-end regex must work with #### headings too."""
-        from specify_cli.status.emit import _infer_subtasks_complete
-
-        feature_dir = tmp_path / "kitty-specs" / "test-feature"
-        feature_dir.mkdir(parents=True)
-        tasks_md = feature_dir / "tasks.md"
-        tasks_md.write_text(
-            "#### WP01: Setup\n\n- [x] T001 Done\n\n#### WP02: Core\n\n- [ ] T002 Not done\n",
-            encoding="utf-8",
-        )
-
-        result = _infer_subtasks_complete(feature_dir, "WP01")
-        assert result is True, "WP01 section should end at #### WP02 boundary"
-
-
-# ---------------------------------------------------------------------------
-# Sites 4-5: tasks.py — _check_unchecked_subtasks()
-# ---------------------------------------------------------------------------
-
-
-class TestCheckUncheckedSubtasksHeaderDepth:
-    """_check_unchecked_subtasks must detect WP sections at h2/h3/h4."""
-
-    def _setup_feature(
-        self,
-        tmp_path: Path,
-        tasks_content: str,
-        feature_slug: str = "060-test",
-    ) -> Path:
-        """Create minimal feature directory with tasks.md."""
-        feature_dir = tmp_path / "kitty-specs" / feature_slug
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "tasks.md").write_text(tasks_content, encoding="utf-8")
-        return tmp_path  # repo_root
-
-    @pytest.mark.parametrize(
-        "depth,expected_found",
-        [
-            ("##", True),
-            ("###", True),
-            ("####", True),
-            ("#####", False),
-        ],
-        ids=["h2", "h3", "h4", "h5-boundary"],
-    )
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_wp_section_detection(
-        self,
-        mock_main_root: MagicMock,
-        depth: str,
-        expected_found: bool,
-        tmp_path: Path,
-    ) -> None:
-        """WP section start regex must match at h2-h4 depth only."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
         content = f"{depth} WP01: Setup\n\n- [ ] T001 Do something\n"
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
+        assert _walker_found_any(content, "WP01") == expected_found, (
+            f"Header '{depth} WP01' should {'be' if expected_found else 'NOT be'} detected"
+        )
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        if expected_found:
-            assert len(result) > 0, f"Header '{depth} WP01' should be detected, finding unchecked subtask"
-        else:
-            assert len(result) == 0, f"Header '{depth} WP01' should NOT be detected (h5 boundary)"
-
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_section_end_boundary(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
+    def test_section_end_boundary(self) -> None:
         """Section-end regex must stop scanning at the next WP heading."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
         content = "### WP01: Setup\n\n- [x] T001 Done\n\n### WP02: Core\n\n- [ ] T002 Not done\n"
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
+        assert _walker_unchecked(content, "WP01") == [], "WP01's unchecked belongs to WP02, not WP01"
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        assert len(result) == 0, "WP01 section should have no unchecked (unchecked is in WP02)"
-
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_section_end_boundary_h4(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
+    def test_section_end_boundary_h4(self) -> None:
         """Section-end regex must work with #### headings too."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
         content = "#### WP01: Setup\n\n- [x] T001 Done\n\n#### WP02: Core\n\n- [ ] T002 Not done\n"
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
-
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        assert len(result) == 0, "WP01 section should end at #### WP02 boundary"
+        assert _walker_unchecked(content, "WP01") == [], "WP01 section should end at #### WP02 boundary"
 
 
 # ---------------------------------------------------------------------------
-# Finding 2: only canonical ``- [ ] T###`` rows block a lane transition.
+# Finding 2: only canonical ``- [ ] T###`` rows are WP subtask rows.
 # Validation/command rows, prose, and fenced code blocks must NOT count.
 # ---------------------------------------------------------------------------
 
 
-class TestCheckUncheckedSubtasksCanonicalOnly:
-    """_check_unchecked_subtasks must only block on canonical T### subtasks."""
+class TestSectionWalkerCanonicalOnly:
+    """The canonical WP-section walker must only yield canonical T### subtasks."""
 
-    def _setup_feature(
-        self,
-        tmp_path: Path,
-        tasks_content: str,
-        feature_slug: str = "060-test",
-    ) -> Path:
-        feature_dir = tmp_path / "kitty-specs" / feature_slug
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "tasks.md").write_text(tasks_content, encoding="utf-8")
-        return tmp_path  # repo_root
-
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_real_unchecked_tasks_still_block(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
-        """Genuine ``- [ ] T###`` rows must still block movement (regression guard)."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
+    def test_real_unchecked_tasks_still_counted(self) -> None:
+        """Genuine ``- [ ] T###`` rows must still be yielded (regression guard)."""
         content = (
             "## WP01: Setup\n\n"
             "### Included Subtasks\n"
@@ -249,17 +153,10 @@ class TestCheckUncheckedSubtasksCanonicalOnly:
             "- [x] T002 Already done\n"
             "- [ ] T003 Wire it up\n"
         )
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
+        assert _walker_unchecked(content, "WP01") == ["T001", "T003"]
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        assert result == ["T001", "T003"], "Only unchecked canonical T### rows should be reported"
-
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_validation_command_rows_do_not_block(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
-        """Validation/checklist command rows like ``- [ ] swift test`` must NOT block."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
+    def test_validation_command_rows_do_not_count(self) -> None:
+        """Validation/checklist command rows like ``- [ ] swift test`` must NOT count."""
         content = (
             "## WP01: Setup\n\n"
             "### Included Subtasks\n"
@@ -270,17 +167,10 @@ class TestCheckUncheckedSubtasksCanonicalOnly:
             "- [ ] npm run lint\n"
             "- [ ] Review the diff before merging\n"
         )
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
+        assert _walker_unchecked(content, "WP01") == []
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        assert result == [], "Validation/command/prose rows must not be treated as blocking subtasks"
-
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_fenced_code_task_like_lines_do_not_block(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
-        """Task-like lines inside fenced code blocks must NOT block."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
+    def test_fenced_code_task_like_lines_do_not_count(self) -> None:
+        """Task-like lines inside fenced code blocks must NOT count."""
         content = (
             "## WP01: Setup\n\n"
             "### Included Subtasks\n"
@@ -292,17 +182,10 @@ class TestCheckUncheckedSubtasksCanonicalOnly:
             "- [ ] T998 Neither is this\n"
             "```\n"
         )
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
+        assert _walker_unchecked(content, "WP01") == []
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        assert result == [], "T### rows inside fenced code blocks must not block"
-
-    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
-    def test_mixed_real_and_noise(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
-        """Real unchecked T### blocks even when surrounded by command/code noise."""
-        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
-
+    def test_mixed_real_and_noise(self) -> None:
+        """Real unchecked T### is yielded even when surrounded by command/code noise."""
         content = (
             "## WP01: Setup\n\n"
             "### Included Subtasks\n"
@@ -313,8 +196,4 @@ class TestCheckUncheckedSubtasksCanonicalOnly:
             "```\n"
             "- [ ] git status --short\n"
         )
-        repo_root = self._setup_feature(tmp_path, content)
-        mock_main_root.return_value = repo_root
-
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
-        assert result == ["T001"], "Only the canonical unchecked T### should be reported"
+        assert _walker_unchecked(content, "WP01") == ["T001"]

@@ -34,7 +34,7 @@ from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
-from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+from specify_cli.status.wp_metadata import WPMetadata, read_authored_wp_frontmatter
 
 
 #: Operator recovery command named by workspace husk resolution errors
@@ -542,7 +542,7 @@ def resolve_active_wp_for_branch(
         )
 
     try:
-        metadata, _body = read_wp_frontmatter(wp_path)
+        metadata, _body = read_authored_wp_frontmatter(wp_path)
     except Exception as exc:
         return _active_wp_diagnostic(
             context,
@@ -614,7 +614,7 @@ def _wp_id_from_path(wp_file: Path) -> str:
 
 
 def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackage:
-    metadata, _body = read_wp_frontmatter(wp_file)
+    metadata, _body = read_authored_wp_frontmatter(wp_file)
     normalized_meta = metadata
     mode_source = "frontmatter"
     diagnostic: str | None = None

@@ -22,7 +22,7 @@ from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.frontmatter import write_frontmatter
-from specify_cli.status.models import StatusEvent, Lane
+from specify_cli.status.models import StatusEvent, Lane, actor_identity_str
 from specify_cli.status.store import append_event, read_events
 from specify_cli.task_utils import split_frontmatter
 
@@ -158,11 +158,16 @@ class TestImplementBodyNoteLaneFree:
         assert result.exit_code == 0, result.stdout
         content = wp_path.read_text(encoding="utf-8")
         _, body, _ = split_frontmatter(content)
-        # Find the new history entry (not the seed entry)
-        lines = [ln for ln in body.splitlines() if "test-agent" in ln]
-        assert len(lines) >= 1, f"Expected history entry with test-agent, got: {body}"
-        for line in lines:
-            assert "lane=" not in line, f"Body note still contains lane=: {line}"
+        # WP-file history/activity-log writes are retired (#2816): implement records
+        # the agent in the event log, NOT the WP body — so no `test-agent` history
+        # row and (trivially) no `lane=` segment are ever appended to the body.
+        assert "test-agent" not in body, f"WP body carries a retired history row: {body}"
+        assert "lane=" not in body, f"WP body carries a retired lane= segment: {body}"
+        # Attribution moved to the event log — the runtime transition records the agent.
+        assert any(
+            e.wp_id == "WP01" and actor_identity_str(e.actor) == "test-agent"
+            for e in read_events(feature_dir)
+        ), "expected an event-log transition attributed to test-agent"
 
     def test_implement_body_note_no_lane_from_doing(self, workflow_repo: Path) -> None:
         """When re-entering doing, body note should not contain lane=."""
@@ -189,10 +194,14 @@ class TestImplementBodyNoteLaneFree:
         assert result.exit_code == 0, result.stdout
         content = wp_path.read_text(encoding="utf-8")
         _, body, _ = split_frontmatter(content)
-        lines = [ln for ln in body.splitlines() if "test-agent" in ln]
-        assert len(lines) >= 1, f"Expected history entry with test-agent, got: {body}"
-        for line in lines:
-            assert "lane=" not in line, f"Body note still contains lane=: {line}"
+        # WP-file history/activity-log writes are retired (#2816): no `test-agent`
+        # history row and (trivially) no `lane=` segment reach the WP body.
+        assert "test-agent" not in body, f"WP body carries a retired history row: {body}"
+        assert "lane=" not in body, f"WP body carries a retired lane= segment: {body}"
+        # Attribution lives in the event log — the WP was seeded in_progress by test-agent.
+        assert any(
+            e.wp_id == "WP01" and e.actor == "test-agent" for e in read_events(feature_dir)
+        ), "expected an event-log transition attributed to test-agent"
 
 
 # ---------------------------------------------------------------------------
@@ -228,10 +237,11 @@ class TestReviewBodyNoteLaneFree:
         assert result.exit_code == 0, result.stdout
         content = wp_path.read_text(encoding="utf-8")
         _, body, _ = split_frontmatter(content)
-        lines = [ln for ln in body.splitlines() if "test-reviewer" in ln]
-        assert len(lines) >= 1, f"Expected history entry with test-reviewer, got: {body}"
-        for line in lines:
-            assert "lane=" not in line, f"Body note still contains lane=: {line}"
+        # WP-file history/activity-log writes are retired (#2816): review records the
+        # reviewer in the event log, NOT the WP body — no `test-reviewer` history row
+        # and (trivially) no `lane=` segment reach the body.
+        assert "test-reviewer" not in body, f"WP body carries a retired history row: {body}"
+        assert "lane=" not in body, f"WP body carries a retired lane= segment: {body}"
 
 
 # ---------------------------------------------------------------------------

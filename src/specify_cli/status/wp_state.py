@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol
 
-from specify_cli.status.models import InnerStateChanged, Lane, WPInnerStateDelta
+from specify_cli.status.models import ActorField, InnerStateChanged, Lane, WPInnerStateDelta
 
 # Shared error message constants (single source for parity with the historical
 # ``transitions.py`` implementation these guards were migrated from).
@@ -702,7 +702,7 @@ def annotate(
     wp_id: str,
     delta: WPInnerStateDelta,
     *,
-    actor: str,
+    actor: ActorField,
     at: str,
     event_id: str,
 ) -> InnerStateChanged:

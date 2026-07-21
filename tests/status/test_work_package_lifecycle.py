@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.reducer import reduce
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
+from specify_cli.status.reducer import materialize_snapshot, reduce
+from specify_cli.status.store import append_event, read_event_stream, read_events
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
@@ -46,6 +46,7 @@ def _event(
     to_lane: Lane,
     actor: str = "claude",
     wp_id: str = "WP01",
+    at: str | None = None,
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
@@ -53,7 +54,7 @@ def _event(
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
-        at=f"2026-04-26T10:00:0{event_id[-1]}+00:00",
+        at=at or f"2026-04-26T10:00:0{event_id[-1]}+00:00",
         actor=actor,
         force=False,
         execution_mode="worktree",
@@ -203,6 +204,82 @@ def test_start_implementation_resumes_claimed_same_actor(tmp_path: Path) -> None
     assert result.from_lane == Lane.CLAIMED
     assert result.status_changed is True
     assert read_events(feature_dir)[-1].to_lane == Lane.IN_PROGRESS
+
+
+def test_real_implement_and_review_claims_persist_structured_latest_binding(
+    tmp_path: Path,
+    seed_to_planned: Callable,
+) -> None:
+    """The lifecycle entry points persist actor + binding in one claim unit."""
+    feature_dir = _feature_dir(tmp_path)
+    seed_to_planned(feature_dir, "WP01", slug=_SLUG)
+
+    implement_actor = {
+        "role": "implementer",
+        "profile": "python-pedro",
+        "tool": "claude",
+        "model": "model-M1",
+    }
+    start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug=_SLUG,
+        wp_id="WP01",
+        actor=implement_actor,
+        workspace_context="worktree:/nonexistent/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+        annotation_delta=WPInnerStateDelta(
+            role="implementer",
+            agent_profile="python-pedro",
+            agent_profile_version="1.0",
+            model="model-M1",
+            provider="anthropic",
+        ),
+    )
+
+    stream = read_event_stream(feature_dir)
+    assert stream.transitions[-1].actor == implement_actor
+    assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract -- one atomic binding annotation
+    assert stream.annotations[0].delta.agent_profile == "python-pedro"
+
+    append_event(
+        feature_dir,
+        _event(
+            "01EEEE0000000000000000005E",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+            actor="claude",
+            at="2026-08-01T10:00:00+00:00",
+        ),
+    )
+    review_actor = {
+        "role": "reviewer",
+        "profile": "reviewer-renata",
+        "tool": "claude",
+        "model": "model-M2",
+    }
+    start_review_status(
+        feature_dir=feature_dir,
+        mission_slug=_SLUG,
+        wp_id="WP01",
+        actor=review_actor,
+        workspace_context="review:/nonexistent/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+        annotation_delta=WPInnerStateDelta(
+            role="reviewer",
+            agent_profile="reviewer-renata",
+            agent_profile_version="1.0",
+            model="model-M2",
+            provider="anthropic",
+        ),
+    )
+
+    snapshot = materialize_snapshot(feature_dir).work_packages["WP01"]
+    assert snapshot["agent_profile"] == "reviewer-renata"
+    assert snapshot["model"] == "model-M2"
+    assert snapshot["role"] == "reviewer"
+    assert read_events(feature_dir)[-1].actor == review_actor
 
 
 def test_interrupted_implementation_claim_recovers_with_progress_event(tmp_path: Path) -> None:

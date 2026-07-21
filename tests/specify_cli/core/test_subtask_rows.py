@@ -208,13 +208,18 @@ def test_counter_iterator_and_uncheck_agree_on_reappearing_heading_battery() -> 
     assert count_wp_section_subtask_rows(rewritten, "WP02") == (1, 1)
 
 
-def test_guard_consumes_the_shared_section_walker() -> None:
-    """The lane-transition guard and the dashboard must share ONE definition
-    of both the row patterns and the WP-section walk."""
+def test_guard_blocks_on_the_shared_snapshot_resolver() -> None:
+    """#2816 IC-10 (FR-016): the lane-transition guard's blocking source is the
+    snapshot-backed resolver pair in ``core.subtask_rows`` — the authored
+    frontmatter roster + the event-sourced completion — NOT a re-parse of
+    ``tasks.md`` checkbox rows, and never a hand-rolled local regex."""
     import inspect
 
     from specify_cli.cli.commands.agent import tasks_shared
 
     source = inspect.getsource(tasks_shared._check_unchecked_subtasks)
-    assert "iter_wp_section_subtask_rows" in source
+    assert "authored_subtask_roster" in source
+    assert "unchecked_subtask_ids_from_snapshot" in source
+    # The guard no longer parses tasks.md checkbox rows for its roster/completion.
+    assert "iter_wp_section_subtask_rows" not in source
     assert 're.compile(r"^-' not in source

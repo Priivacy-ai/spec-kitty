@@ -2,8 +2,8 @@
 lines (status/*). Each test pins one otherwise-uncovered new branch surfaced by
 ``diff-cover`` against ``origin/main``:
 
-* ``emit._infer_subtasks_complete`` flag-ON dispatch and its snapshot-sourced
-  completion body (``_infer_subtasks_complete_from_snapshot``);
+* ``emit._infer_subtasks_complete`` frontmatter-roster + event-sourced snapshot
+  completion (authored ``subtasks:`` roster, fail-closed silent snapshot);
 * ``store.append_annotations_atomic_verified`` success round-trip, append-failure
   wrapping, and readback-miss fail-loud;
 * ``store.is_non_lane_event`` annotation discriminator;
@@ -24,10 +24,7 @@ from typing import Any
 import pytest
 
 from specify_cli.status import store as _store
-from specify_cli.status.emit import (
-    _infer_subtasks_complete,
-    _infer_subtasks_complete_from_snapshot,
-)
+from specify_cli.status.emit import _infer_subtasks_complete
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -53,9 +50,19 @@ def _ulid(suffix: str) -> str:
     return ("01KX" + suffix).ljust(26, "0")[:26]
 
 
-def _seed_flag_on(feature_dir: Path) -> None:
-    """Opt the fixture into phase-1 snapshot authority (``status_phase >= 1``)."""
-    (feature_dir / "meta.json").write_text(json.dumps({"status_phase": "1"}), encoding="utf-8")
+def _seed_roster(feature_dir: Path, wp_id: str, subtasks: list[str]) -> None:
+    """Author the WP frontmatter ``subtasks:`` roster the gate now reads.
+
+    Since #2816 IC-10 the roster (which ``T###`` ids belong to *wp_id*) is the
+    authored frontmatter list, not ``tasks.md`` checkbox rows.
+    """
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    subtasks_header = "subtasks:" if subtasks else "subtasks: []"
+    lines = ["---", f"work_package_id: {wp_id}", subtasks_header]
+    lines.extend(f"- {task_id}" for task_id in subtasks)
+    lines.extend(["---", "", f"# {wp_id}", ""])
+    (tasks_dir / f"{wp_id}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _seed_wp_entry(feature_dir: Path, wp_id: str) -> None:
@@ -92,34 +99,44 @@ def _seed_subtasks(feature_dir: Path, wp_id: str, subtasks: dict[str, Lane]) -> 
 
 
 # ---------------------------------------------------------------------------
-# emit._infer_subtasks_complete — flag-ON snapshot dispatch (326) + body (352-360)
+# emit._infer_subtasks_complete — frontmatter roster + event-sourced snapshot
 # ---------------------------------------------------------------------------
 
 
-def test_infer_subtasks_complete_flag_on_all_done(tmp_path: Path) -> None:
-    """Flag ON dispatches to the snapshot path; an all-DONE roster is complete."""
-    _seed_flag_on(tmp_path)
+def test_infer_subtasks_complete_all_done(tmp_path: Path) -> None:
+    """An authored roster whose every id is DONE in the snapshot is complete."""
+    _seed_roster(tmp_path, "WP01", ["T001", "T002"])
     _seed_wp_entry(tmp_path, "WP01")
     _seed_subtasks(tmp_path, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE})
     assert _infer_subtasks_complete(tmp_path, "WP01") is True
 
 
-def test_infer_subtasks_from_snapshot_partial_is_incomplete(tmp_path: Path) -> None:
-    """A partially-done roster blocks (fail-closed on incompleteness)."""
+def test_infer_subtasks_partial_is_incomplete(tmp_path: Path) -> None:
+    """A roster id still not DONE in the snapshot blocks (fail-closed)."""
+    _seed_roster(tmp_path, "WP01", ["T001", "T002"])
     _seed_wp_entry(tmp_path, "WP01")
     _seed_subtasks(tmp_path, "WP01", {"T001": Lane.DONE, "T002": Lane.PLANNED})
-    assert _infer_subtasks_complete_from_snapshot(tmp_path, "WP01") is False
+    assert _infer_subtasks_complete(tmp_path, "WP01") is False
 
 
-def test_infer_subtasks_from_snapshot_zero_rows_is_complete(tmp_path: Path) -> None:
-    """A WP present with zero subtasks is 'nothing to block on' -> complete."""
+def test_infer_subtasks_empty_roster_is_complete(tmp_path: Path) -> None:
+    """A WP with no authored roster is 'nothing to block on' -> complete."""
+    _seed_roster(tmp_path, "WP01", [])
     _seed_wp_entry(tmp_path, "WP01")
-    assert _infer_subtasks_complete_from_snapshot(tmp_path, "WP01") is True
+    assert _infer_subtasks_complete(tmp_path, "WP01") is True
 
 
-def test_infer_subtasks_from_snapshot_absent_wp_blocks(tmp_path: Path) -> None:
-    """No snapshot entry -> unprovable -> fail-closed False."""
-    assert _infer_subtasks_complete_from_snapshot(tmp_path, "WP99") is False
+def test_infer_subtasks_silent_snapshot_blocks_fail_closed(tmp_path: Path) -> None:
+    """Fail-closed: an authored roster with NO event-sourced ``subtasks`` slot
+    BLOCKS (every roster id unprovable). The retired ``tasks.md`` checkbox proxy
+    is gone — an emptied ``tasks.md`` can no longer fall the gate open. A WP with
+    no authored roster is 'nothing to block on' -> complete."""
+    _seed_roster(tmp_path, "WP01", ["T001"])
+    # No snapshot subtasks slot -> silent -> fail-closed BLOCK on the roster id.
+    assert _infer_subtasks_complete(tmp_path, "WP01") is False
+    # A resolvable WP with an explicitly empty authored roster has nothing to block.
+    _seed_roster(tmp_path, "WP99", [])
+    assert _infer_subtasks_complete(tmp_path, "WP99") is True
 
 
 # ---------------------------------------------------------------------------

@@ -935,40 +935,6 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = fr
 )
 
 
-# WP10 closeout (wp-runtime-state-eviction, 2026-07-19 re-scope decision): the
-# runtime-state ``backfill -> verify -> cutover`` module was landed but its CLI
-# is DEFERRED — no WP wired it, and per ``contracts/migration.md`` the
-# flag/fallback teardown is the FINAL migration step, gated on that backfill,
-# which the re-scope explicitly defers out of this mission (ships the dual-write
-# end-state now, defers the corpus cutover to the IC-08 follow-up). Its public
-# API is therefore intentionally-present-but-unwired until the follow-up wires
-# the CLI; allowlisted here so the symbol-level dead-code gate reflects the
-# deferral honestly rather than being red on a known, documented gap. The
-# entries become STALE (and are removed by the ratchet) the moment the follow-up
-# wires a live src/ caller. Follow-up tracker: IC-08 (backfill/verify/cutover
-# CLI wiring + flag teardown).
-_CATEGORY_C_DEFERRED_RUNTIME_STATE_BACKFILL_CUTOVER: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey("BACKFILL_ACTOR", "f40c0e002d39d5d515657750b90cd6f4642eca23557bea7718e0a4e0b9d3a9c6"),  #BACKFILL_ACTOR
-        SymbolKey("BackfillAction", "70698ddb41945229756a2ea3b490269cc5bdc4834e57076f5e7efe0abb3e1ab1"),  #BackfillAction
-        SymbolKey("BackfillResult", "f0d1e10a2cf14c9569a39a365120a10d9506ae3177b1455a2558aee1194a9122"),  #BackfillResult
-        SymbolKey("BackfillVerificationError", "3670373773dace344589e6ab7b8677396f88c4b41af75745b8ff2b1737c1802e"),  #BackfillVerificationError
-        SymbolKey("HISTORY_WRITER_SEAMS", "28444d194dae6f897e173b206d039dad85a558b7c98d7b636999d68da3f42358"),  #HISTORY_WRITER_SEAMS
-        SymbolKey("LegacyWPRuntime", "d54550e9086cd02a52776d97d3852c5c255105d5097050c3ade94ac2b5171055"),  #LegacyWPRuntime
-        SymbolKey("MigrationOrderingError", "44c69206fda1f7ba6ed482207a6b0b3e320a82467ce31b89f4a197bb5ab11864"),  #MigrationOrderingError
-        SymbolKey("VerifyResult", "531bc2f4cd9fe6cd8cf849b26461829494103531311192b36755456b6b7e3192"),  #VerifyResult
-        SymbolKey("ZERO_READER_FIELDS", "17f70d81feceb6b3cf0dd7e2a04cdbf87b4272df653db2d23d5e5367015a26b8"),  #ZERO_READER_FIELDS
-        SymbolKey("assert_zero_readers", "22a5bca5fdc4e7f26aa0731b3745ba426634477272477b6dd01c45c21a167674"),  #assert_zero_readers
-        SymbolKey("backfill_runtime_state", "5f4428830c1247e677d687536c7ef2ef69f7a2c972a17c3f24ef4ab94f10c960"),  #backfill_runtime_state
-        SymbolKey("backfill_runtime_state_repo", "0f3b42d8befea8a71148eff88abfbb9dc69d9f3e7019907fd12bfcfe339530e9"),  #backfill_runtime_state_repo
-        SymbolKey("find_field_readers", "3b0c9aaa14e0863941f50d5975928440ff2b07310fe479a2dc02bab0944b35f1"),  #find_field_readers
-        SymbolKey("read_legacy_runtime", "acf431e87f04d494b93de4cf7d92679053bd9dfd7b1441e36e676dcf0f6741a3"),  #read_legacy_runtime
-        SymbolKey("run_backfill_and_verify", "13efe09d26c64daa02fb1c8fe075792a632c79c1b75c384f5e81b4e1055dd4c0"),  #run_backfill_and_verify
-        SymbolKey("verify_backfill", "35e7ca0dd774dd97bd6501276a44262443c4774ea56bcd14f79403582d8bdbb0"),  #verify_backfill
-    }
-)
-
-
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -998,7 +964,6 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
-    | _CATEGORY_C_DEFERRED_RUNTIME_STATE_BACKFILL_CUTOVER
 )
 
 

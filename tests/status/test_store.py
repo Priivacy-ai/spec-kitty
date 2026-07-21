@@ -289,6 +289,39 @@ def test_append_events_atomic_replace_failure_leaves_original(tmp_path: Path, mo
 
     events = read_events(tmp_path)
     assert events == [original]
+    assert list(tmp_path.glob(f".{EVENTS_FILENAME}.*.tmp")) == []
+
+
+def test_append_events_atomic_does_not_follow_predictable_temp_symlink(
+    tmp_path: Path,
+) -> None:
+    """A pre-planted legacy temp symlink cannot redirect an atomic append."""
+    victim = tmp_path / "victim.txt"
+    victim.write_text("KEEP", encoding="utf-8")
+    predictable_temp = tmp_path / f"{EVENTS_FILENAME}.tmp"
+    predictable_temp.symlink_to(victim)
+
+    event = _make_event()
+    append_events_atomic(tmp_path, [event])
+
+    assert victim.read_text(encoding="utf-8") == "KEEP"
+    assert predictable_temp.is_symlink()
+    assert not (tmp_path / EVENTS_FILENAME).is_symlink()
+    assert read_events(tmp_path) == [event]
+
+
+def test_append_events_atomic_rejects_existing_log_symlink(tmp_path: Path) -> None:
+    """Reading the old log must not follow an attacker-controlled symlink."""
+    victim = tmp_path / "victim.txt"
+    victim.write_text("KEEP", encoding="utf-8")
+    events_path = tmp_path / EVENTS_FILENAME
+    events_path.symlink_to(victim)
+
+    with pytest.raises(StoreError, match="symbolic link"):
+        append_events_atomic(tmp_path, [_make_event()])
+
+    assert victim.read_text(encoding="utf-8") == "KEEP"
+    assert events_path.is_symlink()
 
 
 def test_read_events_skips_retrospective_events(tmp_path: Path) -> None:

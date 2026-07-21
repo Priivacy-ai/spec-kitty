@@ -21,19 +21,55 @@ from specify_cli.migration.strip_frontmatter import (
     STATIC_FIELDS,
     strip_mutable_fields,
 )
-from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
+from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
     append_events_atomic_verified,
     read_event_stream,
 )
-from specify_cli.status.wp_state import annotate
-from tests.unit.migration._backfill_fixture import CLAIMED_AT, build_mission
+from tests.unit.migration._backfill_fixture import (
+    CLAIMED_AT,
+    build_mission,
+    corrupt_seed_value,
+)
 
 pytestmark = [pytest.mark.fast]
 
 SRC_ROOT = Path(specify_cli.__file__).resolve().parent
+
+
+@pytest.mark.parametrize("unsafe_slug", ["../outside", "nested/mission", ".", ".."])
+def test_repo_backfill_rejects_unsafe_mission_selector(
+    tmp_path: Path,
+    unsafe_slug: str,
+) -> None:
+    """The write-capable library validates selectors at its own boundary."""
+    (tmp_path / "kitty-specs").mkdir()
+
+    with pytest.raises(ValueError, match="safe path segment"):
+        b.backfill_runtime_state_repo(tmp_path, mission_slug=unsafe_slug)
+
+
+def test_repo_backfill_rejects_selected_mission_symlink_escape(tmp_path: Path) -> None:
+    kitty_specs = tmp_path / "kitty-specs"
+    kitty_specs.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (kitty_specs / "escaped").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="outside kitty-specs"):
+        b.backfill_runtime_state_repo(tmp_path, mission_slug="escaped")
+
+
+def test_repo_backfill_skips_enumerated_mission_symlink_escape(tmp_path: Path) -> None:
+    kitty_specs = tmp_path / "kitty-specs"
+    kitty_specs.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (kitty_specs / "escaped").symlink_to(outside, target_is_directory=True)
+
+    assert b.backfill_runtime_state_repo(tmp_path) == []
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +191,22 @@ def test_never_claimed_wp_skips_runtime_seed(tmp_path: Path) -> None:
     assert any("never-claimed" in w for w in result.warnings)
 
 
+def test_malformed_wp_frontmatter_fails_closed(tmp_path: Path) -> None:
+    feature_dir = build_mission(tmp_path)
+    wp_file = feature_dir / "tasks" / "WP01-demo.md"
+    wp_file.write_text(
+        "---\nwork_package_id: WP01\nbroken: [\n---\n\n# WP01\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(b.LegacyRuntimeReadError, match="WP01-demo.md"):
+        b.read_legacy_runtime(feature_dir)
+
+    result = b.backfill_runtime_state(feature_dir)
+    assert result.action == "error"
+    assert "WP01-demo.md" in (result.reason or "")
+
+
 def test_dry_run_writes_nothing(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)
     before = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8")
@@ -191,14 +243,12 @@ def test_fault_injected_value_mismatch_aborts_with_count_match(tmp_path: Path) -
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)
     # Corrupt a seed: flip T001 done→planned. Counts still match; value diverges.
-    corrupt = annotate(
-        "WP01",
-        WPInnerStateDelta(subtasks={"T001": Lane.PLANNED}),
-        actor="attacker",
-        at=CLAIMED_AT,
-        event_id="01ZZZZZZZZZZZZZZZZZZZZZZZ9",
+    corrupt_seed_value(
+        feature_dir,
+        field_name="subtasks",
+        slot_name="subtasks",
+        value={"T001": "planned", "T002": "planned"},
     )
-    append_annotations_atomic_verified(feature_dir, [corrupt])
     result = b.verify_backfill(feature_dir)
     assert result.ok is False
     assert any("subtasks mismatch" in m for m in result.mismatches)
@@ -207,26 +257,25 @@ def test_fault_injected_value_mismatch_aborts_with_count_match(tmp_path: Path) -
 def test_scalar_value_mismatch_aborts(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)
-    corrupt = annotate(
-        "WP01",
-        WPInnerStateDelta(shell_pid=999999),
-        actor="attacker",
-        at=CLAIMED_AT,
-        event_id="01YYYYYYYYYYYYYYYYYYYYYYY8",
+    corrupt_seed_value(
+        feature_dir,
+        field_name="claim",
+        slot_name="shell_pid",
+        value=999999,
     )
-    append_annotations_atomic_verified(feature_dir, [corrupt])
     result = b.verify_backfill(feature_dir)
     assert result.ok is False
-    assert any("shell_pid mismatch" in m for m in result.mismatches)
+    assert any("claim mismatch" in m for m in result.mismatches)
 
 
-def test_count_mismatch_legacy_wp_absent_from_snapshot_aborts(tmp_path: Path) -> None:
-    """Count-parity fault: a WP with legacy runtime state but NO seed events.
+def test_never_claimed_wp_absent_from_snapshot_warns_not_fails(tmp_path: Path) -> None:
+    """Defect 1 (spec Edge Case, WP03 corpus): a never-claimed WP warns, not fails.
 
     WP02 carries evictable frontmatter runtime state but has no transitions, so it
-    has no claim anchor and the backfill skips its seeds — the reduced snapshot has
-    no WP02 entry while the legacy reader sees it. Verify must abort fail-closed on
-    the ``absent-from-snapshot`` branch (never a silent green)."""
+    has no claim anchor: ``_build_seed_events`` correctly SKIPS its seeds ("no claim
+    anchor — runtime seed skipped"), and ``verify_backfill`` must MIRROR that skip —
+    an anchor-less WP is never a count mismatch. (The pre-fix code counted it and
+    hard-failed 7 real dogfood missions, blocking the whole cutover.)"""
     feature_dir = build_mission(tmp_path)
     (feature_dir / "tasks" / "WP02-extra.md").write_text(
         "---\nwork_package_id: WP02\ntitle: Extra\nagent: ghost:model:profile\n---\n\n# WP02 body\n",
@@ -234,17 +283,17 @@ def test_count_mismatch_legacy_wp_absent_from_snapshot_aborts(tmp_path: Path) ->
     )
     b.backfill_runtime_state(feature_dir)
     result = b.verify_backfill(feature_dir)
-    assert result.ok is False
-    assert any("absent from snapshot" in m for m in result.mismatches)
+    assert result.ok is True
+    assert not any("WP02" in m for m in result.mismatches)
 
 
-def test_count_mismatch_snapshot_only_wp_no_legacy_row_aborts(tmp_path: Path) -> None:
-    """Count-parity fault: a snapshot-only WP with no legacy row.
+def test_phantom_snapshot_only_wp_with_no_wp_file_still_aborts(tmp_path: Path) -> None:
+    """Fail-closed preserved: a snapshot WP with NO legacy WP row (phantom/injected).
 
-    A claim seed for WP99 (which has no WP file / no legacy runtime) folds a
-    ``shell_pid`` into the snapshot while the legacy reader sees nothing for it.
-    Verify must abort on the ``snapshot carries runtime state but legacy reader has
-    none`` count-parity branch."""
+    A claim seed for WP99 (which has no WP file / no legacy row at all) folds a
+    ``shell_pid`` into the snapshot. Unlike an already-migrated WP whose file exists
+    but whose runtime is now event-sourced (tolerated — Defect 3), a phantom WP with
+    no file is an injected/corrupt entry and MUST still abort fail-closed."""
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)
     append_events_atomic_verified(
@@ -266,7 +315,7 @@ def test_count_mismatch_snapshot_only_wp_no_legacy_row_aborts(tmp_path: Path) ->
     )
     result = b.verify_backfill(feature_dir)
     assert result.ok is False
-    assert any("legacy reader has none" in m for m in result.mismatches)
+    assert any("phantom" in m for m in result.mismatches)
 
 
 def test_verify_runs_pre_strip_inverting_order_is_caught(tmp_path: Path) -> None:
@@ -291,17 +340,11 @@ def test_unreadable_event_log_is_fail_closed(tmp_path: Path) -> None:
 def test_run_backfill_and_verify_raises_on_mismatch(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)
-    append_annotations_atomic_verified(
+    corrupt_seed_value(
         feature_dir,
-        [
-            annotate(
-                "WP01",
-                WPInnerStateDelta(agent="tampered"),
-                actor="attacker",
-                at=CLAIMED_AT,
-                event_id="01XXXXXXXXXXXXXXXXXXXXXXX7",
-            )
-        ],
+        field_name="claim",
+        slot_name="agent",
+        value="tampered",
     )
     with pytest.raises(b.BackfillVerificationError):
         b.run_backfill_and_verify(feature_dir)

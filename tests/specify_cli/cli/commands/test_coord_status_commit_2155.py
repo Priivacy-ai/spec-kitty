@@ -54,7 +54,6 @@ from mission_runtime import MissionArtifactKind
 from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.coordination.commit_router import commit_for_mission
-from specify_cli.cli.commands.agent.tasks import _primary_bundle_status_artifacts
 import specify_cli.missions._read_path_resolver as rpr
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -218,51 +217,6 @@ def test_mark_status_write_leg_matches_commit_leg_flat_topology(
     # Flat topology: kind-blind and kind-aware resolve the SAME dir.
     assert kind_blind_dir == primary_dir
     assert write_dir == validation_read_dir == primary_dir
-
-
-# =========================================================================== #
-# T010 — #2155 partition helper (unit, both topologies).
-# =========================================================================== #
-def test_primary_bundle_drops_coord_status_under_coord_topology(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Coord topology: coord-owned status is dropped; primary tasks.md is kept."""
-    import specify_cli.cli.commands.agent.tasks as tasks_mod
-
-    monkeypatch.setattr(tasks_mod, "resolve_topology", lambda _r, _s: "COORD")
-    monkeypatch.setattr(tasks_mod, "routes_through_coordination", lambda _t: True)
-
-    events = tmp_path / "status.events.jsonl"
-    snapshot = tmp_path / "status.json"
-    tasks_md = tmp_path / "tasks.md"
-    for p in (events, snapshot, tasks_md):
-        p.write_text("x", encoding="utf-8")
-
-    kept = _primary_bundle_status_artifacts(
-        tmp_path, _MISSION_SLUG, [events, snapshot, tasks_md]
-    )
-    kept_names = {p.name for p in kept}
-    assert "status.events.jsonl" not in kept_names
-    assert "status.json" not in kept_names
-    assert "tasks.md" in kept_names  # TASKS_INDEX is primary — stays in the bundle
-
-
-def test_primary_bundle_keeps_all_under_flat_topology(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Flat topology: status files ARE canonical on primary — none are dropped."""
-    import specify_cli.cli.commands.agent.tasks as tasks_mod
-
-    monkeypatch.setattr(tasks_mod, "resolve_topology", lambda _r, _s: "SINGLE_BRANCH")
-    monkeypatch.setattr(tasks_mod, "routes_through_coordination", lambda _t: False)
-
-    events = tmp_path / "status.events.jsonl"
-    tasks_md = tmp_path / "tasks.md"
-    for p in (events, tasks_md):
-        p.write_text("x", encoding="utf-8")
-
-    kept = _primary_bundle_status_artifacts(tmp_path, _MISSION_SLUG, [events, tasks_md])
-    assert {p.name for p in kept} == {"status.events.jsonl", "tasks.md"}
 
 
 # =========================================================================== #

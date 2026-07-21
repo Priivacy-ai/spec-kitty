@@ -91,6 +91,7 @@ work_package_id: "WP01"
 title: "Test Task"
 agent: "test-agent"
 shell_pid: ""
+subtasks: []
 ---
 
 # Work Package: WP01 - Test Task
@@ -313,7 +314,11 @@ class TestMoveTaskGitValidation:
 
         import specify_cli.status.store as status_store
 
-        monkeypatch.setattr(status_store, "append_event", lambda _feature_dir, _event: None)
+        monkeypatch.setattr(
+            status_store,
+            "_append_serialized_atomic",
+            lambda _feature_dir, _payloads: None,
+        )
         monkeypatch.setattr(
             "specify_cli.cli.commands.agent.tasks.emit_error_logged",
             lambda *args, **kwargs: None,
@@ -528,7 +533,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_for_review_from_worktree_does_not_mirror_commit_to_lane_branch(
+    def test_move_for_review_from_worktree_keeps_commit_history_unchanged(
         self,
         mock_slug: Mock,
         mock_root: Mock,
@@ -569,7 +574,7 @@ class TestMoveTaskGitValidation:
             text=True,
         ).stdout.strip()
 
-        assert "Move WP01 to for_review" in root_head_msg
+        assert "Move WP01 to for_review" not in root_head_msg
         assert "Move WP01 to for_review" not in wp_head_msg
         assert "Add implementation" in wp_head_msg
 
