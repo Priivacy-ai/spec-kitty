@@ -48,10 +48,12 @@ and confirmed against `git diff --name-status -M` for the full mission diff:
 | Zone | Unexpanded top-level entries |
 |---|---|
 | **Using Spec Kitty** (end-user) | 6 — Home, Guides, Core Concepts, Reference, Migrations, Project Updates |
-| **Contributing** (contributor) | 6 — Architecture, ADRs, Plans, Operations, Development, Mission Runs |
+| **Contributing** (contributor) | 5 — Architecture, ADRs, Plans, Operations, Development |
 
-Both zones are at exactly 6 unexpanded entries, satisfying NFR-003 (down from the prior 16-entry
-flat list) and FR-015 (hierarchical grouping via nested `items:`). `Development` is the one
+The Using Spec Kitty zone is at 6 unexpanded entries and Contributing at 5 (both within NFR-003's
+`<=6` ceiling; "Mission Runs" is nested under Project Updates in the Using zone, not a Contributing
+top-level entry), down from the prior 16-entry flat list, and FR-015 (hierarchical grouping via
+nested `items:`) is satisfied. `Development` is the one
 genuinely new top-level entry, closing the pre-existing gap WP01 flagged (`docs/development/` had
 zero `docs/toc.yml` entries before WP02, despite holding 20 pages after WP01's relocation).
 
@@ -145,7 +147,7 @@ convention — actually target it: `docs/guides/` and newly authored pages.
 - **`docs/development/3-2-page-inventory.yaml`** (the generated frontmatter lockfile) was
   regenerated via `scripts/docs/inventory_lockfile.py --write` after these frontmatter changes,
   per the same canonical-tooling convention WP01 and WP07 used. `--strict` re-run confirms zero
-  drift (`generated=609 committed=609`).
+  drift (`generated=639 committed=639`).
 
 **Result**: 100% of this mission's touched/created pages within NFR-005's actual scope
 (`docs/guides/` non-index pages + newly authored pages) now carry valid Divio `type:`
