@@ -244,7 +244,12 @@ def _evaluate_acceptance_matrix(
 
     acc_matrix = read_acceptance_matrix(feature_dir)
     if acc_matrix is None:
-        message = "Acceptance matrix (acceptance-matrix.json) is required for lane-based features but was not found"
+        message = (
+            "Acceptance matrix (acceptance-matrix.json) is required for lane-based "
+            "features but was not found. This file is normally scaffolded "
+            "automatically. If it is missing, regenerate it: "
+            f"spec-kitty agent mission finalize-tasks --mission {feature_dir.name}"
+        )
         activity_issues.append(message)
         blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix", detail=message))
         _append_skipped_lane_checks(

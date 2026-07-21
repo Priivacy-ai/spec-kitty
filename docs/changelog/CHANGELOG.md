@@ -111,6 +111,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **The `issue-matrix.md` and `acceptance-matrix.json` missing-file errors now name the regenerate command.**
+  Both files are already scaffolded automatically during `spec-kitty tasks` (finalize-tasks); the failure messages an operator actually sees when one is missing (at `move-task --to approved` and at `spec-kitty accept`) previously said nothing about that, so a missing file read as "no tooling exists for this" rather than "re-run finalize-tasks." Both messages now name `spec-kitty agent mission finalize-tasks --mission <slug>`, and the issue-matrix message also points at its schema/worked-example doc (`src/specify_cli/cli/commands/review/ERROR_CODES.md`). The `spec-kitty-mission-review` skill's Gate 4 section gained the same pointer.
+
 - **Honest force-provenance on evidence-gated backward edges (#2684, #2736, #2810).**
   Persisted `StatusEvent.force` is now truthful — falsy on the evidence-gated
   review-rejection edges (`build_transition_plan` asks the FSM instead of

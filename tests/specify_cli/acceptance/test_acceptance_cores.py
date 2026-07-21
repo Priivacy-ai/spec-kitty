@@ -414,6 +414,23 @@ class TestEvaluateAcceptanceMatrix:
         assert len(blocked) == 1 and blocked[0].check == "acceptance_matrix"
         assert len(skipped) == 3
 
+    def test_missing_matrix_message_names_regenerate_command(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Field report: the missing-file message gave no next step, so an
+        operator hand-authored a matrix by copying an unrelated mission's file.
+        The message must name the actual regenerate command."""
+        monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: None)
+        feature_dir = tmp_path / "kitty-specs" / "demo"
+        feature_dir.mkdir(parents=True)
+        activity_issues: list[str] = []
+        blocked: list[AcceptanceCheckDiagnostic] = []
+
+        _evaluate_acceptance_matrix(tmp_path, feature_dir, activity_issues, [], blocked, mutate_matrix=True)
+
+        assert "spec-kitty agent mission finalize-tasks --mission demo" in blocked[0].detail
+        assert "spec-kitty agent mission finalize-tasks --mission demo" in activity_issues[0]
+
     def test_negative_invariants_enforced_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = SimpleNamespace(negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
