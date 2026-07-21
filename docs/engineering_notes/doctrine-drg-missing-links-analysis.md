@@ -1,3 +1,12 @@
+---
+title: 'Built-in Doctrine DRG — missing / under-specified links analysis'
+description: A measured census of the built-in doctrine reference graph's obligation-vs-tension edges and cascade dead-ends — the input analysis for ADR 2026-07-21-1 (in_tension_with).
+doc_status: active
+updated: '2026-07-21'
+related:
+- docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md
+- docs/engineering_notes/index.md
+---
 # Built-in Doctrine DRG — Missing / Under-Specified Links Analysis
 
 **Date:** 2026-07-21
