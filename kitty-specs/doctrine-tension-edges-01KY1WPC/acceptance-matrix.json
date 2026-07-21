@@ -1,0 +1,159 @@
+{
+  "mission_slug": "doctrine-tension-edges-01KY1WPC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Relation.IN_TENSION_WITH added (WP01, commit 024bd0cb6); symmetric single-canonical-edge storage + edges_from/edges_to symmetric query verified by tests/doctrine/drg/test_validator.py::test INV-001 (WP04). Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Relation.RECONCILES_TENSION added (WP01); both-sides-required resolution semantics verified by tests/charter/test_tension_unreconciled.py's half-reconciled case (WP05, US2 sc2) -- one-sided reconciles_tension edge does not clear the finding. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Relation.REJECTS added (WP01); directional rejects-target validation (INV-004: non-anti_pattern target raises a validation error) verified in tests/doctrine/drg/test_validator.py (WP04). Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "NodeKind.ANTI_PATTERN + ArtifactKind.ANTI_PATTERN added (WP01); wired through _SINGULAR_TO_PLURAL/_SINGULAR_TO_PER_KIND_FIELD/_SINGULAR_TO_PLURAL_KIND/PackContext.activated_anti_patterns/validator.py (WP04), confirmed config-gated (not default-allow) via tests/charter/test_drg_filtering.py. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "opposed_by field/schema-property + Contradiction model removed; src/doctrine/shared/models.py deleted (WP03, commit f46fbe196). grep -rn opposed_by src/ docs/ tests/ returns zero hits outside 4 occurrence_map-exempted historical docs. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "024<->025 and tactic:change-apply-smallest-viable-diff<->025 in_tension_with edges hand-authored (WP02, commit a576d713e), replacing the mis-minted replaces cycle; INV-005 recovered tactic tension present and cross-checked against WP03's hand_authored_overlay.py registry. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "8 rejects edges to 6 marked anti_pattern nodes authored (WP02); pairing cross-checked verbatim against the original 8 opposed_by entries across the 3 paradigm YAML sources by the WP02 reviewer -- no content lost or mis-paired. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Phantom governs/supersedes orphan-lint branches removed (WP06, commit 25dec9f11); live `spec-kitty charter lint` run confirmed by reviewer to produce exactly {DIRECTIVE_035, DIRECTIVE_039}, closing #2737. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Advisory tension_unreconciled finding added to ConsistencyReport, excluded from coherent, fail-closed on scan errors (WP05, commit aa5d0219a); tests/charter/test_tension_unreconciled.py's positive-finding test guards against NFR-001's no-op-checker trap. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "charter activate warning surfacing the same TensionFinding shape added to src/specify_cli/cli/commands/charter/activate.py (WP05), sharing scan_unreconciled_tensions with consistency-check (single canonical authority, no duplicated logic). Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Built-in reconcile-change-scope-tensions directive with 3 reconciles_tension edges authored (WP02); SC-002 live before/after test (WP05) proves deactivating it makes the 024/025 and tactic/025 findings reappear, reactivating clears them. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "FR-012 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "RELATION_DESCRIPTIONS registry added for the 3 new relations (WP01); mirrored verbatim into docs/architecture/doctrine-relationships.md with a red-first enum<->doc parity check (WP08, commit f975fef08) -- reviewer manually mutated the doc and confirmed the check fails naming the correct relation. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "FR-013 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "IN_TENSION_WITH/RECONCILES_TENSION/REJECTS confirmed absent from cascade.REFERENCE_RELATIONS by explicit frozenset-intersection regression test, plus a live cascade non-auto-activation test against the real built-in pack (WP06). Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "FR-014 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "Cross-cutting write/read/checkup surface propagation verified collectively across WP01-WP05's independent reviews (each traced the Change Surface Map's relevant row); strongest evidence is the full tests/doctrine/ suite going from red (mid-migration) to fully green (2749 passed, 0 failed) after WP03, confirming no partially-wired surface was left inconsistent.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "FR-015 is satisfied per spec.md's Functional Requirements.",
+      "proof_type": "automated_test",
+      "evidence": "spec-kitty migrate rewrite-opposed-by subcommand added (WP07, commit b9e389940); reviewer ran a live sandbox test (dry-run, real run, second-run idempotency via md5sum-matched output, unclassifiable-entry diagnostic) against a copy of this repo's own built-in doctrine content. Independently reviewed and approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet:reviewer-renata (per-WP independent reviews, orchestrator-collated)",
+      "verified_at": "2026-07-21T15:37:03Z",
+      "notes": "Verified via the mission's implement-review loop; see the WP's review activity log for the full independent-verification trail."
+    }
+  ],
+  "negative_invariants": []
+}

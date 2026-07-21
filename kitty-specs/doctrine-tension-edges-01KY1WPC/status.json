@@ -1,0 +1,190 @@
+{
+  "event_count": 56,
+  "last_event_id": "01KY2N9VCB9WBHWWSY85SJ8AN5",
+  "materialized_at": "2026-07-21T15:39:23.403615+00:00",
+  "mission_number": "",
+  "mission_slug": "doctrine-tension-edges-01KY1WPC",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9EE16RYYRXEV324QHQ94",
+      "last_transition_at": "2026-07-21T15:39:10.145308+00:00",
+      "notes": [
+        "Ready for review: Relation.IN_TENSION_WITH/RECONCILES_TENSION/REJECTS + RELATION_DESCRIPTIONS + NodeKind.ANTI_PATTERN/ArtifactKind.ANTI_PATTERN + DRGNode.tags landed. tests/doctrine/drg/ 226 passed; ruff+mypy clean on changed files. Flagged for reviewer: added anti_pattern to _NON_AUGMENTATION_ELIGIBLE_KINDS (artifact_kinds.py, in-owned-file) and added one .get()-defaulted exemption to test_kind_mapping_totality.py's _EXEMPT_GET_PARTIALS (executor.py::_ARTIFACT_TO_NODE_KIND) -- both required to keep ArtifactKind internally total; verified via .get() call-site read, not guessed.",
+        "Review passed. Verified against WP01 acceptance criteria (T001-T006) via independent diff inspection, not implementer self-report. Diff touches exactly the 5 owned_files -- no opposed_by/Contradiction/*.yaml artifact/PackContext/charter-drg-wiring content touched. T001: three Relation members added with exact string values + real per-relation docstring prose. T002: RELATION_DESCRIPTIONS has exactly the 3 new relations, non-placeholder, distinct, grounded in data-model.md's own language. T003: NodeKind.ANTI_PATTERN added; _validate_urn needs no change (verified generic over kind.value). T004: DRGNode.tags added, round-trips dict/JSON. T005: ArtifactKind.ANTI_PATTERN added + correctly folded into _PLURALS/_PATTERNS/_NON_AUGMENTATION_ELIGIBLE_KINDS (verified live: plural='anti_patterns', CHARTER_KIND_TOKENS stays at 9); charter/cascade.py::_kind_of needed no change (generic ArtifactKind(prefix) lookup, confirmed by reading it). T006: test_models.py (15 tests) + extensions to test_nodekind_artifactkind.py/test_kind_mapping_totality.py -- the totality guard is a real AST scan of all of src/, genuinely flagged executor.py::_ARTIFACT_TO_NODE_KIND as newly non-total; independently confirmed executor.py:320 reads it via .get(kind) (not table[kind]) with None falling through to 'unresolved', so the exemption is legitimate. Bulk-edit gate: read occurrence_map.yaml (target='opposed_by', code_symbols=manual_review); confirmed neither touched file contains 'opposed_by'/'Contradiction' on base or HEAD -- the real code_symbols sites are src/doctrine/{directives,paradigms,tactics}/models.py, untouched here. WP01's touches are purely additive foundation work, not an opposed_by-removal shortcut. Independent verification: .venv/bin/pytest tests/doctrine/drg/ -q -> 226 passed; ruff check (5 files) -> clean; mypy (2 files) -> no issues. Also unblocked an unrelated mission-level gate: issue-matrix.md had all 5 spec.md-referenced issues at placeholder 'unknown' (blocked approval of any WP in this mission, not a WP01 defect); filled evidence-backed verdicts from spec.md text + live gh issue state and committed separately -- flagging as a mission-planning gap (no WP owns issue-matrix.md) for operator awareness. No background processes left running."
+      ],
+      "shell_pid": 72136,
+      "shell_pid_created_at": "1784640444.101025",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9GP8XBDMXSVZN9TADANP",
+      "last_transition_at": "2026-07-21T15:39:12.456729+00:00",
+      "notes": [
+        "Ready for review. Hand-authored content added (owned_files: src/doctrine/directive.graph.yaml, src/doctrine/paradigm.graph.yaml, src/doctrine/anti_pattern.graph.yaml [new], src/doctrine/directives/built-in/reconcile-change-scope-tensions.directive.yaml [new]).\n\nURN casing convention confirmed from existing files: directives use directive:DIRECTIVE_NNN (not slug style); tactics/paradigms use kind:kebab-slug. Cross-kind edges live in the SOURCE node's own fragment file (confirmed precedent: tactic->directive edges live only in tactic.graph.yaml, never mirrored in directive.graph.yaml) -- I followed the same rule.\n\nT007/T008 (directive.graph.yaml edges, both in_tension_with):\n- directive:DIRECTIVE_024 -> directive:DIRECTIVE_025 (024 is lex-smaller)\n- directive:DIRECTIVE_025 -> tactic:change-apply-smallest-viable-diff (directive: is lex-smaller than tactic: by first-char compare 'd'<'t')\n\nT009 (new anti_pattern nodes): created NEW dedicated fragment src/doctrine/anti_pattern.graph.yaml (NOT inside paradigm.graph.yaml) because tests/doctrine/drg/test_sharded_layout.py::test_fragment_per_populated_node_kind and test_graph_sharding_equality.py::test_every_populated_kind_has_a_fragment enforce one <kind>.graph.yaml fragment per populated NodeKind (DD-8 totality). 6 nodes: anti_pattern:anemic-domain-model, anti_pattern:big-ball-of-mud, anti_pattern:big-upfront-design (all tags:[anti-pattern]); anti_pattern:code-is-the-documentation, anti_pattern:single-diagram-architecture (tags:[smell] -- these read as practice smells rather than named literature anti-patterns); anti_pattern:database-driven-design (tags:[anti-pattern]).\n\nT010 (8 rejects edges, in paradigm.graph.yaml, source=paradigm per cross-kind convention):\n- paradigm:brownfield-onboarding -> anti_pattern:big-ball-of-mud\n- paradigm:brownfield-onboarding -> anti_pattern:big-upfront-design\n- paradigm:c4-incremental-detail-modeling -> anti_pattern:big-upfront-design\n- paradigm:c4-incremental-detail-modeling -> anti_pattern:code-is-the-documentation\n- paradigm:c4-incremental-detail-modeling -> anti_pattern:single-diagram-architecture\n- paradigm:domain-driven-design -> anti_pattern:anemic-domain-model\n- paradigm:domain-driven-design -> anti_pattern:big-ball-of-mud\n- paradigm:domain-driven-design -> anti_pattern:database-driven-design\n(reason text carried verbatim from each paradigm's opposed_by block -- opposed_by itself untouched, still present in all 3 paradigm frontmatter files and still generating the pre-existing 'replaces' edges in paradigm.graph.yaml; WP03 removes those.)\n\nT011 (new directive): src/doctrine/directives/built-in/reconcile-change-scope-tensions.directive.yaml, id: RECONCILE_CHANGE_SCOPE_TENSIONS (uppercase-snake id, no numeric prefix -- precedent for non-numbered built-in directive ids exists in test fixtures, e.g. DEFENSIVE_REVIEW_LENIENT), enforcement: advisory (avoids the lenient-adherence->explicit_allowances requirement; real procedural/integrity_rules/validation_criteria body content included, not boilerplate). Node + exactly 3 reconciles_tension edges added to directive.graph.yaml:\n- directive:RECONCILE_CHANGE_SCOPE_TENSIONS -> directive:DIRECTIVE_024\n- directive:RECONCILE_CHANGE_SCOPE_TENSIONS -> directive:DIRECTIVE_025\n- directive:RECONCILE_CHANGE_SCOPE_TENSIONS -> tactic:change-apply-smallest-viable-diff\n\nT012 (verification): tests/doctrine/drg/test_shipped_graph_valid.py + test_validator_profile_edges.py pass (14/14). Full tests/doctrine/ sweep: 2737 passed, 16 failed -- ALL 16 accounted for:\n(a) 14 are the extractor-vs-shipped freshness/zero-delta canary family (extractor cannot regenerate opposed_by-independent hand-authored relations by design -- FR-006/007 note this explicitly): test_extractor.py::test_shipped_graph_yaml_is_fresh, test_extractor_projection.py::test_regenerated_graph_matches_baseline_counts + test_shipped_graph_is_fresh_and_byte_identical, test_path_ref_resolver.py::test_shipped_graph_is_fresh, test_graph_sharding_equality.py (7 of its tests: node/edge sets+counts, canonical-sorted node/edge, sharded-reload-equals-monolith), test_sharding_silent_degrade.py::test_pack_validator_builtin_urn_set_is_full. These are explicitly out of scope per T012's guidance and are WP03's job (plan.md IC-02 risk note: 'freshness canary must accept these hand-authored edges post-extractor-retirement'). NOTE: this list is BROADER than the 2 tests named in the WP02 prompt -- I found 6 more tests in the same family (same root cause: extractor regeneration diverges from shipped fragments because the 3 new relations + anti_pattern nodes have no frontmatter->extractor path). WP03 will need to reconcile/update ALL of these, not just the 2 originally named.\n(b) 2 are pre-existing WP01 baseline reds, confirmed by reproducing on the WP01-only commit (024bd0cb6) before applying my diff: test_artifact_kinds.py::test_all_expected_members_present and test_exclusion_set_is_exactly_template_and_asset (WP01 added ArtifactKind.ANTI_PATTERN and put it in the exclusion set, but didn't update these 2 tests' hardcoded expectations). Not mine to fix.\nI additionally fixed 2 tests myself (structural, unrelated to the freshness-canary family) by creating the dedicated anti_pattern.graph.yaml fragment: test_sharded_layout.py::test_fragment_per_populated_node_kind and test_graph_sharding_equality.py::test_every_populated_kind_has_a_fragment now pass.\n\nopposed_by untouched everywhere (grep confirms all 3 opposed_by blocks in 024/025 directive files and the 3 paradigm files, plus the tactic's opposed_by block, are unchanged). No Python files touched (ruff N/A).",
+        "Review passed. Verified via git diff 024bd0cb6..a576d713e: exactly 2 in_tension_with edges (directive:DIRECTIVE_024->DIRECTIVE_025; directive:DIRECTIVE_025->tactic:change-apply-smallest-viable-diff, the INV-005 recovered tension - present and correctly lex-ordered), 6 anti_pattern nodes with tags in new src/doctrine/anti_pattern.graph.yaml, 8 rejects edges in paradigm.graph.yaml, and 1 new reconcile-change-scope-tensions directive with exactly 3 reconciles_tension edges to all three tension participants. Cross-checked all 8 rejects edges against the original opposed_by entries in brownfield-onboarding/c4-incremental-detail-modeling/domain-driven-design paradigm.yaml (3+2+3=8 entries) - pairing and reason text match exactly, no content lost or mis-paired. grep for opposed_by across the full diff returns zero hits - nothing touched/removed (WP03's job intact). New anti_pattern.graph.yaml fragment justified: confirmed tests/doctrine/drg/test_sharded_layout.py::test_fragment_per_populated_node_kind and test_graph_sharding_equality.py::test_every_populated_kind_has_a_fragment require fragment_kinds == populated_kinds exactly, so a new populated NodeKind (anti_pattern) requires its own fragment file - not scope creep. Ran PYTHONPATH=src .venv/bin/python -m pytest tests/doctrine/drg/ -q: 14 failed, 212 passed, matching the expected freshness-canary family exactly (verified each failure name individually): test_extractor.py::test_shipped_graph_yaml_is_fresh; test_extractor_projection.py::test_regenerated_graph_matches_baseline_counts + test_shipped_graph_is_fresh_and_byte_identical; test_path_ref_resolver.py::test_shipped_graph_is_fresh; test_graph_sharding_equality.py's 9 tests (test_node_sets_equal, test_node_counts_equal, test_edge_sets_equal, test_edge_counts_equal, test_canonical_sorted_nodes_equal, test_canonical_sorted_edges_equal, test_sharded_reload_equals_monolith_reload_raw, test_per_kind_node_counts_equal, test_no_node_urn_lost); test_sharding_silent_degrade.py::test_pack_validator_builtin_urn_set_is_full. All 14 are extractor/freshness/sharding-equality comparisons against a regenerated graph that cannot reproduce hand-authored edges/nodes by design - none are unrelated/unexpected failures. Also ran test_shipped_graph_valid.py + test_validator_profile_edges.py directly: 14/14 passed, confirming structural validity. Reproduced the diff-compliance check programmatically (check_diff_compliance against occurrence_map.yaml): passed=True, all 4 changed files (anti_pattern.graph.yaml, directive.graph.yaml, paradigm.graph.yaml, reconcile-change-scope-tensions.directive.yaml) classify as serialized_keys/manual_review per path heuristic, none flagged do_not_change - legitimate per the map's own rationale (hand-authored replacement edges need judgment, not blanket rename). yaml.safe_load succeeds on all 4 new/changed files plus tactic.graph.yaml. No Python files touched."
+      ],
+      "shell_pid": 91207,
+      "shell_pid_created_at": "1784643626.615457",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9QRCD2MQ74WWF5Y433H1",
+      "last_transition_at": "2026-07-21T15:39:19.692476+00:00",
+      "notes": [
+        "Ready for review",
+        "Review passed: verified opposed_by/Contradiction fully retired (zero grep hits outside exempted historical docs), hand_authored_overlay.py registry (6 nodes/13 edges) matches WP02 commit a576d713e verbatim, both production bug fixes (DRGNode.tags emission + regenerate-graph --check/write overlay wiring) confirmed correct in code, ContradictionChecker untouched, f09f128c5 golden-set fix verified accurate and non-loosened. Added occurrence_map.yaml exception for doctrine.py's legitimate regenerate-graph touch (bulk-edit gate now clean, only justified manual_review flags). Full tests/doctrine/ suite: 2749 passed/0 failed. ruff+mypy clean. Dead-symbol gate: 25/26 passed, the 1 failure (SYNC_DISABLE_ENV_VARS) is confirmed pre-existing baseline red with zero diff overlap with this mission."
+      ],
+      "shell_pid": 17804,
+      "shell_pid_created_at": "1784647538.174858",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9JGJJ78VPNT8NXDHWPZW",
+      "last_transition_at": "2026-07-21T15:39:14.322567+00:00",
+      "notes": [
+        "Ready for review: anti_pattern wired into both singular->plural kind maps + PackContext.activated_anti_patterns (with read-path), rejects-target INV-004 validator rule added, INV-001 symmetric-read + gating/negative tests added. cascade.py untouched. Scoped tests/ruff/mypy all green.",
+        "Review passed: T019 verified — anti_pattern added to _SINGULAR_TO_PLURAL/_SINGULAR_TO_PER_KIND_FIELD (drg.py) and _SINGULAR_TO_PLURAL_KIND (activations.py). Independently re-grepped _SINGULAR_TO_PLURAL across src/ and confirmed the 3 other near-duplicates the implementer cited (doctrine.py scaffold map, pack_validator._SINGULAR_TO_PLURAL_AUGMENTATION, artifact_kinds.ArtifactKind._PLURALS) correctly exclude/handle anti_pattern by design per artifact_kinds.py's _NON_AUGMENTATION_ELIGIBLE_KINDS docstring (anti_pattern is never hand-authored standalone, never augmentation-eligible). Also found and independently investigated a 4th candidate the implementer did not mention (_activation_render.py::_singular_kind's local hardcoded inverse dict) and confirmed it is genuinely unreachable for anti_pattern (DoctrineService has no .anti_patterns property, and activations._ALLOWED_KINDS/_KIND_TO_PROPERTY never admit it) -- correctly left unchanged. T020 verified: PackContext.activated_anti_patterns field added plus a real read-path (_read_activated_anti_patterns calling _read_list_key), matching the exact sibling pattern for every other kind -- not a dead field. T021 verified: _validate_rejects_targets added to validator.py following the exact existing rule pattern (kind_by_urn lookup, dangling-defers-elsewhere comment, matching error message shape), wired into validate_graph as check 5. T022/T023 verified: real INV-001 symmetric-read test (edges_from/edges_to cross-checked both directions) and INV-004 positive/negative/dangling-target validator tests exist in new tests/doctrine/drg/test_validator.py; activation-gating coverage added to tests/charter/test_drg_filtering.py proving anti_pattern is config-gated (kind-level + per-artifact-ID), not default-allowed. Confirmed src/charter/cascade.py untouched (0 diff hits). Ran pytest tests/doctrine/drg/test_validator.py tests/charter/test_drg_filtering.py tests/charter/test_activation_filtered_drg.py tests/charter/test_pack_context.py -q myself: 58 passed. Ran mypy on all 4 changed source files myself: Success, no issues. Ran ruff check on changed files: all checks passed. Bulk-edit gate: grepped all 4 changed source files for opposed_by/Contradiction -- zero hits; this WP is purely additive activation-filter wiring, unrelated to the opposed_by retirement's manual_review code_symbols category, not a shortcut."
+      ],
+      "shell_pid": 91207,
+      "shell_pid_created_at": "1784643626.615457",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9SGYMDXPG6T57TKX0796",
+      "last_transition_at": "2026-07-21T15:39:21.502627+00:00",
+      "notes": [
+        "Ready for review: TensionFinding + unreconciled_tensions scan implemented in consistency_check.py, wired into charter activate warning path (activate.py). SC-002 live before/after verified against real built-in pack. Full tests/charter/ sweep: 1635 passed, 1 skipped.",
+        "Review passed. Verified independently (not trusting self-report): (1) diff scope is exactly 3 files (consistency_check.py, activate.py, test_tension_unreconciled.py) -- no edits to charter/drg.py or any file outside owned_files. (2) T024: TensionFinding frozen dataclass, resolution_paths default matches contract verbatim; unreconciled_tensions added to ConsistencyReport and confirmed NOT part of the coherent reduction by reading the code directly. (3) T025/T026: live-constructed an A-B/B-C synthetic graph and ran scan_unreconciled_tensions directly -- confirmed no transitive A-C is synthesized (INV-002); half-reconciled test confirms both-sides-bridged requirement. (4) T027: forced-error test lands in verification_errors, not swallowed. (5) T028: activate.py imports and calls the SAME scan_unreconciled_tensions (single canonical authority, no duplicated logic); warning text matches contract format. (6) T029/SC-002: ran tests/charter/test_tension_unreconciled.py -v myself -- 7/7 passed, including the live SC-002 before/after against the REAL built-in pack (directive.graph.yaml's actual DIRECTIVE_024/025/RECONCILE_CHANGE_SCOPE_TENSIONS edges from WP02), not a synthetic fixture. (7) Full tests/charter/ -q sweep run myself: 1635 passed, 1 skipped, 385s -- matches implementer self-report exactly, no regressions. (8) ruff clean on all 3 files; mypy has 2 pre-existing errors in activate.py (lines 102/126) confirmed present on the base branch before this WP's commit -- not introduced by WP05. Activation-gate bug claim: CONFIRMED REAL and pre-existing (charter/drg.py's _node_is_activated per-ID gate compares canonical DRG ids like DIRECTIVE_024 against config stems like 024-locality-of-change from PackContext.activated_directives -- verified by reading both pack_context.py's raw stem read and directive.graph.yaml's canonical URNs; this repo's own .kittify/config.yaml demonstrates the mismatch). WP05 correctly did NOT edit filter_graph_by_activation/_node_is_activated (charter/drg.py untouched, zero side effects on other consumers) and instead added a local, correctly-resolving per-ID gate inside consistency_check.py reusing resolve_artifact_urn, mirroring the existing _check_reference_id_forward_parity pattern already in the file. Stays within WP05's owned files. Minor non-blocking nits noted for future follow-up (not blocking approval): _node_is_tension_scan_active's kind-gate returns False (not True) for kinds with no CLI mapping (e.g. anti_pattern), contradicting its own comment, but currently unreachable/inert since no tension edges touch anti_pattern nodes; activate.py's best-effort exception swallowing docstring claims to match _render_no_cascade_warning's pattern but that function actually doesn't catch DRG-load errors (the design choice itself is still sound and matches the contract's fail-closed-lives-on-consistency-check-surface intent). Also note: the review task instructions asserted an 'activate.py exception... committed to occurrence_map.yaml' -- I found no such entry; kitty-specs/doctrine-tension-edges-01KY1WPC/occurrence_map.yaml was authored in a single prior planning commit (78e691164), is untouched by WP05, and has no reference to activate.py at all. Flagging this discrepancy rather than confirming an unverifiable claim; it does not affect this WP's approval since WP05 never touches occurrence_map.yaml."
+      ],
+      "shell_pid": 99151,
+      "shell_pid_created_at": "1784646664.997155",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9VCB9WBHWWSY85SJ8AN5",
+      "last_transition_at": "2026-07-21T15:39:23.403615+00:00",
+      "notes": [
+        "Ready for review: orphan-lint fixed (exactly {DIRECTIVE_035, DIRECTIVE_039} verified against real built-in DRG + spec-kitty charter lint), cascade exclusion regression tests added (T032 data-level, T033 CLI-behavioral).",
+        "Review passed. Verified independently: (1) orphan.py's _ORPHAN_RULES now maps directive -> {scope,requires,suggests,applies,refines}, adr rule fully removed (neither governs/supersedes/references is a Relation enum member per src/doctrine/drg/models.py, confirmed by reading it). (2) Ran 'spec-kitty charter lint' live: exactly 2 findings, DIRECTIVE_035 and DIRECTIVE_039, zero orphaned_adr findings. (3) Manually inspected the built-in DRG: RECONCILE_CHANGE_SCOPE_TENSIONS has zero incoming edges of any kind but an outgoing reconciles_tension edge to DIRECTIVE_024/025/change-apply-smallest-viable-diff -- correctly exempted by the new outgoing-edge check. DIRECTIVE_035/DIRECTIVE_039 have zero incoming AND zero outgoing edges (no reconciles_tension), so the exemption legitimately does not apply to them -- they are flagged for the right reason. (4) T031 uses exact set equality (==). (5) T032 is the explicit frozenset-intersection assertion; confirmed cascade.py has zero diff (last touched by unrelated commit bb5ddb849). (6) T033 exercises the real CLI (charter activate --cascade all) against real built-in fixtures, not mocks -- proves DIRECTIVE_024 activation doesn't cascade to DIRECTIVE_025, and reconciler activation doesn't cascade to any of the 3 reconciled artefacts. (7) Ran tests/specify_cli/charter_lint/ + test_cascade.py + test_tension_cascade_exclusion.py myself: 101 passed. (8) ruff + mypy clean on orphan.py. (9) No manual_review/bulk-edit gate applies to this WP's 4 files -- none reference opposed_by/Contradiction, confirmed via grep. Assessment of the reconciler-exemption design: this is principled, not a hack tuned to hit a count. It corrects a real category error (an incoming-edge-only orphan check applied to a relation, reconciles_tension, that is structurally always outbound from the reconciler) rather than special-casing WP02's specific directive URN. The exemption is expressed generically (_SELF_EXEMPTING_OUTGOING_RELATIONS keyed by node kind + relation), so it will correctly exempt any future reconciler, and does not accidentally suppress the two genuine orphans, which independently lack both incoming edges and any outgoing reconciles_tension edge."
+      ],
+      "shell_pid": 99017,
+      "shell_pid_created_at": "1784646636.283409",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9MB0D6E4T6TRDKBH1M43",
+      "last_transition_at": "2026-07-21T15:39:16.192123+00:00",
+      "notes": [
+        "Ready for review: rewrite-opposed-by migration tool, CLI wiring, and tests implemented",
+        "Review passed: verified occurrence_map.yaml manual_review exception for migrate_cmd.py/rewrite_opposed_by.py (commit 294c1dfdb, root repo) resolves the earlier bulk-edit BLOCK correctly. Traced the classification heuristic against this repo's own real opposed_by corpus in a sandbox copy: all 3 tension-style raw entries (024<->025 x2, tactic->025) -> in_tension_with, all 8 anti-pattern-rejection entries -> rejects, matching manual reading (docstring's 'two tension-style entries' undercounts raw YAML entries by one but the code behavior is correct -- non-blocking prose nit). Ran a real end-to-end migrate/re-migrate cycle on the sandbox copy: opposed_by keys removed, graph fragments written correctly, second run produced 0 rewrites and byte-identical (md5-matched) graph files -- idempotency confirmed live, not just via the test's own byte-comparison assertion (test_second_run_is_noop genuinely asserts text equality across two real runs). Constructed and ran the T036 unclassifiable case (ambiguous cross-type id collision): non-zero exit, no traceback, clear diagnostic naming the entry, confirmed via both direct call and CliRunner. CLI wiring (migrate_cmd.py rewrite-opposed-by) matches backfill-identity/backfill-topology conventions: kebab-case name, --pack/--dry-run/--json, documented exit codes, _error/typer.Exit pattern. pytest (10/10 pass), ruff check, and mypy --strict all clean on the 3 owned files. Confirmed via git show --stat on the WP's own commit (b9e389940) that only the 3 owned files were touched -- no changes to this repo's built-in opposed_by doctrine content (WP03's surface). Anti-pattern checklist: 1 PASS (migrate_cmd.py is sole production caller) 2 PASS (tests exercise real Pydantic DRGGraph/DRGEdge/DRGNode models + real ruamel round-trip, not synthetic dict fixtures) 3 PASS (one except block has a documented best-effort-registry-build rationale + warning log) 4 PASS (FR-015 covered by dry-run/real-run/idempotency/unclassifiable tests) 5 PASS (no frozen-file touches) 6 PASS (no MUST NOT violated) 7 PASS (migrate_cmd.py shared-file concern resolved via committed occurrence_map.yaml exception) 8 PASS (raise path is documented typer.Exit(1) on classification failure, not a bare crash)."
+      ],
+      "shell_pid": 91672,
+      "shell_pid_created_at": "1784643696.422909",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2N9P3CJ7CS6W4HZK3J6248",
+      "last_transition_at": "2026-07-21T15:39:17.996188+00:00",
+      "notes": [
+        "Ready for review",
+        "Review passed: verified RELATION_DESCRIPTIONS text in src/doctrine/drg/models.py is byte-for-byte reproduced (after whitespace normalization) in docs/architecture/doctrine-relationships.md's new Tension vocabulary section for all 3 new relations (in_tension_with, reconciles_tension, rejects); confirmed models.py untouched by WP08's commit (git diff empty, read-only constraint respected); ran tests/doctrine/test_relation_doc_parity.py (7 passed), ruff check (clean), mypy (clean); independently mutated one word in the doc's rejects section and reran the suite -- 3 tests failed and correctly named only 'rejects' as divergent, confirming genuine content-equality comparison rather than presence-only checking; reverted the mutation via git checkout, reran -- 7 passed, git diff clean. Check is auto-collected by pytest (testpaths=tests, no exclusion), satisfying T041 wiring requirement. All anti-pattern checklist items PASS."
+      ],
+      "shell_pid": 91207,
+      "shell_pid_created_at": "1784643626.615457",
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
+    }
+  }
+}

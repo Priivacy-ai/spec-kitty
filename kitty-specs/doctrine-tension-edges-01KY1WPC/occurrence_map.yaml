@@ -1,0 +1,149 @@
+# Occurrence map for doctrine-tension-edges-01KY1WPC (DIRECTIVE_035).
+#
+# Retires the `opposed_by` field/schema-property and its co-defined
+# `Contradiction` model (src/doctrine/shared/models.py), replacing both with
+# first-class DRG edges (`in_tension_with` / `reconciles_tension` / `rejects`)
+# per spec.md FR-005/FR-006/FR-007. This is a removal, not a 1:1 token rename —
+# every occurrence is replaced by a structurally different edge, authored
+# elsewhere in the graph, not by substituting a new string in place.
+#
+# Confirmed via `grep -rln "opposed_by" src/ docs/ tests/` (21 files, verified
+# 2026-07-21) plus the co-defined Contradiction symbol (src/doctrine/shared/models.py,
+# which has no literal "opposed_by" occurrence but is removed alongside it).
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+
+target:
+  term: opposed_by
+  replacement: null
+  operation: remove
+
+categories:
+  # Pydantic field definitions (directives/paradigms/tactics models.py) +
+  # the Contradiction model itself + extractor logic that mints opposed_by-derived
+  # replaces edges. Not mechanical: each site is replaced by hand-authored DRG
+  # edges (FR-001/FR-002/FR-003), not a string substitution.
+  code_symbols:         { action: manual_review }
+
+  # `from doctrine.shared.models import Contradiction` in directives/paradigms/tactics
+  # models.py. Mechanical once the symbol is deleted — the import line is removed,
+  # not rewritten to a new symbol.
+  import_paths:         { action: rename }
+
+  # No filesystem path (directory/file name) is built from this term.
+  filesystem_paths:     { action: do_not_change }
+
+  # `opposed_by:` as an authored YAML property in built-in directive/paradigm/tactic
+  # source files, and the schema property + `contradiction` definition in
+  # directive/paradigm/tactic.schema.yaml. This is the mission's core migration
+  # surface (FR-005/FR-006/FR-007) — each site's removal is paired with hand-authored
+  # replacement edges in the same graph fragment, so it needs judgment, not a
+  # blanket key rename. Downstream/org-pack-authored `opposed_by` YAML (outside this
+  # repo) is explicitly NOT touched by this mission's diff — that compatibility path
+  # is FR-015's new `spec-kitty migrate` subcommand, run by the consumer.
+  serialized_keys:      { action: manual_review }
+
+  # No existing CLI command, flag, or script name is built from this term. The new
+  # FR-015 migration subcommand is new code (see exceptions), not a rename of an
+  # existing command.
+  cli_commands:         { action: do_not_change }
+
+  # Docs describing current authoring guidance (e.g. the implementation-mapping
+  # architecture doc) get updated to reflect the new edges. Historical ADRs and
+  # point-in-time planning/investigation snapshots are NOT rewritten — they document
+  # what was true when written (Terminology Canon: legacy wording stays as an
+  # immutable snapshot). See exceptions for the specific historical files.
+  user_facing_strings:  { action: rename_if_user_visible }
+
+  # Tests explicitly named for removal/repointing by the spec's own acceptance
+  # criteria: the opposed_by-derived extractor test, the three opposed_by tests in
+  # test_directive_consistency.py, and the with-tactic-refs.yaml fixture.
+  tests_fixtures:       { action: rename }
+
+  # No metric, log key, or telemetry label is built from this term.
+  logs_telemetry:       { action: do_not_change }
+
+exceptions:
+  - path: "src/doctrine/shared/models.py"
+    action: manual_review
+    reason: >-
+      Defines the Contradiction model + its __all__ entry (FR-005). No literal
+      "opposed_by" occurrence in this file, but it is removed in the same change
+      as the field that references it (directives/paradigms/tactics models.py).
+
+  - path: "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md"
+    action: do_not_change
+    reason: >-
+      The Accepted ADR anchoring this mission. It already documents "retiring
+      opposed_by" as the decided future state — it is the design record, not
+      something to rewrite away.
+
+  - path: "docs/adr/3.x/README.md"
+    action: do_not_change
+    reason: "ADR index entry (title reference only); index entries are not rewritten."
+
+  - path: "docs/plans/initiatives/2026-03-doctrine-execution-integration/README.md"
+    action: do_not_change
+    reason: "Point-in-time planning snapshot describing prior work; immutable per Terminology Canon."
+
+  - path: "docs/plans/investigations/model-first-schema-generation.md"
+    action: do_not_change
+    reason: "Point-in-time investigation snapshot describing prior schema additions; immutable per Terminology Canon."
+
+  - path: "src/specify_cli/charter_runtime/lint/checks/contradiction.py"
+    action: do_not_change
+    reason: >-
+      Unrelated ContradictionChecker (charter-lint text-contradiction check) —
+      shares the word "Contradiction" but is NOT doctrine.shared.models.Contradiction
+      and has no "opposed_by" occurrence (NFR-002 explicitly calls out this ambiguity).
+      Its importers (charter_runtime/lint/engine.py, charter_runtime/lint/__init__.py)
+      and its dedicated test (tests/specify_cli/charter_lint/checks/test_contradiction.py)
+      are equally out of scope for the same reason.
+
+  - path: "src/specify_cli/migration/rewrite_opposed_by.py"
+    action: manual_review
+    reason: >-
+      FR-015's new migrate subcommand module (modeled on
+      migration/backfill_identity.py). New code whose entire purpose is to rewrite
+      downstream-authored opposed_by usages — it legitimately contains the term as
+      its subject matter; it is new code, not a rename target.
+
+  - path: "src/specify_cli/cli/commands/charter/activate.py"
+    action: manual_review
+    reason: >-
+      FR-010 requires this existing command's warning output to also surface
+      tension_unreconciled findings. This is enhancement of existing warning
+      rendering, not a rename/removal of the activate command itself — the
+      default cli_commands: do_not_change posture protects against renaming
+      or removing commands, not against adding output to one. Same planning
+      gap as migrate_cmd.py below, caught at WP05 review time.
+
+  - path: "src/specify_cli/cli/commands/migrate_cmd.py"
+    action: manual_review
+    reason: >-
+      FR-015 requires registering a new `rewrite-opposed-by` subcommand in this
+      existing command-registration file, following the same pattern as
+      `backfill-identity`/`backfill-topology`/`charter-encoding`. This file's
+      default `cli_commands: do_not_change` classification protects EXISTING
+      commands from being renamed/removed — it does not and should not block
+      adding a new one. Planning gap: this exception was missing when the map
+      was first authored (caught at WP07 review time when the diff-compliance
+      gate correctly flagged the touch); added here rather than weakening the
+      default do_not_change posture for the category as a whole.
+
+  - path: "src/specify_cli/cli/commands/doctrine.py"
+    action: manual_review
+    reason: >-
+      WP03 fixes `regenerate-graph` (both the `--check` path and the real
+      write path) to merge in the hand-authored overlay
+      (doctrine.drg.migration.hand_authored_overlay) instead of calling the
+      bare extractor's generate_graph directly. Without this fix, a real
+      `regenerate-graph` run would silently delete WP02's hand-authored
+      in_tension_with/reconciles_tension/rejects edges and anti_pattern nodes
+      from the committed graph fragments, and `--check` would permanently
+      report "stale" even when nothing is actually stale (the extractor has
+      no frontmatter path that could ever mint these edges). This is a
+      necessary consistency fix to an existing command's internal wiring, not
+      a rename/removal of the command itself — same class of legitimate touch
+      as the migrate_cmd.py and charter/activate.py exceptions above, caught
+      at WP03 review time.
