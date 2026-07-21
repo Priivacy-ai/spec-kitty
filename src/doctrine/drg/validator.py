@@ -5,6 +5,7 @@ Checks:
 - Duplicate edges (same source + target + relation triple)
 - Cycles in the ``requires`` subgraph (DFS-based)
 - Symmetric profile-edge integrity (lineage/delegation edges, #1755)
+- Rejects/anti_pattern integrity, both directions (INV-004)
 """
 
 from __future__ import annotations
@@ -146,6 +147,35 @@ def _validate_rejects_targets(graph: DRGGraph) -> list[str]:
     return errors
 
 
+def _validate_anti_pattern_nodes_are_rejected(graph: DRGGraph) -> list[str]:
+    """Validate every ``anti_pattern`` node has >=1 inbound ``rejects`` edge.
+
+    Reverse mirror of :func:`_validate_rejects_targets`: that check enforces
+    the *forward* direction (a ``rejects`` edge must terminate at an
+    ``anti_pattern`` node); this check enforces the *reverse* direction (a
+    node marked ``NodeKind.ANTI_PATTERN`` must be the target of at least one
+    ``rejects`` edge). Without this, a node tagged ``anti-pattern``/``smell``
+    that nothing actually rejects would pass silently -- a bad practice
+    named in the graph but not wired to anything that avoids it.
+
+    Uses :meth:`DRGGraph.edges_to` (reverse-adjacency lookup) rather than a
+    hand-rolled scan, mirroring the query helper already used by cascade
+    traversal.
+
+    Returns a list of human-readable error messages (empty means valid).
+    """
+    errors: list[str] = []
+    for node in graph.nodes:
+        if node.kind is not NodeKind.ANTI_PATTERN:
+            continue
+        if not graph.edges_to(node.urn, relation=Relation.REJECTS):
+            errors.append(
+                f"Orphaned anti_pattern node: {node.urn!r} is marked "
+                "anti_pattern but has no inbound rejects edge"
+            )
+    return errors
+
+
 def _validate_dangling_references(graph: DRGGraph) -> list[str]:
     """Return errors for edges whose source/target is not a known node."""
     errors: list[str] = []
@@ -229,6 +259,8 @@ def validate_graph(graph: DRGGraph) -> list[str]:
        agent_profile nodes in both directions and lineage is acyclic (#1755).
     5. Rejects-target integrity -- ``rejects`` edges must target an
        ``anti_pattern`` node (INV-004, mission ``doctrine-tension-edges-01KY1WPC``).
+    6. Anti-pattern-node integrity -- every ``anti_pattern`` node must be the
+       target of at least one ``rejects`` edge (INV-004 reverse direction).
     """
     errors: list[str] = []
     errors.extend(_validate_dangling_references(graph))
@@ -238,6 +270,8 @@ def validate_graph(graph: DRGGraph) -> list[str]:
     errors.extend(validate_profile_edges(graph))
     # -- 5. Rejects-target integrity (INV-004) ------------------------------
     errors.extend(_validate_rejects_targets(graph))
+    # -- 6. Anti-pattern-node integrity (INV-004 reverse) --------------------
+    errors.extend(_validate_anti_pattern_nodes_are_rejected(graph))
     return errors
 
 

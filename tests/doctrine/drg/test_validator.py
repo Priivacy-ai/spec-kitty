@@ -123,3 +123,41 @@ class TestRejectsTargetValidation:
         )
         graph = _graph([source, target], [edge])
         assert validate_graph(graph) == []
+
+
+class TestAntiPatternNodeIsRejectedValidation:
+    """INV-004 (reverse direction): an anti_pattern node must be rejected.
+
+    :func:`_validate_rejects_targets` enforces the forward direction only
+    (a ``rejects`` edge must land on an anti_pattern node). This mirrors
+    that check in reverse: a node marked ``NodeKind.ANTI_PATTERN`` with zero
+    inbound ``rejects`` edges is an orphaned "thing to avoid" that nothing
+    actually avoids, and must be detected rather than pass silently.
+    """
+
+    def test_orphaned_anti_pattern_node_with_no_inbound_rejects_is_detected(
+        self,
+    ) -> None:
+        """Red-first: a marked anti_pattern node nothing rejects must fail."""
+        orphan = DRGNode(urn="anti_pattern:unreferenced-smell", kind=NodeKind.ANTI_PATTERN)
+        graph = _graph([orphan], [])
+
+        errors = validate_graph(graph)
+        assert len(errors) == 1
+        assert "anti_pattern:unreferenced-smell" in errors[0]
+
+        with pytest.raises(DRGValidationError):
+            assert_valid(graph)
+
+    def test_anti_pattern_node_with_inbound_rejects_edge_passes(self) -> None:
+        good = DRGNode(urn="tactic:clean-commits", kind=NodeKind.TACTIC)
+        smell = DRGNode(urn="anti_pattern:force-push-shared-branch", kind=NodeKind.ANTI_PATTERN)
+        edge = DRGEdge(
+            source="tactic:clean-commits",
+            target="anti_pattern:force-push-shared-branch",
+            relation=Relation.REJECTS,
+        )
+        graph = _graph([good, smell], [edge])
+
+        assert validate_graph(graph) == []
+        assert_valid(graph)  # must not raise
