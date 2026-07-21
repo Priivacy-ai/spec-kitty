@@ -48,7 +48,8 @@ Example:
 ```
 Warning: directive:024-locality-of-change is in tension with
 directive:025-boy-scout-rule. Resolve by: (1) deactivating one side, or
-(2) activating a reconciler that bridges both.
+(2) activating a reconciler that bridges both (a single reconciler bridging
+both sides, or two distinct active reconcilers each bridging one side).
 ```
 
 ## Non-finding case (edge case coverage)
