@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
+from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
 
 
@@ -75,8 +76,27 @@ def check_lane_staleness(
     return StaleCheckResult(
         is_stale=True,
         stale_files=overlap,
-        remediation=(
+        remediation=_stale_remediation(lane, lane_branch, mission_branch),
+    )
+
+
+def _stale_remediation(lane: ExecutionLane, lane_branch: str, mission_branch: str) -> str:
+    """Build the operator-facing fix-it command for a stale lane.
+
+    The canonical planning lane (:func:`is_planning_lane`) never has a
+    ``.worktrees/`` entry -- it resolves to the repository-root checkout on
+    the mission's target branch (see ``lane_branch_name``'s ``lane-planning``
+    special case). Pointing that lane's remediation at a worktree glob names a
+    directory that cannot exist by construction.
+    """
+    if is_planning_lane(lane):
+        return (
             f"Lane {lane.lane_id} must incorporate mission changes before merging. "
-            f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
-        ),
+            f"This lane runs in the repository-root checkout (no worktree) on "
+            f"branch '{lane_branch}'. From the repository root: "
+            f"git checkout {lane_branch} && git merge {mission_branch}"
+        )
+    return (
+        f"Lane {lane.lane_id} must incorporate mission changes before merging. "
+        f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
     )

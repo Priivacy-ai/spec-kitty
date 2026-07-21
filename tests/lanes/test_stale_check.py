@@ -8,7 +8,7 @@ import subprocess
 import pytest
 
 from specify_cli.lanes.models import ExecutionLane
-from specify_cli.lanes.stale_check import check_lane_staleness
+from specify_cli.lanes.stale_check import _stale_remediation, check_lane_staleness
 
 pytestmark = pytest.mark.git_repo
 
@@ -101,6 +101,36 @@ class TestCheckLaneStaleness:
         assert result.remediation is not None
         assert "git merge" in result.remediation
 
+    def test_stale_planning_lane_remediation_has_no_worktree_path(self, tmp_path):
+        """The canonical planning lane has no ``.worktrees/`` entry by design --
+        remediation must not send the operator to a directory that can't exist."""
+        repo = _make_repo(tmp_path)
+        # lane_branch_name() returns the target branch itself for lane-planning
+        # (no synthetic kitty/mission-*-lane-planning branch), so the fixture
+        # branch here stands in for that target branch.
+        _run(["git", "branch", "kitty/mission-feat"], repo)
+        _run(["git", "branch", "target-branch"], repo)
+
+        _run(["git", "checkout", "kitty/mission-feat"], repo)
+        _commit(repo, "kitty-specs/feat/WP10.md", "mission version\n", "mission change")
+
+        _run(["git", "checkout", "target-branch"], repo)
+        _commit(repo, "kitty-specs/feat/WP10.md", "target version\n", "target change")
+
+        _run(["git", "checkout", "main"], repo)
+
+        result = check_lane_staleness(
+            _lane(lane_id="lane-planning"),
+            "target-branch",
+            "kitty/mission-feat",
+            repo,
+        )
+        assert result.is_stale is True
+        assert result.remediation is not None
+        assert ".worktrees/" not in result.remediation
+        assert "repository-root checkout" in result.remediation
+        assert "git checkout target-branch && git merge kitty/mission-feat" in result.remediation
+
     def test_stale_reports_only_overlapping_files(self, tmp_path):
         repo = _make_repo(tmp_path)
         _run(["git", "branch", "kitty/mission-feat"], repo)
@@ -123,3 +153,22 @@ class TestCheckLaneStaleness:
         )
         assert result.is_stale is True
         assert result.stale_files == ["src/a.py"]
+
+
+class TestStaleRemediation:
+    """Pure-function coverage for the remediation-text branch (no git needed)."""
+
+    def test_lane_workspace_gets_worktree_remediation(self):
+        remediation = _stale_remediation(
+            _lane(lane_id="lane-a"), "kitty/mission-feat-lane-a", "kitty/mission-feat",
+        )
+        assert "cd .worktrees/*-lane-a" in remediation
+        assert "git merge kitty/mission-feat" in remediation
+
+    def test_planning_lane_gets_repo_root_remediation(self):
+        remediation = _stale_remediation(
+            _lane(lane_id="lane-planning"), "main", "kitty/mission-feat",
+        )
+        assert ".worktrees/" not in remediation
+        assert "repository-root checkout" in remediation
+        assert "git checkout main && git merge kitty/mission-feat" in remediation

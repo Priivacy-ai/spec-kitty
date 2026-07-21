@@ -176,6 +176,48 @@ class TestMergeLaneToMission:
         assert result.lane_id == "lane-planning"
         assert result.merged_into == "kitty/mission-010-feat"
 
+    def test_stale_planning_lane_blocked_with_repo_root_remediation(self, tmp_path):
+        """The `lane-planning` lane has no `.worktrees/` entry by design -- a
+        stale-block error must not send the operator to a directory that
+        cannot exist there (mirrors test_stale_lane_blocked for lane-a)."""
+        repo = _make_repo(tmp_path)
+        _run(["git", "checkout", "-b", "release/3.1.1"], repo)
+        _commit(repo, "kitty-specs/WP00.md", "planning base\n", "planning base")
+        _run(["git", "checkout", "main"], repo)
+        _run(["git", "branch", "kitty/mission-010-feat", "release/3.1.1"], repo)
+
+        # Mission and the planning lane's own branch (release/3.1.1) both
+        # change the same file after their common base.
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "kitty-specs/WP00.md", "mission change\n", "mission change")
+
+        _run(["git", "checkout", "release/3.1.1"], repo)
+        _commit(repo, "kitty-specs/WP00.md", "planning-branch change\n", "planning change")
+        _run(["git", "checkout", "main"], repo)
+
+        manifest = _make_manifest(
+            target_branch="release/3.1.1",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-planning",
+                    wp_ids=("WP00",),
+                    write_scope=("kitty-specs/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+        )
+
+        result = consolidate_lane_into_mission(repo, "010-feat", "lane-planning", manifest)
+
+        assert result.success is False
+        assert result.stale_check is not None
+        assert result.stale_check.is_stale is True
+        assert ".worktrees/" not in result.errors[0]
+        assert "repository-root checkout" in result.errors[0]
+        assert "git checkout release/3.1.1 && git merge kitty/mission-010-feat" in result.errors[0]
+
 
 class TestMergeMissionToTarget:
     def test_successful_mission_merge(self, tmp_path):
