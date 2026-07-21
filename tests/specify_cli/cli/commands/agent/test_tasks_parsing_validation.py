@@ -177,6 +177,21 @@ def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path
     assert _issue_matrix_approval_blocker(feature_dir) is None
 
 
+def test_issue_matrix_missing_file_blocker_names_regenerate_command(tmp_path: Path) -> None:
+    """Field report: the missing-file blocker gave no next step, so an
+    operator hand-authored a matrix by copying an unrelated mission's file.
+    The message must name the actual regenerate command and schema doc."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+
+    assert blocker is not None
+    assert "spec-kitty agent mission finalize-tasks --mission demo" in blocker
+    assert "src/specify_cli/cli/commands/review/ERROR_CODES.md" in blocker
+
+
 def test_issue_matrix_in_mission_passes_approved_blocks_done(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)

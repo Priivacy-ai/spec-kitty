@@ -581,6 +581,13 @@ Record the result under `## Gate Results — Cross-Repo E2E`.
 cat kitty-specs/<slug>/issue-matrix.md
 ```
 
+This file is scaffolded automatically during `spec-kitty tasks` (finalize-tasks)
+for any mission whose `spec.md` references GitHub issues — it should already
+exist by review time. If it is missing, regenerate it with
+`spec-kitty agent mission finalize-tasks --mission <slug>` rather than
+hand-authoring one; schema and a worked example live at
+`src/specify_cli/cli/commands/review/ERROR_CODES.md`.
+
 For every row in the matrix table, assert that the `verdict` cell is one of:
 
 - `fixed`

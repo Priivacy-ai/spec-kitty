@@ -198,7 +198,10 @@ def _issue_matrix_approval_blocker(
         return (
             f"{_ISSUE_MATRIX_ERROR_PREFIX} is required before approval.\n"
             f"Referenced issues: {issue_list}\n"
-            f"Fill verdicts {_FILL_VERDICTS_HINT}."
+            f"Fill verdicts {_FILL_VERDICTS_HINT}.\n"
+            f"This file is normally scaffolded automatically. If it is missing, "
+            f"regenerate it: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}\n"
+            f"Schema and worked example: src/specify_cli/cli/commands/review/ERROR_CODES.md"
         )
 
     result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
