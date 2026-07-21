@@ -51,6 +51,7 @@ def _make_event(
     event_id: str = "01TESTABCDEFGHIJKLMNOPQRST",
     at: str = "2026-03-18T12:00:00+00:00",
     actor: str = "test-agent",
+    policy_metadata: dict[str, Any] | None = None,
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
@@ -62,6 +63,7 @@ def _make_event(
         actor=actor,
         force=False,
         execution_mode="worktree",
+        policy_metadata=policy_metadata,
     )
 
 
@@ -162,6 +164,15 @@ def _setup_feature(
 
             for from_l, to_l in transitions:
                 counter += 1
+                # The reducer's claim exception (FR-004) is the ONLY leg that
+                # writes ``agent`` into the resolved snapshot, extracted from
+                # this event's ``policy_metadata`` sidecar (mirrors the real
+                # ``spec-kitty implement`` claim path). Without it here, the
+                # #2816 event-sourced ``agent`` slot never populates even
+                # though the (now-retired) frontmatter still declares one.
+                policy_metadata = (
+                    {"agent": "test-agent"} if from_l == "planned" and to_l == "claimed" else None
+                )
                 event = _make_event(
                     mission_slug,
                     wp_id,
@@ -169,6 +180,7 @@ def _setup_feature(
                     to_l,
                     event_id=f"01TEST{wp_id}{counter:020d}",
                     at=f"2026-03-18T{12 + counter:02d}:00:00+00:00",
+                    policy_metadata=policy_metadata,
                 )
                 append_event(feature_dir, event)
                 # Stop if we've reached the target lane
