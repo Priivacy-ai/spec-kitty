@@ -405,7 +405,7 @@ for `docs/architecture/`. Editorial reordering (e.g. moving the four
   href: create-plan.md
 - name: Generate Tasks
   href: generate-tasks.md
-- name: Implement a Work Package
+- name: Implement a work package
   href: implement-work-package.md
 - name: Review Work Packages
   href: review-work-package.md
@@ -677,7 +677,7 @@ linkable from leakage-check failures).
 - name: Getting Started
   href: getting-started.md
 - name: Your First Feature
-  href: your-first-feature.md
+  href: your-first-mission.md
 - name: Multi-Agent Workflow
   href: multi-agent-workflow.md
 - name: Missions Overview
@@ -697,7 +697,7 @@ Same 7 entries. Inventory matches the TOC exactly.
 **Diff:** (no changes)
 
 **Rationale.** Inventory carries 7 `current`-tagged tutorials; all 7 are
-already in the TOC. WP07 may rename `your-first-feature.md` to a
+already in the TOC. WP07 may rename `your-first-mission.md` to a
 mission-canonical phrasing per Charter Terminology Canon, but that is a
 **page-content** change, not a nav change, and is out of scope for WP03.
 

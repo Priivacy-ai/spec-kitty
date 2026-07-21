@@ -3,6 +3,7 @@ title: How to Install the Spec Kitty Claude Code Plugin
 description: How to install Spec Kitty as a native Claude Code plugin that surfaces canonical mission commands and built-in agent profiles.
 doc_status: active
 updated: '2026-06-20'
+type: how-to
 ---
 # How to Install the Spec Kitty Claude Code Plugin
 
@@ -47,7 +48,7 @@ claude --plugin-dir dist/spec-kitty-plugins/claude-code "<your prompt>"
 claude plugin install dist/spec-kitty-plugins/claude-code
 ```
 
-For build system details, see [CONTRIBUTING.md](contributing.md).
+For build system details, see [CONTRIBUTING.md](../development/contributing.md).
 
 ---
 

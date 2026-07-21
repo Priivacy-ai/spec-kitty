@@ -4,7 +4,7 @@ description: Committed E4 timings artifact for the CI test-topology performance 
 doc_status: active
 updated: '2026-07-12'
 related:
-- docs/guides/testing-parallel.md
+- docs/development/testing-parallel.md
 - docs/plans/testing/test-suite-acceleration-plan.md
 - kitty-specs/ci-test-topology-performance-01KXBJRT/data-model.md
 - kitty-specs/ci-test-topology-performance-01KXBJRT/spec.md
@@ -15,7 +15,7 @@ related:
 This is the mission's **E4 timings artifact** (`data-model.md` E4, mirroring
 `tests/architectural/_gate_coverage.py`'s `_TIMINGS_BASELINE` shape). Per
 IC-07 / the project's flakiness policy
-([docs/guides/testing-flakiness.md](../../guides/testing-flakiness.md)):
+([docs/development/testing-flakiness.md](../../development/testing-flakiness.md)):
 **budgets here are measured and recorded, never asserted live.** No pytest
 guard reads this file; a human/agent re-measures and updates it when the
 topology changes again.

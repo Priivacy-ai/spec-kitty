@@ -3,11 +3,12 @@ title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, native sub-issue parenting, blocked_by dependencies, and triage (type, severity, release-blocking bugs).'
 doc_status: active
 updated: '2026-07-17'
+type: how-to
 related:
-- docs/guides/contributing.md
+- docs/development/contributing.md
 - docs/guides/keep-main-clean.md
-- docs/guides/pr-landing.md
-- docs/guides/red-main-and-release-readiness.md
+- docs/development/pr-landing.md
+- docs/development/red-main-and-release-readiness.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 ---
 
@@ -187,7 +188,7 @@ wait for green; maintainers prioritize red recovery. See the
 ## See also
 
 - [Contributing to Spec Kitty](contributing.md) — pull-request and maintainer workflow.
-- [Keep main clean](keep-main-clean.md) — branch and merge discipline.
+- [Keep main clean](../guides/keep-main-clean.md) — branch and merge discipline.
 - [PR landing](pr-landing.md) — the fork-PR landing runbook, incl. red classification.
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red main means and the release gate.
 - [ADR 2026-07-17-1 — Red main is honest signal; CI is the release authority](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).

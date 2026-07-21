@@ -3,6 +3,7 @@ title: How to Create a Technical Plan
 description: 'How to create a technical plan with Spec Kitty 3.2: Use this guide to turn a finished spec into a technical plan with /spec-kitty.plan.'
 doc_status: active
 updated: '2026-06-06'
+type: how-to
 related:
 - docs/guides/create-specification.md
 - docs/guides/generate-tasks.md
@@ -40,10 +41,10 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 - `kitty-specs/<feature>/contracts/` (API contracts when applicable)
 - Updated agent context files (based on the plan)
 
-## Implementation Concern Map
+## implementation concern Map
 
 When a mission involves multiple distinct architectural areas, `plan.md` includes an
-**Implementation Concern Map** — a structured decomposition of intent before tasks are
+**implementation concern Map** — a structured decomposition of intent before tasks are
 generated.
 
 Implementation concerns (IC-01, IC-02, …) are plan-level architectural units. They are
@@ -92,4 +93,4 @@ may become multiple WPs; multiple small concerns may merge into one WP.
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

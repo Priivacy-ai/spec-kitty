@@ -224,11 +224,11 @@ Rules:
   protected by per-worker HOME isolation, so run them in their own `-n0` pass.
 
 Full rationale, the volume env gates, and the stability ratchet:
-[docs/guides/testing-parallel.md](docs/guides/testing-parallel.md).
+[docs/development/testing-parallel.md](docs/development/testing-parallel.md).
 
 When a test goes red on CI unrelated to your diff, follow the flakiness policy —
 **tune budget gates, fix correctness flakes at the root, never retry-to-green:**
-[docs/guides/testing-flakiness.md](docs/guides/testing-flakiness.md).
+[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md).
 
 **⚠️ Test-run baseline-red gotcha (attribute before you fix — applies to every agent, incl.
 dispatched subagents).** A local or backgrounded `pytest` run over anything broad will show
@@ -244,7 +244,7 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
    false reds until you reinstall.
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
 green-wash category 1, and never misattribute categories 2–3 to your own work. Full policy:
-[docs/guides/testing-flakiness.md](docs/guides/testing-flakiness.md#test-run-baseline-red-gotcha).
+[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
 
@@ -445,7 +445,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
 - **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
-- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/guides/local-overrides.md](docs/guides/local-overrides.md).
+- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/local-overrides.md](docs/development/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 

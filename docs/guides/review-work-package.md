@@ -1,14 +1,15 @@
 ---
-title: How to Review a Work Package
+title: How to Review a work package
 description: 'How to review a work package with Spec Kitty 3.2: Use this guide to review a completed work package and update its lane.'
 doc_status: active
 updated: '2026-06-03'
+type: how-to
 related:
 - docs/guides/accept-and-merge.md
 - docs/guides/implement-work-package.md
 - docs/guides/use-dashboard.md
 ---
-# How to Review a Work Package
+# How to Review a work package
 
 Use this guide to review a completed work package and update its lane.
 
@@ -54,7 +55,7 @@ review in this project. If governance files are missing (no charter
 configured), the command still works with fallback defaults -- it is not a
 blocker.
 
-## Step 3: Claim the Work Package
+## Step 3: Claim the work package
 
 ### Using the slash command
 
@@ -191,7 +192,7 @@ spec-kitty agent tasks status --mission <slug>
 
 ## See Also
 
-- [Implement a Work Package](implement-work-package.md) - Required before review
+- [Implement a work package](implement-work-package.md) - Required before review
 - [Accept and Merge](accept-and-merge.md) - After all WPs pass review
 - [Use the Dashboard](use-dashboard.md) - Monitor review status
 
@@ -202,4 +203,4 @@ spec-kitty agent tasks status --mission <slug>
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

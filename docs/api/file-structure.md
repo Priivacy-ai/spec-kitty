@@ -78,7 +78,7 @@ kitty-specs/
 │   ├── data-model.md             # Data model (software-dev)
 │   ├── checklists/               # Validation checklists
 │   │   └── requirements.md
-│   └── tasks/                    # Work package prompts
+│   └── tasks/                    # work package prompts
 │       ├── WP01-setup.md
 │       ├── WP02-api.md
 │       └── WP03-frontend.md
@@ -94,7 +94,7 @@ kitty-specs/
 |----------------|------------|---------|
 | `meta.json` | `/spec-kitty.specify` | Feature metadata and mission |
 | `spec.md` | `/spec-kitty.specify` | User stories, requirements, acceptance criteria |
-| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, Implementation Concern Map (IC-## entries) |
+| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, implementation concern Map (IC-## entries) |
 | `research.md` | `/spec-kitty.research` | Research findings and evidence (optional) |
 | `tasks.md` | `/spec-kitty.tasks` | Task breakdown translated from IC-## implementation concerns |
 | `wps.yaml` | `/spec-kitty.tasks` | Machine-readable WP manifest with `plan_concern_refs` traceability to IC-## entries |
@@ -131,11 +131,11 @@ Contains Git worktrees for implementation. Features create one shared workspace 
 - Created by `spec-kitty implement WP##`
 - Removed after merge with `git worktree remove`
 
-### Worktree vs Repository Root Checkout
+### Worktree vs repository root checkout
 
 | Location | When to Use |
 |----------|-------------|
-| Repository root checkout (`my-project/`) | Planning: `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` |
+| repository root checkout (`my-project/`) | Planning: `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` |
 | Worktree (`.worktrees/...`) | Implementation: `/spec-kitty.implement`, coding, testing in the resolved execution workspace |
 
 ---
@@ -151,7 +151,7 @@ Standard Git repository directory.
 ```
 .git/
 ├── config         # Repository configuration
-├── HEAD           # Current branch reference
+├── HEAD           # current branch reference
 ├── objects/       # Git object database
 ├── refs/          # Branch and tag references
 └── worktrees/     # Git worktree info (managed internally)
@@ -203,7 +203,7 @@ docs/
 ├── docfx.json                    # Build configuration
 ├── tutorials/                    # Learning-oriented
 │   ├── getting-started.md
-│   └── your-first-feature.md
+│   └── your-first-mission.md
 ├── how-to/                       # Task-oriented
 │   ├── install-spec-kitty.md
 │   ├── create-specification.md

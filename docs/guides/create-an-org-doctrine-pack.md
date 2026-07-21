@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-21'
 related:
 - docs/guides/setup-governance.md
 - docs/guides/synthesize-doctrine.md
@@ -13,6 +13,19 @@ related:
 This guide walks a governance system maintainer through producing an org doctrine pack,
 validating it, optionally assembling several packs into a single distributable, publishing
 it, and configuring consumer projects to install it.
+
+You'd build one of these instead of just running [project governance
+setup](setup-governance.md) on each repo separately when you have more than one project
+that needs the same rules — the same testing standard, the same architectural
+conventions, the same review discipline — and you don't want each project's charter to
+drift out of sync as you update the rule. An org doctrine pack is versioned and
+distributed like any other dependency: you publish once, consumer projects pull a
+specific version, and a rule change is a PR to the pack, not a hand-edit repeated N
+times.
+
+Not the same thing as Spec Kitty's **built-in** doctrine packs (e.g. SPDD) — see
+[Doctrine Packs](../doctrine/README.md) for those; this guide is for a pack *you* author
+and distribute.
 
 For background on what the org layer is and how it composes with built-in and project
 doctrine, see [Understanding the Org Doctrine Layer](../architecture/org-doctrine-layer.md).

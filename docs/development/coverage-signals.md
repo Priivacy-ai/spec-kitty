@@ -3,10 +3,11 @@ title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
 updated: '2026-07-08'
+type: explanation
 related:
-- docs/guides/testing-flakiness.md
-- docs/guides/testing-parallel.md
-- docs/guides/review-gates.md
+- docs/development/testing-flakiness.md
+- docs/development/testing-parallel.md
+- docs/development/review-gates.md
 - .github/workflows/ci-quality.yml
 - sonar-project.properties
 - scripts/ci/sonarcloud_branch_review.sh

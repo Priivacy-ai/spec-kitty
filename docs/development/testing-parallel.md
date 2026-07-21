@@ -3,8 +3,9 @@ title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
 updated: '2026-07-12'
+type: how-to
 related:
-- docs/guides/testing-flakiness.md
+- docs/development/testing-flakiness.md
 - docs/plans/testing/test-suite-acceleration-plan.md
 - docs/plans/testing/ci-job-timings.md
 - docs/plans/testing/ci-coverage-union-audit.md

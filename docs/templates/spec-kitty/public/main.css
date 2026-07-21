@@ -141,8 +141,15 @@
 [data-bs-theme="light"] {
     --bs-body-bg: var(--sk-baby-blue);
     --bs-body-color: var(--sk-dark-text);
-    --bs-link-color: var(--sk-grassy-green);
-    --bs-link-hover-color: #5a9647;
+    /* Link colors are darkened from --sk-grassy-green (#7BB661) for WCAG AA
+       contrast against --sk-baby-blue: the raw brand green measures only
+       1.37:1 there (needs >=4.5:1) since medium-green and medium-blue have
+       similar perceived lightness despite different hues. These darker
+       greens hold >=4.5:1 against baby-blue AND >=6:1 against the white/cream
+       content-card backgrounds (.sk-docs-hero, table rows) links also appear
+       on, so no separate override is needed per-surface. */
+    --bs-link-color: #2f5423;
+    --bs-link-hover-color: #234f18;
     --bs-code-color: #c7254e;
 }
 

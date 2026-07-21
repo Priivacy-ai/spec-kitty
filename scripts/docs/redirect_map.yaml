@@ -41,6 +41,19 @@ explanation/pip-vs-pipx-vs-uv.html: architecture/pip-vs-pipx-vs-uv.html
 explanation/retrospective-learning-loop.html: architecture/retrospective-learning-loop.html
 explanation/runtime-loop.html: architecture/runtime-loop.html
 explanation/spec-driven-development.html: architecture/spec-driven-development.html
+guides/contract-pinning.html: development/contract-pinning.html
+guides/contributing.html: development/contributing.html
+guides/coverage-signals.html: development/coverage-signals.html
+guides/internal-hosted-readiness.html: development/internal-hosted-readiness.html
+guides/local-overrides.html: development/local-overrides.html
+guides/manage-issue-tracker.html: development/manage-issue-tracker.html
+guides/pr-landing.html: development/pr-landing.html
+guides/red-main-and-release-readiness.html: development/red-main-and-release-readiness.html
+guides/review-gates.html: development/review-gates.html
+guides/run-mutation-tests.html: development/run-mutation-tests.html
+guides/testing-flakiness.html: development/testing-flakiness.html
+guides/testing-parallel.html: development/testing-parallel.html
+guides/write-time-dependent-tests.html: development/write-time-dependent-tests.html
 how-to/accept-and-merge.html: guides/accept-and-merge.html
 how-to/adhoc-specialist-session.html: guides/adhoc-specialist-session.html
 how-to/build-custom-orchestrator.html: guides/build-custom-orchestrator.html
@@ -76,7 +89,7 @@ how-to/install-linux.html: guides/install-linux.html
 how-to/install-macos.html: guides/install-macos.html
 how-to/install-spec-kitty.html: guides/install-spec-kitty.html
 how-to/install-windows.html: guides/install-windows.html
-how-to/internal-hosted-readiness.html: guides/internal-hosted-readiness.html
+how-to/internal-hosted-readiness.html: development/internal-hosted-readiness.html
 how-to/keep-main-clean.html: guides/keep-main-clean.html
 how-to/manage-agents.html: guides/manage-agents.html
 how-to/manage-glossary.html: guides/manage-glossary.html
@@ -90,7 +103,7 @@ how-to/review-work-package.html: guides/review-work-package.html
 how-to/run-an-autonomous-mission.html: guides/run-an-autonomous-mission.html
 how-to/run-external-orchestrator.html: guides/run-external-orchestrator.html
 how-to/run-governed-mission.html: guides/run-governed-mission.html
-how-to/run-mutation-tests.html: guides/run-mutation-tests.html
+how-to/run-mutation-tests.html: development/run-mutation-tests.html
 how-to/setup-codex-spec-kitty-launcher.html: guides/setup-codex-spec-kitty-launcher.html
 how-to/setup-governance.html: guides/setup-governance.html
 how-to/switch-missions.html: guides/switch-missions.html
@@ -107,7 +120,7 @@ how-to/use-operation-history.html: guides/use-operation-history.html
 how-to/use-retrospective-learning.html: guides/use-retrospective-learning.html
 how-to/use-wps-yaml-manifest.html: guides/use-wps-yaml-manifest.html
 how-to/worktrees-with-mcp-agents.html: guides/worktrees-with-mcp-agents.html
-how-to/write-time-dependent-tests.html: guides/write-time-dependent-tests.html
+how-to/write-time-dependent-tests.html: development/write-time-dependent-tests.html
 recovery/index.html: operations/index.html
 recovery/logged-out-teamspace.html: operations/logged-out-teamspace.html
 reference/README.html: api/README.html
@@ -140,4 +153,4 @@ tutorials/index.html: guides/index.html
 tutorials/missions-overview.html: guides/missions-overview.html
 tutorials/multi-agent-workflow.html: guides/multi-agent-workflow.html
 tutorials/orchestrator-quickstart.html: guides/orchestrator-quickstart.html
-tutorials/your-first-feature.html: guides/your-first-feature.html
+tutorials/your-first-feature.html: guides/your-first-mission.html

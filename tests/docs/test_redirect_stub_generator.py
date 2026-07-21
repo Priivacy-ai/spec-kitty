@@ -87,6 +87,22 @@ def test_derive_ignores_never_published_internal_moves() -> None:
     assert mapping == {}
 
 
+def test_derive_supports_same_directory_rename_via_explicit_file_dest() -> None:
+    # A `dest` ending in `.md` is an explicit target file (rename), not a
+    # directory whose basename is preserved from the source — this is what
+    # lets a same-directory rename (not just a relocate) produce a redirect.
+    rename_move = Move(
+        sources=("docs/guides/your-first-feature.md",),
+        dest="docs/guides/your-first-mission.md",
+    )
+    mapping = derive_redirect_map(
+        ["guides/your-first-feature.html"], [rename_move]
+    )
+    assert mapping == {
+        "guides/your-first-feature.html": "guides/your-first-mission.html"
+    }
+
+
 def test_committed_redirect_map_is_diff_stable() -> None:
     """Re-deriving from the committed inputs reproduces the committed map."""
     _, baseline = load_baseline(DEFAULT_BASELINE)
@@ -278,5 +294,28 @@ def test_real_baseline_amendments_are_recorded() -> None:
 
 
 def _resolve_occurrence_map() -> Path:
+    """Return the current canonical ``moves:`` spine for the committed map.
+
+    The generator's own ``--occurrence-map`` default only ever points at the
+    *first* mission that used this mechanism
+    (``common-docs-structural-move-01KW3SBK``). Every subsequent mission that
+    relocates published pages merges that mission's ``moves:`` forward into
+    its own occurrence map (never replacing it — see the redirect-map-entry
+    contract) and regenerates ``redirect_map.yaml`` from the merged file via
+    an explicit ``--occurrence-map`` override, exactly as
+    ``docs-ia-onboarding-overhaul-01KY02JB``'s WP01 did. This diff-stability
+    test must resolve the same merged spine the committed map was actually
+    regenerated from, or it would wrongly red on every legitimate merge-
+    forward. Prefer the latest mission's merged map when present; fall back
+    to the generator's own default for a checkout where no mission has yet
+    extended it.
+    """
+    latest = (
+        DEFAULT_OCCURRENCE_MAP.parents[1]
+        / "docs-ia-onboarding-overhaul-01KY02JB"
+        / "occurrence_map.yaml"
+    )
+    if latest.is_file():
+        return latest
     assert DEFAULT_OCCURRENCE_MAP.is_file(), DEFAULT_OCCURRENCE_MAP
     return DEFAULT_OCCURRENCE_MAP

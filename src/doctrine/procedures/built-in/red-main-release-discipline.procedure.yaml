@@ -9,7 +9,7 @@ purpose: >
   manual testing are not spent on a known-broken base; and red main is worked
   down as top priority. Consensus policy (CEO/product owner, QA lead,
   maintainers); governing decision ADR 2026-07-17-1, operational guide
-  docs/guides/red-main-and-release-readiness.md.
+  docs/development/red-main-and-release-readiness.md.
 entry_condition: >
   A development mission is running, or a P0 bug is being filed or accepted, or
   a release is being considered, or mainline CI has gone red.
@@ -58,6 +58,6 @@ steps:
       Green main is the goal; a red main is not an acceptable resting state — it
       pulls to the front of the maintainer queue. Land the fix through the normal
       PR flow (no-direct-push is unchanged). Use the landing-pass red
-      classification (docs/guides/pr-landing.md) to distinguish a genuine P0 red
+      classification (docs/development/pr-landing.md) to distinguish a genuine P0 red
       from a flake or pre-existing breakage while working the queue.
     actor: agent

@@ -1,90 +1,65 @@
 ---
 title: How to Set Up Project Governance
-description: Configure your project charter, generate structured governance config, and keep it in sync.
+description: The complete interview-to-generation flow for creating, validating, and activating your Spec Kitty project charter.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-20'
+type: how-to
 related:
 - docs/context/charter-overview.md
+- docs/guides/charter-governed-workflow.md
+- docs/guides/troubleshoot-charter.md
+- docs/guides/synthesize-doctrine.md
 - docs/guides/create-specification.md
 - docs/guides/non-interactive-init.md
 - docs/guides/switch-missions.md
-- docs/guides/synthesize-doctrine.md
 ---
 # How to Set Up Project Governance
 
-Spec Kitty uses a charter to govern how agents behave during workflow actions. This guide walks you through creating a charter, generating structured config from it, and keeping everything in sync as your project evolves.
+This is the single, start-to-finish walkthrough for creating your project's Charter: from a
+project with no governance configured, through the interview, generation, validation, and
+synthesis, to a charter that is active and automatically injected into every governed mission
+action.
+
+- For the conceptual model behind these steps — the DRG, bootstrap vs. compact context,
+  governed profile invocation — see [How Charter Works](../context/charter-overview.md).
+- If a step below fails, see [Troubleshooting Charter Failures](troubleshoot-charter.md).
+- For the full doctrine-synthesis workflow (partial resynthesis, provenance, recovery from a
+  stale bundle) beyond the quick version in Step 4 below, see
+  [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
 
 ## Prerequisites
 
 - Spec Kitty 3.x installed — verify with `uv run spec-kitty --version`
-- A project initialized with `uv run spec-kitty init` inside a git working tree
+- A git repository (new or existing). Charter requires a git working tree.
+- A Spec Kitty project scaffold. For a fresh repository, run
+  `uv run spec-kitty init --ai claude --non-interactive` before continuing. `init` is idempotent,
+  so rerunning it in an already-initialized project exits cleanly.
 
-## Understanding the 3-Layer Model
+## The governance model, briefly
 
-Governance is built on three layers. Only the first layer is human-edited; the other two are derived automatically.
+Two files matter, and they are not peers:
 
-### Layer 1: Charter (`charter.md`)
+- **`.kittify/charter/charter.yaml`** is the single git-tracked, **authoritative**, structured
+  charter. Its `governance`, `directives`, `catalog`, activation, and `overrides` sections all
+  live here. You author `governance`, `directives`, activation, and `overrides` (directly, or via
+  the interview); `charter generate` refreshes `catalog` and `metadata` deterministically from
+  the current doctrine selection, without touching your authored sections.
+- **`.kittify/charter/charter.md`** is a **curated companion**: a human-readable narrative the
+  runtime never parses, scrapes, or resolves policy from. Editing it has no effect on governed
+  mission behavior. `charter generate` seeds a starter `charter.md` only when one is absent, and
+  never overwrites an existing one.
 
-The Spec Kitty runtime policy document. It lives at `.kittify/charter/charter.md` and is written
-in markdown. You create it through the interview process or write it by hand. This is the only
-Spec Kitty governance file you should ever edit directly.
-
-If your repository already has a public constitution or governance document outside `.kittify/`,
-keep that document in place and make `charter.md` the concise runtime charter: summarize the
-binding directives agents need, name the external public authority, and point agents at its
-directory through `authority_paths` when useful. Do not duplicate the full public document unless
-your project deliberately wants a committed mirror.
-
-### Layer 2: Extracted Config (YAML files)
-
-Machine-readable config derived deterministically from your charter. These files are overwritten every time you run sync or generate:
-
-- `governance.yaml` -- Testing standards, quality gates, performance targets, branching rules, and doctrine selections
-- `directives.yaml` -- Numbered project rules with severity levels and action scopes
-- `metadata.yaml` -- Hash of the charter, timestamp of last sync
-
-### Layer 3: Doctrine References and Project Doctrine
-
-`references.yaml` records the built-in and local doctrine references selected by the charter.
-`charter synthesize` can then promote project-local doctrine artifacts into `.kittify/doctrine/`.
-Current `charter generate` does not copy doctrine pages into an authoritative `library/*.md`
-tree; runtime context resolves doctrine through the reference manifest and doctrine service.
-
-Supporting public governance documents are declared in the charter as repository-relative paths:
-
-```yaml
-governance_references:
-  - spec/constitution.md
-```
-
-These references are required reading in `charter context` output. `charter status` warns if a
-declared file is missing, absolute, or resolves outside the repository root.
-
-### How the Layers Connect
-
-```
-charter.md    (you edit this)
-       |
-   [sync / generate]
-       |
-       +-- governance.yaml     (auto-generated)
-       +-- directives.yaml     (auto-generated)
-       +-- metadata.yaml       (auto-generated)
-       +-- references.yaml     (auto-generated)
-       +-- synthesis state     (after synthesize)
-```
-
-When you run a governed workflow action through `spec-kitty next`, the runtime reads the
-extracted config and doctrine references, then renders relevant governance context into the
-prompt file returned to the agent.
-
----
+`.kittify/config.yaml` carries a single `charter:` pointer that resolves the active
+`charter.yaml`. When `spec-kitty next` invokes an agent profile for a mission action, the runtime
+reads `charter.yaml` directly and injects the relevant governance context into the prompt
+automatically — that is what "governed" means throughout this guide.
 
 ## Step 1: Run the Interview
 
-The interview captures your project's policy decisions and saves them as structured answers.
+The interview captures your project's policy decisions and saves them as structured answers to
+`.kittify/charter/interview/answers.yaml`.
 
-### Quick Path (Non-Interactive)
+### Quick path (non-interactive)
 
 Use `--defaults` to accept deterministic defaults without prompts. Good for bootstrapping or CI:
 
@@ -95,16 +70,16 @@ spec-kitty charter interview \
   --json
 ```
 
-### Full Interactive Path
+### Full interactive path
 
-For a thorough setup, use the comprehensive profile which asks 11 questions:
+For a thorough setup, use the comprehensive profile, which asks 11 questions:
 
 ```bash
 spec-kitty charter interview \
   --profile comprehensive
 ```
 
-### What the Interview Asks
+### What the interview asks
 
 **Minimal profile (8 questions):**
 
@@ -127,7 +102,7 @@ spec-kitty charter interview \
 | Amendment process | How the charter itself can be changed |
 | Exception policy | How to handle one-off policy exceptions |
 
-### Override Selections
+### Override selections
 
 You can override doctrine selections on the command line:
 
@@ -141,42 +116,32 @@ spec-kitty charter interview \
   --json
 ```
 
-The interview saves its answers to `.kittify/charter/interview/answers.yaml`.
+## Step 2: Generate the Charter Bundle
 
----
-
-## Step 2: Generate the Charter
-
-Generate the charter markdown and all derived files from your interview answers:
+Generate (or refresh) the charter bundle from your interview answers:
 
 ```bash
 spec-kitty charter generate --from-interview --json
 ```
 
-This does two things in sequence:
+This refreshes `charter.yaml`'s `catalog` and `metadata` sections from your doctrine selection,
+seeds a starter `charter.md` companion if one is not already present (an existing `charter.md` is
+left untouched), and auto-stages the produced files via `git add --force` so the immediately
+following `charter bundle validate` succeeds without a manual `git add`. It also ensures
+`.gitignore` carries the required entries for derived charter artifacts.
 
-1. Renders `charter.md` from your answers and doctrine templates
-2. Automatically runs sync to extract structured YAML
+> **Note**: `charter generate` requires a git working tree. If you run it outside a git repo it
+> exits non-zero with an error directing you to run `git init` first.
 
-After generation, your `.kittify/charter/` directory contains the full governance bundle.
+### Overwrite an existing charter
 
-> **Note (3.2.0a6+):** `charter generate` auto-tracks the produced
-> `charter.md` (it stages the file via `git add` and ensures the required
-> `.gitignore` entries exist for the derived artifacts). You do **not**
-> need to run `git add charter.md` before `spec-kitty charter bundle
-> validate` — the bundle is accepted immediately. If `generate` is run
-> outside a git working tree it fails fast with an actionable error
-> naming `git init` as the remediation.
-
-### Overwrite an Existing Charter
-
-If you already have a charter and want to regenerate from scratch:
+To force a full regeneration from your interview answers:
 
 ```bash
 spec-kitty charter generate --from-interview --force --json
 ```
 
-### Choose a Template Set
+### Choose a template set
 
 Override the doctrine template set if your project needs a different workflow shape:
 
@@ -187,147 +152,146 @@ spec-kitty charter generate \
   --json
 ```
 
-Available template sets: `software-dev-default`, `plan-default`, `documentation-default`, `research-default`.
+Available template sets: `software-dev-default`, `plan-default`, `documentation-default`,
+`research-default`.
 
-### Existing Public Constitution
+### Point at an existing public constitution
 
-For projects with a document such as `spec/constitution.md`, prefer a runtime charter that
-references it rather than copying it wholesale:
-
-````markdown
-## External Governance Authority
-
-The public project constitution lives in `spec/constitution.md`. This runtime charter summarizes
-the directives Spec Kitty injects into mission prompts.
+If your repository already publishes governance outside `.kittify/` — for example
+`spec/constitution.md` — keep that document in place and reference it from `charter.yaml` rather
+than duplicating it. Declare it under `governance.doctrine.governance_references` (the
+interview's equivalent question writes into this same section):
 
 ```yaml
-authority_paths:
-  - spec/
+governance:
+  doctrine:
+    governance_references:
+      - spec/constitution.md
 ```
-````
 
-Then run:
+`spec-kitty charter context --action ...` renders these paths as required governance reading, and
+`spec-kitty charter status` reports missing or unsafe references so you can fix stale paths. All
+referenced paths must be repository-relative and stay inside the repo root. Spec Kitty does not
+require the public document and `charter.yaml` to be byte-for-byte equal — `charter.yaml` is the
+only one the runtime resolves.
+
+## Step 3: Validate the Bundle
+
+Before promoting doctrine, verify the bundle is internally consistent.
+
+### 3a. Check for graph-native decay
 
 ```bash
-spec-kitty charter sync --json
+spec-kitty charter lint
+```
+
+`charter lint` detects orphaned directives (referenced in the DRG but without a backing tactic),
+contradictions between directives, and staleness (directives whose provenance points to a deleted
+or superseded built-in directive).
+
+### 3b. Validate the bundle schema
+
+```bash
+spec-kitty charter bundle validate
+```
+
+This validates the charter bundle against the `CharterBundleManifest` v2.0.0 schema — the
+structured-`charter.yaml` manifest — checking that all required files are present, correctly
+structured, and consistent.
+
+### 3c. Check status
+
+```bash
 spec-kitty charter status --json
 ```
 
-`authority_paths` entries are directories. Use the containing directory for a single public
-constitution file.
+`charter status` reports the bundle's freshness (charter → bundle → DRG), synthesis state,
+org-layer state, and the health of any declared `governance_references`. If lint and validate
+both pass and status shows no drift, you are ready to synthesize.
 
----
+## Step 4: Synthesize Doctrine
 
-## Step 3: Check Status
-
-After generation (or at any time), check whether your governance config is current:
-
-```bash
-spec-kitty charter status --json
-```
-
-This reports:
-
-- **synced** -- The extracted config matches the current charter
-- **stale** -- The charter has been edited since the last sync
-
-When status shows "stale", agents may be working with outdated policy. Run sync to fix it.
-Status also reports missing supporting governance references declared by `governance_references`.
-
----
-
-## Step 4: Sync After Manual Edits
-
-When you edit `charter.md` by hand, sync the changes to extracted config:
+Synthesis promotes agent-generated project-local doctrine artifacts into `.kittify/doctrine/`,
+making them available for runtime context injection.
 
 ```bash
-spec-kitty charter sync --json
+# Preview first
+spec-kitty charter synthesize --dry-run
+
+# Apply
+spec-kitty charter synthesize
+
+# Confirm
+spec-kitty charter status
 ```
 
-Sync is idempotent. If the charter hash has not changed since the last sync, extraction is skipped. To force re-extraction regardless:
+On a fresh project where `.kittify/charter/generated/` is missing or empty (the agent harness has
+not yet written candidate artifacts), synthesize creates the minimal artifact set — a
+`.kittify/doctrine/` directory marker and a `PROVENANCE.md` record — and the runtime falls back to
+built-in doctrine until a full synthesis run with agent-generated content completes. For partial
+resynthesis, provenance inspection, and recovery from a stale bundle, see
+[How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
 
-```bash
-spec-kitty charter sync --force --json
-```
+## Step 5: Confirm Governance Is Active
 
-Sync reads only `.kittify/charter/charter.md`. If that file is a generated copy, regenerate the
-copy from your external constitution before running sync. If it is a symlink, sync follows the
-symlink for reads but still writes generated YAML into `.kittify/charter/`. `charter generate`
-refuses to overwrite a symlinked `charter.md` before compilation or generated-file writes; update
-the symlink target directly or replace the symlink with a regular runtime charter before
-regenerating. For Windows or mixed-platform teams, prefer a runtime summary or generated copy unless
-native Windows CI has already proven symlink support for the checkout.
+Your charter is active once `spec-kitty charter status` reports no drift after synthesis. From
+here, governance context loads automatically — you don't call anything manually in normal use.
 
----
+### How context loading works
 
-## Step 5: Understand Context Loading
-
-During governed workflow actions, the runtime automatically loads governance context into agent
-prompts. You do not need to call this manually during normal use.
-
-### How It Works
-
-When `spec-kitty next` builds a prompt for a mission action, the runtime uses the same context
-builder exposed for debugging as:
+When `spec-kitty next` builds a prompt for a mission action, the runtime traverses the DRG from
+that action's entry point and renders the relevant governance context into the prompt. The same
+resolution is exposed for debugging as:
 
 ```bash
 spec-kitty charter context --action <action> --json
 ```
 
-This returns governance text tailored to the current action.
-
-### Context Modes
-
 | Mode | When it fires | What the agent sees |
 |------|--------------|---------------------|
-| Bootstrap | First time an action loads context | Full policy summary (up to 8 bullets) plus a list of reference docs |
-| Compact | Subsequent loads for the same action | Resolved paradigms, directives, tools, and template set only |
+| Bootstrap | First time an action loads context (or a freshly generated charter) | Full relevant DRG subgraph — all applicable directives and tactics |
+| Compact | Subsequent loads, or when the DRG payload is too large to include in full | Resolved paradigms, directives, tools, and template set only — a known limitation, see issue #787 |
 | Missing | No charter exists | Instructions telling the agent to create one |
 
-First-load state is tracked per action in `.kittify/charter/context-state.json`. Each action (specify, plan, implement, review) has an independent first-load timestamp.
+First-load state is tracked per action in `.kittify/charter/context-state.json`. Each action
+(specify, plan, implement, review, ...) has an independent first-load timestamp.
 
-### Manual Invocation for Debugging
-
-If you want to see exactly what governance context an action receives:
+### Verify with a real mission action
 
 ```bash
 spec-kitty charter context --action implement --json
 ```
 
-This is useful when diagnosing unexpected agent behavior during a workflow step.
-
----
+This is useful when diagnosing unexpected agent behavior during a workflow step, or simply to
+confirm governance context is flowing before you start real mission work.
 
 ## Anti-Patterns to Avoid
 
-### Editing Derived Files Directly
+### Editing derived sections directly
 
-`governance.yaml`, `directives.yaml`, `metadata.yaml`, `references.yaml`, runtime state, and
-synthesis outputs are owned by CLI commands. Manual changes can be overwritten or can make bundle
-validation misleading. Edit `charter.md` instead, then run sync and synthesis as needed.
+`charter.yaml`'s `catalog` and `metadata` sections, plus `references.yaml`, runtime state, and
+synthesis outputs, are owned by CLI commands. Manual edits there can be overwritten or make bundle
+validation misleading. Edit `charter.yaml`'s `governance:` and `directives:` sections (or run the
+interview) instead, then re-run `charter generate` and synthesis as needed.
 
-### Skipping the Interview
+### Skipping the interview
 
-Running generate without an interview produces generic defaults. The charter is most valuable when it contains your project's actual policy decisions -- testing thresholds, review requirements, branching rules. Take the time to answer the questions.
+Running `generate` without an interview produces generic defaults. The charter is most valuable
+when it contains your project's actual policy decisions — testing thresholds, review
+requirements, branching rules. Take the time to answer the questions.
 
-### Working with a Stale Charter
+### Enforcing public-charter equality
 
-If you edit `charter.md` but forget to sync, agents will work with outdated policy from the previous extraction. Run `spec-kitty charter status --json` to check, and `spec-kitty charter sync --json` to fix.
+Do not require `spec/constitution.md` and `.kittify/charter/charter.yaml` to be equivalent unless
+your project explicitly chooses that mirror policy. Spec Kitty treats external governance docs as
+supporting reading declared via `governance_references`, not an alternate authoritative source.
 
-### Enforcing Public-Charter Equality
-
-Do not require `spec/constitution.md` and `.kittify/charter/charter.md` to be markdown-equal
-unless your project explicitly chooses that mirror policy. Spec Kitty treats external governance
-docs as supporting context and `.kittify/charter/charter.md` as the runtime governance center.
-
-### Keeping Constitution-Era Paths
+### Keeping constitution-era paths
 
 Do not use `.kittify/memory/constitution.md`, `.kittify/constitution/constitution.md`, or
 `.kittify/constitution/{governance,directives,metadata}.yaml` as current runtime paths. Migrate
-current policy into `.kittify/charter/charter.md`; move any still-useful public document to a
+current policy into `.kittify/charter/charter.yaml`; move any still-useful public document to a
 normal repo path such as `spec/constitution.md` and declare it in `governance_references`.
-
----
 
 ## Complete Workflow Example
 
@@ -338,82 +302,58 @@ Set up governance for a new project from scratch:
 uv run spec-kitty init --ai claude --non-interactive
 
 # 2. Run the interview
-uv run spec-kitty charter interview \
-  --profile comprehensive
+uv run spec-kitty charter interview --profile comprehensive
 
-# 3. Generate charter and extracted config
+# 3. Generate the charter bundle
 uv run spec-kitty charter generate --from-interview --json
 
-# 4. Verify everything is in sync
-uv run spec-kitty charter status --json
-
-# 5. Start working -- governance context loads automatically
-uv run spec-kitty specify "Build user authentication module"
-```
-
-Later, after updating your charter:
-
-```bash
-# Edit the charter
-$EDITOR .kittify/charter/charter.md
-
-# Sync changes
-spec-kitty charter sync --json
-
-# Verify
-spec-kitty charter status --json
-```
-
----
-
-## Charter Synthesis Flow (3.x)
-
-After setting up and syncing your governance (steps 1–4 above), run the Charter synthesis flow
-to promote doctrine artifacts for runtime context injection. This is a 3.x addition to the
-governance setup workflow.
-
-**`charter synthesize` vs `charter sync` distinction**:
-- `charter sync` syncs `charter.md` to YAML config files (`governance.yaml`, `directives.yaml`,
-  `metadata.yaml`). Run it after manually editing `charter.md`.
-- `charter synthesize` validates and promotes agent-generated doctrine artifacts to
-  `.kittify/doctrine/` via the DRG-backed synthesis pipeline. Run it to make doctrine available
-  for governed mission context injection.
-- They are different operations. You typically run `charter sync` first (after editing), then
-  `charter synthesize` to complete the promotion.
-
-```bash
-# 1. Check for graph-native decay before synthesis
+# 4. Validate
 uv run spec-kitty charter lint
+uv run spec-kitty charter bundle validate
 
-# 2. Synthesize (dry-run first)
+# 5. Synthesize doctrine
 uv run spec-kitty charter synthesize --dry-run
 uv run spec-kitty charter synthesize
 
-# 3. Validate the bundle
-uv run spec-kitty charter bundle validate
+# 6. Confirm everything is current
+uv run spec-kitty charter status --json
 
-# 4. Confirm status
-uv run spec-kitty charter status
+# 7. Start working — governance context loads automatically
+uv run spec-kitty specify "Build user authentication module"
 ```
 
-Once synthesis completes successfully, governed mission actions via `spec-kitty next` will
-automatically receive the current Charter context.
+Later, after updating your charter, edit `.kittify/charter/charter.yaml` directly (its
+`governance:`/`directives:` sections), then re-run status/lint/synthesize as needed — there is no
+separate sync step; the next `charter context` call reads the file as-is.
 
----
+## What's Next
+
+You now have an active, governed charter. From here:
+
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) — partial resynthesis,
+  provenance, recovery from stale bundles
+- [How to Run a Governed Mission](run-governed-mission.md) — composed steps, prompt resolution,
+  blocked decisions
+- [How to Use Retrospective Learning](use-retrospective-learning.md) — preview and apply
+  synthesis proposals after a mission completes
+- [Charter-Governed Workflow](charter-governed-workflow.md) — a guided tour connecting this setup
+  flow to a full mission run
+- [How Charter Works](../context/charter-overview.md) — the DRG, bootstrap/compact context, and
+  governed profile invocation in depth
 
 ## Command Reference
 
-- [CLI Commands](../api/cli-commands.md) -- Full CLI reference including charter subcommands
+- [CLI Commands](../api/cli-commands.md) — full CLI reference including charter subcommands
 
 ## See Also
 
-- [How Charter Works](../context/charter-overview.md) -- Charter mental model and synthesis flow
-- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Full synthesis workflow
-- [Create a Specification](create-specification.md) -- Start a feature with governance active
-- [Switch Missions](switch-missions.md) -- How missions interact with governance
-- [Non-Interactive Init](non-interactive-init.md) -- Automated project setup including charter
-- [Doctrine Packs](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/doctrine/README.md) -- Optional pack selections, including [SPDD and the REASONS Canvas](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/doctrine/spdd-reasons.md)
+- [How Charter Works](../context/charter-overview.md) — Charter mental model and the DRG
+- [Troubleshooting Charter Failures](troubleshoot-charter.md) — fixes for stale bundles, missing
+  doctrine, compact-context limits, retrospective gate failures, and synthesizer rejections
+- [Create a Specification](create-specification.md) — start a mission with governance active
+- [Switch Missions](switch-missions.md) — how missions interact with governance
+- [Non-Interactive Init](non-interactive-init.md) — automated project setup including charter
 
 ## Background
 
-- [Mission System](../architecture/mission-system.md) -- How missions use governance context
+- [Mission System](../architecture/mission-system.md) — how missions use governance context

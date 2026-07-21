@@ -3,6 +3,7 @@ title: How to Accept and Merge a Mission
 description: "How to accept and merge a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and merge to the mission's target branch."
 doc_status: active
 updated: '2026-07-04'
+type: how-to
 related:
 - docs/guides/install-and-upgrade.md
 - docs/guides/keep-main-clean.md
@@ -83,7 +84,7 @@ live** against the working tree at accept time — it does not trust a stored
   lane branch (see `NegativeInvariant.scope`) or express it as a `custom_command`
   that is meaningful pre-merge.
 
-## Merge to the Target Branch
+## Merge to the target branch
 
 In your agent:
 
@@ -245,7 +246,7 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 - [Run an Autonomous Mission](run-an-autonomous-mission.md) - End-to-end autonomous run and focused-PR fallback
 - [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
 - [Troubleshoot Merge Issues](troubleshoot-merge.md) - Recovery and conflict resolution
-- [Review a Work Package](review-work-package.md) - Required before accept
+- [Review a work package](review-work-package.md) - Required before accept
 - [Upgrade to 0.11.0](install-and-upgrade.md) - Breaking changes in v0.11.0
 
 ## Background
@@ -255,4 +256,4 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

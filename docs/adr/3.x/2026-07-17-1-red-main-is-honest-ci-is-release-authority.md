@@ -6,7 +6,7 @@ date: '2026-07-17'
 
 # Red main is honest signal; CI status is the release authority
 
-**Status:** Accepted (by consensus) · **Deciders:** Robert Douglass (CEO / product owner), Kent (QA lead), maintainers · **Date:** 2026-07-17 · **Related:** [`docs/guides/red-main-and-release-readiness.md`](../../guides/red-main-and-release-readiness.md), [`docs/guides/testing-flakiness.md`](../../guides/testing-flakiness.md), [`docs/guides/pr-landing.md`](../../guides/pr-landing.md), the charter's red-first / test-remediation standing order.
+**Status:** Accepted (by consensus) · **Deciders:** Robert Douglass (CEO / product owner), Kent (QA lead), maintainers · **Date:** 2026-07-17 · **Related:** [`docs/development/red-main-and-release-readiness.md`](../../development/red-main-and-release-readiness.md), [`docs/development/testing-flakiness.md`](../../development/testing-flakiness.md), [`docs/development/pr-landing.md`](../../development/pr-landing.md), the charter's red-first / test-remediation standing order.
 
 ## Context and Problem Statement
 
@@ -48,7 +48,7 @@ The precipitating events: #2752 was merged with known reds (a CI-guard change wh
 * Release readiness has a single, trustworthy gate — CI — that cannot be green-washed.
 * P0 defects are visible on `main` and, when reproduced by a test, self-documenting and un-loseable.
 * Expensive QA and manual-test effort is never spent validating a known-broken base.
-* The policy reinforces the existing red-first / never-retry-to-green discipline (see [testing-flakiness](../../guides/testing-flakiness.md) and the landing-pass bin classification in [pr-landing](../../guides/pr-landing.md)) by extending it from the PR scope to the mainline scope.
+* The policy reinforces the existing red-first / never-retry-to-green discipline (see [testing-flakiness](../../development/testing-flakiness.md) and the landing-pass bin classification in [pr-landing](../../development/pr-landing.md)) by extending it from the PR scope to the mainline scope.
 
 #### Negative
 
@@ -62,4 +62,4 @@ The precipitating events: #2752 was merged with known reds (a CI-guard change wh
 
 ### Confirmation
 
-The decision is confirmed in practice by two observable invariants: (a) no release is cut while mainline CI is red, and (b) an accepted P0 either carries a failing reproduction test or a filed issue (ideally both). A release cut on red, or an accepted P0 silently reverted to keep `main` green, is a violation of this ADR. The operational runbook lives in [`docs/guides/red-main-and-release-readiness.md`](../../guides/red-main-and-release-readiness.md).
+The decision is confirmed in practice by two observable invariants: (a) no release is cut while mainline CI is red, and (b) an accepted P0 either carries a failing reproduction test or a filed issue (ideally both). A release cut on red, or an accepted P0 silently reverted to keep `main` green, is a violation of this ADR. The operational runbook lives in [`docs/development/red-main-and-release-readiness.md`](../../development/red-main-and-release-readiness.md).

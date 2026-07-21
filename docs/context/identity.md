@@ -47,6 +47,8 @@ Terms describing who performs work and who owns semantic decisions.
 | **Do NOT use when** | Describing the generated file or host configuration that exposes the profile to Claude Code, Codex, Copilot, Cursor, Windsurf, or another tool; use [Tool Surface](./execution.md#tool-surface) instead. |
 | **Related terms** | [Agent](#agent), [Role](#role), [Tool](./execution.md#tool) |
 
+See the [Agent Profiles reference](../reference/agent-profiles/index.md) for the full built-in roster.
+
 ---
 
 ### Audience Persona

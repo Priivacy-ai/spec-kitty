@@ -7,7 +7,7 @@ updated: '2026-06-23'
 # Spec Kitty 3.2 Documentation — Information Architecture
 
 **Mission:** `spec-kitty-3-2-docs-01KS4KSZ`
-**Work package:** WP08 (T025, T026)
+**work package:** WP08 (T025, T026)
 **Requirements:** FR-011 (IA spine), FR-012 (gap list)
 **Inputs:**
 - `docs/development/3-2-page-inventory.yaml` (WP02 — 402 rows)
@@ -36,7 +36,7 @@ Audience scope: first-time users, evaluators, and operators learning a brand-new
 
 | Page | Title | Target audience | Prerequisites | Success criterion | Nav placement | Inventory row / origin |
 |------|-------|-----------------|---------------|-------------------|---------------|------------------------|
-| `docs/guides/install-and-first-mission.md` | Install Spec Kitty and run your first mission | Brand-new evaluator; no Spec Kitty experience | A supported Python (≥3.11) and one supported harness installed (Claude Code recommended) | User has run `spec-kitty init`, created a sample mission, and reached `for_review` with no errors | `tutorials/install-and-first-mission` (top of TOC) | NEW (plan.md Project Structure) — supersedes `getting-started.md` + `your-first-feature.md` |
+| `docs/guides/install-and-first-mission.md` | Install Spec Kitty and run your first mission | Brand-new evaluator; no Spec Kitty experience | A supported Python (≥3.11) and one supported harness installed (Claude Code recommended) | User has run `spec-kitty init`, created a sample mission, and reached `for_review` with no errors | `tutorials/install-and-first-mission` (top of TOC) | NEW (plan.md Project Structure) — supersedes `getting-started.md` + `your-first-mission.md` |
 | `docs/guides/first-charter-governed-workflow.md` | Your first charter-governed workflow | Evaluator who completed the install tutorial | Install-and-first-mission tutorial; project initialized | User has authored a charter, generated doctrine, and watched governance directives apply to a mission run | `tutorials/first-charter-governed-workflow` | NEW — supersedes `charter-governed-workflow.md` |
 | `docs/guides/first-3-2-mission.md` | Your first 3.2 mission using `spec-kitty next` | Evaluator familiar with the runtime; new to 3.2 | Project initialized at 3.2; one supported harness configured | User has driven a full mission to merge using only `spec-kitty next --agent <name>` as the loop control | `tutorials/first-3-2-mission` | NEW — embodies the 3.2 runtime loop |
 | `docs/guides/multi-harness-workflow.md` | Your first multi-harness workflow | Evaluator with two harnesses installed (e.g., Claude Code + Codex) | First-3-2-mission tutorial; two supported harnesses installed | User has run one mission split across two harnesses (e.g., implementer in Claude Code, reviewer in Codex) | `tutorials/multi-harness-workflow` | NEW — supersedes legacy `multi-agent-workflow.md` |
@@ -47,7 +47,7 @@ Audience scope: first-time users, evaluators, and operators learning a brand-new
 
 | Planned page | Inventory row(s) it replaces / extends |
 |--------------|-----------------------------------------|
-| `install-and-first-mission.md` | replaces `docs/guides/getting-started.md`, `docs/guides/your-first-feature.md` |
+| `install-and-first-mission.md` | replaces `docs/guides/getting-started.md`, `docs/guides/your-first-mission.md` |
 | `first-charter-governed-workflow.md` | replaces `docs/guides/charter-governed-workflow.md` |
 | `first-3-2-mission.md` | NEW (no direct predecessor) |
 | `multi-harness-workflow.md` | replaces `docs/guides/multi-agent-workflow.md`, `docs/guides/missions-overview.md` (the latter folds in as context) |
@@ -179,7 +179,7 @@ Disposition values:
 | `docs/guides/missions-overview.md` | current | rewrite | conceptual material moves to `explanation/mission-model.md`; tutorial slot retired |
 | `docs/guides/multi-agent-workflow.md` | current | rewrite | replaced by `tutorials/multi-harness-workflow.md` |
 | `docs/guides/orchestrator-quickstart.md` | current | reuse | `tutorials/orchestrator-quickstart` |
-| `docs/guides/your-first-feature.md` | current | rewrite | replaced by `tutorials/install-and-first-mission.md` (note: title also de-features per Terminology Canon) |
+| `docs/guides/your-first-mission.md` | current | rewrite | replaced by `tutorials/install-and-first-mission.md` (note: title also de-features per Terminology Canon) |
 
 ### 6.2 `docs/guides/` (38 existing pages)
 
@@ -316,7 +316,7 @@ Explanation count breakdown:
 - **WP09 (archive/migration plan)** owns the actual moves for `archive` and `migrate-note` rows in §6.
 - **WP10/WP11 (harness research + matrix)** is the source of truth for the harness tier (Tier-1 vs Tier-2) — the 14 harness how-tos above will be tier-gated by decision `01KS4KTS4V300M9MMTS1AJEGXY`. If the tier resolution drops a harness to Tier-3 "experimental", its `how-to/harnesses/<name>.md` slot demotes to a single note inside `supported-harnesses.md` rather than a standalone page.
 - **WP13/WP14 (publication checklist + finalization)** should treat §7 totals as the canonical scoreboard.
-- All new tutorial / how-to / explanation slots follow the Terminology Canon (`mission` only — no `feature` in canonical names; legacy `your-first-feature.md` is explicitly retired in §6.1).
+- All new tutorial / how-to / explanation slots follow the Terminology Canon (`mission` only — no `feature` in canonical names; legacy `your-first-mission.md` is explicitly retired in §6.1).
 
 ---
 

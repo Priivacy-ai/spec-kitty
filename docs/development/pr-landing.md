@@ -3,12 +3,13 @@ title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
 updated: '2026-07-17'
+type: how-to
 related:
 - docs/guides/index.md
-- docs/guides/review-gates.md
-- docs/guides/testing-flakiness.md
-- docs/guides/manage-issue-tracker.md
-- docs/guides/red-main-and-release-readiness.md
+- docs/development/review-gates.md
+- docs/development/testing-flakiness.md
+- docs/development/manage-issue-tracker.md
+- docs/development/red-main-and-release-readiness.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 - docs/changelog/index.md
 ---
@@ -326,4 +327,4 @@ been fixed, the end-state is stated instead of the trap.
   contributor-side hygiene this runbook assumes.
 - [Test-flakiness handling policy](testing-flakiness.md) — the
   never-retry-to-green rule and budget-gate tuning.
-- [Guides index](index.md)
+- [Guides index](../guides/index.md)

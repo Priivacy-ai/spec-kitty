@@ -14,10 +14,15 @@
           "integrations/**.md",
           "security/**.md",
           "guides/**.md",
+          "development/**.md",
           "operations/**.md",
           "migrations/**.md",
           "changelog/**.md",
-          "release-goals/**.md"
+          "release-goals/**.md",
+          "doctrine/**.md",
+          "core-concepts/**.md",
+          "reference/**.md",
+          "updates/**.md"
         ],
         "exclude": [
           "**/_*.md"

@@ -129,7 +129,7 @@ autonomous facilitator), not by `merge`. Once it exists, use
 `spec-kitty agent retrospect synthesize --mission <mission-slug>` to apply any
 staged proposals (dry-run by default — pass `--apply` to mutate).
 
-For the full walkthrough, see [Your First Feature](docs/guides/your-first-feature.md).
+For the full walkthrough, see [Your First Mission](docs/guides/your-first-mission.md).
 
 ## Everyday Commands
 
@@ -147,7 +147,7 @@ For the full walkthrough, see [Your First Feature](docs/guides/your-first-featur
 Start here:
 
 - [Getting Started](docs/guides/getting-started.md)
-- [Your First Feature](docs/guides/your-first-feature.md)
+- [Your First Mission](docs/guides/your-first-mission.md)
 - [Orchestrator Quickstart](docs/guides/orchestrator-quickstart.md)
 - [CLI Command Reference](docs/api/cli-commands.md)
 - [Slash Commands](docs/api/slash-commands.md)
@@ -166,7 +166,7 @@ Deeper topics:
 
 Hosted auth, sync, and tracker flows remain opt-in. For setup details, see
 [Hosted Sync Workspaces](docs/guides/sync-workspaces.md), [Internal
-Hosted-Readiness](docs/guides/internal-hosted-readiness.md), and
+Hosted-Readiness](docs/development/internal-hosted-readiness.md), and
 [Launch-Readiness Behavior](docs/architecture/launch-readiness-future.md).
 
 ## FAQ
@@ -202,7 +202,7 @@ export SPEC_KITTY_TEMPLATE_ROOT="$(pwd)"
 spec-kitty init my-project --ai claude
 ```
 
-See the [Contributing guide](docs/guides/contributing.md) for contribution guidelines.
+See the [Contributing guide](docs/development/contributing.md) for contribution guidelines.
 
 ## Identity-Boundary CI Gate
 

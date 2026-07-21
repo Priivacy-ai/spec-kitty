@@ -4,7 +4,7 @@ description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup nex
 doc_status: proposed
 updated: '2026-07-17'
 related:
-- docs/guides/manage-issue-tracker.md
+- docs/development/manage-issue-tracker.md
 - docs/guides/keep-main-clean.md
 ---
 

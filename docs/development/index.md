@@ -1,8 +1,8 @@
 ---
 title: Development
-description: Landing page for the retired docs/development working set, mapping where each former page moved under the durable operations, guides, and configuration sections.
+description: The contributor/maintainer zone for Spec Kitty — landing PRs, the test suite, release process, and CI/operator internals — kept separate from end-user guides.
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-07-20'
 related:
 - docs/configuration/index.md
 - docs/guides/index.md
@@ -12,24 +12,38 @@ related:
 ---
 # Development
 
-The former `docs/development/` working set has been **re-sectioned per-file**
-into the durable-vs-ephemeral structure (Mission B, FR-001 / FR-012, resolving
-[#2054](https://github.com/Priivacy-ai/spec-kitty/issues/2054)). Pages no longer
-mix durable references with one-off tracking notes.
+Runbooks and policy for people **contributing to or maintaining the Spec Kitty
+project itself** — as opposed to [`../guides/`](../guides/index.md), which
+documents *using* Spec Kitty in your own project. This strict split is FR-003:
+no contributor-only page is reachable from end-user navigation.
 
-## Where the pages went
+## Contributing
 
-- **Durable operational runbooks** → [`../operations/`](../operations/index.md)
-  (deploy keys, the identity-boundary CI gate).
-- **Durable contributor how-tos** → [`../guides/`](../guides/index.md)
-  (testing flakiness/parallel, contract pinning, review gates, local overrides).
-- **Durable config / toolchain references** → [`../configuration/`](../configuration/index.md)
-  (YAML library choice, linting cutoff policy).
-- **Ephemeral working notes** (audits, debriefs, mission/effort-scoped plans,
-  investigations, the former `engineering_notes/` and `tracking/` clusters)
-  → [`../plans/`](../plans/index.md) under the distil-then-retire lifecycle.
+- [Contributing to Spec Kitty](contributing.md) — developer setup, running tests, submitting PRs, AI-assistance disclosure, and the release process.
+- [Review gates: pre-PR / pre-review checklist](review-gates.md) — the hygiene steps to run locally before requesting review.
+- [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
+- [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs across `spec-kitty-cli`/`-events`/`-tracker` that must never be committed.
+- [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
 
-## What stays here
+## Testing the Spec Kitty codebase
+
+- [Test-flakiness handling policy](testing-flakiness.md) — detection tiers and the never-retry-to-green rule.
+- [Running the test suite in parallel](testing-parallel.md) — the parallel-run workflow and volume gates.
+- [Run mutation tests locally](run-mutation-tests.md) — `mutmut`-based assertion-quality checks.
+- [Write time-dependent tests](write-time-dependent-tests.md) — inject stable clocks; avoid wall-clock reads in assertions.
+- [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
+- [Coverage signals](coverage-signals.md) — reconciling the internal diff-coverage gate with SonarCloud coverage / new_coverage.
+
+## Release and CI policy
+
+- [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
+- [UI end-to-end tests (Playwright)](ui-e2e.md) — the dashboard browser-regression suite.
+- [Sync daemon orphan cleanup](sync-daemon-orphan-cleanup.md) — operator runbook for stale sync daemons.
+- [Quality & tech-debt standing orders](quality-and-tech-debt-standing-orders.md) — the eight standing practices for spec-driven missions.
+- [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
+- [Internal hosted-readiness mode (pre-launch)](internal-hosted-readiness.md) — the hidden SaaS rollout-gate path for internal dogfooding, not for end users.
+
+## Non-page artifacts
 
 - **`3-2-page-inventory.yaml`** — the page-inventory tooling artifact. It STAYS
   PUT by operator directive; the freshness/lockfile tooling
@@ -42,4 +56,4 @@ mix durable references with one-off tracking notes.
 ## See also
 
 - [Documentation home](../index.md)
-- [Contributing guide](../guides/contributing.md)
+- [Guides (end-user zone)](../guides/index.md)

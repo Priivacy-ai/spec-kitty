@@ -3,6 +3,7 @@ title: How to Use the Spec Kitty Dashboard
 description: Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages.
 doc_status: active
 updated: '2026-06-03'
+type: how-to
 related:
 - docs/guides/parallel-development.md
 - docs/guides/review-work-package.md
@@ -75,7 +76,7 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 ## See Also
 
 - [Parallel Development](parallel-development.md) - Monitor multi-agent work
-- [Review a Work Package](review-work-package.md) - Track review status
+- [Review a work package](review-work-package.md) - Track review status
 
 ## Background
 
@@ -84,5 +85,5 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - See dashboard in action
+- [Your First Mission](your-first-mission.md) - See dashboard in action
 - [Claude Code Integration](claude-code-integration.md) - Dashboard with Claude

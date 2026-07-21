@@ -18,7 +18,6 @@ related:
 - docs/guides/keep-main-clean.md
 - docs/guides/manage-agents.md
 - docs/guides/manage-glossary.md
-- docs/guides/manage-issue-tracker.md
 - docs/guides/merge-feature.md
 - docs/guides/parallel-development.md
 - docs/guides/recover-from-implementation-crash.md
@@ -50,7 +49,6 @@ have Spec Kitty installed and walks one task end to end.
 ## Operate and recover
 
 - [Manage agents](manage-agents.md) and [manage the glossary](manage-glossary.md).
-- [Manage the issue tracker](manage-issue-tracker.md) — functional epics, native sub-issues, and meta-trackers.
 - [Keep main clean](keep-main-clean.md) and [parallel development](parallel-development.md).
 - [Recover from an implementation crash](recover-from-implementation-crash.md) and [from an interrupted merge](recover-from-interrupted-merge.md).
 

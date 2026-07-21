@@ -1,17 +1,20 @@
 ---
-title: 'Your First Feature: Complete Workflow'
+title: 'Your First Mission: Complete Workflow'
 description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-21'
+type: tutorial
 related:
 - docs/guides/getting-started.md
 - docs/guides/multi-agent-workflow.md
 ---
-# Your First Feature: Complete Workflow
+# Your First Mission: Complete Workflow
 
 **Divio type**: Tutorial
 
 This tutorial walks you through the entire Spec Kitty workflow from specification to merge.
+
+Except for the one-time CLI install, everything below happens inside your AI agent's chat interface — Claude Code, Codex CLI, or another configured harness. When a step says "in your agent," open that chat and type the command there; it is not a bare-terminal instruction.
 
 **Time**: ~2 hours
 **Prerequisites**: Completed [Getting Started](getting-started.md)
@@ -23,7 +26,7 @@ This tutorial walks you through the entire Spec Kitty workflow from specificatio
 Workflow path:
 
 ```
-/spec-kitty.specify → /spec-kitty.plan → /spec-kitty.tasks → spec-kitty next → /spec-kitty.accept → /spec-kitty.merge
+/spec-kitty.specify → /spec-kitty.plan → /spec-kitty.tasks → /spec-kitty.analyze → spec-kitty next → /spec-kitty.accept → /spec-kitty.merge
 ```
 
 You will build a tiny "task list" feature as the concrete example.
@@ -36,7 +39,7 @@ From the project root, in your agent:
 /spec-kitty.specify Build a task list app with add, complete, and delete actions.
 ```
 
-Answer the discovery interview until it completes.
+Answer the discovery interview until it completes. This runs inside your agent's interactive chat — Claude Code, Codex CLI, or any other configured harness — the agent asks a discovery interview before writing anything; keep answering until it says the interview is complete.
 
 Expected results:
 
@@ -76,7 +79,31 @@ kitty-specs/###-task-list/tasks/
 
 Each WP file includes frontmatter with its `lane` and dependencies.
 
-## Step 4: Enter the Runtime Loop
+## Step 4: Check Consistency Before Implementing
+
+Before any code gets written, run the analyze step. It cross-checks your spec, plan, and tasks.md for gaps, contradictions, and missing coverage — catching drift while it is still cheap to fix. In your agent:
+
+```text
+/spec-kitty.analyze
+```
+
+This step is read-only — it reports findings, it does not modify your artifacts or touch code. Resolve anything it flags (usually a quick edit to spec.md, plan.md, or a task file) before moving on.
+
+## Step 5: Enter the Runtime Loop
+
+Most harness users don't drive this loop manually. Instead, invoke
+`spk-run-implement-review` (also usable by its detailed legacy alias
+`spec-kitty-implement-review`) and let it drive the whole loop — it
+orchestrates claim, implement, and review across every WP in the mission on
+your behalf. This is the recommended path for interactive harness use,
+including a full-mission sprint across WP01 through WP_N. See the
+[spk-run-implement-review skill reference](../reference/skills/spk-run-implement-review.md)
+for what it does step by step.
+
+### Under the hood: the manual runtime loop
+
+The skill above is doing the following on your behalf. Use this manual form
+directly only when scripting, running non-interactively, or debugging.
 
 Start the mission loop from your terminal:
 
@@ -100,7 +127,25 @@ spec-kitty next --agent claude --mission ###-task-list --result success --json
 
 Repeat the loop until the runtime starts issuing review work instead of implementation work.
 
-## Step 5: Review the Work Package
+In practice, once the runtime hands you an `implement` decision for a WP, you do not type raw CLI mid-conversation — you `cd` into (or open) the execution workspace the command just allocated and type the matching slash command in your agent's chat:
+
+```text
+/spec-kitty.implement
+```
+
+or run the CLI form shown above directly — useful for scripting or a non-interactive harness. Both resolve to the same prompt file.
+
+#### Same loop, another harness
+
+```bash
+spec-kitty next --agent codex --mission ###-task-list --json
+spec-kitty agent action implement WP01 --agent codex
+spec-kitty next --agent codex --mission ###-task-list --result success --json
+```
+
+The loop is identical for every supported harness — only the `--agent` value changes.
+
+## Step 6: Review the work package
 
 When the runtime points you at review work, run the matching action:
 
@@ -110,7 +155,9 @@ spec-kitty agent action review WP01 --agent claude
 
 Address any review feedback, then continue the `spec-kitty next` loop until the mission is ready for acceptance.
 
-## Step 6: Accept and Merge
+**If review sends work back**: A review verdict of `changes_requested` sends the WP back to `in_progress` (small fixes, same agent keeps working) or `planned` (needs more substantial rework) — it never leaves the WP silently stuck in review. Keep following the `spec-kitty next` loop; it hands you the WP again once it's ready.
+
+## Step 7: Accept and Merge
 
 Once review passes, validate and accept.
 
@@ -126,7 +173,7 @@ Or via CLI:
 spec-kitty accept
 ```
 
-Then merge the feature branches.
+Then merge the mission's work package branches.
 
 In your agent:
 
@@ -140,7 +187,7 @@ Or via CLI:
 spec-kitty merge
 ```
 
-You should see the feature merged into the mission's target branch and the worktrees cleaned up.
+You should see the mission's work merged into the target branch and the worktrees cleaned up.
 
 Before you move on, complete the three post-merge steps:
 
@@ -176,9 +223,9 @@ Continue with [Multi-Agent Workflow](multi-agent-workflow.md) to learn parallel 
 
 - [Create a Plan](create-plan.md) - Detailed planning guidance
 - [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
-- [Generate Tasks](generate-tasks.md) - Work package generation
-- [Implement a Work Package](implement-work-package.md) - Implementation details
-- [Review a Work Package](review-work-package.md) - Review process
+- [Generate Tasks](generate-tasks.md) - work package generation
+- [Implement a work package](implement-work-package.md) - Implementation details
+- [Review a work package](review-work-package.md) - Review process
 - [Accept and Merge](accept-and-merge.md) - Final merge workflow
 
 ### Reference Documentation
@@ -189,6 +236,6 @@ Continue with [Multi-Agent Workflow](multi-agent-workflow.md) to learn parallel 
 
 ### Learn More
 
-- [Execution Workspace Model](../architecture/execution-lanes.md) - Why modern features use lane worktrees
+- [Execution Workspace Model](../architecture/execution-lanes.md) - Why modern missions use lane worktrees
 - [Kanban Workflow](../architecture/kanban-workflow.md) - Lane transitions
 - [Spec-Driven Development](../architecture/spec-driven-development.md) - The philosophy
