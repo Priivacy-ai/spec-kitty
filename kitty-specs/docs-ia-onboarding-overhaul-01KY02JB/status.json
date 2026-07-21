@@ -1,0 +1,112 @@
+{
+  "event_count": 90,
+  "last_event_id": "01KY0H7VD8F09JQRXQ4WDGWAJK",
+  "materialized_at": "2026-07-20T19:49:54.728795+00:00",
+  "mission_number": "",
+  "mission_slug": "docs-ia-onboarding-overhaul-01KY02JB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY0H7T3Y9YSG9BBKPST42NCG",
+      "last_transition_at": "2026-07-20T19:49:53.406527+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY0H7JH1GVFA04WVRH3TBSYG",
+      "last_transition_at": "2026-07-20T19:49:45.633903+00:00",
+      "shell_pid": 79881,
+      "shell_pid_created_at": "1784568810.127763"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY0H7KVNTNATQNQWPBFT59SE",
+      "last_transition_at": "2026-07-20T19:49:46.997862+00:00",
+      "shell_pid": 91148,
+      "shell_pid_created_at": "1784570214.780068"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY0H7N2HVR2Y2X7C1FCC12E8",
+      "last_transition_at": "2026-07-20T19:49:48.241612+00:00",
+      "shell_pid": 18409,
+      "shell_pid_created_at": "1784572196.212946"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY0H7PA8PX9K7HZ6A5QB7J1K",
+      "last_transition_at": "2026-07-20T19:49:49.512568+00:00",
+      "shell_pid": 22045,
+      "shell_pid_created_at": "1784572565.475362"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY0H7QHG7XGMJ33DFRZN7BCD",
+      "last_transition_at": "2026-07-20T19:49:50.768469+00:00",
+      "shell_pid": 91148,
+      "shell_pid_created_at": "1784570214.780068"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY0H7RSH99KFY0A0XXE9NFJA",
+      "last_transition_at": "2026-07-20T19:49:52.049822+00:00",
+      "shell_pid": 91148,
+      "shell_pid_created_at": "1784570214.780068"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY0H7FPB2GPKD381SWDWFBAA",
+      "last_transition_at": "2026-07-20T19:49:42.731997+00:00"
+    },
+    "WP09": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY0H7H82MADB837PB3CHBW5K",
+      "last_transition_at": "2026-07-20T19:49:44.322533+00:00"
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude:sonnet-5:curator-carla:implementer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY0H7VD8F09JQRXQ4WDGWAJK",
+      "last_transition_at": "2026-07-20T19:49:54.728795+00:00",
+      "shell_pid": 33226,
+      "shell_pid_created_at": "1784575006.129797"
+    }
+  }
+}
