@@ -1125,7 +1125,25 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     }
 
     if not _has_explicit_activation(raw_activated_by_kind):
-        return ConsistencyReport(coherent=True)
+        # D3 (decision DM-01KY1XHEH2T9RDX8ZCHCSV2VA0): the unreconciled-tension
+        # check is ALWAYS-ON -- it runs even under implicit all-active, with no
+        # short-circuit special-case. The parity/kind checks legitimately need
+        # an explicit activation set and stay skipped here, but the tension scan
+        # reads activation from ``ctx`` directly (scan_unreconciled_tensions), so
+        # it is well-defined under all-active. Tensions remain advisory (NFR-001,
+        # excluded from ``coherent``); a scan *failure* still fails closed into
+        # verification_errors -> coherent=False, matching the explicit path and
+        # keeping this surface aligned with the always-on ``charter activate``
+        # warning (SC-001).
+        _check_unreconciled_tensions(
+            ctx, unreconciled_tensions, verification_errors, suggestions
+        )
+        return ConsistencyReport(
+            coherent=not verification_errors,
+            verification_errors=verification_errors,
+            unreconciled_tensions=unreconciled_tensions,
+            suggestions=suggestions,
+        )
 
     all_doctrine_ids = _collect_all_doctrine_ids(ctx, manager)
 
