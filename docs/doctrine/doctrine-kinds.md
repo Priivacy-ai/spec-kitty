@@ -130,8 +130,10 @@ recipes themselves — they are the lens, not the checklist.
 (`src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml`). Its `summary` frames
 software design around a deep model of the business domain (Bounded Contexts, Ubiquitous
 Language, Aggregates); its `directive_refs` link it to `DIRECTIVE_001`, `DIRECTIVE_031`, and
-`DIRECTIVE_032`, and its `opposed_by` list names paradigms it conflicts with (for example
-"Anemic Domain Model") so activation-time contradiction checks can flag an incompatible pair.
+`DIRECTIVE_032`, and it authors `rejects` DRG edges naming the anti-patterns it warns against
+(for example the `anemic-domain-model` anti-pattern node) so the consistency-check and rendered
+agent context can surface "avoid this" targets. (This replaces the retired `opposed_by` field —
+see [ADR 2026-07-21-1](../adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md).)
 
 ### Procedure
 
