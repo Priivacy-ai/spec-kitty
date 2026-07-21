@@ -29,7 +29,7 @@ generated [`spec-kitty charter` section of the CLI Command Reference](cli-comman
 **Description**: Charter management commands.
 
 | Subcommand | Description |
-|---|---|
+| --- | --- |
 | `interview` | Capture charter interview answers for later generation |
 | `generate` | Generate charter bundle from interview answers + doctrine references |
 | `context` | Render charter context for a specific workflow action |
@@ -62,7 +62,7 @@ copies) — only `interview`/`generate`/`context`/`sync`/`status`/`synthesize`/
 `.kittify/charter/interview/answers.yaml`.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--mission-type TEXT` | Mission type for charter defaults | `software-dev` |
 | `--profile TEXT` | Interview profile: `minimal` or `comprehensive` | `minimal` |
 | `--defaults` | Use deterministic defaults without prompts | — |
@@ -90,8 +90,8 @@ uv run spec-kitty charter interview --profile comprehensive
 
 **Synopsis**: `spec-kitty charter generate [OPTIONS]`
 
-**Description**: Refresh `charter.yaml`'s `catalog` and `metadata` sections from interview answers
-+ doctrine references, through the shared load→mutate-owned-section→round-trip-save helper — the
+**Description**: Refresh `charter.yaml`'s `catalog` and `metadata` sections from interview
+answers + doctrine references, through the shared load→mutate-owned-section→round-trip-save helper — the
 `governance`/`directives`/activation/`overrides` sections are preserved byte-for-byte (they are
 bootstrapped from a legacy triad only the first time `charter.yaml` is created; every later run
 leaves them untouched). `generate` never writes `charter.md` — it is a curated companion, not a
@@ -101,7 +101,7 @@ non-zero outside git repos with a `git init` remediation message. With `--from-i
 interview answers fail closed; use `--no-from-interview` to opt into defaults.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--mission-type TEXT` | Mission type for template-set defaults | — |
 | `--template-set TEXT` | Override doctrine template set (must exist in packaged doctrine missions) | — |
 | `--from-interview` / `--no-from-interview` | Load interview answers if present | `--from-interview` |
@@ -135,7 +135,7 @@ full adapter pipeline. The runtime falls back to built-in doctrine until a full 
 completes.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--adapter TEXT` | Adapter to use: `generated` (validates agent-authored YAML under `.kittify/charter/generated/`) or `fixture` (offline/testing only) | `generated` |
 | `--dry-run` | Stage and validate artifacts but do not promote to live tree | — |
 | `--json` | Output JSON | — |
@@ -172,7 +172,7 @@ Selector forms:
 - `testing-philosophy` — regenerate all artifacts from that interview section
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--topic TEXT` | Structured topic selector: `<kind>:<slug>` (project-local), `<drg-urn>` (built-in+project graph), or `<interview-section-label>` | — |
 | `--list-topics` | List valid structured topic selectors and exit | — |
 | `--adapter TEXT` | Adapter to use (`generated` or `fixture`) | `generated` |
@@ -201,7 +201,7 @@ uv run spec-kitty charter resynthesize --list-topics
 **Description**: Display charter sync status plus synthesis/operator state.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--json` | Output JSON | — |
 | `--provenance` | Include per-artifact provenance details | — |
 
@@ -232,7 +232,7 @@ reads the file as-is. Running `charter sync` is harmless but produces no side ef
 source-of-truth model when a project also has a public constitution.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--force`, `-f` | Force sync even if not stale | — |
 | `--json` | Output JSON | — |
 
@@ -253,7 +253,7 @@ artifacts, contradictions between directives, and staleness (provenance points t
 or superseded built-in directive).
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--mission TEXT` | Scope lint to a specific mission slug | — |
 | `--orphans` | Run only orphan checks | — |
 | `--contradictions` | Run only contradiction checks | — |
@@ -280,7 +280,7 @@ command for inspecting what governance context an agent would receive. It is not
 synthesis pipeline.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--action TEXT` | Workflow action (`specify`, `plan`, `implement`, `review`) | **required** |
 | `--mark-loaded` / `--no-mark-loaded` | Persist first-load state | `--mark-loaded` |
 | `--json` | Output JSON | — |
@@ -304,7 +304,7 @@ uv run spec-kitty charter context --action specify --no-mark-loaded --json
 that both tracked files (`charter.md`, `charter.yaml`) are present and correctly structured.
 
 | Flag | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | `--json` | Emit structured JSON to stdout instead of a human-readable report | — |
 
 **Examples**:
