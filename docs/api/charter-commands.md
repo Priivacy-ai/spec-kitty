@@ -1,6 +1,6 @@
 ---
 title: Charter CLI Reference
-description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output. See CLI Command Reference for the full charter subcommand surface.
+description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
 updated: '2026-07-20'
 related:

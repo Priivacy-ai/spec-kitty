@@ -1,6 +1,6 @@
 ---
 title: Designer Dagmar — Agent Profile
-description: UX/UI and interaction design specialist
+description: UX/UI and interaction design specialist for accessible, consistent design specifications
 doc_status: active
 updated: '2026-07-21'
 related:

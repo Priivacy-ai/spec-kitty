@@ -1,15 +1,12 @@
 ---
 title: Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report
-description: >-
-  WP10's closing record for mission docs-ia-onboarding-overhaul-01KY02JB: final
-  terminology/glossary check status, NFR-005 Divio frontmatter coverage, page
-  move/create counts, and the two follow-up GitHub issues filed as deferred work.
+description: 'Closing terminology/glossary check status and Divio frontmatter coverage record for the docs IA overhaul mission.'
 doc_status: active
 updated: '2026-07-20'
 type: explanation
 related:
-- ../../kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md
-- ../doctrine/doctrine-kinds.md
+- kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md
+- docs/doctrine/doctrine-kinds.md
 ---
 
 # Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report
