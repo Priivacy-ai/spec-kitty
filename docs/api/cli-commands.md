@@ -2253,6 +2253,55 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty migrate rewrite-opposed-by
+
+```
+ Usage: spec-kitty migrate rewrite-opposed-by [OPTIONS]
+
+ Rewrite a pack's legacy ``opposed_by`` entries into DRG edges.
+
+ Scans every ``*.directive.yaml``/``*.tactic.yaml``/``*.paradigm.yaml``
+ file under ``--pack`` for ``opposed_by`` entries, classifies each as
+ tension-style (rewritten to an ``in_tension_with`` edge) or
+ anti-pattern-rejection-style (rewritten to a ``rejects`` edge, creating
+ the target ``anti_pattern`` node if absent), writes the new edges into
+ the pack's ``<kind>.graph.yaml`` fragments, and removes the migrated
+ ``opposed_by`` key from the source YAML.
+
+ This command is **idempotent** — once a pack has no remaining
+ ``opposed_by`` entries, running it again is a no-op.
+
+ **When to run:**
+
+ - Before upgrading to a spec-kitty release that drops ``opposed_by``
+   from the ``directive``/``tactic``/``paradigm`` schemas
+ - As part of CI checks on an org pack that still authors ``opposed_by``
+
+ Exit codes:
+
+ - ``0`` — every entry was rewritten (or, in ``--dry-run``, would be)
+ - ``1`` — one or more entries could not be unambiguously classified
+
+ Examples:
+
+     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
+
+     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --json
+
+     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack           PATH  Root directory of the target pack to migrate (org     │
+│                        pack or any directory shaped like the built-in        │
+│                        doctrine tree).                                       │
+│                        [default: .]                                          │
+│ --dry-run              Report planned rewrites without writing any files.    │
+│                        The JSON shape is identical to a live run.            │
+│ --json                 Emit a structured JSON report on stdout.              │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty mission
 
 _Inspect mission types for this project._
