@@ -19,7 +19,13 @@ import pytest
 import typer
 
 from specify_cli.merge import done_bookkeeping as db
-from specify_cli.status import Lane
+from specify_cli.status import (
+    EventStream,
+    InnerStateChanged,
+    Lane,
+    ReviewOverride,
+    WPInnerStateDelta,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -266,26 +272,35 @@ def test_resolve_wp_path_returns_none_when_absent(tmp_path: Path) -> None:
     assert db._resolve_wp_path(tmp_path, "WP99") is None
 
 
-# --- _extract_done_evidence -------------------------------------------------
+# --- _resolve_snapshot_done_evidence ---------------------------------------
 
 
-def test_extract_done_evidence_approved(tmp_path: Path) -> None:
-    from types import SimpleNamespace
+def _review_stream(actor: str = "reviewer-renata") -> EventStream:
+    review = ReviewOverride(
+        at="2026-07-21T00:00:00+00:00",
+        actor=actor,
+        wp_id="WP01",
+        reason="approved",
+    )
+    annotation = InnerStateChanged(
+        event_id="01H11111111111111111111111",
+        wp_id="WP01",
+        at=review.at,
+        actor=actor,
+        delta=WPInnerStateDelta(review=review),
+    )
+    return EventStream(annotations=[annotation])
 
-    meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata")
-    evidence = db._extract_done_evidence(meta, "WP01")
+
+def test_resolve_snapshot_done_evidence_approved() -> None:
+    evidence = db._resolve_snapshot_done_evidence(_review_stream(), "WP01")
     assert evidence is not None
     assert evidence.review.reviewer == "reviewer-renata"
 
 
-def test_extract_done_evidence_none_when_not_approved(tmp_path: Path) -> None:
-    from types import SimpleNamespace
-
-    meta = SimpleNamespace(review_status="rejected", reviewed_by="reviewer-renata")
-    assert db._extract_done_evidence(meta, "WP01") is None
-
-    meta_no_reviewer = SimpleNamespace(review_status="approved", reviewed_by="")
-    assert db._extract_done_evidence(meta_no_reviewer, "WP01") is None
+def test_resolve_snapshot_done_evidence_none_when_review_absent_or_actor_empty() -> None:
+    assert db._resolve_snapshot_done_evidence(EventStream(), "WP01") is None
+    assert db._resolve_snapshot_done_evidence(_review_stream(actor=""), "WP01") is None
 
 
 # --- _resolve_lane_with_planned_fallback: status-not-found branch -----------
@@ -412,8 +427,11 @@ def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
     with (
         patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "read_wp_frontmatter", return_value=(object(), "")),
         patch.object(db, "resolve_status_surface"),
+        patch(
+            "specify_cli.coordination.status_transition.read_event_stream_transactional",
+            return_value=EventStream(),
+        ),
         patch(
             "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
             return_value=(Lane.DONE, "merge"),
@@ -427,8 +445,11 @@ def test_mark_wp_merged_done_dedup_skips_when_done_transition_exists(tmp_path: P
     with (
         patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "read_wp_frontmatter", return_value=(object(), "")),
         patch.object(db, "resolve_status_surface"),
+        patch(
+            "specify_cli.coordination.status_transition.read_event_stream_transactional",
+            return_value=EventStream(),
+        ),
         patch(
             "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
             return_value=(Lane.APPROVED, "merge"),
@@ -440,17 +461,17 @@ def test_mark_wp_merged_done_dedup_skips_when_done_transition_exists(tmp_path: P
 
 def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> None:
     """Final done emit raising TransitionError is caught + warned (lines 338-339)."""
-    from types import SimpleNamespace
-
     from specify_cli.status import TransitionError
 
     wp_file = tmp_path / "WP01.md"
-    meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata", agent="claude")
     with (
         patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "read_wp_frontmatter", return_value=(meta, "")),
         patch.object(db, "resolve_status_surface"),
+        patch(
+            "specify_cli.coordination.status_transition.read_event_stream_transactional",
+            return_value=_review_stream(),
+        ),
         patch(
             "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
             return_value=(Lane.APPROVED, "merge"),
@@ -473,15 +494,15 @@ def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> 
 
 def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> None:
     """A non-approved post-replay lane skips the done move (lines 308-309)."""
-    from types import SimpleNamespace
-
     wp_file = tmp_path / "WP01.md"
-    meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata", agent="claude")
     with (
         patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "read_wp_frontmatter", return_value=(meta, "")),
         patch.object(db, "resolve_status_surface"),
+        patch(
+            "specify_cli.coordination.status_transition.read_event_stream_transactional",
+            return_value=_review_stream(),
+        ),
         patch(
             "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
             return_value=(Lane.IN_REVIEW, "merge"),
@@ -499,15 +520,15 @@ def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> Non
 
 def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> None:
     """A failed approved-replay (None) aborts the done emission (line 304)."""
-    from types import SimpleNamespace
-
     wp_file = tmp_path / "WP01.md"
-    meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata", agent="claude")
     with (
         patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "read_wp_frontmatter", return_value=(meta, "")),
         patch.object(db, "resolve_status_surface"),
+        patch(
+            "specify_cli.coordination.status_transition.read_event_stream_transactional",
+            return_value=_review_stream(),
+        ),
         patch(
             "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
             return_value=(Lane.FOR_REVIEW, "merge"),

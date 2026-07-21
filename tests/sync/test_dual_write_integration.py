@@ -31,7 +31,8 @@ def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
     # Create WP01 file with frontmatter
     wp_file = tasks_dir / "WP01-test.md"
     wp_file.write_text(
-        "---\nwork_package_id: WP01\ntitle: Test WP\nlane: planned\ndependencies: []\n---\n\n# WP01 Content\n",
+        "---\nwork_package_id: WP01\ntitle: Test WP\nlane: planned\n"
+        "dependencies: []\nsubtasks: []\n---\n\n# WP01 Content\n",
         encoding="utf-8",
     )
 

@@ -16,6 +16,7 @@ description: "Work package task list template for research methodology execution
 - **[P]** indicates the subtask can proceed in parallel (different sources/analysts).
 - Always reference the file or artifact impacted (e.g., `research/evidence-log.csv`).
 - Use research terminology: phases, findings, synthesis, methodology.
+- Subtasks are **reference rows**, not checkboxes: record completion with `spec-kitty agent tasks mark-status <Txxx> --status done`. The reduced event-log snapshot is the sole subtask-completion authority — there is no `- [ ]` box to tick.
 
 ## Path Conventions
 
@@ -34,13 +35,13 @@ description: "Work package task list template for research methodology execution
 
 ### Included Subtasks
 
-- [ ] T001 Define search keywords and inclusion/exclusion criteria
-- [ ] T002 [P] Search academic database 1 (IEEE, PubMed, arXiv, etc.)
-- [ ] T003 [P] Search academic database 2
-- [ ] T004 [P] Search gray literature and industry sources
-- [ ] T005 Screen collected sources for relevance
-- [ ] T006 Populate source-register.csv with all candidate sources
-- [ ] T007 Prioritize sources by relevance rating and status
+T001 Define search keywords and inclusion/exclusion criteria
+T002 [P] Search academic database 1 (IEEE, PubMed, arXiv, etc.)
+T003 [P] Search academic database 2
+T004 [P] Search gray literature and industry sources
+T005 Screen collected sources for relevance
+T006 Populate source-register.csv with all candidate sources
+T007 Prioritize sources by relevance rating and status
 
 ### Implementation Notes
 
@@ -57,11 +58,11 @@ description: "Work package task list template for research methodology execution
 
 ### Included Subtasks
 
-- [ ] T008 [P] Review high-relevance sources (parallelizable by researcher/source)
-- [ ] T009 Extract key findings into evidence-log.csv
-- [ ] T010 Assign confidence levels to findings
-- [ ] T011 Document limitations and caveats in notes column
-- [ ] T012 Identify patterns/themes emerging from evidence
+T008 [P] Review high-relevance sources (parallelizable by researcher/source)
+T009 Extract key findings into evidence-log.csv
+T010 Assign confidence levels to findings
+T011 Document limitations and caveats in notes column
+T012 Identify patterns/themes emerging from evidence
 
 ### Implementation Notes
 
@@ -78,12 +79,12 @@ description: "Work package task list template for research methodology execution
 
 ### Included Subtasks
 
-- [ ] T013 Code findings by theme/category
-- [ ] T014 Identify patterns across sources and confidence levels
-- [ ] T015 Assess strength of evidence supporting each claim
-- [ ] T016 Draw conclusions mapped to sub-questions
-- [ ] T017 Document limitations and threats to validity
-- [ ] T018 Write findings.md with synthesis and bibliography references
+T013 Code findings by theme/category
+T014 Identify patterns across sources and confidence levels
+T015 Assess strength of evidence supporting each claim
+T016 Draw conclusions mapped to sub-questions
+T017 Document limitations and threats to validity
+T018 Write findings.md with synthesis and bibliography references
 
 ### Implementation Notes
 

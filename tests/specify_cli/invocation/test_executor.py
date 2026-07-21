@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from doctrine.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
 from specify_cli.invocation.errors import InvocationWriteError, ProfileNotFoundError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.writer import EVENTS_DIR
@@ -98,6 +99,45 @@ class TestInvokeWithProfileHint:
         data = json.loads(lines[0])
         assert data["event"] == "started"
         assert data["profile_id"] == "implementer-fixture"
+
+    def test_invoke_persists_catalog_winning_model_in_started_event(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _setup_fixture_profiles(tmp_path)
+        recommendation = RoutingRecommendation(
+            task_type="implementation",
+            objective="quality_first",
+            override_mode="advisory",
+            candidates=(
+                RoutingCandidate(
+                    model_id="claude-opus-4-6",
+                    source="catalog",
+                    score=0.99,
+                ),
+            ),
+        )
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ), patch(
+            "specify_cli.invocation.executor._compute_recommendation",
+            return_value=recommendation,
+        ):
+            payload = ProfileInvocationExecutor(tmp_path).invoke(
+                "implement WP01",
+                profile_hint="implementer-fixture",
+                action_hint="implement",
+                mission_id="01KTK5JBD69FQ8XVRFV1J630MJ",
+                wp_id="WP01",
+            )
+
+        record = json.loads(
+            (tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()[0]
+        )
+        assert record["model_id"] == "claude-opus-4-6"
 
 
 class TestInvokeNoRouterNoHintRaises:

@@ -75,3 +75,12 @@ tests/specify_cli/widen/test_interview_decision_id_narrowing_gate.py::test_inter
 # absent from the baseline — main was already red on test_marker_baseline. Legitimate slow
 # e2e test, not a budget re-mark.
 tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::test_documentation_mission_create_resolves_authored_template
+# Deliberate regen (runtime-state-corpus-cutover #2816): the corpus verification
+# module scans every historical Mission event log and is intrinsically slow.
+# These five nodes were authored as slow integration coverage, not re-marked to
+# evade a CI budget.
+tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_all_eligible_missions_snapshot_non_empty_and_verify_ok
+tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_corpus_contains_no_authored_derived_resolved_binding_seed_rows
+tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_corpus_is_backfilled_non_vacuous
+tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_no_repo_root_event_file
+tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_sampled_complete_wp_reads_complete_via_public_gate

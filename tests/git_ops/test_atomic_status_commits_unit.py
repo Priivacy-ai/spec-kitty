@@ -1,8 +1,7 @@
 """Tests for atomic multi-file commit of status artifacts (#211, #212).
 
 Verifies that:
-1. move_task() commits all status artifacts (events.jsonl, status.json,
-   tasks.md) alongside the WP file in a single atomic commit.
+1. move_task() persists canonical status while keeping authored WP bytes stable.
 2. Root-level tasks.md does not block _validate_ready_for_review().
 3. workflow review routes through emit_status_transition().
 """
@@ -45,8 +44,7 @@ from specify_cli.status.locking import (
     feature_status_lock_path,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
-from specify_cli.task_utils import extract_scalar, split_frontmatter
+from specify_cli.status.store import append_event, read_events
 
 from typer.testing import CliRunner
 
@@ -271,6 +269,7 @@ work_package_id: "WP01"
 title: "Test Task"
 lane: "doing"
 agent: "test-agent"
+subtasks: []
 ---
 
 # WP01
@@ -454,6 +453,7 @@ work_package_id: "WP01"
 title: "Test Task"
 agent: "test-agent"
 shell_pid: ""
+subtasks: []
 ---
 
 # WP01
@@ -487,18 +487,20 @@ Test content.
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_task_commits_status_artifacts(
+    def test_move_task_persists_status_and_keeps_wp_bytes_stable(
         self,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_feature: Path,
     ):
-        """move_task should commit status artifacts in the same commit as the WP file."""
+        """Event-only move-task persists state without rewriting the WP file."""
         repo = git_repo_with_feature
         mock_root.return_value = repo
         mock_slug.return_value = "017-test-feature"
 
         feature_dir = repo / "kitty-specs" / "017-test-feature"
+        wp_path = feature_dir / "tasks" / "WP01-test.md"
+        wp_before = wp_path.read_bytes()
 
         # Move to for_review
         result = runner.invoke(
@@ -510,39 +512,11 @@ Test content.
         payload = json.loads(result.stdout)
         assert payload["result"] == "success"
 
-        # Check that status.events.jsonl was committed (not left dirty)
-        status_result = subprocess.run(
-            ["git", "status", "--porcelain", str(feature_dir)],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=False,
+        assert wp_path.read_bytes() == wp_before
+        assert any(
+            event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW
+            for event in read_events(feature_dir)
         )
-        dirty_files = status_result.stdout.strip()
-        if dirty_files:
-            # Filter to only status artifacts
-            dirty_status = []
-            for line in dirty_files.split("\n"):
-                if not line.strip():
-                    continue
-                file_part = line[3:] if len(line) > 3 else line.strip()
-                if any(file_part.endswith(f) for f in ("status.events.jsonl", "status.json", "tasks.md")):
-                    dirty_status.append(file_part)
-            assert dirty_status == [], f"Status artifacts left dirty after move_task: {dirty_status}"
-
-        # Verify events.jsonl exists and was committed
-        events_file = feature_dir / "status.events.jsonl"
-        if events_file.exists():
-            # Check it was included in the last commit
-            committed_files = subprocess.run(
-                ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
-                cwd=repo,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.strip()
-            # The commit should include both the WP file and status artifacts
-            assert "WP01" in committed_files, f"WP file should be in commit. Files: {committed_files}"
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -584,19 +558,20 @@ Test content.
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_task_uses_existing_event_and_updates_metadata(
+    def test_move_task_uses_existing_event_and_updates_runtime_snapshot(
         self,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_feature: Path,
     ) -> None:
-        """move_task should reuse the current canonical lane and apply metadata fields."""
+        """move-task reuses canonical lane and records runtime fields in events."""
         repo = git_repo_with_feature
         mock_root.return_value = repo
         mock_slug.return_value = "017-test-feature"
 
         feature_dir = repo / "kitty-specs" / "017-test-feature"
         wp_path = feature_dir / "tasks" / "WP01-test.md"
+        wp_before = wp_path.read_bytes()
         _append_status_event(
             feature_dir,
             mission_slug="017-test-feature",
@@ -619,7 +594,7 @@ Test content.
 
         with (
             patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional", side_effect=tracking_emit),
-            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_committed_result("status-test")),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as commit_mock,
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -643,31 +618,36 @@ Test content.
         assert result.exit_code == 0, result.stdout
         assert recorded_targets == ["for_review"]
 
-        frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-        assert extract_scalar(frontmatter, "assignee") == "alice"
-        assert extract_scalar(frontmatter, "agent") == "test-agent"
-        assert extract_scalar(frontmatter, "shell_pid") == "4242"
-        assert any(
-            "Committed status change to status-test branch" in str(call.args[0])
+        from specify_cli.status import wp_snapshot_state
+
+        snapshot = wp_snapshot_state(feature_dir, "WP01")
+        assert snapshot is not None
+        assert snapshot["assignee"] == "alice"
+        assert snapshot["agent"] == "test-agent"
+        assert snapshot["shell_pid"] == 4242
+        assert wp_path.read_bytes() == wp_before
+        commit_mock.assert_not_called()
+        assert not any(
+            "Committed status change" in str(call.args[0])
             for call in mock_print.call_args_list
             if call.args
         )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_task_warns_when_auto_commit_returns_false(
+    def test_move_task_does_not_call_retired_auto_commit_closure(
         self,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_feature: Path,
     ) -> None:
-        """move_task should warn, not fail, when safe_commit reports False."""
+        """The event-only cutover no longer calls the retired commit closure."""
         repo = git_repo_with_feature
         mock_root.return_value = repo
         mock_slug.return_value = "017-test-feature"
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_unchanged_result()),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as commit_mock,
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -676,13 +656,9 @@ Test content.
             )
 
         assert result.exit_code == 0, result.stdout
-        # WP02 (#2155 / T010): the contract is that move_task WARNS (never fails)
-        # when the router reports a non-committed result — exit_code stays 0. The
-        # warning wording now surfaces the router status/diagnostic ("...did not
-        # land (<status>)") instead of the bare "Failed to auto-commit" so a
-        # swallowed guard refusal is no longer hidden behind a soft, opaque message.
-        assert any(
-            "auto-commit did not land" in str(call.args[0])
+        commit_mock.assert_not_called()
+        assert not any(
+            "auto-commit" in str(call.args[0])
             for call in mock_print.call_args_list
             if call.args
         )
@@ -734,14 +710,14 @@ class TestMarkStatusAtomicCommit:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_mark_status_commits_under_lock_and_reports_missing_tasks(
+    def test_mark_status_appends_event_under_lock_and_reports_missing_tasks(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_feature: Path,
     ) -> None:
-        """mark-status should update tasks.md while the feature lock is held."""
+        """mark-status should append canonical state while the feature lock is held."""
         repo = git_repo_with_feature
         mock_root.return_value = repo
         mock_slug.return_value = "017-test-feature"
@@ -760,14 +736,16 @@ class TestMarkStatusAtomicCommit:
             finally:
                 lock_state["held"] = False
 
-        def fake_commit_for_mission(*args: object, **kwargs: object) -> CommitRouterResult:
-            del args, kwargs
+        from specify_cli.status import emit_inner_state_changed as real_emit
+
+        def locked_emit(*args: object, **kwargs: object) -> object:
             assert lock_state["held"] is True
-            return _committed_result()
+            return real_emit(*args, **kwargs)
 
         with (
             patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", tracking_lock),
-            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", side_effect=fake_commit_for_mission),
+            patch("specify_cli.status.emit_inner_state_changed", side_effect=locked_emit),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as commit_mock,
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -777,13 +755,9 @@ class TestMarkStatusAtomicCommit:
 
         assert result.exit_code == 0, result.stdout
         content = tasks_md.read_text(encoding="utf-8")
-        assert "- [x] T001 First task" in content
+        assert "- [ ] T001 First task" in content
         assert "- [ ] T002 Second task" in content
-        assert any(
-            "Committed subtask changes to main branch" in str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        commit_mock.assert_not_called()
         assert any(
             "Not found: T999" in str(call.args[0])
             for call in mock_print.call_args_list
@@ -820,14 +794,14 @@ class TestMarkStatusAtomicCommit:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_mark_status_warns_when_auto_commit_returns_false(
+    def test_mark_status_ignores_obsolete_auto_commit_false_result(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_feature: Path,
     ) -> None:
-        """mark-status should warn when safe_commit reports False."""
+        """Event-only mark-status no longer consults the artifact commit seam."""
         repo = git_repo_with_feature
         mock_root.return_value = repo
         mock_slug.return_value = "017-test-feature"
@@ -837,7 +811,7 @@ class TestMarkStatusAtomicCommit:
         _write_feature_tasks_md(feature_dir)
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_unchanged_result()),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_unchanged_result()) as commit_mock,
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -846,23 +820,20 @@ class TestMarkStatusAtomicCommit:
             )
 
         assert result.exit_code == 0, result.stdout
-        assert any(
-            "Failed to auto-commit subtask changes" in str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        commit_mock.assert_not_called()
+        assert not any("auto-commit" in str(call.args[0]).lower() for call in mock_print.call_args_list if call.args)
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    def test_mark_status_warns_when_auto_commit_raises(
+    def test_mark_status_ignores_obsolete_auto_commit_exception(
         self,
         mock_branch: Mock,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_feature: Path,
     ) -> None:
-        """mark-status should warn when safe_commit raises unexpectedly."""
+        """An obsolete artifact-commit failure cannot affect event-only status."""
         repo = git_repo_with_feature
         mock_root.return_value = repo
         mock_slug.return_value = "017-test-feature"
@@ -872,7 +843,7 @@ class TestMarkStatusAtomicCommit:
         _write_feature_tasks_md(feature_dir)
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", side_effect=RuntimeError("commit boom")),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", side_effect=RuntimeError("commit boom")) as commit_mock,
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -881,11 +852,8 @@ class TestMarkStatusAtomicCommit:
             )
 
         assert result.exit_code == 0, result.stdout
-        assert any(
-            "Auto-commit exception: commit boom" in str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        commit_mock.assert_not_called()
+        assert not any("commit boom" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
 
 
 def test_workflow_review_holds_feature_lock_through_safe_commit(
@@ -906,6 +874,7 @@ title: "Test Task"
 lane: "for_review"
 agent: ""
 shell_pid: ""
+subtasks: []
 ---
 
 # WP01

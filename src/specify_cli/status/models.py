@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Optional
+from typing import Any, ClassVar, Literal, Optional, TypeAlias
 
 from pydantic import BaseModel
 
@@ -98,6 +98,66 @@ ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 #: (data-model.md §WPInnerStateDelta). A subtask is "done" when its status is
 #: ``Lane.DONE``.
 Status = Lane
+
+
+#: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
+#: ``str`` identity (the common case) OR a ``{role, profile, tool, model}``
+#: structured *resolved binding* (FR-015 / IC-09). The dict form is the delivery
+#: vehicle that lets the SaaS fan-out ride the transition's *resolved* identity;
+#: ``spec_kitty_events`` 6.1.0 ``StatusTransitionPayload.actor`` already accepts
+#: ``Union[str, Dict]``, so no shared-package change is needed to carry it.
+ActorField: TypeAlias = str | dict[str, str | None]
+
+_STRUCTURED_ACTOR_FIELDS = ("role", "profile", "tool", "model")
+
+
+def decode_actor(value: Any) -> ActorField:
+    """Decode a wire ``actor`` value, preserving a structured (dict) actor.
+
+    A resolved-binding actor is a ``{role, profile, tool, model}`` dict that MUST
+    survive the ``status.events.jsonl`` round-trip uncorrupted. The legacy
+    ``from_dict`` decoders coerced *every* actor with ``str(...)`` — silently
+    flattening such a dict to its ``repr`` (``"{'role': …}"``) with **no**
+    exception (the load-bearing silent-corruption trap, FR-015). This decoder
+    validates and copies the dict so only those four keys with ``str | None``
+    values can cross the persistence/fan-out boundary. Every other value is
+    coerced to ``str`` (the legacy string-actor contract).
+    """
+    if isinstance(value, dict):
+        expected = set(_STRUCTURED_ACTOR_FIELDS)
+        actual = set(value)
+        if actual != expected:
+            raise ValueError(
+                "structured actor must contain exactly "
+                f"{sorted(expected)!r}; got {sorted(actual)!r}"
+            )
+        decoded: dict[str, str | None] = {}
+        for field_name in _STRUCTURED_ACTOR_FIELDS:
+            field_value = value[field_name]
+            if field_value is not None and not isinstance(field_value, str):
+                raise ValueError(
+                    "structured actor fields must be strings or null; "
+                    f"{field_name!r} was {type(field_value).__name__}"
+                )
+            decoded[field_name] = field_value
+        return decoded
+    return str(value)
+
+
+def actor_identity_str(actor: ActorField) -> str:
+    """Project an actor to its plain-string identity for guard / snapshot / display.
+
+    A structured (dict) resolved-binding actor projects to its ``tool`` (the agent
+    identity a plain-string actor already carries), falling back to ``role`` then
+    ``""``. A ``str`` actor is returned verbatim. This keeps guard inputs and the
+    reduced-snapshot ``actor`` slot ``str``-typed for the ``.strip()``/display
+    consumers, while the dict itself still rides ``StatusEvent.actor`` to the SaaS
+    fan-out untouched (the snapshot slot is a display identity, not the binding).
+    """
+    if isinstance(actor, dict):
+        identity = actor.get("tool") or actor.get("role") or ""
+        return str(identity)
+    return actor
 
 
 @dataclass(frozen=True)
@@ -255,7 +315,11 @@ class StatusEvent:
     from_lane: Lane
     to_lane: Lane
     at: str  # ISO 8601 UTC
-    actor: str
+    # ``str`` identity OR a ``{role, profile, tool, model}`` structured resolved
+    # binding (FR-015 / IC-09). Widened from bare ``str`` so a dispatch-resolved
+    # dict actor rides the transition to ``_saas_fan_out`` and round-trips the
+    # JSONL uncorrupted; see :data:`ActorField` / :func:`decode_actor`.
+    actor: ActorField
     force: bool
     execution_mode: str  # "worktree" or "direct_repo"
     reason: str | None = None
@@ -266,6 +330,9 @@ class StatusEvent:
     # mission_id (ULID) added in WP05; None for legacy events read from disk
     # before the migration, or for missions that pre-date mission_id minting.
     mission_id: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "actor", decode_actor(self.actor))
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -309,7 +376,9 @@ class StatusEvent:
             from_lane=cls._coerce_lane(data["from_lane"]),
             to_lane=cls._coerce_lane(data["to_lane"]),
             at=data["at"],
-            actor=data["actor"],
+            # Preserve a structured (dict) resolved-binding actor on read-back;
+            # a scalar is coerced to ``str`` (decode_actor guards the trap).
+            actor=decode_actor(data["actor"]),
             force=data["force"],
             execution_mode=data["execution_mode"],
             reason=data.get("reason"),
@@ -355,6 +424,14 @@ class ReviewOverride:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> ReviewOverride:
+        # Actor audit (FR-015): the ``str(...)`` coercion is DELIBERATELY kept
+        # here. ``ReviewOverride.actor`` is definitionally a scalar reviewer/agent
+        # identity — the resolved-binding dict actor is routed ONLY through
+        # ``StatusEvent.actor`` (the transition) and the ``role``/``agent_profile``/
+        # ``model``/``provider`` delta slots, NEVER through a ``ReviewOverride``. A
+        # dict therefore never reaches this decoder, so the coercion cannot flatten
+        # one (unlike ``InnerStateChanged.from_dict`` / ``StatusEvent.from_dict``,
+        # which are in-path and use :func:`decode_actor`).
         return cls(
             at=str(data["at"]),
             actor=str(data["actor"]),
@@ -376,6 +453,27 @@ class WPInnerStateDelta:
     slot) that WP08's ``--replace`` needs so a replace does not resurrect stale
     refs. Both are delta inputs; the reduced snapshot exposes a single
     ``tracker_refs`` slot.
+
+    **Resolved-binding group (FR-013, C-008)**: ``role``, ``agent_profile``,
+    ``agent_profile_version``, ``model``, ``provider`` carry the *actual*
+    runtime identity that resolved and ran a WP. They are event-sourced and
+    folded latest-wins by the reducer — a later pick-up/reassign replaces them
+    (INV-8). These are the **resolved actual**, deliberately distinct from the
+    **authored recommendation** in frontmatter (C-008): never conflate "what
+    ran" with "what was designed to run". The recorded value originates from
+    ``resolve_profile``/``resolved_agent()`` / dispatch resolution, never a copy
+    of the frontmatter ``agent_profile`` string (C-007). Absence is valid — a
+    never-reclaimed WP leaves these slots ``None``.
+
+    **Single-source-of-truth field list (D-14 tidy-first)**: the plain
+    ``str | None`` scalar fields are enumerated **once** in
+    :data:`_SCALAR_FIELDS`, which backs both ``to_dict`` and ``from_dict``;
+    ``is_empty`` iterates the dataclass fields directly. Adding a scalar slot is
+    one field declaration plus one ``_SCALAR_FIELDS`` entry — no method carries
+    a hand-maintained field list. ``shell_pid`` (int coercion) and the
+    container/typed fields (``subtasks``/``note``/``tracker_refs``/
+    ``tracker_refs_replace``/``review``) are genuinely non-scalar and stay
+    explicit.
     """
 
     shell_pid: int | None = None
@@ -387,30 +485,49 @@ class WPInnerStateDelta:
     agent: str | None = None
     assignee: str | None = None
     review: ReviewOverride | None = None
+    # Resolved-binding actuals (FR-013) — pure ``str | None`` scalar slots
+    # folded latest-wins by the reducer. Declared after ``review`` per the WP09
+    # contract; picked up automatically by _SCALAR_FIELDS / is_empty.
+    role: str | None = None
+    agent_profile: str | None = None
+    agent_profile_version: str | None = None
+    model: str | None = None
+    provider: str | None = None
+
+    #: Single authoritative list of the pure ``str | None`` scalar fields that
+    #: round-trip trivially on the wire. Backs ``to_dict``/``from_dict`` (one
+    #: source of truth — D-14). A new scalar slot is added here once; the two
+    #: serializers pick it up as data. NOT a dataclass field (``ClassVar``).
+    _SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
+        "shell_pid_created_at",
+        "agent",
+        "assignee",
+        "role",
+        "agent_profile",
+        "agent_profile_version",
+        "model",
+        "provider",
+    )
 
     def is_empty(self) -> bool:
-        """True when the delta touches no slot (all fields ``None``)."""
-        return (
-            self.shell_pid is None
-            and self.shell_pid_created_at is None
-            and self.subtasks is None
-            and self.note is None
-            and self.tracker_refs is None
-            and self.tracker_refs_replace is None
-            and self.agent is None
-            and self.assignee is None
-            and self.review is None
-        )
+        """True when the delta touches no slot (all fields ``None``).
+
+        Iterates the dataclass fields directly, so a newly-added optional field
+        is covered automatically with no hand-maintained list to keep in sync.
+        """
+        return all(getattr(self, f.name) is None for f in fields(self))
 
     def to_dict(self) -> dict[str, Any]:
         """Emit only present fields so the reducer's "absent leaves slot
         untouched" rule is unambiguous on the wire.
+
+        Scalar fields are emitted by iterating the single ``_SCALAR_FIELDS``
+        list; the non-scalar fields (``shell_pid`` int, ``subtasks``, ``note``,
+        ``tracker_refs*``, ``review``) are handled explicitly.
         """
         d: dict[str, Any] = {}
         if self.shell_pid is not None:
             d["shell_pid"] = self.shell_pid
-        if self.shell_pid_created_at is not None:
-            d["shell_pid_created_at"] = self.shell_pid_created_at
         if self.subtasks is not None:
             d["subtasks"] = {sid: str(status) for sid, status in self.subtasks.items()}
         if self.note is not None:
@@ -419,12 +536,12 @@ class WPInnerStateDelta:
             d["tracker_refs"] = list(self.tracker_refs)
         if self.tracker_refs_replace is not None:
             d["tracker_refs_replace"] = list(self.tracker_refs_replace)
-        if self.agent is not None:
-            d["agent"] = self.agent
-        if self.assignee is not None:
-            d["assignee"] = self.assignee
         if self.review is not None:
             d["review"] = self.review.to_dict()
+        for name in self._SCALAR_FIELDS:
+            value = getattr(self, name)
+            if value is not None:
+                d[name] = value
         return d
 
     @classmethod
@@ -438,9 +555,9 @@ class WPInnerStateDelta:
         shell_pid_raw = data.get("shell_pid")
         tracker_refs_raw = data.get("tracker_refs")
         tracker_refs_replace_raw = data.get("tracker_refs_replace")
+        scalars: dict[str, Any] = {name: data.get(name) for name in cls._SCALAR_FIELDS}
         return cls(
             shell_pid=int(shell_pid_raw) if shell_pid_raw is not None else None,
-            shell_pid_created_at=data.get("shell_pid_created_at"),
             subtasks=subtasks,
             note=data.get("note"),
             tracker_refs=list(tracker_refs_raw) if tracker_refs_raw is not None else None,
@@ -449,9 +566,8 @@ class WPInnerStateDelta:
                 if tracker_refs_replace_raw is not None
                 else None
             ),
-            agent=data.get("agent"),
-            assignee=data.get("assignee"),
             review=review,
+            **scalars,
         )
 
 
@@ -469,9 +585,15 @@ class InnerStateChanged:
     event_id: str  # ULID
     wp_id: str
     at: str  # ISO 8601 UTC
-    actor: str
+    # Widened to accept a structured resolved-binding actor for parity with
+    # ``StatusEvent.actor`` (FR-015 / IC-09); ``decode_actor`` guards the
+    # ``from_dict`` round-trip against the ``str(dict)`` flattening trap.
+    actor: ActorField
     delta: WPInnerStateDelta
     kind: str = "annotation"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "actor", decode_actor(self.actor))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -503,7 +625,9 @@ class InnerStateChanged:
             kind=kind,
             wp_id=str(data["wp_id"]),
             at=str(data["at"]),
-            actor=str(data["actor"]),
+            # decode_actor: a dict resolved-binding actor round-trips uncorrupted;
+            # a scalar is ``str``-coerced (guards the models.py corruption trap).
+            actor=decode_actor(data["actor"]),
             delta=WPInnerStateDelta.from_dict(delta_raw),
         )
 
@@ -631,7 +755,7 @@ class TransitionRequest:
     force: bool = False
     reason: str | None = None
     # Actor
-    actor: str | None = None
+    actor: ActorField | None = None
     execution_mode: str = "worktree"
     # Evidence
     evidence: dict[str, Any] | None = None
@@ -643,6 +767,10 @@ class TransitionRequest:
     implementation_evidence_present: bool | None = None
     current_actor: str | None = None
     policy_metadata: dict[str, Any] | None = None
+    # Optional off-axis state change that belongs to the same logical claim as
+    # this transition. Emitters persist it in the same atomic/transactional
+    # unit as the lane event, so a resolved binding can never lag its claim.
+    annotation_delta: WPInnerStateDelta | None = None
 
 
 @dataclass

@@ -94,6 +94,7 @@ def _create_minimal_feature_with_lanes(tmp_path: Path) -> tuple[Path, Path]:
         'assignee: "test-agent"\n'
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
+        "subtasks: []\n"
         "---\n"
         "# WP01\nDone.\n"
     )
@@ -247,6 +248,7 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
         'assignee: "test-agent"\n'
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
+        "subtasks: []\n"
         "---\n"
         "# WP01\nDone.\n"
     )

@@ -20,9 +20,9 @@ extraction (WP03+) can be proven byte-identical:
   a coord event emitted AND the conditional ``--json`` keys
   (``wp_file_update`` / ``status_events_path``) -- never exit-0 + key-presence
   alone (a non-skip success also exits 0).
-* **T005** -- the ``mark_status`` / ``map_requirements`` **refuse-exit-1** arms on
-  the same tree; the skip-vs-refuse divergence is *deliberately preserved*
-  (deferred #2300 -- do NOT reconcile it here; NFR-001 pure parity).
+* **T005** -- protected-tree contracts: event-only ``mark_status`` succeeds,
+  while authored-artifact ``map_requirements`` still refuses the protected
+  primary mutation.
 * **T006** -- EVERY other named ``move_task`` decision branch WP03 extracts
   (arbiter-override, rejected-verdict + its ``--skip-review-artifact-check``
   override, the FR-008a planning-artifact-WP ``done`` arm + its code-change
@@ -226,6 +226,7 @@ def _simple_mission(root: Path, slug: str, *, execution_mode: str = "code_change
         "title: Fixture WP01\n"
         f"execution_mode: {execution_mode}\n"
         "agent: testbot\n"
+        "subtasks: []\n"
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
@@ -341,7 +342,7 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         },
     )
 
-    # --- T005: refuse-exit-1 arms on the SAME coord+protected tree ---
+    # --- T005: protected-tree contracts on the SAME coord topology ---
     ctx_ms = _build_coord_protected_tree(mkdir())
     (ctx_ms.primary_feature_dir / "tasks.md").write_text(
         "# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8"
@@ -630,23 +631,20 @@ def test_move_task_coord_skip_arm_distinguishing_evidence(scenarios: dict[str, S
 
 
 # ---------------------------------------------------------------------------
-# T005 -- refuse-exit-1 arms (skip-vs-refuse divergence deliberately preserved)
+# T005 -- protected-tree command contracts
 # ---------------------------------------------------------------------------
 #
 # NFR-001 / deferred #2300: on the SAME coord + protected-primary tree where
-# move_task SKIPS (exit 0), mark_status and map_requirements REFUSE (exit 1)
-# because ``_protected_branch_status_commit_error`` fires unconditionally under
-# ``auto_commit`` — it does NOT consult ``_skip_target_branch_commit``. This
-# inconsistency is a real divergence but a behaviour change to reconcile; this
-# mission PRESERVES it. Do NOT "fix" the divergence in a later WP under the guise
-# of a refactor — that is a behaviour change, out of scope here.
+# ``mark-status`` is event-only after the runtime-state cutover, so it no longer
+# needs a protected-primary artifact commit. ``map-requirements`` still mutates
+# an authored artifact and therefore retains its refusal contract.
 
 
-def test_mark_status_refuses_exit_1_on_coord_protected_tree(scenarios: dict[str, Scenario]) -> None:
-    """T005: mark_status refuses (exit 1) where move_task skips (exit 0)."""
+def test_mark_status_succeeds_event_only_on_coord_protected_tree(scenarios: dict[str, Scenario]) -> None:
+    """T005: mark_status needs no protected-primary artifact commit."""
     sc = scenarios["refuse_mark_status"]
-    assert sc.exit_code == 1, sc.output
-    assert "protected branch" in sc.output and "auto-commit" in sc.output
+    assert sc.exit_code == 0, sc.output
+    assert '"updated": 1' in sc.output
 
 
 def test_map_requirements_refuses_exit_1_on_coord_protected_tree(scenarios: dict[str, Scenario]) -> None:
@@ -749,12 +747,21 @@ class TestMoveTaskSideEffects:
         assert sc.evidence["head_before"] == sc.evidence["head_after"]
 
     def test_wp_file_activity_log_written(self, scenarios: dict[str, Scenario]) -> None:
-        """A forward move appends a real activity-log line to the WP file body."""
+        """A forward move records its activity in the EVENT LOG, not the WP file body.
+
+        Post-#2816 the WP-file activity-log god-write is retired: the move emits a
+        canonical status event (attribution lives there) and leaves the WP markdown
+        body untouched — no ``- `` activity row is appended (two-sided with the
+        ``tracker_ref`` god-write-cut sibling above).
+        """
         sc = scenarios["wp_file_write"]
         assert sc.exit_code == 0, sc.output
         body = sc.evidence["wp_body"]
         activity_lines = [line for line in body.splitlines() if line.startswith("- ")]
-        assert activity_lines, "move_task must append an activity-log entry to the WP file"
+        assert not activity_lines, (
+            "move_task must NOT append an activity-log row to the WP file body "
+            f"(WP-file god-write retired — attribution is event-sourced); found: {activity_lines}"
+        )
 
     def test_tracker_ref_event_sourced_union_delta(self, scenarios: dict[str, Scenario]) -> None:
         """--tracker-ref values land in the event-sourced ``tracker_refs`` slot.

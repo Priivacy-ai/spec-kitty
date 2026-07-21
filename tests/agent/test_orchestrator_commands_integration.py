@@ -68,7 +68,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 
@@ -341,7 +341,7 @@ class TestListReady:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
 
@@ -366,7 +366,7 @@ class TestListReady:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
@@ -486,6 +486,7 @@ class TestStartImplementation:
             "title: Test WP02\n"
             "lane: planned\n"
             "dependencies: [WP01]\n"
+            "subtasks: []\n"
             "---\n\n"
             "# WP02\n",
             encoding="utf-8",
@@ -535,7 +536,7 @@ class TestStartImplementation:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
@@ -575,7 +576,7 @@ class TestStartImplementation:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
 
@@ -1697,11 +1698,11 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     tasks_dir.mkdir(parents=True)
 
     (tasks_dir / "WP01-core-setup.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\n---\n\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n",
         encoding="utf-8",
     )
     (tasks_dir / "WP07-adapter-implementations.md").write_text(
-        "---\nwork_package_id: WP07\ntitle: Adapter Implementations\nlane: planned\ndependencies: []\n---\n\n# WP07\n",
+        "---\nwork_package_id: WP07\ntitle: Adapter Implementations\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP07\n",
         encoding="utf-8",
     )
     # Also include a non-WP file to verify it is excluded

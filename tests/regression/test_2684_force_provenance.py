@@ -62,6 +62,7 @@ def _seed_wp_in_lane(
     (feature_dir / "tasks" / f"{wp_id}-test.md").write_text(
         f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\n"
         f"execution_mode: code_change\nagent: testbot\n"
+        f"subtasks: []\n"
         f"owned_files:\n  - src/{wp_id.lower()}/**\n"
         f"authoritative_surface: src/{wp_id.lower()}/\n---\n\n# {wp_id}\n\n## Activity Log\n",
         encoding="utf-8",

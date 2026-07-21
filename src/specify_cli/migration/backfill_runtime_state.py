@@ -38,23 +38,23 @@ Backfill (:func:`backfill_runtime_state`)
     WP01 events: the reducer folds them into the snapshot with no special-casing.
 
 Verify (:func:`verify_backfill`) — **fail-closed**
-    Asserts the WP01 reduced snapshot equals the value the OLD frontmatter/checkbox
-    reader produces, by **count + value** parity. The compare reads the
-    **un-stripped** frontmatter: :func:`strip_mutable_fields` MUST NOT run before
-    verify (a strip-then-verify ordering reads empty frontmatter and every field
-    trivially "matches" empty -> a vacuous false green). :func:`verify_backfill`
-    actively guards this: if the snapshot carries a frontmatter-sourced slot whose
-    key has already been stripped from the WP file, it raises
+    Asserts every value produced by the OLD frontmatter/checkbox reader exists in
+    its exact deterministic seed row, while allowing legitimate later events to
+    win in the current snapshot. The proof reads the **un-stripped** frontmatter:
+    :func:`strip_mutable_fields` MUST NOT run before verify. The verifier also
+    checks WP/count integrity, rejects corrupt deterministic seed rows, and raises
     :class:`MigrationOrderingError`. Any mismatch, ordering violation, or corrupt
     seed **aborts before reader cutover** — never a warning.
 
 Honesty bound (no-data-loss)
-    "No data loss" is asserted against count + value parity of the reduced
-    snapshot, **not** temporal fidelity: backfilled subtask-completion timestamps
-    are clamped (fictional) and seed ULIDs are content-namespaced (not
-    chronological). The contract holds only because **no consumer reads
-    subtask-completion time or relies on seed-ULID chronological order** — this is
-    asserted as an explicit precondition in the test-suite.
+    "No data loss" is asserted against deterministic seed-row payload parity and
+    WP/count integrity, **not** temporal fidelity or equality with the latest
+    reduced value: backfilled subtask-completion timestamps are clamped
+    (fictional), seed ULIDs are content-namespaced (not chronological), and a
+    later legitimate annotation may supersede a seed in the current snapshot.
+    The contract holds only because **no consumer reads subtask-completion time or
+    relies on seed-ULID chronological order** — this is asserted as an explicit
+    precondition in the test-suite.
 """
 
 from __future__ import annotations
@@ -64,7 +64,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
+from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status import (
     InnerStateChanged,
@@ -130,6 +132,10 @@ class MigrationOrderingError(RuntimeError):
     """
 
 
+class LegacyRuntimeReadError(RuntimeError):
+    """Fail-closed abort: a WP artifact cannot be parsed for migration."""
+
+
 @dataclass(frozen=True)
 class LegacyWPRuntime:
     """Pre-eviction runtime state reconstructed from ONE WP's legacy read path.
@@ -162,7 +168,6 @@ class LegacyWPRuntime:
             or (self.review is not None and self.review.complete)
         )
 
-
 @dataclass
 class BackfillResult:
     """Per-mission result from :func:`backfill_runtime_state`.
@@ -190,10 +195,11 @@ class BackfillResult:
 class VerifyResult:
     """Fail-closed result of :func:`verify_backfill`.
 
-    ``ok`` is True only when every WP's reduced snapshot slot matches the OLD
-    reader by count and value. ``mismatches`` carries a human-readable line per
-    divergence for diagnostics; the runner treats any non-``ok`` result as a
-    terminal abort (no reader cutover).
+    ``ok`` is True only when every legacy-derived deterministic seed is present
+    with its exact payload and the WP/count integrity guards pass.
+    ``mismatches`` carries a human-readable line per divergence for diagnostics;
+    the runner treats any non-``ok`` result as a terminal abort (no reader
+    cutover).
     """
 
     ok: bool
@@ -318,9 +324,10 @@ def read_legacy_runtime(feature_dir: Path) -> dict[str, LegacyWPRuntime]:
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
             frontmatter, _body = manager.read(wp_file)
-        except Exception as exc:  # noqa: BLE001 - a malformed WP file is skipped, not fatal
-            logger.warning("Cannot read %s for legacy runtime: %s — skipping", wp_file.name, exc)
-            continue
+        except Exception as exc:  # noqa: BLE001 - translate parser failures to migration domain
+            raise LegacyRuntimeReadError(
+                f"cannot read {wp_file.name} for legacy runtime: {exc}"
+            ) from exc
 
         wp_id = _wp_code(wp_file)
         shell_pid_raw = frontmatter.get("shell_pid")
@@ -452,7 +459,6 @@ def _build_seed_events(
             "review",
             WPInnerStateDelta(review=runtime.review) if (runtime.review is not None and runtime.review.complete) else None,
         )
-
     return transitions, annotations
 
 
@@ -506,7 +512,7 @@ def backfill_runtime_state(feature_dir: Path, *, dry_run: bool = False) -> Backf
         legacy = read_legacy_runtime(feature_dir)
         anchors = _claim_anchors(feature_dir)
         transitions, annotations = _build_seed_events(feature_dir, legacy, anchors, warnings)
-    except StoreError as exc:
+    except (StoreError, LegacyRuntimeReadError) as exc:
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="error", reason=f"event log unreadable: {exc}", warnings=warnings)
 
     # Idempotency: drop any seed whose deterministic id is already on disk.
@@ -572,12 +578,29 @@ def backfill_runtime_state_repo(
         return results
 
     if mission_slug is not None:
+        assert_safe_path_segment(mission_slug)
         candidates = [kitty_specs / mission_slug] if (kitty_specs / mission_slug).is_dir() else []
         if not candidates:
             logger.warning("No mission directory found for slug %r", mission_slug)
             return results
+        try:
+            candidates = [ensure_within_any(candidates[0], roots=[kitty_specs])]
+        except ValueError as exc:
+            raise ValueError(
+                f"Mission directory resolves outside kitty-specs: {candidates[0]}"
+            ) from exc
     else:
-        candidates = sorted(entry for entry in kitty_specs.iterdir() if entry.is_dir())
+        candidates = []
+        for entry in sorted(kitty_specs.iterdir()):
+            if not entry.is_dir():
+                continue
+            try:
+                candidates.append(ensure_within_any(entry, roots=[kitty_specs]))
+            except ValueError:
+                logger.warning(
+                    "Skipping mission directory that resolves outside kitty-specs: %s",
+                    entry,
+                )
 
     for feature_dir in candidates:
         results.append(backfill_runtime_state(feature_dir, dry_run=dry_run))
@@ -592,7 +615,7 @@ def backfill_runtime_state_repo(
 def _assert_unstripped(
     wp_id: str,
     runtime: LegacyWPRuntime,
-    snap_wp: dict[str, Any],
+    seeded_slots: set[str],
 ) -> None:
     """Raise :class:`MigrationOrderingError` if the frontmatter was stripped early.
 
@@ -601,84 +624,144 @@ def _assert_unstripped(
     corresponding frontmatter key, ``strip_mutable_fields`` ran before verify and
     the OLD reader would read empty -> vacuous false green. Fail closed.
     """
-    for slot in _FRONTMATTER_SOURCED_SLOTS:
-        if snap_wp.get(slot) in (None, [], {}):
-            continue
+    for slot in sorted(seeded_slots):
         key = "review_artifact_override_at" if slot == "review" else slot
         if key not in runtime.frontmatter_keys:
             raise MigrationOrderingError(
-                f"{wp_id}: snapshot carries {slot!r} but frontmatter key {key!r} is absent — "
+                f"{wp_id}: deterministic seed carries {slot!r} but frontmatter key {key!r} is absent — "
                 "strip_mutable_fields ran before verify (pinned order is backfill -> verify(pre-strip) -> cutover -> strip)"
             )
 
 
-def _snapshot_review(snap_wp: dict[str, Any]) -> dict[str, Any] | None:
-    review = snap_wp.get("review")
-    return review if isinstance(review, dict) else None
+def _seeded_frontmatter_slots(
+    feature_dir: Path,
+    wp_ids: set[str],
+) -> dict[str, set[str]]:
+    """Return frontmatter slots proven to have deterministic migration seeds.
 
-
-def _detect_conflicting_seed_annotations(feature_dir: Path) -> list[str]:
-    """Fail-closed value-parity guard: reject ambiguous same-slot seed annotations.
-
-    The reducer folds same-``at`` annotations in ``(at, event_id)`` order and
-    merges per field (scalars replace; ``subtasks`` merge per key). Because seed
-    ``event_id``s are content-namespaced ULIDs (arbitrary order, per the honesty
-    bound), a *tampered* annotation that assigns a divergent value to a slot the
-    legitimate seed also writes is **masked** whenever the legit seed happens to
-    sort last — the reduced value heals back to the legacy value and the plain
-    reduced-vs-legacy compare passes (a coin-flip on ULID luck, not fail-closed).
-
-    Backfill emits exactly ONE annotation per ``(wp, field)``, so two annotations
-    assigning *different* values to the same runtime slot (or the same subtask
-    key) for one WP is corruption, regardless of which one the reducer currently
-    lets win. Detect it directly on the raw stream and abort — this closes the
-    real safety hole (#2816 hardening). Each conflict is reported under its field
-    label (``"<field> mismatch"``) so the abort reads as a value mismatch.
-
-    ``tracker_refs`` (additive union) and ``note`` (append) are order-independent
-    by construction and are intentionally excluded.
+    The order guard must inspect migration provenance, not the latest snapshot:
+    a legitimate runtime annotation may populate a slot that was never present
+    in legacy frontmatter. Deterministic seed IDs let us distinguish those cases.
     """
     stream = read_event_stream(feature_dir)
-    scalar_values: dict[tuple[str, str], set[str]] = {}
-    subtask_values: dict[tuple[str, str], set[str]] = {}
-    for ann in stream.annotations:
-        delta = ann.delta
-        wp = ann.wp_id
-        for slot, value in (
-            ("shell_pid", delta.shell_pid),
-            ("shell_pid_created_at", delta.shell_pid_created_at),
-            ("agent", delta.agent),
-            ("assignee", delta.assignee),
+    transitions = {event.event_id: event for event in stream.transitions}
+    annotations = {event.event_id: event for event in stream.annotations}
+    mission_id = _mission_id(feature_dir)
+    slots_by_wp: dict[str, set[str]] = {}
+    for wp_id in wp_ids:
+        slots: set[str] = set()
+        claim = transitions.get(_seed_id(mission_id, wp_id, "claim"))
+        if claim is not None:
+            policy_metadata = claim.policy_metadata or {}
+            slots.update(
+                slot
+                for slot in ("shell_pid", "shell_pid_created_at", "agent")
+                if slot in policy_metadata
+            )
+        for field_name, slot in (
+            ("assignee", "assignee"),
+            ("tracker_refs", "tracker_refs"),
+            ("review", "review"),
         ):
-            if value is not None:
-                scalar_values.setdefault((wp, slot), set()).add(str(value))
-        if delta.review is not None:
-            scalar_values.setdefault((wp, "review"), set()).add(repr(sorted(delta.review.to_dict().items())))
-        if delta.subtasks is not None:
-            for subtask_id, status in delta.subtasks.items():
-                subtask_values.setdefault((wp, subtask_id), set()).add(str(status))
+            if _seed_id(mission_id, wp_id, field_name) in annotations:
+                slots.add(slot)
+        slots_by_wp[wp_id] = slots
+    return slots_by_wp
 
+
+def _verify_expected_seed_events(
+    feature_dir: Path,
+    legacy: dict[str, LegacyWPRuntime],
+    anchors: dict[str, str],
+) -> list[str]:
+    """Verify every deterministic migration seed exists with its exact payload.
+
+    The reduced snapshot is latest-wins runtime state, so a legitimate later
+    reassignment can differ from the legacy value without losing history. The
+    no-data-loss proof therefore pins the deterministic seed row itself: every
+    seed that :func:`_build_seed_events` derives from the legacy source must be
+    present byte-semantically (same typed ``to_dict`` payload). Later events may
+    then replace the current snapshot value without making cutover verification
+    falsely reject an already-active mission.
+    """
+    expected_transitions, expected_annotations = _build_seed_events(
+        feature_dir,
+        legacy,
+        anchors,
+        [],
+    )
+    stream = read_event_stream(feature_dir)
+    actual_transitions = {event.event_id: event for event in stream.transitions}
+    actual_annotations = {event.event_id: event for event in stream.annotations}
     mismatches: list[str] = []
-    for (wp, slot), values in sorted(scalar_values.items()):
-        if len(values) > 1:
-            mismatches.append(f"{wp}: {slot} mismatch (conflicting seed annotations: {sorted(values)})")
-    for (wp, subtask_id), values in sorted(subtask_values.items()):
-        if len(values) > 1:
-            mismatches.append(f"{wp}: subtasks mismatch (conflicting seed annotation for {subtask_id}: {sorted(values)})")
+
+    for expected_transition in expected_transitions:
+        actual_transition = actual_transitions.get(expected_transition.event_id)
+        if actual_transition is None:
+            mismatches.append(
+                f"{expected_transition.wp_id}: claim mismatch (deterministic seed missing)"
+            )
+        elif actual_transition.to_dict() != expected_transition.to_dict():
+            mismatches.append(
+                f"{expected_transition.wp_id}: claim mismatch (deterministic seed payload diverged)"
+            )
+
+    for expected_annotation in expected_annotations:
+        actual_annotation = actual_annotations.get(expected_annotation.event_id)
+        field_name = next(
+            (
+                name
+                for name, value in expected_annotation.delta.to_dict().items()
+                if value is not None
+            ),
+            "annotation",
+        )
+        if actual_annotation is None:
+            mismatches.append(
+                f"{expected_annotation.wp_id}: {field_name} mismatch "
+                "(deterministic seed missing)"
+            )
+        elif actual_annotation.to_dict() != expected_annotation.to_dict():
+            mismatches.append(
+                f"{expected_annotation.wp_id}: {field_name} mismatch "
+                "(deterministic seed payload diverged)"
+            )
+
     return mismatches
 
 
-def verify_backfill(feature_dir: Path) -> VerifyResult:
-    """Fail-closed parity check: reduced snapshot == OLD reader, by count + value.
+def _has_snapshot_runtime(wp: dict[str, Any]) -> bool:
+    """True iff a reduced-snapshot WP carries any runtime-slot value."""
+    return any(
+        wp.get(slot) not in (None, [], {})
+        for slot in (
+            "shell_pid",
+            "shell_pid_created_at",
+            "agent",
+            "assignee",
+            "tracker_refs",
+            "subtasks",
+            "review",
+            "role",
+            "agent_profile",
+            "agent_profile_version",
+            "model",
+            "provider",
+        )
+    )
 
-    Compares, per WP and per field, the WP01 reduced snapshot against the value
-    the OLD frontmatter/checkbox reader (:func:`read_legacy_runtime`) produces on
-    the **un-stripped** frontmatter. Verifies both **count** (same WPs / subtasks /
-    tracker_refs) and **value** (each slot equals the legacy-derived value).
+
+def verify_backfill(feature_dir: Path) -> VerifyResult:
+    """Fail-closed proof that OLD-reader values survive in deterministic seeds.
+
+    Rebuilds the expected deterministic rows from the OLD frontmatter/checkbox
+    reader (:func:`read_legacy_runtime`) and compares each exact typed payload to
+    the raw event stream. The current reduced snapshot may legitimately be newer
+    because runtime slots are latest-wins.
 
     Fail-closed:
         - a corrupt/unreadable event log -> ``ok=False`` (terminal);
-        - any count or value mismatch -> ``ok=False`` (terminal);
+        - any seed-payload, conflict, or count mismatch -> ``ok=False`` (terminal);
         - a frontmatter already stripped at verify time -> :class:`MigrationOrderingError`.
 
     The strip is a *downstream* step, never a precondition of verify.
@@ -691,7 +774,14 @@ def verify_backfill(feature_dir: Path) -> VerifyResult:
         MigrationOrderingError: if verify is run after ``strip_mutable_fields``.
     """
     feature_dir = canonicalize_feature_dir(feature_dir)
-    legacy = read_legacy_runtime(feature_dir)
+    try:
+        legacy = read_legacy_runtime(feature_dir)
+    except LegacyRuntimeReadError as exc:
+        return VerifyResult(
+            ok=False,
+            wp_count=0,
+            mismatches=(f"legacy runtime unreadable: {exc}",),
+        )
 
     try:
         snapshot = materialize_snapshot(feature_dir)
@@ -699,62 +789,46 @@ def verify_backfill(feature_dir: Path) -> VerifyResult:
         return VerifyResult(ok=False, wp_count=0, mismatches=(f"event log unreadable: {exc}",))
 
     mismatches: list[str] = []
-    legacy_runtime_wps = {wp_id for wp_id, rt in legacy.items() if rt.has_evictable_state()}
-    snapshot_runtime_wps = {
+    # A WP is the backfill's responsibility to seed ONLY when it has a claim
+    # anchor: a never-claimed WP (no transition events) is skipped by
+    # _build_seed_events (warn, not fail), so verify mirrors that skip — an
+    # anchor-less WP is never a count mismatch (Defect 1, spec Edge Case).
+    anchors = _claim_anchors(feature_dir)
+    seeded_wps = {
         wp_id
-        for wp_id, wp in snapshot.work_packages.items()
-        if any(wp.get(slot) not in (None, [], {}) for slot in ("shell_pid", "shell_pid_created_at", "agent", "assignee", "tracker_refs", "subtasks", "review"))
+        for wp_id, runtime in legacy.items()
+        if runtime.has_evictable_state() and wp_id in anchors
     }
 
-    # Count parity: a WP carrying runtime in one view but not the other aborts.
-    for wp_id in sorted(legacy_runtime_wps - snapshot_runtime_wps):
+    # Count parity, DATA-LOSS direction: a seeded WP whose snapshot carries no
+    # runtime at all.
+    snapshot_runtime_wps = {wp_id for wp_id, wp in snapshot.work_packages.items() if _has_snapshot_runtime(wp)}
+    for wp_id in sorted(seeded_wps - snapshot_runtime_wps):
         mismatches.append(f"{wp_id}: legacy carries runtime state but snapshot has none (count mismatch)")
-    for wp_id in sorted(snapshot_runtime_wps - legacy_runtime_wps):
-        mismatches.append(f"{wp_id}: snapshot carries runtime state but legacy reader has none (count mismatch)")
 
-    # Value parity, per field, for every WP the legacy reader saw.
-    for wp_id, runtime in sorted(legacy.items()):
-        snap_wp = snapshot.work_packages.get(wp_id)
-        if snap_wp is None:
-            if runtime.has_evictable_state():
-                mismatches.append(f"{wp_id}: present in legacy reader, absent from snapshot (count mismatch)")
-            continue
+    # Reverse direction is tolerant of the already-migrated / mid-migration state
+    # (Defect 3): a WP whose snapshot carries runtime the legacy FRONTMATTER lacks
+    # is valid IFF it still has a legacy WP row (a real WP file, its runtime merely
+    # event-sourced now — the actively-running mission does exactly this). A
+    # snapshot WP with NO legacy row at all (no WP file) is a phantom / injected
+    # entry and is still caught fail-closed.
+    legacy_wp_ids = set(legacy.keys())
+    for wp_id in sorted(snapshot_runtime_wps - legacy_wp_ids):
+        mismatches.append(f"{wp_id}: snapshot carries runtime state but no legacy WP row exists (phantom / injected)")
 
-        _assert_unstripped(wp_id, runtime, snap_wp)
+    # The legacy-derived values must exist exactly in their deterministic seed
+    # rows. Compare those raw rows rather than the latest-wins snapshot value:
+    # an already-active mission can legitimately carry a later reassignment.
+    mismatches.extend(_verify_expected_seed_events(feature_dir, legacy, anchors))
 
-        _check_scalar(mismatches, wp_id, "shell_pid", runtime.shell_pid, snap_wp.get("shell_pid"))
-        _check_scalar(mismatches, wp_id, "shell_pid_created_at", runtime.shell_pid_created_at, snap_wp.get("shell_pid_created_at"))
-        _check_scalar(mismatches, wp_id, "agent", runtime.agent, snap_wp.get("agent"))
-        _check_scalar(mismatches, wp_id, "assignee", runtime.assignee, snap_wp.get("assignee"))
+    # Preserve the strip-order guard using deterministic seed provenance. Current
+    # snapshot values may be ahead of legacy (even at the same timestamp), so
+    # snapshot presence alone is not evidence that frontmatter was stripped.
+    seeded_slots = _seeded_frontmatter_slots(feature_dir, legacy_wp_ids)
+    for wp_id in sorted(legacy_wp_ids):
+        _assert_unstripped(wp_id, legacy[wp_id], seeded_slots[wp_id])
 
-        legacy_refs = sorted(runtime.tracker_refs)
-        snap_refs = sorted(str(r) for r in (snap_wp.get("tracker_refs") or []))
-        if legacy_refs != snap_refs:
-            mismatches.append(f"{wp_id}: tracker_refs mismatch (legacy={legacy_refs} snapshot={snap_refs})")
-
-        legacy_subtasks = {sid: str(status) for sid, status in runtime.subtasks.items()}
-        snap_subtasks = {str(k): str(v) for k, v in (snap_wp.get("subtasks") or {}).items()}
-        if legacy_subtasks != snap_subtasks:
-            mismatches.append(f"{wp_id}: subtasks mismatch (legacy={legacy_subtasks} snapshot={snap_subtasks})")
-
-        legacy_review = runtime.review.to_dict() if (runtime.review is not None and runtime.review.complete) else None
-        if legacy_review != _snapshot_review(snap_wp):
-            mismatches.append(f"{wp_id}: review mismatch (legacy={legacy_review} snapshot={_snapshot_review(snap_wp)})")
-
-    # Value-parity hardening: a tampered same-slot annotation can be masked in the
-    # reduced compare above by same-`at` ULID-tiebreak ordering. Scan the raw
-    # annotations for conflicting same-slot assignments and abort fail-closed.
-    mismatches.extend(_detect_conflicting_seed_annotations(feature_dir))
-
-    return VerifyResult(ok=not mismatches, wp_count=len(legacy), mismatches=tuple(mismatches))
-
-
-def _check_scalar(mismatches: list[str], wp_id: str, name: str, legacy: Any, snapshot: Any) -> None:
-    """Record a mismatch when a scalar snapshot slot diverges from the legacy value."""
-    if legacy is None and snapshot in (None, ""):
-        return
-    if legacy != snapshot:
-        mismatches.append(f"{wp_id}: {name} mismatch (legacy={legacy!r} snapshot={snapshot!r})")
+    return VerifyResult(ok=not mismatches, wp_count=len(seeded_wps), mismatches=tuple(mismatches))
 
 
 def run_backfill_and_verify(feature_dir: Path, *, dry_run: bool = False) -> tuple[BackfillResult, VerifyResult]:
@@ -773,6 +847,10 @@ def run_backfill_and_verify(feature_dir: Path, *, dry_run: bool = False) -> tupl
         MigrationOrderingError: if the frontmatter was stripped before verify.
     """
     backfill_result = backfill_runtime_state(feature_dir, dry_run=dry_run)
+    if backfill_result.action == "error":
+        raise BackfillVerificationError(
+            backfill_result.reason or "backfill failed before verify"
+        )
     verify_result = verify_backfill(feature_dir)
     verify_result.raise_if_failed()
     return backfill_result, verify_result
@@ -883,20 +961,10 @@ def assert_zero_readers(
 
 
 __all__ = [
-    "BACKFILL_ACTOR",
-    "ZERO_READER_FIELDS",
-    "BackfillAction",
     "BackfillResult",
-    "BackfillVerificationError",
-    "HISTORY_WRITER_SEAMS",
-    "LegacyWPRuntime",
     "MigrationOrderingError",
     "VerifyResult",
-    "assert_zero_readers",
     "backfill_runtime_state",
-    "backfill_runtime_state_repo",
-    "find_field_readers",
     "read_legacy_runtime",
-    "run_backfill_and_verify",
     "verify_backfill",
 ]

@@ -193,6 +193,13 @@ def _write_wp_and_lanes(feature_dir: Path, slug: str, mission_id: str, target_br
 
 def _parse_json_output(output: str) -> dict[str, object]:
     text = output.strip()
+    for line in reversed(text.splitlines()):
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict):
+            return candidate
     start = text.find("{")
     end = text.rfind("}")
     assert start != -1 and end != -1, f"no JSON object in output: {text!r}"
@@ -630,7 +637,7 @@ def test_deleted_coord_branch_raises_actionable_error_not_stale_read(tmp_path: P
     assert exc_info.value.error_code == "COORDINATION_BRANCH_DELETED"
 
 
-def test_protected_primary_mutation_refuses_with_actionable_diagnostic(
+def test_protected_primary_event_only_mark_status_succeeds_without_commit(
     protected_target_repo: ProtectedTargetRepo,  # noqa: F811
 ) -> None:
     """T041d: a protected-primary, non-coord mission's status mutation is
@@ -644,7 +651,12 @@ def test_protected_primary_mutation_refuses_with_actionable_diagnostic(
     result = _create_mission(repo, "protected-primary-edge", MissionTopology.SINGLE_BRANCH)
     (result.feature_dir / "tasks").mkdir(exist_ok=True)
     (result.feature_dir / "tasks" / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Protected fixture\n---\n", encoding="utf-8"
+        "---\nwork_package_id: WP01\ntitle: Protected fixture\nsubtasks: [T001]\n---\n",
+        encoding="utf-8",
+    )
+    (result.feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\nSubtasks: T001\n",
+        encoding="utf-8",
     )
     from specify_cli.status.store import append_event
     from specify_cli.status.models import Lane, StatusEvent
@@ -676,9 +688,8 @@ def test_protected_primary_mutation_refuses_with_actionable_diagnostic(
             tasks_module.app,
             ["mark-status", "T001", "--status", "done", "--mission", result.mission_slug, "--json"],
         )
-    assert move_result.exit_code == 1, move_result.output
-    assert "protected branch" in move_result.output, move_result.output
-    assert "--no-auto-commit" in move_result.output, move_result.output
+    assert move_result.exit_code == 0, move_result.output
+    assert "protected branch" not in move_result.output
 
 
 def test_2404_lite_accept_reads_acceptance_matrix_from_stale_coord_worktree(

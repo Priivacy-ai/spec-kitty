@@ -638,6 +638,14 @@ function showPromptModal(task) {
             metaItems.push(`<span class="agent-identity-section"><span class="agent-identity-label">Agent:</span> ${identityBadges.join(' ')}</span>`);
         }
 
+        const authoredIdentityBadges = [];
+        if (task.authored_agent_profile) authoredIdentityBadges.push(`<span class="badge profile">${escapeHtml(task.authored_agent_profile)}</span>`);
+        if (task.authored_role) authoredIdentityBadges.push(`<span class="badge role">${escapeHtml(task.authored_role)}</span>`);
+        if (task.authored_model) authoredIdentityBadges.push(`<span class="badge model">${escapeHtml(task.authored_model)}</span>`);
+        if (authoredIdentityBadges.length > 0) {
+            metaItems.push(`<span class="agent-identity-section"><span class="agent-identity-label">Recommended:</span> ${authoredIdentityBadges.join(' ')}</span>`);
+        }
+
         if (metaItems.length > 0) {
             metaEl.innerHTML = metaItems.join('');
             metaEl.style.display = 'flex';

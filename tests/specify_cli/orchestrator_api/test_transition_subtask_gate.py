@@ -1,24 +1,20 @@
-"""#2510/#2511 -> WP03: the orchestrator-api transition door blocks on unchecked
-PRIMARY subtask rows SOLELY through the shared emit layer.
+"""#2510/#2511 -> WP03 -> #2816 IC-10: the orchestrator-api transition door blocks
+on incomplete subtasks SOLELY through the shared emit layer.
 
 Field repro: an orchestrator-driven coordination mission moved four WPs
-``in_progress -> for_review`` with ``force=false`` while every ``- [ ] T###``
-row in ``tasks.md`` was unchecked. The orchestrator passes no
-``--subtasks-complete``; the API forwarded ``None``; emit-time inference read
-``tasks.md`` off the STATUS feature dir (the coord worktree husk — where the
-PRIMARY-partition ``tasks.md`` never exists) and FAILED OPEN.
+``in_progress -> for_review`` with ``force=false`` while the subtasks were
+incomplete. The orchestrator passes no ``--subtasks-complete``; the API
+forwarded ``None``; emit-time inference FAILED OPEN off the wrong surface.
 
-#2511 patched this locally in ``orchestrator_api/commands.py`` by pre-deriving
-``subtasks_complete`` from the PRIMARY surface *before* calling into the
-shared emit layer. WP02 (FR-002/003/004) fixed the shared layer itself
-(``coordination/status_transition.py:444`` / ``status/emit.py:580``) to read
-the PRIMARY surface via ``repo_root``, making the per-door pre-derivation
-redundant. WP03 removes it; these tests now drive the REAL production route
-(``orchestrator_api.commands.app`` -> ``emit_status_transition_transactional``
--> the shared emit layer) end-to-end, proving the door still blocks/allows
-correctly with the per-door patch gone -- mirroring the pattern established by
-``tests/specify_cli/status/test_infer_subtasks_primary.py`` for the native
-``agent status emit`` door.
+WP02/WP03 fixed the shared layer to read the PRIMARY surface. #2816 IC-10 then
+retired the ``tasks.md`` checkbox proxy entirely: the subtask **roster** is the
+authored ``subtasks:`` WP frontmatter list and **completion** is the reduced
+event-log snapshot's ``subtasks`` slot (fail-closed on a silent snapshot). These
+tests drive the REAL production route (``orchestrator_api.commands.app`` ->
+``emit_status_transition_transactional`` -> the shared emit layer) end-to-end,
+proving the door still blocks/allows correctly under the frontmatter-roster
+model -- mirroring ``tests/specify_cli/status/test_infer_subtasks_primary.py``
+for the native ``agent status emit`` door.
 """
 
 from __future__ import annotations
@@ -118,7 +114,35 @@ def _status_event(wp_id: str, from_lane: str, to_lane: str, event_id: str) -> di
     }
 
 
-def _seed_mission(tmp_path: Path, *, tasks_md: str) -> Path:
+def _seed_snapshot_subtasks(
+    feature_dir: Path,
+    wp_id: str,
+    subtasks: dict[str, object],
+) -> None:
+    """Append the event-sourced subtask-completion state used by the gate."""
+    from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
+    from specify_cli.status.store import append_annotations_atomic_verified
+
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id="01KX0RCH000000000000000000",
+                wp_id=wp_id,
+                at="2026-06-01T12:00:30+00:00",
+                actor="test-orch",
+                delta=WPInnerStateDelta(subtasks=subtasks),
+            )
+        ],
+    )
+
+
+def _seed_mission(
+    tmp_path: Path,
+    *,
+    tasks_md: str,
+    snapshot_subtasks: dict[str, object] | None = None,
+) -> Path:
     """Build a real, flat (no coordination-branch) mission: a git repo whose
     ``kitty-specs/<slug>/`` IS the STATUS read dir AND the PRIMARY planning
     surface -- so the transition runs through the shared emit layer's
@@ -147,7 +171,15 @@ def _seed_mission(tmp_path: Path, *, tasks_md: str) -> Path:
     )
     (primary / "tasks.md").write_text(tasks_md, encoding="utf-8")
     (tasks_dir / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Example\ndependencies: []\n---\n\nbody\n",
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Example\n"
+        "dependencies: []\n"
+        "subtasks:\n"
+        "- T001\n"
+        "- T002\n"
+        "---\n\n"
+        "body\n",
         encoding="utf-8",
     )
     # WP01 already sits in in_progress -- the only lane from which
@@ -160,6 +192,8 @@ def _seed_mission(tmp_path: Path, *, tasks_md: str) -> Path:
         "\n".join(json.dumps(event) for event in events) + "\n",
         encoding="utf-8",
     )
+    if snapshot_subtasks is not None:
+        _seed_snapshot_subtasks(primary, "WP01", snapshot_subtasks)
     _git(repo_root, "add", ".")
     _git(repo_root, "commit", "-m", "seed mission")
     return repo_root
@@ -211,11 +245,13 @@ _CHECKED_TASKS_MD = (
 )
 
 
-def test_unasserted_flag_blocks_on_unchecked_primary_rows(tmp_path: Path) -> None:
-    """The field repro: no --subtasks-complete + unchecked PRIMARY rows must
-    still BLOCK -- now via the shared emit layer, not the removed per-door
-    pre-derivation."""
-    repo_root = _seed_mission(tmp_path, tasks_md=_UNCHECKED_TASKS_MD)
+def test_unasserted_flag_blocks_on_silent_snapshot(tmp_path: Path) -> None:
+    """No assertion + authored roster + silent snapshot must fail closed.
+
+    The checked ``tasks.md`` rows are an opposite-state decoy: checkbox bytes
+    cannot satisfy the event-sourced gate after #2816.
+    """
+    repo_root = _seed_mission(tmp_path, tasks_md=_CHECKED_TASKS_MD)
     result = _run_transition(repo_root)
 
     assert result.exit_code != 0, result.output
@@ -224,8 +260,15 @@ def test_unasserted_flag_blocks_on_unchecked_primary_rows(tmp_path: Path) -> Non
     assert payload["error_code"] == "TRANSITION_REJECTED"
 
 
-def test_unasserted_flag_allows_when_all_primary_rows_checked(tmp_path: Path) -> None:
-    repo_root = _seed_mission(tmp_path, tasks_md=_CHECKED_TASKS_MD)
+def test_unasserted_flag_allows_when_snapshot_marks_all_done(tmp_path: Path) -> None:
+    """Snapshot completion wins even when the legacy checkbox decoy is unchecked."""
+    from specify_cli.status.models import Lane
+
+    repo_root = _seed_mission(
+        tmp_path,
+        tasks_md=_UNCHECKED_TASKS_MD,
+        snapshot_subtasks={"T001": Lane.DONE, "T002": Lane.DONE},
+    )
     result = _run_transition(repo_root, ["--implementation-evidence-present"])
 
     assert result.exit_code == 0, result.output
@@ -235,23 +278,25 @@ def test_unasserted_flag_allows_when_all_primary_rows_checked(tmp_path: Path) ->
     assert payload["data"]["to_lane"] == "for_review"
 
 
-def test_explicit_caller_assertion_bypasses_unchecked_rows(tmp_path: Path) -> None:
-    """Contract compatibility: an explicit --subtasks-complete is respected
-    even when the PRIMARY rows are unchecked -- the caller's assertion is not
-    overridden by inference."""
+def test_explicit_caller_assertion_cannot_bypass_snapshot_gate(tmp_path: Path) -> None:
+    """Compatibility input is ignored for normal review transitions.
+
+    A silent snapshot remains incomplete even when the caller asserts
+    ``--subtasks-complete``; only the explicit force-with-reason path bypasses.
+    """
     repo_root = _seed_mission(tmp_path, tasks_md=_UNCHECKED_TASKS_MD)
     result = _run_transition(
         repo_root, ["--subtasks-complete", "--implementation-evidence-present"]
     )
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code != 0, result.output
     payload = json.loads(result.output)
-    assert payload["success"] is True
+    assert payload["success"] is False
+    assert payload["error_code"] == "TRANSITION_REJECTED"
 
 
 def test_force_bypasses_the_subtask_guard_entirely(tmp_path: Path) -> None:
-    """--force (with reason) bypasses the guard outright, regardless of the
-    PRIMARY rows' checked state."""
+    """--force (with reason) bypasses the gate despite a silent snapshot."""
     repo_root = _seed_mission(tmp_path, tasks_md=_UNCHECKED_TASKS_MD)
     result = _run_transition(repo_root, ["--force", "--note", "forced advance"])
 

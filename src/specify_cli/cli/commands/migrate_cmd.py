@@ -49,6 +49,23 @@ app = typer.Typer(
     invoke_without_command=True,
 )
 
+# Hoisted flag/help/label literals for the backfill-runtime-state command (S1192):
+# option strings, help text, and summary labels would otherwise repeat across the
+# command signature, the JSON payload, and the rich summary printer.
+_RUNTIME_STATE_CMD = "backfill-runtime-state"
+_DRY_RUN_FLAG = "--dry-run"
+_MISSION_FLAG = "--mission"
+_MISSION_METAVAR = "HANDLE"
+_JSON_FLAG = "--json"
+_DRY_RUN_HELP = "Seed nothing and flip nothing; report per-mission would-seed counts and would-flip."
+_MISSION_HELP = "Scope to a single mission (mission_id / mid8 / slug). Omit to process the whole corpus."
+_JSON_HELP = "Emit the per-mission cutover result list as structured JSON."
+_RUNTIME_STATE_SUMMARY_TITLE = "backfill-runtime-state summary"
+_LABEL_FLIPPED = "Flipped"
+_LABEL_WOULD_SEED = "Would seed (verify pending)"
+_LABEL_SKIPPED = "Skipped (already migrated)"
+_LABEL_FAILED = "Failed"
+
 
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
@@ -674,6 +691,77 @@ def rewrite_opposed_by(
         raise typer.Exit(1)
 
 
+@app.command(name=_RUNTIME_STATE_CMD)
+def backfill_runtime_state_cmd(
+    dry_run: Annotated[bool, typer.Option(_DRY_RUN_FLAG, help=_DRY_RUN_HELP)] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(_MISSION_FLAG, help=_MISSION_HELP, metavar=_MISSION_METAVAR),
+    ] = None,
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_JSON_HELP)] = False,
+) -> None:
+    """Seed legacy runtime state as events, verify fail-closed, and flip status_phase.
+
+    Drives the shared :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`
+    helper over the corpus (or a single ``--mission``). For every mission it seeds
+    the frontmatter/checkbox runtime state into the event log, verifies the reduced
+    snapshot equals the OLD reader by **count + value**, and flips ``meta.json``
+    ``status_phase`` to snapshot-authority **only** for missions that verify.
+
+    Per-mission best-effort (research D-03): a mission whose verify fails is left
+    un-flipped (``status_phase`` untouched) and named in the summary; other missions
+    still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+
+    Exit codes:
+
+    - ``0`` — every visited mission flipped or is already migrated (verify ok, no error)
+    - ``1`` — one or more missions failed verify / errored, or ``--mission`` named an
+      unknown handle
+
+    Examples:
+
+        spec-kitty migrate backfill-runtime-state --dry-run
+
+        spec-kitty migrate backfill-runtime-state --mission my-mission-01ABCD
+
+        spec-kitty migrate backfill-runtime-state --json
+    """
+    from specify_cli.cli.selector_resolution import resolve_mission_handle
+    from specify_cli.migration.runtime_state_cutover import (
+        CutoverResult,
+        cutover_mission,
+        cutover_repo,
+    )
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        raise typer.Exit(1)
+
+    if mission is not None:
+        # Route --mission through the canonical handle resolver so mission_id /
+        # mid8 / slug all resolve (a raw kitty-specs/<slug> join matches the
+        # literal slug only). resolve_mission_handle prints + sys.exit(2)s on an
+        # unknown/ambiguous handle.
+        resolved = resolve_mission_handle(mission, repo_root, json_mode=json_output)
+        results: list[CutoverResult] = [cutover_mission(resolved.feature_dir, dry_run=dry_run)]
+    else:
+        results = cutover_repo(repo_root, dry_run=dry_run)
+
+    if json_output:
+        print(json.dumps(_cutover_payload(results, dry_run=dry_run), indent=2))
+    else:
+        _print_cutover_summary(results, dry_run=dry_run)
+
+    # Per-mission best-effort (D-03): a live run exits non-zero if any mission
+    # failed verify / errored (that mission's status_phase is left untouched).
+    # --dry-run is a non-mutating preview: an unseeded corpus verifies "not ok"
+    # only because the seeds are not yet written, so a preview never fails the
+    # command — the counts + any mismatch are reported for the operator.
+    if not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results):
+        raise typer.Exit(1)
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -682,6 +770,100 @@ def rewrite_opposed_by(
 def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
     err_console.print(f"[red]Error:[/red] {message}")
+
+
+def _cutover_failed(result: Any, *, dry_run: bool) -> bool:
+    """True iff a cutover result is a genuine failure.
+
+    A hard abort (``MigrationOrderingError`` / backfill error -> ``error`` set) is
+    ALWAYS a failure. A not-ok verify is a failure only on a **live** run: under
+    ``--dry-run`` the seeds are not written, so the reduced snapshot is expectedly
+    empty and ``verify`` is "not ok" pre-seed — a "would seed (verify pending)"
+    preview state, NOT a failure (a healthy legacy corpus must report 0 failed).
+    """
+    if result.error is not None:
+        return True
+    if dry_run:
+        return False
+    return result.verify is not None and not result.verify.ok
+
+
+def _cutover_detail(result: Any) -> str:
+    """Human-readable failure detail for a failed cutover result."""
+    if result.error is not None:
+        return str(result.error)
+    if result.verify is not None:
+        return "; ".join(result.verify.mismatches)
+    return "unknown failure"
+
+
+def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
+    """Build the ``--json`` payload for the backfill-runtime-state command.
+
+    ``failed`` / per-mission ``mismatches`` are dry-run-aware: under ``--dry-run`` a
+    healthy legacy mission (verify not-ok only because seeds are unwritten) is NOT
+    failed and emits no mismatch wall. ``verify_ok`` stays the raw verify value.
+    """
+    return {
+        "dry_run": dry_run,
+        "summary": {
+            "total": len(results),
+            "flipped": len([r for r in results if r.flipped]),
+            "would_seed": len([r for r in results if r.seeded_count > 0]),
+            "would_flip": len([r for r in results if r.would_flip]),
+            "seeded": sum(r.seeded_count for r in results),
+            "failed": len([r for r in results if _cutover_failed(r, dry_run=dry_run)]),
+        },
+        "results": [
+            {
+                "slug": r.slug,
+                "flipped": r.flipped,
+                "would_flip": r.would_flip,
+                "would_seed": r.seeded_count > 0,
+                "seeded_count": r.seeded_count,
+                "verify_ok": None if r.verify is None else r.verify.ok,
+                "failed": _cutover_failed(r, dry_run=dry_run),
+                "mismatches": (
+                    list(r.verify.mismatches)
+                    if (r.verify is not None and _cutover_failed(r, dry_run=dry_run))
+                    else []
+                ),
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+
+
+def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
+    """Render the rich summary for the backfill-runtime-state command.
+
+    Dry-run reframes the primary count as "would seed (verify pending)" and never
+    prints a Failed wall for verify-pending-pre-seed missions — only genuine hard
+    aborts (``error`` set) count as failed under ``--dry-run``.
+    """
+    failed = [r for r in results if _cutover_failed(r, dry_run=dry_run)]
+    active = [r for r in results if not _cutover_failed(r, dry_run=dry_run)]
+    migrated = [r for r in active if r.seeded_count > 0]
+    skipped = [r for r in active if r.seeded_count == 0]
+    seeded = sum(r.seeded_count for r in results)
+
+    prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+    primary_label = _LABEL_WOULD_SEED if dry_run else _LABEL_FLIPPED
+    console.print(f"\n{prefix}[bold]{_RUNTIME_STATE_SUMMARY_TITLE}[/bold]")
+    console.print(f"  Total missions scanned : {len(results)}")
+    console.print(f"  {primary_label:<27} : {len(migrated)}")
+    console.print(f"  {_LABEL_SKIPPED:<27} : {len(skipped)}")
+    console.print(f"  Seed events                 : {seeded}")
+    console.print(f"  {_LABEL_FAILED:<27} : {len(failed)}")
+
+    if failed:
+        console.print("\n[red]Failed (status_phase left untouched):[/red]")
+        for r in failed:
+            console.print(f"  [red]{r.slug}:[/red] {_cutover_detail(r)}")
+
+    if dry_run:
+        console.print("\n[dim]Dry run — no seeds written; verify runs post-seed on a live run.[/dim]")
 
 
 def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:

@@ -95,11 +95,11 @@ from mission_runtime import (
     resolve_placement_only as resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
-    # coord-primary-partition-lock WP05 (T024): live patch seam for
-    # ``_mt_resolve_status_placement_ref`` — routed back through
-    # ``_tasks.placement_seam`` by the relocated ``tasks_move_task`` body
-    # (same D7 seam-bridge convention as the other ``mission_runtime`` names
-    # above).
+    # coord-primary-partition-lock WP05 (T024): live patch seam +
+    # STATUS_STATE placement authority used directly by this module's own
+    # relocated view/lane-target bodies (and patched as
+    # ``@patch("...agent.tasks.placement_seam")``) — same D7 seam-bridge
+    # convention as the other ``mission_runtime`` names above.
     placement_seam as placement_seam,
 )
 # ``commit_for_mission`` keeps an explicit ``as`` re-export: its direct
@@ -307,7 +307,6 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _filter_by_planning_tip_content as _filter_by_planning_tip_content,
     _filter_runtime_state_paths as _filter_runtime_state_paths,
     _find_mission_slug as _find_mission_slug,
-    _legacy_unchecked_subtask_ids as _legacy_unchecked_subtask_ids,
     _list_wp_branch_mission_specs_changes as _list_wp_branch_mission_specs_changes,
     _list_wp_branch_specs_changes_for_guard as _list_wp_branch_specs_changes_for_guard,
     _mark_status_json_payload as _mark_status_json_payload,
@@ -411,13 +410,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # deletion; the six unit test modules that imported them are WP10 dead-symbol
     # reconciliation).
     _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
-    _mt_commit_wp_file as _mt_commit_wp_file,
     _mt_complete_deferred_for_review_readiness as _mt_complete_deferred_for_review_readiness,
-    # WP07 (#2649, T034/T035): helpers extracted out of ``_mt_commit_wp_file``
-    # (folds #2604) join the family surface like every other def — same
-    # seam-bridge rule.
-    _mt_wp_commit_message as _mt_wp_commit_message,
-    _mt_report_commit_outcome as _mt_report_commit_outcome,
     _mt_current_event_lane as _mt_current_event_lane,
     _mt_done_ancestry_facts as _mt_done_ancestry_facts,
     _mt_emit_transitions as _mt_emit_transitions,
@@ -450,12 +443,10 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
     _mt_release_review_lock as _mt_release_review_lock,
-    # coord-primary-partition-lock WP05 (T023/T024): the STATUS_STATE seam
-    # lookup + the extracted write/commit core + the enriched success message
-    # join the family surface like every other def — same seam-bridge rule.
-    _mt_resolve_status_placement_ref as _mt_resolve_status_placement_ref,
-    _mt_write_and_commit_wp_file as _mt_write_and_commit_wp_file,
-    _mt_wp_commit_success_message as _mt_wp_commit_success_message,
+    # #2816/IC-04 (runtime-state-corpus-cutover, WP05): the ownership-read reroute
+    # onto the snapshot seam joins the family surface like every other native def
+    # (the identity re-export the compat guard's superset invariant requires).
+    _mt_resolve_current_agent as _mt_resolve_current_agent,
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_targets as _mt_resolve_targets,
@@ -465,25 +456,18 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_warn_worktree_kitty_specs as _mt_warn_worktree_kitty_specs,
     _pre_review_gate_composite_routing as _pre_review_gate_composite_routing,
     _pre_review_gate_filter_groups as _pre_review_gate_filter_groups,
-    _primary_bundle_status_artifacts as _primary_bundle_status_artifacts,
     _run_arbiter_override as _run_arbiter_override,
     _status_event_result_fields as _status_event_result_fields,
-    # WP07 (loop-friction-quickwins-2-01KXBWA4, T025, FR-010/#2555.1): the
-    # authority-path planning-artifact staging discovery + the shared
-    # fallback-write helper join the family surface like every other def.
-    _mt_untracked_planning_artifact_paths as _mt_untracked_planning_artifact_paths,
-    _write_wp_fallback as _write_wp_fallback,
-    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the six
+    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the
     # event-sourcing helpers WP06/WP07 added to ``tasks_move_task`` when the
-    # god-write was cut — the off-axis runtime-state emitter, the flag-OFF
-    # dual-write bridge, the claim-triple policy_metadata packer, the review
-    # planner, the rollback subtask-reset delta builder, and the shell-pid
-    # baseline reader — join the family surface like every other def (same
-    # seam-bridge rule). They were added natively without their paired
-    # re-exports; the compat-surface guard's superset check flags exactly this
-    # gap, so it is completed here at closeout.
-    _mt_dual_write_wp_file as _mt_dual_write_wp_file,
+    # god-write was cut — the off-axis runtime-state emitter, the claim-triple
+    # policy_metadata packer, the review planner, the rollback subtask-reset delta
+    # builder, and the shell-pid baseline reader — join the family surface like
+    # every other def (same seam-bridge rule). The flag-OFF dual-write bridge
+    # (``_mt_dual_write_wp_file``) was deleted in IC-04/WP05 when the last flag
+    # consumer was removed, so its paired re-export is dropped here too.
     _mt_emit_runtime_state as _mt_emit_runtime_state,
+    _mt_reassignment_binding_fields as _mt_reassignment_binding_fields,
     _mt_hop_policy_metadata as _mt_hop_policy_metadata,
     _mt_plan_review_result as _mt_plan_review_result,
     _mt_rollback_subtasks_reset as _mt_rollback_subtasks_reset,
@@ -571,6 +555,7 @@ from specify_cli.cli.commands.agent.tasks_status_cmd import (
     _st_emit_json as _st_emit_json,
     _st_gated_runtime_fields as _st_gated_runtime_fields,
     _st_load_work_packages as _st_load_work_packages,
+    _st_runtime_row as _st_runtime_row,
     _st_render_active as _st_render_active,
     _st_render_arbiter as _st_render_arbiter,
     _st_render_board as _st_render_board,
@@ -590,6 +575,18 @@ def move_task(
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="Dispatch-resolved model actual"),
+    ] = None,
+    profile: Annotated[
+        str | None,
+        typer.Option("--profile", help="Dispatch-resolved agent profile actual"),
+    ] = None,
+    invocation_id: Annotated[
+        str | None,
+        typer.Option("--invocation-id", help="Authoritative dispatch Op record id"),
+    ] = None,
     assignee: Annotated[str | None, typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[str | None, typer.Option("--note", help="History note")] = None,
@@ -672,6 +669,9 @@ def move_task(
             to=to,
             mission=mission,
             agent=agent,
+            model=model,
+            profile=profile,
+            invocation_id=invocation_id,
             assignee=assignee,
             shell_pid=shell_pid,
             note=note,

@@ -179,7 +179,8 @@ def _make_git_repo(parent: Path) -> Path:
 def _write_wp_task(tasks_dir: Path, wp_id: str) -> None:
     """Write a minimal WP task file to *tasks_dir*."""
     content = (
-        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} fixture task\n---\n# {wp_id}\n"
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} fixture task\n"
+        f"subtasks: []\n---\n# {wp_id}\n"
     )
     (tasks_dir / f"{wp_id}.md").write_text(content, encoding="utf-8")
 
@@ -247,21 +248,27 @@ def _write_meta(
     )
 
 
-def _status_event_line(slug: str, wp_id: str, *, marker: str) -> str:
-    """Return one JSONL status-event line with *marker* embedded in ``evidence``."""
+def _status_event_line(
+    slug: str,
+    wp_id: str,
+    *,
+    marker: str,
+    to_lane: str = "claimed",
+) -> str:
+    """Return one JSONL status-event line with *marker* in its reason."""
     return json.dumps(
         {
             "actor": "coord-fixture",
             "at": "2026-06-26T00:00:00+00:00",
             "event_id": "01KW2E7A0FIXTURE000000000" + marker[-1],
-            "evidence": marker,
+            "evidence": None,
             "execution_mode": "code_change",
             "feature_slug": slug,
             "force": False,
             "from_lane": "planned",
-            "reason": None,
+            "reason": marker,
             "review_ref": None,
-            "to_lane": "claimed",
+            "to_lane": to_lane,
             "wp_id": wp_id,
         }
     )
@@ -358,7 +365,13 @@ def _build_coord_topology(
     # causing assert_status_from_coord to fail LOUDLY.
     decoy_events_path = primary_feature_dir / "status.events.jsonl"
     decoy_events_path.write_text(
-        _status_event_line(slug, "WP01", marker=_DECOY_EVENT_MARKER) + "\n",
+        _status_event_line(
+            slug,
+            "WP01",
+            marker=_DECOY_EVENT_MARKER,
+            to_lane="blocked",
+        )
+        + "\n",
         encoding="utf-8",
     )
 

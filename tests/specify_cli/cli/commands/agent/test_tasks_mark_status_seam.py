@@ -102,12 +102,10 @@ def _not_found(task_id: str, fmt: TaskIdResolutionFormat | None = None) -> TaskI
 # ---------------------------------------------------------------------------
 
 
-def test_c001_refuse_arm_intercepts_through_tasks_namespace(tmp_path: Path) -> None:
-    """C-001 REFUSE arm: with auto-commit resolved on, ``_ms_resolve_context``
-    consults ``_protected_branch_status_commit_error`` via ``_tasks.<attr>``
-    and refuses exit-1 — and the ``move_task``-only
-    ``_skip_target_branch_commit`` skip pre-gate is NEVER consulted (the
-    divergence the coord-harness refuse-arm case T005 pins end-to-end)."""
+def test_c001_auto_commit_input_no_longer_consults_protected_branch(
+    tmp_path: Path,
+) -> None:
+    """Event-only mark-status never commits the primary tasks artifact."""
     st = _make_state(auto_commit=True)
     with (
         patch(f"{_TASKS}.locate_project_root", return_value=tmp_path) as locate_mock,
@@ -123,21 +121,17 @@ def test_c001_refuse_arm_intercepts_through_tasks_namespace(tmp_path: Path) -> N
         ) as protected_mock,
         patch(f"{_TASKS}._skip_target_branch_commit") as skip_mock,
         patch(f"{_TASKS}._output_error") as error_mock,
-        pytest.raises(typer.Exit) as exc_info,
     ):
         tasks_mark_status._ms_resolve_context(st)
-    assert exc_info.value.exit_code == 1
     locate_mock.assert_called_once()
     sparse_mock.assert_called_once_with(
         tmp_path, command="spec-kitty agent tasks mark-status"
     )
     slug_mock.assert_called_once()
     branch_mock.assert_called_once_with(tmp_path, "034-feature", True)
-    protected_mock.assert_called_once_with(
-        "main", tmp_path, "spec-kitty agent tasks mark-status"
-    )
+    protected_mock.assert_not_called()
     skip_mock.assert_not_called()
-    error_mock.assert_called_once_with(True, "protected: refuse")
+    error_mock.assert_not_called()
 
 
 def test_c001_protected_gate_not_consulted_when_auto_commit_resolves_false(
@@ -202,7 +196,11 @@ def test_resolve_read_dir_routes_tasks_index_kind_through_fs_port(tmp_path: Path
     st.mission_slug = "034-feature"
     ports = MagicMock()
     ports.fs.planning_read_dir.return_value = tmp_path
-    tasks_mark_status._ms_resolve_read_dir(st, ports)
+    with patch(
+        "specify_cli.coordination.resolve_status_surface",
+        return_value=tmp_path / "status.events.jsonl",
+    ):
+        tasks_mark_status._ms_resolve_read_dir(st, ports)
     assert ports.fs.planning_read_dir.call_args.kwargs["kind"] is MissionArtifactKind.TASKS_INDEX
     assert st.feature_dir == tmp_path
     assert st.tasks_md == tmp_path / "tasks.md"

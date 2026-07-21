@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -367,22 +368,63 @@ def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> 
     path = _events_path(feature_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    existing = ""
-    if path.exists():
-        existing = path.read_text(encoding="utf-8")
-        if existing and not existing.endswith("\n"):
-            existing += "\n"
+    existing = _read_text_without_following_symlinks(path)
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
 
     additions = "".join(
         json.dumps(sanitize_event_for_log(row), sort_keys=True) + "\n" for row in rows
     )
-    tmp_path = path.with_name(f"{path.name}.tmp")
-    with tmp_path.open("w", encoding="utf-8") as fh:
-        fh.write(existing)
-        fh.write(additions)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp_path, path)
+    fd, raw_tmp_path = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    tmp_path = Path(raw_tmp_path)
+    replaced = False
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(existing)
+            fh.write(additions)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_path, path)
+        replaced = True
+        _fsync_directory(path.parent)
+    finally:
+        if not replaced:
+            tmp_path.unlink(missing_ok=True)
+
+
+def _fsync_directory(directory: Path) -> None:
+    """Persist an atomic rename's directory entry on supported platforms."""
+    if os.name == "nt":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    dir_fd = os.open(directory, flags)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _read_text_without_following_symlinks(path: Path) -> str:
+    """Read an existing event log without following its final path component."""
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    if no_follow == 0 and path.is_symlink():
+        raise StoreError(f"Refusing to read symbolic link event log: {path}")
+    try:
+        fd = os.open(path, os.O_RDONLY | no_follow)
+    except FileNotFoundError:
+        return ""
+    except OSError as exc:
+        if path.is_symlink():
+            raise StoreError(
+                f"Refusing to read symbolic link event log: {path}"
+            ) from exc
+        raise
+    with os.fdopen(fd, "r", encoding="utf-8") as fh:
+        return fh.read()
 
 
 def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
@@ -420,6 +462,46 @@ def append_annotations_atomic_verified(
         if annotation.event_id not in persisted_ids:
             raise StoreError(
                 f"annotation {annotation.event_id} missing after append (readback failed)"
+            )
+
+
+def append_event_stream_atomic_verified(
+    feature_dir: Path,
+    events: list[StatusEvent | InnerStateChanged],
+) -> None:
+    """Atomically append a mixed transition/annotation unit and verify it.
+
+    Claim operations use this seam when a lane transition and its resolved
+    binding annotation must become durable together. A single ``os.replace``
+    prevents observers from seeing the claim without its actual binding.
+    """
+    if not events:
+        return
+    expected_transition = next(
+        (event for event in events if isinstance(event, StatusEvent)),
+        None,
+    )
+    try:
+        _append_serialized_atomic(feature_dir, [event.to_dict() for event in events])
+    except Exception as exc:
+        if expected_transition is not None:
+            raise EventPersistenceError(
+                problem=f"append failed: {exc}",
+                feature_dir=feature_dir,
+                expected=expected_transition,
+            ) from exc
+        raise StoreError(f"event-stream append failed: {exc}") from exc
+
+    stream = read_event_stream(feature_dir)
+    persisted_annotation_ids = {
+        annotation.event_id for annotation in stream.annotations
+    }
+    for event in events:
+        if isinstance(event, StatusEvent):
+            verify_event_readback(feature_dir, event)
+        elif event.event_id not in persisted_annotation_ids:
+            raise StoreError(
+                f"annotation {event.event_id} missing after mixed append (readback failed)"
             )
 
 

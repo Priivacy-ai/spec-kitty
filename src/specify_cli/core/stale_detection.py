@@ -9,12 +9,12 @@ Uses git/jj commit timestamps as a "heartbeat" - if no commits for a threshold
 period, the WP is considered stale.
 
 FR-005 (claim-liveness re-point): claim-liveness inputs (``shell_pid`` /
-``shell_pid_created_at``) resolve from the reduced event-sourced snapshot when
-the phase-1 dual-write flag (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`)
-resolves ON for the WP's feature directory; the frontmatter-extracted values the
-caller still supplies remain the tolerated migration-window fallback (flag OFF).
-Once ON, the snapshot is the sole authority for this call -- it is never
-blended with the frontmatter values (C-001).
+``shell_pid_created_at``) resolve unconditionally from the reduced
+event-sourced snapshot whenever a WP's feature directory is supplied; the
+snapshot is the sole authority for this call -- it is never blended with the
+frontmatter-extracted values the caller passes (C-001). When no
+``feature_dir`` is supplied (the WP02 runtime window) the caller-supplied
+frontmatter values are used unchanged.
 """
 
 from __future__ import annotations
@@ -26,7 +26,6 @@ from typing import Any, cast
 
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
-from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
 from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -267,7 +266,8 @@ def _read_wp_runtime_snapshot_state(feature_dir: Path, wp_id: str) -> dict[str, 
     Reuses the canonical annotation-aware read seam -- ``status.store
     .read_event_stream`` + ``status.reducer.reduce`` -- the same entry the
     rest of the ``status`` package folds through (e.g.
-    ``status.emit._infer_subtasks_complete_from_snapshot``). No second
+    ``status.emit._infer_subtasks_complete`` via
+    ``core.subtask_rows.unchecked_subtask_ids_from_snapshot``). No second
     parser/read path is introduced (#2093 / FR-013).
 
     Returns an empty dict when the WP has no reduced snapshot entry (never
@@ -289,25 +289,24 @@ def _resolve_claim_liveness_inputs(
     shell_pid: str | None,
     shell_pid_baseline: str | None,
 ) -> tuple[str | None, str | None]:
-    """Resolve claim-liveness ``(shell_pid, shell_pid_baseline)``, flag-gated (FR-005).
+    """Resolve claim-liveness ``(shell_pid, shell_pid_baseline)`` (FR-005).
 
-    - *feature_dir* is ``None``, or the phase-1 dual-write flag resolves OFF
-      for it: return ``(shell_pid, shell_pid_baseline)`` unchanged -- today's
-      frontmatter-sourced behavior, zero regression.
-    - Flag ON: the reduced snapshot is the sole source (C-001 -- a
-      snapshot-first reader must never also consult the frontmatter fallback
-      once a slot is backfilled). The frontmatter-extracted ``shell_pid``/
-      ``shell_pid_baseline`` arguments are ignored entirely in this branch,
-      including when the snapshot has no entry for *wp_id* (that degrades to
-      ``(None, None)`` -- the same conservative "not provably alive" state
-      :func:`check_wp_staleness` already handles for an absent/unparseable
-      PID).
+    - *feature_dir* is ``None`` (the WP02 runtime window): return
+      ``(shell_pid, shell_pid_baseline)`` unchanged -- the caller-supplied
+      frontmatter-sourced values.
+    - *feature_dir* supplied: the reduced snapshot is the sole source (C-001 --
+      a snapshot-first reader must never also consult the frontmatter fallback).
+      The frontmatter-extracted ``shell_pid``/``shell_pid_baseline`` arguments
+      are ignored entirely, including when the snapshot has no entry for *wp_id*
+      (that degrades to ``(None, None)`` -- the same conservative "not provably
+      alive" state :func:`check_wp_staleness` already handles for an
+      absent/unparseable PID).
 
     The snapshot's ``shell_pid`` slot is stored as ``int``; it is coerced to
     ``str`` here so the return shape matches what callers have always passed
     (frontmatter is always string-typed).
     """
-    if feature_dir is None or not _phase1_snapshot_authority_active(feature_dir):
+    if feature_dir is None:
         return shell_pid, shell_pid_baseline
 
     wp_state = _read_wp_runtime_snapshot_state(feature_dir, wp_id)

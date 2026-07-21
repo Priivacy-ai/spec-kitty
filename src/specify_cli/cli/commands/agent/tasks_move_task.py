@@ -55,16 +55,13 @@ import typer
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.agent_tasks_ports import (
-    CommitArtifactResult,
     MissionHandle,
     TasksPorts,
 )
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     _read_transactional_wp_lane,
 )
-from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
 from specify_cli.cli.commands.agent.tasks_materialization import (
-    _collect_status_artifacts,
     _persist_review_artifact_override,
     _resolve_wp_slug,
 )
@@ -87,12 +84,12 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import first_set_sync_disable_env
 from specify_cli.core.paths import is_worktree_context
-from specify_cli.core.utils import write_text_within_directory
 from specify_cli.core.vcs.git import merge_base_changed_files
-from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
+    primary_feature_dir_for_mission,
 )
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
 from specify_cli.status import (
@@ -100,28 +97,19 @@ from specify_cli.status import (
     EventPersistenceError,
     Lane,
     ReviewResult,
+    ResolvedBinding,
     StatusEvent,
     TransitionRequest,
+    WPInnerStateDelta,
     resolve_lane_alias,
 )
 from specify_cli.task_utils import (
     WorkPackage,
-    append_activity_log,
-    build_document,
-    delete_scalar,
     ensure_lane,
     extract_scalar,
-    set_scalar,
-    split_frontmatter,
 )
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
-# coord-primary-partition-lock WP05 (T026 campsite, S1192): the WP-file write
-# encoding recurs 3x across the split write/commit-recovery paths inside
-# ``_mt_write_and_commit_wp_file`` / ``_mt_commit_wp_file`` (functions this WP
-# edits) — hoisted per the standing Sonar directive rather than left
-# duplicated across the write + both exception-recovery call sites.
-_WP_FILE_WRITE_ENCODING = "utf-8"
 
 
 def _default_move_task_ports() -> TasksPorts:
@@ -167,6 +155,9 @@ class _MoveTaskState:
     auto_commit: bool | None
     json_output: bool
     skip_pre_review_gate: bool = False
+    model: str | None = None
+    profile: str | None = None
+    invocation_id: str | None = None
     # --- phase A: resolved targets ---
     target_lane: Lane = Lane.PLANNED
     repo_root: Path = field(default_factory=Path)
@@ -181,6 +172,7 @@ class _MoveTaskState:
     wp: WorkPackage | None = None
     old_lane: Lane = Lane.PLANNED
     current_agent: str | None = None
+    resolved_binding: ResolvedBinding | None = None
     # --- phase B: decision facts ---
     verdict_artifact_path: Path | None = None
     resolved_feedback_source: Path | None = None
@@ -236,6 +228,26 @@ def _mt_warn_worktree_kitty_specs(st: _MoveTaskState) -> None:
         )
 
 
+def _mt_resolve_current_agent(st: _MoveTaskState) -> str | None:
+    """Resolve the prior-owner agent from the reduced snapshot (FR-007, IC-04).
+
+    The WP file no longer carries the ``agent`` runtime field post-cutover, so the
+    ownership read routes onto the ungated snapshot accessor instead of
+    ``extract_scalar(frontmatter, "agent")``. Extracted (not inlined) so the
+    snapshot read is a unit-testable seam and the cx-15 ``_mt_emit_runtime_state``
+    off-axis emit path is left untouched (D-14). Returns ``None`` for an unclaimed
+    WP (no snapshot ``agent`` slot) — matching the pre-reroute "no agent in
+    frontmatter" result.
+    """
+    from specify_cli.status import wp_snapshot_state
+
+    snapshot = wp_snapshot_state(st.feature_dir, st.task_id)
+    if snapshot is None:
+        return None
+    agent = snapshot.get("agent")
+    return str(agent) if agent else None
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -255,6 +267,24 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     )
     st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
         repo_root, st.mission_slug, st.json_output
+    )
+    from specify_cli.cli.commands.agent.workflow import _resolve_dispatch_binding
+
+    claim_mission_id: str | None = None
+    if st.invocation_id is not None:
+        primary_feature_dir = primary_feature_dir_for_mission(
+            st.main_repo_root,
+            _canonicalize_primary_read_handle(st.main_repo_root, st.mission_slug),
+        )
+        claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
+    st.resolved_binding = _resolve_dispatch_binding(
+        model=st.model,
+        profile=st.profile,
+        invocation_id=st.invocation_id,
+        repo_root=st.main_repo_root,
+        mission_id=claim_mission_id,
+        wp_id=st.task_id,
+        action="review" if st.target_lane == Lane.IN_REVIEW else "implement",
     )
     st.skip_target_branch_commit = (
         _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch)
@@ -310,9 +340,13 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         wp_id=st.task_id,
         repo_root=st.main_repo_root,
     )
-    st.current_agent = extract_scalar(st.wp.frontmatter, "agent")
     # Event-store write leg — the SAME coord husk as ``mt_feature_dir``.
     st.feature_dir = st.mt_feature_dir
+    # FR-007 / IC-04: prior-owner attribution is snapshot-sourced (the WP file no
+    # longer carries the ``agent`` runtime field post-cutover) — read via the
+    # ungated snapshot accessor in an extracted helper, not
+    # ``extract_scalar(frontmatter, "agent")``.
+    st.current_agent = _mt_resolve_current_agent(st)
 
 
 # --- phase B: gather decision facts (I/O) -----------------------------------
@@ -1470,12 +1504,10 @@ def _mt_hop_policy_metadata(
 
         pid = int(st.shell_pid)
         baseline = _mt_shell_pid_baseline(pid)
-        return cast(
-            "dict[str, Any]",
-            build_claim_policy_metadata(
-                pid, baseline or "", st.agent or st.actor or "unknown"
-            ),
+        claim_metadata: dict[str, Any] = build_claim_policy_metadata(
+            pid, baseline or "", st.agent or st.actor or "unknown"
         )
+        return claim_metadata
     if target == Lane.FOR_REVIEW and st.pre_review_gate_metadata is not None:
         return {"pre_review_gate": st.pre_review_gate_metadata}
     return None
@@ -1497,6 +1529,22 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
             st, event, current_event_lane, target, hop_actor
         )
         hop_policy_metadata = _mt_hop_policy_metadata(st, target)
+        binding_role = (
+            "implementer"
+            if target == Lane.CLAIMED
+            else "reviewer" if target == Lane.IN_REVIEW else None
+        )
+        transition_actor: str | dict[str, str | None] = hop_actor
+        annotation_delta = None
+        if binding_role is not None and st.resolved_binding is not None:
+            from specify_cli.status import build_resolved_actor
+
+            transition_actor = build_resolved_actor(
+                role=binding_role,
+                tool=st.agent or hop_actor,
+                binding=st.resolved_binding,
+            )
+            annotation_delta = st.resolved_binding.to_delta(role=binding_role)
         if target == Lane.CLAIMED and st.shell_pid:
             # FR-004: the claim triple rode this transition's policy_metadata —
             # do NOT re-emit it as an off-axis InnerStateChanged delta.
@@ -1507,7 +1555,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 mission_slug=st.mission_slug,
                 wp_id=st.task_id,
                 to_lane=target,
-                actor=hop_actor,
+                actor=transition_actor,
                 force=emit_force,
                 reason=emit_reason,
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
@@ -1526,6 +1574,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 ),
                 repo_root=st.main_repo_root,
                 review_result=hop_review_result,
+                annotation_delta=annotation_delta,
             ),
             capability=GuardCapability.STANDARD,
         ).event
@@ -1537,275 +1586,6 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
 
 
 # --- phase F: persist the WP file + primary commit via commit_artifact --------
-
-
-def _mt_resolve_status_placement_ref(st: _MoveTaskState) -> str | None:
-    """Best-effort STATUS_STATE placement lookup via the ONE seam authority.
-
-    coord-primary-partition-lock WP05 (T024, FR-004/FR-005, C-001): the
-    bookkeeping write-cluster's placement question is answered by
-    ``placement_seam(...).write_target(MissionArtifactKind.STATUS_STATE)`` —
-    the single kind-aware authority (contracts/seam-api.md H-1) — rather than
-    assembled from ``st.target_branch``. ``st.target_branch`` is the
-    CURRENT-CHECKOUT branch ``_ensure_target_branch_checked_out`` resolves
-    (its own docstring: "respects user's current branch"), NOT necessarily
-    the mission's coord-routed STATUS_STATE ref — under coordination topology
-    the two genuinely diverge.
-
-    Degrades to ``None`` on any resolution failure (a pre-meta bootstrap
-    window, an ad-hoc fixture, or an unresolvable mission handle) — this is
-    observability, never a gate (mirrors ``_mt_run_pre_review_gate``'s
-    degrade-never-crash discipline, #2438); the primary WP-file commit is
-    unaffected either way.
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    try:
-        target = _tasks.placement_seam(st.main_repo_root, st.mission_slug).write_target(
-            MissionArtifactKind.STATUS_STATE
-        )
-    except Exception:
-        return None
-    ref: str | None = target.ref
-    return ref
-
-
-def _mt_wp_commit_success_message(st: _MoveTaskState, status_placement_ref: str | None) -> str:
-    """The 'committed' console line, enriched when STATUS_STATE diverges from
-    the primary ``target_branch`` (coord-topology missions).
-
-    Purely additive: a ``None`` (unresolvable) or matching ref reproduces the
-    ORIGINAL message verbatim — non-regression for the plain/flat-topology
-    path (test_patched_protection_policy_intercepts_commit_wp_file sibling).
-    """
-    message = f"[cyan]→ Committed status change to {st.target_branch} branch[/cyan]"
-    if status_placement_ref and status_placement_ref != st.target_branch:
-        message += f" [dim](status bookkeeping: {status_placement_ref})[/dim]"
-    return message
-
-
-def _write_wp_fallback(st: _MoveTaskState, wp_path: Path, updated_doc: str) -> None:
-    """Shared WP-file fallback write (T025 campsite, S1192).
-
-    The write+encoding pair recurred 3x across the split write/commit-recovery
-    paths (:func:`_mt_write_and_commit_wp_file`'s primary write and
-    :func:`_mt_commit_wp_file`'s two exception-recovery legs) — hoisted to the
-    one call site rather than left duplicated three times.
-    """
-    write_text_within_directory(
-        wp_path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
-    )
-
-
-def _mt_untracked_planning_artifact_paths(st: _MoveTaskState, wp_path: Path) -> tuple[Path, ...]:
-    """T025 / FR-010 (#2555.1): discover OTHER untracked-on-primary planning
-    artifacts via WP01's canonical :func:`resolve_planning_artifact_staging`
-    seam, so they land on the resolved primary/coord authority surface in the
-    SAME ``commit_artifact`` call as the WP file — instead of being left dirty
-    for a lane-branch commit to (wrongly) pick up and trip
-    ``commit_guard.block_mission_specs`` (the manual ``git restore`` recovery
-    this closes). K-7: reuses the ONE staging-decision core; does not fork a
-    parallel move-task recovery.
-
-    Best-effort and additive: any resolution failure or a structural
-    (delete/rename) diff returns no extra paths, so this staging leg can never
-    become a NEW way for the WP-file transition itself to fail (mirrors
-    :func:`_mt_resolve_status_placement_ref`'s degrade-never-crash discipline).
-    *wp_path* is excluded from the result — it is already the router call's
-    explicit primary argument, never duplicated here.
-    """
-    from specify_cli.cli.commands.implement import (
-        _feature_dir_file_paths,
-        _planning_artifact_source_dir,
-        _resolve_bookkeeping_transaction_identifiers,
-    )
-    from specify_cli.cli.commands.implement_cores import resolve_planning_artifact_staging
-
-    try:
-        artifact_source_dir = _planning_artifact_source_dir(
-            st.main_repo_root, st.feature_dir, st.mission_slug
-        )
-        coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
-            st.feature_dir, st.mission_slug, st.main_repo_root
-        )[0]
-        extra_file_paths = (
-            _feature_dir_file_paths(st.main_repo_root, artifact_source_dir)
-            if coord_branch_for_filter
-            else []
-        )
-        plan = resolve_planning_artifact_staging(
-            st.main_repo_root,
-            artifact_source_dir,
-            coord_branch_for_filter,
-            extra_file_paths,
-            auto_commit=st.resolved_auto_commit,
-        )
-    except Exception:
-        return ()
-    if plan.structural:
-        return ()
-    wp_rel = wp_path.resolve()
-    return tuple(
-        resolved
-        for rel in plan.files_to_commit
-        if (resolved := (st.main_repo_root / rel).resolve()) != wp_rel
-    )
-
-
-def _mt_write_and_commit_wp_file(
-    st: _MoveTaskState,
-    ports: TasksPorts,
-    updated_doc: str,
-    commit_msg: str,
-    skip_target_commit: bool,
-) -> tuple[bool, bool, CommitArtifactResult | None, str | None]:
-    """Resolve STATUS_STATE placement, then write the WP file + route the primary commit.
-
-    coord-primary-partition-lock WP05 (T023/T024): extracted out of
-    ``_mt_commit_wp_file`` for complexity headroom (C901 was 13) BEFORE adding
-    seam routing — placement resolution (:func:`_mt_resolve_status_placement_ref`)
-    runs FIRST and unconditionally (composes with, never races, the
-    ``skip_target_commit`` pre-gate below), then the skip/write/commit branch
-    that was previously inline here runs unchanged.
-
-    #2155 (FR-002 / T010): bundle ONLY primary-partition artifacts into the
-    ``WORK_PACKAGE_TASK`` commit; the coord-owned status files are already
-    committed to the coordination branch by the transactional emitter.
-
-    T025 (FR-010 / #2555.1): ALSO bundle any other untracked-on-primary
-    planning artifacts (:func:`_mt_untracked_planning_artifact_paths`) into
-    this SAME router-routed commit — the authority path — so the lane branch
-    is never asked to commit ``kitty-specs/``.
-
-    Returns:
-        ``(file_written, commit_success, router_result, status_placement_ref)``.
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    assert st.wp is not None
-    wp = st.wp
-    status_placement_ref = _mt_resolve_status_placement_ref(st)
-
-    if skip_target_commit:
-        if not st.json_output:
-            _tasks.console.print(
-                f"[dim]Note: WP file update not committed to '{st.target_branch}' "
-                "(protected branch, coord topology active). "
-                "The status transition is committed to the coordination branch "
-                "and is authoritative.[/dim]"
-            )
-        return False, False, None, status_placement_ref
-
-    _write_wp_fallback(st, wp.path, updated_doc)
-    status_artifacts = _tasks._primary_bundle_status_artifacts(
-        st.main_repo_root,
-        st.mission_slug,
-        _collect_status_artifacts(st.feature_dir),
-    )
-    extra_planning_artifacts = _mt_untracked_planning_artifact_paths(st, wp.path)
-    # The WP file is WORK_PACKAGE_TASK (primary): route the commit through
-    # the coord WRITE ``commit_artifact`` capability (over the ONE canonical
-    # ``commit_for_mission`` entry point). The router owns placement
-    # resolution AND the protected-primary refusal.
-    router_result = ports.coord.commit_artifact(
-        MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug),
-        (wp.path.resolve(), *status_artifacts, *extra_planning_artifacts),
-        commit_msg,
-        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-        policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
-    )
-    commit_success = router_result.status == "committed"
-    return True, commit_success, router_result, status_placement_ref
-
-
-def _mt_wp_commit_message(st: _MoveTaskState, agent_name: str) -> str:
-    """Build the WP-file auto-commit message (spec-number prefix + optional
-    agent suffix). Extracted from ``_mt_commit_wp_file`` (T034, folds #2604)
-    for complexity headroom; pure string assembly, no I/O."""
-    spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
-    commit_msg = f"chore: Move {st.task_id} to {st.target_lane} on spec {spec_number}"
-    if agent_name != "unknown":
-        commit_msg += f" [{agent_name}]"
-    return commit_msg
-
-
-def _mt_report_commit_outcome(
-    st: _MoveTaskState,
-    *,
-    commit_success: bool,
-    skip_target_commit: bool,
-    router_result: CommitArtifactResult | None,
-    status_placement_ref: str | None,
-) -> None:
-    """Console-report the WP-file commit outcome. Extracted from
-    ``_mt_commit_wp_file`` (T034, folds #2604) for complexity headroom.
-
-    #2155: a router error is surfaced as an explicit warning, never swallowed
-    as a soft "Failed to auto-commit" — that branch stays intact here.
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    if commit_success:
-        if not st.json_output:
-            _tasks.console.print(_mt_wp_commit_success_message(st, status_placement_ref))
-        return
-    if not skip_target_commit and router_result is not None:
-        diagnostic = router_result.diagnostic
-        detail = f": {diagnostic}" if diagnostic else ""
-        if not st.json_output:
-            _tasks.console.print(
-                f"[yellow]Warning:[/yellow] WP-file auto-commit "
-                f"did not land ({router_result.status}){detail}"
-            )
-
-
-def _mt_commit_wp_file(
-    st: _MoveTaskState,
-    ports: TasksPorts,
-    updated_doc: str,
-    agent_name: str,
-    skip_target_commit: bool,
-) -> None:
-    """Auto-commit branch: write the WP file and route the primary commit.
-
-    #2155 (FR-002 / T010): bundle ONLY primary-partition artifacts into the
-    ``WORK_PACKAGE_TASK`` commit; the coord-owned status files are already committed
-    to the coordination branch by the transactional emitter. A guard refusal folded
-    into ``status="error"`` is surfaced, never swallowed.
-
-    Degrade-never-crash: a placement-resolution failure inside
-    :func:`_mt_resolve_status_placement_ref` (routed through
-    :func:`_mt_write_and_commit_wp_file`) already degrades to ``None`` at its
-    own layer — this function's job is only to report the outcome and never
-    let ANY failure here crash the move-task (T032 pins this end-to-end).
-    """
-    assert st.wp is not None
-    wp = st.wp
-    commit_msg = _mt_wp_commit_message(st, agent_name)
-    file_written = False
-    try:
-        file_written, commit_success, router_result, status_placement_ref = (
-            _mt_write_and_commit_wp_file(st, ports, updated_doc, commit_msg, skip_target_commit)
-        )
-        _mt_report_commit_outcome(
-            st,
-            commit_success=commit_success,
-            skip_target_commit=skip_target_commit,
-            router_result=router_result,
-            status_placement_ref=status_placement_ref,
-        )
-    except SafeCommitPathPolicyError:
-        # #2155: a wrong-surface guard refusal is a real defect — re-raise, never hide.
-        if not file_written:
-            _write_wp_fallback(st, wp.path, updated_doc)
-        raise
-    except Exception as e:
-        from specify_cli.cli.commands.agent import tasks as _tasks
-
-        if not file_written:
-            _write_wp_fallback(st, wp.path, updated_doc)
-        if not st.json_output:
-            _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
 
 
 def _mt_rollback_subtasks_reset(
@@ -1821,25 +1601,29 @@ def _mt_rollback_subtasks_reset(
     re-blocks off the snapshot) rather than unchecking the ``tasks.md`` checkbox
     bytes — so ``tasks.md`` stays byte-stable (AC-5).
 
-    The roster (which task ids belong to this WP) is the authored ``tasks.md``
-    section — static design intent — read through the TASKS_INDEX (primary)
-    read dir, never ``Path.cwd()`` (SC-008 / #2647). Returns an empty mapping
-    when there is no roster (nothing to re-block on).
+    The roster (which task ids belong to this WP) is the authored WP-file
+    ``subtasks:`` frontmatter list — static design intent — read through the
+    TASKS_INDEX (primary) read dir, never ``Path.cwd()`` (SC-008 / #2647).
+    Returns an empty mapping only for an explicitly authored empty roster.
     """
-    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
+    from specify_cli.core.subtask_rows import authored_subtask_roster
 
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
     feature_dir = ports.fs.planning_read_dir(
         handle, kind=MissionArtifactKind.TASKS_INDEX
     )
-    tasks_md = feature_dir / TASKS_MD_FILENAME
-    if not tasks_md.exists():
-        return {}
-    content = tasks_md.read_text(encoding="utf-8")
-    roster = [
-        task_id for task_id, _checked in iter_wp_section_subtask_rows(content, st.task_id)
-    ]
+    roster = authored_subtask_roster(feature_dir, st.task_id)
     return dict.fromkeys(roster, Lane.PLANNED)
+
+
+def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
+    """Resolved actual for an off-transition agent reassignment."""
+    if not st.agent or st.resolved_binding is None:
+        return {}
+    role = "reviewer" if st.target_lane == Lane.IN_REVIEW else "implementer"
+    delta = st.resolved_binding.to_delta(role=role)
+    binding_fields: dict[str, Any] = delta.to_dict()
+    return binding_fields
 
 
 def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
@@ -1862,14 +1646,13 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     stored topology in :func:`_mt_resolve_targets` — never ``Path.cwd()``
     (SC-008 / #2647; ``emit_inner_state_changed`` re-canonicalizes it there too).
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.status import emit_inner_state_changed
-    from specify_cli.status import WPInnerStateDelta
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
         if st.agent:
             fields["agent"] = st.agent
+            fields.update(_mt_reassignment_binding_fields(st))
         if st.shell_pid:
             pid = int(st.shell_pid)
             fields["shell_pid"] = pid
@@ -1912,108 +1695,30 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():
         return
-    try:
-        emit_inner_state_changed(
-            st.feature_dir,
-            st.task_id,
-            delta,
-            actor=st.final_hop_actor or st.actor,
-            mission_slug=st.mission_slug,
-            repo_root=st.main_repo_root,
-        )
-    except Exception as exc:  # pragma: no cover - defensive
-        if not st.json_output:
-            _tasks.console.print(
-                f"[yellow]Warning:[/yellow] Runtime-state emission failed: {exc}"
-            )
+    emit_inner_state_changed(
+        st.feature_dir,
+        st.task_id,
+        delta,
+        actor=st.final_hop_actor or st.actor,
+        mission_slug=st.mission_slug,
+        repo_root=st.main_repo_root,
+    )
 
 
 def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """Record the move-task runtime state — event-sourced first, WP-file second.
+    """Record the move-task runtime state — event-only (IC-04 flip complete).
 
-    Runtime state is always emitted as ``InnerStateChanged`` annotations (plus
-    the claim ``policy_metadata`` that rode the transition). Whether the WP file
-    *also* carries that runtime state is gated on the shared
-    ``_phase1_snapshot_authority_active`` flag — matching WP01's read side
-    (flag ON -> snapshot) and WP07's write side:
-
-    - **flag OFF (default / pre-cutover)** — dual-write: emit the events AND keep
-      the legacy WP-file god-write (``agent``/``assignee``/``shell_pid`` +
-      Activity-Log, plus the #2512 rollback claim-marker clear on
-      rollback->planned) so pre-cutover readers still observe frontmatter state.
-    - **flag ON (mission cut over)** — event-only *for runtime state*: this
-      function writes NO runtime fields to the WP file. The bytes are NOT
-      guaranteed untouched by the whole pipeline, though — ``emit.py``'s legacy
-      lane-mirror (``_mirror_phase1_frontmatter_lane``) still frontmatter-authors
-      an already-present ``lane`` field at flag ON. The AC-5 hash guard holds
-      because the flag-ON rollback fixtures carry no ``lane`` field, so the
-      mirror is a no-op and ``tasks/WP##.md`` stays byte-stable across the
-      move-task actions (T025 hash regression).
-
-    Two of the three deleted tails (``tracker_refs`` frontmatter, the ``tasks.md``
-    uncheck) are cut to emits unconditionally (FR-006; #2513-via-snapshot). The
-    third — the rollback claim-marker clear — is re-added to the flag-OFF branch
-    only (#2512), because flag-OFF ``stale_detection`` still reads frontmatter.
+    Runtime state is emitted as ``InnerStateChanged`` annotations (plus the claim
+    ``policy_metadata`` that rode the transition). Post-cutover the WP file no
+    longer carries runtime state — the event log is the sole authority. WP04 (IC-03)
+    made the readers unconditional and dropped the retired phase-authority
+    predicate + facade export; this WP removes the last consumer of that gate here,
+    so the former ``flag ON -> return`` gate and the flag-OFF ``_mt_dual_write_wp_file``
+    god-write (``agent``/``assignee``/``shell_pid`` + Activity-Log) are deleted
+    (FR-007, D-14). ``_mt_emit_runtime_state`` (the off-axis emit) is unchanged.
     """
-    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
-
     assert st.wp is not None and st.decision is not None
     _mt_emit_runtime_state(st, ports)
-    if _phase1_snapshot_authority_active(st.feature_dir):
-        return
-    _mt_dual_write_wp_file(st, ports)
-
-
-def _mt_dual_write_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """flag-OFF legacy god-write (``agent``/``assignee``/``shell_pid`` + history).
-
-    Kept only for the pre-cutover dual-write window; retired once every mission
-    runs flag ON (WP01 read side is already flag ON -> snapshot). Mirrors the
-    former ``_mt_persist_wp_file`` body EXCEPT the three deleted tails and the
-    ``write_shell_pid_claim`` call (WP07 owns that symbol) — ``shell_pid`` +
-    baseline are co-written inline to preserve the #2580 pairing invariant.
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    assert st.wp is not None and st.decision is not None
-    wp = st.wp
-    wp_content = wp.path.read_text(encoding="utf-8-sig")
-    updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-    # #2512 (flag-OFF only): rolling back to ``planned`` RELEASES the claim, so
-    # strip the frontmatter ``agent``/``shell_pid`` markers a stale pid could
-    # otherwise leave behind (flag-OFF ``stale_detection`` reads frontmatter).
-    # Cleared BEFORE the set_scalar block so an explicit ``--agent``/``--shell-pid``
-    # on the rollback still re-plants a fresh claim. Flag-ON never reaches here
-    # (event-only), so this cannot rewrite frontmatter at flag ON (AC-5).
-    if st.target_lane == Lane.PLANNED:
-        updated_front = delete_scalar(updated_front, "agent")
-        updated_front = delete_scalar(updated_front, "shell_pid")
-    if st.assignee:
-        updated_front = set_scalar(updated_front, "assignee", st.assignee)
-    if st.agent:
-        updated_front = set_scalar(updated_front, "agent", st.agent)
-    if st.shell_pid:
-        pid = int(st.shell_pid)
-        updated_front = set_scalar(updated_front, "shell_pid", str(pid))
-        baseline = _mt_shell_pid_baseline(pid)
-        if baseline is not None:
-            updated_front = set_scalar(updated_front, "shell_pid_created_at", baseline)
-    timestamp = datetime.now(UTC).strftime(_tasks.UTC_SECOND_TIMESTAMP_FORMAT)
-    agent_name = st.final_hop_actor or "unknown"
-    shell_pid_val = st.shell_pid or extract_scalar(updated_front, "shell_pid") or ""
-    note_text = st.note_text or f"Moved to {st.target_lane}"
-    shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
-    history_entry = f"- {timestamp} – {agent_name} – {shell_part}{note_text}"
-    updated_body = append_activity_log(updated_body, history_entry)
-    updated_doc = build_document(updated_front, updated_body, updated_padding)
-    # WP03: the primary-commit skip is DRIVEN by the core decision, not the raw fact.
-    skip_target_commit = st.decision.skip_primary
-    if st.resolved_auto_commit:
-        _mt_commit_wp_file(st, ports, updated_doc, agent_name, skip_target_commit)
-    else:
-        write_text_within_directory(
-            wp.path, updated_doc, root=st.main_repo_root, encoding="utf-8"
-        )
 
 
 # --- phase H: review-lock release + result output ----------------------------
@@ -2151,6 +1856,9 @@ class _MoveTaskArgs:
     auto_commit: bool | None
     json_output: bool
     skip_pre_review_gate: bool = False
+    model: str | None = None
+    profile: str | None = None
+    invocation_id: str | None = None
 
 
 def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
@@ -2171,6 +1879,9 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         to=args.to,
         mission=args.mission,
         agent=args.agent,
+        model=args.model,
+        profile=args.profile,
+        invocation_id=args.invocation_id,
         assignee=args.assignee,
         shell_pid=args.shell_pid,
         note=args.note,
@@ -2190,6 +1901,10 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
     )
     try:
         _mt_resolve_targets(st, ports)
+        # Fail on an unbootstrapped event log before review/workspace gates can
+        # mask the actionable root cause (for example, a dependency cycle that
+        # prevented finalize-tasks from creating lanes.json; #1589).
+        _mt_current_event_lane(st)
         _mt_gather_review_facts(st)
         _mt_run_decision(st)
         _mt_run_pre_review_gate(st)
@@ -2223,8 +1938,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
 # WP09 (tasks-py-degod-wave2-01KWH9EQ / FR-008, IC-07): the final
 # registration-shim sweep relocates the move_task-family stragglers that
 # remained ``tasks.py``-resident after WP05 — the arbiter override pair
-# (``_detect_arbiter_override`` / ``_run_arbiter_override``), the #2155
-# mixed-bundle partition (``_primary_bundle_status_artifacts``), the coord
+# (``_detect_arbiter_override`` / ``_run_arbiter_override``), the coord
 # event-path probe (``_coord_status_events_path``), the event-field shaper
 # (``_status_event_result_fields``) and the reviewer detector
 # (``_detect_reviewer_name``). Moved VERBATIM except that patched seam
@@ -2235,39 +1949,6 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
 # ``tasks.py`` re-imports each name in the explicit ``as`` re-export form, so
 # ``tasks.<name>`` stays a module attribute (NFR-002).
 # ===========================================================================
-
-
-def _primary_bundle_status_artifacts(
-    main_repo_root: Path, mission_slug: str, status_artifacts: list[Path]
-) -> list[Path]:
-    """Drop coord-owned status files from a PRIMARY-surface auto-commit bundle.
-
-    #2155 (FR-002 / T010): the ``move_task`` auto-commit routes the WP file (a
-    ``WORK_PACKAGE_TASK`` / primary-partition artifact) through
-    ``commit_for_mission(kind=WORK_PACKAGE_TASK)``, which commits on the PRIMARY
-    repo root. Under coordination topology the coord-owned status files
-    (``status.events.jsonl`` / ``status.json``) resolved by
-    :func:`_collect_status_artifacts` live UNDER ``.worktrees/`` (the coord
-    worktree) and are ALREADY committed to the coordination branch by the
-    transactional emitter (``emit_status_transition_transactional``). Staging
-    those ``.worktrees/`` paths from the primary root trips the
-    ``SafeCommitPathPolicyError`` guard (#1887), which ``commit_for_mission``
-    folds into a ``status="error"`` result — leaving the working tree dirty and
-    the WP file uncommitted (the surviving #2155 residual).
-
-    The single canonical partition (``COORD_OWNED_STATUS_FILES``, the same set
-    ``implement.py:_exclude_coord_owned`` keys on) excludes coord-owned status
-    under coord topology only. On a flat/legacy mission the status files ARE
-    canonical on PRIMARY, so they stay in the bundle (the never-divergent
-    flat-topology behaviour the WP02 stored topology resolves transparently).
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    if not _tasks.routes_through_coordination(_tasks.resolve_topology(main_repo_root, mission_slug)):
-        return status_artifacts
-    from specify_cli.status import COORD_OWNED_STATUS_FILES
-
-    return [p for p in status_artifacts if p.name not in COORD_OWNED_STATUS_FILES]
 
 
 def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None:

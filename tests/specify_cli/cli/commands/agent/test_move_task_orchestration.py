@@ -68,6 +68,7 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
         f"title: Test {wp_id}\n"
         f"execution_mode: code_change\n"
         f"agent: testbot\n"
+        f"subtasks: [T001, T002, T003]\n"
         f"owned_files:\n  - src/{wp_id.lower()}/**\n"
         f"authoritative_surface: src/{wp_id.lower()}/\n"
         f"---\n\n# {wp_id}\n\n## Activity Log\n",
@@ -176,29 +177,30 @@ def test_no_auto_commit_move_uses_commit_status_only(tmp_path: Path) -> None:
     assert coord.artifact_calls == []
 
 
-def test_auto_commit_move_routes_primary_write_via_commit_artifact(
+def test_auto_commit_move_is_event_only_no_primary_wp_file_commit(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """An auto-commit move emits the hop via ``commit_status`` AND routes the
-    ``WORK_PACKAGE_TASK`` primary commit (WP file in the bundle) via
-    ``commit_artifact``, writing the WP file to disk."""
+    """Post-cutover (#2816/IC-04, event-only): an auto-commit move emits the hop
+    via ``commit_status`` but routes NO ``WORK_PACKAGE_TASK`` primary commit — the
+    WP file carries no runtime state (byte-stable) so there is nothing to commit.
+    The runtime-state god-write (WP04/WP05, FR-006/FR-007) was deleted, so
+    auto-commit no longer resurrects a WP-file write; the activity-log note is
+    event-sourced, never written into the file."""
     feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, "WP01")
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     ports, coord = _fake_ports(feature_dir)
+    wp_bytes_before = wp_file.read_bytes()
 
     _run_move(tmp_path, to="for_review", ports=ports, auto_commit=True)
 
     # Lane hop still on the status seam.
     assert len(coord.status_calls) == 1
-    # Primary WP-file commit routed through the artifact seam, keyed WORK_PACKAGE_TASK.
-    assert len(coord.artifact_calls) == 1
-    slug, paths, message, kind = coord.artifact_calls[0]
-    assert slug == _MISSION
-    assert kind == MissionArtifactKind.WORK_PACKAGE_TASK
-    assert wp_file.resolve() in paths
-    assert message.startswith(f"chore: Move WP01 to for_review on spec {_MISSION.split('-')[0]}")
-    # The WP file's activity log was updated on disk before the commit.
-    assert "Moved to for_review" in wp_file.read_text(encoding="utf-8")
+    assert coord.status_calls[0][0] == _MISSION
+    # No primary WP-file commit: the event log is the sole authority (event-only).
+    assert coord.artifact_calls == []
+    # The WP file is byte-stable across the move (no god-write, no activity-log write).
+    assert wp_file.read_bytes() == wp_bytes_before
+    assert "Moved to for_review" not in wp_file.read_text(encoding="utf-8")
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["result"] == "success"

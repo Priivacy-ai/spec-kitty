@@ -277,31 +277,6 @@ def test_existing_checkbox_unchanged(tmp_path: Path) -> None:
     assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == original
 
 
-def test_mark_status_checkbox_dual_written_at_flag_off(tmp_path: Path) -> None:
-    """#2684 flag-OFF dual-write: at the default (pre-cutover) state the CHECKBOX
-    byte IS flipped in tasks.md.
-
-    The review gate (``tasks_shared._check_unchecked_subtasks``) and the
-    done-inference reader (``emit._infer_subtasks_complete``) BOTH read the
-    tasks.md checkbox while the phase-1 snapshot authority is inactive, so
-    ``mark-status`` must persist the flip or a completed subtask would stay
-    invisible to the flag-OFF review gate. This is the same flag-OFF legacy-write
-    class the #2512 fix restored.
-    """
-    slug = "008-checkbox-flag-off"
-    original = "# Tasks\n\n## WP01\n- [ ] T001 First task\n- [ ] T002 Second task\n"
-    mission_dir = _write_mission(tmp_path, slug, original)  # flag OFF (default)
-
-    payload = _invoke_mark_status(tmp_path, slug, "T001")
-
-    result = _result_by_id(payload, "T001")
-    assert result["outcome"] == "updated"
-    assert result["format"] == "checkbox"
-    content = (mission_dir / "tasks.md").read_text(encoding="utf-8")
-    assert "- [x] T001 First task" in content
-    assert "- [ ] T002 Second task" in content
-
-
 def test_history_added_uses_owning_wp_for_checkbox_task(tmp_path: Path) -> None:
     slug = "007-history-checkbox"
     _write_mission(tmp_path, slug, "# Tasks\n\n## WP01 Build\n- [ ] T001 First task\n")
@@ -447,10 +422,15 @@ def test_history_added_groups_multi_wp_updates_by_owning_wp(tmp_path: Path) -> N
 
 def test_existing_pipe_table_unchanged(tmp_path: Path) -> None:
     slug = "008-pipe-table"
+    original = (
+        "# Tasks\n\n| ID | Description | WP | Status |\n"
+        "|----|-------------|----|--------|\n"
+        "| T001 | First task | WP01 | [ ] |\n"
+    )
     mission_dir = _write_mission(
         tmp_path,
         slug,
-        "# Tasks\n\n| ID | Description | Status |\n|----|-------------|--------|\n| T001 | First task | [ ] |\n",
+        original,
     )
 
     payload = _invoke_mark_status(tmp_path, slug, "T001")
@@ -458,4 +438,49 @@ def test_existing_pipe_table_unchanged(tmp_path: Path) -> None:
     result = _result_by_id(payload, "T001")
     assert result["outcome"] == "updated"
     assert result["format"] == "pipe_table"
-    assert "| T001 | First task | [D] |" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
+    assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == original
+
+
+def test_event_append_failure_returns_error_without_mutating_tasks_md(tmp_path: Path) -> None:
+    slug = "009-event-failure"
+    original = (
+        "# Tasks\n\n## WP01\n\n"
+        "| ID | Description | WP | Status |\n"
+        "|----|-------------|----|--------|\n"
+        "| T001 | First task | WP01 | [ ] |\n"
+    )
+    mission_dir = _write_mission(tmp_path, slug, original)
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch(
+            "specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out",
+            return_value=(tmp_path, "main"),
+        ),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_error_logged"),
+        patch(
+            "specify_cli.status.emit_inner_state_changed",
+            side_effect=OSError("canonical append failed"),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T001",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "canonical append failed" in result.output
+    assert (mission_dir / "tasks.md").read_text(encoding="utf-8") == original
+    assert not (mission_dir / "status.events.jsonl").exists()

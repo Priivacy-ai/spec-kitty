@@ -133,11 +133,11 @@ class MoveTaskRequest:
     effective_reviewer: str | None
     effective_approval_ref: str | None
     # FR-003 / T008 subtask-gate re-source seam (default None in the WP02 window).
-    # When the shell supplies ``feature_dir`` (WP04 upstream re-point), ``_guard_subtasks``
-    # resolves "unchecked" from the WP01 reduced-snapshot ``subtasks`` slot behind the
-    # ``_phase1_snapshot_authority_active`` flag; while ``feature_dir`` is None (or the flag is
-    # off) it falls back to the legacy ``unchecked_subtasks`` tuple (tasks.md-derived).
-    # The legacy fallback is retired in WP10 once every writer emits the slot (C-001).
+    # When the shell supplies ``feature_dir``, ``_guard_subtasks`` resolves
+    # "unchecked" unconditionally from the reduced-snapshot ``subtasks`` slot;
+    # while ``feature_dir`` is None it falls back to the legacy
+    # ``unchecked_subtasks`` tuple (tasks.md-derived). The legacy fallback is
+    # retired in WP10 once every writer emits the slot (C-001).
     feature_dir: Path | None = None
     repo_root: Path | None = None
 
@@ -437,10 +437,8 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
 
     The snapshot is authoritative only when it is actually available:
 
-    * ``req.feature_dir`` is None (the WP02 runtime window, before WP04 wires the
-      dir through) — return ``None`` (legacy fallback).
-    * the feature is not in phase-1 (``_phase1_snapshot_authority_active`` False, i.e.
-      before WP03 verifies the backfill) — return ``None`` (legacy ``tasks.md``).
+    * ``req.feature_dir`` is None (the WP02 runtime window) — return ``None``
+      (legacy fallback).
     * the event stream is empty or the WP has no reduced entry yet (writers not
       cut over) — return ``None`` (C-001 symmetric-window: a snapshot-first reader
       must never strand a WP whose slot has not been populated).
@@ -453,13 +451,9 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
     if feature_dir is None:
         return None
 
-    # Lazy imports: the snapshot read is I/O and only runs once the shell supplies
+    # Lazy import: the snapshot read is I/O and only runs once the shell supplies
     # a feature_dir, so the pure decision core keeps a minimal import graph.
-    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active
     from specify_cli.status import wp_snapshot_state
-
-    if not _phase1_snapshot_authority_active(feature_dir):
-        return None
 
     # Shared reduce->get accessor (IC-08). An empty log -> no entry -> None ->
     # legacy fallback, identical to the prior explicit empty-stream guard.

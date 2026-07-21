@@ -71,7 +71,7 @@ def feature_dir(tmp_path: Path) -> Path:
     tasks_dir.mkdir()
     wp_file = tasks_dir / "WP01-test-task.md"
     wp_file.write_text(
-        "---\nwork_package_id: WP01\ntitle: Test Task\nlane: planned\n---\n\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Test Task\nlane: planned\nsubtasks: []\n---\n\n# WP01\n",
         encoding="utf-8",
     )
     return fd

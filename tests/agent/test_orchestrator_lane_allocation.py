@@ -61,6 +61,7 @@ _WP_FILE = (
     "work_package_id: WP01\n"
     "title: Test WP01\n"
     "dependencies: []\n"
+    "subtasks: []\n"
     "---\n\n"
     "# WP01\n"
 )

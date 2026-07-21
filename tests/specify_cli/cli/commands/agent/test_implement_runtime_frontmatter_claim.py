@@ -41,7 +41,6 @@ from specify_cli.analysis_report import write_analysis_report
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import Lane, StatusEvent, StatusSnapshot, read_events, reduce
 from specify_cli.status.store import append_event, read_event_stream
-from specify_cli.task_utils import split_frontmatter
 
 pytestmark = pytest.mark.fast
 
@@ -219,27 +218,16 @@ class TestImplementClaimPolicyMetadata:
         assert wp_state.get("agent") == "test-agent"
         assert isinstance(wp_state.get("shell_pid"), int)
 
-    def test_default_dual_write_mirrors_shell_pid_into_frontmatter(self, workflow_repo: Path) -> None:
-        """FR-005/C-001: with no ``status_phase`` set (today's default for
-        every mission), the frontmatter mirror stays MANDATORY."""
+    def test_claim_leaves_wp_file_byte_stable(self, workflow_repo: Path) -> None:
+        """SC-001/SC-005 (post-cutover, UNCONDITIONAL): the runtime-state
+        dual-write is torn down (WP04, FR-006/FR-007), so a claim writes NO
+        shell_pid into frontmatter and the WP file's bytes are unchanged across
+        the claim — regardless of ``status_phase`` (the reader is unconditional;
+        the flag-OFF frontmatter mirror was deleted, not gated)."""
         feature_dir, wp_path = _seed_mission(workflow_repo)
+        # No status_phase set (today's default): byte-stability holds anyway —
+        # the dual-write is gone unconditionally, not merely flag-gated.
         assert not (feature_dir / "meta.json").read_text(encoding="utf-8").count('"status_phase"')
-
-        result = CliRunner().invoke(
-            workflow.app,
-            ["implement", "WP01", "--mission", _MISSION_SLUG, "--agent", "test-agent"],
-        )
-        assert result.exit_code == 0, result.stdout
-
-        front, _body, _padding = split_frontmatter(wp_path.read_text(encoding="utf-8-sig"))
-        assert 'shell_pid: "' in front, f"expected the FR-005 dual-write mirror to still write shell_pid, got: {front}"
-
-    def test_cutover_flag_on_leaves_wp_file_byte_stable(self, workflow_repo: Path) -> None:
-        """SC-001/SC-005: once ``status_phase`` is flipped to ``"1"`` (the
-        atomic switch with WP05's reader), the claim writes NO shell_pid into
-        frontmatter and the WP file's bytes are unchanged across the claim."""
-        feature_dir, wp_path = _seed_mission(workflow_repo)
-        _set_status_phase(feature_dir, "1")
         before = wp_path.read_bytes()
 
         result = CliRunner().invoke(
@@ -281,6 +269,14 @@ class TestReviewClaimPolicyMetadata:
         assert review_events[-1].policy_metadata is not None
         assert review_events[-1].policy_metadata["agent"] == "test-reviewer"
 
+        stream = read_event_stream(feature_dir)
+        claim_annotations = [
+            event
+            for event in stream.annotations
+            if event.wp_id == "WP01" and event.delta.agent == "test-reviewer"
+        ]
+        assert len(claim_annotations) == 1  # golden-count: cardinality-is-contract
+
         # The reducer's transition fold only special-cases planned->claimed
         # (WP01), so the review-claim's shell_pid reaches the snapshot via
         # the InnerStateChanged annotation WP07/T027 emits alongside it.
@@ -301,6 +297,29 @@ class TestReviewClaimPolicyMetadata:
 
         assert wp_path.read_bytes() == before, "WP file must stay byte-identical once the dual-write is torn down"
 
+    def test_review_reclaim_annotation_failure_is_terminal(
+        self,
+        workflow_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _feature_dir, _wp_path = _seed_mission(workflow_repo, lane="for_review")
+        first = CliRunner().invoke(
+            workflow.app,
+            ["review", "WP01", "--mission", _MISSION_SLUG, "--agent", "test-reviewer"],
+        )
+        assert first.exit_code == 0, first.stdout
+
+        def _fail_reclaim(*args: object, **kwargs: object) -> None:
+            raise OSError("simulated durable append failure")
+
+        monkeypatch.setattr("specify_cli.status.emit_inner_state_changed", _fail_reclaim)
+        second = CliRunner().invoke(
+            workflow.app,
+            ["review", "WP01", "--mission", _MISSION_SLUG, "--agent", "test-reviewer"],
+        )
+
+        assert second.exit_code != 0
+
 
 # ---------------------------------------------------------------------------
 # T029a — resume/re-claim of an already in_progress WP refreshes shell_pid
@@ -309,7 +328,11 @@ class TestReviewClaimPolicyMetadata:
 
 
 class TestResumeShellPidRefresh:
-    def test_resume_emits_innerstatechanged_refresh_without_touching_wp_file(self, workflow_repo: Path) -> None:
+    def test_resume_emits_innerstatechanged_refresh_without_touching_wp_file(
+        self,
+        workflow_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         feature_dir, wp_path = _seed_mission(workflow_repo)
 
         first = CliRunner().invoke(
@@ -320,6 +343,12 @@ class TestResumeShellPidRefresh:
 
         annotations_after_claim = read_event_stream(feature_dir).annotations
         wp_bytes_after_claim = wp_path.read_bytes()
+        commit_calls: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            workflow,
+            "_commit_workflow_change",
+            lambda **kwargs: commit_calls.append(kwargs),
+        )
 
         # Bare resume: re-invoke implement on the now in_progress WP WITHOUT
         # --agent (agent assignment already resolved from the first claim,
@@ -339,6 +368,12 @@ class TestResumeShellPidRefresh:
         assert len(stream_after_resume.annotations) > len(annotations_after_claim), (
             "expected the resume to persist a NEW InnerStateChanged annotation"
         )
+        assert len(commit_calls) == 1, (  # golden-count: cardinality-is-contract
+            "resume refresh must enter the status-artifact commit/rollback boundary"
+        )
+        assert "Refresh WP01 implementation liveness" in str(
+            commit_calls[0]["message"]
+        )
 
         # No fresh planned -> claimed transition was driven by the resume.
         claimed_transitions = [e for e in stream_after_resume.transitions if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]
@@ -352,3 +387,29 @@ class TestResumeShellPidRefresh:
         # an int; this test process's own pid both times).
         snapshot = reduce(stream_after_resume.transitions, stream_after_resume.annotations)
         assert isinstance(snapshot.work_packages["WP01"].get("shell_pid"), int)
+
+    def test_resume_refresh_persistence_failure_is_terminal(
+        self,
+        workflow_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        feature_dir, _wp_path = _seed_mission(workflow_repo)
+        first = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP01", "--mission", _MISSION_SLUG, "--agent", "test-agent"],
+        )
+        assert first.exit_code == 0, first.stdout
+
+        def _fail_refresh(*args: object, **kwargs: object) -> None:
+            raise OSError("simulated durable append failure")
+
+        monkeypatch.setattr(
+            "specify_cli.status.emit_inner_state_changed",
+            _fail_refresh,
+        )
+        second = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP01", "--mission", _MISSION_SLUG],
+        )
+
+        assert second.exit_code != 0

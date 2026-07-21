@@ -185,7 +185,10 @@ ROUTED_CANONICALIZER_FLOOR_MARGIN = 4
 # ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))`` inside
 # the adapter (the intra-function fold C-002 mandates). Live routed census 42 → 43;
 # floor recomputed 43 − MARGIN(4) = 39. Honest before/after, not a re-pin.
-ROUTED_CANONICALIZER_FLOOR = 39
+# runtime-state-corpus-cutover (#2816): durable dispatch-claim correlation
+# resolves the canonical mission id from the primary feature directory, adding
+# one direct routed anchor. Live routed census 43 → 44; floor 39 → 40.
+ROUTED_CANONICALIZER_FLOOR = 40
 
 
 # --------------------------------------------------------------------------- #
@@ -1622,15 +1625,14 @@ def test_routed_count_floor() -> None:
     discriminator classifies as *canonical* (routed) and asserts that count stays
     within ``ROUTED_CANONICALIZER_FLOOR_MARGIN`` of the floor AND strictly above it.
 
-    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 38``), NOT
+    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 40``), NOT
     ``>= len(scanned routed sites)``. A tautological ``>= live_routed`` would be
     satisfied even if a future regression allowlisted every site instead of routing
     it (routed → 0, allowlist → 45, gate still green). Hard-coding the census
     makes mass-allowlisting CI-red.
 
-    Live routed count is 42 (45 total minus the 3 permanent sanctions; the 4
-    bare-modern-fold sites are auto-classified by T031). The floor 38 is
-    ``42 − ROUTED_CANONICALIZER_FLOOR_MARGIN(4)`` — deliberately below live so the
+    Live routed count is 44. The floor 40 is
+    ``44 − ROUTED_CANONICALIZER_FLOOR_MARGIN(4)`` — deliberately below live so the
     assertion has teeth, but tight enough to catch a loose ratchet.
 
     Both bounds are enforced:

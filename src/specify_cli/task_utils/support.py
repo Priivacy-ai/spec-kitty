@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,7 @@ from specify_cli.status_lanes import CANONICAL_LANES
 
 if TYPE_CHECKING:
     from specify_cli.status import EventStream
+    from specify_cli.status.wp_view import WPView
 
 LANES: tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
@@ -287,6 +289,13 @@ def _snapshot_activity_entries(stream: EventStream, wp_id: str) -> list[dict[str
     carrying its own event timestamp/actor for per-entry fidelity, sorted
     chronologically by occurrence time.
     """
+    # ``actor`` is ``str | dict`` (FR-015 / IC-09): a resolved-binding transition
+    # may carry a ``{role, profile, tool, model}`` dict. The activity-log "agent"
+    # cell is a display string, so project the structured actor to its string
+    # identity (the dict binding is surfaced via the resolved-binding slots, not
+    # this row).
+    from specify_cli.status import actor_identity_str  # noqa: PLC0415
+
     rows: list[tuple[str, dict[str, str]]] = []
     for event in stream.transitions:
         if event.wp_id != wp_id:
@@ -296,7 +305,7 @@ def _snapshot_activity_entries(stream: EventStream, wp_id: str) -> list[dict[str
                 event.at,
                 {
                     "timestamp": event.at,
-                    "agent": event.actor,
+                    "agent": actor_identity_str(event.actor),
                     "lane": str(event.to_lane),
                     "note": event.reason or f"Moved to {event.to_lane}",
                     "shell_pid": "",
@@ -311,7 +320,7 @@ def _snapshot_activity_entries(stream: EventStream, wp_id: str) -> list[dict[str
                 annotation.at,
                 {
                     "timestamp": annotation.at,
-                    "agent": annotation.actor,
+                    "agent": actor_identity_str(annotation.actor),
                     "lane": "",
                     "note": annotation.delta.note,
                     "shell_pid": "",
@@ -336,22 +345,14 @@ def activity_entries(
     migration-window fallback (a WP whose legacy entries have not yet been
     migrated must not lose them, SC-004 "no content loss").
 
-    SC-004 (behind the FR-005 flag): when *feature_dir* and *wp_id* are BOTH
-    supplied and the phase-1 dual-write flag
-    (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`) resolves ON
-    for *feature_dir*, the reduced snapshot's event-sourced transition history
-    and ``note`` annotations for *wp_id* are folded in ADDITION to the
-    body-parsed rows above — never in place of them (:func:`_snapshot_activity_entries`).
-    Omitting *feature_dir*/*wp_id* (every call site prior to this WP)
-    reproduces today's exact output.
+    SC-004: when *feature_dir* and *wp_id* are BOTH supplied, the reduced
+    snapshot's event-sourced transition history and ``note`` annotations for
+    *wp_id* are folded in ADDITION to the body-parsed rows above — never in
+    place of them (:func:`_snapshot_activity_entries`). Omitting
+    *feature_dir*/*wp_id* reproduces the body-only output.
     """
     entries = _parse_activity_entries_from_body(body)
     if feature_dir is None or wp_id is None:
-        return entries
-
-    from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active  # noqa: PLC0415
-
-    if not _phase1_snapshot_authority_active(feature_dir):
         return entries
 
     from specify_cli.status import read_event_stream  # noqa: PLC0415
@@ -369,13 +370,19 @@ class WorkPackage:
     frontmatter: str
     body: str
     padding: str
-    # Per-instance snapshot-state cache (FR-005): populated lazily by
-    # ``_snapshot_wp_state`` on first access so ``assignee``/``agent``/
-    # ``shell_pid`` share a single reduce() per WorkPackage instance rather
-    # than one per property access. Excluded from ``__init__``/``__eq__``/
-    # ``repr`` -- pure memoization, not part of the value's identity.
-    _snapshot_state_cache: dict[str, Any] | None = field(default=None, init=False, repr=False, compare=False)
-    _snapshot_state_loaded: bool = field(default=False, init=False, repr=False, compare=False)
+    # Planning artifacts always live on the primary partition, while mutable
+    # status may live on the coordination partition.  Carry the canonical
+    # status directory separately so a coord-topology WorkPackage never reads
+    # a stale primary event log merely because its Markdown file lives there.
+    status_dir: Path | None = None
+    # Per-instance reconstructed-view cache (FR-005 / IC-07): populated lazily by
+    # ``_resolved_view`` on first access so ``assignee``/``agent``/``shell_pid``
+    # and the resolved-binding ``role``/``agent_profile``/``model`` share a single
+    # reconstruction per WorkPackage instance rather than one per property access.
+    # Excluded from ``__init__``/``__eq__``/``repr`` -- pure memoization, not part
+    # of the value's identity.
+    _resolved_view_cache: WPView | None = field(default=None, init=False, repr=False, compare=False)
+    _resolved_view_loaded: bool = field(default=False, init=False, repr=False, compare=False)
 
     @property
     def work_package_id(self) -> str | None:
@@ -385,81 +392,139 @@ class WorkPackage:
     def title(self) -> str | None:
         return extract_scalar(self.frontmatter, "title")
 
-    def _snapshot_wp_state(self) -> dict[str, Any] | None:
-        """Return the reduced-snapshot per-WP runtime state, flag-gated (FR-005).
+    def _resolved_view(self) -> WPView | None:
+        """Return the reconstructed WP view through the ONE canonical reader (SC-007).
 
-        Returns ``None`` ONLY when the phase-1 dual-write flag
-        (:func:`specify_cli.status.emit._phase1_snapshot_authority_active`) resolves
-        OFF for this WP's feature directory -- the sole signal telling
-        callers to fall back to frontmatter (today's behavior). When the flag
-        is ON, an absent snapshot entry is a valid authoritative empty
-        result (``{}``, "no runtime state yet"), NOT a fallback signal (C-001
-        -- no partial fallback to frontmatter once the flag resolves to the
-        snapshot).
+        Routes the snapshot read through
+        :func:`specify_cli.status.reconstruct_wp_view` (SC-007) instead of
+        hand-rolling the ``read_event_stream -> reduce -> get(wp_id)`` idiom.
+        The reduced snapshot is the unconditional authority for this WP's
+        runtime slots (#2093/IC-03): an absent resolved slot is a valid
+        authoritative empty result ("no runtime state yet"), never a signal to
+        fall back to frontmatter (C-001 -- the phase-1 dual-write flag and its
+        frontmatter fallback are retired with the unconditional cutover).
 
-        Memoized per instance (one reduce() per ``WorkPackage``, not one per
-        property read) -- correctness is unaffected since a ``WorkPackage``
+        Memoized per instance (one reconstruction per ``WorkPackage``, not one
+        per property read) -- correctness is unaffected since a ``WorkPackage``
         is a point-in-time read, never mutated in place after construction.
         """
-        if self._snapshot_state_loaded:
-            return self._snapshot_state_cache
+        if self._resolved_view_loaded:
+            return self._resolved_view_cache
 
-        from specify_cli.status import phase1_snapshot_authority_active as _phase1_snapshot_authority_active  # noqa: PLC0415
+        from specify_cli.status import (  # noqa: PLC0415
+            CanonicalStatusNotFoundError,
+            has_event_log,
+            reconstruct_wp_view,
+        )
 
-        # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
-        # feature_dir is the parent of the tasks/ directory
-        feature_dir = self.path.parent.parent
-        if not _phase1_snapshot_authority_active(feature_dir):
-            self._snapshot_state_loaded = True
-            self._snapshot_state_cache = None
-            return None
-
-        from specify_cli.status import wp_snapshot_state  # noqa: PLC0415
-
+        # WP files are primary-partition planning artifacts; mutable state may
+        # instead live on the coordination partition.
+        feature_dir = self.status_dir or self.path.parent.parent
+        if not has_event_log(feature_dir):
+            raise CanonicalStatusNotFoundError(
+                f"Canonical status not found for feature '{self.feature}'. "
+                f"Run 'spec-kitty agent mission finalize-tasks --mission "
+                f"{self.feature}' to bootstrap the event log."
+            )
         wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
-        # dict(): wp_snapshot_state returns a Mapping; the cache/return contract
-        # here is dict[str, Any] | None, so materialize a real dict.
-        wp_state = dict(wp_snapshot_state(feature_dir, wp_id) or {})
+        view = reconstruct_wp_view(feature_dir, wp_id)
 
-        self._snapshot_state_loaded = True
-        self._snapshot_state_cache = wp_state
-        return wp_state
+        self._resolved_view_loaded = True
+        self._resolved_view_cache = view
+        return view
 
     @property
     def assignee(self) -> str | None:
-        wp_state = self._snapshot_wp_state()
-        if wp_state is not None:
-            value = wp_state.get("assignee")
-            return str(value) if value is not None else None
-        return extract_scalar(self.frontmatter, "assignee")
+        # Snapshot-sourced via the one reconstruction reader (C-001): an absent
+        # resolved slot is authoritative empty, never a frontmatter fallback.
+        view = self._resolved_view()
+        return view.resolved.assignee if view is not None else None
 
     @property
     def agent(self) -> str | None:
-        wp_state = self._snapshot_wp_state()
-        if wp_state is not None:
-            value = wp_state.get("agent")
-            return str(value) if value is not None else None
-        return extract_scalar(self.frontmatter, "agent")
+        # Snapshot-sourced via the one reconstruction reader (C-001): an absent
+        # resolved slot is authoritative empty, never a frontmatter fallback.
+        view = self._resolved_view()
+        return view.resolved.agent if view is not None else None
 
     @property
     def shell_pid(self) -> str | None:
-        wp_state = self._snapshot_wp_state()
-        if wp_state is not None:
-            value = wp_state.get("shell_pid")
-            return str(value) if value is not None else None
-        return extract_scalar(self.frontmatter, "shell_pid")
+        # Snapshot-sourced via the one reconstruction reader (C-001): an absent
+        # resolved slot is authoritative empty, never a frontmatter fallback.
+        view = self._resolved_view()
+        return view.resolved.shell_pid if view is not None else None
+
+    @property
+    def shell_pid_created_at(self) -> str | None:
+        view = self._resolved_view()
+        return view.resolved.shell_pid_created_at if view is not None else None
+
+    @property
+    def subtasks(self) -> Mapping[str, str]:
+        view = self._resolved_view()
+        return view.resolved.subtasks if view is not None else {}
+
+    @property
+    def review(self) -> Mapping[str, Any] | None:
+        view = self._resolved_view()
+        return view.resolved.review if view is not None else None
+
+    @property
+    def role(self) -> str | None:
+        """Resolved *actual* role that ran (event-sourced); ``None`` when the flag
+        is OFF or the WP was never bound. Authored recommendation: :attr:`authored_role`."""
+        view = self._resolved_view()
+        return view.resolved.role if view is not None else None
+
+    @property
+    def agent_profile(self) -> str | None:
+        """Resolved *actual* agent profile (event-sourced); ``None`` when the flag
+        is OFF or the WP was never bound. Authored recommendation:
+        :attr:`authored_agent_profile` (C-008 -- never conflate the two)."""
+        view = self._resolved_view()
+        return view.resolved.agent_profile if view is not None else None
+
+    @property
+    def agent_profile_version(self) -> str | None:
+        view = self._resolved_view()
+        return view.resolved.agent_profile_version if view is not None else None
+
+    @property
+    def model(self) -> str | None:
+        """Resolved *actual* model (event-sourced); ``None`` when the flag is OFF
+        or the WP was never bound. Authored recommendation: :attr:`authored_model`."""
+        view = self._resolved_view()
+        return view.resolved.model if view is not None else None
+
+    @property
+    def provider(self) -> str | None:
+        view = self._resolved_view()
+        return view.resolved.provider if view is not None else None
+
+    @property
+    def authored_role(self) -> str | None:
+        """Authored (frontmatter) role recommendation -- the design intent,
+        distinct from the resolved actual :attr:`role` (C-008)."""
+        return extract_scalar(self.frontmatter, "role")
+
+    @property
+    def authored_agent_profile(self) -> str | None:
+        """Authored (frontmatter) agent-profile recommendation -- distinct from the
+        resolved actual :attr:`agent_profile` (C-008)."""
+        return extract_scalar(self.frontmatter, "agent_profile")
+
+    @property
+    def authored_model(self) -> str | None:
+        """Authored (frontmatter) model recommendation -- distinct from the resolved
+        actual :attr:`model` (C-008)."""
+        return extract_scalar(self.frontmatter, "model")
 
     @property
     def lane(self) -> str | None:
-        from specify_cli.status import get_wp_lane
-
-        # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
-        # feature_dir is the parent of the tasks/ directory
-        feature_dir = self.path.parent.parent
-        wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
-        # cast: get_wp_lane's -> str return is erased to Any at the specify_cli.*
-        # follow_imports=skip boundary; type-only narrowing, no behaviour change.
-        return cast("str | None", get_wp_lane(feature_dir, wp_id))
+        view = self._resolved_view()
+        if view is None or view.resolved.lane is None:
+            return "uninitialized"
+        return str(view.resolved.lane)
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
@@ -472,8 +537,10 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
     from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination import resolve_status_surface
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+    from specify_cli.status import reconstruct_wp_view
 
     # Always use main repo's kitty-specs - it's the source of truth.
     # Route through the seam (WORK_PACKAGE_TASK) so tasks/ reads resolve to the
@@ -482,6 +549,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     feature_path = resolve_planning_read_dir(
         main_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
     )
+    status_dir = resolve_status_surface(main_root, feature).parent
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
@@ -500,8 +568,9 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
         if path.name.lower() == "readme.md":
             continue
         if wp_pattern.match(path.name):
-            # Get lane from frontmatter
-            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            # Mutable lane state is authoritative on the resolved status
+            # partition, which may differ from the planning-file partition.
+            lane = reconstruct_wp_view(status_dir, wp_id).resolved.lane or "uninitialized"
             candidates.append((lane, path, tasks_root))
 
     if not candidates:
@@ -522,6 +591,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
         frontmatter=front,
         body=body,
         padding=padding,
+        status_dir=status_dir,
     )
 
 

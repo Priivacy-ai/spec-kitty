@@ -19,8 +19,13 @@ import pytest
 import ulid
 
 from specify_cli.dashboard.server import find_free_port, start_dashboard
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from specify_cli.status import (
+    Lane,
+    StatusEvent,
+    WPInnerStateDelta,
+    append_event,
+    emit_inner_state_changed,
+)
 
 # ---------------------------------------------------------------------------
 # Playwright browser cache vs. per-worker HOME isolation (WP04, tests/conftest.py)
@@ -160,7 +165,7 @@ role: {WP_AGENT_ROLE}
 
 
 def _seed_event_log(feature_dir: Path) -> None:
-    """Seed one genesis->planned event so the WP resolves off the canonical log.
+    """Seed canonical lane and resolved-agent events for the synthetic WP.
 
     `dashboard/scanner.py::_process_wp_file` resolves a WP's lane either via
     the legacy `tasks/<lane>/*.md` directory layout or via the canonical
@@ -182,6 +187,18 @@ def _seed_event_log(feature_dir: Path) -> None:
         execution_mode="worktree",
     )
     append_event(feature_dir, event)
+    emit_inner_state_changed(
+        feature_dir,
+        WP_ID,
+        WPInnerStateDelta(
+            agent=WP_AGENT_TOOL,
+            model=WP_AGENT_MODEL,
+            agent_profile=WP_AGENT_PROFILE,
+            role=WP_AGENT_ROLE,
+        ),
+        actor=WP_AGENT_TOOL,
+        mission_slug=MISSION_SLUG,
+    )
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ description: >-
   "coordinate implement and review", "sprint through WPs".
   Does NOT handle: specify/plan/tasks phases, setup or repair, glossary
   maintenance, or direct code editing by the orchestrator.
-argument-hint: "[WP_ID or 'all' for full feature sprint]"
+argument-hint: "[WP_ID or 'all' for full mission sprint]"
 ---
 
 # spec-kitty-implement-review
@@ -25,7 +25,7 @@ dependency graph.
 - Implement one or more WPs through the full implement-review cycle
 - Coordinate cross-agent workflows (different agents for implement vs review)
 - Handle rejection feedback loops with cycle tracking
-- Run a full feature sprint (WP01 through WP_N)
+- Run a full mission sprint (WP01 through WP_N)
 
 ## Core Concepts
 
@@ -46,8 +46,8 @@ The orchestrator does NOT hardcode agent names. Instead:
 spec-kitty agent config list
 
 # The workflow commands handle agent selection internally
-spec-kitty agent action implement WP01 --agent <your-name>
-spec-kitty agent action review WP01 --agent <reviewer-name>
+spec-kitty agent action implement WP01 --agent <tool> --profile <profile>
+spec-kitty agent action review WP01 --agent <tool> --profile <profile>
 ```
 
 ### Agent Capabilities
@@ -110,7 +110,7 @@ the mission-readiness nudge. If acceptance passes, run
 `spec-kitty merge --mission <slug>` to merge everything and move WPs to `done`.
 
 **`approved` unblocks dependents immediately.** Do NOT wait for `done` before
-starting dependent WPs. The `done` lane is only reached via feature merge.
+starting dependent WPs. The `done` lane is only reached via mission merge.
 
 To determine what to do next, always run:
 
@@ -135,24 +135,28 @@ agent to do the work.
 ### Step 1a: Claim the Workspace
 
 ```bash
-OUTPUT=$(spec-kitty agent action implement WP## --mission <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
+OUTPUT=$(spec-kitty agent action implement WP## --mission <slug> --agent <tool> --profile <profile> 2>&1)
 ```
 
-**Agent identity** — always provide the full compact form so the WP records who is working:
+**Resolved dispatch identity** — pass the values selected by the dispatcher so
+the claim records what actually ran, rather than copying the authored
+frontmatter recommendation:
 
 ```
---agent <tool>:<model>:<profile>:<role>
+--agent <tool> --profile <resolved-profile> [--model <resolved-model> --invocation-id <op-id>]
 ```
 
 Examples:
-- `--agent opencode:o3:python-pedro:implementer`
-- `--agent claude:sonnet:implementer:implementer`
-- `--agent codex:gpt-4o:python-pedro:implementer`
+- `--agent claude --profile python-pedro`
+- `--agent claude --profile implementer-ivan`
+- `--agent claude --model claude-haiku-4-5 --profile reviewer-renata --invocation-id <op-id>`
 
-Partial compact strings are accepted (missing fields default to `unknown`).
-Pass the compact identity through `--agent <tool>:<model>:<profile>:<role>`.
-The `agent action implement` and `agent action review` command surfaces do not
-accept separate `--tool`, `--model`, `--profile`, or `--role` flags.
+Pass `--model` only with a correlated `--invocation-id`. The durable Op's
+mission identity, WP, action, profile, and catalog-winning model must match the
+claim; missing, malformed, or mismatched evidence fails closed. A direct
+`--profile` is resolved through the canonical profile registry. A bare
+`--agent` claim remains allowed, but records explicit absence for model/profile
+instead of fabricating values from frontmatter.
 
 This command:
 - Moves WP from `planned` to `in_progress`
@@ -178,7 +182,7 @@ How you dispatch depends on your execution context.
 Task(
     subagent_type="general-purpose",
     description="Implement WP##",
-    prompt=f"""You are implementing WP## for feature <slug>.
+    prompt=f"""You are implementing WP## for mission <slug>.
 
 **CRITICAL: Work in the worktree directory:**
 cd {WORKSPACE}
@@ -198,11 +202,11 @@ The prompt contains all context, acceptance criteria, and review feedback
 6. Integration verification (MANDATORY before moving to for_review):
    - Verify new code is ACTUALLY CALLED from live entry points (not just defined)
    - Grep for imports of your new module in the files that should call it
-   - If you created a new function/class, grep the codebase for callers — zero callers means the feature is dead code
+   - If you created a new function/class, grep the codebase for callers — zero callers means the capability is dead code
    - Verify old code paths are removed or redirected
    - Grep for old function/class names to confirm removal
    CRITICAL: A module with passing tests but no callers is NOT implemented.
-   The most common review failure is dead code — tests pass but the feature
+   The most common review failure is dead code — tests pass but the capability
    is never invoked from the live command path.
 7. Run the project's declared validation command before handoff
 8. **Diff-scoped lint sweep (MANDATORY before move-task to for_review)**:
@@ -311,7 +315,7 @@ When a WP reaches `for_review`, dispatch a review agent.
 ### Step 3a: Claim the Review
 
 ```bash
-OUTPUT=$(spec-kitty agent action review WP## --mission <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
+OUTPUT=$(spec-kitty agent action review WP## --mission <slug> --agent <tool> --profile <profile> 2>&1)
 REVIEW_PROMPT=$(echo "$OUTPUT" | grep -o '/var/folders[^ ]*/spec-kitty-review-WP[0-9]*.md' || echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 ```
@@ -324,7 +328,7 @@ WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 Task(
     subagent_type="general-purpose",
     description="Review WP##",
-    prompt=f"""You are reviewing WP## for feature <slug>.
+    prompt=f"""You are reviewing WP## for mission <slug>.
 
 **CRITICAL: Work in the worktree directory:**
 cd {WORKTREE}
@@ -452,33 +456,25 @@ must re-dispatch implementation.
 ### What Happens on Rejection
 
 1. The reviewer runs `move-task WP## --to planned --force --review-feedback-file <path>`
-2. The WP prompt file is updated:
-   - `lane: "planned"` in frontmatter
-   - `review_status: "has_feedback"` in frontmatter
-   - The **Review Feedback** section is populated with change requests
-   - An activity log entry records the rejection
+2. The event log records the lane transition and review-feedback reference;
+   the WP planning file remains byte-stable.
 
 ### Re-Implementation Steps
 
-1. **Commit the status change** from main:
+1. **Re-dispatch implementation** using the same two-step pattern from Step 1:
    ```bash
-   git add kitty-specs/ && git commit -m "chore: Review feedback for WP## from <reviewer> (cycle X/3)"
-   ```
-
-2. **Re-dispatch implementation** using the same two-step pattern from Step 1:
-   ```bash
-   OUTPUT=$(spec-kitty agent action implement WP## --agent <orchestrator-name> 2>&1)
+   OUTPUT=$(spec-kitty agent action implement WP## --mission <slug> --agent <tool> --profile <profile> 2>&1)
    WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
    PROMPT_FILE=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
    ```
    Then dispatch the implementing agent (Step 1b). The prompt file now
    includes the review feedback.
 
-3. **Wait for re-implementation to complete** (WP reaches `for_review`)
+2. **Wait for re-implementation to complete** (WP reaches `for_review`)
 
-4. **Re-dispatch review** (Step 3)
+3. **Re-dispatch review** (Step 3)
 
-5. **Track the cycle count** (max 3):
+4. **Track the cycle count** (max 3):
    - Cycle 1: First rejection
    - Cycle 2: Second rejection
    - Cycle 3: Third rejection triggers **ARBITER MODE**
@@ -490,18 +486,15 @@ must re-dispatch implementation.
 spec-kitty agent tasks status
 # Shows: WP03 in planned (review_status: has_feedback)
 
-# 2. Commit status change
-git add kitty-specs/ && git commit -m "chore: Review feedback for WP03 from <reviewer> (cycle 1/3)"
-
-# 3. Re-dispatch implementation (two-step pattern)
-OUTPUT=$(spec-kitty agent action implement WP03 --agent coordinator 2>&1)
+# 2. Re-dispatch implementation (two-step pattern)
+OUTPUT=$(spec-kitty agent action implement WP03 --mission <slug> --agent <tool> --profile <profile> 2>&1)
 WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 PROMPT_FILE=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 
-# 4. Dispatch fixing agent (Task tool or CLI -- see Step 1b)
+# 3. Dispatch fixing agent (Task tool or CLI -- see Step 1b)
 # Include cycle info: "This is cycle 2/3"
 
-# 5. Wait for WP to reach for_review, then re-dispatch review (Step 3)
+# 4. Wait for WP to reach for_review, then re-dispatch review (Step 3)
 ```
 
 ---
@@ -543,7 +536,7 @@ spec-kitty agent tasks move-task WP## --to approved --force \
 ## Parallel Sprint Pattern
 
 When multiple independent WPs can execute simultaneously, dispatch them all at
-once instead of processing sequentially. This is the fastest path for features
+once instead of processing sequentially. This is the fastest path for missions
 with mixed dependency graphs.
 
 ### Identifying Parallel Opportunities
@@ -564,7 +557,7 @@ dispatch all agents in parallel:
 ```bash
 # 1. Claim workspaces (must be sequential — git state mutations)
 for wp in WP01 WP03 WP04 WP05 WP06; do
-  spec-kitty agent action implement $wp --mission <slug> --agent <tool>:<model>
+  spec-kitty agent action implement $wp --mission <slug> --agent <tool> --profile <profile>
 done
 
 # 2. Dispatch agents in parallel (method depends on orchestrator)
@@ -635,7 +628,7 @@ For WPs with no cross-dependencies:
 WP01 --> Review WP01       WP02 --> Review WP02       WP03 --> Review WP03
 ```
 
-Dispatch in parallel. Each must complete its review cycle before feature merge.
+Dispatch in parallel. Each must complete its review cycle before mission merge.
 
 ### Mixed Dependencies
 
@@ -667,8 +660,8 @@ Dispatch in parallel. Each must complete its review cycle before feature merge.
 spec-kitty next --mission <slug> --json
 
 # 2. Dispatch implementation (two steps)
-#    --agent compact form: <tool>:<model>:<profile>:<role>
-OUTPUT=$(spec-kitty agent action implement WP## --mission <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
+#    pass the dispatcher-resolved model/profile (and Op id when available)
+OUTPUT=$(spec-kitty agent action implement WP## --mission <slug> --agent <tool> --profile <profile> 2>&1)
 WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 # Then dispatch agent (Task tool or CLI)
@@ -677,7 +670,7 @@ PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 spec-kitty agent tasks status --mission <slug>
 
 # 4. Dispatch review (two steps)
-OUTPUT=$(spec-kitty agent action review WP## --mission <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
+OUTPUT=$(spec-kitty agent action review WP## --mission <slug> --agent <tool> --profile <profile> 2>&1)
 REVIEW_PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 # Then dispatch reviewer (Task tool or CLI)
@@ -685,7 +678,7 @@ WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 # 5. After review: check outcome
 spec-kitty agent tasks status --mission <slug>
 # If approved: next WP (repeat from step 1)
-# If rejected: commit feedback, re-implement (cycle tracking)
+# If rejected: re-implement using the persisted feedback (cycle tracking)
 # If 3 rejections: arbiter mode
 
 # 6. After all WPs approved: accept, then merge
@@ -794,7 +787,7 @@ After merge completes, WPs move to `done` automatically. If they remain in
 ```bash
 for wp in WP01 WP02 WP03 WP04 WP05 WP06; do
   spec-kitty agent tasks move-task $wp --to done --force \
-    --done-override-reason "Feature merged to target branch" \
+    --done-override-reason "Mission merged to target branch" \
     --mission <mission-slug>
 done
 ```
@@ -837,13 +830,13 @@ existing record; it does NOT author. Use `retrospect create` to author.
 1. **Always use `spec-kitty agent action implement WP##`** before dispatching
 2. **Always use `spec-kitty agent action review WP##`** before dispatching review
 3. **Use `spec-kitty next`** to determine sequencing -- do not guess
-4. **Commit after every review**: `git add kitty-specs/ && git commit`
-5. **Track rejection cycles** (max 3) in commit messages
+4. **Let lifecycle commands persist status**; never edit WP frontmatter to record runtime state
+5. **Track rejection cycles** (max 3) in event history and review artifacts
 6. **The orchestrator does not implement** -- it dispatches and monitors
 7. **`approved` unblocks dependents** -- do not wait for `done`
 8. **Run `spec-kitty accept --mission <slug>` before merge** -- it is a
    readiness nudge, not a replacement for WP review or merge gates
-9. **Never manually move WPs to `done`** -- that happens during feature merge
+9. **Never manually move WPs to `done`** -- that happens during mission merge
 10. **For Tier 3 agents**: orchestrator runs `move-task` on the agent's behalf
 11. **Parallel reviews are safe** -- each WP operates in its own worktree
 12. **Compact after task pivots** -- do not combine architecture, debugging,
@@ -870,9 +863,8 @@ re-dispatch to a different agent.
 **Auto-commit warnings from sandboxed agents**: Codex dispatch must use
 `--sandbox danger-full-access` so terminal `move-task` can write git/status
 locks and commit status artifacts. If a locally patched or stale skill still
-uses `--full-auto`/`workspace-write`, the lane change may be written to status
-files but still need manual commit from the repository root checkout:
-`git add kitty-specs/ && git commit -m "chore: status update"`
+uses `--full-auto`/`workspace-write`, rerun the lifecycle command from the
+repository-root checkout so its transactional status commit can complete.
 
 **Stale WP (in_progress but no agent activity)**: Force back to planned and
 re-dispatch:
@@ -896,7 +888,7 @@ Fix with `git checkout HEAD -- src/ tests/` to restore the working tree to match
 HEAD.
 
 **Dead code after implementation**: If a WP creates a new module with tests that
-pass but the module is never imported from the live command path, the feature
+pass but the module is never imported from the live command path, the capability
 does not work. This is the most common post-merge defect. Run
 `grep -r "from.*<new_module>" src/` to verify at least one live caller exists
 for every new module.
@@ -926,7 +918,7 @@ https://github.com/Priivacy-ai/spec-kitty/issues/771 for auto-rebase support.
 
 **Running multi-repo or multi-mission programs**: The implement-review loop
 in this skill is scoped to a single mission. When orchestrating across
-multiple missions and repos (e.g., a cross-repo feature release), you will
+multiple missions and repos (e.g., a cross-repo product release), you will
 need a layer above this one that handles: inter-repo dependency sequencing,
 pulse-heartbeat safety nets when running many agents for long stretches,
 and post-merge mission-review + remediation chaining. See the companion

@@ -48,7 +48,6 @@ from types import ModuleType
 from unittest.mock import patch
 
 import pytest
-import typer
 
 from mission_runtime import MissionArtifactKind
 
@@ -166,14 +165,11 @@ def _build_finalize_fixture(tmp_path: Path, mission_slug: str) -> Path:
 def test_mark_status_read_dir_routes_through_fs_port_tasks_index(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """T033: the tasks.md write surface resolves via ``FsReader.planning_read_dir``
-    keyed ``TASKS_INDEX`` (#2154), and a ``--no-auto-commit`` run never touches the
-    coord ``commit_artifact`` seam.
+    """The read-only task index resolves through the TASKS_INDEX port.
 
-    WP04/T015: uses the pipe-table fixture — the ``PIPE_TABLE`` row format is the
-    one surface this WP leaves durably tasks.md-written (canonical
-    ``CHECKBOX``/``INLINE_SUBTASKS`` completion is event-sourced instead), so this
-    routing assertion still has a real write to observe.
+    Completion is event-sourced for every row format, so resolving a pipe-table
+    task leaves the authored index byte-identical and never calls the artifact
+    commit port.
     """
     feature_dir = _build_mark_fixture_pipe_table(tmp_path, _MISSION)
     ports, fs, coord = _fake_ports(feature_dir, MissionArtifactKind.TASKS_INDEX)
@@ -194,21 +190,16 @@ def test_mark_status_read_dir_routes_through_fs_port_tasks_index(
     assert ("planning_read_dir", MissionArtifactKind.TASKS_INDEX) in fs.calls
     # No auto-commit => the coord WRITE capability is untouched.
     assert coord.artifact_calls == []
-    # The pipe-table row was durably flipped on disk.
-    assert "[D]" in (feature_dir / "tasks.md").read_text(encoding="utf-8")
+    assert "[D]" not in (feature_dir / "tasks.md").read_text(encoding="utf-8")
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["summary"]["updated"] == 1
 
 
-def test_mark_status_auto_commit_routes_via_commit_artifact_tasks_index(
+def test_mark_status_auto_commit_compat_input_does_not_commit_tasks_index(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """T033: an auto-commit run routes the tasks.md commit through the coord
-    ``commit_artifact`` capability, keyed ``TASKS_INDEX`` with the tasks.md file.
-
-    WP04/T015: uses the pipe-table fixture (see the previous test's note).
-    """
+    """The compatibility auto-commit input cannot reintroduce a tasks.md write."""
     feature_dir = _build_mark_fixture_pipe_table(tmp_path, _MISSION)
     ports, _fs, coord = _fake_ports(feature_dir, MissionArtifactKind.TASKS_INDEX)
 
@@ -217,8 +208,6 @@ def test_mark_status_auto_commit_routes_via_commit_artifact_tasks_index(
         mission_slug=_MISSION,
         target_branch="wip-lane",
         auto_commit_default=True,
-        # The protected-primary guard is orthogonal to the commit ROUTING under test.
-        extra_patches={"_protected_branch_status_commit_error": None},
     ), patch("specify_cli.cli.commands.agent.tasks.emit_history_added"):
         _do_mark_status(
             task_ids=["T001"],
@@ -229,12 +218,8 @@ def test_mark_status_auto_commit_routes_via_commit_artifact_tasks_index(
             ports=ports,
         )
 
-    assert len(coord.artifact_calls) == 1
-    slug, paths, message, kind = coord.artifact_calls[0]
-    assert slug == _MISSION
-    assert kind == MissionArtifactKind.TASKS_INDEX
-    assert (feature_dir / "tasks.md").resolve() in paths
-    assert message.startswith("chore: Mark T001 as done")
+    assert coord.artifact_calls == []
+    assert "[D]" not in (feature_dir / "tasks.md").read_text(encoding="utf-8")
     capsys.readouterr()
 
 
@@ -267,23 +252,22 @@ def test_mark_status_coord_router_binds_module_commit_without_target_branch() ->
     assert "target_branch" not in mock_commit.call_args.kwargs
 
 
-def test_mark_status_refuses_exit_1_on_protected_auto_commit(
+def test_mark_status_event_only_path_ignores_artifact_commit_protection(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """T033 / T005 (deferred #2300): under auto-commit on a protected target,
-    mark_status REFUSES (exit 1) — the divergence from move_task's skip is preserved
-    by the coreless orchestrator, not reconciled."""
+    """Protected task-index commits are irrelevant once no artifact is written."""
     feature_dir = _build_mark_fixture(tmp_path, _MISSION)
     ports, _fs, coord = _fake_ports(feature_dir, MissionArtifactKind.TASKS_INDEX)
 
-    protected_msg = "Cannot auto-commit status change: 'main' is a protected branch"
     with setup_mocked_env(
         tmp_path,
         mission_slug=_MISSION,
         target_branch="main",
         auto_commit_default=True,
-        extra_patches={"_protected_branch_status_commit_error": protected_msg},
-    ), pytest.raises(typer.Exit) as exc:
+        extra_patches={
+            "_protected_branch_status_commit_error": "must not be consulted",
+        },
+    ):
         _do_mark_status(
             task_ids=["T001"],
             status="done",
@@ -293,9 +277,7 @@ def test_mark_status_refuses_exit_1_on_protected_auto_commit(
             ports=ports,
         )
 
-    assert exc.value.exit_code == 1
-    assert "protected branch" in capsys.readouterr().out
-    # Refused BEFORE any mutation: neither the tasks.md write nor the commit fired.
+    assert "Marked T001 as done" in capsys.readouterr().out
     assert "- [x] T001" not in (feature_dir / "tasks.md").read_text(encoding="utf-8")
     assert coord.artifact_calls == []
 

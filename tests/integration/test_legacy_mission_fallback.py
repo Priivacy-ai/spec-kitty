@@ -446,13 +446,20 @@ def test_legacy_routing_unaffected_but_modern_coordinationless_routes_to_repo_ro
     longer sits under a ``.worktrees/...`` path).
     """
     captured_targets: dict[str, EventLogWriteTarget] = {}
-    real_append_event_log = transaction_module.append_event_log
+    real_append_event_stream_log = transaction_module.append_event_stream_log
 
-    def _spy_append_event_log(contract: EventLogWriteContract, event: StatusEvent) -> None:
-        captured_targets[event.mission_slug] = contract.target
-        real_append_event_log(contract, event)
+    def _spy_append_event_stream_log(
+        contract: EventLogWriteContract,
+        events: list[StatusEvent],
+    ) -> None:
+        captured_targets[events[0].mission_slug] = contract.target
+        real_append_event_stream_log(contract, events)
 
-    monkeypatch.setattr(transaction_module, "append_event_log", _spy_append_event_log)
+    monkeypatch.setattr(
+        transaction_module,
+        "append_event_stream_log",
+        _spy_append_event_stream_log,
+    )
 
     # Modern coordination-less routing now lands on repo_root itself, so its
     # destination_ref must be a REAL, existing, non-protected branch checked

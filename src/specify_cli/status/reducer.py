@@ -22,12 +22,14 @@ from specify_cli.mission_metadata import resolve_mission_identity
 
 from .models import (
     NON_DISPLAY_LANES,
+    ActorField,
     InnerStateChanged,
     Lane,
     RetrospectiveSnapshot,
     StatusEvent,
     StatusSnapshot,
     WPInnerStateDelta,
+    actor_identity_str,
 )
 from .store import read_event_stream, read_events_raw
 
@@ -36,6 +38,11 @@ from .store import read_event_stream, read_events_raw
 #: preserve these — the pre-mission reducer rebuilt the dict carrying forward
 #: only ``force_count``, which would erase runtime state on the next
 #: transition (the reducer replace-dict hazard).
+#:
+#: The resolved-binding actuals (``role``/``agent_profile``/
+#: ``agent_profile_version``/``model``/``provider``, FR-013) are runtime slots
+#: too: an implement-claim annotation's binding survives every later lane
+#: transition until a review-claim annotation replaces it (latest-wins, INV-8).
 _RUNTIME_SLOTS: tuple[str, ...] = (
     "shell_pid",
     "shell_pid_created_at",
@@ -45,6 +52,32 @@ _RUNTIME_SLOTS: tuple[str, ...] = (
     "agent",
     "assignee",
     "review",
+    "role",
+    "agent_profile",
+    "agent_profile_version",
+    "model",
+    "provider",
+)
+
+#: Data-driven **replace slots** for :func:`_apply_annotation_delta`: fields
+#: whose fold rule is exactly "if the delta field is present, replace the
+#: snapshot slot of the same name". Iterating this table (instead of a flat
+#: if-chain) keeps the annotation fold under the complexity ceiling as
+#: resolved-binding slots are added (D-14 tidy-first) — the five resolved
+#: actuals are pure replace slots, so they are data here, not new branches.
+#: The non-replace fields (``subtasks`` per-subtask merge, ``note`` -> ``notes``
+#: append, ``tracker_refs``/``tracker_refs_replace`` union/replace, ``review``)
+#: are handled explicitly and are NOT members of this table.
+_REPLACE_SLOTS: tuple[str, ...] = (
+    "shell_pid",
+    "shell_pid_created_at",
+    "agent",
+    "assignee",
+    "role",
+    "agent_profile",
+    "agent_profile_version",
+    "model",
+    "provider",
 )
 
 SNAPSHOT_FILENAME = "status.json"
@@ -86,7 +119,12 @@ def _wp_state_from_event(
 
     state: dict[str, Any] = {
         "lane": str(event.to_lane),
-        "actor": event.actor,
+        # Project a structured (dict) resolved-binding actor to its string
+        # identity for the SNAPSHOT slot (FR-015): the reduced ``actor`` is a
+        # display identity consumed by ``str(actor).strip()`` sinks, so it stays
+        # ``str``-typed. The dict binding still rides the in-memory event to the
+        # SaaS fan-out and round-trips the event LOG uncorrupted.
+        "actor": actor_identity_str(event.actor),
         "last_transition_at": event.at,
         "last_event_id": event.event_id,
         "force_count": prior_force_count + (1 if event.force else 0),
@@ -120,22 +158,28 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
     Per-field merge rules (only present delta fields are applied; absent fields
     leave the slot untouched):
 
-    - ``shell_pid`` / ``shell_pid_created_at`` / ``agent`` / ``assignee`` /
-      ``review``: **replace**.
+    - **Replace slots** (:data:`_REPLACE_SLOTS`, data-driven): ``shell_pid`` /
+      ``shell_pid_created_at`` / ``agent`` / ``assignee`` and the resolved-
+      binding actuals ``role`` / ``agent_profile`` / ``agent_profile_version`` /
+      ``model`` / ``provider`` (FR-013). Each folds **latest-wins** — a present
+      value replaces the same-named slot; the most-recent annotation's actual
+      wins across the lifecycle (INV-8).
     - ``subtasks``: **per-subtask replace** (merge by subtask id).
-    - ``note``: **append** to the ``notes`` list.
+    - ``note``: **append** to the ``notes`` list (field/slot name mismatch:
+      delta ``note`` -> snapshot ``notes``, so it is NOT a replace slot).
     - ``tracker_refs`` (additive) **unions** into the ``tracker_refs`` slot;
       ``tracker_refs_replace`` (present) **wholesale-replaces** the slot
       (dedup-preserving order) and takes precedence when both are present — the
       replace channel is what lets a ``--replace`` drop stale refs rather than
       resurrect them.
+    - ``review``: **replace** with ``ReviewOverride.to_dict()``.
 
     Never increments ``force_count``.
     """
-    if delta.shell_pid is not None:
-        state["shell_pid"] = delta.shell_pid
-    if delta.shell_pid_created_at is not None:
-        state["shell_pid_created_at"] = delta.shell_pid_created_at
+    for name in _REPLACE_SLOTS:
+        value = getattr(delta, name)
+        if value is not None:
+            state[name] = value
     if delta.subtasks is not None:
         current_subtasks: dict[str, str] = dict(state.get("subtasks") or {})
         for subtask_id, status in delta.subtasks.items():
@@ -153,10 +197,6 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
             if ref not in merged:
                 merged.append(ref)
         state["tracker_refs"] = merged
-    if delta.agent is not None:
-        state["agent"] = delta.agent
-    if delta.assignee is not None:
-        state["assignee"] = delta.assignee
     if delta.review is not None:
         state["review"] = delta.review.to_dict()
 
@@ -354,16 +394,20 @@ def wp_snapshot_state(feature_dir: Path, wp_id: str) -> Mapping[str, Any] | None
     return cast("Mapping[str, Any] | None", snapshot.work_packages.get(wp_id))
 
 
-def _runtime_only_wp_state(actor: str) -> dict[str, Any]:
+def _runtime_only_wp_state(actor: ActorField) -> dict[str, Any]:
     """Seed a per-WP snapshot entry for an annotation with no prior transition.
 
     Such a WP never traversed the FSM, so it has no display lane — it sits in
     the non-display ``UNINITIALIZED`` lane and is therefore excluded from the
     board summary. The annotation delta then folds its runtime slots on top.
+
+    The ``actor`` is projected to its string identity for the snapshot slot
+    (FR-015 parity with :func:`_wp_state_from_event`), so a structured annotation
+    actor never lands as a raw dict in a display sink.
     """
     return {
         "lane": str(Lane.UNINITIALIZED),
-        "actor": actor,
+        "actor": actor_identity_str(actor),
         "last_transition_at": None,
         "last_event_id": None,
         "force_count": 0,

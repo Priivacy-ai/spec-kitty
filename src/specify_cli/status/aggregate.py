@@ -588,7 +588,7 @@ class MissionStatus:
                 requested (from_lane, to_lane) pair is not allowed.
         """
         from specify_cli.status import validate_transition
-        from specify_cli.status.models import GuardContext, Lane
+        from specify_cli.status.models import GuardContext, Lane, actor_identity_str
         from specify_cli.coordination.status_transition import (
             emit_status_transition_transactional,
             read_current_wp_state_transactional,
@@ -635,7 +635,11 @@ class MissionStatus:
 
         # Build a GuardContext from behavior-preserving inferred request fields.
         ctx = GuardContext(
-            actor=request.actor,
+            actor=(
+                actor_identity_str(request.actor)
+                if request.actor is not None
+                else None
+            ),
             workspace_context=workspace_context,
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
@@ -725,7 +729,7 @@ class MissionStatus:
         subtasks_complete = request.subtasks_complete
         implementation_evidence_present = request.implementation_evidence_present
         entering_review = from_lane_str == lane_in_progress and resolved_to_lane == lane_for_review
-        if entering_review and subtasks_complete is None:
+        if entering_review:
             # T010/FR-003 (folded into the #2574 single seam): route through the
             # canonical resolve_subtasks_gate_dir seam so a coord-topology
             # mission's completeness check reads the PRIMARY tasks.md, not
@@ -733,13 +737,28 @@ class MissionStatus:
             # coord-topology missions) -- ``self.repo_root``/``self.mission_slug``
             # are dataclass-required fields, so no None-guard is needed here.
             from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir
+            from specify_cli.coordination.status_transition import (
+                read_event_stream_transactional,
+            )
 
             subtasks_dir = resolve_subtasks_gate_dir(self.read_dir, self.repo_root, self.mission_slug)
-            subtasks_complete = status_emit._infer_subtasks_complete(subtasks_dir, request.wp_id or "")
-        if entering_review and implementation_evidence_present is None:
-            implementation_evidence_present = status_emit._infer_implementation_evidence(
-                self.read_dir, request.wp_id or ""
+            event_stream = read_event_stream_transactional(
+                feature_dir=self.read_dir,
+                mission_slug=self.mission_slug,
+                repo_root=self.repo_root,
             )
+            if not request.force:
+                subtasks_complete = status_emit._infer_subtasks_complete(
+                    subtasks_dir,
+                    request.wp_id or "",
+                    event_stream=event_stream,
+                )
+            if implementation_evidence_present is None:
+                implementation_evidence_present = (
+                    status_emit._infer_implementation_evidence_from_event_stream(
+                        event_stream, request.wp_id or ""
+                    )
+                )
         return subtasks_complete, implementation_evidence_present
 
     def save(self, *, operation: str) -> CommitReceipt:

@@ -7,11 +7,11 @@ The ``@app.command`` Typer wrapper (``mark_status``) stays in ``tasks.py`` and
 delegates to :func:`_do_mark_status` (the byte-frozen ``--help`` surface is the
 registration shim's).
 
-**Orchestration shape** (unchanged): the phase helpers run in the SAME order as
-the original single body — validate → resolve → apply → history → dossier →
-output — so the ``tasks.md`` write still precedes the auto-commit and the
-feature status lock still spans the read → resolve → write → commit span
-(NFR-002). ``mark_status`` is CORELESS (FR-007): it carries NO transition
+**Orchestration shape**: the phase helpers run validate → resolve → identify →
+emit canonical subtask state → history → dossier → output. Since #2816,
+``tasks.md`` is a read-only task-roster/index surface for this command; no
+checkbox or pipe-table status cell is written or committed. ``mark_status`` is
+CORELESS (FR-007): it carries NO transition
 decision core and does NOT route through ``move_task``'s ``decide_transition``
 (the deferred #2300 unification, guarded structurally by the coreless
 non-import gate).
@@ -97,6 +97,7 @@ class _MarkStatusState:
     mission_slug: str = ""
     resolved_auto_commit: bool = False
     feature_dir: Path = field(default_factory=Path)
+    status_dir: Path = field(default_factory=Path)
     tasks_md: Path = field(default_factory=Path)
     # --- phase C: apply results ---
     results: list[TaskIdResult] = field(default_factory=list)
@@ -137,12 +138,12 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
 
 
 def _ms_resolve_context(st: _MarkStatusState) -> None:
-    """Phase B(i): repo/branch/auto-commit + the protected-branch refuse-exit-1 gate.
+    """Phase B(i): resolve the repository, mission, and stored topology.
 
-    The protected-branch guard fires unconditionally under ``auto_commit`` — it does
-    NOT consult ``_skip_target_branch_commit``, so on a coord + protected-primary
-    tree ``mark_status`` REFUSES (exit 1) where ``move_task`` SKIPS (exit 0). That
-    divergence is deliberate (T005 / deferred #2300) and preserved here.
+    ``--auto-commit`` is retained as a compatibility input, but ``mark-status``
+    no longer mutates or commits ``tasks.md``. Canonical completion is appended
+    through the status event writer, so the former protected-primary artifact
+    commit refusal does not apply.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     repo_root = _tasks.locate_project_root()
@@ -161,15 +162,6 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
     st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
         repo_root, st.mission_slug, st.json_output
     )
-    if st.resolved_auto_commit:
-        protected_error = _tasks._protected_branch_status_commit_error(
-            st.target_branch,
-            st.main_repo_root,
-            "spec-kitty agent tasks mark-status",
-        )
-        if protected_error is not None:
-            _tasks._output_error(st.json_output, protected_error)
-            raise typer.Exit(1)
 
 
 def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -185,6 +177,9 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
     st.feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    from specify_cli.coordination import resolve_status_surface
+
+    st.status_dir = resolve_status_surface(st.main_repo_root, st.mission_slug).parent
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
     try:
         check_pre30_layout(st.feature_dir)
@@ -242,7 +237,7 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
 
 
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
-    """Phase C: resolve each task ID to a durable row, write tasks.md, auto-commit.
+    """Phase C: resolve task IDs without mutating the authored tasks index.
 
     Holds the feature status lock across the read → resolve → write → commit span,
     exactly as the pre-rewire single body did.
@@ -250,19 +245,13 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
     WP04/T015 (FR-003/FR-008/C-001): the canonical subtask-completion surface
     (``CHECKBOX`` / ``INLINE_SUBTASKS``) is re-sourced from an
     ``InnerStateChanged`` emit (``_ms_emit_subtask_state``, called by
-    ``_do_mark_status`` after this phase) once the phase-1 snapshot authority is
-    active. #2684 flag-OFF dual-write: while that authority is INACTIVE (the
-    pre-cutover default), ``emit._infer_subtasks_complete`` still reads the
-    ``CHECKBOX`` byte off ``tasks.md``, so the checkbox flip is persisted at flag
-    OFF (legacy authority = dual-write). At flag ON the ``CHECKBOX`` resolver runs
-    against a throwaway copy of ``lines`` so its in-place mutation never leaks
-    into the file that gets written (event-sourced only). ``PIPE_TABLE`` is a
-    distinct, non-canonical surface (the review gate's
-    ``iter_wp_section_subtask_rows`` never reads it) and keeps its existing
-    durable write regardless of flag.
+    ``_do_mark_status`` after this phase) — the reduced snapshot is the sole
+    completion authority. Both legacy mutating resolvers therefore run against
+    throwaway copies. Checkbox bytes and pipe-table status cells are authored
+    reference material only; neither is persisted by ``mark-status``.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.status import phase1_snapshot_authority_active
+    del ports  # Stable phase signature; event-only apply has no commit port.
     with _tasks.feature_status_lock(st.main_repo_root, st.mission_slug):
         if not st.tasks_md.exists():
             _tasks._output_error(st.json_output, f"tasks.md not found: {st.tasks_md}")
@@ -271,29 +260,16 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
         content = st.tasks_md.read_text(encoding="utf-8")
         lines = content.split("\n")
         results: list[TaskIdResult] = []
-        artifact_mutated = False
-
-        # #2684 flag-OFF dual-write: at flag OFF the CHECKBOX byte in ``tasks.md``
-        # is still the completion authority the review gate re-sources from
-        # (``emit._infer_subtasks_complete`` reads ``count_wp_section_subtask_rows``
-        # off ``tasks.md`` when the phase-1 snapshot authority is inactive). So the
-        # checkbox flip MUST be persisted at flag OFF (legacy authority = dual-write),
-        # exactly as before the eviction. At flag ON the reduced snapshot is the
-        # sole authority, so the checkbox stays event-sourced-only (probe copy).
-        legacy_checkbox_write = not phase1_snapshot_authority_active(st.feature_dir)
-
         # Update all requested tasks in a single pass.
         for task_id in st.task_ids:
             before_content = "\n".join(lines)
-            # WP04/T015: at flag ON, probe the checkbox resolver against a throwaway
-            # copy — its in-place row mutation must never reach the persisted
-            # ``lines`` since the canonical subtask surface is not durably written.
-            # At flag OFF, mutate ``lines`` directly so the legacy checkbox byte is
-            # persisted (dual-write, see ``legacy_checkbox_write`` above).
-            checkbox_lines = lines if legacy_checkbox_write else list(lines)
+            # Both legacy resolvers mutate their input as part of recognition.
+            # Probe throwaway copies so only the event emit records completion.
+            checkbox_lines = list(lines)
+            pipe_table_lines = list(lines)
             result = (
                 _resolve_checkbox(task_id, checkbox_lines, st.status)
-                or _resolve_pipe_table(task_id, lines, st.status)
+                or _resolve_pipe_table(task_id, pipe_table_lines, st.status)
                 or _tasks._resolve_inline_subtasks(task_id, before_content, st.status, st.feature_dir)
                 or _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir)
                 or TaskIdResult(
@@ -304,34 +280,21 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                 )
             )
             results.append(result)
-            if result.outcome == TaskIdResolutionOutcome.UPDATED and (
-                result.format == TaskIdResolutionFormat.PIPE_TABLE
-                or (
-                    legacy_checkbox_write
-                    and result.format == TaskIdResolutionFormat.CHECKBOX
-                )
-            ):
-                artifact_mutated = True
 
         st.results = results
         st.updated_tasks = [r.id for r in results if r.outcome == TaskIdResolutionOutcome.UPDATED]
         st.not_found_tasks = [r.id for r in results if r.outcome == TaskIdResolutionOutcome.NOT_FOUND]
         st.resolved_tasks = [r.id for r in results if r.outcome != TaskIdResolutionOutcome.NOT_FOUND]
-        st.artifact_mutated = artifact_mutated
+        st.artifact_mutated = False
 
         # Fail if no tasks were resolved.
         if not st.resolved_tasks:
             _ms_report_none_resolved(st)
 
-        # Write updated content (single write for all changes) — PIPE_TABLE only;
-        # CHECKBOX/INLINE_SUBTASKS completion is event-sourced (see docstring).
-        if artifact_mutated:
-            st.tasks_md.write_text("\n".join(lines), encoding="utf-8")
-
-        # Auto-commit to TARGET branch (detects from feature meta.json).
-        if st.resolved_auto_commit and artifact_mutated:
-            _ms_commit(st, ports)
-
+        # The event append is the canonical mutation after #2816, so it belongs
+        # inside the same feature lock as task-id resolution. Releasing the
+        # lock between read/resolve and append would reintroduce a TOCTOU race.
+        _ms_emit_subtask_state(st)
 
 def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     """Emit the ``InnerStateChanged`` subtask-completion delta (T015, FR-003).
@@ -342,41 +305,40 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     Grouped by owning WP (reusing the ``resolved_tasks_by_wp`` pattern
     ``_ms_emit_history`` already uses) so a batch mark of several task ids
     emits ONE delta per WP, never one event per task id (FR-003 "single or
-    batch"). Unresolved task ids (no owning WP) are silently skipped here —
-    ``_ms_emit_history`` already surfaces that warning; duplicating it would
-    double-print. The emit target is ``st.feature_dir``, resolved from stored
-    topology during ``_ms_resolve_read_dir`` — never ``Path.cwd()`` (C-003/#2647).
+    batch"). A resolved task id with no identifiable owning WP is a hard error:
+    success without a canonical event would violate the sole-authority contract.
+    The emit target is ``st.status_dir``, resolved from stored topology during
+    ``_ms_resolve_read_dir`` — never the primary planning directory or
+    ``Path.cwd()`` (C-003/#2647).
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.status import emit_inner_state_changed
-    from specify_cli.status import Lane, Status, WPInnerStateDelta
+    from specify_cli.status import Lane, Status, WPInnerStateDelta, emit_inner_state_changed
 
     if not st.updated_tasks:
         return
 
     target_status: Status = Lane.DONE if st.status == "done" else Lane.PLANNED
-    try:
-        tasks_content = st.tasks_md.read_text(encoding="utf-8")
-        resolved_tasks_by_wp: dict[str, list[str]] = {}
-        for task_id in st.updated_tasks:
-            history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
-            if history_wp_id is not None:
-                resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
+    tasks_content = st.tasks_md.read_text(encoding="utf-8")
+    resolved_tasks_by_wp: dict[str, list[str]] = {}
+    unresolved_tasks: list[str] = []
+    for task_id in st.updated_tasks:
+        history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
+        if history_wp_id is None:
+            unresolved_tasks.append(task_id)
+        else:
+            resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
+    if unresolved_tasks:
+        joined = ", ".join(unresolved_tasks)
+        raise ValueError(f"Could not resolve owning work package for subtask event: {joined}")
 
-        for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
-            emit_inner_state_changed(
-                st.feature_dir,
-                wp_id,
-                WPInnerStateDelta(
-                    subtasks=dict.fromkeys(task_ids_for_wp, target_status)
-                ),
-                actor="user",
-                mission_slug=st.mission_slug,
-                repo_root=st.main_repo_root,
-            )
-    except Exception as e:
-        if not st.json_output:
-            _tasks.console.print(f"[yellow]Warning:[/yellow] Subtask state emission failed: {e}")
+    for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
+        emit_inner_state_changed(
+            st.status_dir,
+            wp_id,
+            WPInnerStateDelta(subtasks=dict.fromkeys(task_ids_for_wp, target_status)),
+            actor="user",
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+        )
 
 
 def _ms_emit_history(st: _MarkStatusState) -> None:
@@ -453,7 +415,7 @@ def _do_mark_status(
     """Orchestrate ``mark-status`` over the WP02 ports (C-005 seam), CORELESS.
 
     ``mark_status`` carries NO transition decision core (FR-007): it resolves task
-    IDs to durable rows and writes/commits ``tasks.md``. It does NOT route through
+    IDs against ``tasks.md`` and writes completion only to the event log. It does NOT route through
     ``move_task``'s ``decide_transition`` core — that is the deferred #2300
     unification, guarded structurally by the T036 non-import gate. ``ports=None``
     builds the production bundle (coord router bound to this module's patchable
@@ -474,7 +436,6 @@ def _do_mark_status(
         ports = ports or _default_mark_status_ports()
         _ms_resolve_read_dir(st, ports)
         _ms_apply_updates(st, ports)
-        _ms_emit_subtask_state(st)
         _ms_emit_history(st)
         _ms_dossier_sync(st)
         _ms_output(st)

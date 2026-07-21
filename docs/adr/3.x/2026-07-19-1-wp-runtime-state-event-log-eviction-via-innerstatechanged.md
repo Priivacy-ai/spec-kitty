@@ -158,3 +158,126 @@ still need a home; gate re-sourcing is *still* required. **Rejected** — partia
 **Pros:** reuses the transition path.
 **Cons:** redefines the "a transition changes lane" invariant; ripples into rendering, drift, and
 done-inference for no capture benefit over A. **Rejected.**
+
+---
+
+## Addendum (2026-07-20): Per-field authority for a WP's runtime identity — resolves blocker B4
+
+**Status:** Accepted · **Date:** 2026-07-20 · **Deciders:** Operator / HiC (Stijn Dejongh);
+architect (mission `runtime-state-corpus-cutover`, [#2816](https://github.com/Priivacy-ai/spec-kitty/issues/2816)).
+
+**Extends:** Decision 6 (Decision Outcome, above) — the *static-model election* it **deferred as
+blocker B4**. **Requirement:** FR-013. **Constraint gate:** C-009 (this addendum is the ADR of record
+that C-009 requires **before** the IC-08 event vocabulary lands — WP09 is gated on it). **Lineage:**
+[#2093](https://github.com/Priivacy-ai/spec-kitty/issues/2093) (canonical-authority ruling) →
+[#2400](https://github.com/Priivacy-ai/spec-kitty/issues/2400) (WP-metadata half) → #2816;
+[#2399](https://github.com/Priivacy-ai/spec-kitty/issues/2399) owns the full fail-closed *enforcement*
+and stays **out of scope** here (this ruling records **record + reconstruct** only).
+
+### Context — why blocker B4 is now actionable, and why it grew
+
+Decision 6 deferred the static-model election because "`WPMetadata` cannot become a clean static-only
+projection until its runtime half is stripped." The #2816 corpus cutover (WP01–WP07) strips that
+runtime half: the runtime-mutable fields leave `tasks/WP##.md` frontmatter and become event-sourced.
+B4 is therefore now decidable.
+
+Deciding it surfaced a finding that reframes the original "elect the static model" question. A WP does
+not carry *one* identity that is either static or dynamic — it carries **two distinct
+representations** of `role`/`agent_profile`/`model`, and the earlier framing risked collapsing them:
+
+- The **authored recommendation** — who/what a WP was *designed* to be run by, authored once at
+  tasks-finalize. This is fixed for the life of the WP.
+- The **resolved actual** — who/what *actually* resolved and ran the WP at a given lifecycle
+  transition. This **shifts** across the lifecycle: an implementer profile on model A claims the WP; a
+  reviewer profile on model B picks it up for review; a model can be swapped mid-cycle. A single static
+  value is therefore **wrong mid-cycle** — only the event log's latest-actual reduction is correct.
+
+Electing a static model (or a static profile/role) as *the* identity would re-manufacture the very
+split-brain #2093 forbids: a consumer reading the static value would report the wrong actor for any WP
+past its first pick-up. B4 is resolved not by "make the model static" but by **ratifying a per-field
+authority that keeps authored intent and resolved actual as separate, single-authority data.**
+
+### Decision — per-field authority (unambiguous, per field)
+
+For each of `role`, `agent_profile` (+ `agent_profile_version`), `model`, and `provider`, the two
+representations have **different, single canonical authorities**:
+
+| Field | Authored / recommended (static) | Resolved / actual (dynamic) |
+|---|---|---|
+| `role` | **frontmatter-canonical** — authored once at tasks-finalize | **event-log / snapshot-authoritative** — folded latest-wins at each pick-up/claim/reassign |
+| `agent_profile` (+`agent_profile_version`) | **frontmatter-canonical** | **event-log / snapshot-authoritative**, latest-wins |
+| `model` | **frontmatter-canonical** | **event-log / snapshot-authoritative**, latest-wins |
+| `provider` | (no authored form) | **event-log / snapshot-authoritative**, latest-wins |
+
+Read plainly:
+
+- The **resolved actual** `role`/`agent_profile`(+version)/`model`/`provider` are **dynamic →
+  event-log/snapshot-authoritative**. They are recorded on the append-only log at each
+  **pick-up/claim/reassign** transition and folded **latest-wins** into the reduced snapshot. The
+  snapshot is their sole read authority — no consumer reads them from frontmatter.
+- The **authored recommendation** `role`/`agent_profile`/`model` are **static →
+  frontmatter-canonical**. They are authored once at tasks-finalize and never mirrored into events.
+
+This mirrors the two-column authority table in the mission data-model (`data-model.md`, "Resolved
+runtime identity (event-sourced) vs authored recommendation (frontmatter)") so that no field's
+authority is left implicit. It is the concrete, per-field realisation of Decision Driver
+**"one authority per datum"** for the identity fields specifically.
+
+### Binding constraints of the ruling
+
+- **C-007 — the recorded resolved value MUST come from the resolver, never a frontmatter copy.** The
+  recorded resolved `role`/`agent_profile`/`model` MUST be produced by `resolve_profile` /
+  `resolved_agent()` / the dispatch resolution. Copying the static frontmatter `agent_profile` string
+  into an event is **forbidden** — it manufactures a *new* split-brain (the exact #2093 anti-pattern:
+  static design-intent masquerading as recorded runtime truth). Where a genuine resolved value is
+  unavailable on a given path (e.g. no dispatch-resolved model), it is recorded **explicitly absent**,
+  never fabricated or frontmatter-coerced.
+- **C-008 — authored intent and resolved actual are never conflated.** Every WP-view consumer surfaces
+  the frontmatter **authored recommendation** and the event-sourced **resolved actual** as **distinct**
+  values. No consumer treats the authored value as "what ran", nor the resolved value as "what was
+  intended". A WP with no resolved-binding events shows the authored recommendation and an **empty**
+  resolved actual — never the authored value masquerading as resolved. The single reconstruction reader
+  (`reconstruct_wp_view`, IC-07) is the **one** assembly point that joins the snapshot's resolved
+  fields with frontmatter's authored fields, distinctly labelled.
+
+### Ratification — the `role` reversal
+
+An interim note had kept `role` as a frontmatter-only field ("keep role frontmatter"). The #2093
+ruling text lists `role` among the *dynamic* fields. **This addendum ratifies the reversal:** the
+**authored** role recommendation stays frontmatter-canonical, but the **actual** role that ran a WP is
+**event-sourced** (dynamic, latest-wins) — exactly like `agent_profile` and `model`. `role` is not an
+exception to the per-field rule above; it follows it. The interim "keep role frontmatter" note is
+**superseded**.
+
+### Scope and lineage
+
+This ruling records the **resolved-binding "record + reconstruct" slice** of #2093 plus the
+WP-metadata half of #2400. It does **not** ratify the full fail-closed *enforcement* of #2399 (an agent
+being unable to act without a resolved+recorded profile, across ops/dispatch/ad-hoc/mission-WP) — that
+stays out of scope and #2399 remains open for it. Recording a per-field canonical-authority ruling as
+an ADR follows the #2093 precedent: a canonical-authority decision is a system-design decision, not an
+implementation detail.
+
+### Consequences
+
+**Positive**
+
+- Blocker B4 is resolved: the identity fields have an unambiguous, per-field authority, so the event
+  vocabulary (IC-08), the reconstruction reader (IC-07), and the SaaS `actor` delivery (IC-09) can be
+  built against a ratified contract rather than an open question.
+- The reduced snapshot becomes the single read authority for "who/what is *actually* running this WP",
+  correct at every lifecycle stage — the dashboard, the `agent tasks status` board, and `WorkPackage`
+  can converge on one reconstruction reader.
+- The split-brain #2093 forbids is closed for the identity fields, not merely for lane/status.
+
+**Negative**
+
+- The WP view must now always join two sources (snapshot + frontmatter); a consumer that reads only one
+  is, by construction, wrong. The single reconstruction reader (IC-07) is the mitigation, and the
+  extended #2093 architectural detector guards against a reader that reaches back into frontmatter for a
+  resolved field.
+
+**Neutral**
+
+- This addendum is the **gate**, authored **before** the IC-08 vocabulary and the IC-07 reader exist;
+  it presupposes neither. It records the ruling; WP09/WP10 implement it.

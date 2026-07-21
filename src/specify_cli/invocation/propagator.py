@@ -160,9 +160,10 @@ def _build_started_event_dict(
     """Envelope built 1:1 from the v2 OpStartedEvent (op-record-events.md).
 
     No wire-compat with the pre-mission envelope (decision
-    01KTSJEQANMNEV16WMSAJP6FR1). None fields (router_confidence, mission_id,
-    wp_id) are omitted, mirroring the on-disk JSONL shape. request_text is
-    policy-gated (projection_policy.include_request_text).
+    01KTSJEQANMNEV16WMSAJP6FR1). Optional fields (router_confidence,
+    mission_id, wp_id, model_id) are omitted when absent, mirroring the on-disk
+    JSONL shape. request_text is policy-gated
+    (projection_policy.include_request_text).
     """
     event_dict: dict[str, object] = record.model_dump(exclude_none=True)
     del event_dict["event"]

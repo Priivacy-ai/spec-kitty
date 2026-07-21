@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import json
+import os
+from collections.abc import Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
+from specify_cli.core.utils import ensure_within_any
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
-from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
+from specify_cli.invocation.record import (
+    OpCompletedEvent,
+    OpStartedEvent,
+    validate_invocation_id,
+)
 
 if TYPE_CHECKING:
     from glossary.chokepoint import GlossaryObservationBundle
@@ -64,7 +72,72 @@ class InvocationWriter:
         Filename is invocation_id ONLY — no profile_id prefix.
         This allows profile-invocation complete to work with --invocation-id alone.
         """
-        return self._dir / f"{invocation_id}.jsonl"
+        validated_id = validate_invocation_id(invocation_id)
+        candidate = self._dir / f"{validated_id}.jsonl"
+        ensure_within_any(candidate, roots=[self._dir])
+        if candidate.is_symlink():
+            raise ValueError(
+                f"Invocation record must not be a symbolic link: {candidate}"
+            )
+        return candidate
+
+    @contextlib.contextmanager
+    def _validated_append_handle(
+        self,
+        path: Path,
+        invocation_id: str,
+    ) -> Iterator[TextIO]:
+        """Open one existing trail inode and verify its started-event identity."""
+        no_follow = getattr(os, "O_NOFOLLOW", 0)
+        if no_follow == 0 and path.is_symlink():
+            raise InvocationError(f"Refusing symbolic-link invocation record: {path}")
+        try:
+            fd = os.open(path, os.O_RDWR | os.O_APPEND | no_follow)
+        except FileNotFoundError as exc:
+            raise InvocationError(
+                f"Invocation record not found: {invocation_id}"
+            ) from exc
+        except OSError as exc:
+            raise InvocationWriteError(
+                f"Failed to open invocation record safely: {exc}"
+            ) from exc
+        with os.fdopen(fd, "a+", encoding="utf-8") as handle:
+            handle.seek(0)
+            try:
+                rows = [
+                    json.loads(line)
+                    for line in handle.read().splitlines()
+                    if line.strip()
+                ]
+            except (json.JSONDecodeError, OSError) as exc:
+                raise InvocationError(
+                    f"Invocation record is unreadable: {invocation_id}"
+                ) from exc
+            if not rows or rows[0].get("event") != "started":
+                raise InvocationError(
+                    f"Invocation record has no started event: {invocation_id}"
+                )
+            embedded_id = rows[0].get("invocation_id")
+            if embedded_id != invocation_id:
+                raise InvocationError(
+                    "Invocation record identity mismatch: "
+                    f"requested={invocation_id!r}, embedded={embedded_id!r}"
+                )
+            yield handle
+
+    @staticmethod
+    def _append_line_no_follow(path: Path, line: str) -> None:
+        """Append one line without following a pre-planted final symlink."""
+        no_follow = getattr(os, "O_NOFOLLOW", 0)
+        if no_follow == 0 and path.is_symlink():
+            raise OSError(f"refusing symbolic link: {path}")
+        fd = os.open(
+            path,
+            os.O_WRONLY | os.O_APPEND | os.O_CREAT | no_follow,
+            0o600,
+        )
+        with os.fdopen(fd, "a", encoding="utf-8") as handle:
+            handle.write(line)
 
     def _append_to_index(self, record: OpStartedEvent) -> None:
         """Append a lightweight entry to the invocation index.
@@ -88,8 +161,7 @@ class InvocationWriter:
                     "started_at": record.started_at,
                 }
             )
-            with index_path.open("a", encoding="utf-8") as f:
-                f.write(entry + "\n")
+            self._append_line_no_follow(index_path, entry + "\n")
         except OSError:
             pass  # index is a performance aid; silently degrade
 
@@ -107,7 +179,8 @@ class InvocationWriter:
         path = self.invocation_path(record.invocation_id)
         try:
             # Use "x" mode (exclusive create) to detect ULID collision (extremely rare).
-            # None fields (router_confidence, mission_id, wp_id) are omitted.
+            # Optional fields (router_confidence, mission_id, wp_id, model_id)
+            # are omitted when None.
             with path.open("x", encoding="utf-8") as f:
                 f.write(record.to_jsonl_line() + "\n")
         except FileExistsError:
@@ -127,18 +200,19 @@ class InvocationWriter:
         Raises ``InvocationWriteError`` on filesystem failure.
         """
         path = self.invocation_path(record.invocation_id)
-        if not path.exists():
-            raise InvocationError(f"Invocation record not found: {record.invocation_id}")
-
-        raw = path.read_text(encoding="utf-8")
-        lines = [line.strip() for line in raw.splitlines() if line.strip()]
-        existing = [json.loads(line) for line in lines]
-        if any(entry.get("event") == "completed" for entry in existing):
-            raise AlreadyClosedError(record.invocation_id)
-
         try:
-            with path.open("a", encoding="utf-8") as f:
-                f.write(record.to_jsonl_line() + "\n")
+            with self._validated_append_handle(path, record.invocation_id) as handle:
+                handle.seek(0)
+                existing = [
+                    json.loads(line)
+                    for line in handle.read().splitlines()
+                    if line.strip()
+                ]
+                if any(entry.get("event") == "completed" for entry in existing):
+                    raise AlreadyClosedError(record.invocation_id)
+                handle.write(record.to_jsonl_line() + "\n")
+        except (AlreadyClosedError, InvocationError, InvocationWriteError):
+            raise
         except OSError as e:
             raise InvocationWriteError(f"Failed to append completed event: {e}") from e
         return path
@@ -166,8 +240,6 @@ class InvocationWriter:
         if (ref is None) == (sha is None):
             raise ValueError("Exactly one of ref or sha must be provided")
         path = self.invocation_path(invocation_id)
-        if not path.exists():
-            raise InvocationError(f"Invocation record not found: {invocation_id}")
         at_ts = at or datetime.datetime.now(datetime.UTC).isoformat()
         entry: dict[str, object] = {
             "event": "artifact_link" if ref is not None else "commit_link",
@@ -180,8 +252,10 @@ class InvocationWriter:
         else:
             entry["sha"] = sha
         try:
-            with path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
+            with self._validated_append_handle(path, invocation_id) as handle:
+                handle.write(json.dumps(entry) + "\n")
+        except (InvocationError, InvocationWriteError):
+            raise
         except OSError as e:
             raise InvocationWriteError(
                 f"Failed to append correlation event: {e}"
@@ -203,14 +277,12 @@ class InvocationWriter:
             return
         try:
             path = self.invocation_path(invocation_id)
-            if not path.exists():
-                return
             entry: dict[str, object] = {
                 "event": "glossary_checked",
                 "invocation_id": invocation_id,
             }
             entry.update(bundle.to_dict())
-            with path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
-        except OSError:
+            with self._validated_append_handle(path, invocation_id) as handle:
+                handle.write(json.dumps(entry) + "\n")
+        except (OSError, InvocationError, InvocationWriteError, ValueError):
             pass

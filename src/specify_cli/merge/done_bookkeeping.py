@@ -29,10 +29,9 @@ from specify_cli.merge.git_probes import path_is_under_worktrees
 from specify_cli.merge.state import MergeState, save_state
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from mission_runtime import MissionArtifactKind, resolve_placement_only
-from specify_cli.status import WPMetadata, read_wp_frontmatter
 
 if TYPE_CHECKING:
-    from specify_cli.status import DoneEvidence, Lane
+    from specify_cli.status import DoneEvidence, EventStream, Lane
 
 # Lanes treated as "pre-approved" for the approved-replay emission.
 _PRE_APPROVED_LANE_VALUES = frozenset({"planned", "claimed", "in_progress", "for_review"})
@@ -92,25 +91,36 @@ def _has_transition_to(
     )
 
 
-def _extract_done_evidence(meta: WPMetadata, wp: str) -> DoneEvidence | None:
-    """Build DoneEvidence from approved review frontmatter, else None.
+def _resolve_snapshot_done_evidence(
+    event_stream: EventStream,
+    wp_id: str,
+) -> DoneEvidence | None:
+    """Build DoneEvidence from the reduced-snapshot ``review`` slot, else None.
 
-    Inlined from the migration-only ``status.history_parser`` module (T031):
-    merge is the sole production consumer, so the public ``status`` facade
-    (DoneEvidence/ReviewApproval) is used directly instead of a deep import.
+    IC-04 / FR-006 / D-05: the event-sourced replacement for the deleted
+    frontmatter done-evidence synthesis. The reviewer identity comes from the
+    reduced snapshot's ``review.actor`` (the backfill seeds the historical
+    approval there) — never the frontmatter reviewer field. Consumes the shared
+    review-slot reader (``status.resolve_snapshot_review``) so the merge gate and
+    the CLI interpret the slot identically (D-14). A WP with no ``review`` slot —
+    or a slot carrying an empty ``actor`` — yields ``None`` (treated as absent),
+    so the caller falls through to the lane-approved evidence.
     """
-    from specify_cli.status import DoneEvidence, ReviewApproval
+    from specify_cli.status import DoneEvidence, ReviewApproval, resolve_event_stream_review
 
-    reviewed_by = meta.reviewed_by
-    if meta.review_status == "approved" and reviewed_by and str(reviewed_by).strip():
-        return DoneEvidence(
-            review=ReviewApproval(
-                reviewer=str(reviewed_by).strip(),
-                verdict="approved",
-                reference=f"frontmatter-migration:{wp}",
-            )
+    override = resolve_event_stream_review(event_stream, wp_id)
+    if override is None:
+        return None
+    reviewer = override.actor.strip()
+    if not reviewer:
+        return None
+    return DoneEvidence(
+        review=ReviewApproval(
+            reviewer=reviewer,
+            verdict="approved",
+            reference=f"snapshot-review:{wp_id}",
         )
-    return None
+    )
 
 
 def _resolve_wp_path(primary_feature_dir: Path, wp_id: str) -> Path | None:
@@ -257,19 +267,35 @@ def _mark_wp_merged_done(
         console.print(f"[yellow]Warning:[/yellow] Could not locate WP file for {wp_id}; skipping merge-complete status update.")
         return
 
-    metadata, _body = read_wp_frontmatter(wp_path)
-    # Validate the authoritative status surface once (FR-002 / NFR-003).
-    # Transactional status helpers must receive the primary meta-bearing feature
+    # Transactional status helpers receive the primary meta-bearing feature
     # dir so they can resolve/commit to the coordination branch. Passing the
     # coord worktree dir loses meta in status-only coord worktrees and degrades
-    # writes into local, non-durable file edits.
-    resolve_status_surface(repo_root, mission_slug)
+    # writes into local, non-durable file edits. The annotation-aware
+    # transactional read below performs the authoritative status validation
+    # without requiring a coordination worktree to be materialized.
     feature_dir = primary_feature_dir
     from specify_cli.coordination.status_transition import (
         emit_status_transition_transactional,
+        read_event_stream_transactional,
         read_current_wp_state_transactional,
     )
-    from specify_cli.status import DoneEvidence, ReviewApproval, TransitionError, TransitionRequest
+    from specify_cli.status import (
+        DoneEvidence,
+        ReviewApproval,
+        TransitionError,
+        TransitionRequest,
+        reduce,
+    )
+
+    event_stream = read_event_stream_transactional(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+    )
+    wp_snapshot = reduce(
+        event_stream.transitions,
+        event_stream.annotations,
+    ).work_packages.get(wp_id, {})
 
     lane, _actor = read_current_wp_state_transactional(
         feature_dir=feature_dir,
@@ -292,12 +318,18 @@ def _mark_wp_merged_done(
         wp_id=wp_id,
     )
 
-    evidence = _extract_done_evidence(metadata, wp_id)
+    # IC-04 / FR-006 / C-001 / D-05: the snapshot ``review`` slot is the
+    # event-sourced done-evidence source (the frontmatter synthesis is deleted).
+    # A WP with no review slot falls through to the lane-derived fallback below —
+    # which also uses the resolved event-stream agent, never frontmatter.
+    evidence = _resolve_snapshot_done_evidence(event_stream, wp_id)
     if evidence is None:
         if lane == _Lane.APPROVED:
+            runtime_agent = wp_snapshot.get("agent")
+            reviewer = runtime_agent.strip() if isinstance(runtime_agent, str) else "unknown"
             evidence = DoneEvidence(
                 review=ReviewApproval(
-                    reviewer=(metadata.agent or "unknown").strip() or "unknown",
+                    reviewer=reviewer or "unknown",
                     verdict="approved",
                     reference=f"lane-approved:{wp_id}",
                 )

@@ -1,27 +1,26 @@
-"""Regression tests for #2570.1 — allocator vs. its own runtime WP frontmatter (WP01).
+"""Regression tests for #2570.1 (dirty-tree guard) + #2816 claim byte-stability.
 
-``spec-kitty implement WP##`` writes ``shell_pid``/``shell_pid_created_at`` into
-``tasks/WP##.md`` at claim time (``frontmatter.write_shell_pid_claim_to_file``) and
-``base_branch``/``base_commit``/``planning_base_branch`` at workspace-creation time.
-Under ``auto_commit=False`` that self-write is left uncommitted in the working
-tree, so the NEXT lane's dependency-free claim sees it as a dirty planning
-artifact and the dirty-tree guard (``_ensure_planning_artifacts_committed_git`` /
-``resolve_planning_artifact_staging``) wrongly refuses it.
+**Post-#2816 (WP04) cutover.** ``spec-kitty implement WP##`` no longer writes
+``shell_pid``/``shell_pid_created_at`` into ``tasks/WP##.md`` at claim time — the
+frontmatter dual-write mirror was removed in the unconditional reader/writer
+cutover, so the claim rides the event log / ``policy_metadata`` sidecar only and
+the WP prompt file is **byte-identical across the claim** (NFR-003 / SC-004).
 
-The fix (``_drop_runtime_frontmatter_only_wp`` in ``implement_cores.py``, the
-structural analogue of the existing ``_drop_vcs_lock_only_meta`` / #2222 fix)
-excludes a WP##.md change from the dirty-tree guard ONLY when every differing
+Section A (unchanged) drives the pure dirty-tree-guard cores
+(``_is_runtime_frontmatter_only_wp_diff``, ``_drop_runtime_frontmatter_only_wp``)
+directly against a real git repo. That guard is still load-bearing: a
+runtime-field-only WP##.md diff from ANY writer (e.g. ``move-task``, or a
+migration repair) is excluded from the guard ONLY when every differing
 frontmatter key is in the ONE canonical
 :data:`specify_cli.frontmatter.WP_RUNTIME_FIELDS` source AND the markdown body
 is byte-identical (K-1/NFR-005: a body edit, or any non-runtime frontmatter key
 change, must still block). The default ``auto_commit=True`` path is a
 byte-identical no-op (NFR-001).
 
-Section A drives the pure decision cores (``_is_runtime_frontmatter_only_wp_diff``,
-``_drop_runtime_frontmatter_only_wp``) directly against a real git repo — fast,
-precise coverage of every runtime field plus the true-positive guards. Section B
-drives the REAL claim surface (``implement()``) across N sequential lanes to prove
-the end-to-end SC: zero manual commits are needed between allocations.
+Section B drives the REAL claim surface (``implement()``) across N sequential
+lanes and asserts the post-cutover invariant directly: every ``WP##.md`` prompt
+file is **byte-identical** before and after its claim (0 runtime bytes written),
+so no inter-allocation commit is ever needed.
 """
 
 from __future__ import annotations
@@ -419,19 +418,23 @@ def _claim_through_guard(tmp_path: Path, feature_dir: Path, lane_id: str) -> Ite
         yield create_mock
 
 
-def test_sequential_n_lane_allocation_needs_zero_inter_allocation_commits(
+def test_sequential_n_lane_allocation_writes_zero_wp_file_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """SC (#2570.1 / NFR-001): N sequential dependency-free root claims under
-    ``auto_commit=False`` all pass the dirty-tree guard with ZERO manual git
-    commits between them. This test performs no ``git commit`` between
-    iterations -- every claim after the first must clear the guard despite
-    every PRIOR claim's own uncommitted ``shell_pid`` self-write sitting in
-    the same feature_dir.
+    """SC-004 / NFR-003 (#2816 cutover): N sequential dependency-free root claims
+    under ``auto_commit=False`` each write **0 bytes** to their WP prompt file.
+
+    Post-cutover the claim no longer self-writes ``shell_pid`` into
+    ``tasks/WP##.md`` (the dual-write mirror was removed), so every ``WP##.md`` is
+    byte-identical across its claim and NO inter-allocation commit is ever needed
+    — the dirty-tree guard has nothing to drop. This test performs no ``git
+    commit`` between iterations and asserts the prompt files never change.
     """
     wp_ids = ["WP01", "WP02", "WP03"]
     feature_dir = _build_multi_wp_mission_repo(tmp_path, wp_ids)
     monkeypatch.chdir(tmp_path)
+    tasks_dir = feature_dir / "tasks"
+    before = {wp_id: (tasks_dir / f"{wp_id}-plan.md").read_bytes() for wp_id in wp_ids}
 
     for index, wp_id in enumerate(wp_ids):
         lane_id = f"lane-{chr(ord('a') + index)}"
@@ -442,13 +445,19 @@ def test_sequential_n_lane_allocation_needs_zero_inter_allocation_commits(
             implement(wp_id, mission=feature_dir.name, auto_commit=False, recover=False)
 
         assert create_mock.called, (
-            f"{wp_id} (lane {index + 1} of {len(wp_ids)}) was blocked by a prior "
-            "claim's own uncommitted runtime-frontmatter self-write (#2570.1 "
-            "regression) -- 0 inter-allocation commits were made by this test"
+            f"{wp_id} (lane {index + 1} of {len(wp_ids)}) was blocked before "
+            "reaching workspace allocation"
         )
 
-    # Confirm the test truly exercised the bug scenario: every WP's shell_pid
-    # self-write is STILL uncommitted at the end (this test never committed).
+    # Byte-stability (SC-004): the claim wrote 0 runtime bytes to any WP prompt
+    # file — every WP##.md is byte-identical to its pre-claim content, so the
+    # working tree carries no WP##.md change at all.
+    for wp_id in wp_ids:
+        after = (tasks_dir / f"{wp_id}-plan.md").read_bytes()
+        assert after == before[wp_id], (
+            f"{wp_id}'s prompt file must be byte-identical across its claim (0 runtime bytes)"
+        )
+
     status = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=tmp_path,
@@ -457,4 +466,6 @@ def test_sequential_n_lane_allocation_needs_zero_inter_allocation_commits(
         check=True,
     ).stdout
     for wp_id in wp_ids:
-        assert f"{wp_id}-plan.md" in status, f"expected {wp_id}'s prompt file to remain uncommitted"
+        assert f"{wp_id}-plan.md" not in status, (
+            f"{wp_id}'s prompt file must stay unmodified after a byte-stable claim"
+        )

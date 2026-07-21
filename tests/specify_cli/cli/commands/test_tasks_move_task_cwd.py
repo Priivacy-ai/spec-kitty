@@ -126,6 +126,7 @@ def _build_mission(repo_root: Path) -> Path:
         "title: Fixture WP01\n"
         "execution_mode: code_change\n"
         "agent: testbot\n"
+        "subtasks: []\n"
         "owned_files:\n  - src/wp01/**\n"
         "authoritative_surface: src/wp01/\n"
         "---\n\n# WP01\n\n## Activity Log\n",
@@ -393,6 +394,7 @@ def _build_stale_worktree_mission(root: Path) -> tuple[Path, Path]:
         "title: Fixture WP01\n"
         "execution_mode: code_change\n"
         "agent: testbot\n"
+        "subtasks: []\n"
         "owned_files:\n  - src/wp01/**\n"
         "authoritative_surface: src/wp01/\n"
         "---\n\n# WP01\n\n## Activity Log\n",

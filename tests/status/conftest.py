@@ -58,6 +58,27 @@ def seed_wp_to_planned(
     assert genesis_state.current_lane == Lane.GENESIS
     assert genesis_state.may_transition_to(Lane.PLANNED)
 
+    # A finalized WP always has an authored roster surface. Most lifecycle
+    # tests exercise lane mechanics rather than subtask completion, so seed an
+    # explicit empty roster ("nothing to block on") instead of relying on the
+    # retired caller-supplied ``subtasks_complete`` bypass.
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    wp_file = tasks_dir / f"{wp_id}.md"
+    existing_wp_files = [
+        candidate
+        for candidate in tasks_dir.glob("*.md")
+        if candidate.stem == wp_id
+        or candidate.stem.startswith(f"{wp_id}-")
+        or candidate.stem.startswith(f"{wp_id}_")
+        or candidate.stem.startswith(f"{wp_id}.")
+    ]
+    if not existing_wp_files:
+        wp_file.write_text(
+            f"---\nwork_package_id: {wp_id}\nsubtasks: []\n---\n\n# {wp_id}\n",
+            encoding="utf-8",
+        )
+
     append_event(
         feature_dir,
         StatusEvent(
@@ -101,7 +122,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 @pytest.fixture(autouse=True)
 def _restore_default_saas_handlers_after_each_status_test() -> None:
-    """Re-register default sync handlers after every test in this package.
+    """Register default sync handlers before and after every status test.
 
     Fixes the order-dependent pollution where tests in
     ``test_emit_backward_transition.py`` (and ``test_emit_fanout_after_adapter.py``)
@@ -111,16 +132,19 @@ def _restore_default_saas_handlers_after_each_status_test() -> None:
     rely on the lifecycle fan-out being registered then saw an empty
     registry. See issues Priivacy-ai/spec-kitty#1198 / #1200.
 
-    The hook is post-yield so it runs as teardown for every test. It is
-    idempotent (the underlying ``register_*_handler`` calls de-duplicate
-    by qualified name), so it adds zero overhead when the registry is
-    already populated.
+    The pre-yield registration also covers a fresh xdist worker whose first
+    import used ``SPEC_KITTY_SYNC_MINIMAL_IMPORT``; without it, the first
+    fan-out test in that worker observes an empty registry. Registration is
+    idempotent (the underlying ``register_*_handler`` calls de-duplicate by
+    qualified name), so the before/after calls do not accumulate handlers.
     """
-    yield
     try:
         from specify_cli.sync import register_default_handlers
     except ImportError:
+        yield
         return
+    register_default_handlers()
+    yield
     register_default_handlers()
 
 

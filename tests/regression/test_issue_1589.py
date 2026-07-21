@@ -53,6 +53,7 @@ def _wp(wp_id: str, deps: list[str]) -> str:
         f"title: {wp_id}\n"
         "execution_mode: code_change\n"
         "agent: testbot\n"
+        "subtasks: []\n"
         f"{dep_block}"
         "owned_files:\n"
         f"  - src/{wp_id.lower()}/**\n"

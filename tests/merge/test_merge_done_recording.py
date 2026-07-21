@@ -10,6 +10,13 @@ from unittest.mock import Mock, patch
 import pytest
 import typer
 
+from specify_cli.status import (
+    InnerStateChanged,
+    ReviewOverride,
+    WPInnerStateDelta,
+    append_annotations_atomic_verified,
+)
+
 from specify_cli.cli.commands.merge import (
     BaselineMergeCommitError,
     _assert_baseline_merge_commit_on_target,
@@ -31,21 +38,47 @@ def _write_minimal_meta(feature_dir: Path) -> None:
     )
 
 
-def _write_wp(path: Path, *, review_status: str = "", reviewed_by: str = "", agent: str = "") -> None:
+def _write_wp(path: Path) -> None:
     """Write a minimal WP file. Lane is tracked via event log, not frontmatter."""
     lines = [
         "---",
         'work_package_id: "WP01"',
         'title: "Test WP"',
         "dependencies: []",
-        f'review_status: "{review_status}"',
-        f'reviewed_by: "{reviewed_by}"',
-        f'agent: "{agent}"',
+        "subtasks: []",
         "---",
         "# WP01",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _seed_runtime(
+    feature_dir: Path,
+    *,
+    review_actor: str | None = None,
+    agent: str | None = None,
+) -> None:
+    review = None
+    if review_actor is not None:
+        review = ReviewOverride(
+            at="2026-07-21T00:00:00+00:00",
+            actor=review_actor,
+            wp_id="WP01",
+            reason="approved",
+        )
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id="01H11111111111111111111111",
+                wp_id="WP01",
+                at="2026-07-21T00:00:00+00:00",
+                actor=agent or review_actor or "merge-test",
+                delta=WPInnerStateDelta(agent=agent, review=review),
+            )
+        ],
+    )
 
 
 def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) -> None:
@@ -54,7 +87,8 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -130,7 +164,8 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -159,7 +194,8 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -198,7 +234,8 @@ def test_mark_wp_merged_done_replays_approved_before_done_for_primary_fallback(
         ),
         encoding="utf-8",
     )
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -229,13 +266,14 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    """When synthesizing evidence for approved WP, the agent field should come from typed metadata."""
+    """Lane-approved fallback uses the event-sourced runtime agent."""
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", agent="gemini-cli")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, agent="gemini-cli")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -251,21 +289,19 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     assert request.evidence["review"]["reviewer"] == "gemini-cli"
 
 
-def test_mark_wp_merged_done_uses_typed_frontmatter(
+def test_mark_wp_merged_done_does_not_read_runtime_frontmatter(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    """Verify _mark_wp_merged_done uses read_wp_frontmatter (typed) not read_frontmatter (raw dict).
+    """Merge bookkeeping sources all mutable evidence from the event stream.
 
     WP08 (#2057): _mark_wp_merged_done moved to the ``done_bookkeeping`` seam, so
     the typed-frontmatter import now lives there (not on the command shim).
     """
     import specify_cli.merge.done_bookkeeping as db_mod
 
-    # The old read_frontmatter (raw dict) import must not exist on the seam.
-    assert not hasattr(db_mod, "read_frontmatter"), "done_bookkeeping still imports read_frontmatter; should use read_wp_frontmatter"
-    # The new typed import must be present where _mark_wp_merged_done now lives.
-    assert hasattr(db_mod, "read_wp_frontmatter"), "done_bookkeeping must import read_wp_frontmatter"
+    assert not hasattr(db_mod, "read_frontmatter")
+    assert not hasattr(db_mod, "read_wp_frontmatter")
 
 
 def test_assert_merged_wps_reached_done_allows_done_snapshot(

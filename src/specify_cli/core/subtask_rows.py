@@ -1,11 +1,17 @@
-"""Canonical work-package subtask row patterns — single definition (#2504 / #2513).
+"""Canonical work-package subtask row patterns + the snapshot-backed guard resolver.
 
-A WP's subtasks are the checkbox rows of the form ``- [ ] T001 <desc>`` /
-``- [x] T001 <desc>`` in ``tasks.md`` and the WP prompt body. The
-lane-transition guard blocks on unchecked rows; the dashboard reports
-done/total progress; ``move-task --to planned`` unchecks them on rollback.
-All three consume THESE patterns — do not re-derive them locally
-(canonical-sources rule).
+A WP's subtasks are historically the checkbox rows of the form
+``- [ ] T001 <desc>`` / ``- [x] T001 <desc>`` in ``tasks.md`` and the WP prompt
+body. Since #2816 IC-10 (FR-016 / SC-010) the lane-transition guard no longer
+blocks on those checkbox rows: subtask completion is **solely** event-sourced.
+The guard's blocking source is now the pair defined here — ``authored_subtask_roster``
+(the authored ``subtasks:`` frontmatter list = static design intent) and
+``unchecked_subtask_ids_from_snapshot`` (completion from the reduced event-log
+``subtasks`` slot, fail-closed). The row patterns below survive for the callers
+that still legitimately parse checkboxes: the **migration backfill** (seeds the
+snapshot from legacy checkboxes, C-010), the ``move-task --to planned``
+**rollback** writer, and the **acceptance gate**. Do not re-derive any of these
+locally (canonical-sources rule).
 
 Semantics (mirrors the guard, ``_check_unchecked_subtasks``):
 
@@ -31,9 +37,17 @@ section-exit semantics are encoded.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator, Mapping
+from pathlib import Path
+from typing import Any
 
 from kernel._safe_re import re
+
+#: WP-file name matcher tail: ``WP04.md`` / ``WP04-slug.md`` / ``WP04_slug.md``
+#: but NOT ``WP04b.md`` — the same word-boundary rule the emit / wp_view locators
+#: use (mirrors ``status.wp_view._WP_FILE_SEP``). Kept in lockstep by convention;
+#: consolidating the four private WP-file locators is out of scope for this WP.
+_WP_FILE_SEP = r"(?:[-_.]|\.md$)"
 
 #: Unchecked canonical subtask row: ``- [ ] T001 ...`` (blocks lane transitions).
 UNCHECKED_SUBTASK_ROW = re.compile(r"^-\s*\[\s*\]\s*(T\d{3,})\b")
@@ -220,3 +234,159 @@ def uncheck_wp_section_subtask_rows(tasks_md_text: str, wp_id: str) -> str:
             changed = True
         result.append(new_line)
     return "\n".join(result) if changed else tasks_md_text
+
+
+# ---------------------------------------------------------------------------
+# Snapshot-backed guard resolver (#2816 IC-10 / FR-016 / SC-010)
+# ---------------------------------------------------------------------------
+# The lane-transition guard's blocking source: the authored roster (frontmatter
+# static design intent) + event-sourced completion (the reduced ``subtasks``
+# slot). This retires the ``tasks.md`` checkbox as the subtask-completion proxy
+# (the D-13 incoherence: a raw checkbox edit without ``mark-status`` showed
+# frozen progress). ``mark-status`` -> ``emit_inner_state_changed`` -> snapshot
+# is now the SOLE completion authority.
+
+
+class SubtaskRosterResolutionError(RuntimeError):
+    """The authored subtask roster could not be resolved safely."""
+
+
+def _locate_wp_file(feature_dir: Path, wp_id: str) -> Path:
+    """Locate the single canonical WP markdown file for *wp_id* under ``tasks/``.
+
+    Mirrors the word-boundary rule the emit / wp_view locators use
+    (``WP04.md`` / ``WP04-slug.md`` but not ``WP04b.md``). Missing or ambiguous
+    sources are errors: collapsing them to an empty roster would make the review
+    gate fail open and conflate corruption with an explicitly authored ``[]``.
+    """
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.exists():
+        raise SubtaskRosterResolutionError(
+            f"Cannot resolve subtask roster for {wp_id}: tasks directory is missing"
+        )
+    pattern = re.compile(rf"^{re.escape(wp_id)}{_WP_FILE_SEP}", re.IGNORECASE)
+    matches = [
+        path
+        for path in tasks_dir.glob("*.md")
+        if path.name.lower() != "readme.md" and pattern.match(path.name)
+    ]
+    if not matches:
+        raise SubtaskRosterResolutionError(
+            f"Cannot resolve subtask roster for {wp_id}: work-package file is missing"
+        )
+    if len(matches) > 1:
+        paths = ", ".join(path.name for path in sorted(matches))
+        raise SubtaskRosterResolutionError(
+            f"Cannot resolve subtask roster for {wp_id}: ambiguous files ({paths})"
+        )
+    return matches[0]
+
+
+def authored_subtask_roster(feature_dir: Path, wp_id: str) -> list[str]:
+    """Return the authored subtask-id roster for *wp_id* from its WP frontmatter.
+
+    The roster (which task ids belong to *wp_id*) is static design intent,
+    authored in the WP file's ``subtasks:`` frontmatter list — NOT the
+    ``tasks.md`` checkbox rows. Since #2816 IC-10 (FR-016) retired the markdown
+    checkbox as the subtask-completion proxy, the guard sources its roster here
+    (frontmatter) and its completion from the reduced snapshot slot
+    (:func:`unchecked_subtask_ids_from_snapshot`). Sourcing the roster from the
+    frontmatter — not by re-parsing ``tasks.md`` — is what makes checkbox
+    removal safe: an emptied ``tasks.md`` can no longer silently empty the
+    roster and disable the guard.
+
+    Returns the task ids in authored order, de-duplicated and coerced to
+    ``str``. Only an explicitly readable empty ``subtasks`` list yields ``[]``
+    ("nothing to block on"). Missing, ambiguous, or malformed WP metadata raises
+    :class:`SubtaskRosterResolutionError` so transition callers fail closed.
+    """
+    wp_file = _locate_wp_file(feature_dir, wp_id)
+    # Lazy imports: ``core`` must not import ``status`` at module scope
+    # (``status.emit`` imports THIS module — a top-level edge would cycle).
+    from specify_cli.frontmatter import FrontmatterManager
+    from specify_cli.status import WPMetadata
+
+    try:
+        frontmatter, _body = FrontmatterManager().read(wp_file)
+        if "subtasks" not in frontmatter:
+            raise SubtaskRosterResolutionError(
+                f"Cannot resolve subtask roster for {wp_id}: subtasks key is missing"
+            )
+        metadata = WPMetadata.model_validate(frontmatter, strict=False)
+    except SubtaskRosterResolutionError:
+        raise
+    except Exception as exc:
+        raise SubtaskRosterResolutionError(
+            f"Cannot resolve subtask roster for {wp_id}: {wp_file.name} is unreadable"
+        ) from exc
+    return normalize_authored_subtask_roster(metadata.subtasks)
+
+
+def normalize_authored_subtask_roster(raw_values: Iterable[object]) -> list[str]:
+    """Normalize authored subtask IDs in order, trimming and de-duplicating."""
+    seen: set[str] = set()
+    roster: list[str] = []
+    for raw in raw_values:
+        task_id = str(raw).strip()
+        if task_id and task_id not in seen:
+            seen.add(task_id)
+            roster.append(task_id)
+    return roster
+
+
+def unchecked_subtask_ids_from_snapshot(
+    feature_dir: Path, wp_id: str, roster: Iterable[str]
+) -> list[str]:
+    """Return the *roster* ids whose reduced-snapshot ``subtasks`` status is not DONE.
+
+    The single, fail-closed completion resolver the lane-transition guard blocks
+    on since #2816 IC-10 (FR-016 / SC-010). Completion is read ONLY from the
+    event-sourced reduced snapshot's ``subtasks`` slot (written by
+    ``mark-status``'s ``emit_inner_state_changed`` call) — never from ``tasks.md``
+    checkbox bytes, which the cutover retired as an incoherent proxy (D-13).
+
+    Fail-closed (mirrors ``emit._infer_subtasks_complete``): a WP with an
+    authored roster but an absent/silent snapshot slot has EVERY roster id
+    reported incomplete — an unprovable completeness state must block, never
+    fall open. An empty roster yields ``[]`` ("nothing to block on").
+    """
+    roster_ids = [str(task_id) for task_id in roster]
+    if not roster_ids:
+        return []
+    # Lazy import: see ``authored_subtask_roster`` — avoids the core->status cycle.
+    from specify_cli.status import Lane, wp_snapshot_state
+
+    wp_state = wp_snapshot_state(feature_dir, wp_id)
+    subtasks: Mapping[str, Any] = {}
+    if wp_state is not None:
+        raw = wp_state.get("subtasks")
+        if isinstance(raw, Mapping):
+            subtasks = raw
+    done = str(Lane.DONE)
+    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) != done]
+
+
+def unchecked_subtask_ids_from_event_stream(
+    event_stream: Any,
+    wp_id: str,
+    roster: Iterable[str],
+) -> list[str]:
+    """Return incomplete roster ids from an already-resolved event stream.
+
+    Transactional callers use this form when canonical status lives on a
+    coordination branch that has no materialized worktree.  The completion
+    semantics are identical to :func:`unchecked_subtask_ids_from_snapshot`.
+    """
+    from specify_cli.status import Lane, reduce
+
+    roster_ids = [str(task_id) for task_id in roster]
+    if not roster_ids:
+        return []
+    state = reduce(
+        event_stream.transitions,
+        event_stream.annotations,
+    ).work_packages.get(wp_id)
+    raw_subtasks = state.get("subtasks") if state is not None else None
+    subtasks: Mapping[str, Any] = raw_subtasks if isinstance(raw_subtasks, Mapping) else {}
+    done = str(Lane.DONE)
+    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) != done]

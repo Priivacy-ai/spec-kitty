@@ -288,34 +288,33 @@ def test_mark_wp_merged_done_locates_primary_wp_task(
     coord_topology_mission_sentinel_meta: CoordTopologyContext,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The WP markdown is located on PRIMARY and its frontmatter is read.
+    """The WP markdown is located on PRIMARY before merge bookkeeping.
 
-    ``read_wp_frontmatter`` is wrapped to CAPTURE the parsed WP metadata (a returned
-    domain value) and short-circuit before the status-transaction machinery. Routed
-    → the WP-path lookup resolves PRIMARY ``tasks/WP01.md`` → frontmatter captured.
+    ``_resolve_wp_path`` is wrapped to CAPTURE the resolved path and short-circuit
+    before the status-transaction machinery. Routed → the WP-path lookup resolves
+    PRIMARY ``tasks/WP01.md``.
     RED-first: reverting the lookup to the coord-aware resolver lands on the husk
     (no ``tasks/``) → ``_resolve_wp_path`` returns ``None`` → the function returns
-    early, ``read_wp_frontmatter`` is never called, and no ``_StopProbe`` is raised.
+    early, the spy observes ``None``, and no primary WP path is captured.
     """
     from specify_cli.merge import done_bookkeeping
 
     ctx = coord_topology_mission_sentinel_meta
-    real_read = done_bookkeeping.read_wp_frontmatter
+    real_resolve = done_bookkeeping._resolve_wp_path
     captured: dict[str, Any] = {}
 
-    def _spy_read(wp_path: Any) -> NoReturn:
-        metadata, _body = real_read(wp_path)
-        captured["work_package_id"] = metadata.work_package_id
+    def _spy_resolve(feature_dir: Any, wp_id: str) -> NoReturn:
+        captured["wp_path"] = real_resolve(feature_dir, wp_id)
         raise _StopProbe
 
-    monkeypatch.setattr(done_bookkeeping, "read_wp_frontmatter", _spy_read)
+    monkeypatch.setattr(done_bookkeeping, "_resolve_wp_path", _spy_resolve)
 
     with pytest.raises(_StopProbe):
         done_bookkeeping._mark_wp_merged_done(ctx.repo, ctx.slug, "WP01", "main")
 
-    assert captured.get("work_package_id") == "WP01", (
+    assert captured.get("wp_path") == ctx.primary_feature_dir / "tasks" / "WP01.md", (
         "the WP-path lookup must locate tasks/WP01.md on the PRIMARY checkout.\n"
-        f"  Got frontmatter work_package_id : {captured.get('work_package_id')!r}\n"
+        f"  Got path : {captured.get('wp_path')!r}\n"
         "If absent, the lookup regressed to the STATUS-only coord husk (no tasks/)."
     )
 

@@ -229,11 +229,10 @@ class TestPreviewClaimableWpForMissionRoutesToPrimary:
         result = _preview_claimable_wp_for_mission(ctx.repo, ctx.slug)
 
         # Flat topology: tasks/ exists on primary = the only dir.
-        # Events are fixture-default (unparseable string evidence) → GENESIS.
+        # The valid fixture event records the WP as claimed.
         assert result is not None
-        # "not_finalized" because GENESIS lane (no valid planned event seeded).
-        assert result.selection_reason == "not_finalized", (
-            f"Flat topology: selection_reason must be 'not_finalized' (genesis WPs).\n"
+        assert result.selection_reason == "all_wps_in_progress", (
+            "Flat topology: selection_reason must reflect the claimed WP.\n"
             f"  Got: {result.selection_reason!r}"
         )
 

@@ -12,8 +12,11 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from specify_cli.status.emit import build_claim_policy_metadata, emit_status_transition
 from specify_cli.status.models import AgentAssignment
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+
+from tests.status.conftest import seed_wp_to_planned
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: walks up to repo kitty-specs/
@@ -107,7 +110,6 @@ class TestWPMetadataFull:
             history=[{"at": "2026-01-01", "actor": "system", "action": "created"}],
             mission_id="01ABC",
             wp_code="WP03",
-            branch_strategy_override=None,
         )
         assert meta.work_package_id == "WP03"
         assert meta.dependencies == ["WP01", "WP02"]
@@ -530,13 +532,48 @@ class TestReadWpFrontmatter:
         with pytest.raises(ValidationError, match="work_package_id"):
             read_wp_frontmatter(wp_file)
 
-    def test_shell_pid_string_in_file(self, tmp_path: Path) -> None:
-        wp_file = tmp_path / "WP01-pid.md"
+    def test_shell_pid_is_snapshot_sourced_not_frontmatter(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Post-cutover (#2816/IC-04, WP04): ``read_wp_frontmatter`` resolves the
+        runtime ``shell_pid`` from the reduced event-sourced snapshot, NOT from the
+        WP file frontmatter (the retired dual-write, NFR-003 byte-stability).
+
+        Reconciled from the pre-cutover ``test_shell_pid_string_in_file`` (which
+        asserted the now-retired frontmatter-read path). A STALE frontmatter
+        ``shell_pid: "111"`` is deliberately present and must be IGNORED; the
+        snapshot value is surfaced instead (and the ``coerce_shell_pid``
+        string->int coercion still applies on the snapshot path). Not weakened:
+        this asserts the true snapshot-authority end-state, and that a divergent
+        frontmatter value does not leak through.
+        """
+        # Keep the claim transition local — no SaaS fan-out / dossier sync.
+        import specify_cli.status.emit as status_emit
+
+        monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None, raising=False)
+        monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *a, **k: None, raising=False)
+
+        feature_dir = tmp_path / "kitty-specs" / "pid-snapshot"
+        (feature_dir / "tasks").mkdir(parents=True)
+        (feature_dir / "meta.json").write_text('{"status_phase": 0}', encoding="utf-8")
+        wp_file = feature_dir / "tasks" / "WP01.md"
         wp_file.write_text(
-            '---\nwork_package_id: WP01\ntitle: PID Test\nshell_pid: "405597"\n---\n\nBody\n',
+            '---\nwork_package_id: WP01\ntitle: PID Test\nshell_pid: "111"\n---\n\nBody\n',
             encoding="utf-8",
         )
+
+        seed_wp_to_planned(feature_dir, "WP01", slug="pid-snapshot")
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug="pid-snapshot",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="claude",
+            policy_metadata=build_claim_policy_metadata(405597, "2026-07-20T00:00:00Z", "claude"),
+        )
+
         meta, _ = read_wp_frontmatter(wp_file)
+        # Snapshot-sourced (string->int coerced), NEVER the stale frontmatter 111.
         assert meta.shell_pid == 405597
 
     def test_legacy_unknown_base_commit_in_file_is_normalized(self, tmp_path: Path) -> None:

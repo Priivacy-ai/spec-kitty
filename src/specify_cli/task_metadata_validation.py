@@ -134,12 +134,17 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
     # Add activity log entry if requested
     if add_history:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        # WP04/T015 (NFR-003/SC-004): the runtime ``shell_pid`` slot is no longer
+        # emitted as a parseable frontmatter field — no repair/template path may
+        # re-introduce a runtime slot into ``tasks/WP##.md``. The claiming pid is
+        # kept only as inert audit provenance inside the human-readable action
+        # note (never parsed as a runtime field).
+        repair_note = f"Auto-repaired lane metadata (was: {actual_lane}) [shell_pid {shell_pid}]"
         history_entry = (
             f'  - timestamp: "{timestamp}"\n'
             f'    lane: "{expected_lane}"\n'
             f'    agent: "{agent}"\n'
-            f'    shell_pid: "{shell_pid}"\n'
-            f'    action: "Auto-repaired lane metadata (was: {actual_lane})"\n'
+            f'    action: "{repair_note}"\n'
         )
 
         # Find activity_log in frontmatter
@@ -153,8 +158,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
                         "timestamp": timestamp,
                         "lane": expected_lane,
                         "agent": agent,
-                        "shell_pid": shell_pid,
-                        "action": f"Auto-repaired lane metadata (was: {actual_lane})",
+                        "action": repair_note,
                     }
                 )
             elif isinstance(existing_log, str):
