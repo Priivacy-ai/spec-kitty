@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Any
 import re
 
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
 from specify_cli.status import materialize
 from specify_cli.status import ReviewOverride
+from mission_runtime import MissionArtifactKind
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
 REJECTED_REVIEW_ARTIFACT_INVARIANT = (
@@ -126,11 +128,31 @@ def _schema_error_message(exc: ValueError, artifact_path: Path) -> str:
 
 
 def find_rejected_review_artifact_conflicts(
-    feature_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
     wp_ids: list[str] | None = None,
 ) -> list[ReviewArtifactFinding]:
-    """Return review artifact findings that block merge readiness."""
-    snapshot = materialize(feature_dir)
+    """Return review artifact findings that block merge readiness.
+
+    Resolves two independent partitions rather than reading both off one
+    caller-supplied ``feature_dir`` (#2412-adjacent field report): review-cycle
+    artifacts under ``tasks/`` are ``WORK_PACKAGE_TASK``, PRIMARY-partition for
+    every topology; WP lane state comes from ``STATUS_STATE``, which stays on
+    the coordination branch for a coord-topology mission. A single shared
+    directory can only ever be correct for one of the two -- for a
+    coord-topology mission the PRIMARY checkout carries no authoritative
+    status log, and the coordination worktree's on-disk copy of a WP's review
+    artifacts can be stale or an untracked stray file. Resolving each by its
+    own kind is what keeps a stale/wrong copy on either side from silently
+    shadowing the truth on the other.
+    """
+    task_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    status_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
+    snapshot = materialize(status_dir)
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
     findings: list[ReviewArtifactFinding] = []
 
@@ -140,7 +162,7 @@ def find_rejected_review_artifact_conflicts(
             continue
         lane = str(state.get("lane", ""))
         snapshot_override = _snapshot_review_override(state)
-        for artifact_dir in _artifact_dirs_for_wp(feature_dir, wp_id):
+        for artifact_dir in _artifact_dirs_for_wp(task_dir, wp_id):
             latest_path = _latest_review_artifact_path(artifact_dir)
             if latest_path is None:
                 continue
@@ -290,7 +312,8 @@ class ReviewArtifactPreflightResult:
 
 
 def run_review_artifact_consistency_preflight(
-    feature_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
     *,
     wp_ids: list[str] | None = None,
 ) -> ReviewArtifactPreflightResult:
@@ -300,5 +323,5 @@ def run_review_artifact_consistency_preflight(
     ``merge --dry-run`` so the two surfaces cannot drift. Callers that need
     rendering can call ``ReviewArtifactPreflightResult.diagnostics()``.
     """
-    findings = find_rejected_review_artifact_conflicts(feature_dir, wp_ids)
+    findings = find_rejected_review_artifact_conflicts(repo_root, mission_slug, wp_ids)
     return ReviewArtifactPreflightResult(findings=tuple(findings))

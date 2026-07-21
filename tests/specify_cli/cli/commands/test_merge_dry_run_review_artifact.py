@@ -153,7 +153,8 @@ def test_preflight_detects_rejected_review_artifact_on_approved_wp(
     )
 
     result = run_review_artifact_consistency_preflight(
-        mission.mission_dir,
+        mission.repo_root,
+        mission.mission_slug,
         wp_ids=["WP01"],
     )
 
@@ -189,7 +190,8 @@ def test_preflight_passes_on_clean_mission(tmp_path: Path) -> None:
     )
 
     result = run_review_artifact_consistency_preflight(
-        mission.mission_dir,
+        mission.repo_root,
+        mission.mission_slug,
         wp_ids=["WP01"],
     )
 

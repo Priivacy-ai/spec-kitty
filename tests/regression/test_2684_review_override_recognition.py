@@ -149,7 +149,7 @@ def test_event_sourced_complete_override_does_not_block_merge(tmp_path: Path) ->
     assert ReviewOverride.from_dict(review_slot).complete
 
     # (c) Read half + merge gate: the override is honored — gate does NOT fire.
-    findings = find_rejected_review_artifact_conflicts(feature_dir, [_WP_ID])
+    findings = find_rejected_review_artifact_conflicts(tmp_path, _MISSION_SLUG, [_WP_ID])
     assert findings == [], (
         f"Event-sourced complete override must clear the gate, got: {findings}"
     )
@@ -166,7 +166,7 @@ def test_rejected_without_override_still_blocks_merge(tmp_path: Path) -> None:
     _append_approved_event(feature_dir, "01KXWN13WP09REGRESSION0002")
     _write_rejected_artifact(feature_dir)  # no override emitted anywhere
 
-    findings = find_rejected_review_artifact_conflicts(feature_dir, [_WP_ID])
+    findings = find_rejected_review_artifact_conflicts(tmp_path, _MISSION_SLUG, [_WP_ID])
 
     assert findings, "Genuine rejection with no override must block merge"
     assert findings[0].wp_id == _WP_ID
@@ -213,6 +213,6 @@ def test_incomplete_event_sourced_override_still_blocks_merge(tmp_path: Path) ->
         "Override with a blank field must be incomplete"
     )
 
-    findings = find_rejected_review_artifact_conflicts(feature_dir, [_WP_ID])
+    findings = find_rejected_review_artifact_conflicts(tmp_path, _MISSION_SLUG, [_WP_ID])
     assert findings, "Incomplete override must NOT be honored — merge still blocked"
     assert findings[0].wp_id == _WP_ID

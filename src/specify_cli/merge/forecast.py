@@ -167,10 +167,9 @@ def run_dry_run_forecast(
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
 
-    # FR-001 (#2185): the review-artifact consistency preflight reads ``tasks/``
-    # review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY-partition) and the
-    # ``would_assign_mission_number`` scan reads ``meta.json`` — both live on the
-    # PRIMARY checkout. Resolve by the WP-task kind so neither lands on the husk.
+    # FR-001 (#2185): the ``would_assign_mission_number`` scan reads
+    # ``meta.json``, which lives on the PRIMARY checkout for every topology.
+    # Resolve by the WP-task kind so it never lands on the coord husk.
     feature_dir_for_preview = resolve_planning_read_dir(
         get_main_repo_root(repo_root),
         resolved_feature,
@@ -182,12 +181,15 @@ def run_dry_run_forecast(
     # artifact still sits on an approved/done WP, real merge exits with
     # REJECTED_REVIEW_ARTIFACT_CONFLICT — dry-run must surface the same
     # blocker in both human and JSON output, so operators can trust the
-    # preview as a readiness signal.
+    # preview as a readiness signal. The preflight resolves its own
+    # WORK_PACKAGE_TASK / STATUS_STATE directories internally (see its
+    # docstring) rather than taking one from this caller.
     dry_run_all_wp_ids: list[str] = [
         wp for lane in lanes_manifest.lanes for wp in lane.wp_ids
     ]
     review_artifact_preflight = run_review_artifact_consistency_preflight(
-        feature_dir_for_preview,
+        get_main_repo_root(repo_root),
+        resolved_feature,
         wp_ids=dry_run_all_wp_ids,
     )
     if not review_artifact_preflight.passed:

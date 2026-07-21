@@ -29,7 +29,8 @@ WP02 ROUTE / KEEP map (re-resolved on the lane-b tree, verified)
 | Site (re-resolved)                                          | Verdict | Kind            |
 |-------------------------------------------------------------|---------|-----------------|
 | forecast.py `require_lanes_json` (dry-run)                  | ROUTE   | LANE_STATE      |
-| forecast.py review-artifact preflight `feature_dir_for_preview` | ROUTE | WORK_PACKAGE_TASK |
+| forecast.py `feature_dir_for_preview` (mission-number scan only) | ROUTE | WORK_PACKAGE_TASK |
+| review_artifact_consistency.py preflight (dry-run + real merge + lane-gate, shared) | ROUTE (split) | WORK_PACKAGE_TASK (artifacts) + STATUS_STATE (lane) |
 | executor.py `_run_lane_based_merge` preflight identity      | ROUTE   | PRIMARY_METADATA|
 | executor.py `_run_lane_based_merge` `require_lanes_json`    | ROUTE   | LANE_STATE      |
 | executor.py `_run_lane_based_merge` canonical identity      | ROUTE   | PRIMARY_METADATA|
@@ -53,11 +54,12 @@ from specify_cli.merge.config import MergeStrategy
 from tests.integration.coord_topology_fixture import (
     SENTINEL_HUSK_MISSION_ID,
     CoordTopologyContext,
+    coord_topology_mission,
     coord_topology_mission_sentinel_meta,
 )
 
-# Re-export the fixture so pytest discovers it in this module.
-__all__ = ["coord_topology_mission_sentinel_meta"]
+# Re-export the fixtures so pytest discovers them in this module.
+__all__ = ["coord_topology_mission", "coord_topology_mission_sentinel_meta"]
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -118,7 +120,7 @@ def test_dry_run_forecast_reads_primary_lane_set(
     ctx = coord_topology_mission_sentinel_meta
     captured: dict[str, Any] = {}
 
-    def _fake_preflight(feature_dir: Any, *, wp_ids: Any) -> NoReturn:
+    def _fake_preflight(repo_root: Any, mission_slug: Any, *, wp_ids: Any) -> NoReturn:
         captured["wp_ids"] = list(wp_ids)
         raise _StopProbe
 
@@ -447,3 +449,157 @@ def test_executor_baseline_identity_reads_primary_mission_id(
         "run.feature_dir STATUS leg."
     )
     assert captured["baseline_mission_id"] != SENTINEL_HUSK_MISSION_ID
+
+
+# ---------------------------------------------------------------------------
+# review_artifact_consistency.py — split WORK_PACKAGE_TASK / STATUS_STATE read
+# ---------------------------------------------------------------------------
+
+
+def test_review_artifact_gate_catches_genuine_rejection_on_coord_topology(
+    coord_topology_mission: CoordTopologyContext,
+) -> None:
+    """A genuinely-rejected review-cycle artifact on a terminal WP is caught.
+
+    Requires BOTH partitions to resolve correctly at once: the WP's lane
+    (terminal) must come from the coord husk's real status log
+    (STATUS_STATE), and the review-cycle verdict must come from the PRIMARY
+    checkout (WORK_PACKAGE_TASK). Reading lane state from PRIMARY (which has
+    no authoritative status log for a coord-topology mission) never reaches a
+    terminal lane; reading the review-cycle from the coord husk finds no
+    tasks/ dir there at all (the base fixture invariant) — either wrong leg
+    makes this silently find nothing.
+    """
+    from specify_cli.post_merge.review_artifact_consistency import (
+        find_rejected_review_artifact_conflicts,
+    )
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    ctx = coord_topology_mission
+
+    # The fixture's own pre-seeded marker line (evidence: <bare marker string>)
+    # is a raw-text probe, not a schema-valid StatusEvent -- it is never meant
+    # to survive materialize() (see coord_topology_fixture.py's module
+    # docstring). Replace it with a real, well-formed terminal transition so
+    # this test exercises production materialization end to end.
+    ctx.status_events_path.write_text("", encoding="utf-8")
+
+    # WP01 reaches a terminal lane on the REAL (coord husk) status log.
+    append_event(
+        ctx.coord_feature_dir,
+        StatusEvent(
+            event_id="01KW2E7A0TERMINAL00000001",
+            mission_slug=ctx.slug,
+            mission_id=ctx.mission_id,
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-06-26T01:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            reason="approved for merge",
+        ),
+    )
+
+    # The genuine, rejected review-cycle artifact lives on PRIMARY.
+    artifact_dir = ctx.primary_feature_dir / "tasks" / "WP01-fixture"
+    ReviewCycleArtifact(
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug=ctx.slug,
+        reviewer_agent="reviewer-renata",
+        verdict="rejected",
+        reviewed_at="2026-06-26T00:30:00+00:00",
+        body="# Review\n\nVerdict: rejected.\n",
+    ).write(artifact_dir / "review-cycle-1.md")
+
+    findings = find_rejected_review_artifact_conflicts(ctx.repo, ctx.slug, ["WP01"])
+
+    assert len(findings) == 1, (
+        "Expected the genuine rejection to be caught. An empty result means "
+        "either the lane read missed the coord husk's terminal status, or the "
+        f"review-cycle read missed the PRIMARY checkout's tracked artifact. Got: {findings}"
+    )
+    assert findings[0].wp_id == "WP01"
+    assert findings[0].verdict == "rejected"
+
+
+def test_review_artifact_gate_ignores_stray_artifact_on_coord_husk(
+    coord_topology_mission: CoordTopologyContext,
+) -> None:
+    """Field-report regression: a stray review-cycle file on the coord husk
+    must never shadow the real, tracked content on the PRIMARY checkout.
+
+    Reproduces the reported failure mode: the coordination worktree carries a
+    stale REJECTED review-cycle artifact, as if left over from an earlier
+    cycle that was never forwarded there; the PRIMARY checkout carries the
+    real, correct APPROVED artifact. WP01's lane (approved) is read from the
+    coord husk's real status log. Before this fix, review-cycle content was
+    ALSO read from the husk, so the stale rejected artifact falsely blocked
+    an already-approved WP. After the fix, review-cycle content resolves to
+    PRIMARY (WORK_PACKAGE_TASK) -- the husk's stray copy is never opened.
+    """
+    from specify_cli.post_merge.review_artifact_consistency import (
+        find_rejected_review_artifact_conflicts,
+    )
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    ctx = coord_topology_mission
+
+    # Replace the fixture's raw-text marker probe with a schema-valid event
+    # (see the sibling test above for why).
+    ctx.status_events_path.write_text("", encoding="utf-8")
+
+    # WP01 reaches a terminal lane on the REAL (coord husk) status log.
+    append_event(
+        ctx.coord_feature_dir,
+        StatusEvent(
+            event_id="01KW2E7A0TERMINAL00000002",
+            mission_slug=ctx.slug,
+            mission_id=ctx.mission_id,
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-06-26T01:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            reason="approved for merge",
+        ),
+    )
+
+    # The real, correct artifact on PRIMARY: approved.
+    primary_artifact_dir = ctx.primary_feature_dir / "tasks" / "WP01-fixture"
+    ReviewCycleArtifact(
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug=ctx.slug,
+        reviewer_agent="reviewer-renata",
+        verdict="approved",
+        reviewed_at="2026-06-26T00:30:00+00:00",
+        body="# Review\n\nVerdict: approved.\n",
+    ).write(primary_artifact_dir / "review-cycle-1.md")
+
+    # A stale, stray artifact on the COORD HUSK: rejected. Must never be read.
+    husk_artifact_dir = ctx.coord_feature_dir / "tasks" / "WP01-fixture"
+    ReviewCycleArtifact(
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug=ctx.slug,
+        reviewer_agent="reviewer-renata",
+        verdict="rejected",
+        reviewed_at="2026-06-25T00:00:00+00:00",
+        body="# Review\n\nVerdict: rejected (stale, never forwarded).\n",
+    ).write(husk_artifact_dir / "review-cycle-1.md")
+
+    findings = find_rejected_review_artifact_conflicts(ctx.repo, ctx.slug, ["WP01"])
+
+    assert findings == [], (
+        "The coord husk's stray rejected artifact must not shadow PRIMARY's "
+        f"real approved one. Got: {findings}"
+    )

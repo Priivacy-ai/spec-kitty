@@ -23,6 +23,7 @@ from specify_cli.status import materialize
 def check_wp_lanes(
     feature_dir: Path,
     repo_root: Path,
+    mission_slug: str,
     console: Console,
     findings: list[dict[str, str]],
 ) -> None:
@@ -51,7 +52,9 @@ def check_wp_lanes(
             f"  [green]✓[/green]  WP lane check: all {len(snapshot.work_packages)} WP(s) in done"
         )
 
-    review_artifact_conflicts = find_rejected_review_artifact_conflicts(feature_dir)
+    review_artifact_conflicts = find_rejected_review_artifact_conflicts(
+        repo_root, mission_slug
+    )
     if review_artifact_conflicts:
         console.print(
             "  [red]✗[/red]  Review artifact consistency: blocking latest review "

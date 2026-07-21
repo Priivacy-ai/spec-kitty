@@ -361,12 +361,22 @@ def _enforce_canonical_status_history(
 def _enforce_review_artifact_consistency(
     *,
     repo_root: Path,
-    feature_dir: Path,
     mission_slug: str,
     wp_ids: list[str],
 ) -> None:
-    """Block terminal signoff when the latest review artifact is rejected."""
-    preflight = run_review_artifact_consistency_preflight(feature_dir, wp_ids=wp_ids)
+    """Block terminal signoff when the latest review artifact is rejected.
+
+    ``run_review_artifact_consistency_preflight`` resolves the review-cycle
+    (WORK_PACKAGE_TASK, PRIMARY-partition) and lane-state (STATUS_STATE,
+    coord-aware) directories independently -- see its docstring. This function
+    no longer resolves or threads a single ``feature_dir``: a coord-topology
+    mission's coordination worktree can carry a stale or untracked stray copy
+    of a WP's review artifacts, and its primary checkout carries no
+    authoritative status log, so one directory can never correctly serve both.
+    """
+    preflight = run_review_artifact_consistency_preflight(
+        repo_root, mission_slug, wp_ids=wp_ids
+    )
     if preflight.passed:
         return
     findings = list(preflight.findings)

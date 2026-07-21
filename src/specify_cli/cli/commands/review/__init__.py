@@ -225,12 +225,13 @@ def _record_gate(
 def _run_lane_gate(
     feature_dir: Path,
     repo_root: Path,
+    mission_slug: str,
     console: Console,
     findings: list[dict[str, str]],
     gates_recorded: list[GateRecord],
 ) -> None:
     findings_before = len(findings)
-    check_wp_lanes(feature_dir, repo_root, console, findings)
+    check_wp_lanes(feature_dir, repo_root, mission_slug, console, findings)
     result: Literal["pass", "fail"] = "fail" if len(findings) > findings_before else "pass"
     _record_gate(gates_recorded, gate_id="gate_1", name="wp_lane_check", result=result)
 
@@ -408,7 +409,7 @@ def review_mission(
     gates_recorded: list[GateRecord] = []
     _mission_id_raw = meta.get("mission_id")
     _mission_id: str | None = str(_mission_id_raw) if _mission_id_raw else None
-    _run_lane_gate(feature_dir, repo_root, console, findings, gates_recorded)
+    _run_lane_gate(feature_dir, repo_root, mission_slug, console, findings, gates_recorded)
     _run_dead_code_gate(
         baseline_merge_commit=baseline_merge_commit,
         repo_root=repo_root,

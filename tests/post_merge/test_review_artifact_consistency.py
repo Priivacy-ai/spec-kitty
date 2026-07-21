@@ -107,7 +107,9 @@ def test_latest_rejected_review_artifact_conflicts_with_approved_wp(
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
     rejected = _write_review_artifact(artifact_dir, cycle_number=2, verdict="rejected")
 
-    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+    findings = find_rejected_review_artifact_conflicts(
+        mission.repo_root, mission.mission_slug
+    )
 
     assert len(findings) == 1
     assert findings[0].wp_id == "WP01"
@@ -149,7 +151,9 @@ def test_latest_rejected_review_artifact_conflicts_with_done_wp(
     _write_review_artifact(artifact_dir, cycle_number=1, verdict="approved")
     _write_review_artifact(artifact_dir, cycle_number=2, verdict="rejected")
 
-    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+    findings = find_rejected_review_artifact_conflicts(
+        mission.repo_root, mission.mission_slug
+    )
 
     assert len(findings) == 1
     assert findings[0].lane == "done"
@@ -171,7 +175,10 @@ def test_later_approved_review_artifact_clears_rejected_conflict(
     _write_review_artifact(artifact_dir, cycle_number=1, verdict="rejected")
     _write_review_artifact(artifact_dir, cycle_number=2, verdict="approved")
 
-    assert find_rejected_review_artifact_conflicts(mission.mission_dir) == []
+    assert (
+        find_rejected_review_artifact_conflicts(mission.repo_root, mission.mission_slug)
+        == []
+    )
 
 
 def test_merge_review_artifact_consistency_gate_blocks_done_signoff(
@@ -192,7 +199,6 @@ def test_merge_review_artifact_consistency_gate_blocks_done_signoff(
     with pytest.raises(typer.Exit) as exc_info:
         _enforce_review_artifact_consistency(
             repo_root=mission.repo_root,
-            feature_dir=mission.mission_dir,
             mission_slug=mission.mission_slug,
             wp_ids=["WP01"],
         )
@@ -224,7 +230,8 @@ def test_malformed_review_artifact_frontmatter_becomes_schema_diagnostic(
     malformed = _write_malformed_review_artifact(artifact_dir)
 
     findings = find_rejected_review_artifact_conflicts(
-        mission.mission_dir,
+        mission.repo_root,
+        mission.mission_slug,
         wp_ids=["WP01"],
     )
 
@@ -264,7 +271,8 @@ def test_invalid_top_level_review_artifact_field_becomes_schema_diagnostic(
     malformed = _write_review_artifact_with_invalid_verdict(artifact_dir)
 
     findings = find_rejected_review_artifact_conflicts(
-        mission.mission_dir,
+        mission.repo_root,
+        mission.mission_slug,
         wp_ids=["WP01"],
     )
 
@@ -298,7 +306,6 @@ def test_merge_review_artifact_consistency_gate_blocks_malformed_artifact(
     with pytest.raises(typer.Exit) as exc_info:
         _enforce_review_artifact_consistency(
             repo_root=mission.repo_root,
-            feature_dir=mission.mission_dir,
             mission_slug=mission.mission_slug,
             wp_ids=["WP01"],
         )

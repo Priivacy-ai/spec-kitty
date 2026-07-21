@@ -140,7 +140,7 @@ def test_enforce_review_artifact_consistency_passes(tmp_path: Path) -> None:
     with patch.object(preflight, "run_review_artifact_consistency_preflight", return_value=_Result()):
         # No exception means the gate passed.
         preflight._enforce_review_artifact_consistency(
-            repo_root=tmp_path, feature_dir=tmp_path, mission_slug="m", wp_ids=["WP01"]
+            repo_root=tmp_path, mission_slug="m", wp_ids=["WP01"]
         )
 
 
@@ -163,7 +163,7 @@ def test_enforce_review_artifact_consistency_blocks(tmp_path: Path) -> None:
         pytest.raises(typer.Exit) as exc,
     ):
         preflight._enforce_review_artifact_consistency(
-            repo_root=tmp_path, feature_dir=tmp_path, mission_slug="m", wp_ids=["WP01"]
+            repo_root=tmp_path, mission_slug="m", wp_ids=["WP01"]
         )
     assert exc.value.exit_code == 1
 
@@ -432,7 +432,7 @@ def test_enforce_review_artifact_blocks_with_optional_keys(tmp_path: Path) -> No
         pytest.raises(typer.Exit) as exc,
     ):
         preflight._enforce_review_artifact_consistency(
-            repo_root=tmp_path, feature_dir=tmp_path, mission_slug="m", wp_ids=["WP01"]
+            repo_root=tmp_path, mission_slug="m", wp_ids=["WP01"]
         )
     assert exc.value.exit_code == 1
 

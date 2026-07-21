@@ -1235,7 +1235,6 @@ def _run_lane_based_merge_locked(
     # must not write merge state).
     _enforce_review_artifact_consistency(
         repo_root=main_repo,
-        feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_ids=all_wp_ids,
     )

@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-18'
+updated: '2026-07-21'
 ---
 # Changelog
 
@@ -110,6 +110,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   baseline is regenerated accordingly.
 
 ### 🐛 Fixed
+
+- **The review-artifact consistency gate resolves lane state and review-cycle content from separate, correctly-partitioned directories.**
+  For a coord-topology mission, `find_rejected_review_artifact_conflicts` (shared by `merge`, `merge --dry-run`, and `spec-kitty review`'s lane gate) used one caller-supplied directory for both a WP's lane state (`STATUS_STATE`, coordination-branch-owned) and its review-cycle artifacts (`WORK_PACKAGE_TASK`, PRIMARY-partition for every topology) — a single directory can only ever be correct for one of the two. A stale or untracked stray review-cycle file on the coordination worktree could falsely block an already-approved WP (reported via field retrospective); conversely, resolving everything to the PRIMARY checkout would have silently defeated lane-state detection instead. Both partitions now resolve independently by kind.
 
 - **Honest force-provenance on evidence-gated backward edges (#2684, #2736, #2810).**
   Persisted `StatusEvent.force` is now truthful — falsy on the evidence-gated
