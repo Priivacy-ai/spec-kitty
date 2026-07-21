@@ -1,3 +1,11 @@
+---
+title: 'docs/output/'
+description: 'Placeholder for the documentation mission type''s generic deliverables-output path convention; intentionally empty for this mission.'
+doc_status: active
+updated: '2026-07-21'
+related:
+- docs/development/terminology-sweep-report.md
+---
 # docs/output/
 
 The `documentation` mission type's generic template reserves this path as a deliverables
