@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-tension-edges-01KY1WPC",
+  "mission_id": "01KY1WPC3STDPG0RMP2SFYS794",
+  "mission_branch": "kitty/mission-doctrine-tension-edges-01KY1WPC",
+  "target_branch": "doctrine/drg-missing-links-analysis",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/artifact_kinds.py",
+        "src/doctrine/drg/models.py",
+        "tests/doctrine/drg/test_kind_mapping_totality.py",
+        "tests/doctrine/drg/test_models.py",
+        "tests/doctrine/drg/test_nodekind_artifactkind.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/directive.graph.yaml",
+        "src/doctrine/directives/built-in/reconcile-change-scope-tensions.directive.yaml",
+        "src/doctrine/paradigm.graph.yaml",
+        "src/doctrine/tactic.graph.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/activations.py",
+        "src/charter/drg.py",
+        "src/charter/pack_context.py",
+        "src/doctrine/drg/validator.py",
+        "tests/charter/test_activation_filtered_drg.py",
+        "tests/charter/test_drg_filtering.py",
+        "tests/doctrine/drg/test_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "src/specify_cli/migration/rewrite_opposed_by.py",
+        "tests/specify_cli/migration/test_rewrite_opposed_by.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/architecture/doctrine-relationships.md",
+        "tests/doctrine/test_relation_doc_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/024-locality-of-change.directive.yaml",
+        "src/doctrine/directives/built-in/025-boy-scout-rule.directive.yaml",
+        "src/doctrine/directives/models.py",
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml",
+        "src/doctrine/paradigms/built-in/c4-incremental-detail-modeling.paradigm.yaml",
+        "src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml",
+        "src/doctrine/paradigms/models.py",
+        "src/doctrine/schemas/directive.schema.yaml",
+        "src/doctrine/schemas/paradigm.schema.yaml",
+        "src/doctrine/schemas/tactic.schema.yaml",
+        "src/doctrine/shared/models.py",
+        "src/doctrine/tactics/built-in/change-apply-smallest-viable-diff.tactic.yaml",
+        "src/doctrine/tactics/models.py",
+        "tests/doctrine/drg/migration/test_extractor.py",
+        "tests/doctrine/fixtures/paradigm/valid/with-tactic-refs.yaml",
+        "tests/doctrine/test_directive_consistency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/consistency_check.py",
+        "src/specify_cli/cli/commands/charter/_app.py",
+        "tests/charter/test_consistency_check.py",
+        "tests/charter/test_tension_unreconciled.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/lint/checks/orphan.py",
+        "tests/charter/test_cascade.py",
+        "tests/charter/test_tension_cascade_exclusion.py",
+        "tests/specify_cli/charter_lint/checks/test_orphan.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-21T12:59:53.628556+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

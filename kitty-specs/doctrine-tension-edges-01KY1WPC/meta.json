@@ -1,0 +1,33 @@
+{
+  "accept_commit": "d4f6f1c54facc032be3e8f3e4180377bbd1292d4",
+  "acceptance_history": [
+    {
+      "accept_commit": "d4f6f1c54facc032be3e8f3e4180377bbd1292d4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-21T15:37:43.742035+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "1c9c795b37fd4e5caebc5f5c7adc3819d17d166c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-21T15:37:43.742035+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "1c9c795b37fd4e5caebc5f5c7adc3819d17d166c",
+  "baseline_merge_commit": "bf3235db65e494918860d91d75022187ceff6b78",
+  "change_mode": "bulk_edit",
+  "created_at": "2026-07-21T08:29:19.354166+00:00",
+  "flattened": true,
+  "friendly_name": "Doctrine Tension as First-Class DRG Edges",
+  "mission_id": "01KY1WPC3STDPG0RMP2SFYS794",
+  "mission_number": null,
+  "mission_slug": "doctrine-tension-edges-01KY1WPC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Doctrine today models obligation richly but tension not at all, so competing rules resolve silently and the operator never sees the conflict. This mission makes tension queryable structure that charter activation and consistency-check can flag with concrete resolution paths, and retires the mis-encoded opposed_by field in favour of composable, self-describing DRG edges.",
+  "purpose_tldr": "Model doctrine tension as first-class DRG edges (in_tension_with / reconciles_tension / rejects), retiring the legacy opposed_by field.",
+  "slug": "doctrine-tension-edges-01KY1WPC",
+  "target_branch": "doctrine/drg-missing-links-analysis",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-21T13:01:27.141875+00:00"
+}
