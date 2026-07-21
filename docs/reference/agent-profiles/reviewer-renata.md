@@ -1,6 +1,6 @@
 ---
 title: Reviewer Renata — Agent Profile
-description: Code and design quality assurance specialist
+description: Code and design quality assurance specialist for correctness, security, and standards review
 doc_status: active
 updated: '2026-07-21'
 related:
