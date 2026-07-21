@@ -220,8 +220,8 @@ def _locate_wp_metadata(feature_dir: Path, wp_id: str) -> WPMetadata | None:
 
     Reads the **raw** frontmatter (via ``FrontmatterManager``), NOT
     :func:`~specify_cli.status.wp_metadata.read_wp_frontmatter` — deliberately:
-    ``read_wp_frontmatter`` re-points the runtime fields (``agent``/``assignee``/
-    ``shell_pid``) to the snapshot under the phase-1 flag, which the authored
+    ``read_wp_frontmatter`` unconditionally re-points the runtime fields
+    (``agent``/``assignee``/``shell_pid``) to the snapshot, which the authored
     group must never surface, and it triggers a second reduce the reader does not
     need (``_resolved_group`` already owns the one snapshot read). The authored
     group reads only frontmatter-canonical fields, so the raw parse is both

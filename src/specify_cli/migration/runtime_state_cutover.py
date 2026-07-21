@@ -64,8 +64,12 @@ class CutoverResult:
     Attributes:
         slug: The mission slug (directory name).
         flipped: True iff this run wrote the snapshot-authority ``status_phase``.
-        would_flip: Dry-run signal — True iff a live run *would* flip (verify
-            passed but nothing was written).
+        would_flip: Dry-run signal — True iff verify passed against the
+            current (already-seeded) state, with nothing written. A mission
+            that still needs seeding fails verify first (a dry-run writes no
+            seeds), so ``would_flip`` never fires for it; the dry-run signal
+            for that case is the operator-facing ``would_seed`` (derived from
+            ``seeded_count > 0`` in the CLI layer).
         seeded_count: NEW seed events appended this run (0 on an idempotent
             re-run or a dry-run over an already-seeded corpus).
         verify: The fail-closed :class:`VerifyResult`, or ``None`` when the run

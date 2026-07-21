@@ -249,8 +249,9 @@ def _parse_activity_entries_from_body(body: str) -> list[dict[str, str]]:
     """Parse ``## Activity Log`` rows out of a WP-file body (the legacy source).
 
     Pre-FR-005 sole implementation of :func:`activity_entries`; retained
-    verbatim as the migration-window fallback parser (flag OFF, or no
-    *feature_dir*/*wp_id* supplied).
+    verbatim and always run unconditionally -- the body-parsed rows are never
+    gated, they are folded in addition to the snapshot's event-sourced rows
+    when *feature_dir*/*wp_id* are supplied (SC-004 "no content loss").
     """
     # Match both en-dash (–) and hyphen (-) as separators
     # Agent names can contain hyphens (e.g., "cursor-agent", "claude-reviewer")
@@ -471,15 +472,15 @@ class WorkPackage:
 
     @property
     def role(self) -> str | None:
-        """Resolved *actual* role that ran (event-sourced); ``None`` when the flag
-        is OFF or the WP was never bound. Authored recommendation: :attr:`authored_role`."""
+        """Resolved *actual* role that ran (event-sourced); ``None`` when the WP
+        was never bound. Authored recommendation: :attr:`authored_role`."""
         view = self._resolved_view()
         return view.resolved.role if view is not None else None
 
     @property
     def agent_profile(self) -> str | None:
-        """Resolved *actual* agent profile (event-sourced); ``None`` when the flag
-        is OFF or the WP was never bound. Authored recommendation:
+        """Resolved *actual* agent profile (event-sourced); ``None`` when the WP
+        was never bound. Authored recommendation:
         :attr:`authored_agent_profile` (C-008 -- never conflate the two)."""
         view = self._resolved_view()
         return view.resolved.agent_profile if view is not None else None
@@ -491,8 +492,8 @@ class WorkPackage:
 
     @property
     def model(self) -> str | None:
-        """Resolved *actual* model (event-sourced); ``None`` when the flag is OFF
-        or the WP was never bound. Authored recommendation: :attr:`authored_model`."""
+        """Resolved *actual* model (event-sourced); ``None`` when the WP was
+        never bound. Authored recommendation: :attr:`authored_model`."""
         view = self._resolved_view()
         return view.resolved.model if view is not None else None
 

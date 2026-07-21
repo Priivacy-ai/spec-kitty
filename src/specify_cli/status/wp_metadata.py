@@ -650,12 +650,11 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     rather than causing validation failures.
 
     FR-005: the runtime fields (``shell_pid``, ``shell_pid_created_at``,
-    ``agent``, ``assignee``) are re-pointed to the reduced event-sourced
-    snapshot once the phase-1 dual-write flag resolves ON for this WP's
-    feature directory -- see :func:`_resolve_runtime_fields_from_snapshot`.
-    Frontmatter-authored fields (``agent_profile``, ``title``,
-    ``dependencies``, ...) are always frontmatter-canonical, unaffected by
-    the flag.
+    ``agent``, ``assignee``) are unconditionally re-pointed to the reduced
+    event-sourced snapshot for this WP's feature directory -- see
+    :func:`_resolve_runtime_fields_from_snapshot`. Frontmatter-authored
+    fields (``agent_profile``, ``title``, ``dependencies``, ...) are always
+    frontmatter-canonical, never re-pointed.
 
     Raises:
         FrontmatterError: On I/O or YAML parse failures.

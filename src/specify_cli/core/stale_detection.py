@@ -350,19 +350,18 @@ def check_wp_staleness(
         threshold_minutes: Minutes of inactivity before considered stale
         shell_pid: The WP's claiming shell PID, as read from frontmatter (may be
             ``None``, empty, or unparseable — handled conservatively). Ignored
-            when *feature_dir* resolves the FR-005 flag ON (the snapshot wins).
+            whenever *feature_dir* is supplied (the snapshot wins, unconditionally).
         shell_pid_baseline: The PID-reuse identity baseline (FR-005) co-written
             alongside ``shell_pid`` at claim time, as read from frontmatter.
             ``None`` (absent — a legacy claim) preserves today's live-PID trust
             (D3a); present-but-mismatched treats the claim as not alive. Ignored
-            when *feature_dir* resolves the FR-005 flag ON (the snapshot wins).
+            whenever *feature_dir* is supplied (the snapshot wins, unconditionally).
         feature_dir: The WP's kitty-specs feature directory (e.g.
-            ``kitty-specs/<slug>``), used ONLY to resolve the FR-005 phase-1
-            dual-write flag and, when it resolves ON, to read the reduced
-            snapshot's ``shell_pid``/``shell_pid_created_at`` slots in place of
-            *shell_pid*/*shell_pid_baseline* above. ``None`` (the default)
-            preserves today's frontmatter-sourced behavior verbatim -- existing
-            callers that do not pass it see zero regression.
+            ``kitty-specs/<slug>``); when supplied, the reduced snapshot's
+            ``shell_pid``/``shell_pid_created_at`` slots are read unconditionally
+            in place of *shell_pid*/*shell_pid_baseline* above. ``None`` (the
+            default) preserves today's frontmatter-sourced behavior verbatim --
+            existing callers that do not pass it see zero regression.
 
     Returns:
         StaleCheckResult with staleness status
@@ -438,7 +437,7 @@ def _resolve_feature_dir_for_staleness(main_repo_root: Path, mission_slug: str) 
     on every cold start -- only when a "doing" WP is actually checked. Never
     raises: an unresolvable mission (e.g. a malformed slug) degrades to
     ``None``, which makes :func:`check_wp_staleness` fall back to the
-    frontmatter-sourced legacy path (flag effectively off).
+    frontmatter-sourced legacy path (no ``feature_dir`` to read the snapshot from).
     """
     try:
         from mission_runtime import MissionArtifactKind
@@ -499,9 +498,10 @@ def check_doing_wps_for_staleness(
             # the paired baseline (FR-005): if the caller's wp dict doesn't carry
             # SHELL_PID_BASELINE_FIELD, this is None and staleness falls back to
             # today's live-PID trust (D3a) — no regression for callers not yet
-            # updated to surface the new field. These are now the FLAG-OFF
-            # fallback: check_wp_staleness re-points to the reduced snapshot
-            # instead (below) once the FR-005 flag resolves ON for feature_dir.
+            # updated to surface the new field. These are the fallback used only
+            # when feature_dir cannot be resolved: check_wp_staleness reads
+            # unconditionally from the reduced snapshot (below) whenever
+            # feature_dir is available.
             shell_pid = wp.get("shell_pid") or None
             shell_pid_baseline = wp.get(SHELL_PID_BASELINE_FIELD) or None
             feature_dir = _resolve_feature_dir_for_staleness(main_repo_root, mission_slug)
