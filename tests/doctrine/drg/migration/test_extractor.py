@@ -25,6 +25,7 @@ from doctrine.drg.migration.extractor import (
     extract_mission_type_edges,
     generate_graph,
 )
+from doctrine.drg.migration.hand_authored_overlay import write_reference_graph_with_overlay
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import resolve_context
 from doctrine.drg.validator import validate_graph
@@ -57,9 +58,6 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             for ref in data.get("references", []) or []:
                 if ref.get("type", "") not in _SKIP_REF_TYPES:
                     total += 1
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
-                    total += 1
 
     # Tactics
     tactics_dir = doctrine_root / "tactics" / "built-in"
@@ -87,9 +85,6 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             total += len(data.get("directive_refs", []) or [])
             for ref in data.get("references", []) or []:
                 if ref.get("type", "") not in _SKIP_REF_TYPES:
-                    total += 1
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
                     total += 1
 
     # Procedures
@@ -177,19 +172,15 @@ class TestExtractArtifactEdges:
     # excise-doctrine-curation-and-inline-references-01KP54J6 mission;
     # it exercised the pre-WP02 inline-reference path that no longer has
     # shipped input data. The migration extractor itself remains covered
-    # by test_directive_opposed_by_produces_replaces and the other
-    # TestExtractArtifactEdges cases.
-
-    def test_directive_opposed_by_produces_replaces(self) -> None:
-        """Directive opposed_by should produce 'replaces' edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        d024_replaces = [
-            e for e in edges
-            if e.source == "directive:DIRECTIVE_024"
-            and e.relation == Relation.REPLACES
-        ]
-        assert {e.target for e in d024_replaces} == {"directive:DIRECTIVE_025"}
-        assert d024_replaces[0].target == "directive:DIRECTIVE_025"
+    # by the other TestExtractArtifactEdges cases.
+    #
+    # The directive-tension "produces replaces" regression test was removed
+    # in WP03 of doctrine-tension-edges-01KY1WPC: the extractor no longer
+    # mints ``replaces`` edges from the retired contradiction-declaration
+    # field. The 024<->025 tension it exercised is now a hand-authored
+    # ``in_tension_with`` edge -- covered by
+    # ``tests/doctrine/drg/test_graph_sharding_equality.py`` and the
+    # freshness-canary tests in this module, not duplicated here.
 
     def test_paradigm_directive_refs_normalised(self) -> None:
         """Paradigm directive_refs (DIRECTIVE_NNN format) should be normalised."""
@@ -497,8 +488,16 @@ class TestGenerateGraph:
 
         Sharded per mission #2680 (WP05): compare the per-kind ``*.graph.yaml``
         fragment set rather than a single monolith (DD-11 per-file byte-identity).
+
+        Post-WP03 (doctrine-tension-edges-01KY1WPC): the reference is "pure
+        extraction + the enumerable hand-authored overlay"
+        (``doctrine.drg.migration.hand_authored_overlay``), not a bare
+        extractor regeneration — the extractor has no frontmatter mechanism
+        that could ever mint the hand-authored tension/reconciliation/rejection
+        edges or anti-pattern nodes, so a bare regeneration would never match
+        even when nothing is actually stale.
         """
-        generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        write_reference_graph_with_overlay(DOCTRINE_ROOT, tmp_path / "graph.yaml")
 
         def _fragments(directory: Path) -> dict[str, str]:
             return {
@@ -620,9 +619,6 @@ class TestEdgeCountCompleteness:
             for ref in data.get("references", []) or []:
                 if ref.get("type", "") not in _SKIP_REF_TYPES:
                     expected_count += 1
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
-                    expected_count += 1
 
             assert len(src_edges) >= expected_count, (
                 f"{path.name}: expected >= {expected_count} edges from "
@@ -645,9 +641,6 @@ class TestEdgeCountCompleteness:
                 len(data.get("tactic_refs", []) or [])
                 + len(data.get("directive_refs", []) or [])
             )
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
-                    expected_count += 1
 
             assert len(src_edges) >= expected_count, (
                 f"{path.name}: expected >= {expected_count} edges from "

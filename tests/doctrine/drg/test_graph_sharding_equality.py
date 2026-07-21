@@ -34,7 +34,10 @@ from doctrine.drg.loader import (
     load_built_in_graph,
     load_graph,
 )
-from doctrine.drg.migration.extractor import _dump_graph_document, generate_graph
+from doctrine.drg.migration.extractor import _dump_graph_document
+from doctrine.drg.migration.hand_authored_overlay import (
+    generate_reference_graph_with_overlay,
+)
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
 from doctrine.drg.validator import assert_valid
 
@@ -149,16 +152,24 @@ def _target_only_kinds(graph: DRGGraph) -> set[str]:
 
 @pytest.fixture(scope="module")
 def reference_graph() -> DRGGraph:
-    """The pre-shard reference: ``generate_graph``'s in-memory return value.
+    """The pre-shard reference: ``generate_graph``'s in-memory return value,
+    plus the enumerable hand-authored overlay.
 
     Written to a throw-away temp directory (never the shipped ``src/doctrine``),
     so the returned graph is the composed / calibrated / sorted in-memory graph
     — *not* a read-back of the sharded files under test. This is what makes the
     equality proof non-vacuous (DD-11).
+
+    Post-WP03 (doctrine-tension-edges-01KY1WPC): the sharded graph under test
+    also carries hand-authored ``in_tension_with``/``reconciles_tension``/
+    ``rejects`` edges and ``anti_pattern`` nodes the extractor has no
+    frontmatter mechanism to mint (C-005) — so the reference must include the
+    same enumerable overlay (``doctrine.drg.migration.hand_authored_overlay``)
+    or every equality proof below would spuriously report the hand-authored
+    content as "missing" from a bare extractor regeneration.
     """
     doctrine_root = built_in_graph_source()
-    with tempfile.TemporaryDirectory() as tmp:
-        return generate_graph(doctrine_root, Path(tmp) / "graph.yaml")
+    return generate_reference_graph_with_overlay(doctrine_root)
 
 
 @pytest.fixture(scope="module")

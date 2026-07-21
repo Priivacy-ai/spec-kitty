@@ -2,7 +2,7 @@
 title: 'Doctrine relationships: lineage, delegation, and augmentation'
 description: "How Spec Kitty models doctrine lineage, delegation, and augmentation as typed DRG edges (specializes_from, delegates_to, enhances/overrides) rather than artifact fields."
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-21'
 ---
 # Doctrine relationships: lineage, delegation, and augmentation
 
@@ -92,6 +92,47 @@ edges:
     reason: Mission-type overlay replaces a built-in mission type
 ```
 
+## Tension vocabulary — `in_tension_with`, `reconciles_tension`, `rejects`
+
+Doctrine disagreement is modelled as three additional typed edges, added by
+mission `doctrine-tension-edges-01KY1WPC` (FR-001/002/003) alongside the
+lineage/delegation/augmentation families above and explicitly **not** to be
+confused with them or with each other. The description text for each
+relation below is copied **verbatim** from the canonical
+`RELATION_DESCRIPTIONS` registry in
+[`src/doctrine/drg/models.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/drg/models.py)
+— that registry is the single source of truth (WP01); this section mirrors it
+for human readers, and the two are kept in parity by
+`tests/doctrine/test_relation_doc_parity.py` (FR-012/NFR-004). Scope is
+deliberately these three relations only — backfilling parity entries for the
+other twelve pre-existing relations is an explicit non-goal of this mission
+(spec.md Assumption A2).
+
+### Tension — `in_tension_with`
+
+Marks two co-valid, co-activatable artefacts that compete on the same
+decision. The relation is symmetric and non-transitive: it is stored as a
+single canonical edge (lexicographically-smaller URN as source) and is
+queryable from either endpoint. It does not imply that either side is
+deprecated, superseded, or wrong -- both remain valid rules until an
+operator deactivates one side or activates a reconciler.
+
+### Reconciliation — `reconciles_tension`
+
+Links an active reconciliation artefact to one side of a declared tension
+pair. A tension pair is treated as resolved only when an active artefact
+carries this edge to BOTH sides of the pair -- an edge to just one side
+leaves the pair half-reconciled and still flagged. It is authored explicitly
+and is never inferred from an ``in_tension_with`` edge.
+
+### Rejection — `rejects`
+
+A directional edge from a good artefact to a marked anti-pattern or smell
+node (``NodeKind.ANTI_PATTERN``), expressing rejection of a named bad
+practice. It is distinct from ``in_tension_with`` -- the target is not a
+competing equal, it is a bad practice -- and from ``replaces``/supersession,
+since the target was never a valid rule to begin with.
+
 ## Why edges, not fields
 
 Authoring relationships as artifact fields made the relationship invisible to
@@ -144,3 +185,9 @@ removed, or its semantics change, update:
 3. the relationship-migration tests and fixtures
    (`tests/doctrine/test_relationship_migration.py`,
    `tests/doctrine/fixtures/relationship_packs/`).
+
+For the three tension-vocabulary relations specifically (`in_tension_with`,
+`reconciles_tension`, `rejects`), the "Tension vocabulary" section above must
+also stay byte-identical (whitespace aside) to `RELATION_DESCRIPTIONS` in
+`src/doctrine/drg/models.py` — `tests/doctrine/test_relation_doc_parity.py`
+enforces this and fails red, naming the relation, on any drift.

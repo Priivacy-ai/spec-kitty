@@ -11,7 +11,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.shared.models import Contradiction
 
 _RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
 
@@ -73,7 +72,6 @@ class Paradigm(BaseModel):
     summary: str
     directive_refs: list[str] = Field(default_factory=list)
     references: list[ParadigmReference] = Field(default_factory=list)
-    opposed_by: list[Contradiction] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod

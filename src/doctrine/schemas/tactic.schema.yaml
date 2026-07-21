@@ -10,27 +10,6 @@ required:
 - name
 - steps
 definitions:
-  contradiction:
-    type: object
-    additionalProperties: false
-    required:
-    - type
-    - id
-    - reason
-    properties:
-      type:
-        type: string
-        minLength: 1
-        enum:
-        - directive
-        - tactic
-        - paradigm
-      id:
-        type: string
-        minLength: 1
-      reason:
-        type: string
-        minLength: 1
   tactic_reference:
     type: object
     additionalProperties: false
@@ -120,10 +99,6 @@ properties:
     minItems: 1
     items:
       $ref: '#/definitions/tactic_reference'
-  opposed_by:
-    type: array
-    items:
-      $ref: '#/definitions/contradiction'
   notes:
     type: string
     description: Free-form supplementary material (scoring rubrics, timing guidance, reference models, etc.) that 

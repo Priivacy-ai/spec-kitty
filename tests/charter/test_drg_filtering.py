@@ -117,6 +117,41 @@ class TestNodeIsActivatedPerArtifactIdGate:
         from ``_SINGULAR_TO_PLURAL`` — must pass unconditionally, not raise."""
         assert _node_is_activated("asset", "some-asset-id", _pc())
 
+    def test_anti_pattern_kind_is_config_gated_not_default_allow(self) -> None:
+        """WP04 (FR-004): unlike template/asset, ``anti_pattern`` IS wired into
+        ``_SINGULAR_TO_PLURAL`` — it must be gated by ``activated_kinds`` like
+        every other kind, not fall through the unknown-kind default-allow
+        branch. The default ``_pc()`` fixture's ``activated_kinds`` does not
+        list ``anti_patterns``, so an anti_pattern artifact must be blocked."""
+        assert not _node_is_activated("anti_pattern", "force-push-shared-branch", _pc())
+
+    def test_anti_pattern_kind_passes_when_activated_kinds_includes_it(self) -> None:
+        """The counterpart to the previous test: once ``anti_patterns`` is
+        added to ``activated_kinds``, the kind-level gate passes (per-artifact
+        gating below is still governed by ``activated_anti_patterns``)."""
+        ctx = _pc(
+            activated_kinds=frozenset({
+                "directives", "tactics", "styleguides", "toolguides",
+                "paradigms", "procedures", "agent_profiles",
+                "mission_step_contracts", "anti_patterns",
+            }),
+        )
+        assert _node_is_activated("anti_pattern", "force-push-shared-branch", ctx)
+
+    def test_anti_pattern_per_artifact_id_gate(self) -> None:
+        """FR-004: ``activated_anti_patterns`` gates individual anti_pattern
+        IDs exactly like ``activated_directives`` gates directive IDs."""
+        ctx = _pc(
+            activated_kinds=frozenset({
+                "directives", "tactics", "styleguides", "toolguides",
+                "paradigms", "procedures", "agent_profiles",
+                "mission_step_contracts", "anti_patterns",
+            }),
+            activated_anti_patterns=frozenset({"ok-smell"}),
+        )
+        assert _node_is_activated("anti_pattern", "ok-smell", ctx)
+        assert not _node_is_activated("anti_pattern", "blocked-smell", ctx)
+
 
 # ---------------------------------------------------------------------------
 # TestFilterGraphByActivationPerArtifactId
@@ -169,3 +204,43 @@ class TestFilterGraphByActivationPerArtifactId:
         surviving_urns = {n.urn for n in filtered.nodes}
         assert "template:my-mission/onboarding" in surviving_urns
         assert "asset:widget-icon" in surviving_urns
+
+    def test_anti_pattern_node_is_dropped_when_kind_not_activated(self) -> None:
+        """WP04 (FR-004): unlike template/asset (unknown kinds, default-allow),
+        ``anti_pattern`` is config-gated — with the default ``_pc()`` fixture
+        (no ``anti_patterns`` in ``activated_kinds``) the node must be
+        filtered out, not silently pass through."""
+        smell = DRGNode(
+            urn="anti_pattern:force-push-shared-branch",
+            kind=NodeKind.ANTI_PATTERN,
+            label="Force-push a shared branch",
+        )
+        g = _graph([smell])
+
+        filtered = filter_graph_by_activation(g, _pc())
+
+        assert filtered.nodes == []
+
+    def test_anti_pattern_node_survives_when_kind_and_id_activated(self) -> None:
+        """The positive counterpart: with ``anti_patterns`` activated and the
+        artifact's ID listed in ``activated_anti_patterns``, the node
+        survives filtering."""
+        smell = DRGNode(
+            urn="anti_pattern:force-push-shared-branch",
+            kind=NodeKind.ANTI_PATTERN,
+            label="Force-push a shared branch",
+        )
+        g = _graph([smell])
+
+        ctx = _pc(
+            activated_kinds=frozenset({
+                "directives", "tactics", "styleguides", "toolguides",
+                "paradigms", "procedures", "agent_profiles",
+                "mission_step_contracts", "anti_patterns",
+            }),
+            activated_anti_patterns=frozenset({"force-push-shared-branch"}),
+        )
+        filtered = filter_graph_by_activation(g, ctx)
+
+        surviving_urns = {n.urn for n in filtered.nodes}
+        assert "anti_pattern:force-push-shared-branch" in surviving_urns

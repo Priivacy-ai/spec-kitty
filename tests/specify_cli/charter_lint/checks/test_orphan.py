@@ -56,12 +56,6 @@ class TestOrphanCheckerManufacturedDecay:
         assert f.id == "directive:DIR-001"
         assert f.severity == "medium"
 
-    def test_orphaned_adr_detected(self):
-        adr_node = _make_node("adr:ADR-001", "adr", "ADR-001 Use YAML")
-        drg = _make_drg(nodes=[adr_node], edges=[])
-        findings = OrphanChecker().run(drg)
-        assert any(f.type == "orphaned_adr" for f in findings)
-
     def test_orphaned_glossary_scope_detected(self):
         gs_node = _make_node("glossary:workspace", "glossary_scope", "Workspace")
         drg = _make_drg(nodes=[gs_node], edges=[])
@@ -85,18 +79,47 @@ class TestOrphanCheckerCleanDRG:
     """Verify that a well-connected DRG produces zero orphan findings."""
 
     def test_connected_directive_no_finding(self):
+        """A directive referenced via a real ``Relation`` member is not orphaned.
+
+        ``"governs"`` is not a member of the ``Relation`` enum (it was the
+        pre-fix phantom relation, #2737) — use ``"requires"``, one of the
+        relations the built-in doctrine layer actually emits toward
+        directives.
+        """
         directive_node = _make_node("directive:DIR-001", "directive", "DIR-001")
-        referencing_node = _make_node("mission:001", "mission")
-        edge = _make_edge("mission:001", "directive:DIR-001", "governs")
+        referencing_node = _make_node("agent_profile:001", "agent_profile")
+        edge = _make_edge("agent_profile:001", "directive:DIR-001", "requires")
         drg = _make_drg(nodes=[directive_node, referencing_node], edges=[edge])
         findings = OrphanChecker().run(drg)
         assert findings == []
 
-    def test_connected_adr_no_finding(self):
-        adr_node = _make_node("adr:ADR-001", "adr")
-        wp_node = _make_node("wp:WP01", "wp")
-        edge = _make_edge("wp:WP01", "adr:ADR-001", "references")
-        drg = _make_drg(nodes=[adr_node, wp_node], edges=[edge])
+    def test_reconciliation_directive_outgoing_edge_no_finding(self):
+        """A directive with zero incoming edges is not orphaned if it carries an
+        outgoing ``reconciles_tension`` edge.
+
+        ``reconciles_tension`` always points FROM the active reconciliation
+        artefact TO the tension pair it resolves, never the reverse, so an
+        incoming-edge-only check would misfire on every reconciliation
+        directive even though it is doing exactly its intended job.
+        """
+        reconciler_node = _make_node("directive:RECONCILE-001", "directive")
+        tension_node = _make_node("directive:DIR-999", "directive")
+        edge = _make_edge("directive:RECONCILE-001", "directive:DIR-999", "reconciles_tension")
+        drg = _make_drg(nodes=[reconciler_node, tension_node], edges=[edge])
+        findings = OrphanChecker().run(drg)
+        # DIR-999 has no incoming edges of any kind and no outgoing
+        # reconciles_tension edge -- it is still (correctly) flagged.
+        assert [f.id for f in findings] == ["directive:DIR-999"]
+
+    def test_adr_kind_no_longer_monitored(self):
+        """The ``adr`` orphan rule is retired (#2737): a disconnected ``adr``
+        node -- however disconnected -- never produces a finding, because no
+        real ``Relation`` enum member ever backed ``"supersedes"`` or
+        ``"references"`` and no ``adr`` node kind exists in the built-in
+        layer today.
+        """
+        adr_node = _make_node("adr:ADR-001", "adr", "ADR-001 Use YAML")
+        drg = _make_drg(nodes=[adr_node], edges=[])
         findings = OrphanChecker().run(drg)
         assert findings == []
 
@@ -132,3 +155,38 @@ class TestOrphanCheckerMissingDRG:
         drg = SimpleNamespace()  # no .nodes attribute
         findings = OrphanChecker().run(drg)
         assert findings == []
+
+
+class TestOrphanCheckerBuiltInGraphExactSet:
+    """T031 (FR-008/NFR-003, closes #2737): run the real check against the
+    shipped built-in DRG and require *exact* set equality on the resulting
+    ``orphaned_directive`` finding IDs.
+
+    NFR-003 explicitly requires this to be an exact-equality assertion, not
+    ``<=`` and not a ``len()`` bound: either of those weaker forms would also
+    pass if T030 had accidentally over-deleted the ``directive`` rule and
+    produced 0 findings, which is the exact failure mode FR-008 rules out
+    ("Deleting the directive branch outright (yielding 0 findings) is NOT
+    acceptable").
+    """
+
+    def test_orphaned_directive_findings_exact_set(self):
+        from doctrine.drg.loader import load_built_in_graph
+
+        drg = load_built_in_graph()
+        findings = OrphanChecker().run(drg)
+
+        orphaned_directive_ids = {
+            f.id.removeprefix("directive:") for f in findings if f.type == "orphaned_directive"
+        }
+
+        assert orphaned_directive_ids == {"DIRECTIVE_035", "DIRECTIVE_039"}
+
+    def test_no_orphaned_adr_findings_in_built_in_graph(self):
+        """The retired ``adr`` rule must never surface a finding (#2737)."""
+        from doctrine.drg.loader import load_built_in_graph
+
+        drg = load_built_in_graph()
+        findings = OrphanChecker().run(drg)
+
+        assert not any(f.type == "orphaned_adr" for f in findings)

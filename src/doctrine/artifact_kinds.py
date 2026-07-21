@@ -20,6 +20,13 @@ mapping it to an artifact kind (R-009 / CL-1: no silent fallback).
 (mission-tier, empty glob — see :attr:`ArtifactKind.glob_pattern`); it is not one
 of the 8 non-template artifact tokens enumerated in :data:`CHARTER_KIND_TOKENS`.
 
+``anti_pattern`` *is* an :class:`ArtifactKind` member (mission
+``doctrine-tension-edges-01KY1WPC``, D2) but is also excluded from the charter
+kind universe via :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`: an anti-pattern
+node is never activated as a live rule and is never hand-authored as a
+standalone artifact file, so it is not one of the 8 charter-activatable
+artifact tokens either.
+
 Consumers must route every operator kind string through
 :meth:`ArtifactKind.from_operator_token` (CC-4) — no second kind enumeration
 may be re-declared elsewhere.
@@ -51,6 +58,7 @@ _PLURALS: dict[str, str] = {
     "mission_step_contract": "mission_step_contracts",
     "template": "templates",
     "asset": "assets",
+    "anti_pattern": "anti_patterns",
 }
 
 _PATTERNS: dict[str, str] = {
@@ -64,6 +72,13 @@ _PATTERNS: dict[str, str] = {
     "mission_step_contract": "*.step-contract.yaml",
     "template": "",
     "asset": "*.asset.yaml",
+    # anti_pattern nodes are hand-authored inside existing graph fragments
+    # (re-kinded/tagged paradigm/tactic nodes, D2) -- there is no dedicated
+    # `*.anti_pattern.yaml` artifact file convention. The pattern is declared
+    # for consistency with every other ArtifactKind member (avoids a KeyError
+    # in generic `for kind in ArtifactKind: kind.glob_pattern` consumers) but
+    # is not expected to match any file on disk.
+    "anti_pattern": "*.anti_pattern.yaml",
 }
 
 #: Operator token (hyphenated CLI surface) that callers must explicitly route to
@@ -89,6 +104,7 @@ class ArtifactKind(StrEnum):
     MISSION_STEP_CONTRACT = "mission_step_contract"
     TEMPLATE = "template"
     ASSET = "asset"
+    ANTI_PATTERN = "anti_pattern"
 
     @property
     def plural(self) -> str:
@@ -172,17 +188,22 @@ class ArtifactKind(StrEnum):
 #: pack augmentation (``enhances``/``overrides``) or the charter kind universe.
 #: ``TEMPLATE`` is mission-tier and resolves specially (empty glob); ``ASSET``
 #: is a loose-contract kind excluded from the same surfaces (FR-005/FR-011).
-#: This is the **single** canonical exclusion set — downstream modules
-#: (``org_pack_loader.py``, the charter cascade) must import this rather than
-#: re-declaring their own exclusion list.
+#: ``ANTI_PATTERN`` (mission ``doctrine-tension-edges-01KY1WPC``, D2) is
+#: excluded for the same reason: it is never activated as a live rule and is
+#: never hand-authored as a standalone artifact file -- it is a re-kinded/
+#: tagged node inside an existing graph fragment, referenced only via
+#: ``rejects`` edges. This is the **single** canonical exclusion set —
+#: downstream modules (``org_pack_loader.py``, the charter cascade) must
+#: import this rather than re-declaring their own exclusion list.
 _NON_AUGMENTATION_ELIGIBLE_KINDS: frozenset[ArtifactKind] = frozenset(
-    {ArtifactKind.TEMPLATE, ArtifactKind.ASSET}
+    {ArtifactKind.TEMPLATE, ArtifactKind.ASSET, ArtifactKind.ANTI_PATTERN}
 )
 
 
 #: Charter kind universe: the non-excluded artifact operator tokens + the
 #: special ``mission-type`` token. Members of :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`
-#: (``template``, ``asset``) resolve specially and are *not* listed here.
+#: (``template``, ``asset``, ``anti_pattern``) resolve specially and are *not*
+#: listed here.
 CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(
     member.operator_token
     for member in ArtifactKind

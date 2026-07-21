@@ -109,6 +109,43 @@ def validate_profile_edges(graph: DRGGraph) -> list[str]:
     return errors
 
 
+def _validate_rejects_targets(graph: DRGGraph) -> list[str]:
+    """Validate ``rejects`` edges point at an ``anti_pattern`` node (INV-004).
+
+    A ``rejects`` edge (mission ``doctrine-tension-edges-01KY1WPC``, FR-003)
+    is directional, from a good artefact to a marked anti-pattern/smell node.
+    A ``rejects`` edge whose target does not resolve to a
+    ``NodeKind.ANTI_PATTERN`` node is a structural defect -- the target is
+    supposed to name a bad practice, not a co-valid rule -- and must raise a
+    validation error rather than silently no-op.
+
+    This validates authored structure only (is the edge well-formed); it runs
+    regardless of whether the target is currently activated in any
+    ``PackContext``.
+
+    Dangling targets are reported by :func:`_validate_dangling_references`;
+    this check only classifies targets it can resolve so the two checks
+    never double-report the same missing-node defect.
+
+    Returns a list of human-readable error messages (empty means valid).
+    """
+    errors: list[str] = []
+    kind_by_urn = {n.urn: n.kind for n in graph.nodes}
+    for edge in graph.edges:
+        if edge.relation is not Relation.REJECTS:
+            continue
+        kind = kind_by_urn.get(edge.target)
+        if kind is None:
+            continue  # missing node -> reported as dangling by validate_graph
+        if kind is not NodeKind.ANTI_PATTERN:
+            errors.append(
+                f"Rejects-edge target must be an anti_pattern node: "
+                f"edge ({edge.source} --{edge.relation.value}--> {edge.target}) "
+                f"has target {edge.target!r} of kind {kind.value!r}"
+            )
+    return errors
+
+
 def _validate_dangling_references(graph: DRGGraph) -> list[str]:
     """Return errors for edges whose source/target is not a known node."""
     errors: list[str] = []
@@ -190,6 +227,8 @@ def validate_graph(graph: DRGGraph) -> list[str]:
     3. Cycles in ``requires`` edges -- the requires subgraph must be a DAG.
     4. Symmetric profile-edge integrity -- lineage/delegation edges connect
        agent_profile nodes in both directions and lineage is acyclic (#1755).
+    5. Rejects-target integrity -- ``rejects`` edges must target an
+       ``anti_pattern`` node (INV-004, mission ``doctrine-tension-edges-01KY1WPC``).
     """
     errors: list[str] = []
     errors.extend(_validate_dangling_references(graph))
@@ -197,6 +236,8 @@ def validate_graph(graph: DRGGraph) -> list[str]:
     errors.extend(_validate_requires_cycles(graph))
     # -- 4. Symmetric profile-edge integrity (#1755) ------------------------
     errors.extend(validate_profile_edges(graph))
+    # -- 5. Rejects-target integrity (INV-004) ------------------------------
+    errors.extend(_validate_rejects_targets(graph))
     return errors
 
 

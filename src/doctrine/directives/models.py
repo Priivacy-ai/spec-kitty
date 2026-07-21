@@ -17,7 +17,6 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.shared.models import Contradiction
 
 
 class Enforcement(StrEnum):
@@ -67,7 +66,6 @@ class Directive(BaseModel):
         default_factory=list, alias="explicit_allowances"
     )
     references: list[DirectiveReference] = Field(default_factory=list)
-    opposed_by: list[Contradiction] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_lenient_adherence(self) -> "Directive":

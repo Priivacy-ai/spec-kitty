@@ -225,19 +225,31 @@ def regenerate_graph(
     command never writes: it regenerates into a temp directory and compares the
     fragment set against the committed source, exiting non-zero when stale — the
     operator-facing twin of the freshness gate.
-    """
-    import tempfile
 
-    from doctrine.drg.migration.extractor import generate_graph
+    Both the write path and ``--check`` merge in the enumerable hand-authored
+    overlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the
+    ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
+    ``anti_pattern`` nodes hand-authored directly in the graph fragments
+    (mission doctrine-tension-edges-01KY1WPC). The extractor has no
+    frontmatter mechanism that could ever mint these, so a bare pure
+    regeneration would (a) silently drop them from the committed source on
+    write, and (b) always report "stale" under ``--check`` even when nothing
+    is actually stale.
+    """
+    from doctrine.drg.migration.hand_authored_overlay import (
+        write_reference_graph_with_overlay,
+    )
     from doctrine.drg.validator import DRGValidationError
 
     doctrine_root = _doctrine_root()
 
     if check:
+        import tempfile
+
         with tempfile.TemporaryDirectory() as tmp:
             generated_dir = Path(tmp)
             try:
-                generate_graph(doctrine_root, generated_dir / "graph.yaml")
+                write_reference_graph_with_overlay(doctrine_root, generated_dir / "graph.yaml")
             except DRGValidationError as exc:
                 _emit_regen_result(
                     status="invalid",
@@ -257,7 +269,7 @@ def regenerate_graph(
         raise typer.Exit(0 if fresh else 1)
 
     try:
-        generate_graph(doctrine_root, doctrine_root / "graph.yaml")
+        write_reference_graph_with_overlay(doctrine_root, doctrine_root / "graph.yaml")
     except DRGValidationError as exc:
         _emit_regen_result(
             status="invalid",

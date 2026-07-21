@@ -45,3 +45,16 @@ def test_template_urn_stays_bare() -> None:
     )
 
     assert node.kind is NodeKind.TEMPLATE
+
+
+def test_anti_pattern_is_valid_drg_node_kind() -> None:
+    """WP01 (T003): NodeKind.ANTI_PATTERN exists and accepts an
+    `anti_pattern:<id>` URN, and the corresponding ArtifactKind member exists
+    with the same string value (D2)."""
+    node = DRGNode(
+        urn="anti_pattern:example-anti-pattern",
+        kind=NodeKind.ANTI_PATTERN,
+    )
+
+    assert node.kind is NodeKind.ANTI_PATTERN
+    assert ArtifactKind.ANTI_PATTERN.value == NodeKind.ANTI_PATTERN.value

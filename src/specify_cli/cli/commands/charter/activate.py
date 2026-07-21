@@ -234,6 +234,48 @@ def _render_cascade_activation(
             )
 
 
+def _render_tension_warnings(repo_root: Path) -> None:
+    """Surface unreconciled tension findings as activate-time warnings (FR-010).
+
+    Calls the SAME scan :func:`charter.consistency_check.scan_unreconciled_tensions`
+    that ``spec-kitty charter pack consistency-check`` uses (single canonical
+    authority, contracts/tension-finding.md SC-001) so this warning and that
+    JSON surface can never render a tension pair differently.
+
+    Builds its own fully-populated :class:`ProjectContext` via
+    :meth:`ProjectContext.from_repo` (matching ``pack.py``'s consistency-check
+    command) rather than reusing the caller's ``ctx_project`` -- the
+    ``activate_cmd``/``deactivate_cmd`` local is a bare
+    ``ProjectContext(repo_root=repo_root)`` with ``pack_context=None``, which
+    would make :func:`scan_unreconciled_tensions` raise
+    ``ContextPreconditionError`` on every call (a silent, permanent no-op --
+    exactly the NFR-001 trap this finding exists to avoid).
+
+    Best-effort, matching the existing DRG-load handling in this module (see
+    ``_render_no_cascade_warning`` / ``_render_cascade_activation``, which
+    already load the validated graph without a bespoke fail-closed path of
+    their own): a DRG load failure here does not abort activation -- the
+    fail-closed guarantee for this finding lives on the consistency-check
+    surface (``ConsistencyReport.verification_errors``), which every project
+    can run explicitly on demand.
+    """
+    from charter.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
+
+    try:
+        scan_ctx = ProjectContext.from_repo(repo_root)
+        findings = scan_unreconciled_tensions(scan_ctx)
+    except Exception:  # noqa: BLE001 -- best-effort warning surface, not fail-closed here.
+        return
+
+    for finding in findings:
+        side_a, side_b = finding.pair
+        console.print(
+            f"[yellow]Warning[/yellow]: {side_a} is in tension with "
+            f"{side_b}. Resolve by: (1) deactivating one side, or "
+            f"(2) activating a reconciler that bridges both."
+        )
+
+
 def _render_no_cascade_warning(
     source_urn: str,
     repo_root: Path,
@@ -382,6 +424,12 @@ def activate_cmd(
         console.print(f"[green]Activated[/green]: {msg}")
     for warn in result.warnings:
         console.print(f"[yellow]Warning[/yellow]: {warn}")
+
+    # FR-010: co-activated, unreconciled in_tension_with pairs (contracts/
+    # tension-finding.md). Rendered right after the activation-result
+    # warnings above, before cascade, so it reflects the direct target's
+    # activation regardless of cascade outcome.
+    _render_tension_warnings(repo_root)
 
     # FR-013/014: cascade is driven from the CLI via the WP11 engine over the
     # merged DRG (pack_manager's own cascade is deferred — the live wiring is

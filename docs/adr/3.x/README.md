@@ -112,3 +112,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-17 | [Red main is honest signal; CI status is the release authority](2026-07-17-1-red-main-is-honest-ci-is-release-authority.md) |
 | 2026-07-18 | [charter.yaml is the authoritative structured source; charter.md is a curated companion; retire the prose→triad extractor](2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md) |
 | 2026-07-19 | [Evict runtime-mutable WP state into the event log via a single generic InnerStateChanged annotation event](2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
+| 2026-07-21 | [in_tension_with and reconciles_tension DRG edges (retiring opposed_by)](2026-07-21-1-in-tension-with-drg-edge.md) |

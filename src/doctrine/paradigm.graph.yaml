@@ -2,26 +2,18 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
-- urn: paradigm:anemic-domain-model
-  kind: paradigm
 - urn: paradigm:atomic-design
   kind: paradigm
   label: Atomic Design
 - urn: paradigm:behaviour-driven-development
   kind: paradigm
   label: Behaviour-Driven Development
-- urn: paradigm:big-ball-of-mud
-  kind: paradigm
-- urn: paradigm:big-upfront-design
-  kind: paradigm
 - urn: paradigm:brownfield-onboarding
   kind: paradigm
   label: Brownfield Onboarding
 - urn: paradigm:c4-incremental-detail-modeling
   kind: paradigm
   label: C4 Incremental Detail Modeling
-- urn: paradigm:code-is-the-documentation
-  kind: paradigm
 - urn: paradigm:deep-module-design
   kind: paradigm
   label: Deep Module Design
@@ -57,6 +49,14 @@ edges:
   target: directive:DIRECTIVE_037
   relation: requires
 - source: paradigm:brownfield-onboarding
+  target: anti_pattern:big-ball-of-mud
+  relation: rejects
+  reason: A Big Ball of Mud is the failure mode brownfield onboarding is built to interrupt. Where Big Ball of Mud lets coupling and concepts leak without investigation, brownfield onboarding insists that the leaks be mapped and named before they are either preserved or removed.
+- source: paradigm:brownfield-onboarding
+  target: anti_pattern:big-upfront-design
+  relation: rejects
+  reason: 'Big Upfront Design assumes the right structure can be derived from first principles before contact with the existing system. Brownfield onboarding inverts the priority: the existing system is the primary evidence, and design proposals must be grounded in what the codebase, its history, and its SMEs already encode.'
+- source: paradigm:brownfield-onboarding
   target: directive:DIRECTIVE_001
   relation: requires
 - source: paradigm:brownfield-onboarding
@@ -65,14 +65,6 @@ edges:
 - source: paradigm:brownfield-onboarding
   target: directive:DIRECTIVE_041
   relation: requires
-- source: paradigm:brownfield-onboarding
-  target: paradigm:big-ball-of-mud
-  relation: replaces
-  reason: A Big Ball of Mud is the failure mode brownfield onboarding is built to interrupt. Where Big Ball of Mud lets coupling and concepts leak without investigation, brownfield onboarding insists that the leaks be mapped and named before they are either preserved or removed.
-- source: paradigm:brownfield-onboarding
-  target: paradigm:big-upfront-design
-  relation: replaces
-  reason: 'Big Upfront Design assumes the right structure can be derived from first principles before contact with the existing system. Brownfield onboarding inverts the priority: the existing system is the primary evidence, and design proposals must be grounded in what the codebase, its history, and its SMEs already encode.'
 - source: paradigm:brownfield-onboarding
   target: procedure:adversarial-squad-deployment
   relation: requires
@@ -89,20 +81,20 @@ edges:
   target: tactic:forensic-repository-audit
   relation: requires
 - source: paradigm:c4-incremental-detail-modeling
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: paradigm:c4-incremental-detail-modeling
-  target: paradigm:big-upfront-design
-  relation: replaces
+  target: anti_pattern:big-upfront-design
+  relation: rejects
   reason: Big Upfront Design attempts to specify every architectural detail before implementation begins. C4 incremental detail modeling favours progressive discovery -- start with a context diagram and add lower levels only when they earn their keep.
 - source: paradigm:c4-incremental-detail-modeling
-  target: paradigm:code-is-the-documentation
-  relation: replaces
+  target: anti_pattern:code-is-the-documentation
+  relation: rejects
   reason: Relying solely on source code as documentation forces every stakeholder -- including non-technical sponsors -- to read code to understand system boundaries. C4 provides visual abstractions that make architecture accessible without requiring code literacy.
 - source: paradigm:c4-incremental-detail-modeling
-  target: tactic:single-diagram-architecture
-  relation: replaces
+  target: anti_pattern:single-diagram-architecture
+  relation: rejects
   reason: A single all-in-one architecture diagram conflates audiences and abstraction levels, producing a poster that nobody can review in a reasonable time. C4 explicitly separates concerns into distinct levels.
+- source: paradigm:c4-incremental-detail-modeling
+  target: directive:DIRECTIVE_001
+  relation: requires
 - source: paradigm:deep-module-design
   target: directive:DIRECTIVE_001
   relation: requires
@@ -113,6 +105,18 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: paradigm:domain-driven-design
+  target: anti_pattern:anemic-domain-model
+  relation: rejects
+  reason: Anemic Domain Models strip behaviour from domain objects, reducing them to data bags with external procedural services. This defeats the purpose of a rich, expressive domain model and scatters invariant enforcement across service layers.
+- source: paradigm:domain-driven-design
+  target: anti_pattern:big-ball-of-mud
+  relation: rejects
+  reason: A Big Ball of Mud architecture has no explicit context boundaries or ubiquitous language. Concepts leak across modules, coupling grows unchecked, and model integrity becomes impossible to maintain.
+- source: paradigm:domain-driven-design
+  target: anti_pattern:database-driven-design
+  relation: rejects
+  reason: 'Starting from a database schema and generating code around it inverts the DDD priority: the domain model should drive persistence, not the other way around. Schema-first thinking produces models shaped by storage constraints rather than business rules.'
+- source: paradigm:domain-driven-design
   target: directive:DIRECTIVE_001
   relation: requires
 - source: paradigm:domain-driven-design
@@ -121,18 +125,6 @@ edges:
 - source: paradigm:domain-driven-design
   target: directive:DIRECTIVE_032
   relation: requires
-- source: paradigm:domain-driven-design
-  target: paradigm:anemic-domain-model
-  relation: replaces
-  reason: Anemic Domain Models strip behaviour from domain objects, reducing them to data bags with external procedural services. This defeats the purpose of a rich, expressive domain model and scatters invariant enforcement across service layers.
-- source: paradigm:domain-driven-design
-  target: paradigm:big-ball-of-mud
-  relation: replaces
-  reason: A Big Ball of Mud architecture has no explicit context boundaries or ubiquitous language. Concepts leak across modules, coupling grows unchecked, and model integrity becomes impossible to maintain.
-- source: paradigm:domain-driven-design
-  target: tactic:database-driven-design
-  relation: replaces
-  reason: 'Starting from a database schema and generating code around it inverts the DDD priority: the domain model should drive persistence, not the other way around. Schema-first thinking produces models shaped by storage constraints rather than business rules.'
 - source: paradigm:execution-lanes
   target: directive:DIRECTIVE_024
   relation: requires
