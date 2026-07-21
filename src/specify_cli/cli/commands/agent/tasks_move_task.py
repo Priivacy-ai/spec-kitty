@@ -1664,8 +1664,8 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     # FR-007: a USER-supplied Activity-Log note becomes a ``note`` annotation. The
     # synthetic ``Moved to <lane>`` fallback the old god-write wrote is already
     # captured by the transition's ``reason`` — re-emitting it would only add a
-    # redundant trailing annotation, so it is not emitted off-axis (the flag-OFF
-    # dual-write still writes the full history line to the WP file).
+    # redundant trailing annotation, so it is not emitted off-axis (the WP file
+    # no longer carries runtime state at all -- the event log is sole authority).
     if st.note_text:
         fields["note"] = st.note_text
     if st.tracker_ref_values:
@@ -1683,8 +1683,9 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
         # ``policy_metadata``), and it was released in NEITHER surface — so the
         # release is emitted here off-axis as an ``InnerStateChanged`` clearing
         # both slots (empty ``agent`` / zero ``shell_pid`` fold to a falsy,
-        # released snapshot slot). Event-only: under flag ON the WP file stays
-        # byte-stable (AC-5). Skipped when the SAME move re-plants a fresh claim
+        # released snapshot slot). Event-only: the WP file stays byte-stable
+        # (AC-5) -- runtime state lives solely in the event log. Skipped when
+        # the SAME move re-plants a fresh claim
         # (an explicit ``--agent``/``--shell-pid`` override already set the
         # field above).
         if "agent" not in fields:
@@ -1713,9 +1714,9 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     longer carries runtime state — the event log is the sole authority. WP04 (IC-03)
     made the readers unconditional and dropped the retired phase-authority
     predicate + facade export; this WP removes the last consumer of that gate here,
-    so the former ``flag ON -> return`` gate and the flag-OFF ``_mt_dual_write_wp_file``
-    god-write (``agent``/``assignee``/``shell_pid`` + Activity-Log) are deleted
-    (FR-007, D-14). ``_mt_emit_runtime_state`` (the off-axis emit) is unchanged.
+    so the former early-return (once the flag was on) and the ``_mt_dual_write_wp_file``
+    god-write it guarded (``agent``/``assignee``/``shell_pid`` + Activity-Log) are
+    both deleted (FR-007, D-14). ``_mt_emit_runtime_state`` (the off-axis emit) is unchanged.
     """
     assert st.wp is not None and st.decision is not None
     _mt_emit_runtime_state(st, ports)

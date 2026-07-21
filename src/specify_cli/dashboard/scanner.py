@@ -1013,21 +1013,21 @@ def _process_wp_file(
     from specify_cli.status import read_wp_frontmatter
 
     try:
-        wp_meta_dict, prompt_body = read_wp_frontmatter(prompt_file)
+        wp_meta, prompt_body = read_wp_frontmatter(prompt_file)
     except Exception:
         return None
 
     canonical_wp_id = _canonical_wp_id(prompt_file.stem)
     lane, event_log_dir = _resolve_wp_lane_and_dir(prompt_file, canonical_wp_id, default_lane, status_dir)
 
-    view = _wp_runtime_view(event_log_dir, canonical_wp_id, wp_meta_dict)
+    view = _wp_runtime_view(event_log_dir, canonical_wp_id, wp_meta)
     identity = _wp_identity_fields(view)
     subtasks_done, subtasks_total = _wp_subtask_progress(view)
 
     prompt_path = str(prompt_file.relative_to(project_dir)) if prompt_file.is_relative_to(project_dir) else str(prompt_file)
     return {
-        "id": wp_meta_dict.work_package_id,
-        "title": _resolve_wp_title(content, wp_meta_dict, prompt_file),
+        "id": wp_meta.work_package_id,
+        "title": _resolve_wp_title(content, wp_meta, prompt_file),
         "lane": lane,
         "subtasks": list(view.authored.subtasks),
         "subtasks_done": subtasks_done,
@@ -1042,7 +1042,7 @@ def _process_wp_file(
         "authored_model": identity["authored_model"],
         "authored_agent_profile": identity["authored_agent_profile"],
         "authored_role": identity["authored_role"],
-        "phase": wp_meta_dict.phase or "",
+        "phase": wp_meta.phase or "",
         "prompt_markdown": prompt_body.strip(),
         "prompt_path": prompt_path,
     }

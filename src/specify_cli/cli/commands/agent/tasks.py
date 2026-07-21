@@ -918,10 +918,11 @@ def add_history(
         # Load work package
         wp = locate_work_package(repo_root, mission_slug, task_id)
 
-        # Build history entry. Route agent/shell_pid through the gated
-        # WorkPackage.agent/.shell_pid seam (flag ON -> reduced snapshot; flag OFF
-        # -> frontmatter fallback) rather than a bare extract_scalar, so this
-        # reader never bypasses the phase-1 authority gate (#2093).
+        # Build history entry. Route agent/shell_pid through the
+        # WorkPackage.agent/.shell_pid seam -- which routes unconditionally
+        # through reconstruct_wp_view (the snapshot is the sole authority) --
+        # rather than a bare extract_scalar, so this reader never bypasses the
+        # snapshot-authority seam (#2093).
         timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
         agent_name = agent or wp.agent or "unknown"
         shell_pid_val = shell_pid or wp.shell_pid or ""
