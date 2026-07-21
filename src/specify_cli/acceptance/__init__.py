@@ -9,7 +9,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 import logging
 import os
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,7 +17,6 @@ from typing import Any, cast
 
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import read_target_branch_from_meta
-from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.mission import MissionError, get_mission_for_feature
@@ -451,36 +450,6 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             body=body,
             padding=padding,
         )
-
-
-def detect_mission_slug(
-    repo_root: Path,
-    *,
-    explicit_feature: str | None = None,
-    env: Mapping[str, str] | None = None,
-    cwd: Path | None = None,
-    announce_fallback: bool = True,
-) -> str:
-    """Require an explicit mission slug; no auto-detection.
-
-    Args:
-        repo_root: Repository root path (unused — kept for signature compatibility)
-        explicit_feature: Mission slug to use (required).
-        env: Unused; kept for backward-compatible call sites.
-        cwd: Unused; kept for backward-compatible call sites.
-        announce_fallback: Unused; kept for backward-compatible call sites.
-
-    Returns:
-        Mission slug (e.g., "020-my-feature")
-
-    Raises:
-        AcceptanceError: If no explicit feature slug is provided.
-    """
-    _ = (repo_root, env, cwd, announce_fallback)
-    try:
-        return str(_require_explicit_feature(explicit_feature, command_hint="--mission <slug>"))
-    except ValueError as e:
-        raise AcceptanceError(str(e)) from e
 
 
 def _read_text_strict(path: Path) -> str:
@@ -1363,7 +1332,6 @@ __all__ = [
     "WorkPackageState",
     "choose_mode",
     "collect_feature_summary",
-    "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
     "resolve_acceptance_actor",

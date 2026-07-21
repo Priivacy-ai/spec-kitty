@@ -185,7 +185,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # `_is_reexport_shim_symbol` structural auto-exempt category, so a
         # hand-curated entry here would violate the auto-exempt/hand-allowlist
         # disjointness invariant (test_auto_exempt_disjoint_from_hand_allowlist).
-        SymbolKey("detect_mission_slug", "143750225970858088a5a3b6d34f627090fd8bf46c908077f4fb08ff75407b58"),  # specify_cli.acceptance::detect_mission_slug
         SymbolKey("RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141"),  # specify_cli.auth.refresh_transaction::RefreshResult
         SymbolKey("DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab"),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
         SymbolKey("DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b"),  # specify_cli.cli.commands._auth_doctor::DoctorReport
