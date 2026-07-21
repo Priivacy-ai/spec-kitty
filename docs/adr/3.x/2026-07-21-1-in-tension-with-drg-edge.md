@@ -36,20 +36,20 @@ Finally, the codebase is mid-migration **away from field-authored relationships 
 
 ## Decision Drivers
 
-* Make doctrine competition **queryable structure**, not prose buried in 18 artifact bodies.
-* Encode tension with correct semantics (symmetric, non-supersession) instead of borrowing `replaces`.
-* Give `charter activate` / `charter pack consistency-check` a way to **warn** the operator when co-activated artefacts are in tension, with a concrete resolution.
-* Stay on the field→edge migration path (WP06/WP07 precedent, extractor retirement) rather than entrenching a field form.
-* Do not force the anti-pattern-rejection usages into a tension shape they do not fit.
-* Warn, do not hard-block (Lynn's explicit constraint in #2537).
-* Every relation is self-describing, with the glossary holding the same definition (single canonical authority — no drift between code and docs).
-* Cascade / multi-tier activation must reach every doctrine artefact kind, so tension between any co-activated kinds can actually surface.
+- Make doctrine competition **queryable structure**, not prose buried in 18 artifact bodies.
+- Encode tension with correct semantics (symmetric, non-supersession) instead of borrowing `replaces`.
+- Give `charter activate` / `charter pack consistency-check` a way to **warn** the operator when co-activated artefacts are in tension, with a concrete resolution.
+- Stay on the field→edge migration path (WP06/WP07 precedent, extractor retirement) rather than entrenching a field form.
+- Do not force the anti-pattern-rejection usages into a tension shape they do not fit.
+- Warn, do not hard-block (Lynn's explicit constraint in #2537).
+- Every relation is self-describing, with the glossary holding the same definition (single canonical authority — no drift between code and docs).
+- Cascade / multi-tier activation must reach every doctrine artefact kind, so tension between any co-activated kinds can actually surface.
 
 ## Considered Options
 
-* **Option A — First-class symmetric `in_tension_with` DRG edge + `reconciles_tension` edge, remove `opposed_by`.** (Chosen.)
-* **Option B — Keep `opposed_by` as a field, but wire an activation-time reader for it.**
-* **Option C — Add the tension edge but keep `opposed_by` too (dual representation during a deprecation window).**
+- **Option A — First-class symmetric `in_tension_with` DRG edge + `reconciles_tension` edge, remove `opposed_by`.** (Chosen.)
+- **Option B — Keep `opposed_by` as a field, but wire an activation-time reader for it.**
+- **Option C — Add the tension edge but keep `opposed_by` too (dual representation during a deprecation window).**
 
 ## Decision Outcome
 
@@ -76,8 +76,8 @@ Add `IN_TENSION_WITH = "in_tension_with"` to `Relation` (`src/doctrine/drg/model
 
 When two artefacts that are `in_tension_with` each other are both active (or both about to be activated), the tooling raises an operator-facing finding. A tension pair `(A, B)` is treated as **resolved** iff **either**:
 
-* **(a) Non-activation of one side** — A and B are not both in the active set; or
-* **(b) A reconciliation artefact bridges them** — there exists an **active** artefact `R` with edges `R --reconciles_tension--> A` and `R --reconciles_tension--> B`. `R` is a local (or built-in) doctrine artefact whose body carries the reconciliation guidance; the two `reconciles_tension` edges are how the graph records that `R` adjudicates this specific pair.
+- **(a) Non-activation of one side** — A and B are not both in the active set; or
+- **(b) A reconciliation artefact bridges them** — there exists an **active** artefact `R` with edges `R --reconciles_tension--> A` and `R --reconciles_tension--> B`. `R` is a local (or built-in) doctrine artefact whose body carries the reconciliation guidance; the two `reconciles_tension` edges are how the graph records that `R` adjudicates this specific pair.
 
 Add `RECONCILES_TENSION = "reconciles_tension"` to `Relation`. A pair is resolved by (b) only when **both** reconciliation edges are present and `R` is active — one edge alone does not resolve the pair.
 
@@ -118,33 +118,33 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 
 #### Positive
 
-* Tension becomes queryable: one relation the activation and consistency surfaces can traverse, and one relation an agent's composed context can render ("these two compete; here is how they reconcile").
-* The nonsensical mutual `replaces` cycle on `024`/`025` disappears; supersession semantics stop being borrowed for tension.
-* The tactic tension (`change-apply-smallest-viable-diff ↔ 025`) that the extractor silently dropped is now representable — a previously-lost signal is recovered.
-* Removing the last field-form relationship completes the WP06/WP07 migration direction and keeps `test_relationship_migration.py`'s "no field-authored relationships" invariant honest.
-* One canonical edge = one canonical reason; the divergent-reason drift on `024`/`025` is eliminated.
+- Tension becomes queryable: one relation the activation and consistency surfaces can traverse, and one relation an agent's composed context can render ("these two compete; here is how they reconcile").
+- The nonsensical mutual `replaces` cycle on `024`/`025` disappears; supersession semantics stop being borrowed for tension.
+- The tactic tension (`change-apply-smallest-viable-diff ↔ 025`) that the extractor silently dropped is now representable — a previously-lost signal is recovered.
+- Removing the last field-form relationship completes the WP06/WP07 migration direction and keeps `test_relationship_migration.py`'s "no field-authored relationships" invariant honest.
+- One canonical edge = one canonical reason; the divergent-reason drift on `024`/`025` is eliminated.
 
 #### Negative
 
-* The built-in default pack ships `024` and `025` **both active** and **in tension**, so a naive hard-block would fail the default pack out of the box. Mitigation: ship a **built-in reconciliation artefact** for the `024`/`025` (and `smallest-viable-diff`/`025`) pair — the reconciliation text already exists verbatim in `025`'s `opposed_by.reason` — and wire it with `reconciles_tension` edges so the default pack is self-consistent. Until that artefact exists, the tension check must be advisory, not coherence-failing. This matches Lynn's "warn, do not hard-block."
-* Removal touches schemas, models, the shared `Contradiction` model, the extractor, six built-in YAMLs, generated graph fragments, docs, and tests in one migration (blast radius below). The dead-symbol gate requires `Contradiction` and the `contradiction` schema definition to be removed once the last field usage is gone.
-* Introduces the DRG's first symmetric relation; every future tension consumer must remember to query both directions (documented in Decision 2).
+- The built-in default pack ships `024` and `025` **both active** and **in tension**, so a naive hard-block would fail the default pack out of the box. Mitigation: ship a **built-in reconciliation artefact** for the `024`/`025` (and `smallest-viable-diff`/`025`) pair — the reconciliation text already exists verbatim in `025`'s `opposed_by.reason` — and wire it with `reconciles_tension` edges so the default pack is self-consistent. Until that artefact exists, the tension check must be advisory, not coherence-failing. This matches Lynn's "warn, do not hard-block."
+- Removal touches schemas, models, the shared `Contradiction` model, the extractor, six built-in YAMLs, generated graph fragments, docs, and tests in one migration (blast radius below). The dead-symbol gate requires `Contradiction` and the `contradiction` schema definition to be removed once the last field usage is gone.
+- Introduces the DRG's first symmetric relation; every future tension consumer must remember to query both directions (documented in Decision 2).
 
 #### Neutral
 
-* The anti-pattern-rejection paradigm usages are re-classified to `rejects` edges, not deleted (Decision 5 / Migration). The phantom anti-pattern nodes are promoted to first-class marked nodes (`tags: [anti-pattern]`) rather than extractor-invented.
-* No change to the cascade reference set — the three new relations stay excluded even under the kind-complete cascade directive.
-* Cascade kind-completeness (related directive) is broader than this ADR and lands as separate scope; this ADR only records the directive and its dependency relationship to the tension check.
+- The anti-pattern-rejection paradigm usages are re-classified to `rejects` edges, not deleted (Decision 5 / Migration). The phantom anti-pattern nodes are promoted to first-class marked nodes (`tags: [anti-pattern]`) rather than extractor-invented.
+- No change to the cascade reference set — the three new relations stay excluded even under the kind-complete cascade directive.
+- Cascade kind-completeness (related directive) is broader than this ADR and lands as separate scope; this ADR only records the directive and its dependency relationship to the tension check.
 
 ### Confirmation
 
-* `Relation.IN_TENSION_WITH`, `Relation.RECONCILES_TENSION`, and `Relation.REJECTS` exist, each with a description; `graph.yaml` fragments validate.
-* The glossary defines `in_tension_with`, `reconciles_tension`, `rejects` with text matching the enum descriptions (Decision 6); glossary-integrity pipeline passes.
-* `grep -rn "opposed_by" src/` returns zero hits after migration (field, schema, model, extractor, YAML).
-* `tests/doctrine/test_relationship_migration.py::test_built_in_relationships_authored_in_drg` still passes (no field-authored relationships).
-* Every `rejects` edge terminates at a node marked `tags: [anti-pattern]`/`[smell]` (Decision 5) — a test asserts no `rejects` edge points at an unmarked node.
-* A focused test asserts: (i) `024`/`025` resolves to a single `in_tension_with` edge, not a `replaces` cycle; (ii) an unreconciled active tension pair produces the new consistency finding; (iii) adding an active `reconciles_tension` artefact clears it; (iv) activating one side of a tension does **not** cascade-activate the other; (v) the paradigm anti-pattern usages resolve to `rejects` edges, not `in_tension_with`.
-* Confidence: high on Decisions 1, 2, 4, 5, 6 (mechanical, precedented); medium on Decision 3's default-pack self-consistency (depends on authoring the built-in reconciliation artefact before any hard-block is enabled). The cascade-all-kinds directive is out of scope for confirmation here.
+- `Relation.IN_TENSION_WITH`, `Relation.RECONCILES_TENSION`, and `Relation.REJECTS` exist, each with a description; `graph.yaml` fragments validate.
+- The glossary defines `in_tension_with`, `reconciles_tension`, `rejects` with text matching the enum descriptions (Decision 6); glossary-integrity pipeline passes.
+- `grep -rn "opposed_by" src/` returns zero hits after migration (field, schema, model, extractor, YAML).
+- `tests/doctrine/test_relationship_migration.py::test_built_in_relationships_authored_in_drg` still passes (no field-authored relationships).
+- Every `rejects` edge terminates at a node marked `tags: [anti-pattern]`/`[smell]` (Decision 5) — a test asserts no `rejects` edge points at an unmarked node.
+- A focused test asserts: (i) `024`/`025` resolves to a single `in_tension_with` edge, not a `replaces` cycle; (ii) an unreconciled active tension pair produces the new consistency finding; (iii) adding an active `reconciles_tension` artefact clears it; (iv) activating one side of a tension does **not** cascade-activate the other; (v) the paradigm anti-pattern usages resolve to `rejects` edges, not `in_tension_with`.
+- Confidence: high on Decisions 1, 2, 4, 5, 6 (mechanical, precedented); medium on Decision 3's default-pack self-consistency (depends on authoring the built-in reconciliation artefact before any hard-block is enabled). The cascade-all-kinds directive is out of scope for confirmation here.
 
 ## Migration plan and blast radius
 
@@ -211,8 +211,8 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 
 ## More Information
 
-* Analysis: `docs/engineering_notes/doctrine-drg-missing-links-analysis.md` (cascade dead-ends, relation-usage census).
-* Migration precedent: `tests/doctrine/test_relationship_migration.py` (field→edge, zero-loss, no-field invariant).
-* Cascade engine + reference set: `src/charter/cascade.py` (`REFERENCE_RELATIONS`).
-* Consistency check surface: `src/charter/consistency_check.py`; CLI `spec-kitty charter pack consistency-check`.
-* Related: ADR 2026-07-18-1 (charter.yaml authoring authority, extractor retirement).
+- Analysis: `docs/engineering_notes/doctrine-drg-missing-links-analysis.md` (cascade dead-ends, relation-usage census).
+- Migration precedent: `tests/doctrine/test_relationship_migration.py` (field→edge, zero-loss, no-field invariant).
+- Cascade engine + reference set: `src/charter/cascade.py` (`REFERENCE_RELATIONS`).
+- Consistency check surface: `src/charter/consistency_check.py`; CLI `spec-kitty charter pack consistency-check`.
+- Related: ADR 2026-07-18-1 (charter.yaml authoring authority, extractor retirement).
