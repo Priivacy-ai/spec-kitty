@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final, Literal
 
 Kind = Literal["spec", "plan"]
@@ -279,6 +279,20 @@ def is_substantive(file_path: Path, kind: Kind) -> bool:
     raise ValueError(f"Unknown kind: {kind!r}")
 
 
+def _tree_path(parts: tuple[str, ...]) -> str:
+    """Join path ``parts`` into a git tree path (always forward-slashed).
+
+    Git's ``HEAD:<path>`` object syntax and ``ls-files`` pathspec require
+    forward slashes. Rendering with ``str(Path(*parts))`` uses ``os.sep`` — a
+    backslash on Windows — which git rejects, making committed specs misreport
+    as uncommitted (#2836). ``PurePosixPath`` renders with ``/`` regardless of
+    the host OS, closing the defect by construction: the string is built from
+    the separator-agnostic ``parts`` tuple, never re-parsed through a host-native
+    ``Path``.
+    """
+    return PurePosixPath(*parts).as_posix() if parts else ""
+
+
 def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, str] | None:
     """Return ``(git_cwd, tree_path)`` for committedness checks.
 
@@ -297,9 +311,9 @@ def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, s
     if len(parts) > 2 and parts[0] == ".worktrees":
         worktree_root = repo_abs / parts[0] / parts[1]
         if worktree_root.is_dir():
-            return worktree_root, str(Path(*parts[2:]))
+            return worktree_root, _tree_path(parts[2:])
 
-    return repo_abs, str(rel)
+    return repo_abs, _tree_path(parts)
 
 
 def _head_carries_path(git_cwd: Path, tree_path: str) -> bool:

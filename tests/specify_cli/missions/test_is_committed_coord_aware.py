@@ -34,6 +34,7 @@ import pytest
 from specify_cli.missions._substantive import (
     _git_commit_check_context,
     _head_carries_path,
+    _tree_path,
     is_committed,
 )
 
@@ -122,6 +123,64 @@ def test_file_outside_repo_returns_false(tmp_path: Path) -> None:
         assert is_committed(outside, tmp_path) is False
     finally:
         outside.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Tree paths must be POSIX-normalized (#2836) — git's ``HEAD:<path>`` object
+# syntax and ``ls-files`` pathspec require forward slashes. Rendering with
+# ``str(Path)`` used ``os.sep`` (a backslash on Windows), making committed specs
+# misreport as uncommitted. CI runs on POSIX, so the ``_git_commit_check_context``
+# assertions below cannot go red on the old ``str(Path)`` form (``os.sep`` is
+# already ``/``). The witnessing red-first test is ``test_tree_path_*`` on the
+# ``_tree_path`` seam: it feeds Windows-style components and proves the output is
+# forward-slashed regardless of host OS — a guard that DOES fail against the
+# retired ``str(Path(*parts))`` rendering.
+# ---------------------------------------------------------------------------
+
+
+def test_tree_path_seam_is_posix_for_windows_style_parts() -> None:
+    """Red-first witness: ``_tree_path`` forward-slashes even Windows-style parts.
+
+    The bug (#2836) was ``str(Path(*parts))`` rendering with ``os.sep``. On POSIX
+    that is already ``/``, so the integration assertions cannot witness it. This
+    seam test feeds multi-component parts and asserts a backslash-free, correctly
+    joined result — the exact contract the retired ``str(Path)`` form violated on
+    Windows. It stays platform-independent because ``_tree_path`` builds the string
+    from the separator-agnostic ``parts`` tuple, never re-parsing through a
+    host-native ``Path``.
+    """
+    assert _tree_path(("kitty-specs", "my-slug", "spec.md")) == "kitty-specs/my-slug/spec.md"
+    assert "\\" not in _tree_path(("a", "b", "c", "spec.md"))
+    assert _tree_path(("spec.md",)) == "spec.md"
+    assert _tree_path(()) == ""
+
+
+def test_tree_path_is_posix_in_worktree(tmp_path: Path) -> None:
+    """A spec inside ``.worktrees/<name>/`` yields a forward-slash tree path."""
+    wt = tmp_path / ".worktrees" / "my-wt"
+    spec = wt / "kitty-specs" / "my-slug" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("x", encoding="utf-8")
+
+    ctx = _git_commit_check_context(spec, tmp_path)
+    assert ctx is not None
+    git_cwd, tree_path = ctx
+    assert git_cwd == wt.resolve()
+    assert tree_path == "kitty-specs/my-slug/spec.md"
+    assert "\\" not in tree_path
+
+
+def test_tree_path_is_posix_in_primary(tmp_path: Path) -> None:
+    """A spec in the primary checkout yields a forward-slash tree path."""
+    spec = tmp_path / "kitty-specs" / "my-slug" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("x", encoding="utf-8")
+
+    ctx = _git_commit_check_context(spec, tmp_path)
+    assert ctx is not None
+    _, tree_path = ctx
+    assert tree_path == "kitty-specs/my-slug/spec.md"
+    assert "\\" not in tree_path
 
 
 # ---------------------------------------------------------------------------
