@@ -83,26 +83,41 @@ def build_mission(
     with_review: bool = True,
     with_history: bool = True,
     with_transitions: bool = True,
+    with_claim: bool = True,
+    meta_created_at: str | None = None,
     claimed_at: str = CLAIMED_AT,
 ) -> Path:
-    """Materialise a mission corpus and return its feature directory."""
+    """Materialise a mission corpus and return its feature directory.
+
+    ``with_claim=False`` omits ``shell_pid`` / ``shell_pid_created_at`` /
+    ``agent`` from WP01's frontmatter — a genuinely never-claimed WP (as opposed
+    to one whose claim anchor must be synthesized from those very fields; see
+    ``backfill_runtime_state._resolve_anchor``). ``meta_created_at`` optionally
+    seeds ``meta.json``'s ``created_at`` (the claim-anchor synthesis fallback
+    when ``shell_pid_created_at`` itself is absent/unparseable).
+    """
     feature_dir = tmp_path / "kitty-specs" / slug
     tasks = feature_dir / "tasks"
     tasks.mkdir(parents=True)
 
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_id": mission_id, "mission_slug": slug, "mission_type": "software-dev"}),
-        encoding="utf-8",
-    )
+    meta: dict[str, str] = {"mission_id": mission_id, "mission_slug": slug, "mission_type": "software-dev"}
+    if meta_created_at is not None:
+        meta["created_at"] = meta_created_at
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     fm: list[str] = [
         "---",
         "work_package_id: WP01",
         "title: Demo WP",
         "execution_mode: code_change",
-        f"shell_pid: {shell_pid}",
-        f'shell_pid_created_at: "{shell_pid_created_at}"',
-        f"agent: {agent}",
+    ]
+    if with_claim:
+        fm += [
+            f"shell_pid: {shell_pid}",
+            f'shell_pid_created_at: "{shell_pid_created_at}"',
+            f"agent: {agent}",
+        ]
+    fm += [
         f"assignee: {assignee}",
         "tracker_refs:",
         *[f"  - {ref}" for ref in tracker_refs],

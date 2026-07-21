@@ -28,6 +28,7 @@ from specify_cli.status.store import (
     append_events_atomic_verified,
     read_event_stream,
 )
+from specify_cli.status.wp_view import reconstruct_wp_view
 from tests.unit.migration._backfill_fixture import (
     CLAIMED_AT,
     build_mission,
@@ -184,8 +185,85 @@ def test_subtask_mark_at_clamps_to_claimed(tmp_path: Path) -> None:
 
 
 def test_never_claimed_wp_skips_runtime_seed(tmp_path: Path) -> None:
-    # No transitions at all → no claim anchor → runtime seed skipped, warned.
+    # No transitions AND no frontmatter claim state at all → genuinely never
+    # claimed → no claim anchor (real or synthesized) → runtime seed skipped,
+    # warned. (Contrast with test_claim_anchor_synthesized_from_frontmatter_*
+    # below: a WP WITH claim state but no event log gets a SYNTHESIZED anchor
+    # instead of being skipped — #2848.)
+    feature_dir = build_mission(tmp_path, with_transitions=False, with_claim=False)
+    result = b.backfill_runtime_state(feature_dir)
+    assert result.seeded_count == 0
+    assert any("never-claimed" in w for w in result.warnings)
+
+
+# ---------------------------------------------------------------------------
+# #2848 — claim-anchor synthesis for a missing/truncated event log
+# ---------------------------------------------------------------------------
+
+
+def test_claim_anchor_synthesized_from_frontmatter_when_event_log_missing(tmp_path: Path) -> None:
+    """Regression for the live-proved defect (debugger-debbie, #2848).
+
+    ``kitty-specs/merge-coord-rollback-transactionality-01KXTM59`` has 5 WPs
+    whose frontmatter carries a real claim (``agent="claude"`` + ``shell_pid``)
+    but NO ``status.events.jsonl`` at all. Pre-fix, ``_claim_anchors`` found no
+    anchor, ``_build_seed_events`` skipped the WP as "never-claimed",
+    ``verify_backfill`` returned a VACUOUS ``ok=True, wp_count=0``, and the
+    mission flipped to snapshot authority with an EMPTY runtime —
+    ``reconstruct_wp_view`` then silently lost the ``agent``/``shell_pid``.
+
+    After the fix: the claim anchor is synthesized from
+    ``shell_pid_created_at``, the claim IS seeded, verify is non-vacuous
+    (``wp_count > 0``), and the recovered ``agent``/``shell_pid`` round-trip
+    through the reduced snapshot and :func:`reconstruct_wp_view`.
+    """
     feature_dir = build_mission(tmp_path, with_transitions=False)
+    assert not (feature_dir / "status.events.jsonl").exists()
+
+    result = b.backfill_runtime_state(feature_dir)
+    assert result.action == "wrote"
+    assert result.seeded_count > 0
+    assert any("synthesized from frontmatter" in w for w in result.warnings)
+    assert not any("never-claimed" in w for w in result.warnings)
+
+    verify = b.verify_backfill(feature_dir)
+    assert verify.ok is True
+    assert verify.wp_count == 1  # non-vacuous: the pre-fix bug returned wp_count == 0
+
+    snap = materialize_snapshot(feature_dir).work_packages["WP01"]
+    assert snap["agent"] == "claude:opus:pedro"
+    assert snap["shell_pid"] == 44821
+
+    view = reconstruct_wp_view(feature_dir, "WP01")
+    assert view.resolved.agent == "claude:opus:pedro"
+    assert view.resolved.shell_pid == "44821"
+
+    # Idempotent: a second run seeds nothing new (deterministic seed ids).
+    second = b.backfill_runtime_state(feature_dir)
+    assert second.action == "skip"
+    assert second.seeded_count == 0
+
+
+def test_claim_anchor_falls_back_to_mission_created_at(tmp_path: Path) -> None:
+    """When ``shell_pid_created_at`` itself is unparseable, fall back to the
+    mission's ``meta.json`` ``created_at`` — still deterministic, still real."""
+    feature_dir = build_mission(
+        tmp_path,
+        with_transitions=False,
+        shell_pid_created_at="not-a-timestamp",
+        meta_created_at="2026-01-01T00:00:00+00:00",
+    )
+    result = b.backfill_runtime_state(feature_dir)
+    assert result.seeded_count > 0
+    claim = next(e for e in read_event_stream(feature_dir).transitions if e.wp_id == "WP01")
+    assert claim.at == "2026-01-01T00:00:00+00:00"
+
+
+def test_claim_anchor_unresolvable_without_any_timestamp_stays_never_claimed(tmp_path: Path) -> None:
+    """Claim *fields* (``agent``) with NO honest timestamp anywhere (neither a
+    parseable ``shell_pid_created_at`` nor a ``meta.json`` ``created_at``) must
+    NOT fabricate a time — fail-closed, same as the genuinely never-claimed case."""
+    feature_dir = build_mission(tmp_path, with_transitions=False, shell_pid_created_at="not-a-timestamp")
     result = b.backfill_runtime_state(feature_dir)
     assert result.seeded_count == 0
     assert any("never-claimed" in w for w in result.warnings)
