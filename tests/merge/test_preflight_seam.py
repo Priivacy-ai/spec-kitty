@@ -85,6 +85,136 @@ def test_collect_force_count_warnings_no_status_file(tmp_path: Path) -> None:
     assert warnings == {}
 
 
+def _write_transition(
+    tmp_path: Path, *, wp_id: str, to_lane: str, actor: str, event_id: str, at: str
+) -> None:
+    with (tmp_path / "status.events.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(
+            json.dumps(
+                {
+                    "event_id": event_id,
+                    "wp_id": wp_id,
+                    "to_lane": to_lane,
+                    "from_lane": "planned",
+                    "at": at,
+                    "actor": actor,
+                    "force": False,
+                    "execution_mode": "worktree",
+                }
+            )
+            + "\n"
+        )
+
+
+# --- hollow-review: item #9 reviewer-identity disambiguation --------------
+
+
+def test_latest_actor_for_transition_picks_the_latest_by_timestamp(tmp_path: Path) -> None:
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-a",
+        event_id="01A", at="2026-07-21T00:00:00Z",
+    )
+    # Rework cycle: a second, later claim by a different implementer.
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-b",
+        event_id="01B", at="2026-07-21T01:00:00Z",
+    )
+    assert preflight._latest_actor_for_transition(tmp_path, "WP01", "in_progress") == "implementer-b"
+
+
+def test_latest_actor_for_transition_no_events_file(tmp_path: Path) -> None:
+    assert preflight._latest_actor_for_transition(tmp_path, "WP01", "approved") is None
+
+
+def test_latest_actor_for_transition_no_matching_wp_or_lane(tmp_path: Path) -> None:
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-a",
+        event_id="01A", at="2026-07-21T00:00:00Z",
+    )
+    assert preflight._latest_actor_for_transition(tmp_path, "WP02", "in_progress") is None
+    assert preflight._latest_actor_for_transition(tmp_path, "WP01", "approved") is None
+
+
+def test_independent_reviewer_confirmed_when_actors_differ(tmp_path: Path) -> None:
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-ivan",
+        event_id="01A", at="2026-07-21T00:00:00Z",
+    )
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="approved", actor="reviewer-renata",
+        event_id="01B", at="2026-07-21T01:00:00Z",
+    )
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is True
+
+
+def test_independent_reviewer_not_confirmed_when_actors_match(tmp_path: Path) -> None:
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-ivan",
+        event_id="01A", at="2026-07-21T00:00:00Z",
+    )
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="approved", actor="implementer-ivan",
+        event_id="01B", at="2026-07-21T01:00:00Z",
+    )
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
+
+
+def test_independent_reviewer_not_confirmed_when_actor_unknown(tmp_path: Path) -> None:
+    # No in_progress transition at all -- absence of evidence must not
+    # suppress the warning.
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="approved", actor="reviewer-renata",
+        event_id="01B", at="2026-07-21T01:00:00Z",
+    )
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
+
+
+def test_collect_force_count_warnings_suppressed_when_reviewer_differs(tmp_path: Path) -> None:
+    """The field-reported false positive: force_count>=2 alone used to warn
+    regardless of whether the review was genuinely independent."""
+    (tmp_path / "status.json").write_text(
+        json.dumps({"work_packages": {"WP01": {"force_count": 3}}}), encoding="utf-8"
+    )
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-ivan",
+        event_id="01A", at="2026-07-21T00:00:00Z",
+    )
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="approved", actor="reviewer-renata",
+        event_id="01B", at="2026-07-21T01:00:00Z",
+    )
+    warnings: HollowReviewWarnings = {}
+    preflight._collect_force_count_warnings(tmp_path, {"WP01"}, warnings)
+    assert warnings == {}
+
+
+def test_collect_force_count_warnings_kept_when_same_actor(tmp_path: Path) -> None:
+    (tmp_path / "status.json").write_text(
+        json.dumps({"work_packages": {"WP01": {"force_count": 3}}}), encoding="utf-8"
+    )
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="in_progress", actor="implementer-ivan",
+        event_id="01A", at="2026-07-21T00:00:00Z",
+    )
+    _write_transition(
+        tmp_path, wp_id="WP01", to_lane="approved", actor="implementer-ivan",
+        event_id="01B", at="2026-07-21T01:00:00Z",
+    )
+    warnings: HollowReviewWarnings = {}
+    preflight._collect_force_count_warnings(tmp_path, {"WP01"}, warnings)
+    assert warnings == {"WP01": ["force_count=3"]}
+
+
+def test_collect_force_count_warnings_kept_when_no_event_log(tmp_path: Path) -> None:
+    """Fail-safe default: with no event log to check, keep warning as before."""
+    (tmp_path / "status.json").write_text(
+        json.dumps({"work_packages": {"WP01": {"force_count": 3}}}), encoding="utf-8"
+    )
+    warnings: HollowReviewWarnings = {}
+    preflight._collect_force_count_warnings(tmp_path, {"WP01"}, warnings)
+    assert warnings == {"WP01": ["force_count=3"]}
+
+
 # --- hollow-review split: self-approval -----------------------------------
 
 

@@ -407,6 +407,65 @@ def _enforce_review_artifact_consistency(
     raise typer.Exit(1)
 
 
+def _latest_actor_for_transition(
+    feature_dir: Path, wp_id: str, to_lane: str
+) -> str | None:
+    """Return the actor on WP's most recent transition into *to_lane*.
+
+    Scans the raw event log rather than the reduced snapshot, because the
+    snapshot's ``actor`` slot is overwritten on every transition -- it can
+    only ever tell us who did the LATEST transition of any kind, never who
+    specifically claimed/implemented versus who specifically approved.
+    Returns ``None`` when the log is absent/unreadable or no matching,
+    actor-bearing transition exists for this WP.
+    """
+    events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    if not events_path.exists():
+        return None
+    try:
+        raw_lines = events_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    latest_key: tuple[str, str] = ("", "")
+    latest_actor: str | None = None
+    for raw_line in raw_lines:
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if event.get("wp_id") != wp_id or event.get("to_lane") != to_lane:
+            continue
+        actor = event.get("actor")
+        if not actor or not str(actor).strip():
+            continue
+        key = (str(event.get("at") or ""), str(event.get("event_id") or ""))
+        if key >= latest_key:
+            latest_key = key
+            latest_actor = str(actor).strip()
+    return latest_actor
+
+
+def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
+    """True when WP's latest approval actor positively differs from its
+    latest implementation actor (#2412-adjacent field report, item #9).
+
+    ``force_count`` alone cannot distinguish "reviewer used --force to bypass
+    an unrelated gate false-positive" from "no independent review happened" --
+    both increment the same counter. This checks the one thing that actually
+    answers the question: did a different identity log the approving
+    transition than the one that most recently claimed/implemented the WP?
+    Returns False (never suppress) when either actor is missing/unknown --
+    absence of evidence is not evidence of an independent review.
+    """
+    implementer = _latest_actor_for_transition(feature_dir, wp_id, "in_progress")
+    reviewer = _latest_actor_for_transition(feature_dir, wp_id, "approved")
+    if not implementer or not reviewer:
+        return False
+    return implementer != reviewer
+
+
 def _collect_force_count_warnings(
     feature_dir: Path,
     wp_set: set[str],
@@ -415,7 +474,10 @@ def _collect_force_count_warnings(
     """Append force_count>=2 warnings from ``status.json`` (WP05 split helper).
 
     Behavior-preserving extraction of the status-snapshot scan formerly inlined
-    in ``_collect_hollow_review_warnings`` (FR-005, keeps CC <= 15).
+    in ``_collect_hollow_review_warnings`` (FR-005, keeps CC <= 15) -- plus one
+    additive guard (item #9): a WP whose approving actor is positively
+    confirmed distinct from its implementing actor is not a hollow review,
+    even with a high force_count, so it is not warned about here.
     """
     status_path = feature_dir / _STATUS_FILENAME
     if not status_path.exists():
@@ -435,7 +497,7 @@ def _collect_force_count_warnings(
             force_count = int(wp_state.get("force_count", 0))
         except (TypeError, ValueError):
             force_count = 0
-        if force_count >= 2:
+        if force_count >= 2 and not _independent_reviewer_confirmed(feature_dir, wp_id):
             warnings.setdefault(wp_id, []).append(f"force_count={force_count}")
 
 

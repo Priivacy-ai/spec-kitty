@@ -160,6 +160,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   the zero-dependency root every layer can import downward), leaving the seam
   definition as the only `replace("\\", "/")` in `src/`.
 
+- **`merge`'s hollow-review warning no longer flags a WP with a genuinely independent reviewer.**
+  `force_count >= 2` alone can't distinguish "the reviewer used `--force` to bypass an unrelated gate false-positive" from "no independent review happened" — both increment the same counter. When the event log positively confirms a different actor logged the approving transition than the one that most recently implemented the WP, the warning no longer fires; absence of that evidence still warns as before (fail-safe default, never suppressed on uncertain data).
+
 - **Honest force-provenance on evidence-gated backward edges (#2684, #2736, #2810).**
   Persisted `StatusEvent.force` is now truthful — falsy on the evidence-gated
   review-rejection edges (`build_transition_plan` asks the FSM instead of
