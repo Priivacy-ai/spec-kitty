@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "023-documentation-sprint-agent-management-cleanup",
   "source_description": "a documentation sprint to bring the user docs in line with the actual current implementation. Check the git history for our ./docs - they were mostly written in a sprint a few days ago. Look at git history in the meantime and read our ./architectur adrs. Then find the documentation (eg jujutsu) that must be removed, and the documentation that has to be adjusted based on user facing api changes like the new agent management architecture.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-03-03T04:12:23.252525+00:00"

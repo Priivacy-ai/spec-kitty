@@ -9,6 +9,7 @@
   "purpose_tldr": "Make the 3.2.0 implement, review, merge, and ship loop trustworthy enough for stable release work.",
   "slug": "release-320-workflow-reliability-01KQKV85",
   "source_description": "start-here.md requested one software-dev mission for the 3.2.0 stable-release workflow reliability blockers found during mission-state-audit-01KQHRB8.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

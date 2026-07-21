@@ -10,6 +10,7 @@
   "purpose_tldr": "Charter freshness UX + first-class `overrides`/`enhances` schema fields + `shipped→built-in` rename, shipped as one coherent doctrine release cut.",
   "slug": "charter-ux-and-org-pack-vocabulary-01KSAF14",
   "source_description": "Bundle of slices A & F of epic #1111 plus the `shipped→built-in` vocabulary unification.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

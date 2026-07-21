@@ -27,6 +27,7 @@
   "purpose_tldr": "Make each activated mission type own its template selection without software-dev defaults.",
   "slug": "templates-as-config-01KXMS1G",
   "source_description": "Priivacy-ai/spec-kitty issue 2658: specify_cli/missions retirement — Templates-as-config: fill the template_set slot (#2652-T)",
+  "status_phase": "1",
   "target_branch": "feat/templates-as-config",
   "topology": "coord",
   "vcs": "git",

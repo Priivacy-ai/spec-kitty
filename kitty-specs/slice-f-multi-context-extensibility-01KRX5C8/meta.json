@@ -8,6 +8,7 @@
   "purpose_context": "Delivers Issue #1111 Slice F's three architectural seams — organisation-tier doctrine graph, monorepo-aware charter scope, composable workflow sequencing — alongside five strategic remediations surfaced during Mission B's post-merge review. The bundling is deliberate: the remediations (ratchet burn-down, symbol-level dead code, alias clean removal, catalog-miss CLI visibility, contract round-trip backstop) each protect Slice F's quality of execution by closing failure modes Slice F's new modules would otherwise multiply. Auth-transport cleanup is descoped to the lead maintainer per the SaaS auth-caution policy.",
   "purpose_tldr": "Open spec-kitty's architecture for organisations, monorepos, and custom workflows while hardening the ratchets that protect future quality.",
   "slug": "slice-f-multi-context-extensibility-01KRX5C8",
+  "status_phase": "1",
   "target_branch": "feat/org-doctrine-layer",
   "vcs": "git",
   "vcs_locked_at": "2026-05-18T12:12:50.313387+00:00"

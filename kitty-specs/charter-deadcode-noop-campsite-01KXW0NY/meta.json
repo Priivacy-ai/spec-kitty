@@ -26,6 +26,7 @@
   "purpose_context": "Low-risk sanitization slice continuing merged #2773 (charter.yaml authority inversion), which left charter.generator and charter.extractor confirmed-dead-but-deferred and retired the render-path doctrine write. Under epics #1797 (dead-code/LOC reduction) and #1914 (governed/gate ops must be no-op-stable). The residual no-op churn now lives in the preflight auto-refresh -> charter synthesize surface gated by a freshness signal in charter_runtime/freshness/computer.py; this slice reproduces it red-first (fresh clone / doctrine-tracked) and fixes it.",
   "purpose_tldr": "Delete two confirmed-dead charter modules (generator, extractor), shrink the arch dead-code baselines downward, and make the charter doctrine render + preflight/synthesize surface no-op-stable so governed reads never dirty the tree (#2373/#1914).",
   "slug": "charter-deadcode-noop-campsite-01KXW0NY",
+  "status_phase": "1",
   "target_branch": "feat/charter-deadcode-noop-campsite",
   "topology": "coord",
   "vcs": "git",

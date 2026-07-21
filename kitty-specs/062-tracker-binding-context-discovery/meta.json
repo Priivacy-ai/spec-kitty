@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "tracker-binding-context-discovery",
   "source_description": "Implement CLI-side of ADR 2026-04-04-1: replace manual --project-slug bind with host-resolved discovery and selection workflow",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

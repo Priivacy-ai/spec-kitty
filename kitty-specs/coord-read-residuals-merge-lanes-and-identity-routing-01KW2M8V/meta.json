@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances coord read residuals merge lanes and identity routing on mission/coord-read-residuals-2185-2186 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "coord read residuals merge lanes and identity routing",
   "slug": "coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V",
+  "status_phase": "1",
   "target_branch": "mission/coord-read-residuals-2185-2186",
   "topology": "flat",
   "vcs": "git",

@@ -25,6 +25,7 @@
   "purpose_context": "When a coordination-topology mission is closed or merged, its retrospective is currently written into an ephemeral coordination worktree that is then deleted, so the record is silently lost. This mission gives retrospectives a durable home on the primary mission surface and guarantees they are persisted before any teardown, so post-mission learnings are never discarded.",
   "purpose_tldr": "Mission retrospectives survive teardown by living in the tracked mission folder, not the throwaway coordination worktree.",
   "slug": "retrospective-durable-home-01KVYM1W",
+  "status_phase": "1",
   "target_branch": "fix/3.2.3-coord-surface-regressions",
   "topology": "flat",
   "vcs": "git",

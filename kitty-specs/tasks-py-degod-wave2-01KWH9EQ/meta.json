@@ -12,6 +12,7 @@
   "purpose_context": "Wave 1 (PR #2303) extracted the agent tasks command's decision logic into pure tested cores but deliberately deferred two goals: unifying output rendering behind the Render seam and relocating the accumulated orchestration glue out of tasks.py, which grew to ~4569 lines. This mission executes that deferred Wave 2 (issue #2305, parent epic #2173) as a strictly behavior-preserving refactor guarded by the golden CLI characterization harness, and folds in domain-matched test-visibility boyscouting from issue #2034.",
   "purpose_tldr": "Finish turning the agent-tasks god-command into a thin registration shim: unified JSON rendering plus relocation of orchestration into tested sibling modules, with zero behavior change.",
   "slug": "tasks-py-degod-wave2-01KWH9EQ",
+  "status_phase": "1",
   "target_branch": "degod-follow-ups",
   "topology": "coord",
   "vcs": "git",

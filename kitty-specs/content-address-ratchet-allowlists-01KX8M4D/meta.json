@@ -11,6 +11,7 @@
   "purpose_context": "The architectural ratchet gates (dead-code scanners, write-side re-derivation, seam I/O) pin their allow-lists on file positions — line numbers and module::Name paths — so a behaviour-preserving refactor that merely moves code forces manual re-anchoring and false CI reds (the coord-authority trio degod paid this tax three times). This mission re-keys the allow-lists onto stable content descriptors so only a genuine semantic change can trip them, while preserving every gate's full bite.",
   "purpose_tldr": "Content-address the architectural test ratchet allow-lists so pure code motion can no longer red the CI gates.",
   "slug": "content-address-ratchet-allowlists-01KX8M4D",
+  "status_phase": "1",
   "target_branch": "analysis/test-change-coupling",
   "topology": "coord"
 }

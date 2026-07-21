@@ -9,7 +9,8 @@
   "purpose_context": "The 2026-06-03 harness audit identified stale documentation pointing users to retired Codex install paths, pre-existing snapshot failures in the command renderer test suite, and unverified install-surface claims for Antigravity and Kiro. This mission resolves all four gaps with verified documentation, passing tests, and explicit scope boundaries so the 3.3.x plugin-install work (tracked in #1635) can proceed on a clean foundation.",
   "purpose_tldr": "Close four agent harness-install gaps found in the 2026-06-03 audit: stale Codex docs, snapshot drift, and unverified Antigravity/Kiro install surfaces.",
   "slug": "agent-harness-install-audit-follow-through-01KT5YTQ",
+  "source_description": "GitHub issue #1649: Epic: Agent plugin and harness install verification follow-through",
+  "status_phase": "1",
   "target_branch": "main",
-  "vcs": "git",
-  "source_description": "GitHub issue #1649: Epic: Agent plugin and harness install verification follow-through"
+  "vcs": "git"
 }

@@ -26,6 +26,7 @@
   "purpose_context": "Mission artifacts are split across a coordination branch (lifecycle/bookkeeping: status, notes, trace, issue-matrix, move-task) and the primary branch (stable planning: spec, plan, WP outlines), while no-coordination missions keep everything on primary. Today that placement logic is duplicated and sometimes bypassed, producing create-time split-brain and misleading coordination errors. This mission routes every read and write through a single topology-aware resolver seam - even when the answer is 'primary' - and locks the behaviour with an end-to-end regression test, so future work cannot reintroduce the split.",
   "purpose_tldr": "Make one topology-aware API the single place that decides where every mission artifact is stored and read, and lock it against regression.",
   "slug": "coord-primary-partition-lock-01KWZ46V",
+  "status_phase": "1",
   "target_branch": "design/coord-primary-partition-lock",
   "topology": "coord",
   "vcs": "git",

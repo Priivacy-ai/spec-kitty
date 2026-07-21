@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "048-tracker-publish-resource-routing",
   "source_description": "Update CLI tracker publish payloads so SaaS can resolve installation-plus-resource mappings without changing the existing Git event envelope. Add external_resource_type and external_resource_id to tracker snapshot publish payloads, derived from current tracker config and credentials. Jira uses configured project key as external_resource_id (type: jira_project). Linear uses configured team id as external_resource_id (type: linear_team). Do not change the Git event envelope. Do not add new cross-repo event-contract work.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

@@ -8,5 +8,6 @@
   "purpose_context": "spec-kitty sync diagnose validates queued events using VALID_EVENT_TYPES, an allowlist derived from emitter._PAYLOAD_RULES.keys() (26 entries). The canonical spec_kitty_events 5.1.0 registry has 85 event types. As a result, anything the CLI doesn't emit itself (Tasks*, Plan*, Specify*, Retrospective*, Gate*, MissionCancelled, audit events, glossary events, etc.) surfaces as 'unknown event type', producing false positives in canary diagnostic output and obscuring real failures. The fix is to delegate diagnose's recognition to spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL while preserving emitter._PAYLOAD_RULES for per-event payload validation and leaving emitter.VALID_EVENT_TYPES (the outbound gate) untouched. Anchors: Priivacy-ai/spec-kitty#1222 (this mission), #1198 (structural drift epic), Mission D in Phase 4 program (start-here.md).",
   "purpose_tldr": "Replace sync diagnose's stale hardcoded event-type allowlist with a union of the emitter's outbound types and the canonical spec_kitty_events conformance registry, so diagnose stops flagging real events (TasksCompleted, PlanCompleted, GatePassed, etc.) as unknown.",
   "slug": "sync-diagnose-canonical-allowlist-01KS4F8H",
+  "status_phase": "1",
   "target_branch": "main"
 }

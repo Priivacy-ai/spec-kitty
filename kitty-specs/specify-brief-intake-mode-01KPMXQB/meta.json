@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "specify-brief-intake-mode-01KPMXQB",
   "source_description": "GitHub issue Priivacy-ai/spec-kitty#700 — brief-intake mode for /spec-kitty.specify",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -24,6 +24,7 @@
   "purpose_context": "The test suite still has pockets that go red on a correct refactor instead of catching a real regression. This mission pays that down where it genuinely remains — after the 2026-07-12 wave already landed the composite-key ratchet re-key, the relocation-hardened dead-code scanners, and the security xfail de-theater — by unblinding the dead-code gate to first-party dynamic access, retiring the runtime_bridge compat delegates, and re-pointing the remaining source-as-text and stale-golden-count tests to observable contracts. It also closes three structural CI guard holes surfaced while shipping the sibling test-topology performance mission (#2609), so a forgotten suite job, an un-gated coverage source, or an evaded positional-anchor ban can no longer slip through unnoticed.",
   "purpose_tldr": "Retire test-as-scaffold friction (#2071) via tidy-first deshim and targeted test rewrites, and close three CI-topology guard holes from the perf mission's tail.",
   "slug": "test-suite-friction-remediation-01KXDKBX",
+  "status_phase": "1",
   "target_branch": "feat/test-suite-friction-remediation",
   "topology": "lanes",
   "vcs": "git",

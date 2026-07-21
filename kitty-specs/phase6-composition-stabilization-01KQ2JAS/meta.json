@@ -9,6 +9,7 @@
   "purpose_tldr": "Close three follow-ups on the just-landed software-dev composition path so it is single-dispatch, leaves no orphaned invocation records, and preserves contract action under profile_hint, unblocking the custom mission loader.",
   "slug": "phase6-composition-stabilization-01KQ2JAS",
   "source_description": "Phase 6 stabilization tranche after PR #795 covering issues #786, #793, #794. Brief: workspace start-here.md.",
+  "status_phase": "1",
   "target_branch": "main",
   "tracker_issues": [
     "https://github.com/Priivacy-ai/spec-kitty/issues/786",

@@ -12,6 +12,7 @@
   "purpose_context": "The commands driving mission lifecycle — workflow orchestration, implement, and acceptance — have grown into 1600-3000-line god-modules that each re-derive where mission artifacts live (coord vs primary partition), the root of the #2160 artifact-authority split-brain. This mission decomposes them behaviour-preservingly into a ports facade (infra injected), deterministic pure cores, and thin executor/renderer layers — following the shipped MissionResolver-port (#2494) and tasks.py degod (#2308) patterns — so the partition authority lives in one place and the modules drop below the complexity/LOC thresholds.",
   "purpose_tldr": "Decompose the three coord-authority god-modules into injectable ports plus pure cores so mission-lifecycle logic is testable and the artifact-partition authority is defined once, not re-derived per call site.",
   "slug": "coord-authority-trio-degod-01KX7094",
+  "status_phase": "1",
   "target_branch": "feat/coord-authority-trio-degod",
   "topology": "coord"
 }

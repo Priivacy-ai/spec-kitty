@@ -25,6 +25,7 @@
   "purpose_context": "After the MissionTopology SSOT seam closed the coordination/primary planning-surface desync, several now-vestigial constructs remain: a three-valued type encoding a two-valued decision, a dead persistence shim, scattered legacy band-aids, and roughly 750-1000 lines of duplicated meta-reading and routing logic. This mission removes that debt behavior-neutrally, folds two accept-gate bugs that stall finished missions, and turns one band-aid removal into a correctness win that protects un-migrated missions from the stale-coordination data-loss path.",
   "purpose_tldr": "Remove now-dead type/shim debt and consolidate duplicated mission-shape logic into one authority, while extending a recent data-loss fix to un-migrated missions.",
   "slug": "single-authority-topology-cleanup-01KVRJ6P",
+  "status_phase": "1",
   "target_branch": "feat/single-authority-topology-cleanup",
   "topology": "lanes",
   "vcs": "git",

@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "glossary-drg-surfaces-and-charter-lint-01KPTY5Y",
   "source_description": "Phase 5 WP5.3-WP5.6 from https://github.com/Priivacy-ai/spec-kitty/issues/467",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -11,6 +11,7 @@
   "purpose_context": "Teams that ship a doctrine pack inside a larger repository cannot currently consume it from its git source, forcing manual clone workarounds. This mission adds first-class subdirectory support for git-sourced org packs, and bundles two doctrine-stack quality improvements: clear guidance on when ruamel.yaml versus PyYAML applies, and a canonical doctrine home for tiered (DDD-based) coding-standard rigour.",
   "purpose_tldr": "Let git-sourced doctrine packs live in a subdirectory, clarify YAML-library usage, and codify tiered coding standards in doctrine.",
   "slug": "org-pack-subdir-and-doctrine-qol-01KVSRJ6",
+  "status_phase": "1",
   "target_branch": "feat/doctrine-qol-2083",
   "topology": "single_branch",
   "vcs": "git",

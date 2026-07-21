@@ -25,6 +25,7 @@
   "purpose_context": "This mission advances pack path env indirection on issue/2437-env-var-pack-paths so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "pack path env indirection",
   "slug": "pack-path-env-indirection-01KWY79W",
+  "status_phase": "1",
   "target_branch": "issue/2437-env-var-pack-paths",
   "topology": "coord",
   "vcs": "git",

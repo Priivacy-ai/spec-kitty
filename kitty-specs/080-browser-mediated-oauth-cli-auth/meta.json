@@ -19,6 +19,7 @@
   ],
   "slug": "browser-mediated-oauth-cli-auth",
   "source_description": "Replace password-based human CLI auth with browser-mediated OAuth/OIDC (Authorization Code + PKCE) against spec-kitty-saas. Device Authorization Flow fallback for headless human environments. Hard cutover: no password fallback. Centralized TokenManager converges all HTTP/batch/background/tracker/websocket auth. Keychain-first secure storage with file fallback for degraded environments.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -11,6 +11,7 @@
   "purpose_context": "This mission advances merge squash provenance and rollback coherence on fix/red-handling-policy-and-drg-regression-marks so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "merge squash provenance and rollback coherence",
   "slug": "merge-squash-provenance-and-rollback-coherence-01KXRRB7",
+  "status_phase": "1",
   "target_branch": "fix/red-handling-policy-and-drg-regression-marks",
   "topology": "coord",
   "vcs": "git",

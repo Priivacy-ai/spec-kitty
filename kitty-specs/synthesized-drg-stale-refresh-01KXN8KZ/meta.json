@@ -9,6 +9,7 @@
   "purpose_context": "A regression from the no-op-stable manifest write (#1912/#1913) leaves synthesized_drg stuck stale: the manifest's created_at never advances on no-op runs while the synced-bundle mtime does, so the implement gate deadlocks with no working remediation. This mission makes DRG freshness reflect whether the synthesized graph matches current doctrine content rather than incidental filesystem timestamps, while preserving the clean-tree intent of the originating fix.",
   "purpose_tldr": "Fix the charter freshness gate so a genuinely-fresh synthesized DRG is never permanently reported stale, unblocking 'agent action implement'.",
   "slug": "synthesized-drg-stale-refresh-01KXN8KZ",
+  "status_phase": "1",
   "target_branch": "fix/2681-synthesized-drg-stale",
   "topology": "single_branch",
   "vcs": "git",

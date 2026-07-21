@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances decompose mission god module on prog/2056-mission so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "decompose mission god module",
   "slug": "decompose-mission-god-module-01KVXHF8",
+  "status_phase": "1",
   "target_branch": "prog/2056-mission",
   "topology": "lanes",
   "vcs": "git",

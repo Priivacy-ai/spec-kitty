@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "init-command-overhaul",
   "source_description": "Redesign spec-kitty init as a global machine-level bootstrapper: remove dead code, simplify CLI surface, establish ~/.kittify as canonical runtime, and document architectural decisions as ADRs.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

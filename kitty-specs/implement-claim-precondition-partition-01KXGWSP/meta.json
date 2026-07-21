@@ -25,6 +25,7 @@
   "purpose_tldr": "Fix the false 'Planning artifacts not committed' abort that blocks claiming work on PR-bound missions.",
   "slug": "implement-claim-precondition-partition-01KXGWSP",
   "source_description": "Fixes #2533 (write/claim-side twin of WP08): implement-claim precondition compares PRIMARY planning artifacts against the coordination ref (C-PLACE-1 single-ref conflation), aborting the claim on solo PR-bound coord missions.",
+  "status_phase": "1",
   "target_branch": "mission/2533-pr-bound-coord-claim-precondition",
   "topology": "single_branch",
   "vcs": "git"

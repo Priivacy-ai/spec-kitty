@@ -9,6 +9,7 @@
   "purpose_tldr": "Let teams author and run their own local mission definitions as first-class peers to built-in missions through the existing runtime and composition pipeline.",
   "slug": "local-custom-mission-loader-01KQ2VNJ",
   "source_description": "Phase 6 / WP6.5 prompt from START-HERE.md (workspace 20260425-192136-VUIM7c). Tracker: parent #468, umbrella #461, implements #505. Defers #504, #502, #506, #507, #508, #509, #510, #511, #516, #469.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

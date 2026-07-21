@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "050-state-model-cleanup-foundations",
   "source_description": "Short, high-leverage sprint focused on state-model cleanup foundations: state contract, root-path clarity, Git boundary alignment, and doctor checks. Based on the 007 state architecture audit.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

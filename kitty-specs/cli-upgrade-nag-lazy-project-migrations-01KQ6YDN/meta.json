@@ -9,6 +9,7 @@
   "purpose_tldr": "Separate the \"your CLI is out of date\" nag from the \"this project needs migrations\" check, so users get a passive warning for one and a precise lazy block for the other - only for the project they are currently in.",
   "slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
   "source_description": "Mission brief at /Users/robert/spec-kitty-dev/spec-kitty-20260427-093938-O3p9VT/start-here.md (GitHub issue Priivacy-ai/spec-kitty#812).",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

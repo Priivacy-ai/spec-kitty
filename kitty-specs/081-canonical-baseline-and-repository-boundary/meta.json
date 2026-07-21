@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "081-canonical-baseline-and-repository-boundary",
   "source_description": "Define the canonical 3-tier terminology boundary (project/repository/build), establish invariants, and catalog representative drift to guide convergence.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -23,6 +23,7 @@
   "purpose_context": "Write-side mission #2106 (write-surface-coherence) re-partitioned planning artifacts to the primary target_branch (kind-aware via MissionArtifactKind) but did NOT re-point the planning-lifecycle GATE command READS. Live repro on main: setup_plan (mission.py:2203) reads via resolve_handle_to_read_path (topology-aware -> coord) instead of resolve_planning_read_dir(kind=SPEC), so on a coord-topology mission setup-plan reads coord, finds no spec.md (now on primary), and blocks. Same class affects accept. This mission completes the read side: re-point setup-plan + accept gate reads onto the per-kind seam. Bundles #2107 (driver/spine), #2085 (acceptance-matrix gate / accept facet), #2102 (record-analysis dirty-tree allowlist + commit-home for meta.json/global.jsonl). Companion #2100 (residual inline meta-reader sweep). Advances epic #1716.",
   "purpose_tldr": "Re-point planning-lifecycle GATE command reads (setup-plan, accept) onto the per-kind resolve_planning_read_dir seam — finish the read side of #2106's write re-partition.",
   "slug": "gate-read-surface-completion-01KVW9B0",
+  "status_phase": "1",
   "target_branch": "feat/gate-read-surface-completion",
   "topology": "single_branch",
   "vcs": "git",

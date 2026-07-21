@@ -12,6 +12,7 @@
   "purpose_context": "During the maintainer landing of PR #2670, an adversarial squad surfaced four pre-existing debt items that repeatedly turn the shared main branch red or hide latent defects: a recurring test-shard registration gap, a parallel-test isolation flake, an unguarded set of sync remediation commands, and a cluster of type-check errors. This mission consolidates them into one quick-follow so contributors stop losing time to avoidable red CI and the affected surfaces regain single-source integrity.",
   "purpose_tldr": "Clear the tech-debt residue left by the #2670 landing pass so main stops going red for process reasons.",
   "slug": "landing-pass-campsite-followups-01KXKWD7",
+  "status_phase": "1",
   "target_branch": "feat/landing-pass-campsite-followups",
   "topology": "coord",
   "vcs": "git",

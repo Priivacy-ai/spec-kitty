@@ -9,6 +9,7 @@
   "purpose_context": "Spec Kitty currently supports 17 AI agents. This mission adds Pi (pi-coding-agent) and Letta Code to the roster, covering agent configuration, Agent Skills installation, orchestrator invokers, prompt templates, and documented design decisions for each agent's unique CLI model.",
   "purpose_tldr": "Add Pi and Letta Code as first-class Spec Kitty-supported coding agents.",
   "slug": "pi-and-letta-agent-support-01KT4Q26",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "cli-interview-decision-moments-01KPWT8P",
   "source_description": "CLI-owned Decision Moment API (open/resolve/defer/cancel/verify) with ask-time paper trail under kitty-specs/<mission>/decisions/. Used by charter, specify, and plan. Bumps spec-kitty-events dep to 4.0.0.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

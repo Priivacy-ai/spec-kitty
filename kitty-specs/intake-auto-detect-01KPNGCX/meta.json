@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "intake-auto-detect-01KPNGCX",
   "source_description": "Research harness plan-mode artifact locations, produce docs/reference/agent-plan-artifacts.md, then add --auto flag to spec-kitty intake. GitHub issue #703.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

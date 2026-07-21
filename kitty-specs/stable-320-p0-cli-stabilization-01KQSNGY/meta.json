@@ -9,6 +9,7 @@
   "purpose_tldr": "Stable 3.2.0 P0 CLI stabilization",
   "slug": "stable-320-p0-cli-stabilization-01KQSNGY",
   "source_description": "../start-here.md",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

@@ -7,5 +7,6 @@
   "mission_type": "research",
   "slug": "002-lightweight-pypi-release",
   "source_description": "ad a pypi release but leak no secrets into the git repo",
+  "status_phase": "1",
   "target_branch": "main"
 }

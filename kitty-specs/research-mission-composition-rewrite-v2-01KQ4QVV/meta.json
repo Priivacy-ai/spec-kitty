@@ -9,6 +9,7 @@
   "purpose_tldr": "Re-attempt Phase 6 #504 with corrected scope: deliver a runnable composition-backed research mission with real DRG nodes and guard parity, validated by a real-runtime walk.",
   "slug": "research-mission-composition-rewrite-v2-01KQ4QVV",
   "source_description": "Reroll of Phase 6 issue #504 (parent epic #468, umbrella #461). Baseline: origin/main commit e056f39. Prior attempt evidence: git tag attempt/research-composition-mission-100-broken at d10af600.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

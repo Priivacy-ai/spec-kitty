@@ -22,5 +22,6 @@
   "purpose_context": "Mission unblock-sync-identity-boundary-canary-01KRZJ07 deferred NFR-003 (canary turn-green) via a Gate 3 exception with operator commitments to investigate #1142 within 7 days and #1141 within 14 days. This mission delivers those investigations: run hypothesis-ranked repros, record findings on each GitHub issue, and update the mission-exception follow-up section on the focused-PR branch.",
   "purpose_tldr": "Honor the 7- and 14-day operator commitments to investigate canary follow-ups #1142 and #1141.",
   "slug": "investigate-canary-followups-1142-1141-01KS02TV",
+  "status_phase": "1",
   "target_branch": "main"
 }

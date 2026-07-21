@@ -12,6 +12,7 @@
   "purpose_context": "Main is currently red because a docs page still publishes the retired memory/charter.md path, blocking fast-tests-docs on every open PR; and the arch-adversarial CI job is now the slowest unsharded pole at 14.4 min. This mission clears both so the pipeline is green and fast, without weakening architecture-suite coverage or coverage-ownership invariants.",
   "purpose_tldr": "Restore CI health: fix the red-main docs charter-path test and matrix-shard the arch-adversarial bottleneck (#2397).",
   "slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "status_phase": "1",
   "target_branch": "tidy/ci-docs-charter-path-and-arch-adversarial-shard",
   "topology": "coord",
   "vcs": "git",

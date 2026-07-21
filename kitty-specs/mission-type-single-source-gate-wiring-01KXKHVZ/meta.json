@@ -11,6 +11,7 @@
   "purpose_context": "A follow-up bundle that closes four gaps left by the mission-type unification work: it routes every hardcoded mission-type roster through the one doctrine source of truth, makes malformed doctrine indexes fail loudly instead of silently degrading, wires the cross-grain duplicate scan into a real runtime check, and promotes a private path accessor to a public seam. The effect: a newly-shipped mission type is picked up everywhere automatically, and a broken or colliding doctrine configuration can no longer pass unnoticed.",
   "purpose_tldr": "Make the mission-type roster single-sourced and the cross-grain integrity gate load-bearing outside pytest.",
   "slug": "mission-type-single-source-gate-wiring-01KXKHVZ",
+  "status_phase": "1",
   "target_branch": "feat/mission-type-single-source-gate-wiring",
   "topology": "coord",
   "vcs": "git",

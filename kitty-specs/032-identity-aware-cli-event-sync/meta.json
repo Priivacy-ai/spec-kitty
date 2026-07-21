@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "032-identity-aware-cli-event-sync",
   "source_description": "Make CLI events identity-aware and auto-syncing so multiple local projects appear in SaaS dashboards. Includes: persist project identity (project_uuid, project_slug, node_id) in config.yaml, inject identity into emitted events, auto-start background sync runtime, fix duplicate event emissions in implement.py and accept.py, add get_team_slug() to AuthClient.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git"
 }

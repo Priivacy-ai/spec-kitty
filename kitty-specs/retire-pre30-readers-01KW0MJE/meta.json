@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances Retire pre-3.0 status/task readers from active runtime on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Move legacy lane-directory and frontmatter-lane readers out of the active runtime hot path; hard-reject unmigrated pre-3.0 projects at the command boundary.",
   "slug": "retire-pre30-readers-01KW0MJE",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "coord"
 }

@@ -12,6 +12,7 @@
   "purpose_context": "run_configured_command_template emits a custom-runner --junitxml=\"${SPEC_KITTY_CMD_OUTPUT_FILE}\" shell form; on an unguarded path (var unset), the literal name leaks into the working tree and gets swept by git add -A. Fix: root-cause + fix at source (test isolation via monkeypatch+tmp_path and/or product hardening so an unset var never emits the literal), and add a cheap tests/architectural repo-hygiene guard forbidding any tracked filename with invalid-Windows-path chars so it can never reach Windows CI again. Scoped separately from #1842/#1634 (distinct mechanism/files).",
   "purpose_tldr": "Fix #2169: an unset SPEC_KITTY_CMD_OUTPUT_FILE run writes a literal ${...} filename into the repo root — an invalid Windows path that broke Windows CI on #2161 (run 28224079685).",
   "slug": "cmd-output-file-leak-guard-01KWVZX7",
+  "status_phase": "1",
   "target_branch": "fix/cmd-output-file-leak-guard",
   "topology": "coord"
 }

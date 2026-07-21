@@ -6,6 +6,7 @@
   "mission_slug": "048-structured-agent-identity-and-constitution-profile-integration",
   "mission_type": "software-dev",
   "slug": "048-structured-agent-identity-and-constitution-profile-integration",
+  "status_phase": "1",
   "target_branch": "feature/agent-profile-implementation",
   "vcs": "git",
   "vcs_locked_at": "2026-03-09T04:31:42.827119+00:00"

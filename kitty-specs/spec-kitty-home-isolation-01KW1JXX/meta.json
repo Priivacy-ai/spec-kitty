@@ -13,6 +13,7 @@
   "purpose_tldr": "Make SPEC_KITTY_HOME truly isolate all local sync, auth, tracker, and daemon state so operators stop silently sharing dev credentials and server URLs across environments.",
   "slug": "spec-kitty-home-isolation-01KW1JXX",
   "source_description": "GitHub issue #2171 — SPEC_KITTY_HOME does not isolate POSIX sync/auth/tracker/daemon state (https://github.com/Priivacy-ai/spec-kitty/issues/2171)",
+  "status_phase": "1",
   "target_branch": "fix/spec-kitty-home-isolation",
   "topology": "coord",
   "vcs": "git"

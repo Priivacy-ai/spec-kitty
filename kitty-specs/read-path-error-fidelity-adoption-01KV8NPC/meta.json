@@ -24,6 +24,7 @@
   "purpose_context": "Robert's 3.2.0 training run (#2007) surfaced a cluster of read-path failures — next reporting MISSION_NOT_FOUND when the truth is a read-path miss, decision-open rejecting valid coordination handles, setup-plan demanding a flag it shouldn't, spec-committed reading the wrong surface, and submodule checkouts resolving the wrong repo root. Three research squads established the fix is not new construction: the single typed resolver already exists (resolve_action_context/ExecutionContext); the failing commands bypass it or flatten its typed error. This mission finishes that adoption, makes the resolver behave equivalently across input classes, and preserves typed errors so operators see the real failure and its remediation.",
   "purpose_tldr": "Adopt the existing single typed mission-context/read-path resolver across the commands that bypass it, and preserve its typed errors end-to-end — so the read-path stops lying and resolves consistently across primary, coord, and submodule surfaces.",
   "slug": "read-path-error-fidelity-adoption-01KV8NPC",
+  "status_phase": "1",
   "target_branch": "feat/read-path-error-fidelity",
   "vcs": "git",
   "vcs_locked_at": "2026-06-16T20:10:03.062361+00:00"

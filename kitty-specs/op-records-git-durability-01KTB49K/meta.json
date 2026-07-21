@@ -10,6 +10,7 @@
   "purpose_tldr": "Make Op records from ask/advise/do commands durable by writing them to a git-tracked kitty-ops/ directory with auto-commit on completion.",
   "slug": "op-records-git-durability-01KTB49K",
   "source_description": "GitHub issue #1688 — Step 1 (git durability) of the Op artifact architectural proposal",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

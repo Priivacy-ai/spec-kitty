@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances merge coord rollback transactionality on fix/merge-coord-rollback-transactionality so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "merge coord rollback transactionality",
   "slug": "merge-coord-rollback-transactionality-01KXTM59",
+  "status_phase": "1",
   "target_branch": "fix/merge-coord-rollback-transactionality",
   "topology": "coord",
   "vcs": "git",

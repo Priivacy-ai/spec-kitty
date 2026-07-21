@@ -9,6 +9,7 @@
   "purpose_tldr": "Add CLI Widen Mode — an inline affordance during charter/specify/plan interviews that lets the mission owner escalate an interview question to Teamspace collaboration via Slack, then review a locally-summarized discussion and write back the approved answer.",
   "slug": "cli-widen-mode-and-write-back-01KPXFGJ",
   "source_description": "CLI Widen Mode + Decision Moment write-back loop. Integrates with spec-kitty-saas #110 (widen endpoint + audience-default API) and #111 (Slack orchestration + discussion transcript fetch). Issue: spec-kitty#758.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

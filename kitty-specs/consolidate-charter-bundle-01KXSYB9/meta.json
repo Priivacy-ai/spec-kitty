@@ -26,6 +26,7 @@
   "purpose_context": "Charter state is spread across governance.yaml, directives.yaml, metadata.yaml, and references.yaml. That split is a standing source of drift and stopgaps: the freshness signal hashes a file that is not part of the derived set, and references.yaml doubles as the ID-parity authority. Consolidating into a single compiled charter.yaml removes the split-brain, collapses the fail-closed workarounds, and gives charter-state consumers one structured source of truth.",
   "purpose_tldr": "Replace the four split charter bundle files with one authoritative charter.yaml so freshness, parity, and resolving can no longer silently drift.",
   "slug": "consolidate-charter-bundle-01KXSYB9",
+  "status_phase": "1",
   "target_branch": "feat/consolidate-charter-bundle",
   "topology": "coord",
   "vcs": "git",

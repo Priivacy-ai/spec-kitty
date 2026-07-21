@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances ci topology shrink on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "ci topology shrink",
   "slug": "ci-topology-shrink-01KWQAVX",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "lanes",
   "vcs": "git",

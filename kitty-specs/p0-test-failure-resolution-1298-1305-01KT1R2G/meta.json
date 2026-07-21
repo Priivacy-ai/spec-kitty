@@ -11,6 +11,7 @@
   "purpose_tldr": "Fix all P0 test failures blocking the 3.2.0 release across four issue clusters (events drift, next exit codes, doctrine anchors, charter synthesizer).",
   "slug": "p0-test-failure-resolution-1298-1305-01KT1R2G",
   "source_description": "GitHub issues #1298 #1301 #1303 #1304 #1305 — P0 test failure clusters blocking 3.2.0 release, filed per DIR-013 during mission 01KSF9HJ.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

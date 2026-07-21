@@ -12,6 +12,7 @@
   "purpose_context": "First slice of the tidy-first unshim cluster (#2289-#2293, parent epic #1797) per the HiC ruling. Pre-planning 4-lens squad (debbie/priti/alphonso/randy, 2026-07-03) verified all 14 targets on main@cf2e91e17: Cat-4 135 LOC exact, Cat-7 1453 LOC, zero live src callers everywhere; re-anchor effort ~45-50 test sites (3x the issue estimate, tasks_support dominant incl. 10 patch() string targets); 4 wrong canonical-home cells in #2289 corrected; gate impact = drain _CATEGORY_4 8->0 + Cat-7 rows 6->2 + symbol allowlist + _baselines + 3 pyproject mypy overrides; zero Design-P/audit-inventory collisions; next/ boundary is #2291 territory.",
   "purpose_tldr": "Delete the 8 category_4 backcompat re-export shims (#2289) and execute the category_7 orphan adjudication (#2292): 4 clean deletes, policy.audit follow-up, auth.transport documented-deferred to Robert per ADR 2026-05-18-2.",
   "slug": "unshim-wave1-01KWKVHB",
+  "status_phase": "1",
   "target_branch": "tidy/unshim-wave1",
   "topology": "coord",
   "vcs": "git",
