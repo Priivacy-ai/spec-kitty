@@ -3,8 +3,9 @@ title: Orchestrator Quickstart
 description: Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
 doc_status: active
 updated: '2026-06-03'
+type: tutorial
 related:
-- docs/guides/your-first-feature.md
+- docs/guides/your-first-mission.md
 ---
 # Orchestrator Quickstart
 
@@ -28,7 +29,7 @@ You need:
   Codex, or OpenCode
 - a mission with at least one `tasks/WP*.md` file
 
-If you do not have a mission yet, finish [Your First Feature](your-first-feature.md)
+If you do not have a mission yet, finish [Your First Mission](your-first-mission.md)
 first.
 
 ## Version compatibility

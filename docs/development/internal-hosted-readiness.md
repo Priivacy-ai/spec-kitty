@@ -157,7 +157,7 @@ the CLI's subprocess. Re-export and retry.
 - [Environment variables reference](../api/environment-variables.md)
   — full entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
   `SPEC_KITTY_SAAS_URL`.
-- [Upgrade the Spec Kitty CLI](upgrade-cli.md) — for the
+- [Upgrade the Spec Kitty CLI](../guides/upgrade-cli.md) — for the
   `spec-kitty upgrade --cli` probe shown in the upgrade-required
   scenario above.
 

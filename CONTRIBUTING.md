@@ -1,1 +1,1 @@
-docs/guides/contributing.md
+docs/development/contributing.md

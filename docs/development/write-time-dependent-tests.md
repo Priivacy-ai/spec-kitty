@@ -3,6 +3,7 @@ title: Write Time-Dependent Tests
 description: Inject stable clocks in tests and avoid wall-clock reads inside assertions.
 doc_status: active
 updated: '2026-06-15'
+type: how-to
 ---
 # Write Time-Dependent Tests
 

@@ -3,11 +3,12 @@ title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
 updated: '2026-07-05'
+type: how-to
 related:
 - docs/guides/index.md
-- docs/guides/review-gates.md
-- docs/guides/pr-landing.md
-- docs/guides/testing-parallel.md
+- docs/development/review-gates.md
+- docs/development/pr-landing.md
+- docs/development/testing-parallel.md
 - docs/guides/diagnose-installation.md
 ---
 
@@ -352,7 +353,7 @@ If the broken package lives in a global or Homebrew Python environment, remove
 the stale `spec_kitty_events/` directory and matching `.dist-info/` metadata
 from that interpreter's `site-packages`, then reinstall
 `spec-kitty-events`. See
-[Diagnose Installation Problems](diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
+[Diagnose Installation Problems](../guides/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
 for the full recovery procedure.
 
 ### How Test Isolation Works

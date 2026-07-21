@@ -4,7 +4,7 @@ description: Final remediation plan for accelerating the test suite, including t
 doc_status: draft
 updated: '2026-07-12'
 related:
-- docs/guides/testing-parallel.md
+- docs/development/testing-parallel.md
 - docs/plans/testing/ci-job-timings.md
 - docs/plans/testing/ci-coverage-union-audit.md
 ---
@@ -17,7 +17,7 @@ the 69.2-min headline offender that later mission's spec is grounded in —
 nor `slow-tests`, `fast-tests-core-misc`'s rebalance, the Sonar
 coverage-denominator fix, or the UI-e2e coverage feed; those are that
 mission's own scope, recorded in
-[`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s "CI
+[`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s "CI
 shard topology" section and
 [`ci-job-timings.md`](ci-job-timings.md)/[`ci-coverage-union-audit.md`](ci-coverage-union-audit.md)).
 This mission's WP09 reconciles this document's own currency instead of
@@ -25,10 +25,10 @@ leaving it silently stale, per FR-009:
 
 **Verified shipped** (direct evidence checked, not assumed from the plan's own age):
 - **A2/PP-05 — per-worker HOME/XDG isolation** (Wave 2): live — see
-  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  [`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s
   "Per-worker HOME isolation" section and `tests/conftest.py`.
 - **R4/PP-06(a) — ULID volume env-gate** (Wave 1): live — see
-  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  [`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s
   "Volume env gates" section (`SPEC_KITTY_ULID_VOLUME_FULL`).
 - **R5/A4/PP-02 — charter `elapsed<0.1` → `@pytest.mark.timeout`** (Wave 1):
   live — `tests/charter/test_integration.py` lines 405 and 427 both carry
@@ -43,7 +43,7 @@ leaving it silently stale, per FR-009:
   `fast-tests-status`'s re-route all carry `-n auto --dist loadfile`), but
   **not yet 3×-green-ratchet-confirmed** — each still carries a
   `PENDING-CI` comment in the workflow file. See
-  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  [`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s
   "Status: local default vs CI shard flips" section. **This is a distinct,
   still-open item — `ci-test-topology-performance-01KXBJRT` does not close
   it.**

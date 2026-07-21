@@ -384,7 +384,7 @@ _Charter bundle validation commands._
 │ --selected-directives        TEXT  Comma-separated directive IDs override    │
 │ --available-tools            TEXT  Comma-separated tool IDs override         │
 │ --json                             Output JSON                               │
-│ --mission-slug               TEXT  Mission slug for Decision Moment paper    │
+│ --mission-slug               TEXT  Mission slug for decision moment paper    │
 │                                    trail (optional)                          │
 │ --help                             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -793,7 +793,7 @@ _Query workspace context information_
  --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp             TEXT  Work package code (e.g., WP01) [required]          │
+│ *  --wp             TEXT  work package code (e.g., WP01) [required]          │
 │    --mission        TEXT  Mission slug (e.g., 057-mission-name)              │
 │    --agent          TEXT  Agent name (default: 'unknown')                    │
 │    --json                 Output full JSON context (default: token only)     │
@@ -1750,7 +1750,7 @@ _Glossary management commands_
  See FR-503 and D-4 in the 3.1.1 spec.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (for example, WP01) [required]         │
+│ *    wp_id      TEXT  work package ID (for example, WP01) [required]         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                                      TEXT  Mission slug (for       │
@@ -2017,7 +2017,7 @@ _Search tracker issues via the hosted read path_
 │                                                            remove-worktree]  │
 │ --push                                                     Push to origin    │
 │                                                            after merge       │
-│ --target                                  TEXT             Target branch to  │
+│ --target                                  TEXT             target branch to  │
 │                                                            merge into        │
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
@@ -2945,7 +2945,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  Work package ID [required]                         │
+│ *  --wp             TEXT  work package ID [required]                         │
 │ *  --actor          TEXT  Actor identity [required]                          │
 │ *  --note           TEXT  History note to append [required]                  │
 │    --help                 Show this message and exit.                        │
@@ -2991,7 +2991,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission         TEXT  Mission slug [required]                           │
-│    --target          TEXT  Target branch to merge into (auto-detected from   │
+│    --target          TEXT  target branch to merge into (auto-detected from   │
 │                            meta.json)                                        │
 │    --strategy        TEXT  Merge strategy: merge, squash, or rebase          │
 │                            [default: merge]                                  │
@@ -3028,7 +3028,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  Work package ID [required]                         │
+│ *  --wp             TEXT  work package ID [required]                         │
 │    --help                 Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3042,7 +3042,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  Work package ID [required]                         │
+│ *  --wp             TEXT  work package ID [required]                         │
 │ *  --actor          TEXT  Actor identity [required]                          │
 │    --policy         TEXT  Policy metadata JSON (required)                    │
 │    --help                 Show this message and exit.                        │
@@ -3058,7 +3058,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission           TEXT  Mission slug [required]                         │
-│ *  --wp                TEXT  Work package ID [required]                      │
+│ *  --wp                TEXT  work package ID [required]                      │
 │ *  --actor             TEXT  Actor identity [required]                       │
 │    --policy            TEXT  Policy metadata JSON (required)                 │
 │    --review-ref        TEXT  Review feedback reference (optional, not        │
@@ -3076,7 +3076,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission                            TEXT  Mission slug [required]        │
-│ *  --wp                                 TEXT  Work package ID [required]     │
+│ *  --wp                                 TEXT  work package ID [required]     │
 │ *  --to                                 TEXT  Target lane [required]         │
 │ *  --actor                              TEXT  Actor identity [required]      │
 │    --note                               TEXT  Reason/note for the transition │
@@ -3398,12 +3398,17 @@ _Cross-mission retrospective summary._
  dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission handle (id, mid8, or slug).                   │
-│ --mode           TEXT  Review mode: 'lightweight' (consistency check only)   │
-│                        or 'post-merge' (full release-gate contract).         │
-│                        Auto-detected from meta.json.baseline_merge_commit    │
-│                        when omitted.                                         │
-│ --help                 Show this message and exit.                           │
+│ --mission               TEXT  Mission handle (id, mid8, or slug).            │
+│ --mode                  TEXT  Review mode: 'lightweight' (consistency check  │
+│                               only) or 'post-merge' (full release-gate       │
+│                               contract). Auto-detected from                  │
+│                               meta.json.baseline_merge_commit when omitted.  │
+│ --check-residual              Run the CI residual (unit or contract) marker  │
+│                               selection locally over tests/, then exit --    │
+│                               skips the mission-scoped review gates. The -m  │
+│                               expression is read live from the CI workflow,  │
+│                               never hand-copied.                             │
+│ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3517,8 +3522,13 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │                                                   coordination branch;       │
 │                                                   branch-flat shapes         │
 │                                                   (single_branch, lanes) do  │
-│                                                   not. Default: coord.       │
-│                                                   [default: coord]           │
+│                                                   not. Default:              │
+│                                                   context-derived (#2581) —  │
+│                                                   coord on the primary       │
+│                                                   branch or with --pr-bound, │
+│                                                   single_branch on a         │
+│                                                   non-primary feature        │
+│                                                   branch.                    │
 │ --json                                            Emit JSON result           │
 │ --help                                            Show this message and      │
 │                                                   exit.                      │
@@ -4029,7 +4039,7 @@ _Work-package mapping commands_
  mappings in the Spec Kitty dashboard instead.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp-id               TEXT  Work package ID (e.g., WP01) [required]       │
+│ *  --wp-id               TEXT  work package ID (e.g., WP01) [required]       │
 │ *  --external-id         TEXT  External issue ID [required]                  │
 │    --external-key        TEXT  External issue key                            │
 │    --external-url        TEXT  External issue URL                            │

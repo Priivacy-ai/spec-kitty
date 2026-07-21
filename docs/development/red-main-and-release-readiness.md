@@ -3,10 +3,11 @@ title: 'Red Main and Release Readiness'
 description: 'What a red main branch means, why CI status is the authoritative release gate, how P0 bugs carry failing reproduction tests, and how maintainers prioritize recovery.'
 doc_status: active
 updated: '2026-07-17'
+type: explanation
 related:
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
-- docs/guides/testing-flakiness.md
-- docs/guides/pr-landing.md
+- docs/development/testing-flakiness.md
+- docs/development/pr-landing.md
 - docs/guides/keep-main-clean.md
 ---
 
@@ -48,7 +49,7 @@ When you file or accept a P0 bug, you are **free and encouraged** to land a test
 Green `main` is the goal. A red `main` is **not an acceptable resting state** — it is an alarm that pulls to the front of the maintainer queue.
 
 - Treat mainline recovery as top priority; do not let "red is allowed" erode into "red is tolerated."
-- Land the fix through the normal PR flow (no-direct-push is unchanged — see [Keep Main Clean](keep-main-clean.md)); this policy governs what a red CI *means*, not how commits arrive.
+- Land the fix through the normal PR flow (no-direct-push is unchanged — see [Keep Main Clean](../guides/keep-main-clean.md)); this policy governs what a red CI *means*, not how commits arrive.
 - The landing-pass runbook's [red-classification step](pr-landing.md#4-classify-every-red-check) tells you how to tell a genuine P0 red from a flake or a pre-existing breakage while you work the queue.
 
 ## See also
@@ -56,4 +57,4 @@ Green `main` is the goal. A red `main` is **not an acceptable resting state** �
 - [ADR 2026-07-17-1 — Red main is honest signal; CI status is the release authority](../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md) — the governing decision.
 - [Test-flakiness handling policy](testing-flakiness.md) — the never-retry-to-green rule and budget-gate tuning.
 - [Landing Contributor PRs: The Maintainer Runbook](pr-landing.md) — red classification and the merge-ready hand-off.
-- [How to Keep Main Clean](keep-main-clean.md) — the branch and no-direct-push discipline.
+- [How to Keep Main Clean](../guides/keep-main-clean.md) — the branch and no-direct-push discipline.

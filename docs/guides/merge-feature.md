@@ -3,6 +3,7 @@ title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.'
 doc_status: active
 updated: '2026-06-03'
+type: how-to
 related:
 - docs/guides/accept-and-merge.md
 - docs/guides/keep-main-clean.md
@@ -105,7 +106,7 @@ Pre-flight failed. Fix these issues before merging:
 not synchronized with its tracking branch:
 
 ```text
-Error: Target branch is not synchronized with its tracking branch.
+Error: target branch is not synchronized with its tracking branch.
   diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
   branch_or_work_package: main
   violated_invariant: local_target_branch_must_match_tracking_branch
@@ -280,7 +281,7 @@ Push to origin immediately after merge:
 spec-kitty merge --push
 ```
 
-## Merge from the Repository Root Checkout
+## Merge from the repository root checkout
 
 If you're in the repository root checkout and want to merge a mission:
 
@@ -290,7 +291,7 @@ spec-kitty merge --mission 015-user-authentication
 
 This detects all WP worktrees for that mission and merges them in dependency order.
 
-## Target Branch
+## target branch
 
 By default, Spec Kitty merges into the mission's recorded target branch. Override it only when you intentionally need a different destination:
 
@@ -386,7 +387,7 @@ For the full command reference, see
 | `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge | Delete |
 | `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge | Remove |
 | `--push` | Push to origin after merge | No push |
-| `--target` | Target branch to merge into | `main` |
+| `--target` | target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | - |
 | `--mission` | Mission slug (when running from main) | Auto-detect |
 | `--resume` | Resume an interrupted merge | - |
@@ -408,4 +409,4 @@ Full CLI reference: [CLI Commands](../api/cli-commands.md)
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

@@ -1,0 +1,36 @@
+- name: Contributing to Spec Kitty
+  href: contributing.md
+- name: Review Gates (Pre-PR / Pre-Review)
+  href: review-gates.md
+- name: Landing Contributor PRs
+  href: pr-landing.md
+- name: Local Overrides for Cross-Package Development
+  href: local-overrides.md
+- name: Managing the Issue Tracker
+  href: manage-issue-tracker.md
+- name: Test-Flakiness Handling Policy
+  href: testing-flakiness.md
+- name: Running the Test Suite in Parallel
+  href: testing-parallel.md
+- name: Run Mutation Tests Locally
+  href: run-mutation-tests.md
+- name: Write Time-Dependent Tests
+  href: write-time-dependent-tests.md
+- name: Contract Pinning Workflow
+  href: contract-pinning.md
+- name: Coverage Signals
+  href: coverage-signals.md
+- name: Red Main and Release Readiness
+  href: red-main-and-release-readiness.md
+- name: UI End-to-End Tests (Playwright)
+  href: ui-e2e.md
+- name: Sync Daemon Orphan Cleanup
+  href: sync-daemon-orphan-cleanup.md
+- name: Quality & Tech-Debt Standing Orders
+  href: quality-and-tech-debt-standing-orders.md
+- name: Terminology Guard Exemption Policy
+  href: terminology-exemptions.md
+- name: Internal Hosted-Readiness (Pre-Launch)
+  href: internal-hosted-readiness.md
+- name: Docs IA & Onboarding Overhaul — Terminology Sweep Report
+  href: terminology-sweep-report.md

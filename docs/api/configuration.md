@@ -50,7 +50,7 @@ Each feature has a `meta.json` file in its directory that stores metadata about 
 
 ---
 
-## Work Package Frontmatter
+## work package Frontmatter
 
 Each work package file (`tasks/WP##-*.md`) contains YAML frontmatter that tracks its status.
 
@@ -87,7 +87,7 @@ history:
 | Field | Type | Description |
 |-------|------|-------------|
 | `work_package_id` | string | WP identifier (e.g., "WP01") |
-| `title` | string | Work package title |
+| `title` | string | work package title |
 | `lane` | string | Current lane: `planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`, `blocked`, `canceled`. Alias: `doing` → `in_progress`. `approved` means review passed and merge pending; `done` means merged/integrated. |
 | `dependencies` | list | WP IDs this WP depends on |
 | `subtasks` | list | Task IDs belonging to this WP |
@@ -166,8 +166,8 @@ Defines the documentation navigation structure.
   items:
     - name: Getting Started
       href: tutorials/getting-started.md
-    - name: Your First Feature
-      href: tutorials/your-first-feature.md
+    - name: Your First Mission
+      href: tutorials/your-first-mission.md
 
 - name: How-To Guides
   items:

@@ -4,7 +4,7 @@ description: 'Change-coupling-as-a-code-smell mining of the architectural + core
 doc_status: active
 related:
 - docs/plans/testing/test-suite-friction-audit.md
-- docs/guides/testing-flakiness.md
+- docs/development/testing-flakiness.md
 ---
 # CaaCS: test↔production change-coupling analysis
 

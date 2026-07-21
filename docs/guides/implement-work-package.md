@@ -1,15 +1,16 @@
 ---
-title: How to Implement a Work Package
+title: How to Implement a work package
 description: 'How to implement a work package with Spec Kitty 3.2: Use this guide to implement a single work package (WP) in its execution workspace.'
 doc_status: active
 updated: '2026-06-14'
+type: how-to
 related:
 - docs/guides/generate-tasks.md
 - docs/guides/handle-dependencies.md
 - docs/guides/review-work-package.md
 - docs/guides/worktrees-with-mcp-agents.md
 ---
-# How to Implement a Work Package
+# How to Implement a work package
 
 Use this guide to implement a single work package (WP) in its execution workspace.
 
@@ -93,7 +94,7 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 - [Generate Tasks](generate-tasks.md) - Required before implementation
 - [Keep MCP Agents in the Worktree](worktrees-with-mcp-agents.md) - Keep editor sessions attached to the active worktree
 - [Handle Dependencies](handle-dependencies.md) - How dependencies shape execution lanes
-- [Review a Work Package](review-work-package.md) - Next step after implementation
+- [Review a work package](review-work-package.md) - Next step after implementation
 
 ## Background
 
@@ -103,5 +104,5 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough
 - [Multi-Agent Workflow](multi-agent-workflow.md) - Parallel development

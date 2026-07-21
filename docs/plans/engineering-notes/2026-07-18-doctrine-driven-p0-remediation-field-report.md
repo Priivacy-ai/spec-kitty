@@ -4,9 +4,9 @@ description: 'Field report: remediating the merge-core P0 pair #2709/#2711 under
 doc_status: draft
 updated: '2026-07-18'
 related:
-- docs/guides/manage-issue-tracker.md
+- docs/development/manage-issue-tracker.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
-- docs/guides/pr-landing.md
+- docs/development/pr-landing.md
 - .kittify/charter/charter.md
 ---
 

@@ -1,43 +1,31 @@
 ---
 title: Context
-description: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts and the stakeholder/audience persona catalog (Mission B, FR-009)."
+description: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts, the stakeholder/audience persona catalog, and the Charter governance model."
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-07-21'
 ---
 # Context
 
-Domain context for Spec Kitty: the canonical glossary contexts, the
-stakeholder/audience persona catalog, and the current Charter-era overview.
-
-<!--
-  #2053 LANDING ZONE (coordinate only — do NOT build the charter-landing page here).
-  Under FR-008 / C-004 the live `docs/context` charter content was distilled + moved
-  into this `docs/context/` section (never blind-deleted), and the old `3x/*`
-  URLs redirect here via WP07 stubs:
-    docs/context/charter-overview.md -> docs/context/charter-overview.md  (3x/charter-overview.html -> context/charter-overview.html)
-    docs/context/governance-files.md -> docs/context/governance-files.md  (3x/governance-files.html -> context/governance-files.html)
-    docs/context/index.md            -> folded into this page (below)      (3x/index.html            -> context/index.html)
-  #2053 should later surface a dedicated top-level charter landing page sourced
-  from these context pages. That implementation is OUT OF SCOPE for Mission B.
--->
-
-This section is the unified home (Mission B, FR-009) for:
+This is where Spec Kitty's shared vocabulary and governance model live: the
+canonical glossary contexts, the audience/persona catalog used across the
+docs, and the Charter governance model that shapes what your agent is told
+to do and why.
 
 - **Glossary contexts** (`*.md`) — canonical terminology per bounded context,
   relocated from `docs/context/`. These remain the doctrine-extraction
-  source consumed by `scripts/generate_contextive_glossaries.py` (C-006); the
+  source consumed by `scripts/generate_contextive_glossaries.py`; the
   dashboard glossary seed files under `.kittify/glossaries/` are unchanged.
 - **`audience/`** — architecture audience personas (internal/external),
   relocated from `docs/context/audience/`.
 - **Charter-era overview** — the current Spec Kitty 3.2 Charter governance
-  model, distilled here from the retired `docs/context` shadow tree (FR-008). See
+  model, distilled here for quick reference. See
   [How Charter Works](charter-overview.md) and the
   [Governance Files Reference](governance-files.md).
 
 ### Glossary reference notes
 
 Companion notes to the glossary contexts, relocated here from the legacy
-`glossary/` surface (Mission `primary-merge-vocabulary`, FR-006):
+`glossary/` surface:
 
 - [Naming Decision: Tool vs Agent](naming-decision-tool-vs-agent.md) — the
   canonical split between *tool* (concrete execution product) and *agent*
@@ -56,19 +44,23 @@ projects and upgrades.
 
 - Current target version: Spec Kitty 3.2.
 - Current runtime model: Charter-era missions with governed context injection.
-- Current governance source: `.kittify/charter/charter.md`.
+- Current governance source: `.kittify/charter/charter.yaml` (the git-tracked,
+  authoritative file; `charter.md` is a human-readable companion the runtime
+  never parses).
 - Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
 - Upgrade path: [Migration to Spec Kitty 3.2](../migrations/index.md).
 
 ### What is Charter?
 
-Charter is the governance layer introduced in Spec Kitty 3.x. A single
-human-edited file (`charter.md`) drives a synthesis pipeline that produces
-structured context for governed mission actions and standalone profile
-invocations. The flow is:
+Charter is the governance layer introduced in Spec Kitty 3.x.
+`.kittify/charter/charter.yaml` is the single git-tracked, authoritative
+charter — it's what `charter synthesize` reads and what the runtime resolves
+at every governed mission action. `.kittify/charter/charter.md` is a
+human-readable narrative companion for authors; the runtime never parses it.
+The flow is:
 
 ```
-charter.md  ->  charter synthesize  ->  validated Charter state  ->  governed prompt/context
+charter.yaml  ->  charter synthesize  ->  validated Charter state  ->  governed prompt/context
 ```
 
 When you run `spec-kitty next --agent <name> --mission <slug>`, the runtime
@@ -106,6 +98,8 @@ For the full mental model, see [How Charter Works](charter-overview.md).
 
 #### Explanation — conceptual background
 
+- [Ops vs. Missions](ops-vs-missions.md) — When to use a lightweight `dispatch` Op versus a full governed Mission
+- [Mission Types](mission-types.md) — Comparing software-dev, research, documentation, and plan missions
 - [How Charter Works](charter-overview.md) — Mental model: doctrine → DRG → governed context
 - [Understanding Charter: Synthesis, DRG, and Governed Context](../architecture/charter-synthesis-drg.md) — Deep dive into synthesis and the Directive Relationship Graph
 - [Understanding Governed Profile Invocation](../architecture/governed-profile-invocation.md) — The `(profile, action, governance-context)` triple

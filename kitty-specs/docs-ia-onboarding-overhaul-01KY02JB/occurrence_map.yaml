@@ -1,0 +1,283 @@
+# Occurrence map — Docs Site IA & Onboarding Overhaul (WP01, 01KY02JB)
+#
+# This mission's redirect-relevant surface is a single-term-rename-shaped
+# `moves:` spine (WP01 / IC-01), consumed by the existing
+# `scripts/docs/redirect_stub_generator.py`. Per WP01's task guidance, this
+# file's `moves:` list is the PRIOR mission's (`common-docs-structural-move-
+# 01KW3SBK`) 29 entries, copied verbatim, PLUS this mission's own new moves
+# appended at the end — a merge-forward, not a replacement. Regenerating
+# `redirect_map.yaml` from only this mission's own moves (without the prior
+# 29) would silently drop every archive-era redirect the prior mission
+# established; merging forward avoids that regression.
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml (moves: block only
+# — the target/categories/status scaffolding from the source mission is not
+# required by `redirect_stub_generator.py`'s `load_moves()`, which reads only
+# the `moves:` list, so it is intentionally not duplicated here).
+
+moves:
+
+  # --- ADRs -> docs/adr/<era>/ (FR-002, 117 unique preserved) ---
+  - from: ["architecture/1.x/adr"]
+    to: docs/adr/1.x
+    reason: "Era ADRs (1.x) -> canonical docs/adr/1.x; content-invariant, frontmatter added (FR-003)."
+  - from: ["architecture/2.x/adr"]
+    to: docs/adr/2.x
+    reason: "Era ADRs (2.x) -> docs/adr/2.x; back-compat symlink target for authority_paths."
+  - from: ["architecture/3.x/adr"]
+    to: docs/adr/3.x
+    reason: "Era ADRs (3.x) -> docs/adr/3.x; current authority_paths default (already flipped #2160/#2115)."
+  - from: ["architecture/adrs"]
+    to: docs/adr/3.x
+    reason: >-
+      20 era-LESS unique ADRs -> docs/adr/3.x assigned by date (per A's plan).
+      The 47 byte-identical flat mirrors are DROPPED with the flat shim (no
+      information loss — exact duplicates). README dropped.
+
+  # --- Living architectural design -> single unversioned docs/architecture/ (FR-004) ---
+  - from:
+      - architecture/2.x/00_landscape
+      - architecture/2.x/01_context
+      - architecture/2.x/02_containers
+      - architecture/2.x/03_components
+      - architecture/2.x/04_implementation_mapping
+    to: docs/architecture
+    reason: "C4 landscape/context/container/component layers -> unified living design."
+  - from: ["architecture/diagrams"]
+    to: docs/architecture
+    reason: "C4 mermaid diagrams (context/containers/components) -> docs/architecture."
+  - from: ["architecture/3.x/vision", "architecture/2.x/vision", "architecture/1.x/vision", "architecture/vision"]
+    to: docs/architecture
+    reason: "Vision narratives -> living architecture root (de-versioned)."
+  - from: ["architecture/assessments", "architecture/audits", "architecture/calibration"]
+    to: docs/architecture
+    reason: "Architectural assessments/audits/calibration -> docs/architecture."
+  - from:
+      - architecture/2.x/05_ownership_manifest.yaml
+      - architecture/2.x/05_ownership_map.md
+      - architecture/2.x/06_unified_charter_bundle.md
+      - architecture/2.x/README.md
+      - architecture/1.x/README.md
+      - architecture/3.x/README.md
+      - architecture/README.md
+      - architecture/ARCHITECTURE_DOCS_GUIDE.md
+      - architecture/NAVIGATION_GUIDE.md
+      - architecture/adr-template.md
+    to: docs/architecture
+    reason: >-
+      2.x ownership/charter design artifacts + per-era + root READMEs + the
+      navigation/guide docs + ADR template -> the unified living design root.
+      (adr-template.md is an authoring template, not a decision record — C-002
+      does not apply.) NOTE: 05_ownership_manifest.yaml is a one-off design
+      artifact; the runtime `OwnershipManifest` concept in src/ is per-WP
+      frontmatter, NOT a reader of this file (verified — not runtime-critical).
+
+  # --- Migration/shim artifacts -> docs/migrations/ (FR-001) ---
+  - from:
+      - architecture/2.x/06_migration_and_shim_rules.md
+      - architecture/2.x/shim-registry.yaml
+    to: docs/migrations
+    reason: >-
+      Migration rules + the shim-registry -> docs/migrations (stable home).
+      shim-registry.yaml is a RUNTIME-READ target (compat/doctor.py:69,
+      compat/registry.py:51, remediation string cli/commands/doctor.py:509):
+      those 3 readers re-point PRE-move, dual-read, resolution-tested (IC-02).
+
+  # --- Research / initiatives / user-journeys / investigations -> docs/plans/ (FR-009) ---
+  - from: ["architecture/3.x/research", "architecture/2.x/research", "architecture/1.x/research"]
+    to: docs/plans
+    reason: "Research deliverables -> plans (distil-then-retire lifecycle)."
+  - from: ["architecture/2.x/initiatives"]
+    to: docs/plans
+    reason: "Initiative planning docs -> plans."
+  - from: ["architecture/2.x/user_journey"]
+    to: docs/plans
+    reason: "User journeys -> plans (FR-009 mapping)."
+  - from: ["architecture/1.x/notes"]
+    to: docs/plans
+    reason: "1.x design notes -> plans (distil-then-retire)."
+  - from:
+      - architecture/2026-04-14-windows-compatibility-hardening-mission-review.md
+      - architecture/test-suite-acceleration-plan.md
+    to: docs/plans
+    reason: >-
+      Loose mission-review + acceleration-plan docs at architecture/ root ->
+      plans (investigations/traces, distil-then-retire)."
+  - from: ["docs/engineering_notes"]
+    to: docs/plans
+    reason: >-
+      Investigations/traces/engineering notes -> plans with distil-then-retire
+      lifecycle (FR-009). Already a docs/ subdir since January (re-section, not
+      cross-root move).
+
+  # --- Glossary + audiences -> docs/context/ (FR-009, C-006 read-path safeguard) ---
+  - from: ["architecture/audience"]
+    to: docs/context
+    reason: "Audience personas -> context section."
+  - from: ["glossary/contexts"]
+    to: docs/context
+    reason: >-
+      Glossary -> context (FR-009). C-006: preserve the dashboard
+      .kittify/glossaries/*.yaml read-path AND the doctrine-extraction source;
+      re-point authority_paths.py "glossary/contexts/" literal with a
+      resolution test (runtime-critical — see exceptions).
+
+  # --- docs/development re-section (FR-001) — already a docs/ subdir ---
+  - from: ["docs/development"]
+    to: docs/operations
+    reason: >-
+      Durable dev/ops docs -> operations/guides/configuration per A's ADR;
+      ephemeral tracking docs -> plans. Re-section within docs/, not a
+      cross-root move (durable-vs-ephemeral split resolves #2054).
+
+  # --- Shadow trees (FR-008) ---
+  - from: ["docs/3x"]
+    to: docs/context
+    reason: >-
+      LIVE charter content (charter-overview.md, governance-files.md,
+      index.md) — DISTIL + MOVE + REDIRECT, never blind-delete (C-004). Fix
+      the 3 nav refs in toc.yml/llms.txt/index.md. Record landing zone for
+      #2053 (coordinate only).
+
+  # --- docs/architecture orphans: verify-before-delete (FR-008, C-004) ---
+  - from:
+      - docs/architecture/adr-connector-auth-binding-separation.md
+      - docs/architecture/adr-github-app-installation-authority.md
+    to: docs/adr/3.x
+    reason: >-
+      2 connector-auth ADRs among the 4 orphans — promote to canonical adr/3.x
+      (verify-before-delete). The other 2 orphans (feature-detection.md,
+      gap-analysis-connector-installation-model.md) verified then promoted or
+      confirmed canonical home before deletion.
+
+  # --- CHANGELOG -> changelog/ (FR-009) — RELOCATE-WITH-ALIAS ---
+  - from: ["CHANGELOG.md"]
+    to: docs/changelog
+    kind: relocate-with-alias
+    reason: >-
+      CANONICAL copy lands in docs/changelog (13-section structure); the repo
+      root CHANGELOG.md PERSISTS as an alias/copy so release tooling keeps
+      reading it at root — scripts/release/, pyproject.toml, and
+      .github/release-readiness.yml all read root CHANGELOG.md and are
+      out-of-relocate-scope (not re-pointed). The two copies are kept in sync;
+      root is the alias, docs/changelog is canonical.
+
+  # --- DocFX manifest + TOC rewrite (FR-007) — config, rewritten in place ---
+  - from: ["docs/docfx.json", "docs/llms.txt"]
+    to: docs
+    reason: >-
+      Not relocated — content globs + llms.txt entries REWRITTEN in place to
+      the 13-section layout (serialized_keys: manual_review). Listed here to
+      mark them as reviewer-approved touch points of the restructure.
+
+  # --- Divio → 13-section re-section (FR-009) — IC-01 CORRECTION (was MISSING) ---
+  # The existing docs/ Divio dirs (how-to/reference/explanation/tutorials/recovery)
+  # are PUBLISHED (120 of WP02's 168 baseline URLs) but the original moves: spine
+  # had NO entries for them, so they would orphan and guides/api would stay empty.
+  # FR-009 mandates the mapping. Executed by WP16; redirect_map regenerates to cover
+  # these (published → redirect stubs required, NFR-002).
+  # --- WP01 override (docs-ia-onboarding-overhaul-01KY02JB): 3 baseline URLs
+  # that resolve through the pre-existing "docs/how-to" -> "docs/guides" bucket
+  # move below now need a SECOND hop to "docs/development" (their WP01
+  # destination). The generator resolves a baseline URL through the FIRST
+  # matching `moves:` entry only (no multi-hop chaining), so this exact-path
+  # override MUST be listed before the generic bucket move to win the match —
+  # otherwise these 3 baseline URLs would resolve one hop short, to a dead
+  # `guides/*.html` stub instead of their true `development/*.html` home.
+  - from:
+      - docs/how-to/run-mutation-tests.md
+      - docs/how-to/write-time-dependent-tests.md
+      - docs/how-to/internal-hosted-readiness.md
+    to: docs/development
+    reason: >-
+      These 3 pages' baseline URL (how-to/*.html, pre-common-docs-move era)
+      already resolved one hop to guides/*.html via the bucket move below;
+      WP01 relocated them a second hop to development/*.html (contributor-only
+      content misplaced in the end-user zone, FR-003). This override collapses
+      both hops into the final destination so the redirect stub is not dead.
+  # --- WP03 override (docs-ia-onboarding-overhaul-01KY02JB, mission-review
+  # finding F2): same two-hop shape as the WP01 override above, for a file
+  # WP01 didn't own. The baseline URL "tutorials/your-first-feature.html"
+  # already resolves one hop to "guides/your-first-feature.html" via the
+  # generic bucket move below; WP03 renamed it (FR-014, Terminology Canon)
+  # a second hop to "guides/your-first-mission.html". Must be listed before
+  # the generic bucket move to win the first-match resolution.
+  - from:
+      - docs/tutorials/your-first-feature.md
+    to: docs/guides/your-first-mission.md
+    reason: >-
+      WP03 renamed your-first-feature.md -> your-first-mission.md (Terminology
+      Canon: Mission, not Feature). Collapses the pre-existing
+      tutorials/ -> guides/ hop and this rename's hop into the final
+      destination so the redirect stub is not dead.
+  - from: ["docs/how-to", "docs/tutorials"]
+    to: docs/guides
+    reason: >-
+      Divio how-to + tutorials (task- and learning-oriented) -> docs/guides
+      (FR-009). Published URLs -> redirect stubs required (WP16 regenerates the
+      WP07 redirect_map). N->1 merge: disambiguate any filename collision
+      data-preservingly (do not overwrite).
+  - from: ["docs/reference"]
+    to: docs/api
+    reason: "Divio reference -> docs/api (FR-009). Published -> redirect required."
+  - from: ["docs/explanation"]
+    to: docs/architecture
+    reason: >-
+      Divio explanation (the why / architecture rationale) -> the unified living
+      docs/architecture (FR-009, merges with WP03's C4 design). Published ->
+      redirect required; watch for name collisions with WP03-landed files.
+  - from: ["docs/recovery"]
+    to: docs/operations
+    reason: >-
+      Divio recovery runbooks -> docs/operations (FR-009, joins WP04's ops
+      content). Published -> redirect required.
+
+  # --- Shadow-tree HTML snapshots → archive (WP10, FR-008) — IC-01: redirect basis ---
+  # docs/1x + docs/2x are true HTML snapshots whose live twins already exist under
+  # docs/archive/{1x,2x}. WP10 deletes the snapshots; these moves: give WP07's
+  # generator the basis to emit the 13 shadow→archive redirect stubs (NFR-002).
+  - from: ["docs/1x"]
+    to: docs/archive/1x
+    reason: "Shadow HTML snapshot deleted; old URLs redirect to the live archive twin (WP10/FR-008)."
+  - from: ["docs/2x"]
+    to: docs/archive/2x
+    reason: "Shadow HTML snapshot deleted; old URLs redirect to the live archive twin (WP10/FR-008)."
+
+  # ---------------------------------------------------------------------------
+  # NEW moves for THIS mission (docs-ia-onboarding-overhaul-01KY02JB, WP01,
+  # IC-01) — contributor-only content confirmed misplaced inside the
+  # end-user `docs/guides/` zone (FR-003 strict segregation), relocated into
+  # the existing `docs/development/` contributor root. See docs-audit.md for
+  # the per-file disposition and rationale (T001/T002).
+  # ---------------------------------------------------------------------------
+  - from:
+      - docs/guides/pr-landing.md
+      - docs/guides/testing-flakiness.md
+      - docs/guides/run-mutation-tests.md
+      - docs/guides/contract-pinning.md
+      - docs/guides/coverage-signals.md
+      - docs/guides/write-time-dependent-tests.md
+      - docs/guides/testing-parallel.md
+      - docs/guides/manage-issue-tracker.md
+      - docs/guides/red-main-and-release-readiness.md
+      - docs/guides/internal-hosted-readiness.md
+      - docs/guides/contributing.md
+      - docs/guides/review-gates.md
+      - docs/guides/local-overrides.md
+    to: docs/development
+    reason: >-
+      WP01 (IC-01) confirmed these 13 files as contributor/maintainer-only
+      content (PR-landing, testing-suite/CI internals, release policy, issue
+      tracker conventions, cross-package dev overrides, internal
+      hosted-readiness dogfooding) stranded inside the end-user `docs/guides/`
+      zone. Relocated to `docs/development/` so FR-003 strict end-user vs.
+      contributor navigation segregation holds. 10 of the 13 were pre-flagged
+      by earlier research (this WP's owned_files); `contributing.md`,
+      `review-gates.md`, and `local-overrides.md` were found during T001's
+      full-content audit and confirmed unambiguously contributor-only, with
+      no other WP owning them.
+
+  # your-first-feature.md -> your-first-mission.md (WP03, FR-014) is handled
+  # by the two-hop override near the top of this file's "existing docs/
+  # Divio dirs" section (must precede the generic docs/tutorials -> docs/guides
+  # bucket move to win first-match resolution) — not repeated here.

@@ -3,14 +3,15 @@ title: Getting Started with Spec Kitty
 description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
 doc_status: active
 updated: '2026-06-03'
+type: tutorial
 related:
-- docs/guides/your-first-feature.md
+- docs/guides/your-first-mission.md
 ---
 # Getting Started with Spec Kitty
 
 **Divio type**: Tutorial
 
-In this tutorial, you'll install Spec Kitty and create your first feature specification.
+In this tutorial, you'll install Spec Kitty and create your first mission specification.
 
 **Time**: ~30 minutes
 **Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
@@ -89,7 +90,7 @@ Expected results:
 
 ## Step 4: Verify Your Work
 
-Confirm the feature directory exists:
+Confirm the mission directory exists:
 
 ```bash
 ls kitty-specs
@@ -116,7 +117,7 @@ ls .worktrees
 
 ## What's Next?
 
-Continue with [Your First Feature](your-first-feature.md) for the complete workflow from specification to merge.
+Continue with [Your First Mission](your-first-mission.md) for the complete workflow from specification to merge.
 
 ### Related How-To Guides
 

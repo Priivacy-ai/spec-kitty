@@ -3,6 +3,7 @@ title: How to Create a Feature Specification
 description: 'How to create a feature specification with Spec Kitty 3.2: Use this guide to capture a new feature specification with /spec-kitty.specify.'
 doc_status: active
 updated: '2026-06-03'
+type: how-to
 related:
 - docs/guides/create-plan.md
 - docs/guides/keep-main-clean.md
@@ -74,4 +75,4 @@ During discovery, answer follow-up questions (roles, constraints, success criter
 ## Getting Started
 
 - [Getting Started Tutorial](getting-started.md) - Hands-on introduction
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

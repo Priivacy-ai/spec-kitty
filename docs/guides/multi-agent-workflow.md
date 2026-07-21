@@ -3,8 +3,9 @@ title: Multi-Agent Parallel Development
 description: 'Tutorial for Multi-Agent Parallel Development in Spec Kitty 3.2: Learn how to coordinate multiple AI agents working on different work packages simultaneously.'
 doc_status: active
 updated: '2026-06-12'
+type: tutorial
 related:
-- docs/guides/your-first-feature.md
+- docs/guides/your-first-mission.md
 ---
 # Multi-Agent Parallel Development
 
@@ -13,7 +14,7 @@ related:
 Learn how to coordinate multiple AI agents working on different work packages simultaneously.
 
 **Time**: ~1 hour
-**Prerequisites**: Completed [Your First Feature](your-first-feature.md)
+**Prerequisites**: Completed [Your First Mission](your-first-mission.md)
 
 ## Why Parallel Development?
 
@@ -21,7 +22,7 @@ Learn how to coordinate multiple AI agents working on different work packages si
 - Clear isolation with dedicated execution worktrees
 - Reduced merge conflicts
 
-## Understanding Work Package Dependencies
+## Understanding work package Dependencies
 
 Common dependency patterns:
 
@@ -101,7 +102,7 @@ You've completed the core tutorials. Explore how-to guides for specific tasks or
 
 - [Parallel Development](parallel-development.md) - Run multiple agents simultaneously
 - [Handle Dependencies](handle-dependencies.md) - Manage WP dependencies
-- [Implement a Work Package](implement-work-package.md) - Detailed implementation steps
+- [Implement a work package](implement-work-package.md) - Detailed implementation steps
 - [Use the Dashboard](use-dashboard.md) - Monitor progress in real time
 
 ### Reference Documentation

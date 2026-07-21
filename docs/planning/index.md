@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-17'
 related:
 - docs/plans/index.md
-- docs/guides/manage-issue-tracker.md
+- docs/development/manage-issue-tracker.md
 ---
 
 # Planning

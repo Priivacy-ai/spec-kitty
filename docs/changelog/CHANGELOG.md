@@ -396,7 +396,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   block with `review.fail_on_pre_review_regression` (enforced only when
   `review.test_command` is set; `move-task --force` overrides), and override the
   scope per-WP via frontmatter `pre_review_test_scope`. See
-  [review-gates.md](../guides/review-gates.md).
+  [review-gates.md](../development/review-gates.md).
 - **`spec-kitty review --check-residual` + environment-parity preflight
   (#2283).** The new `--check-residual` flag runs CI's always-on
   `unit-contract-residual` `-m` selection over `tests/` locally — the `-m`
@@ -1501,7 +1501,7 @@ patch releases are expected in quick succession.
 
 ### ✨ Added
 
-- Added Implementation Concern Map terminology and work-package traceability
+- Added implementation concern Map terminology and work-package traceability
   across planning artifacts, generated task prompts, validation checks, docs,
   ADRs, glossary context, and agent snapshots.
 - Added tracked Op record storage under `kitty-ops/`, including
@@ -2354,7 +2354,7 @@ Sonar restoration (#825) is the only remaining operator-action gate.
   Append-Only Event Log + Reducer, etc.) with doctrine cross-references.
 - **Canonical-terminology glossary entries** for `characterization test`,
   `pipeline-shape`, `rule pipeline`, `catastrophic backtracking`,
-  `structural debt`, `deliberate linearity`, and `Sonar quality gate`
+  `structural debt`, `deliberate linearity`, and `sonar quality gate`
   in `.kittify/glossaries/spec_kitty_core.yaml`, each cross-referencing
   the doctrine tactic or architectural document that codifies it
   (FR-013).
@@ -2440,7 +2440,7 @@ Sonar restoration (#825) is the only remaining operator-action gate.
 
 - **Push-time SonarCloud restoration** (#825 / FR-004): gated on the
   operator applying the four hotspot rationales in the Sonar UI and the
-  Sonar quality gate flipping to `OK` (at audit time: ERROR —
+  sonar quality gate flipping to `OK` (at audit time: ERROR —
   `new_coverage` 58.9% vs threshold 80%; `new_security_hotspots_reviewed`
   0% vs threshold 100%). The
   `.github/workflows/ci-quality.yml::sonarcloud` conditional remains on
@@ -2900,7 +2900,7 @@ command and no new top-level runtime dependencies.
 - `spec-kitty init` in a non-git directory now prints an actionable "run `git init`" message (#636, WP05).
 - Suppress misleading "shutdown / final-sync" red error lines after a successful `spec-kitty agent mission create --json` payload (#735, WP06).
 - Deduplicate "Not authenticated, skipping sync" / "token refresh failed" diagnostics to at most once per CLI invocation (#717, WP06).
-- Fix `read_events()` raising `KeyError('wp_id')` on `DecisionPointOpened` / `DecisionPointResolved` events that share `status.events.jsonl` with lane-transition events. Restores `finalize-tasks` / `materialize` / dashboard for any mission that uses the Decision Moment Protocol (#830, WP08).
+- Fix `read_events()` raising `KeyError('wp_id')` on `DecisionPointOpened` / `DecisionPointResolved` events that share `status.events.jsonl` with lane-transition events. Restores `finalize-tasks` / `materialize` / dashboard for any mission that uses the decision moment Protocol (#830, WP08).
 
 ### Changed
 
@@ -2941,7 +2941,7 @@ command and no new top-level runtime dependencies.
 - **`behavior-driven-development` tactic enriched** — extended `notes` with a toolchain landscape section (Cucumber family, Playwright, Selenium, Serenity BDD, custom DSLs; source: `patterns.sddevelopment.be/primers/toolchain-and-automation/bdd`); three new `failure_modes` (rubber-stamp scenarios, shared mutable state between scenarios, orphaned step definitions); cross-references to the new BDD paradigm and procedure.
 - **`tactic-references` union-merged in `resolve_profile()`** — `tactic-references` added to `_LIST_FIELDS` in `src/doctrine/agent_profiles/repository.py`. Specialist profiles now inherit base-profile tactic references via `_union_merge` at resolution time rather than overriding them.
 - **Tactic compliance test extended** — `test_tactic_compliance.py` `ARTIFACT_DIRS` now includes `procedure` and `paradigm` types, enabling cross-type reference validation for tactics that reference procedures or paradigms.
-- **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) — `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](../guides/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](../migrations/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md).
+- **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) — `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](../development/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](../migrations/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md).
 
 ### Removed
 
@@ -2981,7 +2981,7 @@ command and no new top-level runtime dependencies.
 - **SaaS read-model policy** at `src/specify_cli/invocation/projection_policy.py` — typed module mapping `(mode, event)` to projection rules. Documented in `docs/trail-model.md`.
 - **Tier 2 SaaS projection decision** — decisively documented as deferred in `docs/trail-model.md`. Tier 2 evidence stays local-only in 3.2.x.
 - **README Governance layer subsection** — entry point for operators discovering standalone dispatch.
-- **Decision Moment Ledger (V1)** — new `spec-kitty agent decision` subgroup with five
+- **decision moment Ledger (V1)** — new `spec-kitty agent decision` subgroup with five
   subcommands: `open`, `resolve`, `defer`, `cancel`, `verify`. Mints ULID `decision_id`s
   at interview ask-time, writes paper trail under `kitty-specs/<mission>/decisions/`
   (`index.json` + `DM-<id>.md`), and appends `DecisionPointOpened(interview)` /
@@ -2991,14 +2991,14 @@ command and no new top-level runtime dependencies.
   before each question and the appropriate terminal command after each answer.
   `answers.yaml` behavior is unchanged.
 - **Specify + Plan template updates** — `specify.md` and `plan.md` source templates
-  gain a Decision Moment Protocol section instructing the LLM to call decision
+  gain a decision moment Protocol section instructing the LLM to call decision
   subcommands at ask/resolution time and write `<!-- decision_id: <id> -->` anchors
   for deferred decisions.
 - **`decision verify` gate** — scans `spec.md` / `plan.md` for
   `[NEEDS CLARIFICATION: ...] <!-- decision_id: <id> -->` sentinels and
   cross-checks against the decisions index. Exits non-zero on drift
   (`DEFERRED_WITHOUT_MARKER`, `MARKER_WITHOUT_DECISION`, `STALE_MARKER`).
-- **Widen Mode (#758)** — `spec-kitty agent decision widen` + `resolve --from-widen`
+- **widen mode (#758)** — `spec-kitty agent decision widen` + `resolve --from-widen`
   lifecycle. Writes `widen-pending.jsonl`, emits `DecisionPointWidened` events,
   integrates with charter/specify/plan widen affordances. Surfaces decision
   write-back errors explicitly instead of silently suppressing them.
@@ -3272,7 +3272,7 @@ command and no new top-level runtime dependencies.
 - **Auth test fixtures aligned with the hardened HTTP transport** introduced in `Harden SaaS auth and restore build sync emission`. Tests for `AuthorizationCodeFlow`, `TokenRefreshFlow`, `WebSocketTokenProvisioner`, and the browser-login/refresh-transport integration paths now patch `PublicHttpClient` in each flow module's own namespace (matching the production call graph) instead of raw `httpx.AsyncClient`. Network-error paths raise `NetworkError` from the client mock rather than `httpx.ConnectError` to match the new `except NetworkError` contract.
 - **`ResolutionTier` unified across `doctrine.resolver` and `specify_cli.runtime.resolver`**. `specify_cli.runtime.resolver` is now a thin re-export shim, as its own docstring had claimed. Tests assert tier equivalence via `.name` to stay robust against `pytestarch`'s filesystem-walk loader, which can load the same source file under alternate module names during `pytest --import-mode=importlib`.
 - **Post-`unified-charter-bundle-chokepoint` test fixture hardening**: three pre-existing tests (`test_local_support_declarations_end_to_end`, `test_template_prompt_bootstrap_context_first_load`, `test_all_pass_with_healthy_setup`) now `git init` their tmp directories to satisfy the new `resolve_canonical_repo_root` precondition that calls `git rev-parse --git-common-dir`.
-- **Codex / Vibe Agent Skills migration test alignment**: five tests that pre-dated mission 083 were updated to assert the new `.agents/skills/spec-kitty.<cmd>/SKILL.md` layout rather than the retired `.codex/prompts/` layout. Invariants preserved (direct `spec-kitty agent action` CLI calls, per-agent argument handling, agent assets generation); only the probe path changed to match the post-083 architecture.
+- **Codex / Vibe agent skills migration test alignment**: five tests that pre-dated mission 083 were updated to assert the new `.agents/skills/spec-kitty.<cmd>/SKILL.md` layout rather than the retired `.codex/prompts/` layout. Invariants preserved (direct `spec-kitty agent action` CLI calls, per-agent argument handling, agent assets generation); only the probe path changed to match the post-083 architecture.
 - **Contract handoff fixture** updated to include `BuildRegistered` and `BuildHeartbeat` event types added on the emitter side by the SaaS-auth hardening.
 - **Miscellaneous tails**: redacted a dev-machine path literal in an architecture review doc (caught by `test_command_template_cleanliness`); fixed `test_rewrite_shims.py::test_result_counts` to use two slash-command agents since codex is no longer one; marked `test_home_unit.py::TestGetKittifyHomeWindows::test_windows_default_path` `windows_ci` since DRIFT-3 of the Windows Compatibility Hardening mission made `get_kittify_home()` delegate to `specify_cli.paths.get_runtime_root().base`, which the monkeypatch-based simulation no longer drives reliably on non-Windows runners.
 - **Kiro regenerated baselines** for all 12 canonical commands, closing the `tests/specify_cli/regression/test_twelve_agent_parity.py` baseline-missing cluster introduced by PR #626.
@@ -3297,7 +3297,7 @@ command and no new top-level runtime dependencies.
 
 ### Refs
 
-- EPIC: Priivacy-ai/spec-kitty#461 (Charter as Synthesis & Doctrine Reference Graph).
+- EPIC: Priivacy-ai/spec-kitty#461 (Charter as Synthesis & doctrine reference graph).
 - Phase 2 tracking: Priivacy-ai/spec-kitty#464.
 - Closes on merge: Priivacy-ai/spec-kitty#339, #451.
 
@@ -3761,7 +3761,7 @@ Root-cause diagnostic trail: [Priivacy-ai/spec-kitty#588 (comment)](https://gith
 
 ### ✅ Added
 
-- **Agent Skills Pack (`#330`)**: added canonical bundled skills, registry/installer/verification flow, manifest support, and upgrade migration `m_2_0_11_install_skills`.
+- **agent skills Pack (`#330`)**: added canonical bundled skills, registry/installer/verification flow, manifest support, and upgrade migration `m_2_0_11_install_skills`.
 - **Structured requirement mapping (`#329`)**: added requirement-to-work-package mapping support with CLI integration for tracing delivery intent into execution planning.
 
 ### 🔧 Changed
@@ -4073,7 +4073,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - `spec-kitty agent workflow review` now displays the WP's branch name, base branch, and commit count
 - Reviewers see exactly which commits belong to the WP vs inherited history
 - Provides ready-to-use `git log <base>..HEAD` and `git diff <base>..HEAD` commands
-- Base branch auto-detected from WP dependencies (tries dependency branches first, then main/2.x)
+- base branch auto-detected from WP dependencies (tries dependency branches first, then main/2.x)
 - Prevents reviewers from accidentally diffing against the wrong base (e.g., `main` instead of `2.x`)
 
 ## [0.13.20] - 2026-01-30
@@ -4437,7 +4437,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 - **Conflict forecasting**: `--dry-run` predicts which files will conflict and classifies them as auto-resolvable (status files) or manual
 - **Smart merge order**: WPs merged in dependency order based on frontmatter `dependencies` field
 - **Status file auto-resolution**: Conflicts in WP prompt files (`kitty-specs/*/tasks/*.md`) automatically resolved by taking advanced lane status
-- **Merge state persistence**: Progress saved to `.kittify/merge-state.json` for recovery
+- **merge state persistence**: Progress saved to `.kittify/merge-state.json` for recovery
 - **Resume/abort flags**: `--resume` continues interrupted merges, `--abort` clears state and starts fresh
 - **Auto-cleanup**: Worktrees and branches removed after successful merge (configurable with `--keep-worktree`, `--keep-branch`)
 
@@ -5058,7 +5058,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
 
 ### 🔧 Changed
 
-- **Work package location logic**
+- **work package location logic**
   - `locate_work_package()` now searches flat `tasks/` directory first
   - Falls back to legacy subdirectory search for backwards compatibility
   - Exact WP ID matching (WP04 won't match WP04b)
@@ -5154,7 +5154,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
 
 ### Fixed
 
-- **Work package move race conditions** - Multiple agents can now work on different WPs simultaneously without blocking each other
+- **work package move race conditions** - Multiple agents can now work on different WPs simultaneously without blocking each other
   - Conflict detection now only blocks on changes to the same WP, not unrelated WP files
   - Agents working on WP05 no longer block moves of WP04
 
@@ -5248,7 +5248,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
   - v0.7.1 incorrectly removed commands from main repo (broke `/` commands there)
   - v0.7.2 removes commands from **worktrees** instead (they inherit from main repo)
   - Claude Code traverses UP, so worktrees find main repo's `.claude/commands/`
-  - Main repo keeps commands, worktrees don't need their own copy
+  - main repo keeps commands, worktrees don't need their own copy
 
 ## [0.7.1] - 2025-12-14 [YANKED]
 
@@ -5388,7 +5388,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
   - Sidebar Constitution link now displays file content instead of "not found"
   - Separate from feature-level constitution tracking
 
-- **Work Package Conflict Detection Too Strict** – Moving WP no longer blocked by unrelated WP changes:
+- **work package Conflict Detection Too Strict** – Moving WP no longer blocked by unrelated WP changes:
   - Conflict detection now scoped to same work package ID only
   - Moving WP04 no longer fails if WP06/WP08 have uncommitted changes
   - Reduces false positives from ~90% to ~5%
@@ -5396,7 +5396,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
   - Still catches real conflicts (same WP in multiple lanes)
 
 - **Accept Command Over-Questioning** – Acceptance workflow now auto-detects instead of asking:
-  - Feature slug auto-detected from git branch
+  - feature slug auto-detected from git branch
   - Mode defaults to 'local' (most common)
   - Validation commands searched in git log
   - Only asks user if auto-detection fails

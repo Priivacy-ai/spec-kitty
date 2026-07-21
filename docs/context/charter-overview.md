@@ -2,15 +2,21 @@
 title: How Charter Works
 description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
 doc_status: active
-updated: '2026-07-18'
+updated: '2026-07-20'
+type: explanation
 related:
 - docs/context/governance-files.md
+- docs/guides/setup-governance.md
 ---
 # How Charter Works
 
 Charter is the governance layer that turns your project's structured policy file
 (`.kittify/charter/charter.yaml`) into context that every agent mission action automatically
-receives. This page explains the mental model. For a step-by-step walkthrough, see the
+receives. This page explains the mental model — synthesis, the DRG, governed context, and profile
+invocation. For the complete, step-by-step create-your-charter flow (interview through
+generation, validation, and synthesis), see
+[How to Set Up Project Governance](../guides/setup-governance.md). For the guided tour connecting
+setup to a full mission run, see the
 [Governed Charter Workflow Tutorial](../guides/charter-governed-workflow.md).
 
 > **Key invariant**: `.kittify/charter/charter.yaml` is the git-tracked, authoritative,
@@ -53,28 +59,13 @@ does not change runtime behavior.
 
 ## Synthesis Flow
 
-The full Charter setup flow uses these commands in sequence:
-
-```bash
-# Step 1 — Capture policy decisions interactively (or use --defaults for CI)
-uv run spec-kitty charter interview
-
-# Step 2 — Write/refresh charter.yaml from interview answers (bootstrap: authored
-# sections seeded once; on every later run only catalog/metadata refresh)
-uv run spec-kitty charter generate --from-interview
-
-# Step 3 — Check for graph-native decay (orphaned directives, contradictions, etc.)
-uv run spec-kitty charter lint
-
-# Step 4 — Validate + promote agent-generated doctrine artifacts to .kittify/doctrine/
-uv run spec-kitty charter synthesize
-
-# Step 5 — Validate the charter bundle against the CharterBundleManifest v2.0.0 schema
-uv run spec-kitty charter bundle validate
-
-# Check bundle state at any time
-uv run spec-kitty charter status
-```
+At a high level, the Charter setup flow is: capture policy decisions via interview, generate (or
+refresh) `charter.yaml`, check for graph-native decay, synthesize doctrine into
+`.kittify/doctrine/`, validate the bundle against the `CharterBundleManifest` v2.0.0 schema, and
+confirm status shows no drift. For the complete command-by-command walkthrough — including flags,
+what each command outputs, and how to recover from a stale bundle — follow
+[How to Set Up Project Governance](../guides/setup-governance.md) rather than reproducing the
+sequence here.
 
 **`charter context`** is a separate runtime/debug command for rendering action-specific
 governance context for a specific workflow action. It is not part of the generation pipeline:

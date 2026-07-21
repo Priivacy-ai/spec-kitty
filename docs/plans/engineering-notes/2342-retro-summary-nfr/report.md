@@ -171,7 +171,7 @@ Rationale: the issue's disposition matrix offers, for a CI-flake/perf-OK
 verdict, either (a) a dedicated non-blocking perf pipeline slice, or (b) a
 `local_only` designation. The repository **already has (a)**: the
 `quarantine` marker plus the `quarantine-visibility` non-blocking job
-(`docs/guides/testing-flakiness.md`, Tier-3) is precisely that mechanism,
+(`docs/development/testing-flakiness.md`, Tier-3) is precisely that mechanism,
 already wired up and already running since the interim-budget revert
 (`f844a057f`). No structural CI change is needed — the disposition is to
 **ratify the status quo**, not invent a new lane.

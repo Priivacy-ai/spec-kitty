@@ -8,6 +8,7 @@ related:
 - docs/guides/index.md
 - docs/index.md
 - docs/operations/identity-boundary-ci-gate.md
+- docs/operations/recovery-index.md
 - docs/operations/ssh-deploy-keys.md
 - docs/plans/index.md
 ---
@@ -22,6 +23,7 @@ across missions (unlike the effort-scoped notes that live under
 
 - [SSH deploy-key setup for CI/CD](ssh-deploy-keys.md) — one-time deploy-key provisioning runbook.
 - [Identity-boundary CI gate](identity-boundary-ci-gate.md) — the `drift-detector` required check and its cross-repo SHA-bump procedure.
+- [Recovery guides](recovery-index.md) — task-oriented recovery procedures, including [logged-out on a connected teamspace](logged-out-teamspace.md).
 
 ## See also
 

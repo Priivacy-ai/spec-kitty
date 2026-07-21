@@ -1,8 +1,8 @@
 ---
 title: Charter CLI Reference
-description: Full reference for all spec-kitty charter subcommands, verified against live --help output.
+description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output. See CLI Command Reference for the full charter subcommand surface.
 doc_status: active
-updated: '2026-07-18'
+updated: '2026-07-20'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -12,8 +12,13 @@ related:
 > **Note**: Examples use `uv run spec-kitty ...`, which is the source-checkout invocation. If
 > Spec Kitty is installed on your PATH, the same flags work with `spec-kitty ...`.
 
-This reference covers all `charter` subcommands. For a task-oriented walkthrough, see
-[How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
+This page gives a narrative, example-driven walkthrough of the core charter
+interview/generate/sync/synthesize workflow subcommands. For a task-oriented
+walkthrough, see [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
+For the complete `spec-kitty charter` subcommand surface — including
+`activate`/`deactivate` (doctrine artifact activation, FR-004/FR-005),
+`preflight`, `list`, `mission-type`, and `pack` — see the exhaustive,
+generated [`spec-kitty charter` section of the CLI Command Reference](cli-commands.md#spec-kitty-charter).
 
 ---
 
@@ -34,6 +39,18 @@ This reference covers all `charter` subcommands. For a task-oriented walkthrough
 | `resynthesize` | Regenerate a bounded set of project-local doctrine artifacts (partial resynthesis) |
 | `lint` | Detect decay in charter artifacts via graph-native checks |
 | `bundle` | Charter bundle validation commands |
+| `activate` | Activate a doctrine artifact by kind and ID (FR-004), with optional cascade — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-activate) |
+| `deactivate` | Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-deactivate) |
+| `preflight` | Verify charter-derived state before a governed session begins — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-preflight) |
+| `list` | List activated doctrine artifacts by kind — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-list) |
+| `mission-type` | Mission type commands (activated types only) — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-mission-type) |
+| `pack` | Charter pack management commands — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack) |
+
+The six rows below `bundle` were added by the Charter Activation Engine; this
+page does not carry their full flag reference (kept in the canonical,
+`--help`-generated CLI Command Reference to avoid duplicated, driftable
+copies) — only `interview`/`generate`/`context`/`sync`/`status`/`synthesize`/
+`resynthesize`/`lint`/`bundle validate` get the narrative treatment below.
 
 ---
 
@@ -52,7 +69,7 @@ This reference covers all `charter` subcommands. For a task-oriented walkthrough
 | `--selected-paradigms TEXT` | Comma-separated paradigm IDs override | — |
 | `--selected-directives TEXT` | Comma-separated directive IDs override | — |
 | `--available-tools TEXT` | Comma-separated tool IDs override | — |
-| `--mission-slug TEXT` | Mission slug for Decision Moment paper trail (optional) | — |
+| `--mission-slug TEXT` | Mission slug for decision moment paper trail (optional) | — |
 | `--json` | Output JSON | — |
 
 **Examples**:
