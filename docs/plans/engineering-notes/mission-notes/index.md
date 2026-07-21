@@ -1,13 +1,14 @@
 ---
-title: 'Engineering Notes'
+title: 'Mission Notes'
 description: 'Mission-scoped engineering notes and classifications that support in-flight missions; transient by intent — consolidated into the owning mission on close.'
 doc_status: active
-updated: '2026-07-13'
+updated: '2026-07-21'
 related:
-- docs/notes/runtime-bridge-delegate-classification.md
-- docs/notes/mission-type-completion-arc-research.md
+- docs/plans/engineering-notes/mission-notes/runtime-bridge-delegate-classification.md
+- docs/plans/engineering-notes/mission-notes/mission-type-completion-arc-research.md
+- docs/plans/engineering-notes/index.md
 ---
-# Engineering Notes
+# Mission Notes
 
 Transient, mission-scoped engineering notes and classifications produced while a
 mission is in flight. Each note is owned by a work package as a planning

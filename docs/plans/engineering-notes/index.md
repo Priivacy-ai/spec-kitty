@@ -26,8 +26,10 @@ maintainers rather than end-user documentation.
 - [Reflections](reflections/README.md) — retrospective engineering reflections.
 
 Additional clusters cover infra/logic separation (`2173-infra-logic-separation/`),
-surface-resolution work (`3-2-3-surface-resolution-cluster/`), and naming/identity SSOT
-(`naming-identity-ssot-strangler/`).
+surface-resolution work (`3-2-3-surface-resolution-cluster/`), naming/identity SSOT
+(`naming-identity-ssot-strangler/`), transient mission-scoped classifications
+([mission notes](mission-notes/index.md)), and a preserved historical mission closeout
+([01KSMG8Y — Pre-Doctrine Test Stabilization](01KSMG8Y-closeout/index.md)).
 
 ## Field reports
 

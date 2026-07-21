@@ -15,6 +15,13 @@ notes — the **distil-then-retire** working surface (Mission B, FR-009).
 Content here carries a `doc_status` of `draft` or `active`; once distilled into
 durable architecture/reference docs it is retired.
 
+## Portfolio-level planning
+
+- [3.2.x Delivery Approach — Operator Plan, Dialectically Challenged](3-2-x-approach.md) —
+  cross-mission sequencing intent (which missions run first and why), distinct from the
+  per-mission/per-refactor implementation plans elsewhere in this section; stress-tested by
+  a two-round dialectic squad and synthesised into an actionable, fact-checked plan.
+
 ## Current milestone roadmap
 
 The [3.2.x milestone roadmap](3-2-x-milestone-roadmap.md) is the operator-facing
