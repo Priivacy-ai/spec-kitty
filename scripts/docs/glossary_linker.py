@@ -26,37 +26,25 @@ written (Decision Moment ``01KY03YGX7GQEBKV45Q2Q8FXK3``).
 on each glossary card — so this module never re-derives the slugify/collision
 algorithm; it imports the single source of truth instead.
 
-Where this runs in the pipeline (T037 — documented, not wired; see below)
----------------------------------------------------------------------------
-Per this mission's ``C-001`` ("Deployment/build tooling ... is out of scope;
-only content, structure, and DocFX TOC/file-list configuration change") this WP
-does **not** edit ``.github/workflows/docs-pages.yml``. The docs build also only
-runs in CI (``redirect_stub_generator.py``'s own docstring notes there is no
-local DocFX build), so this module cannot be exercised end-to-end locally
-either. Both are documented here for whoever wires it in:
-
-Today ``.github/workflows/docs-pages.yml``'s ``build`` job runs, in order::
+Where this runs in the pipeline
+--------------------------------
+Wired into ``.github/workflows/docs-pages.yml``'s ``build`` job, which runs, in
+order::
 
     python3 scripts/docs/generate_kitty_specs_docs.py
     docfx docfx.json                              # (from docs/) -> docs/_site
     python3 scripts/docs/seo_postprocess.py
+    python3 scripts/docs/glossary_linker.py --site-dir docs/_site
     python3 scripts/docs/redirect_stub_generator.py generate --site-dir docs/_site
     python3 scripts/docs/redirect_stub_generator.py coverage --site-dir docs/_site
 
-This linker belongs **after** the DocFX render step (it needs rendered HTML,
-not markdown) and **alongside** ``seo_postprocess.py`` — i.e. it should run
-right after (or right before) the ``seo_postprocess.py`` invocation, and
-**before** the redirect-stub generation step (redirect stubs are meta-refresh
-placeholder pages; they should not have glossary links injected, and running
-the linker first keeps the no-404 stub-coverage check operating on the final
-page set). The added step would be::
-
-    python3 scripts/docs/glossary_linker.py --site-dir docs/_site
-
-with no other arguments required (it defaults to the same ``docs/_site`` and
-``.kittify/glossaries/spec_kitty_core.yaml`` paths the rest of the pipeline
-already uses). A future WP or the pipeline owner can add that single line to
-``docs-pages.yml`` without re-deriving this design.
+This linker runs **after** the DocFX render step (it needs rendered HTML, not
+markdown) and **before** the redirect-stub generation step (redirect stubs are
+meta-refresh placeholder pages; they must not have glossary links injected,
+and running the linker first keeps the no-404 stub-coverage check operating on
+the final page set). No arguments beyond ``--site-dir`` are required — it
+defaults to the same ``.kittify/glossaries/spec_kitty_core.yaml`` path the
+rest of the pipeline already uses.
 
 Failure mode
 ------------
