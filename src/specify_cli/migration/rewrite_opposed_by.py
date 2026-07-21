@@ -94,7 +94,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
