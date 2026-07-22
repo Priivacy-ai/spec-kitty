@@ -325,6 +325,7 @@ jobs:
               - 'src/specify_cli/migration/**'
               - 'src/specify_cli/invocation/**'
               - 'src/specify_cli/compat/**'
+              - 'src/specify_cli/distribution/**'
               - 'src/specify_cli/template/**'
             agent_surface:
               - 'src/specify_cli/orchestrator_api/**'

@@ -70,6 +70,14 @@
       "target_shard": "misc"
     },
     {
+      "dir": "distribution",
+      "cone_roots": [
+        "tests/specify_cli/distribution"
+      ],
+      "target_group": "lifecycle",
+      "target_shard": "specify-cli-heavy"
+    },
+    {
       "dir": "doc_analysis",
       "cone_roots": [],
       "target_group": "closeout",
@@ -287,6 +295,7 @@
     "dashboard",
     "decisions",
     "delivery",
+    "distribution",
     "doc_analysis",
     "doctrine",
     "doctrine_synthesizer",
