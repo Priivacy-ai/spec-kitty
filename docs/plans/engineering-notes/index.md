@@ -58,6 +58,8 @@ resume without re-running the squad:
 Durable design investigations that inform a convention or a future mission:
 
 - [Agent knowledge: canonical homes](agent-knowledge-canonical-homes.md) — where rules (charter), practices (doctrine), reference (Common Docs), and learned facts (`.kittify/memory/`) belong; how to stop a per-agent memory duplicating the repo.
+- [Coord-branch bookkeeping: read/write split-brain root-cause](coord-splitbrain-rootcause.md) — #2841 drift is unenforced write-placement (writers pick their own dir), not a broken partition contract; the single placement-port seam that makes wrong-partition writes unrepresentable at commit.
+- [Coordination-branch trust & reconciliation model — mission scope](coord-trust-mission-scope.md) — the pre-spec scope for the coord-trust friction-remediation mission: Gap-1 staleness, Symptom-B gate exemption, and why reconciliation is a minimized fail-loud residual, not the centerpiece.
 
 ## See also
 
