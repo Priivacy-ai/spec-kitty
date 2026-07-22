@@ -45,13 +45,19 @@ from __future__ import annotations
 import contextlib
 import logging
 import traceback
+import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import typer
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from doctrine.missions.step_contracts import GateBinding
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.agent_tasks_ports import (
@@ -92,6 +98,21 @@ from specify_cli.missions._read_path_resolver import (
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
+from specify_cli.review.gate_bindings import (
+    GateBindingResolution,
+    resolve_gate_bindings_for_transition,
+    resolve_mission_type,
+)
+from specify_cli.review.gate_registry import (
+    GateHandler,
+    TransitionGateContext,
+    get_gate_handler,
+)
+from specify_cli.review.scope_source import GateCoverageScopeSource, ScopeSource
+from specify_cli.review.verdict_aggregation import (
+    AggregateDecision,
+    aggregate_verdicts,
+)
 from specify_cli.status import (
     EVENTS_FILENAME,
     EventPersistenceError,
@@ -783,21 +804,25 @@ def _mt_run_decision(st: _MoveTaskState) -> None:
 
 _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
+_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT = "test_command"
 _PRE_REVIEW_FRONTMATTER_KEY = "pre_review_test_scope"
 
-#: #2534 — the calm, operator-facing reason for a consumer repo (``spec-kitty
-#: init``, not the spec-kitty source repo) that legitimately has no
-#: ``tests/architectural/_gate_coverage.py`` authority of its own. Deliberately
-#: never names that internal module or any ``src/specify_cli/`` path — an
-#: operator in a consumer repo has never heard of either and the absence is
-#: expected, not a defect. Distinct from the detailed, internal-audience
-#: message ``GateAuthoritiesUnavailable`` still carries for a genuinely-broken
-#: authority INSIDE the spec-kitty source repo (see
-#: ``_mt_pre_review_gate_verdict``'s ``except`` branch below).
-_PRE_REVIEW_CONSUMER_REPO_REASON = (
-    "automated pre-review regression scoping is not available in this repo — "
-    "review proceeds without it (non-blocking)"
+#: T043 (FR-011): the legacy ``review.pre_review_test_command`` key is aliased to
+#: the ``ScopeSource`` single test-command authority (``review.test_command``).
+#: Its name always lied about its axis (squad C-C3) — it fed scope *targets*, not
+#: a command. Under the inverted, doctrine-resolved gate the ``ScopeSource`` is
+#: the single authority, so a config that still sets the old key keeps working
+#: but earns a ONE-TIME deprecation warning (guarded by the module flag below) —
+#: never a silent break for existing consumer configs.
+_PRE_REVIEW_TEST_COMMAND_DEPRECATION = (
+    "review.pre_review_test_command is deprecated; the inverted pre-review gate "
+    "resolves its test command from the ScopeSource single authority "
+    "(review.test_command). The old key is still honored — move the value to "
+    "review.test_command to silence this notice."
 )
+#: One-shot latch so the deprecation warning fires at most once per process, not
+#: on every ``for_review`` transition (T043).
+_pre_review_test_command_deprecation_emitted = False
 
 
 def _pre_review_gate_filter_groups() -> Mapping[str, tuple[str, ...]] | None:
@@ -1054,18 +1079,15 @@ def _mt_pre_review_gate_verdict(
             progress_callback=progress_callback,
         )
     except pre_review_gate.GateAuthoritiesUnavailable as exc:
-        # #2534: a consumer repo (``spec-kitty init``) legitimately never carries
-        # ``tests/architectural/_gate_coverage.py`` — that absence is expected,
-        # not a defect, so it gets the calm consumer-facing reason and never
-        # names the internal module. A genuinely-broken authority INSIDE the
-        # spec-kitty source repo (``is_consumer_repo=False``) keeps the
-        # detailed, internal-audience message — a real signal there.
-        reason = (
-            _PRE_REVIEW_CONSUMER_REPO_REASON
-            if exc.is_consumer_repo
-            else f"gate authorities unavailable — unverified: {exc}"
+        # T042 (#2534): under the inverted, doctrine-resolved gate, activation is
+        # the SOLE impl selector — a consumer repo simply never activates the
+        # Spec-Kitty handler, so the old ``is_consumer_repo`` split is dead. Every
+        # authority-load failure now degrades to the SAME generic per-handler
+        # fail-open warn (the ``_mt_dispatch_one_gate`` three-catch mirrors this).
+        return _mt_empty_scope_verdict(
+            f"gate authorities unavailable — unverified: {exc}",
+            excluded_scope_files=tuple(changed_files),
         )
-        return _mt_empty_scope_verdict(reason, excluded_scope_files=tuple(changed_files))
 
 
 def _mt_pre_review_gate_metadata(
@@ -1157,21 +1179,372 @@ def _mt_pre_review_gate_block_message(verdict: pre_review_gate.GateVerdict) -> s
     )
 
 
-def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
-    """T004 (FR-001/NFR-001): warn-default/opt-in-block pre-review regression gate.
+@dataclass(frozen=True)
+class _TransitionGateInputs:
+    """The shared, per-transition I/O the gate resolves once before dispatch.
 
-    Runs ONLY for ``for_review`` moves, called right after ``_mt_run_decision``
-    in ``_do_move_task`` — i.e. AFTER every pre-existing guard has cleared and
-    BEFORE the transition is emitted/committed (``_mt_finalize_plan`` /
-    ``_mt_execute``). A block raises ``typer.Exit(1)`` here, before any state
-    is committed, so existing move-task guard behavior and ordering are
-    entirely untouched — this hook is purely additive after the established
-    guard sequence.
+    The changed-files SSOT (``_mt_pre_review_changed_files`` → ``:927``) and the
+    dirty-path bookkeeping (for ``new_checkout_paths``) are resolved here, then
+    handed to the doctrine-resolved dispatch and the aggregation. Reused, never
+    re-derived (contract "What the hook does NOT change").
+    """
 
-    Never crashes the transition: an unresolvable workspace, unavailable
-    gate-coverage authorities, or any other internal failure all degrade to
-    a ``no_coverage`` warn (never a hard block) — the ONLY non-local exit
-    this function can take is the deliberate opt-in block below.
+    worktree_path: Path | None
+    dirty_before: tuple[str, ...]
+    changed_files: tuple[str, ...]
+    gate_repo_root: Path
+
+
+@dataclass(frozen=True)
+class _TransitionGateEffect:
+    """The observable surface the aggregate decision maps onto (hook performs it).
+
+    ``metadata`` is the ``policy_metadata`` payload; ``console_lines`` are the
+    per-handler warn lines (≤1 per handler, NFR-002); ``representative`` is the
+    single verdict the metadata/block message render from; ``blocked`` /
+    ``terminal`` / ``should_exit`` drive the two hard-stops (T041).
+    """
+
+    metadata: dict[str, Any]
+    console_lines: tuple[str, ...]
+    representative: pre_review_gate.GateVerdict
+    blocked: bool
+    terminal: bool
+    should_exit: bool
+
+
+def _mt_warn_pre_review_test_command_deprecated(main_repo_root: Path) -> None:
+    """T043 (FR-011): one-time deprecation warning for ``review.pre_review_test_command``.
+
+    The legacy key is aliased to the ``ScopeSource`` single authority
+    (``review.test_command``) and STILL honored — never a silent break — but a
+    config that sets it earns exactly one process-wide deprecation warning
+    (guarded by the module latch), routed through the standard ``warnings``
+    surface so it never pollutes ``--json`` output.
+    """
+    global _pre_review_test_command_deprecation_emitted
+    if _pre_review_test_command_deprecation_emitted:
+        return
+    if _mt_review_config_section(main_repo_root).get(_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND) is None:
+        return
+    _pre_review_test_command_deprecation_emitted = True
+    warnings.warn(_PRE_REVIEW_TEST_COMMAND_DEPRECATION, DeprecationWarning, stacklevel=2)
+
+
+def _mt_resolve_scope_source(gate_repo_root: Path) -> ScopeSource:
+    """Build the activation-selected ``ScopeSource`` for the pre-review handler.
+
+    Half A ships one production handler (``spec-kitty-pre-review``), whose impl
+    is the behaviour-preserving :class:`GateCoverageScopeSource`. The census
+    test seams (:func:`_pre_review_gate_filter_groups` /
+    :func:`_pre_review_gate_composite_routing`) are threaded through as the
+    ``*_override`` hooks so production leaves them ``None`` (live authority) and
+    hermetic tests can inject a fixture map — the SAME seam the incumbent used.
+    """
+    return GateCoverageScopeSource(
+        repo_root=gate_repo_root,
+        filter_groups_override=_pre_review_gate_filter_groups(),
+        composite_routing_override=_pre_review_gate_composite_routing(),
+    )
+
+
+def _mt_resolve_active_gate_bindings(st: _MoveTaskState) -> GateBindingResolution:
+    """Resolve which doctrine-bound handlers gate this lane edge (FR-007/008).
+
+    The impure orchestration seam: resolves the mission type from identity
+    (never hardcoded) and delegates to
+    :func:`resolve_gate_bindings_for_transition` (one graph load + one filter +
+    one contract-bindings load, NFR-005). Kept a named module function so the
+    escape-hatch / observability tests can inject a canned resolution without a
+    full activated-doctrine repo fixture.
+    """
+    edge_key = f"{st.old_lane.value}->{st.target_lane.value}"
+    mission = resolve_mission_type(st, feature_dir=st.feature_dir)
+    return resolve_gate_bindings_for_transition(st.main_repo_root, mission, edge_key)
+
+
+def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
+    """Load the WP's captured baseline (``None`` when never captured).
+
+    Shared by the doctrine-bound handler context and the FR-004 override tier so
+    both diff against the SAME baseline artifact.
+    """
+    wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+    return BaselineTestResult.load(st.feature_dir / "tasks" / wp_slug / "baseline-tests.json")
+
+
+def _mt_build_transition_gate_context(st: _MoveTaskState, inputs: _TransitionGateInputs) -> TransitionGateContext:
+    """Assemble the ``TransitionGateContext`` handed to every handler (data-model §8)."""
+    return TransitionGateContext(
+        changed_files=inputs.changed_files,
+        scope_source=_mt_resolve_scope_source(inputs.gate_repo_root),
+        baseline=_mt_resolve_gate_baseline(st),
+        repo_root=inputs.gate_repo_root,
+        force=st.force,
+        from_lane=st.old_lane,
+        to_lane=st.target_lane,
+    )
+
+
+def _mt_fail_open_gate(
+    run: Callable[[], pre_review_gate.GateVerdict],
+    *,
+    changed_files: tuple[str, ...] = (),
+) -> pre_review_gate.GateVerdict:
+    """Run a gate-execution callable under the incumbent three-catch fail-open (T041/FR-013).
+
+    Mirrors ``_mt_pre_review_gate_verdict``'s three-catch verbatim:
+    ``KeyboardInterrupt`` → terminal ``CANCELLED``; ``GateAuthoritiesUnavailable``
+    → unverified ``NO_COVERAGE`` warn (the erroneous-activation degrade, #2534);
+    any other ``Exception`` → unverified ``NO_COVERAGE`` warn. Guarantees a gate
+    fault yields exactly ONE verdict and never escapes move-task — whichever
+    precedence tier produced the callable (a bound handler OR the FR-004 explicit
+    override scope). The override tier is just another gate-execution path, so it
+    MUST fail open here too; a bare ``KeyboardInterrupt`` in the override runner
+    escaping to exit 130 would breach the terminal-CANCELLED hard-stop invariant.
+    """
+    try:
+        return run()
+    except KeyboardInterrupt:
+        return pre_review_gate.GateVerdict(
+            outcome=pre_review_gate.GateOutcome.CANCELLED,
+            scope=pre_review_gate.ScopeResult.from_override(()),
+            reason="scoped test run cancelled",
+            run_state=pre_review_gate.HeadRunState.CANCELLED,
+        )
+    except pre_review_gate.GateAuthoritiesUnavailable as exc:
+        return _mt_empty_scope_verdict(
+            f"gate authorities unavailable — unverified: {exc}",
+            excluded_scope_files=changed_files,
+        )
+    except Exception as exc:  # noqa: BLE001 — FR-013 per-handler fail-open (never break move-task)
+        return _mt_empty_scope_verdict(f"pre-review gate evaluation failed — unverified: {exc}")
+
+
+def _mt_dispatch_one_gate(
+    binding: GateBinding,
+    ctx: TransitionGateContext,
+    handler_lookup: Callable[[str], GateHandler],
+) -> pre_review_gate.GateVerdict:
+    """Dispatch ONE bound handler under the shared three-catch fail-open (T041).
+
+    Each fault yields exactly ONE verdict and never crosses into another handler.
+    """
+    return _mt_fail_open_gate(
+        lambda: handler_lookup(binding.handler).run(ctx),
+        changed_files=ctx.changed_files,
+    )
+
+
+def _mt_dispatch_transition_gates(
+    bindings: Sequence[GateBinding],
+    ctx: TransitionGateContext,
+    *,
+    handler_lookup: Callable[[str], GateHandler] = get_gate_handler,
+) -> list[pre_review_gate.GateVerdict]:
+    """Dispatch each active binding in the resolver's stable order (FR-004/008).
+
+    ``get_gate_handler(b.handler).run(ctx)`` per binding (never a bare
+    ``GATE_REGISTRY[name]``); order is the stable sort the resolver already
+    applied, so aggregation precedence is deterministic (NFR-001).
+    """
+    return [_mt_dispatch_one_gate(binding, ctx, handler_lookup) for binding in bindings]
+
+
+_PRE_REVIEW_GATE_RUNNING_NOTICE = (
+    "[cyan]Pre-review regression gate: running scoped tests at head "
+    "(may take a few minutes)...[/cyan]"
+)
+
+
+def _mt_collect_transition_gate_verdicts(
+    st: _MoveTaskState,
+    inputs: _TransitionGateInputs,
+    _tasks: Any,
+) -> list[pre_review_gate.GateVerdict]:
+    """Resolve the FR-004 precedence tier, then the bindings, and return the verdict list.
+
+    Precedence, mirroring the incumbent (NFR-001): an explicit operator override
+    (frontmatter ``pre_review_test_scope`` > config ``pre_review_test_command``)
+    IS the test scope — it bypasses BOTH the changed-file census AND doctrine
+    binding resolution, evaluated through the shared
+    :func:`_mt_pre_review_gate_with_override_scope` tier. WP09's first inversion
+    dropped this tier (it never consulted the override), silently ignoring every
+    operator-pinned scope; restoring it is part of full incumbent fidelity.
+
+    Absent an override: a cheap short-circuit first — an empty changed-file set
+    means there is nothing to gate, so it degrades to a single ``NO_COVERAGE``
+    warn WITHOUT loading the activation graph (bounded cost, NFR-005). A
+    resolution with no active binding (no contract / no binding / not activated)
+    returns the resolver's **distinguishable** ``NO_COVERAGE`` reason
+    (FR-008/012), never a silent vanish.
+    """
+    wp = getattr(st, "wp", None)
+    override_targets = (
+        _mt_pre_review_scope_override(wp.frontmatter, st.main_repo_root) if wp is not None else None
+    )
+    if override_targets is not None:
+        if not st.json_output:
+            _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
+        return [
+            _mt_fail_open_gate(
+                lambda: _mt_pre_review_gate_with_override_scope(
+                    override_targets,
+                    repo_root=inputs.gate_repo_root,
+                    baseline=_mt_resolve_gate_baseline(st),
+                ),
+                changed_files=inputs.changed_files,
+            )
+        ]
+    if not inputs.changed_files:
+        return [_mt_empty_scope_verdict("no changed files detected for this WP — skipping the gate cheaply")]
+    resolution = _mt_resolve_active_gate_bindings(st)
+    if not resolution.active:
+        return [_mt_empty_scope_verdict(resolution.reason)]
+    if not st.json_output:
+        _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
+    ctx = _mt_build_transition_gate_context(st, inputs)
+    return _mt_dispatch_transition_gates(list(resolution.active), ctx)
+
+
+def _mt_resolve_transition_gate_inputs(st: _MoveTaskState) -> _TransitionGateInputs:
+    """Resolve the workspace, dirty-path baseline, and changed-files SSOT (unchanged)."""
+    worktree_path = _mt_resolve_pre_review_workspace(st)
+    dirty_before = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
+    changed_files = (
+        _mt_pre_review_changed_files(worktree_path, st.target_branch)
+        if worktree_path is not None
+        else ()
+    )
+    return _TransitionGateInputs(
+        worktree_path=worktree_path,
+        dirty_before=dirty_before,
+        changed_files=changed_files,
+        gate_repo_root=worktree_path or st.main_repo_root,
+    )
+
+
+def _mt_gate_representative(
+    aggregate: Any, verdicts: Sequence[pre_review_gate.GateVerdict]
+) -> pre_review_gate.GateVerdict:
+    """The single verdict the metadata / block message render from.
+
+    Deterministic and, for the half-A single-handler reality, always the one
+    dispatched verdict: the terminal verdict if the decision is terminal, else
+    the first blocking (``NEW_FAILURES``) verdict, else the last verdict.
+    """
+    if aggregate.terminal_verdict is not None:
+        return cast(pre_review_gate.GateVerdict, aggregate.terminal_verdict)
+    if aggregate.blocking_verdicts:
+        return cast(pre_review_gate.GateVerdict, aggregate.blocking_verdicts[0])
+    if verdicts:
+        return verdicts[-1]
+    return _mt_empty_scope_verdict("no active gate bindings for this transition")
+
+
+def _mt_translate_gate_verdicts(
+    verdicts: Sequence[pre_review_gate.GateVerdict],
+    *,
+    block_enabled: bool,
+    force: bool,
+    new_checkout_paths: tuple[str, ...] = (),
+) -> _TransitionGateEffect:
+    """Aggregate the per-handler verdicts and render the observable effect (FR-014).
+
+    Precedence (terminal > block > warn) lives in WP08's pure
+    :func:`aggregate_verdicts`; this helper only maps the aggregate onto the
+    metadata / console / block-exit surface the incumbent produced, so the
+    single-verdict path reproduces the base-captured parity tuple field-by-field
+    (NFR-001).
+    """
+    aggregate = aggregate_verdicts(verdicts, block_enabled=block_enabled, force=force)
+    representative = _mt_gate_representative(aggregate, verdicts)
+    blocked = aggregate.decision is AggregateDecision.BLOCK
+    terminal = aggregate.decision is AggregateDecision.TERMINAL
+    force_bypassed = block_enabled and force and bool(aggregate.blocking_verdicts)
+    metadata = _mt_pre_review_gate_metadata(
+        representative,
+        block_enabled=block_enabled,
+        blocked=blocked,
+        force_bypassed=force_bypassed,
+        new_checkout_paths=new_checkout_paths,
+    )
+    if terminal:
+        metadata["transition_applied"] = False
+    console_lines = tuple(
+        _mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled)
+        for verdict in aggregate.warnings
+    ) or (_mt_pre_review_gate_console_warning(representative, block_enabled=block_enabled),)
+    return _TransitionGateEffect(
+        metadata=metadata,
+        console_lines=console_lines,
+        representative=representative,
+        blocked=blocked,
+        terminal=terminal,
+        should_exit=aggregate.should_exit,
+    )
+
+
+def _mt_emit_skipped_gate(st: _MoveTaskState, _tasks: Any, skip_reason: str) -> None:
+    """Record + announce a skipped gate (escape hatch, #2573 FR-002)."""
+    verdict = _mt_empty_scope_verdict(f"gate skipped — {skip_reason}")
+    st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
+        verdict, block_enabled=False, blocked=False, force_bypassed=False,
+    )
+    if not st.json_output:
+        _tasks.console.print(f"[yellow]Pre-review regression gate: SKIPPED ({skip_reason})[/yellow]")
+
+
+def _mt_emit_transition_gate_effect(
+    st: _MoveTaskState,
+    effect: _TransitionGateEffect,
+    new_checkout_paths: tuple[str, ...],
+    _tasks: Any,
+) -> None:
+    """Emit console + perform the two hard-stops (T041) from the aggregate effect."""
+    if not st.json_output:
+        for line in effect.console_lines:
+            _tasks.console.print(line)
+        if new_checkout_paths:
+            _tasks.console.print(
+                "[yellow]Pre-review tests created or changed additional paths; "
+                f"preserved without cleanup: {', '.join(new_checkout_paths)}[/yellow]"
+            )
+    if effect.terminal:
+        outcome_value = effect.representative.outcome.value
+        _tasks._output_error(
+            st.json_output,
+            f"Pre-review regression gate {outcome_value}; transition not applied",
+            diagnostic={
+                "result": "error",
+                "error": f"pre-review gate {outcome_value}",
+                "transition_applied": False,
+                "pre_review_gate": st.pre_review_gate_metadata,
+            },
+        )
+        raise typer.Exit(1)
+    if effect.blocked:
+        _tasks._output_error(st.json_output, _mt_pre_review_gate_block_message(effect.representative))
+        raise typer.Exit(1)
+
+
+def _mt_run_transition_gates(st: _MoveTaskState) -> None:
+    """FR-009/013/014: the inverted, doctrine-resolved transition gate.
+
+    Generalizes the incumbent ``_mt_run_pre_review_gate``: instead of a
+    hardcoded call to ``evaluate_pre_review_gate``, it resolves WHICH named
+    handlers the repo's active doctrine binds to the current lane edge (WP06's
+    ``resolve_gate_bindings_for_transition`` + WP04's ``GATE_REGISTRY``),
+    dispatches each with per-handler fail-open (T041), and aggregates via WP08's
+    pure ``aggregate_verdicts`` (T040). A thin orchestrator: the join and the
+    aggregation are the pure functions it merely calls (NFR-006).
+
+    Runs ONLY for ``for_review`` moves, right after ``_mt_run_decision`` in
+    ``_do_move_task`` — AFTER every pre-existing guard clears and BEFORE the
+    transition is emitted/committed. Purely additive after the guard sequence:
+    the two hard-stops (terminal interruption; opt-in ``NEW_FAILURES`` block) are
+    the only non-local exits, and every handler-execution error degrades to one
+    visible ``NO_COVERAGE`` warn (C-003).
     """
     if st.target_lane != Lane.FOR_REVIEW:
         return
@@ -1179,125 +1552,37 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
 
     # #2573 FR-002: the opt-out escape hatch — checked BEFORE touching the
     # workspace or WP frontmatter, so a skip never resolves a lane workspace,
-    # diffs changed files, or spawns the scoped pytest subprocess. Default
-    # behavior (neither the flag nor an env var set) is untouched below.
+    # diffs changed files, or spawns the scoped pytest subprocess.
     skip_reason = _mt_pre_review_gate_skip_reason(st)
     if skip_reason is not None:
-        verdict = _mt_empty_scope_verdict(f"gate skipped — {skip_reason}")
-        st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
-            verdict, block_enabled=False, blocked=False, force_bypassed=False,
-        )
-        if not st.json_output:
-            _tasks.console.print(f"[yellow]Pre-review regression gate: SKIPPED ({skip_reason})[/yellow]")
+        _mt_emit_skipped_gate(st, _tasks, skip_reason)
         return
 
     assert st.wp is not None
-    worktree_path: Path | None = None
-    dirty_paths_before: tuple[str, ...] = ()
-    try:
-        worktree_path = _mt_resolve_pre_review_workspace(st)
-        dirty_paths_before = (
-            _mt_pre_review_dirty_paths(worktree_path)
-            if worktree_path is not None
-            else ()
-        )
-        changed_files = (
-            _mt_pre_review_changed_files(worktree_path, st.target_branch)
-            if worktree_path is not None
-            else ()
-        )
-        gate_repo_root = worktree_path or st.main_repo_root
-        override_targets = _mt_pre_review_scope_override(st.wp.frontmatter, st.main_repo_root)
-        wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-        baseline_path = st.feature_dir / "tasks" / wp_slug / "baseline-tests.json"
-        baseline = BaselineTestResult.load(baseline_path)
-        # #2573 FR-003: a non-empty scope means the gate is about to spawn a
-        # (potentially multi-minute) scoped pytest subprocess — surface that
-        # BEFORE the run so it never reads as a silent hang. An empty scope
-        # (no override, no changed files) stays silent here; it degrades to
-        # the cheap ``_mt_empty_scope_verdict`` path below without running
-        # anything.
-        if (override_targets is not None or changed_files) and not st.json_output:
-            _tasks.console.print(
-                "[cyan]Pre-review regression gate: running scoped tests at head "
-                "(may take a few minutes)...[/cyan]"
-            )
-        progress_callback = None
-        if not st.json_output:
-            def _emit_progress(elapsed: float) -> None:
-                _tasks.console.print(
-                    f"[cyan]Pre-review regression gate: still running "
-                    f"({elapsed:.0f}s elapsed)...[/cyan]"
-                )
-
-            progress_callback = _emit_progress
-        verdict = _mt_pre_review_gate_verdict(
-            changed_files=changed_files,
-            override_targets=override_targets,
-            gate_repo_root=gate_repo_root,
-            baseline=baseline,
-            progress_callback=progress_callback,
-        )
-    except KeyboardInterrupt:
-        verdict = pre_review_gate.GateVerdict(
-            outcome=pre_review_gate.GateOutcome.CANCELLED,
-            scope=pre_review_gate.ScopeResult.from_override(()),
-            reason="scoped test run cancelled",
-            run_state=pre_review_gate.HeadRunState.CANCELLED,
-        )
-    except Exception as exc:  # An internal gate failure must never break move-task (FR-003 spirit).
-        verdict = _mt_empty_scope_verdict(f"pre-review gate evaluation failed — unverified: {exc}")
-
-    dirty_paths_after = (
-        _mt_pre_review_dirty_paths(worktree_path)
-        if worktree_path is not None
-        else ()
+    _mt_warn_pre_review_test_command_deprecated(st.main_repo_root)
+    inputs = _mt_resolve_transition_gate_inputs(st)
+    verdicts = _mt_collect_transition_gate_verdicts(st, inputs, _tasks)
+    dirty_after = (
+        _mt_pre_review_dirty_paths(inputs.worktree_path) if inputs.worktree_path is not None else ()
     )
-    new_checkout_paths = tuple(sorted(set(dirty_paths_after) - set(dirty_paths_before)))
-
+    new_checkout_paths = tuple(sorted(set(dirty_after) - set(inputs.dirty_before)))
     block_enabled = _mt_pre_review_block_enabled(st.main_repo_root)
-    would_block = block_enabled and verdict.outcome is pre_review_gate.GateOutcome.NEW_FAILURES
-    force_bypassed = would_block and st.force
-    blocked = would_block and not force_bypassed
-    st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
-        verdict,
-        block_enabled=block_enabled,
-        blocked=blocked,
-        force_bypassed=force_bypassed,
-        new_checkout_paths=new_checkout_paths,
+    effect = _mt_translate_gate_verdicts(
+        verdicts, block_enabled=block_enabled, force=st.force, new_checkout_paths=new_checkout_paths
     )
+    st.pre_review_gate_metadata = effect.metadata
+    _mt_emit_transition_gate_effect(st, effect, new_checkout_paths, _tasks)
 
-    terminal_interruption = verdict.outcome in (
-        pre_review_gate.GateOutcome.TIMED_OUT,
-        pre_review_gate.GateOutcome.CANCELLED,
-    )
-    if terminal_interruption:
-        st.pre_review_gate_metadata["transition_applied"] = False
 
-    if not st.json_output:
-        _tasks.console.print(_mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled))
-        if new_checkout_paths:
-            _tasks.console.print(
-                "[yellow]Pre-review tests created or changed additional paths; "
-                f"preserved without cleanup: {', '.join(new_checkout_paths)}[/yellow]"
-            )
+def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
+    """Thin forwarder onto the inverted hook :func:`_mt_run_transition_gates`.
 
-    if terminal_interruption:
-        _tasks._output_error(
-            st.json_output,
-            f"Pre-review regression gate {verdict.outcome.value}; transition not applied",
-            diagnostic={
-                "result": "error",
-                "error": f"pre-review gate {verdict.outcome.value}",
-                "transition_applied": False,
-                "pre_review_gate": st.pre_review_gate_metadata,
-            },
-        )
-        raise typer.Exit(1)
-
-    if blocked:
-        _tasks._output_error(st.json_output, _mt_pre_review_gate_block_message(verdict))
-        raise typer.Exit(1)
+    Kept as a real, exported symbol (frozen compat surface, squad P-F1) and as
+    the ``_do_move_task`` call-site target so the observability monkeypatch that
+    binds ``_mt_run_pre_review_gate`` by name keeps intercepting. Do NOT repoint
+    the call site at ``_mt_run_transition_gates`` — that would no-op the patch.
+    """
+    return _mt_run_transition_gates(st)
 
 
 # --- phase D: finalize emit plan --------------------------------------------
