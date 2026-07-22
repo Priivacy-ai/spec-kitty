@@ -9,6 +9,7 @@
   "purpose_context": "Without session presence, AI agents initialized with spec-kitty have no awareness of the tool or how to route requests. This mission builds a new session_presence package that writes idempotent orientation blocks to each agent's native config on init and upgrade, covering all 19 supported harnesses across two phases: Claude Code first (Phase 1, issue #1760), then all remaining harnesses (Phase 2, issue #1761).",
   "purpose_tldr": "Automatically inject Spec Kitty orientation into every configured AI agent's config files so agents know what Spec Kitty is and how to use it.",
   "slug": "session-presence-multi-harness-01KTH57W",
+  "status_phase": "1",
   "target_branch": "pr/session-presence-multi-harness",
   "vcs": "git"
 }

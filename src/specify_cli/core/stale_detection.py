@@ -7,6 +7,14 @@ indicating the agent may have stopped without transitioning the WP.
 
 Uses git/jj commit timestamps as a "heartbeat" - if no commits for a threshold
 period, the WP is considered stale.
+
+FR-005 (claim-liveness re-point): claim-liveness inputs (``shell_pid`` /
+``shell_pid_created_at``) resolve unconditionally from the reduced
+event-sourced snapshot whenever a WP's feature directory is supplied; the
+snapshot is the sole authority for this call -- it is never blended with the
+frontmatter-extracted values the caller passes (C-001). When no
+``feature_dir`` is supplied (the WP02 runtime window) the caller-supplied
+frontmatter values are used unchanged.
 """
 
 from __future__ import annotations
@@ -14,10 +22,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
+from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
@@ -251,12 +260,71 @@ def _is_claiming_process_alive(shell_pid: str | None, shell_pid_baseline: str | 
     return bool(is_claiming_process_alive(pid, shell_pid_baseline))
 
 
+def _read_wp_runtime_snapshot_state(feature_dir: Path, wp_id: str) -> dict[str, Any]:
+    """Read the reduced-snapshot per-WP runtime state for *wp_id* (FR-005).
+
+    Reuses the canonical annotation-aware read seam -- ``status.store
+    .read_event_stream`` + ``status.reducer.reduce`` -- the same entry the
+    rest of the ``status`` package folds through (e.g.
+    ``status.emit._infer_subtasks_complete`` via
+    ``core.subtask_rows.unchecked_subtask_ids_from_snapshot``). No second
+    parser/read path is introduced (#2093 / FR-013).
+
+    Returns an empty dict when the WP has no reduced snapshot entry (never
+    claimed, or the event log is empty) -- a valid, authoritative "no runtime
+    state yet" result, not a signal to fall back to frontmatter.
+
+    Delegates to the shared ``status.reducer.wp_snapshot_state`` accessor (IC-08
+    dedup); ``or {}`` preserves the empty-dict "no runtime state yet" contract.
+    """
+    # dict(): the shared accessor returns a Mapping; this function's contract is
+    # dict[str, Any], so materialize a real dict (``or {}`` keeps the empty-dict
+    # "no runtime state yet" result).
+    return dict(_wp_snapshot_state(feature_dir, wp_id) or {})
+
+
+def _resolve_claim_liveness_inputs(
+    feature_dir: Path | None,
+    wp_id: str,
+    shell_pid: str | None,
+    shell_pid_baseline: str | None,
+) -> tuple[str | None, str | None]:
+    """Resolve claim-liveness ``(shell_pid, shell_pid_baseline)`` (FR-005).
+
+    - *feature_dir* is ``None`` (the WP02 runtime window): return
+      ``(shell_pid, shell_pid_baseline)`` unchanged -- the caller-supplied
+      frontmatter-sourced values.
+    - *feature_dir* supplied: the reduced snapshot is the sole source (C-001 --
+      a snapshot-first reader must never also consult the frontmatter fallback).
+      The frontmatter-extracted ``shell_pid``/``shell_pid_baseline`` arguments
+      are ignored entirely, including when the snapshot has no entry for *wp_id*
+      (that degrades to ``(None, None)`` -- the same conservative "not provably
+      alive" state :func:`check_wp_staleness` already handles for an
+      absent/unparseable PID).
+
+    The snapshot's ``shell_pid`` slot is stored as ``int``; it is coerced to
+    ``str`` here so the return shape matches what callers have always passed
+    (frontmatter is always string-typed).
+    """
+    if feature_dir is None:
+        return shell_pid, shell_pid_baseline
+
+    wp_state = _read_wp_runtime_snapshot_state(feature_dir, wp_id)
+    snapshot_pid = wp_state.get("shell_pid")
+    snapshot_baseline = wp_state.get("shell_pid_created_at")
+    return (
+        str(snapshot_pid) if snapshot_pid is not None else None,
+        str(snapshot_baseline) if snapshot_baseline is not None else None,
+    )
+
+
 def check_wp_staleness(
     wp_id: str,
     worktree_path: Path,
     threshold_minutes: int = 10,
     shell_pid: str | None = None,
     shell_pid_baseline: str | None = None,
+    feature_dir: Path | None = None,
 ) -> StaleCheckResult:
     """
     Check if a work package is stale based on VCS activity.
@@ -281,15 +349,25 @@ def check_wp_staleness(
         worktree_path: Path to the WP's worktree
         threshold_minutes: Minutes of inactivity before considered stale
         shell_pid: The WP's claiming shell PID, as read from frontmatter (may be
-            ``None``, empty, or unparseable — handled conservatively)
+            ``None``, empty, or unparseable — handled conservatively). Ignored
+            whenever *feature_dir* is supplied (the snapshot wins, unconditionally).
         shell_pid_baseline: The PID-reuse identity baseline (FR-005) co-written
             alongside ``shell_pid`` at claim time, as read from frontmatter.
             ``None`` (absent — a legacy claim) preserves today's live-PID trust
-            (D3a); present-but-mismatched treats the claim as not alive.
+            (D3a); present-but-mismatched treats the claim as not alive. Ignored
+            whenever *feature_dir* is supplied (the snapshot wins, unconditionally).
+        feature_dir: The WP's kitty-specs feature directory (e.g.
+            ``kitty-specs/<slug>``); when supplied, the reduced snapshot's
+            ``shell_pid``/``shell_pid_created_at`` slots are read unconditionally
+            in place of *shell_pid*/*shell_pid_baseline* above. ``None`` (the
+            default) preserves today's frontmatter-sourced behavior verbatim --
+            existing callers that do not pass it see zero regression.
 
     Returns:
         StaleCheckResult with staleness status
     """
+    resolved_shell_pid, resolved_shell_pid_baseline = _resolve_claim_liveness_inputs(feature_dir, wp_id, shell_pid, shell_pid_baseline)
+
     if not worktree_path.exists():
         return StaleCheckResult(
             wp_id=wp_id,
@@ -298,7 +376,7 @@ def check_wp_staleness(
             workspace_kind="lane_workspace",
         )
 
-    if _is_claiming_process_alive(shell_pid, shell_pid_baseline):
+    if _is_claiming_process_alive(resolved_shell_pid, resolved_shell_pid_baseline):
         return StaleCheckResult(
             wp_id=wp_id,
             stale=StaleState(status="fresh", reason=LIVE_CLAIM_PROCESS_REASON),
@@ -351,6 +429,28 @@ def check_wp_staleness(
         )
 
 
+def _resolve_feature_dir_for_staleness(main_repo_root: Path, mission_slug: str) -> Path | None:
+    """Resolve the mission's kitty-specs feature directory for the FR-005 lookup.
+
+    Lazy-imported (mirrors ``task_utils.support.locate_work_package``) so this
+    module does not pay for the ``missions``/``mission_runtime`` import surface
+    on every cold start -- only when a "doing" WP is actually checked. Never
+    raises: an unresolvable mission (e.g. a malformed slug) degrades to
+    ``None``, which makes :func:`check_wp_staleness` fall back to the
+    frontmatter-sourced legacy path (no ``feature_dir`` to read the snapshot from).
+    """
+    try:
+        from mission_runtime import MissionArtifactKind
+        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+        # cast: follow_imports=skip (specify_cli.* boundary) erases the imported
+        # function's real `-> Path` signature, turning the call site's inferred
+        # return type into `Any`; the cast is type-only, no behavior change.
+        return cast(Path, resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK))
+    except Exception:
+        return None
+
+
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
     mission_slug: str,
@@ -398,15 +498,20 @@ def check_doing_wps_for_staleness(
             # the paired baseline (FR-005): if the caller's wp dict doesn't carry
             # SHELL_PID_BASELINE_FIELD, this is None and staleness falls back to
             # today's live-PID trust (D3a) — no regression for callers not yet
-            # updated to surface the new field.
+            # updated to surface the new field. These are the fallback used only
+            # when feature_dir cannot be resolved: check_wp_staleness reads
+            # unconditionally from the reduced snapshot (below) whenever
+            # feature_dir is available.
             shell_pid = wp.get("shell_pid") or None
             shell_pid_baseline = wp.get(SHELL_PID_BASELINE_FIELD) or None
+            feature_dir = _resolve_feature_dir_for_staleness(main_repo_root, mission_slug)
             result = check_wp_staleness(
                 wp_id,
                 workspace.worktree_path,
                 threshold_minutes,
                 shell_pid=shell_pid,
                 shell_pid_baseline=shell_pid_baseline,
+                feature_dir=feature_dir,
             )
         else:
             result = StaleCheckResult(

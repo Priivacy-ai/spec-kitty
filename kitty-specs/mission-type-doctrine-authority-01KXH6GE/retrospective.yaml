@@ -1,0 +1,280 @@
+schema_version: 1
+mission_id: 01KXH6GEGW9631GGZFK3FHS9MR
+mission_slug: mission-type-doctrine-authority-01KXH6GE
+mission_number: 178
+friendly_name: Mission-Type Doctrine Authority
+mission_type: software-dev
+target_branch: mission/883-mission-type-governance-profiles
+created_at: '2026-07-15T06:26:49.423849+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-15T06:26:49.423849+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-010
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-011
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-017
+not_helpful:
+- id: n-011
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-028
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-002
+  category: process
+  summary: WP03 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP03 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP05 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP05 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP07 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP07 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP08 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP08 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP10 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP10 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: process
+  summary: WP11 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP11 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-009
+  category: process
+  summary: WP11 required 8 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP11 required 8 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP12 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-027
+  details: WP WP12 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP01-retire-governance-refs.md
+- id: e-006
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP02-mission-type-canonicalizer.md
+- id: e-007
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP03-unified-resolver-seam.md
+- id: e-008
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP04-action-path-leak-closure.md
+- id: e-009
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP05-per-type-override-channel.md
+- id: e-010
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP06-documentation-governance-content.md
+- id: e-011
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP07-research-governance-content.md
+- id: e-012
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP08-plan-governance-content.md
+- id: e-013
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP09-gates-reconcile-upward.md
+- id: e-014
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP10-gates-migrate-flip.md
+- id: e-015
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP11-steps-swap.md
+- id: e-016
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/tasks/WP12-enforcement-test-posture.md
+- id: e-017
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+- id: e-018
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXHZVYVBJA391AZ0128FN0E8
+- id: e-019
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXHG793PTKYN27VZZFGZKTSJ..01KXHG793PTKYN27VZZFGZKTSJ
+- id: e-020
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXHJDTFH1TMEBFJERTT8DGSR..01KXJ003H2D6PEK04VX2V07BGD
+- id: e-021
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ021HE6P7PW2S4M9BKBCK0..01KXJ021HE6P7PW2S4M9BKBCK0
+- id: e-022
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ17PEE410NGM7X54KMTYEW..01KXJ1RRNPWAVM7T78MZKH6DK5
+- id: e-023
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ138GMFNMNQENQ7FD878CK..01KXJ1JDYXBC6QZATTHGQNNCW2
+- id: e-024
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ0Z1R3WZDDRZDGP9ZSDC16..01KXJ178ARCC7P2PAGXX9XTCG0
+- id: e-025
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ17XFFGN0C2RR93Q62T5HZ..01KXJ13SVR2B14NSXM84CEX9AQ
+- id: e-026
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ13YSNKD67KM0KPF19W4HG..01KXJ23R5X2NGKQVZSBRYCJCZT
+- id: e-027
+  kind: event_range
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/status.events.jsonl
+  range: 01KXJ2E5DK2MG6XA18DP2YY62X..01KXJ5MNY44C2FFVWT65KBWXGE
+- id: e-028
+  kind: file
+  path: kitty-specs/mission-type-doctrine-authority-01KXH6GE/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

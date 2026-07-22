@@ -400,8 +400,13 @@ def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> 
     ``resolve_planning_read_dir(..., kind=TASKS_INDEX)`` (PRIMARY-partition),
     landing on ``repo_root / "kitty-specs" / mission_slug`` rather than the
     raw ``self.read_dir`` -- even though this legacy-topology fixture's
-    ``read_dir == repo_root == tmp_path`` pre-resolution. Implementation
-    evidence is untouched by this WP and still reads ``self.read_dir`` as-is.
+    ``read_dir == repo_root == tmp_path`` pre-resolution. Since the #2816
+    runtime-state corpus cutover, both gate inputs are resolved from a single
+    pre-fetched ``EventStream`` (one canonical read instead of two): the
+    implementation-evidence check calls
+    ``status_emit._infer_implementation_evidence_from_event_stream(event_stream,
+    wp_id)`` rather than the retired ``_infer_implementation_evidence(read_dir,
+    wp_id)``.
     """
     from specify_cli.status import TransitionRequest
     from specify_cli.status.aggregate import MissionStatus
@@ -426,14 +431,22 @@ def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> 
 
     class _StatusEmit:
         @staticmethod
-        def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
+        def _infer_subtasks_complete(
+            read_dir: Path,
+            wp_id: str,
+            *,
+            event_stream: object,
+        ) -> bool:
             assert read_dir == expected_primary_subtasks_dir
             assert wp_id == "WP07"
+            assert event_stream is not None
             return True
 
         @staticmethod
-        def _infer_implementation_evidence(read_dir: Path, wp_id: str) -> bool:
-            assert read_dir == tmp_path
+        def _infer_implementation_evidence_from_event_stream(
+            event_stream: object, wp_id: str
+        ) -> bool:
+            assert event_stream is not None
             assert wp_id == "WP07"
             return True
 
@@ -570,6 +583,12 @@ def test_emit_json_reports_coord_write_target_after_worktree_materialization(
         ),
         encoding="utf-8",
     )
+    tasks_dir = primary_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nsubtasks: []\n---\n",
+        encoding="utf-8",
+    )
     _write_events(
         primary_dir,
         [_status_event(slug, "WP01", "planned", "claimed", "01HXYZ0123456789ABCDEFGH40")],
@@ -602,7 +621,6 @@ def test_emit_json_reports_coord_write_target_after_worktree_materialization(
             "codex",
             "--mission",
             slug,
-            "--subtasks-complete",
             "--implementation-evidence-present",
             "--json",
         ],

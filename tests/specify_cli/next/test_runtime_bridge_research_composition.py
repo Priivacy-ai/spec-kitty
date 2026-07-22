@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -47,20 +48,22 @@ _KNOWN_ACTION_SEQUENCES: dict[str, list[str]] = {
 }
 
 
-def _mock_resolve_action_sequence(mission_type_id: str, _repo_root: object) -> list[str]:
+def _mock_resolve_mission_type_context(
+    repo_root: object, *, mission_type: str | None = None, feature_dir: object = None
+) -> SimpleNamespace:
     from charter.mission_type_profiles import UnknownMissionTypeError
 
-    result = _KNOWN_ACTION_SEQUENCES.get(mission_type_id)
+    result = _KNOWN_ACTION_SEQUENCES.get(mission_type)
     if result is None:
-        raise UnknownMissionTypeError(mission_type_id)
-    return result
+        raise UnknownMissionTypeError(mission_type)
+    return SimpleNamespace(action_sequence=result)
 
 
 @pytest.fixture(autouse=True)
 def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Patch charter.resolve_action_sequence so tests run without MissionTypeRepository.
+    """Patch charter.resolve_mission_type_context so tests run without MissionTypeRepository.
 
-    After WP07, _should_dispatch_via_composition calls charter.resolve_action_sequence.
+    After WP07, _should_dispatch_via_composition calls charter.resolve_mission_type_context.
     The MissionTypeRepository is provided by a later WP; this fixture patches it for
     all tests in this module.
     """
@@ -68,8 +71,8 @@ def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(
         _cmt,
-        "resolve_action_sequence",
-        _mock_resolve_action_sequence,
+        "resolve_mission_type_context",
+        _mock_resolve_mission_type_context,
     )
 
 
@@ -137,7 +140,7 @@ def test_should_dispatch_via_composition_for_each_research_action(
 ) -> None:
     """All five research actions route through composition via charter lookup.
 
-    After WP07, dispatch is driven by charter.resolve_action_sequence (mocked
+    After WP07, dispatch is driven by charter.resolve_mission_type_context (mocked
     by the autouse _mock_charter_resolve fixture) rather than a static frozenset.
     """
     assert _should_dispatch_via_composition("research", action, repo_root=tmp_path) is True

@@ -24,6 +24,7 @@
   "purpose_context": "Spec Kitty decides which on-disk surface (coordination worktree vs primary checkout) holds a mission's artifacts in several parallel resolvers that can disagree, producing the coord-vs-primary read/write desync that has repeatedly disrupted mission execution. This mission builds the safety net — a surface-resolution callsite inventory, a single-resolver CI guard, and a differential test that documents today's divergence — plus the cheapest behavioral fix (preserving precise mission-not-found/ambiguous error types end to end) and a small pure refactor, so the higher-risk collapse to a single resolver can land safely in a follow-up mission.",
   "purpose_tldr": "Build the test safety net and lowest-risk fixes so the duplicated mission-surface resolvers can be collapsed safely in a follow-up.",
   "slug": "mission-surface-resolver-safety-net-01KVN754",
+  "status_phase": "1",
   "target_branch": "feat/mission-surface-resolver-safety-net",
   "vcs": "git",
   "vcs_locked_at": "2026-06-21T15:28:40.807080+00:00"

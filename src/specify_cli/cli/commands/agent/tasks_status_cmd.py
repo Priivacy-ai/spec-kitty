@@ -175,6 +175,67 @@ def _st_resolve_dirs(st: _StatusState) -> None:
         raise typer.Exit(1)
 
 
+def _st_runtime_row(feature_dir: Path, wp_id: str | None) -> dict[str, Any]:
+    """Return the WP's runtime-identity row fields through the ONE canonical reader.
+
+    Routes the snapshot read through
+    :func:`specify_cli.status.reconstruct_wp_view` (SC-007) — the reduced
+    event-log snapshot is the unconditional authority (#2093/IC-03). An
+    unidentifiable WP (no ``work_package_id``) or an absent slot yields empty
+    strings, never a frontmatter fallback (C-001 — the phase-1 flag and its
+    fallback are retired with the unconditional cutover).
+
+    ``resolved_agent_profile`` / ``resolved_role`` / ``resolved_model`` are the
+    DISTINCT resolved-binding actuals (empty when unrecorded). The board's authored
+    ``agent_profile`` row field stays separate and feeds the HiC marker — the two
+    are never conflated (C-008).
+    """
+    from specify_cli.status import reconstruct_wp_view
+
+    if wp_id:
+        resolved = reconstruct_wp_view(feature_dir, wp_id).resolved
+        return {
+            "lane": resolved.lane or "",
+            "agent": resolved.agent or "",
+            "assignee": resolved.assignee or "",
+            "shell_pid": resolved.shell_pid or "",
+            "shell_pid_created_at": resolved.shell_pid_created_at or "",
+            "subtasks": dict(resolved.subtasks),
+            "review": resolved.review,
+            "resolved_agent_profile": resolved.agent_profile or "",
+            "resolved_agent_profile_version": resolved.agent_profile_version or "",
+            "resolved_role": resolved.role or "",
+            "resolved_model": resolved.model or "",
+            "resolved_provider": resolved.provider or "",
+        }
+    return {
+        "lane": "",
+        "agent": "",
+        "assignee": "",
+        "shell_pid": "",
+        "shell_pid_created_at": "",
+        "subtasks": {},
+        "review": None,
+        "resolved_agent_profile": "",
+        "resolved_agent_profile_version": "",
+        "resolved_role": "",
+        "resolved_model": "",
+        "resolved_provider": "",
+    }
+
+
+def _st_gated_runtime_fields(feature_dir: Path, wp_id: str | None) -> tuple[str, str]:
+    """Return ``(agent, shell_pid)`` through the one reconstruction reader (#2093).
+
+    Back-compat accessor (surface pinned by ``test_tasks_compat_surface``):
+    delegates to :func:`_st_runtime_row` so the snapshot read routes through the
+    one reconstruction reader (SC-007) and never bypasses the single authority the
+    rest of the reader path honours. Mirrors ``WorkPackage.agent``/``.shell_pid``.
+    """
+    row = _st_runtime_row(feature_dir, wp_id)
+    return str(row["agent"]), str(row["shell_pid"])
+
+
 def _st_resolve_execution_mode(
     front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None
 ) -> tuple[str, str]:
@@ -214,19 +275,14 @@ def _st_load_work_packages(st: _StatusState) -> None:
     for the pure ``build_status_view`` readiness map.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    _st_lanes: dict[str, Lane] = {}
     try:
         from specify_cli.status import read_events as _st_read_events
         from specify_cli.status import reduce as _st_reduce
 
         st.events = _st_read_events(st.feature_dir)
         st.snapshot = _st_reduce(st.events) if st.events else None
-        if st.snapshot:
-            for _st_wp_id, _st_state in st.snapshot.work_packages.items():
-                _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.GENESIS))
     except Exception:
         st.events = []
-        _st_lanes = {}
 
     # WP05: declared dependencies per WP id, frozen from the SAME frontmatter parse
     # already performed here (no extra file read).
@@ -243,10 +299,15 @@ def _st_load_work_packages(st: _StatusState) -> None:
         else:
             wp_deps = []
         st.wp_dependencies[wp_id or wp_file.stem] = wp_deps
-        lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, Lane.GENESIS))
         execution_mode, workspace_kind = _st_resolve_execution_mode(
             front, st.main_repo_root, st.mission_slug, wp_id
         )
+        # Route agent/shell_pid + the resolved-binding actuals through the ONE
+        # reconstruction reader (SC-007). The authored ``agent_profile`` stays
+        # frontmatter-canonical (design intent for the HiC marker) and DISTINCT
+        # from ``resolved_agent_profile`` (what actually ran) — C-008.
+        _st_row = _st_runtime_row(st.feature_dir, wp_id)
+        lane = resolve_lane_alias(str(_st_row["lane"] or Lane.GENESIS))
         st.work_packages.append(
             {
                 "id": wp_id,
@@ -254,16 +315,23 @@ def _st_load_work_packages(st: _StatusState) -> None:
                 "lane": lane,
                 "phase": extract_scalar(front, "phase") or "Unknown Phase",
                 "file": wp_file.name,
-                "agent": extract_scalar(front, "agent") or "",
+                "agent": _st_row["agent"],
                 "agent_profile": extract_scalar(front, "agent_profile") or "",
-                "shell_pid": extract_scalar(front, "shell_pid") or "",
+                "resolved_agent_profile": _st_row["resolved_agent_profile"],
+                "resolved_role": _st_row["resolved_role"],
+                "resolved_model": _st_row["resolved_model"],
+                "shell_pid": _st_row["shell_pid"],
                 # PID-reuse identity baseline (FR-005/#2575), co-written with
-                # shell_pid at claim time. Threaded here so check_doing_wps_for_staleness
-                # can compare it (recycled-PID -> stale-eligible). Both the JSON
+                # shell_pid at claim time. Post-#2816 it is a runtime slot sourced
+                # from the reduced snapshot through the SAME reconstruction reader
+                # as ``shell_pid`` (never frontmatter) — the two doors stay
+                # consistent. Threaded here so check_doing_wps_for_staleness can
+                # compare it (recycled-PID -> stale-eligible). Both the JSON
                 # (_st_emit_json) and human (_st_render_human) staleness paths read
                 # this same dict object -- _kanban_rollup groups by reference, so a
-                # single addition here feeds both consumers.
-                SHELL_PID_BASELINE_FIELD: extract_scalar(front, SHELL_PID_BASELINE_FIELD) or None,
+                # single addition here feeds both consumers. ``or None`` preserves
+                # the additive-degradation contract (absent baseline -> None, D3a).
+                SHELL_PID_BASELINE_FIELD: _st_row["shell_pid_created_at"] or None,
                 "execution_mode": execution_mode,
                 "workspace_kind": workspace_kind,
             }

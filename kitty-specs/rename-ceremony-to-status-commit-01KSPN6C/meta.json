@@ -1,5 +1,6 @@
 {
   "change_mode": "bulk_edit",
+  "coordination_branch": "kitty/mission-rename-ceremony-to-status-commit-01KSPN6C",
   "created_at": "2026-05-28T06:43:49.038846+00:00",
   "friendly_name": "Rename Ceremony Commit to Status Commit",
   "mission_id": "01KSPN6C5DWX7MRFMCD2BG1SBT",
@@ -10,7 +11,7 @@
   "purpose_tldr": "Replace the opaque term 'ceremony commit' with 'status commit' across spec-kitty source, tests, doctrine, docs, and glossary.",
   "slug": "rename-ceremony-to-status-commit-01KSPN6C",
   "source_description": "GitHub Issue #1325: Excise \"ceremony\" terminology from codebase, replace with \"status commit\"",
+  "status_phase": "1",
   "target_branch": "main",
-  "coordination_branch": "kitty/mission-rename-ceremony-to-status-commit-01KSPN6C",
   "vcs": "git"
 }

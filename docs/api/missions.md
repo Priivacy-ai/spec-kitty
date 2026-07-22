@@ -1,14 +1,14 @@
 ---
 title: Mission Types Reference
-description: Reference for Spec Kitty mission types (software-dev, research, and documentation). Learn how blueprints define phases, step bindings, and custom workflows.
+description: Reference for Spec Kitty mission types (software-dev, research, documentation, and plan). Learn how blueprints define phases, step bindings, and custom workflows.
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-07-20'
 related:
 - docs/api/configuration.md
 ---
 # Mission Types Reference
 
-Spec Kitty supports three built-in mission types, each tailored to a different kind of work. A mission type is the reusable workflow blueprint. A mission is the concrete tracked item under `kitty-specs/<mission-slug>/`.
+Spec Kitty supports four built-in mission types, each tailored to a different kind of work. A mission type is the reusable workflow blueprint. A mission is the concrete tracked item under `kitty-specs/<mission-slug>/`.
 
 Terminology note:
 - `Mission Type` = reusable blueprint
@@ -25,6 +25,7 @@ Terminology note:
 | `software-dev` | Software development | Building features, APIs, UIs |
 | `research` | Research and analysis | Investigations, competitive analysis, technical research |
 | `documentation` | Documentation creation | User guides, API docs, tutorials |
+| `plan` | Goal-oriented planning | Structured planning documents with review/rollback, independent of a code mission |
 
 ---
 
@@ -49,8 +50,8 @@ Software development: building new features, APIs, user interfaces, and system c
 | Artifact | Created By | Purpose |
 |----------|------------|---------|
 | `spec.md` | `/spec-kitty.specify` | User stories, requirements, acceptance criteria |
-| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, Implementation Concern Map (IC-## entries) |
-| `tasks.md` | `/spec-kitty.tasks` | Work package breakdown translated from IC-## concerns |
+| `plan.md` | `/spec-kitty.plan` | Architecture, design decisions, implementation concern Map (IC-## entries) |
+| `tasks.md` | `/spec-kitty.tasks` | work package breakdown translated from IC-## concerns |
 | `data-model.md` | `/spec-kitty.plan` | Database schema, entity relationships |
 | `contracts/` | `/spec-kitty.plan` | API specifications (optional) |
 | `tasks/*.md` | `/spec-kitty.tasks` | Individual WP prompt files |

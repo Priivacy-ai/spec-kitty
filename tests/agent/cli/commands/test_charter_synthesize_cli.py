@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -62,6 +63,26 @@ available_tools: []
     )
 
 
+def _seed_complete_bundle(repo_root: Path) -> None:
+    """Materialize the authoritative ``charter.yaml`` so the #2773 fail-closed
+    preflight (``_raise_if_bundle_incomplete``) passes and the real-run
+    synthesize path is reached.
+
+    Mirrors ``_seed_complete_bundle`` in
+    ``tests/charter/test_references_missing_failclosed.py`` — the canonical
+    seeding surface for tests that drive the post-preflight write path.
+    ``first_missing_bundle_file`` is a pure existence check over
+    ``BUNDLE_CONTENT_HASH_FILES == ("charter.yaml",)``, so seeding this one
+    file is sufficient.
+    """
+    charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml.parent.mkdir(parents=True, exist_ok=True)
+    charter_yaml.write_text(
+        "schema_version: '2.0.0'\ngovernance: {}\ndirectives: {}\n",
+        encoding="utf-8",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fixture adapter happy path
 # ---------------------------------------------------------------------------
@@ -76,40 +97,28 @@ class TestSynthesizeHappyPath:
         assert "--adapter" in plain
         assert "--dry-run" in plain
 
-    def test_synthesize_generated_default_adapter(self, tmp_path: Path) -> None:
-        """Default adapter is the generated-artifact path, not fixture."""
-        _write_interview_answers(tmp_path)
-
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            mock_result = MagicMock()
-            mock_result.target_kind = "directive"
-            mock_result.target_slug = "mission-type-scope-directive"
-            mock_result.inputs_hash = "abc123"
-            mock_result.effective_adapter_id = "generated"
-            mock_result.effective_adapter_version = "1.0.0"
-
-            with patch("charter.synthesizer.synthesize", return_value=mock_result):
-                result = runner.invoke(app, ["synthesize"])
-
-        assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}: {result.output}"
-        assert "synthesis complete" in result.output.lower() or "Charter synthesis" in result.output
-
-    def test_synthesize_fixture_adapter(self, tmp_path: Path) -> None:
-        """--adapter fixture remains supported for offline regression runs."""
-        _write_interview_answers(tmp_path)
-
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            mock_result = MagicMock()
-            mock_result.target_kind = "directive"
-            mock_result.target_slug = "mission-type-scope-directive"
-            mock_result.inputs_hash = "abc123"
-            mock_result.effective_adapter_id = "fixture"
-            mock_result.effective_adapter_version = "1.0.0"
-
-            with patch("charter.synthesizer.synthesize", return_value=mock_result):
-                result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
-
-        assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}: {result.output}"
+    # NOTE (#2773 test-remediation): two former happy-path scaffolds were
+    # REMOVED here rather than migrated, because once the command guards on the
+    # canonical ``charter.yaml`` before synthesis their coverage is fully
+    # redundant with canonical real-path tests:
+    #
+    #   * ``test_synthesize_generated_default_adapter`` — asserted only that
+    #     *some* success text prints on the default (generated) adapter's
+    #     real-run human branch. That branch (and the default-adapter routing)
+    #     is already exercised by
+    #     ``tests/charter/test_references_missing_failclosed.py::
+    #     test_synthesize_json_succeeds_past_preflight_when_bundle_complete``
+    #     (real-run success) and, for the human branch specifically, by the
+    #     migrated ``test_synthesize_non_json_reminds_to_commit_artifacts``
+    #     below. The "default == generated" intent it documented is not even
+    #     provable through the mock (the mock ignores the real adapter object).
+    #
+    #   * ``test_synthesize_fixture_adapter`` — asserted only ``exit_code == 0``
+    #     with ``--adapter fixture``. Fixture-adapter acceptance is covered by
+    #     the canonical real dry-run tests (``TestSynthesizeEnvelopeContract`` +
+    #     ``test_synthesize_fixture_dry_run``) and the migrated real-run
+    #     envelope test below; a mock asserting nothing but exit 0 proves
+    #     nothing new.
 
     def test_synthesize_fixture_dry_run(self, tmp_path: Path) -> None:
         """--dry-run stages and validates but does not promote.
@@ -145,31 +154,55 @@ class TestSynthesizeHappyPath:
         assert "validated" in result.output.lower()
 
     def test_synthesize_json_output(self, tmp_path: Path) -> None:
-        """--json returns valid JSON with a 'result' key."""
-        _write_interview_answers(tmp_path)
+        """Real-run --json success envelope: result / adapter / written_artifacts / warnings.
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            mock_result = MagicMock()
-            mock_result.target_kind = "directive"
-            mock_result.target_slug = "mission-type-scope-directive"
-            mock_result.inputs_hash = "abc123def456"
-            mock_result.effective_adapter_id = "fixture"
-            mock_result.effective_adapter_version = "1.0.0"
+        MIGRATED (#2773 test-remediation): post-#2773 the command fails closed
+        on a missing ``charter.yaml`` *before* synthesis, so the old fixture
+        seeded nothing and never reached the mocked ``synthesize``. We now seed
+        the authoritative ``charter.yaml`` (complete bundle) and mock the
+        evidence + request builders exactly as the canonical sibling
+        ``tests/charter/test_references_missing_failclosed.py::
+        test_synthesize_json_succeeds_past_preflight_when_bundle_complete``
+        does — so the production ``charter.synthesizer.synthesize`` mock is
+        genuinely exercised. Unlike that sibling (which only asserts
+        ``result == "success"``), this test locks the *envelope formatting*
+        that is covered nowhere else: ``adapter`` sourced from the synth
+        result's ``effective_adapter_*`` and ``written_artifacts`` projected
+        from the manifest loader.
+        """
+        _seed_complete_bundle(tmp_path)
 
-            with patch("charter.synthesizer.synthesize", return_value=mock_result), patch(
-                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
-                return_value=[
-                    {
-                        "path": ".kittify/doctrine/directive/001-test.directive.yaml",
-                        "kind": "directive",
-                        "slug": "test",
-                        "artifact_id": "PROJECT_001",
-                    }
-                ],
-            ):
-                result = runner.invoke(
-                    app, ["synthesize", "--adapter", "fixture", "--json"]
-                )
+        mock_result = MagicMock()
+        mock_result.target_kind = "directive"
+        mock_result.target_slug = "mission-type-scope-directive"
+        mock_result.inputs_hash = "abc123def456"
+        mock_result.effective_adapter_id = "fixture"
+        mock_result.effective_adapter_version = "1.0.0"
+
+        with patch(
+            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
+        ), patch(
+            "specify_cli.cli.commands.charter._collect_evidence_result",
+            return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+        ), patch(
+            "specify_cli.cli.commands.charter._build_synthesis_request",
+            return_value=(SimpleNamespace(), SimpleNamespace()),
+        ), patch(
+            "charter.synthesizer.synthesize", return_value=mock_result
+        ), patch(
+            "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+            return_value=[
+                {
+                    "path": ".kittify/doctrine/directive/001-test.directive.yaml",
+                    "kind": "directive",
+                    "slug": "test",
+                    "artifact_id": "PROJECT_001",
+                }
+            ],
+        ):
+            result = runner.invoke(
+                app, ["synthesize", "--adapter", "fixture", "--json"]
+            )
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         data = json.loads(result.output)
@@ -186,29 +219,47 @@ class TestSynthesizeHappyPath:
         assert data["warnings"] == []
 
     def test_synthesize_non_json_reminds_to_commit_artifacts(self, tmp_path: Path) -> None:
-        """Successful human output names the KD-2 artifact commit step."""
-        _write_interview_answers(tmp_path)
+        """Successful human output names the KD-2 artifact commit step.
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            mock_result = MagicMock()
-            mock_result.target_kind = "directive"
-            mock_result.target_slug = "mission-type-scope-directive"
-            mock_result.inputs_hash = "abc123def456"
-            mock_result.effective_adapter_id = "fixture"
-            mock_result.effective_adapter_version = "1.0.0"
+        MIGRATED (#2773 test-remediation): the commit-reminder text on the
+        real-run human branch is a genuinely-unique assertion covered by no
+        canonical real-path test, so it is migrated (not dropped). Same
+        complete-bundle seeding + evidence/request mocks as
+        ``test_synthesize_json_output`` above reach the mocked ``synthesize``;
+        a non-empty ``_load_written_artifacts_from_manifest`` return drives the
+        ``if written_artifacts_real:`` reminder branch.
+        """
+        _seed_complete_bundle(tmp_path)
 
-            with patch("charter.synthesizer.synthesize", return_value=mock_result), patch(
-                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
-                return_value=[
-                    {
-                        "path": ".kittify/charter/synthesis-manifest.yaml",
-                        "kind": "manifest",
-                        "slug": "synthesis",
-                        "artifact_id": None,
-                    }
-                ],
-            ):
-                result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
+        mock_result = MagicMock()
+        mock_result.target_kind = "directive"
+        mock_result.target_slug = "mission-type-scope-directive"
+        mock_result.inputs_hash = "abc123def456"
+        mock_result.effective_adapter_id = "fixture"
+        mock_result.effective_adapter_version = "1.0.0"
+
+        with patch(
+            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
+        ), patch(
+            "specify_cli.cli.commands.charter._collect_evidence_result",
+            return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+        ), patch(
+            "specify_cli.cli.commands.charter._build_synthesis_request",
+            return_value=(SimpleNamespace(), SimpleNamespace()),
+        ), patch(
+            "charter.synthesizer.synthesize", return_value=mock_result
+        ), patch(
+            "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+            return_value=[
+                {
+                    "path": ".kittify/charter/synthesis-manifest.yaml",
+                    "kind": "manifest",
+                    "slug": "synthesis",
+                    "artifact_id": None,
+                }
+            ],
+        ):
+            result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         assert "git add .kittify/charter/synthesis-manifest.yaml" in result.output

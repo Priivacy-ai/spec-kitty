@@ -8,8 +8,11 @@ date: '2026-06-24'
 ## Context
 
 A coordination-topology mission keeps two on-disk copies of its feature directory:
-the **primary checkout** (`kitty-specs/<slug>/`) and the **coordination worktree**
-(`.worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>/`).
+the **repository-root checkout** (the `primary` **Sense C** surface — `kitty-specs/<slug>/`)
+and the **coordination worktree** (`.worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>/`).
+(The four `primary` senses — PRIMARY partition / Primary Branch / repository-root
+checkout / Target Ref — are catalogued in `docs/context/orchestration.md`; each use
+below is qualified to exactly one.)
 
 The predecessor ADR ([2026-06-24-1]) made artifact **placement** kind-aware: planning +
 identity kinds (`spec.md`, `plan.md`, `tasks.md`, `tasks/WP*.md`, `data-model.md`,
@@ -28,10 +31,13 @@ the primary checkout. The pre-fix resolvers anchored that `meta.json` read on th
    `resolve_target_branch` (`core/git_ops.py`), and the `finalize-tasks` commit-branch
    resolution (`mission.py`). Under coordination topology the candidate resolver returns
    the materialized `-coord` worktree, whose mission dir has **no** `meta.json`. The read
-   found nothing and silently fell back to `resolve_primary_branch` = the protected repo
-   primary `main`. So the planning-artifact commit/branch resolved to `main` instead of
-   the mission's `target_branch` — the implement-loop / `finalize-tasks` "refusal-to-main"
-   defect.
+   found nothing and silently fell back to `resolve_primary_branch` = the protected
+   repository's **Primary Branch** (`primary` **Sense B**, normally `main`). So the
+   planning-artifact commit/branch resolved to that Primary Branch instead of the mission's
+   **Target Ref** (`target_branch`, `primary` **Sense D**) — the implement-loop /
+   `finalize-tasks` "refusal-to-main" defect. The root confusion is reading a
+   PRIMARY-partition (`primary` **Sense A** — `meta.json` is a PRIMARY-partition kind)
+   fact as a Primary-Branch (Sense B) instruction.
 
 2. **The `research` (Phase 0) command** (the [#2107](https://github.com/Priivacy-ai/spec-kitty/issues/2107)
    driver's read+write twin, found at closeout). It bound `feature_dir =
@@ -52,14 +58,16 @@ The mission's write-branch / planning-write resolution anchors on the **primary*
 for **all** topologies, and the boundary is enforced by a coverage-derived (default-deny)
 ratchet so the recurring N+1 cannot return silently.
 
-1. **Write-branch resolution reads `meta.json` from the primary anchor.** Every
-   write-branch resolver (`get_feature_target_branch`, `resolve_target_branch`, the
+1. **Write-branch resolution reads `meta.json` from the repository-root-checkout anchor.**
+   Every write-branch resolver (`get_feature_target_branch`, `resolve_target_branch`, the
    `finalize-tasks` commit-branch resolution) reads `target_branch` from `meta.json`
-   under `primary_feature_dir_for_mission` (the topology-blind primary constructor),
-   mirroring the already-proven `resolve_merge_target_branch`. It is **never** anchored on
-   `candidate_feature_dir_for_mission` (which selects coord, then falls back to protected
-   `main`). For ALL topologies the resolved commit/branch is the mission's
-   `target_branch` (G-6).
+   under `primary_feature_dir_for_mission` (the topology-blind repository-root-checkout
+   constructor — `primary` **Sense C**), mirroring the already-proven
+   `resolve_merge_target_branch`. It is **never** anchored on
+   `candidate_feature_dir_for_mission` (which selects coord, then falls back to the
+   protected **Primary Branch** — `primary` **Sense B**, `main`). For ALL topologies the
+   resolved commit/branch is the mission's **Target Ref** (`target_branch`, `primary`
+   **Sense D**) (G-6).
 
 2. **Planning reads and the scaffold writes resolve via the kind-aware seam.** A gate
    command that reads OR scaffolds a planning artifact resolves the dir through

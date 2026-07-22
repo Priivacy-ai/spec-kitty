@@ -25,6 +25,7 @@
   "purpose_context": "Today a coordination-topology mission authors its spec and plan on the coordination branch while task finalization reads the primary checkout, so a freshly-planned mission can report 'all requirements unmapped' and force the operator to hand-create a coordination worktree. This mission gives every planning-lifecycle command one shared surface authority: planning artifacts (spec, plan, tasks, work-package files) live on the primary checkout for every mission shape, while status bookkeeping stays on the coordination branch. It is the write-side companion to the already-merged read-path single-authority work.",
   "purpose_tldr": "Give a coordination-topology mission one canonical planning surface so spec, plan, and tasks never split across branches.",
   "slug": "write-surface-coherence-01KVTVZS",
+  "status_phase": "1",
   "target_branch": "feat/write-surface-coherence",
   "topology": "single_branch",
   "vcs": "git",

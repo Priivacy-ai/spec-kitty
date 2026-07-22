@@ -1,0 +1,35 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: drg-migration-v1
+nodes:
+- urn: anti_pattern:anemic-domain-model
+  kind: anti_pattern
+  label: Anemic Domain Model
+  tags:
+  - anti-pattern
+- urn: anti_pattern:big-ball-of-mud
+  kind: anti_pattern
+  label: Big Ball of Mud
+  tags:
+  - anti-pattern
+- urn: anti_pattern:big-upfront-design
+  kind: anti_pattern
+  label: Big Upfront Design
+  tags:
+  - anti-pattern
+- urn: anti_pattern:code-is-the-documentation
+  kind: anti_pattern
+  label: Code Is the Documentation
+  tags:
+  - smell
+- urn: anti_pattern:database-driven-design
+  kind: anti_pattern
+  label: Database-Driven Design
+  tags:
+  - anti-pattern
+- urn: anti_pattern:single-diagram-architecture
+  kind: anti_pattern
+  label: Single-Diagram Architecture
+  tags:
+  - smell
+edges: []

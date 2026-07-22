@@ -12,6 +12,7 @@
   "purpose_context": "The #2160 coord-topology authority unification is functionally complete, but its pre-merge squad found the static call-shape gate has a cross-function blind-spot that let real residuals escape to behavioral-only coverage. This mission hardens the gate surface (cross-function detection, partition-stability verification, runtime_bridge routing + scan-scope) so the now-unified PRIMARY/STATUS authority cannot silently regress — built to the test-hygiene (CT7/#2077) standard so it reduces rather than adds test-suite friction.",
   "purpose_tldr": "Harden the coord-authority test gates so coord-read residuals are caught statically — closing #2197/#2198/#2199/#2214 under epic #2160.",
   "slug": "coord-authority-gate-hardening-01KW4T2F",
+  "status_phase": "1",
   "target_branch": "feat/coord-authority-gate-hardening",
   "topology": "coord",
   "vcs": "git",

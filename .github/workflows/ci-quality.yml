@@ -94,6 +94,7 @@ jobs:
   # ---------------------------------------------------------------------------
   changes:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       # ``run_all`` (workflow_dispatch input) and ``unmatched`` (the FR-010
       # fail-closed catch-all: a src/** change matched by NO named filter
@@ -423,6 +424,7 @@ jobs:
 
   lint:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       commitlint_has_failures: ${{ steps.commitlint.outputs.has_failures }}
       markdownlint_has_failures: ${{ steps.markdownlint.outputs.has_failures }}
@@ -787,13 +789,7 @@ jobs:
   lint-feedback:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: lint
-    if: >-
-      always() && github.event_name == 'pull_request'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && (needs.lint.outputs.commitlint_has_failures == 'true'
-       || needs.lint.outputs.markdownlint_has_failures == 'true'
-       || needs.lint.outputs.ruff_has_failures == 'true'
-       || needs.lint.outputs.mypy_has_failures == 'true')
+    if: ${{ (always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.lint.outputs.commitlint_has_failures == 'true' || needs.lint.outputs.markdownlint_has_failures == 'true' || needs.lint.outputs.ruff_has_failures == 'true' || needs.lint.outputs.mypy_has_failures == 'true')) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     permissions:
       contents: read
       pull-requests: write
@@ -1293,7 +1289,7 @@ jobs:
     needs: [changes, fast-tests-next]
     if: >-
       always() &&
-      (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true') &&
+      (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.platform == 'true') &&
       needs.fast-tests-next.result != 'failure'
     steps:
       - uses: actions/checkout@v6
@@ -1791,7 +1787,7 @@ jobs:
   arch-adversarial:
     name: arch-adversarial (${{ matrix.shard }})
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: always()
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     # 3-shard matrix (mission ci-health-charter-path-and-arch-shard-01KWRTB2,
     # #2397): the arch-pole selection is now routed by dedicated pytest
     # markers (``arch_shard_1/2/3``, assignment table in
@@ -1958,7 +1954,7 @@ jobs:
   timing-nfr-serial:
     name: Timing NFR gate (serial, -m timing)
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: always()
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2027,7 +2023,7 @@ jobs:
   # `tests/agent`'s import of charter fixtures/modules is in-process test
   # coupling, not shared runtime state across jobs. Its `needs:` now mirrors
   # `fast-tests-charter`'s own upstream needs so both run concurrently off the
-  # same predecessors (see docs/guides/testing-parallel.md — no documented
+  # same predecessors (see docs/development/testing-parallel.md — no documented
   # rationale ties agent's suite to charter's completion).
   # ---------------------------------------------------------------------------
   fast-tests-agent:
@@ -2670,6 +2666,7 @@ jobs:
   # ---------------------------------------------------------------------------
   unit-contract-residual:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2686,7 +2683,7 @@ jobs:
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
@@ -2804,13 +2801,7 @@ jobs:
     name: doctor restart-daemon NFR-002 timing (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     needs: [changes]
-    if: >-
-      always() &&
-      (
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch' ||
-        needs.changes.outputs.cli == 'true'
-      )
+    if: ${{ (always() && ( github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cli == 'true' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     strategy:
       fail-fast: false
@@ -2839,7 +2830,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # quarantine-visibility: runs `-m quarantine` for real (SPEC_KITTY_RUN_QUARANTINE=1)
   # so irreducible environmental flakes stay VISIBLE — never silently retried to
-  # green. Per docs/guides/testing-flakiness.md this job is intentionally
+  # green. Per docs/development/testing-flakiness.md this job is intentionally
   # NON-BLOCKING: it MUST NOT be added to the `quality-gate` aggregation below
   # or to branch-protection required checks, so a quarantined flake can never turn
   # main red or block an unrelated PR. Tolerates pytest exit code 5 (no tests
@@ -2849,14 +2840,7 @@ jobs:
     name: quarantine visibility (non-blocking)
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: >-
-      always() &&
-      (
-        github.event_name == 'push' ||
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'pull_request'
-      )
+    if: ${{ (always() && ( github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -2884,34 +2868,59 @@ jobs:
           exit "$ec"
 
   # ---------------------------------------------------------------------------
+  # regression-tests: runs `-m regression` for real so every red-first P0
+  # reproduction test (@pytest.mark.regression) has an explicit, routed CI home,
+  # and it is BLOCKING — it IS a member of the `quality-gate` aggregation below.
+  # An open P0 red-first reproduction is expected to red mainline and, because
+  # CI is the release authority, that red must gate releases: a non-blocking
+  # regression lane would FAKE GREEN on P0s and lose the very signal the marker
+  # exists to give (ADR 2026-07-17-1; issue #2772-family course-correction of
+  # the #2774 visibility-only design). The marker-completeness gate
+  # (tests/architectural/test_marker_job_completeness.py) still requires that no
+  # registered marker be silently CI-invisible; this job is that routed home.
+  # It is EXPECTED to be red while open P0s exist — that red is the honest,
+  # tracked, release-gating signal, never retried to green; maintainers clear it
+  # by fixing the product defect. Tolerates pytest exit code 5 (no regression
+  # tests currently registered) as green.
+  # ---------------------------------------------------------------------------
+  regression-tests:
+    name: regression tests (blocking)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    needs: [changes]
+    if: ${{ (always() && ( github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: Run regression red-first reproductions (blocking — gates releases)
+        env:
+          PWHEADLESS: "1"
+        run: |
+          set +e
+          python -m pytest tests/ -m regression -p no:cacheprovider -q --tb=short
+          ec=$?
+          set -e
+          if [ "$ec" -eq 5 ]; then
+            echo "::notice::No regression red-first reproductions are currently registered (-m regression collected nothing)."
+            exit 0
+          fi
+          exit "$ec"
+
+  # ---------------------------------------------------------------------------
   # e2e-cross-cutting: push/manual, plus PRs that change e2e/cross-cutting
   # fixtures. Runs tests/e2e/ and tests/cross_cutting/ in parallel with slow-tests.
   # ---------------------------------------------------------------------------
   e2e-cross-cutting:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: |
-      always() && (
-        github.event_name == 'push' ||
-        (
-          github.event_name == 'pull_request' &&
-          (
-            needs.changes.outputs.e2e == 'true' ||
-            needs.changes.outputs.core_misc == 'true' ||
-            needs.changes.outputs.execution_context == 'true'
-          ) &&
-          (
-            (
-              github.event.pull_request.draft == false &&
-              !startsWith(github.event.pull_request.title, 'WIP') &&
-              !startsWith(github.event.pull_request.title, '[WIP]')
-            ) ||
-            contains(github.event.pull_request.labels.*.name, 'ci:full') ||
-            contains(github.event.pull_request.labels.*.name, 'ready-for-ci')
-          )
-        ) ||
-        (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all))
-      )
+    if: ${{ (always() && ( github.event_name == 'push' || ( github.event_name == 'pull_request' && ( needs.changes.outputs.e2e == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' ) && ( ( github.event.pull_request.draft == false && !startsWith(github.event.pull_request.title, 'WIP') && !startsWith(github.event.pull_request.title, '[WIP]') ) || contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ready-for-ci') ) ) || (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all)) )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 40
 
     steps:
@@ -2976,8 +2985,7 @@ jobs:
       # arch-adversarial emits coverage-arch-adversarial.xml consumed here via
       # the coverage-*.xml glob (mission ci-topology-shrink FR-006/FR-007).
       - arch-adversarial
-    if: always() && github.event_name == 'pull_request'
-
+    if: ${{ (always() && github.event_name == 'pull_request') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -3569,6 +3577,7 @@ jobs:
   uv-lock-check:
     name: uv lock --check (NFR-005)
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v6
@@ -3593,6 +3602,7 @@ jobs:
   build-wheel:
     name: Build wheel
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
@@ -3635,6 +3645,7 @@ jobs:
   clean-install-verification:
     name: Clean install verification (FR-010)
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5     # NFR-004
     needs: [build-wheel]
     steps:
@@ -3884,12 +3895,13 @@ jobs:
       - timing-nfr-serial
       - e2e-cross-cutting
       - restart-daemon-nfr-timing
+      - regression-tests
       - build-wheel
       - clean-install-verification
       - consumer-compatibility
       - uv-lock-check
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: always()
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: "Check out repository (decision script)"
         uses: actions/checkout@v6
@@ -3943,7 +3955,7 @@ jobs:
               "fast-tests-status": ["status", "sync"],
               "fast-tests-review": ["review", "status"],
               "fast-tests-next": ["next", "status"],
-              "mission-loader-coverage": ["next", "core_misc"],
+              "mission-loader-coverage": ["next", "core_misc", "platform"],
               "fast-tests-lanes": ["lanes", "status", "merge"],
               "fast-tests-dashboard": ["dashboard", "status"],
               "fast-tests-upgrade": ["upgrade", "status"],

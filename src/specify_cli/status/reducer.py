@@ -13,14 +13,72 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from specify_cli.core.paths import safe_mission_slug
 from specify_cli.mission_metadata import resolve_mission_identity
 
-from .models import Lane, RetrospectiveSnapshot, StatusEvent, StatusSnapshot
-from .store import read_events, read_events_raw
+from .models import (
+    NON_DISPLAY_LANES,
+    ActorField,
+    InnerStateChanged,
+    Lane,
+    RetrospectiveSnapshot,
+    StatusEvent,
+    StatusSnapshot,
+    WPInnerStateDelta,
+    actor_identity_str,
+)
+from .store import read_event_stream, read_events_raw
+
+#: Per-WP runtime slots carried forward across lane transitions (per-field
+#: independence, FR-002). A transition updates ``lane``/``actor``/… and MUST
+#: preserve these — the pre-mission reducer rebuilt the dict carrying forward
+#: only ``force_count``, which would erase runtime state on the next
+#: transition (the reducer replace-dict hazard).
+#:
+#: The resolved-binding actuals (``role``/``agent_profile``/
+#: ``agent_profile_version``/``model``/``provider``, FR-013) are runtime slots
+#: too: an implement-claim annotation's binding survives every later lane
+#: transition until a review-claim annotation replaces it (latest-wins, INV-8).
+_RUNTIME_SLOTS: tuple[str, ...] = (
+    "shell_pid",
+    "shell_pid_created_at",
+    "subtasks",
+    "notes",
+    "tracker_refs",
+    "agent",
+    "assignee",
+    "review",
+    "role",
+    "agent_profile",
+    "agent_profile_version",
+    "model",
+    "provider",
+)
+
+#: Data-driven **replace slots** for :func:`_apply_annotation_delta`: fields
+#: whose fold rule is exactly "if the delta field is present, replace the
+#: snapshot slot of the same name". Iterating this table (instead of a flat
+#: if-chain) keeps the annotation fold under the complexity ceiling as
+#: resolved-binding slots are added (D-14 tidy-first) — the five resolved
+#: actuals are pure replace slots, so they are data here, not new branches.
+#: The non-replace fields (``subtasks`` per-subtask merge, ``note`` -> ``notes``
+#: append, ``tracker_refs``/``tracker_refs_replace`` union/replace, ``review``)
+#: are handled explicitly and are NOT members of this table.
+_REPLACE_SLOTS: tuple[str, ...] = (
+    "shell_pid",
+    "shell_pid_created_at",
+    "agent",
+    "assignee",
+    "role",
+    "agent_profile",
+    "agent_profile_version",
+    "model",
+    "provider",
+)
 
 SNAPSHOT_FILENAME = "status.json"
 
@@ -43,20 +101,115 @@ def _wp_state_from_event(
     event: StatusEvent,
     previous: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """Build a WP state dict from an event, optionally carrying forward
-    the force_count from the previous state.
+    """Build a WP state dict from a lane transition.
+
+    Carries forward ``force_count`` **and** every untouched runtime slot from
+    ``previous`` (per-field independence, FR-002) so a later transition never
+    silently erases ``shell_pid``/``subtasks``/``notes``/``tracker_refs``/…
+    (the reducer replace-dict hazard).
+
+    The ``planned -> claimed`` transition is the only transition that writes a
+    runtime slot: it extracts ``shell_pid``/``shell_pid_created_at``/``agent``
+    from its ``policy_metadata`` sidecar into the snapshot slots (FR-004 claim
+    path). ``policy_metadata`` may be ``None`` — read defensively.
     """
     prior_force_count = 0
     if previous is not None:
         prior_force_count = previous.get("force_count", 0)
 
-    return {
+    state: dict[str, Any] = {
         "lane": str(event.to_lane),
-        "actor": event.actor,
+        # Project a structured (dict) resolved-binding actor to its string
+        # identity for the SNAPSHOT slot (FR-015): the reduced ``actor`` is a
+        # display identity consumed by ``str(actor).strip()`` sinks, so it stays
+        # ``str``-typed. The dict binding still rides the in-memory event to the
+        # SaaS fan-out and round-trips the event LOG uncorrupted.
+        "actor": actor_identity_str(event.actor),
         "last_transition_at": event.at,
         "last_event_id": event.event_id,
         "force_count": prior_force_count + (1 if event.force else 0),
     }
+
+    # Preserve untouched runtime slots across the transition.
+    if previous is not None:
+        for slot in _RUNTIME_SLOTS:
+            if slot in previous:
+                state[slot] = previous[slot]
+
+    # Claim exception (FR-004): the only transition that writes a runtime slot.
+    if event.from_lane == Lane.PLANNED and event.to_lane == Lane.CLAIMED:
+        meta = event.policy_metadata or {}
+        shell_pid = meta.get("shell_pid")
+        if shell_pid is not None:
+            state["shell_pid"] = shell_pid
+        shell_pid_created_at = meta.get("shell_pid_created_at")
+        if shell_pid_created_at is not None:
+            state["shell_pid_created_at"] = shell_pid_created_at
+        agent = meta.get("agent")
+        if agent is not None:
+            state["agent"] = agent
+
+    return state
+
+
+def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> None:
+    """Fold a typed :class:`WPInnerStateDelta` into a per-WP snapshot dict.
+
+    Per-field merge rules (only present delta fields are applied; absent fields
+    leave the slot untouched):
+
+    - **Replace slots** (:data:`_REPLACE_SLOTS`, data-driven): ``shell_pid`` /
+      ``shell_pid_created_at`` / ``agent`` / ``assignee`` and the resolved-
+      binding actuals ``role`` / ``agent_profile`` / ``agent_profile_version`` /
+      ``model`` / ``provider`` (FR-013). Each folds **latest-wins** — a present
+      value replaces the same-named slot; the most-recent annotation's actual
+      wins across the lifecycle (INV-8).
+    - ``subtasks``: **per-subtask replace** (merge by subtask id).
+    - ``note``: **append** to the ``notes`` list (field/slot name mismatch:
+      delta ``note`` -> snapshot ``notes``, so it is NOT a replace slot).
+    - ``tracker_refs`` (additive) **unions** into the ``tracker_refs`` slot;
+      ``tracker_refs_replace`` (present) **wholesale-replaces** the slot
+      (dedup-preserving order) and takes precedence when both are present — the
+      replace channel is what lets a ``--replace`` drop stale refs rather than
+      resurrect them.
+    - ``review``: **replace** with ``ReviewOverride.to_dict()``.
+
+    Never increments ``force_count``.
+    """
+    for name in _REPLACE_SLOTS:
+        value = getattr(delta, name)
+        if value is not None:
+            state[name] = value
+    if delta.subtasks is not None:
+        current_subtasks: dict[str, str] = dict(state.get("subtasks") or {})
+        for subtask_id, status in delta.subtasks.items():
+            current_subtasks[subtask_id] = str(status)
+        state["subtasks"] = current_subtasks
+    if delta.note is not None:
+        notes: list[str] = list(state.get("notes") or [])
+        notes.append(delta.note)
+        state["notes"] = notes
+    if delta.tracker_refs_replace is not None:
+        state["tracker_refs"] = _dedup_preserve_order(delta.tracker_refs_replace)
+    elif delta.tracker_refs is not None:
+        merged: list[str] = list(state.get("tracker_refs") or [])
+        for ref in delta.tracker_refs:
+            if ref not in merged:
+                merged.append(ref)
+        state["tracker_refs"] = merged
+    if delta.review is not None:
+        state["review"] = delta.review.to_dict()
+
+
+def _dedup_preserve_order(refs: list[str]) -> list[str]:
+    """Return ``refs`` with duplicates removed, preserving first-seen order."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for ref in refs:
+        if ref not in seen:
+            seen.add(ref)
+            result.append(ref)
+    return result
 
 
 def _should_apply_event(
@@ -109,29 +262,45 @@ def _should_apply_event(
     return True
 
 
-def reduce(events: list[StatusEvent]) -> StatusSnapshot:
-    """Deterministically reduce a list of events into a snapshot.
+def reduce(
+    events: list[StatusEvent],
+    annotations: list[InnerStateChanged] | None = None,
+) -> StatusSnapshot:
+    """Deterministically reduce events (+ annotations) into a snapshot.
 
-    Algorithm:
-    1. Deduplicate by event_id (keep first occurrence)
-    2. Sort by (at, event_id) ascending
-    3. Iterate and track current lane per WP
-    4. Apply rollback-aware precedence for concurrent events
+    Event-kind partition fold (NOT a timestamp-interleaved single pass):
+
+    1. Deduplicate transitions by event_id (keep first occurrence)
+    2. Sort transitions by (at, event_id) ascending
+    3. Fold all transitions with rollback-aware precedence, preserving each
+       WP's untouched runtime slots (and folding the ``planned -> claimed``
+       ``policy_metadata`` sidecar into the snapshot slots)
+    4. Fold **all annotations** in a dedicated post-transition pass, applying
+       the per-field ``WPInnerStateDelta`` merge. A same-``at`` transition can
+       never clobber an annotation slot; annotations never bump ``force_count``.
+       This pass is a single O(annotations) walk keyed by ``wp_id`` — it does
+       NOT re-scan the transition list (NFR-005).
     5. Build summary counts for the 9 active/display lanes
-       (Lane.GENESIS is excluded — it is a non-display lane and never
-       appears as the current lane of a materialised WP)
+       (lanes in ``NON_DISPLAY_LANES`` — currently ``GENESIS`` and
+       ``UNINITIALIZED`` — are excluded; neither ever appears as the
+       current lane of a materialised WP)
 
-    Empty events returns a snapshot with mission_slug="", all zero
-    counts, and no work packages.
+    ``annotations`` defaults to ``None`` (treated as empty) so every existing
+    ``reduce(read_events(...))`` caller keeps its behaviour. An
+    annotation-only stream materialises a runtime-only WP entry.
+
+    An empty stream (no transitions and no annotations) returns a snapshot with
+    mission_slug="", all zero counts, and no work packages.
     """
-    if not events:
+    annotations = annotations or []
+    if not events and not annotations:
         return StatusSnapshot(
             mission_slug="",
             materialized_at="",  # No events → no last-event timestamp; stable empty string
             event_count=0,
             last_event_id=None,
             work_packages={},
-            summary={lane.value: 0 for lane in Lane if lane is not Lane.GENESIS},
+            summary={lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES},
         )
 
     # Step 1: Deduplicate by event_id (keep first occurrence)
@@ -153,30 +322,96 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     # "" at the source. Every derived-view writer already falls back to the
     # trusted feature_dir.name when the slug is empty (`slug or feature_dir.name`),
     # so this one chokepoint fail-closes all current and future path sinks.
-    mission_slug = safe_mission_slug(sorted_events[0].mission_slug, "")
+    # An annotation-only stream has no transition to source the slug from.
+    mission_slug = safe_mission_slug(sorted_events[0].mission_slug, "") if sorted_events else ""
 
     for event in sorted_events:
         current = wp_states.get(event.wp_id)
         if _should_apply_event(current, event, sorted_events):
             wp_states[event.wp_id] = _wp_state_from_event(event, current)
 
+    # Step 4: Annotation post-pass (event-kind partition — folded AFTER every
+    # transition, never interleaved by timestamp). A single O(annotations) walk
+    # keyed by wp_id; it does NOT re-scan the transition list. An annotation for
+    # a wp_id with no prior transition materialises a runtime-only WP entry.
+    #
+    # Sort by ``(at, event_id)`` — the SAME key as the transition pass (Step 2) —
+    # so two annotations touching the same field resolve by timestamp, not by
+    # merge/file order. Without this, a parallel-worktree merge that interleaves
+    # the rows non-deterministically would flip the winner (#2684 determinism).
+    sorted_annotations = sorted(annotations, key=lambda a: (a.at, a.event_id))
+    for annotation in sorted_annotations:
+        wp_state = wp_states.get(annotation.wp_id)
+        if wp_state is None:
+            wp_state = _runtime_only_wp_state(annotation.actor)
+            wp_states[annotation.wp_id] = wp_state
+        _apply_annotation_delta(wp_state, annotation.delta)
+
     # Step 5: Build summary counts for the 9 active/display lanes.
-    # Lane.GENESIS is excluded — it is a non-display lane and is never
-    # the current lane of a materialised WP (post-finalize there are none).
-    summary: dict[str, int] = {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
+    # Lanes in NON_DISPLAY_LANES (GENESIS, UNINITIALIZED) are excluded —
+    # neither is ever the current lane of a materialised WP (post-finalize
+    # there are none).
+    summary: dict[str, int] = {lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES}
     for wp_state in wp_states.values():
         lane_val = wp_state["lane"]
         if lane_val in summary:
             summary[lane_val] += 1
 
+    # ``materialized_at``/``last_event_id`` derive from the last transition
+    # (deterministic). Annotations are off-axis and do not move these markers.
+    last_transition = sorted_events[-1] if sorted_events else None
     return StatusSnapshot(
         mission_slug=mission_slug,
-        materialized_at=sorted_events[-1].at,  # Derived from last event; deterministic
+        materialized_at=last_transition.at if last_transition is not None else "",
         event_count=len(sorted_events),
-        last_event_id=sorted_events[-1].event_id,
+        last_event_id=last_transition.event_id if last_transition is not None else None,
         work_packages=wp_states,
         summary=summary,
     )
+
+
+def wp_snapshot_state(feature_dir: Path, wp_id: str) -> Mapping[str, Any] | None:
+    """Return the reduced per-WP runtime state for *wp_id*, or ``None`` if absent.
+
+    The single shared spelling of the ``read_event_stream(feature_dir)`` ->
+    ``reduce(...)`` -> ``snapshot.work_packages.get(wp_id)`` idiom that was
+    reimplemented across ~6 modules (IC-08 / #2093). Behaviour-preserving:
+
+    - An empty event log (no transitions and no annotations) reduces to an empty
+      snapshot, so the lookup returns ``None`` — identical to the pre-existing
+      ``if not stream.transitions and not stream.annotations`` early-outs.
+    - A WP with no reduced entry returns ``None``.
+
+    This accessor is **ungated**: the phase-1 dual-write flag gating stays at each
+    call site (a snapshot-first reader vs. a frontmatter fallback is a call-site
+    decision, not this accessor's). Callers that want an empty-dict sentinel add
+    ``or {}``; callers that branch on absence use the ``None`` directly.
+    """
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce(stream.transitions, stream.annotations)
+    # cast: work_packages values are dict[str, Any], so .get() is Any|None at the
+    # follow_imports=skip boundary; narrow to the declared read-only Mapping.
+    return cast("Mapping[str, Any] | None", snapshot.work_packages.get(wp_id))
+
+
+def _runtime_only_wp_state(actor: ActorField) -> dict[str, Any]:
+    """Seed a per-WP snapshot entry for an annotation with no prior transition.
+
+    Such a WP never traversed the FSM, so it has no display lane — it sits in
+    the non-display ``UNINITIALIZED`` lane and is therefore excluded from the
+    board summary. The annotation delta then folds its runtime slots on top.
+
+    The ``actor`` is projected to its string identity for the snapshot slot
+    (FR-015 parity with :func:`_wp_state_from_event`), so a structured annotation
+    actor never lands as a raw dict in a display sink.
+    """
+    return {
+        "lane": str(Lane.UNINITIALIZED),
+        "actor": actor_identity_str(actor),
+        "last_transition_at": None,
+        "last_event_id": None,
+        "force_count": 0,
+    }
 
 
 def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnapshot:
@@ -293,9 +528,12 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
     This helper is intentionally read-only. It keeps production materialization
     semantics in one place so callers such as doctor/audit can compare a
     persisted status.json without creating temp files or replacing status.json.
+
+    Reads via ``read_event_stream`` so off-axis ``InnerStateChanged``
+    annotations are surfaced to ``reduce()`` and folded into the runtime slots.
     """
-    events = read_events(feature_dir)
-    snapshot = reduce(events)
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce(stream.transitions, stream.annotations)
     identity = resolve_mission_identity(feature_dir)
     snapshot.mission_number = (
         str(identity.mission_number)

@@ -190,10 +190,10 @@ def inline_md(text: str) -> str:
     return value
 
 
-def slugify(value: str) -> str:
+def slugify(value: str, fallback: str = "section") -> str:
     slug = re.sub(r"<[^>]+>", "", value).lower()
     slug = re.sub(r"[^a-z0-9]+", "-", slug).strip("-")
-    return slug or "section"
+    return slug or fallback
 
 
 def table_to_html(rows: list[str]) -> str:
@@ -846,8 +846,32 @@ def parse_glossary_seed(path: Path) -> list[dict[str, str | float]]:
     ]
 
 
+def assign_anchor_ids(terms: list[dict[str, str | float]]) -> list[dict[str, str | float]]:
+    """Attach a stable, unique ``anchor_id`` to each glossary term.
+
+    Per ``contracts/glossary-anchor-contract.md``: ``anchor_id`` is a lowercase,
+    ASCII-only, hyphen-separated slug of the term's ``surface`` field. Two terms
+    that slugify to the same base value collide; the collision is broken by
+    appending a numeric suffix (``-2``, ``-3``, ...) in seed-file order — the
+    order ``terms`` is already in, since :func:`parse_glossary_seed` yields
+    entries in the order they appear in the YAML seed. This is deliberately the
+    single source of anchor-id truth: ``scripts/docs/glossary_linker.py``
+    imports this function so both the rendered glossary page and the term
+    linker agree on every ``anchor_id`` without re-deriving the algorithm.
+    """
+    seen: dict[str, int] = {}
+    result: list[dict[str, str | float]] = []
+    for term in terms:
+        base = slugify(str(term.get("surface") or ""), fallback="term")
+        occurrence = seen.get(base, 0)
+        anchor_id = base if occurrence == 0 else f"{base}-{occurrence + 1}"
+        seen[base] = occurrence + 1
+        result.append({**term, "anchor_id": anchor_id})
+    return result
+
+
 def glossary_page(_mission_list: list[Mission]) -> str:
-    terms = parse_glossary_seed(GLOSSARY_SEED)
+    terms = assign_anchor_ids(parse_glossary_seed(GLOSSARY_SEED))
     template = GLOSSARY_TEMPLATE.read_text(encoding="utf-8")
     static_loader = f"""
 async function loadTerms() {{
@@ -868,6 +892,19 @@ async function loadTerms() {{
     )
     template = template.replace('href="/" title="Dashboard Overview"', 'href="./" title="Mission Runs"')
     template = template.replace('href="/glossary" title="Glossary"', 'href="glossary.html" title="Glossary"')
+    # FR-012: give every rendered term card a stable id="term-{anchor_id}" (plus a
+    # data-surface attribute for debugging/inspection) so glossary_linker.py and any
+    # external page can deep-link straight to a term with #term-{anchor_id}.
+    template = template.replace(
+        "      const card = document.createElement('article');\n"
+        "      card.className = 'card';\n"
+        "      card.dataset.status = t.status;\n",
+        "      const card = document.createElement('article');\n"
+        "      card.className = 'card';\n"
+        "      card.id = 'term-' + t.anchor_id;\n"
+        "      card.dataset.status = t.status;\n"
+        "      card.dataset.surface = t.surface;\n",
+    )
     return template
 
 

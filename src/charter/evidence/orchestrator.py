@@ -81,7 +81,11 @@ class EvidenceOrchestrator:
 def load_url_list_from_config(repo_root: Path) -> tuple[str, ...]:
     """Read charter.synthesis_inputs.url_list from .kittify/config.yaml.
 
-    Returns empty tuple if the key is absent or the file does not exist.
+    Post-#2773, the `charter` key holds a path string pointing at
+    `.kittify/charter/charter.yaml` rather than an inline mapping, so
+    `synthesis_inputs.url_list` has no live config home there anymore.
+    Returns an empty tuple whenever the key is absent, the file does not
+    exist, or `charter` is not a mapping (e.g. the path-string shape).
     """
     config_path = repo_root / ".kittify" / "config.yaml"
     if not config_path.exists():
@@ -93,6 +97,8 @@ def load_url_list_from_config(repo_root: Path) -> tuple[str, ...]:
     except Exception:  # noqa: BLE001
         return ()
     charter_cfg = config.get("charter") or {}
+    if not isinstance(charter_cfg, dict):
+        charter_cfg = {}
     synthesis_inputs = charter_cfg.get("synthesis_inputs") or {}
     raw = synthesis_inputs.get("url_list") or []
     return tuple(u for u in raw if u and isinstance(u, str))

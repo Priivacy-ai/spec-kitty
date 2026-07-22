@@ -95,11 +95,11 @@ from mission_runtime import (
     resolve_placement_only as resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
-    # coord-primary-partition-lock WP05 (T024): live patch seam for
-    # ``_mt_resolve_status_placement_ref`` — routed back through
-    # ``_tasks.placement_seam`` by the relocated ``tasks_move_task`` body
-    # (same D7 seam-bridge convention as the other ``mission_runtime`` names
-    # above).
+    # coord-primary-partition-lock WP05 (T024): live patch seam +
+    # STATUS_STATE placement authority used directly by this module's own
+    # relocated view/lane-target bodies (and patched as
+    # ``@patch("...agent.tasks.placement_seam")``) — same D7 seam-bridge
+    # convention as the other ``mission_runtime`` names above.
     placement_seam as placement_seam,
 )
 # ``commit_for_mission`` keeps an explicit ``as`` re-export: its direct
@@ -173,7 +173,8 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _materialize_inline_subtask_status as _materialize_inline_subtask_status,
     # WP09: ``_persist_inline_subtask_status`` left with ``_resolve_inline_subtasks``
     # (now imported directly by ``tasks_mark_status``); zero external refs via ``tasks``.
-    _persist_review_artifact_override_in_coord as _persist_review_artifact_override_in_coord,
+    # ``_persist_review_artifact_override_in_coord`` deleted in WP09 (FR-009): the
+    # primary/coord frontmatter mirror collapsed into the single review emit.
     _persist_review_feedback as _persist_review_feedback,
     _update_pipe_table_status as _update_pipe_table_status,
 )
@@ -318,7 +319,6 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _skip_target_branch_commit as _skip_target_branch_commit,
     _validate_ready_for_review as _validate_ready_for_review,
     _wp_branch_merged_into_target as _wp_branch_merged_into_target,
-    resolve_primary_branch as resolve_primary_branch,
 )
 
 # Re-exported lane helpers consumed by tests via
@@ -382,6 +382,7 @@ globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] =
 # kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md.
 # ===========================================================================
 from specify_cli.cli.commands.agent.tasks_move_task import (
+    _MoveTaskArgs as _MoveTaskArgs,
     _MoveTaskState as _MoveTaskState,
     # WP09 (FR-008, IC-07): the six family stragglers that stayed behind at
     # WP05 — the arbiter override pair, the #2155 mixed-bundle partition, the
@@ -401,13 +402,15 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _lane_deliverable_paths as _lane_deliverable_paths,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
-    # WP06 (coord-shadows-arm-closeout-01KXAST2, FR-010, T027): the
-    # rollback-to-planned claim-marker clear (pure helper) + the umbrella
-    # reset seam that consolidates it with the subtask uncheck join the
-    # family surface like every other def — same seam-bridge rule.
-    _mt_clear_rollback_claim_markers as _mt_clear_rollback_claim_markers,
+    # WP06 (wp-runtime-state-eviction, FR-006/FR-008, T023): the god-write cut
+    # deleted the rollback-to-planned claim-marker clear, the subtask-uncheck
+    # trio, the umbrella reset seam, and the tracker-refs frontmatter writer —
+    # runtime state is now event-sourced (InnerStateChanged), so their
+    # re-exports are dropped here (seam-mirror of the authoritative-surface
+    # deletion; the six unit test modules that imported them are WP10 dead-symbol
+    # reconciliation).
     _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
-    _mt_commit_wp_file as _mt_commit_wp_file,
+    _mt_complete_deferred_for_review_readiness as _mt_complete_deferred_for_review_readiness,
     _mt_current_event_lane as _mt_current_event_lane,
     _mt_done_ancestry_facts as _mt_done_ancestry_facts,
     _mt_emit_transitions as _mt_emit_transitions,
@@ -425,10 +428,10 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
-    _mt_persist_tracker_refs as _mt_persist_tracker_refs,
     _mt_persist_wp_file as _mt_persist_wp_file,
     _mt_pre_review_block_enabled as _mt_pre_review_block_enabled,
     _mt_pre_review_changed_files as _mt_pre_review_changed_files,
+    _mt_pre_review_dirty_paths as _mt_pre_review_dirty_paths,
     _mt_pre_review_gate_block_message as _mt_pre_review_gate_block_message,
     _mt_pre_review_gate_console_warning as _mt_pre_review_gate_console_warning,
     # #2573 fast-follow (FR-002): the --skip-pre-review-gate flag + disable-env
@@ -440,31 +443,35 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
     _mt_release_review_lock as _mt_release_review_lock,
-    # coord-primary-partition-lock WP05 (T023/T024): the STATUS_STATE seam
-    # lookup + the extracted write/commit core + the enriched success message
-    # join the family surface like every other def — same seam-bridge rule.
-    _mt_resolve_status_placement_ref as _mt_resolve_status_placement_ref,
-    _mt_write_and_commit_wp_file as _mt_write_and_commit_wp_file,
-    _mt_wp_commit_success_message as _mt_wp_commit_success_message,
+    # #2816/IC-04 (runtime-state-corpus-cutover, WP05): the ownership-read reroute
+    # onto the snapshot seam joins the family surface like every other native def
+    # (the identity re-export the compat guard's superset invariant requires).
+    _mt_resolve_current_agent as _mt_resolve_current_agent,
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_targets as _mt_resolve_targets,
-    _mt_reset_for_planned_rollback as _mt_reset_for_planned_rollback,
-    _mt_uncheck_rollback_subtasks as _mt_uncheck_rollback_subtasks,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
     _mt_warn_worktree_kitty_specs as _mt_warn_worktree_kitty_specs,
     _pre_review_gate_composite_routing as _pre_review_gate_composite_routing,
     _pre_review_gate_filter_groups as _pre_review_gate_filter_groups,
-    _primary_bundle_status_artifacts as _primary_bundle_status_artifacts,
     _run_arbiter_override as _run_arbiter_override,
     _status_event_result_fields as _status_event_result_fields,
-    # WP07 (loop-friction-quickwins-2-01KXBWA4, T025, FR-010/#2555.1): the
-    # authority-path planning-artifact staging discovery + the shared
-    # fallback-write helper join the family surface like every other def.
-    _mt_untracked_planning_artifact_paths as _mt_untracked_planning_artifact_paths,
-    _write_wp_fallback as _write_wp_fallback,
+    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the
+    # event-sourcing helpers WP06/WP07 added to ``tasks_move_task`` when the
+    # god-write was cut — the off-axis runtime-state emitter, the claim-triple
+    # policy_metadata packer, the review planner, the rollback subtask-reset delta
+    # builder, and the shell-pid baseline reader — join the family surface like
+    # every other def (same seam-bridge rule). The flag-OFF dual-write bridge
+    # (``_mt_dual_write_wp_file``) was deleted in IC-04/WP05 when the last flag
+    # consumer was removed, so its paired re-export is dropped here too.
+    _mt_emit_runtime_state as _mt_emit_runtime_state,
+    _mt_reassignment_binding_fields as _mt_reassignment_binding_fields,
+    _mt_hop_policy_metadata as _mt_hop_policy_metadata,
+    _mt_plan_review_result as _mt_plan_review_result,
+    _mt_rollback_subtasks_reset as _mt_rollback_subtasks_reset,
+    _mt_shell_pid_baseline as _mt_shell_pid_baseline,
 )
 
 
@@ -546,7 +553,9 @@ from specify_cli.cli.commands.agent.tasks_status_cmd import (
     _st_apply_review_flags as _st_apply_review_flags,
     _st_board_cell as _st_board_cell,
     _st_emit_json as _st_emit_json,
+    _st_gated_runtime_fields as _st_gated_runtime_fields,
     _st_load_work_packages as _st_load_work_packages,
+    _st_runtime_row as _st_runtime_row,
     _st_render_active as _st_render_active,
     _st_render_arbiter as _st_render_arbiter,
     _st_render_board as _st_render_board,
@@ -566,6 +575,18 @@ def move_task(
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="Dispatch-resolved model actual"),
+    ] = None,
+    profile: Annotated[
+        str | None,
+        typer.Option("--profile", help="Dispatch-resolved agent profile actual"),
+    ] = None,
+    invocation_id: Annotated[
+        str | None,
+        typer.Option("--invocation-id", help="Authoritative dispatch Op record id"),
+    ] = None,
     assignee: Annotated[str | None, typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[str | None, typer.Option("--note", help="History note")] = None,
@@ -640,27 +661,34 @@ def move_task(
     # WP06 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to ``_do_move_task``, which runs the
     # WP03 decision core and executes it through the WP02 coord READ/WRITE ports.
+    # WP07 (T033, #2649): the 19 raw inputs collapse into ONE ``_MoveTaskArgs``
+    # parameter object (``_do_move_task``'s ≤13-param ceiling).
     _do_move_task(
-        task_id=task_id,
-        to=to,
-        mission=mission,
-        agent=agent,
-        assignee=assignee,
-        shell_pid=shell_pid,
-        note=note,
-        review_feedback_file=review_feedback_file,
-        approval_ref=approval_ref,
-        reviewer=reviewer,
-        self_review_fallback=self_review_fallback,
-        intended_reviewer=intended_reviewer,
-        reviewer_failure_reason=reviewer_failure_reason,
-        done_override_reason=done_override_reason,
-        force=force,
-        tracker_ref=tracker_ref,
-        skip_review_artifact_check=skip_review_artifact_check,
-        auto_commit=auto_commit,
-        json_output=json_output,
-        skip_pre_review_gate=skip_pre_review_gate,
+        _MoveTaskArgs(
+            task_id=task_id,
+            to=to,
+            mission=mission,
+            agent=agent,
+            model=model,
+            profile=profile,
+            invocation_id=invocation_id,
+            assignee=assignee,
+            shell_pid=shell_pid,
+            note=note,
+            review_feedback_file=review_feedback_file,
+            approval_ref=approval_ref,
+            reviewer=reviewer,
+            self_review_fallback=self_review_fallback,
+            intended_reviewer=intended_reviewer,
+            reviewer_failure_reason=reviewer_failure_reason,
+            done_override_reason=done_override_reason,
+            force=force,
+            tracker_ref=tracker_ref,
+            skip_review_artifact_check=skip_review_artifact_check,
+            auto_commit=auto_commit,
+            json_output=json_output,
+            skip_pre_review_gate=skip_pre_review_gate,
+        )
     )
 
 
@@ -691,6 +719,7 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _ms_commit as _ms_commit,
     _ms_dossier_sync as _ms_dossier_sync,
     _ms_emit_history as _ms_emit_history,
+    _ms_emit_subtask_state as _ms_emit_subtask_state,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
     _ms_resolve_context as _ms_resolve_context,
@@ -889,10 +918,14 @@ def add_history(
         # Load work package
         wp = locate_work_package(repo_root, mission_slug, task_id)
 
-        # Build history entry
+        # Build history entry. Route agent/shell_pid through the
+        # WorkPackage.agent/.shell_pid seam -- which routes unconditionally
+        # through reconstruct_wp_view (the snapshot is the sole authority) --
+        # rather than a bare extract_scalar, so this reader never bypasses the
+        # snapshot-authority seam (#2093).
         timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-        agent_name = agent or extract_scalar(wp.frontmatter, "agent") or "unknown"
-        shell_pid_val = shell_pid or extract_scalar(wp.frontmatter, "shell_pid") or ""
+        agent_name = agent or wp.agent or "unknown"
+        shell_pid_val = shell_pid or wp.shell_pid or ""
 
         shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
         history_entry = f"- {timestamp} – {agent_name} – {shell_part}{note}"

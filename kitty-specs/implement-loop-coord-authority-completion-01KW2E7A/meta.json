@@ -24,6 +24,7 @@
   "purpose_context": "After #2106 moved planning artifacts to the primary surface for all topologies, the implement/review/merge loop still resolves work-package task directories through coordination-aware resolvers. For a coordination-topology mission this lands on an empty husk, breaking status, finalize, review, and post-merge done-transitions. This mission routes those reads onto the kind-aware authority seam, closes the gate blind-spot that hid one residual, retires a verified-resolved spec-read risk, and folds a resolution-gate discriminator hygiene follow-up.",
   "purpose_tldr": "Close the #2160 split-brain remediation so the implement/review/merge loop reads work-package artifacts from the one canonical authority path, not the empty coordination husk.",
   "slug": "implement-loop-coord-authority-completion-01KW2E7A",
+  "status_phase": "1",
   "target_branch": "design/coord-authority-remediation-2160",
   "topology": "single_branch",
   "vcs": "git",

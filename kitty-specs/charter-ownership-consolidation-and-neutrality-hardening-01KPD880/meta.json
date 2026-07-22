@@ -8,6 +8,7 @@
   "mission_type": "software-dev",
   "slug": "charter-ownership-consolidation-and-neutrality-hardening-01KPD880",
   "source_description": "Pre-Phase-3 cleanup tranche bundling #611 (consolidate charter ownership into src/charter with hybrid-with-sunset shims in specify_cli.charter) and #653 narrow scope (finish neutrality hardening with content-lint + path-allowlist regression tripwires). Defers new language profiles and styleguide extraction.",
+  "status_phase": "1",
   "target_branch": "main",
   "trackers": [
     "https://github.com/Priivacy-ai/spec-kitty/issues/611",

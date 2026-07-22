@@ -59,6 +59,7 @@
   "purpose_context": "This mission advances event sync retention delivery on mission/event-sync-retention-delivery so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "event sync retention delivery",
   "slug": "event-sync-retention-delivery-01KVYWRG",
+  "status_phase": "1",
   "target_branch": "mission/event-sync-retention-delivery",
   "topology": "single_branch",
   "vcs": "git",

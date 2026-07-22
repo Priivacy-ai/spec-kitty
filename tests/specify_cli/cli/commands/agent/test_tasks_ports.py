@@ -299,7 +299,7 @@ def test_tasks_ports_is_frozen() -> None:
         # Intentionally illegal assignment: the test EXISTS to prove the frozen
         # dataclass rejects it at runtime, so mypy's static rejection is the
         # same contract — suppressed narrowly, not a defect.
-        ports.fs = FakeFsReader()  # type: ignore[misc]
+        ports.fs = FakeFsReader()
 
 
 def _do_demo(*, ports: TasksPorts | None = None) -> str:

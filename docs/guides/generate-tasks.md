@@ -3,6 +3,7 @@ title: How to Generate Work Packages
 description: 'How to generate work packages with Spec Kitty 3.2: Use this guide to turn a plan into work packages with /spec-kitty.tasks.'
 doc_status: active
 updated: '2026-06-06'
+type: how-to
 related:
 - docs/guides/create-plan.md
 - docs/guides/handle-dependencies.md
@@ -85,7 +86,7 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 
 - [Create a Plan](create-plan.md) - Required before task generation
 - [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
-- [Implement a Work Package](implement-work-package.md) - Next step after tasks
+- [Implement a work package](implement-work-package.md) - Next step after tasks
 - [Handle Dependencies](handle-dependencies.md) - Managing WP dependencies
 
 ## Background
@@ -95,4 +96,4 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

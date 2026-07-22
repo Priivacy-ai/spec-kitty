@@ -34,8 +34,14 @@ from specify_cli.status.lifecycle_events import (
     mission_event_log_path,
     read_lifecycle_events,
 )
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from specify_cli.status.models import (
+    InnerStateChanged,
+    Lane,
+    StatusEvent,
+    WPInnerStateDelta,
+    actor_identity_str,
+)
+from specify_cli.status.store import append_annotations_atomic_verified, append_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -128,6 +134,7 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
         f"title: Test {wp_id}\n"
         f"execution_mode: code_change\n"
         f"agent: testbot\n"
+        f"subtasks: []\n"
         f"owned_files:\n  - src/{wp_id.lower()}/**\n"
         f"authoritative_surface: src/{wp_id.lower()}/\n"
         f"---\n\n# {wp_id}\n\n## Activity Log\n",
@@ -152,21 +159,52 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
     append_event(feature_dir, event)
 
 
-def _latest_activity_line(wp_file: Path) -> str:
-    lines = [
+def _seed_snapshot_agent(feature_dir: Path, wp_id: str, agent: str) -> None:
+    """Seed the reduced snapshot's runtime ``agent`` slot (event-sourced, WP07).
+
+    Post-#2816 the runtime ``agent`` is read ONLY from the reduced event-log
+    snapshot, never from WP frontmatter — so prior-owner attribution used by the
+    implementation-handoff hop must be seeded here, not in the WP file.
+    """
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id="01KXAGENT" + "0" * 17,
+                wp_id=wp_id,
+                at="2026-01-01T00:00:30+00:00",
+                actor="test",
+                delta=WPInnerStateDelta(agent=agent),
+            )
+        ],
+    )
+
+
+def _assert_no_wp_activity_log(wp_file: Path) -> None:
+    """Post-#2816 the WP-file ``## Activity Log`` is retired — move-task writes no rows.
+
+    Runtime attribution now lives solely in the event log; the WP markdown must
+    carry NO ``- `` activity rows (its ``owned_files`` frontmatter uses ``  - ``
+    indentation, so it is never mistaken for an activity row).
+    """
+    activity_rows = [
         line
         for line in wp_file.read_text(encoding="utf-8").splitlines()
         if line.startswith("- ")
     ]
-    assert lines, "WP Activity Log is empty"
-    return lines[-1]
+    assert not activity_rows, f"expected no retired WP-file activity rows, found: {activity_rows}"
 
 
 def test_move_task_for_review_without_agent_uses_assigned_actor(tmp_path: Path) -> None:
-    """Omitted --agent should not turn a normal handoff into a user override."""
+    """Omitted --agent still attributes the handoff to the snapshot-assigned agent.
+
+    Post-#2816 the prior-owner agent is read from the reduced snapshot (not WP
+    frontmatter). A ``for_review`` handoff with no ``--agent`` therefore uses the
+    snapshot ``agent`` slot, never a ``user`` override."""
     mission_slug = "test-move-task-for-review-actor"
     feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
     _seed_wp_event(feature_dir, "WP01", "in_progress")
+    _seed_snapshot_agent(feature_dir, "WP01", "testbot")
 
     with setup_mocked_env(
         tmp_path,
@@ -202,6 +240,8 @@ def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: 
     mission_slug = "test-move-task-approval-actor"
     feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
     _seed_wp_event(feature_dir, "WP01", "for_review")
+    # Even with an assigned snapshot agent, reviewer hops must NOT impersonate it.
+    _seed_snapshot_agent(feature_dir, "WP01", "testbot")
 
     with setup_mocked_env(
         tmp_path,
@@ -226,12 +266,20 @@ def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: 
 
     assert result.exit_code == 0, result.output
     events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
-    emitted = events[1:]
+    emitted = [event for event in events if event.get("kind") != "annotation"][1:]
     assert [event["to_lane"] for event in emitted] == ["in_review", "approved"]
-    assert {event["actor"] for event in emitted} == {"user"}
-    latest_activity = _latest_activity_line(wp_file)
-    assert " – user – " in latest_activity
-    assert " – testbot – " not in latest_activity
+    # Reviewer hops fall back to the operator, never the assigned implementer.
+    emitted_actors = [actor_identity_str(event["actor"]) for event in emitted]
+    assert set(emitted_actors) == {"user"}
+    assert "testbot" not in emitted_actors
+    assert emitted[0]["actor"] == {
+        "model": None,
+        "profile": None,
+        "role": "reviewer",
+        "tool": "user",
+    }
+    # WP-file activity log retired (#2816): attribution lives in the event log only.
+    _assert_no_wp_activity_log(wp_file)
 
 
 def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_path: Path) -> None:
@@ -239,6 +287,7 @@ def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_pa
     mission_slug = "test-move-task-direct-approval-actors"
     feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
     _seed_wp_event(feature_dir, "WP01", "in_progress")
+    _seed_snapshot_agent(feature_dir, "WP01", "testbot")
 
     with setup_mocked_env(
         tmp_path,
@@ -263,15 +312,25 @@ def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_pa
 
     assert result.exit_code == 0, result.output
     events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
-    emitted = events[1:]
-    assert [(event["to_lane"], event["actor"]) for event in emitted] == [
+    emitted = [event for event in events if event.get("kind") != "annotation"][1:]
+    # The implementation handoff keeps the snapshot-assigned agent; the review
+    # hops attribute to the operator — separate attribution per hop.
+    assert [
+        (event["to_lane"], actor_identity_str(event["actor"]))
+        for event in emitted
+    ] == [
         ("for_review", "testbot"),
         ("in_review", "user"),
         ("approved", "user"),
     ]
-    latest_activity = _latest_activity_line(wp_file)
-    assert " – user – " in latest_activity
-    assert " – testbot – " not in latest_activity
+    assert emitted[1]["actor"] == {
+        "model": None,
+        "profile": None,
+        "role": "reviewer",
+        "tool": "user",
+    }
+    # WP-file activity log retired (#2816): attribution lives in the event log only.
+    _assert_no_wp_activity_log(wp_file)
 
 
 def test_move_task_self_review_fallback_without_agent_records_operator(tmp_path: Path) -> None:
@@ -279,6 +338,9 @@ def test_move_task_self_review_fallback_without_agent_records_operator(tmp_path:
     mission_slug = "test-move-task-self-review-actor"
     feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
     _seed_wp_event(feature_dir, "WP01", "for_review")
+    # Even with an assigned snapshot agent, the self-review fallback records the
+    # operator as the implementing actor, never the assigned implementer.
+    _seed_snapshot_agent(feature_dir, "WP01", "testbot")
 
     with setup_mocked_env(
         tmp_path,
@@ -315,9 +377,8 @@ def test_move_task_self_review_fallback_without_agent_records_operator(tmp_path:
     ]
     assert len(lifecycle_events) == 1
     assert lifecycle_events[0]["payload"]["implementing_actor"] == "user"
-    latest_activity = _latest_activity_line(wp_file)
-    assert " – user – " in latest_activity
-    assert " – testbot – " not in latest_activity
+    # WP-file activity log retired (#2816): attribution lives in the event log only.
+    _assert_no_wp_activity_log(wp_file)
 
 
 # ---------------------------------------------------------------------------
@@ -700,10 +761,17 @@ class TestSkipReviewArtifactCheck:
         assert not guard_triggered, (
             f"Verdict guard fired despite --skip-review-artifact-check.\nOutput:\n{result.output}"
         )
-        artifact_text = artifact.read_text(encoding="utf-8")
-        assert "review_artifact_override_at:" in artifact_text
-        assert "review_artifact_override_actor:" in artifact_text
-        assert "review_artifact_override_reason:" in artifact_text
+        # FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+        # slot, not stamped onto the artifact frontmatter.
+        from specify_cli.status import materialize
+
+        review = materialize(feature_dir).work_packages["WP01"]["review"]
+        assert review["actor"]
+        assert review["reason"] == (
+            "Arbiter override: latest rejection was superseded by manual release review"
+        )
+        assert review["at"]
+        assert "review_artifact_override" not in artifact.read_text(encoding="utf-8")
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
@@ -799,15 +867,24 @@ class TestSkipReviewArtifactCheck:
         # It must be the review-currency guard, NOT the rejected-verdict guard.
         assert "rejected review artifact" not in result.output
         mock_emit.assert_not_called()
-        # Partial write preserved: the override frontmatter is on disk despite the
-        # exit-1 refusal (OLD timing reproduced).
-        artifact_text = artifact.read_text(encoding="utf-8")
-        assert "review_artifact_override_at:" in artifact_text, (
+        # FR-004 partial-write-on-refusal, now event-sourced (FR-009 / WP09): the
+        # review override is emitted at its OLD guard position (ahead of the later
+        # refusing guard), so the ``review`` snapshot slot carries the override even
+        # though the operation exits 1. The transition emit (mock_emit) is still not
+        # called — only the off-axis override annotation is persisted.
+        from specify_cli.status import materialize
+
+        review = materialize(feature_dir).work_packages["WP01"].get("review")
+        assert review is not None, (
             "Override evidence was NOT persisted before the later guard refused — "
-            f"partial-write-on-refusal timing broken.\nArtifact:\n{artifact_text}"
+            "partial-write-on-refusal timing broken."
         )
-        assert "review_artifact_override_actor:" in artifact_text
-        assert "review_artifact_override_reason:" in artifact_text
+        assert review["reason"] == (
+            "Arbiter override: rejection superseded by manual release review"
+        )
+        assert review["actor"]
+        assert review["at"]
+        assert "review_artifact_override" not in artifact.read_text(encoding="utf-8")
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")

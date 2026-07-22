@@ -24,6 +24,7 @@
   "purpose_context": "Spec Kitty derives mission identity (the mid8 short-id and the branch/worktree/lanes paths) in roughly twenty ad-hoc places instead of consuming the single canonical seam built in 3.2.0. This mission routes those consumers onto the seam, extends the architectural ratchet that keeps the duplication from regrowing, and lands two pure-seam extractions — without building any new authority and without touching the heavier write-side coordination work, which is deferred to a follow-on mission.",
   "purpose_tldr": "Route the duplicated mission-identity derivation sites onto the existing canonical naming seam and guard the class with a tripwire — the low-risk opener of the 3.2.x SSOT cycle.",
   "slug": "naming-identity-routing-rider-01KV7SFD",
+  "status_phase": "1",
   "target_branch": "feat/naming-rider-3-2-1",
   "vcs": "git",
   "vcs_locked_at": "2026-06-16T12:19:13.494834+00:00"

@@ -21,5 +21,6 @@
   "mission_type": "research",
   "slug": "005-refactor-mission-system",
   "source_description": "Refactor mission system to address architectural concerns: extract duplicate pre-flight checks, add Pydantic schema validation, make research mission production-ready with bibliography/citation hooks, implement mission switching CLI (only when clean), enforce path conventions, clarify terminology, and integrate with dashboard.",
+  "status_phase": "1",
   "target_branch": "main"
 }

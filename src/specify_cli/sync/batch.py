@@ -31,6 +31,7 @@ from .diagnostics import (
     classify_sync_error,
     emit_sync_diagnostic,
 )
+from specify_cli.core import batch_partition
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.time_utils import now_utc_iso
 
@@ -390,7 +391,10 @@ def _retry_limits_from_response(body: dict, advertised_limits: dict[str, int]) -
 
 
 def _shrink_events_for_retry(events: list[dict]) -> list[dict]:
-    return events[: max(1, len(events) // 2)]
+    # #2755 SSOT retrofit: delegate the 413 byte-shrink midpoint to the single
+    # authority (plain keep-left cut), never re-derive `len // 2` inline. Uses
+    # PLAIN split_in_half — byte-sizing must not inherit create-aware snapping.
+    return batch_partition.split_in_half(events)[0]
 
 
 def _single_oversized_event_result(event: dict, byte_limit: int, payload_size: int) -> BatchSyncResult:
@@ -965,24 +969,22 @@ def _parse_error_response(
                     )
                 )
     else:
-        # No structured details -- fall back to top-level error + details text
+        # No structured per-event details -- the server refused the *request*
+        # without adjudicating individual events, so a batch-level 400 is a
+        # transient failure. Record ``failed_transient`` (mirroring the sibling
+        # 401/403/5xx branches) so ``process_batch_results`` leaves the queue
+        # rows untouched -- no DELETE, no ``retry_count`` bump on innocents.
+        # The operator-facing error summary is still surfaced. See #2736.
         combined = error_msg
         if details_raw:
             combined = f"{error_msg}\nDetails: {details_raw}"
-        result.error_messages.append(combined)
-        result.error_count = len(events)
-        result.failed_ids = [e.get("event_id") for e in events]
-        category = categorize_error(combined)
-        for evt in events:
-            eid = evt.get("event_id", "unknown")
-            result.event_results.append(
-                BatchEventResult(
-                    event_id=eid,
-                    status="rejected",
-                    error=combined,
-                    error_category=category,
-                )
-            )
+        _record_all_events_failed(
+            result,
+            events,
+            error=combined,
+            category=categorize_error(combined),
+            transient=True,
+        )
 
 
 def batch_sync(  # noqa: C901

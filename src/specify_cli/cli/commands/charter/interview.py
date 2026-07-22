@@ -57,11 +57,16 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     ``except`` so a promotion failure never blocks the interview answers
     already written to disk. Returns human-readable warning strings (empty
     when there is nothing to surface).
-    """
-    from ruamel.yaml import YAML
 
+    Write target (consolidate-charter-bundle WP02): resolved via
+    :func:`charter.pack_manager.resolve_activation_write_target` — a
+    migrated project (``config.yaml`` carries a ``charter:`` pointer)
+    promotes into ``charter.yaml``; a legacy/un-migrated project promotes
+    into ``config.yaml`` directly (unchanged pre-relocation behavior).
+    """
     from charter.activation_engine import promote_activations
     from charter.catalog import resolve_doctrine_root
+    from charter.pack_manager import resolve_activation_write_target
     from doctrine.artifact_kinds import ArtifactKind
 
     from specify_cli.upgrade.migrations.m_unify_charter_activation import (
@@ -94,25 +99,13 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     if not promotions:
         return warnings
 
-    config_path = repo_root / ".kittify" / "config.yaml"
-    yaml = YAML()
-    yaml.preserve_quotes = True
-    config_data: Any = (
-        yaml.load(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
-    )
-    if not isinstance(config_data, dict):
-        config_data = {}
-
-    def _save(path: Path, data: dict[str, Any]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as fh:
-            yaml.dump(data, fh)
+    target_path, config_data, save = resolve_activation_write_target(repo_root)
 
     plans = promote_activations(
         promotions,
-        config_path=config_path,
+        config_path=target_path,
         config_data=config_data,
-        save=_save,
+        save=save,
         default_ids=load_default_pack_ids(),
     )
     warnings.extend(warning for plan in plans for warning in plan.warnings)

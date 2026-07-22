@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "755507c63f0ead9568721923c037e4fbddd8bb0b",
+  "coordination_branch": "kitty/mission-mission-type-drg-edges-01KXKY2N",
+  "created_at": "2026-07-15T22:24:08.656957+00:00",
+  "flattened": false,
+  "friendly_name": "Mission-Type DRG Edges",
+  "mission_id": "01KXKY2NEGZKPW556M7SVN1RR0",
+  "mission_number": 180,
+  "mission_slug": "mission-type-drg-edges-01KXKY2N",
+  "mission_type": "software-dev",
+  "purpose_context": "#2651 minted mission_type and action nodes as first-class DRG elements but deferred their edges, leaving 8 orphaned nodes and a red shipped-graph orphan gate. This mission completes the minimal-correct wiring — each mission type requires its ordered action steps — so the graph reflects the real composition, the charter cascade for mission types becomes meaningful, and the orphan count returns under its ceiling. Template/asset/guard edges remain deliberate future scope.",
+  "purpose_tldr": "Wire mission_type DRG nodes to their action steps so the mission-type graph is edge-complete and the shipped-graph orphan gate is green.",
+  "slug": "mission-type-drg-edges-01KXKY2N",
+  "status_phase": "1",
+  "target_branch": "feat/mission-type-drg-edges",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-16T08:04:15.639335+00:00"
+}

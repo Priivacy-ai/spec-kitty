@@ -56,7 +56,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 - `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
 - After `spec-kitty merge`, if the user explicitly asks to share or publish: create a PR branch (`git checkout -b pr/<slug>`) and open a pull request (`gh pr create`). Do NOT do this automatically — wait for explicit user instruction.
 - Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
-- Always distinguish: **local main** (your checkout) vs **origin/main** (the remote). Never say just "main" — always qualify.
+- Distinguish **local main** (your checkout) vs **origin/main** (the remote); qualify which branch you mean (see the `primary`/`merge` footgun note under Terminology Canon).
 
 **Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
 
@@ -70,6 +70,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 - `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
 - Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
+- **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty merge` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
 
 ---
 
@@ -223,11 +224,27 @@ Rules:
   protected by per-worker HOME isolation, so run them in their own `-n0` pass.
 
 Full rationale, the volume env gates, and the stability ratchet:
-[docs/guides/testing-parallel.md](docs/guides/testing-parallel.md).
+[docs/development/testing-parallel.md](docs/development/testing-parallel.md).
 
 When a test goes red on CI unrelated to your diff, follow the flakiness policy —
 **tune budget gates, fix correctness flakes at the root, never retry-to-green:**
-[docs/guides/testing-flakiness.md](docs/guides/testing-flakiness.md).
+[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md).
+
+**⚠️ Test-run baseline-red gotcha (attribute before you fix — applies to every agent, incl.
+dispatched subagents).** A local or backgrounded `pytest` run over anything broad will show
+red that is **NOT your change**. Before treating a failure as yours, classify it:
+1. **Pre-existing known-P0 reds** honestly red main (ADR `2026-07-17-1`); e.g. #2736, #2772,
+   #1834. Do **not** "fix" them — leave them red. Confirm by running the same test on the
+   merge-base / `upstream/main` (via `PYTHONPATH=<worktree>/src`), or check the tracker.
+2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the sync
+   disable toggles (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`, which also
+   skip the pre-review gate). These pass locally; they are config, not your diff.
+3. **Stale-install false reds** — code that shells out to `spec-kitty` (e.g. the
+   `merge-driver-*` commands) only fires after `pip install -e .`; a stale install reports
+   false reds until you reinstall.
+Only failures that are red on your branch **and** green on the base are yours to fold. Never
+green-wash category 1, and never misattribute categories 2–3 to your own work. Full policy:
+[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
 
@@ -428,7 +445,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
 - **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
-- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/guides/local-overrides.md](docs/guides/local-overrides.md).
+- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/local-overrides.md](docs/development/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 

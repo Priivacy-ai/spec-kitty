@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "mission-retrospective-learning-loop-01KQ6YEG",
   "source_description": "Phase 6 FR4 retrospective learning loop tranche covering issues #507, #506, #508, #509, #511, #510 under epic #468. Captured from start-here.md brief.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

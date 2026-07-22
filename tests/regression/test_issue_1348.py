@@ -47,7 +47,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

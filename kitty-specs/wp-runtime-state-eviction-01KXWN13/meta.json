@@ -1,0 +1,32 @@
+{
+  "accept_commit": "05329c007d07bb2f0e66ab5da1c5a10d0ca96f19",
+  "acceptance_history": [
+    {
+      "accept_commit": "05329c007d07bb2f0e66ab5da1c5a10d0ca96f19",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-19T16:13:54.139517+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "7c74265789a51cb5dbbf7efb0f28a31fdb180df0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-19T16:13:54.139517+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "7c74265789a51cb5dbbf7efb0f28a31fdb180df0",
+  "baseline_merge_commit": "b442d3f4de50a94db166bc580c0b80157945876f",
+  "created_at": "2026-07-19T07:39:10.225993+00:00",
+  "flattened": false,
+  "friendly_name": "Evict WP runtime state into the event log",
+  "mission_id": "01KXWN13GH4QCRMS28N448V7CR",
+  "mission_number": null,
+  "mission_slug": "wp-runtime-state-eviction-01KXWN13",
+  "mission_type": "software-dev",
+  "purpose_context": "The WP markdown file today holds both static design intent and runtime-mutable state written on every lifecycle event. That split churns the dossier content hash, forces operators to hand-tick subtask checkboxes before review, and splits status truth between markdown and the event log. This mission (the #2684 P0, implementing the #2093 authority ruling) evicts all runtime-mutable state into a single generic InnerStateChanged event folded into the reduced snapshot, leaving WP files as static design intent.",
+  "purpose_tldr": "Single-source work-package runtime state in the append-only event log instead of the WP markdown files, ending the status split-brain and the content-hash churn.",
+  "slug": "wp-runtime-state-eviction-01KXWN13",
+  "status_phase": "1",
+  "target_branch": "mission-prep/2684-wp-runtime-state-eviction",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-19T09:35:31.691241+00:00"
+}

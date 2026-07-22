@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances doctrine governance fidelity on mission/doctrine-governance-fidelity so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "doctrine governance fidelity",
   "slug": "doctrine-governance-fidelity-01KW42KY",
+  "status_phase": "1",
   "target_branch": "mission/doctrine-governance-fidelity",
   "topology": "lanes",
   "vcs": "git",

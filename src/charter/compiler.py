@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from io import StringIO
+import logging
 from pathlib import Path
 import re
 from typing import TYPE_CHECKING, Any
@@ -15,6 +16,7 @@ from ruamel.yaml import YAML
 from charter._doctrine_paths import resolve_project_root
 from charter._io import load_charter_file
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from charter.charter_yaml_io import save_charter_yaml, update_charter_yaml_section
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -24,6 +26,16 @@ from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
 from charter.language_scope import extract_declared_languages
 from charter.pack_context import PackContext
 from charter.resolver import DEFAULT_TOOL_REGISTRY
+from charter.schemas import (
+    CharterCatalog,
+    CharterCatalogReference,
+    CharterYaml,
+    CharterYamlMetadata,
+    DirectivesConfig,
+    GovernanceConfig,
+)
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "CharterReference",
@@ -397,35 +409,234 @@ def write_compiled_charter(
     force: bool = False,
     repo_root: Path | None = None,
 ) -> WriteBundleResult:
-    """Write charter bundle artifacts to output_dir.
+    """Refresh ``charter.yaml``'s DERIVED sections (``catalog`` + ``metadata``).
 
-    Only charter.md and references.yaml are written; _LIBRARY/ materialization
-    has been removed — doctrine content is fetched at context-retrieval time via
-    references.yaml.
+    ``charter.md`` is a curated companion and is NEVER written by this
+    function (data-model.md Landmine 3 -- the #2772 clobber, one level
+    down, on a now-*tracked* file). Only ``catalog``/``metadata`` -- the
+    DERIVED sections of ``charter.yaml`` -- are refreshed, through the
+    shared INV-9 write helper (:mod:`charter.charter_yaml_io`), which
+    round-trips the document so the AUTHORED ``governance``/``directives``/
+    activation/``overrides`` sections survive byte-for-byte. When
+    ``charter.yaml`` does not exist yet there is nothing authored to
+    preserve, so this is a one-time bootstrap (not the Landmine 3 clobber)
+    rather than a merge.
+
+    ``force`` no longer gates a destructive overwrite -- there is none left
+    to gate, which is the entire point of the Landmine 3 fix. It is
+    accepted for CLI/back-compat call-site stability and logged for
+    diagnostic visibility only.
     """
+    logger.debug(
+        "write_compiled_charter(force=%s): charter.yaml writes are always "
+        "either a safe partial merge (file exists) or a bootstrap create "
+        "(file absent) -- force no longer gates a destructive overwrite.",
+        force,
+    )
     _assert_safe_charter_output_dir(output_dir, repo_root=repo_root)
     output_dir.mkdir(parents=True, exist_ok=True)
     _assert_safe_charter_output_dir(output_dir, repo_root=repo_root)
-    charter_path = output_dir / "charter.md"
 
-    if charter_path.is_symlink():
-        raise FileExistsError(
-            f"Refusing to overwrite symlinked charter at {charter_path}; it is a symlink. "
-            "Remove the symlink or update the symlink target directly."
+    charter_yaml_path = output_dir / "charter.yaml"
+    catalog = _build_catalog_dict(compiled)
+    metadata = _build_metadata_dict()
+
+    if charter_yaml_path.exists():
+        update_charter_yaml_section(charter_yaml_path, "catalog", catalog)
+        update_charter_yaml_section(charter_yaml_path, "metadata", metadata)
+    else:
+        _bootstrap_charter_yaml(
+            charter_yaml_path, catalog=catalog, metadata=metadata, repo_root=repo_root
         )
-    if charter_path.exists() and not force:
-        raise FileExistsError(f"Charter already exists at {charter_path}. Use --force to overwrite.")
 
-    files_written: list[str] = []
+    return WriteBundleResult(files_written=["charter.yaml"])
 
-    charter_path.write_text(compiled.markdown, encoding="utf-8")
-    files_written.append("charter.md")
 
-    references_path = output_dir / "references.yaml"
-    _write_references_yaml(references_path, compiled)
-    files_written.append("references.yaml")
+def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
+    """Build the charter.yaml ``catalog`` section from a compiled charter.
 
-    return WriteBundleResult(files_written=files_written)
+    Mirrors the retired ``references.yaml`` body (contract G2): same
+    per-reference keys, byte-equivalent content. Validated through
+    :class:`~charter.schemas.CharterCatalog` so a schema drift fails loud
+    here rather than silently writing an invalid document.
+    """
+    references = [
+        CharterCatalogReference(
+            id=reference.id,
+            kind=reference.kind,
+            title=reference.title,
+            summary=reference.summary,
+            source_path=reference.source_path,
+            local_path=reference.local_path,
+        )
+        for reference in compiled.references
+    ]
+    catalog = CharterCatalog(
+        mission=compiled.mission,
+        template_set=compiled.template_set,
+        languages=list(compiled.active_languages),
+        references=references,
+    )
+    dumped: dict[str, Any] = catalog.model_dump(mode="json")
+    return dumped
+
+
+def _build_metadata_dict() -> dict[str, Any]:
+    """Build the charter.yaml ``metadata`` section (refresh timestamp)."""
+    metadata = CharterYamlMetadata(
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        bundle_schema_version=2,
+    )
+    dumped: dict[str, Any] = metadata.model_dump(mode="json")
+    return dumped
+
+
+#: Flat root activation key names charter.yaml shares with
+#: ``packs/default.yaml`` (paula BLOCKER-1) -- mirrors
+#: ``charter.charter_yaml_io._ACTIVATION_KEYS``. Duplicated here (rather
+#: than imported) because this set is used for a READ off legacy
+#: ``config.yaml`` (pre-WP02 activation home), a different concern than
+#: charter_yaml_io's WRITE-section vocabulary.
+_LEGACY_ACTIVATION_KEYS: tuple[str, ...] = (
+    "activated_kinds",
+    "mission_type_activations",
+    "activated_directives",
+    "activated_tactics",
+    "activated_styleguides",
+    "activated_toolguides",
+    "activated_paradigms",
+    "activated_procedures",
+    "activated_agent_profiles",
+    "activated_mission_step_contracts",
+)
+
+
+def _read_legacy_config_activation(repo_root: Path) -> dict[str, list[str]]:
+    """Read flat ``activated_*`` keys VERBATIM from ``.kittify/config.yaml``.
+
+    Bootstrap-only helper: until WP02 relocates the activation ledger from
+    ``config.yaml`` to ``charter.yaml``'s flat root keys, ``config.yaml``
+    remains the live activation authority. Copied VERBATIM (an absent key
+    stays absent, an explicit ``[]`` stays ``[]``) so bootstrap never
+    invents or drops activation state (data-model.md "VERBATIM
+    activation-list copy" discipline, echoed by WP07's migration).
+    """
+    config_path = repo_root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        return {}
+    yaml = YAML()
+    with config_path.open("r", encoding="utf-8") as fh:
+        data = yaml.load(fh)
+    if not isinstance(data, dict):
+        return {}
+    result: dict[str, list[str]] = {}
+    for key in _LEGACY_ACTIVATION_KEYS:
+        value = data.get(key)
+        if isinstance(value, list):
+            result[key] = [str(item) for item in value]
+    return result
+
+
+def _bootstrap_charter_yaml(
+    charter_yaml_path: Path,
+    *,
+    catalog: dict[str, Any],
+    metadata: dict[str, Any],
+    repo_root: Path | None,
+) -> None:
+    """Create ``charter.yaml`` the first time -- NOT the Landmine 3 clobber.
+
+    There is no prior authored content to destroy, so a full-document
+    write here is a bootstrap, not a reconstruct-from-``CompiledCharter``
+    clobber. ``governance``/``directives`` are seeded from the legacy
+    triad when a curated ``charter.md`` is present --
+    :func:`charter.sync.load_governance_config` /
+    :func:`~charter.sync.load_directives_config` already implement
+    "file missing -> empty config" gracefully (FR-4.4), which also covers
+    a genuinely fresh project (no curated ``charter.md`` yet). Activation
+    stays absent (three-state ``None`` == default-pack fallback, contract
+    G3) unless ``repo_root``'s ``.kittify/config.yaml`` already carries
+    flat ``activated_*`` keys (a pre-WP02 project) -- copied verbatim,
+    never derived.
+    """
+    governance = GovernanceConfig()
+    directives = DirectivesConfig()
+    activation: dict[str, list[str]] = {}
+
+    if repo_root is not None:
+        from charter.sync import load_directives_config, load_governance_config  # noqa: PLC0415
+
+        governance = load_governance_config(repo_root)
+        directives = load_directives_config(repo_root)
+        activation = _read_legacy_config_activation(repo_root)
+
+    charter_yaml = CharterYaml(
+        governance=governance,
+        directives=directives,
+        catalog=CharterCatalog.model_validate(catalog),
+        metadata=CharterYamlMetadata.model_validate(metadata),
+    )
+    # Activation is applied after model_dump (rather than passed as
+    # constructor kwargs) so a heterogeneous **activation unpacking never
+    # has to unify against CharterYaml's other, differently-typed fields
+    # (e.g. schema_version: str) -- keeps this call mypy --strict clean.
+    document: dict[str, Any] = charter_yaml.model_dump(mode="json", exclude_none=True)
+    document.update(activation)
+    save_charter_yaml(charter_yaml_path, document)
+
+    if repo_root is not None:
+        _mint_config_charter_pointer(repo_root, charter_yaml_path)
+
+
+#: Config.yaml key WP02's activation-relocation reader resolves to find
+#: charter.yaml (``charter: .kittify/charter/charter.yaml``). Duplicated
+#: here (rather than imported) because this module must not depend on
+#: WP02's activation-relocation reader for a one-line constant -- see
+#: ``_LEGACY_ACTIVATION_KEYS`` above for the same duplication rationale.
+_CONFIG_CHARTER_POINTER_KEY = "charter"
+
+
+def _mint_config_charter_pointer(repo_root: Path, charter_yaml_path: Path) -> None:
+    """Mint the ``charter:`` pointer into ``config.yaml`` on first bootstrap.
+
+    Closes the WP02-review gap: when THIS function creates ``charter.yaml``
+    for the first time (a brand-new ``spec-kitty init`` project, or any
+    project that has not yet run the WP07 migration), ``config.yaml`` must
+    ALSO gain the ``charter: .kittify/charter/charter.yaml`` pointer --
+    otherwise the config-activation branch of WP02's reader stays
+    permanently live (a project-wide split-brain rather than the intended
+    *transitional* dual-branch). Comment-preserving ``ruamel.yaml``
+    round-trip: every other ``config.yaml`` key/comment survives untouched;
+    only the ``charter`` key is added or refreshed. A project with no
+    ``config.yaml`` yet gets one containing just this key (``spec-kitty
+    init`` always creates one before charter generation runs, but bootstrap
+    itself must not depend on that ordering).
+    """
+    config_path = repo_root / ".kittify" / "config.yaml"
+    yaml = YAML()
+    yaml.preserve_quotes = True
+
+    data: Any = None
+    if config_path.exists():
+        with config_path.open("r", encoding="utf-8") as fh:
+            data = yaml.load(fh)
+    if not isinstance(data, dict):
+        data = {}
+
+    try:
+        pointer = charter_yaml_path.resolve(strict=False).relative_to(
+            repo_root.resolve(strict=False)
+        ).as_posix()
+    except ValueError:
+        # charter_yaml_path is outside repo_root (should not happen given
+        # _assert_safe_charter_output_dir already rejected that case) --
+        # fall back to the canonical default location.
+        pointer = ".kittify/charter/charter.yaml"
+
+    data[_CONFIG_CHARTER_POINTER_KEY] = pointer
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with config_path.open("w", encoding="utf-8") as fh:
+        yaml.dump(data, fh)
 
 
 def _assert_safe_charter_output_dir(
@@ -789,7 +1000,7 @@ def _resolve_transitive_reference_graph(
     """
     from charter._drg_helpers import load_validated_graph
     from charter.drg import filter_graph_by_activation
-    from doctrine.drg.loader import load_graph_or_dir
+    from doctrine.drg.loader import load_built_in_graph
     from doctrine.drg.models import Relation
     from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
     from doctrine.drg.validator import assert_valid
@@ -816,7 +1027,7 @@ def _resolve_transitive_reference_graph(
         else:
             if not doctrine_root.exists():
                 return fallback
-            merged = load_graph_or_dir(doctrine_root)
+            merged = load_built_in_graph()
             assert_valid(merged)
     except Exception:
         return fallback
@@ -1214,44 +1425,6 @@ def _render_directives(
 
     return "\n".join(lines)
 
-
-def _write_references_yaml(path: Path, compiled: CompiledCharter) -> None:
-    ref_entries: list[dict[str, object]] = []
-    for reference in compiled.references:
-        entry: dict[str, object] = {
-            "id": reference.id,
-            "kind": reference.kind,
-            "title": reference.title,
-            "summary": reference.summary,
-            "source_path": reference.source_path,
-            "local_path": reference.local_path,
-        }
-        # For local support references, include extra metadata from the content block.
-        # The content is authoritative; we parse action/target from the id/summary.
-        # Instead, enrich from the reference content heuristic or keep as-is.
-        # Extra fields are stored on the reference id for traceability.
-        if reference.kind == "local_support":
-            entry["relationship"] = "additive"
-        ref_entries.append(entry)
-
-    payload = {
-        "schema_version": "1.0.0",
-        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "mission": compiled.mission,
-        "template_set": compiled.template_set,
-        # Structured, compile-time-canonical language set (DIRECTIVE_044
-        # unification). Runtime resolution in charter.language_scope reads
-        # this field first; the interview transcript is consulted only when
-        # this field is absent (pre-existing charters compiled before this
-        # field was introduced).
-        "languages": list(compiled.active_languages),
-        "references": ref_entries,
-    }
-
-    yaml = YAML()
-    yaml.default_flow_style = False
-    with path.open("w", encoding="utf-8") as handle:
-        yaml.dump(payload, handle)
 
 
 def _dump_yaml(data: dict[str, object]) -> str:

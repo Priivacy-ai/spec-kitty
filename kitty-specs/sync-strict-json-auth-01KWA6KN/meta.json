@@ -12,6 +12,7 @@
   "purpose_context": "A sync integration test is red on main but hidden by a path-filtered CI gate, so any PR touching sync/ inherits a failure it did not cause. This mission finds the root cause of the auth/session mismatch at final_sync, aligns the test or the sync auth flow, and restores a trustworthy green signal.",
   "purpose_tldr": "Repair a committed-and-failing sync test on main so the strict-JSON ingress-skip path is exercised instead of failing on auth.",
   "slug": "sync-strict-json-auth-01KWA6KN",
+  "status_phase": "1",
   "target_branch": "fix/sync-strict-json-auth",
   "topology": "coord"
 }

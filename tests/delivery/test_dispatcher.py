@@ -20,10 +20,12 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from specify_cli.cli.commands import sync as sync_module
 from specify_cli.delivery.dispatcher import (
     DispatchSummary,
     _decode_payload,
@@ -46,6 +48,7 @@ from specify_cli.delivery.receivers import (
     DeliveryResult,
     OutboundEvent,
     StubReceiver,
+    map_batch_response,
 )
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
@@ -159,6 +162,71 @@ class _TerminalFailStub:
 
     def delivered_ids(self) -> tuple[str, ...]:
         return tuple(self._delivered)
+
+
+class _PendingHeadStub:
+    """Return pending for the first two events and success for later events."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__pending-head-stub__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+        self.calls.append(tuple(event.event_id for event in batch))
+        return [
+            DeliveryResult(
+                event_id=event.event_id,
+                outcome=(
+                    DeliveryOutcome.PENDING
+                    if event.event_id in {"evt-0", "evt-1"}
+                    else DeliveryOutcome.SUCCESS
+                ),
+                http_status=200,
+            )
+            for event in batch
+        ]
+
+
+class _AdaptiveOversizedStub:
+    """Exercise the canonical mapper's batch-413 then singleton-terminal path."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__adaptive-oversized-stub__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Sequence[OutboundEvent]) -> list[DeliveryResult]:
+        events = list(batch)
+        self.calls.append(tuple(event.event_id for event in events))
+        if events and events[0].event_id == "evt-0":
+            return map_batch_response(events, http_status=413, body=None)
+        return map_batch_response(
+            events,
+            http_status=200,
+            body={
+                "results": [
+                    {"event_id": event.event_id, "status": "success"}
+                    for event in events
+                ]
+            },
+        )
 
 
 class _FakeCoalesce:
@@ -479,6 +547,83 @@ def test_dispatch_summary_counts_and_recorded() -> None:
     assert summary.delivered == 2
     assert summary.pending == 1
     assert summary.recorded == 3
+
+
+def test_record_exposes_retryable_ids_without_calling_pending_a_failure(
+    ledger: SqliteDeliveryLedger,
+) -> None:
+    """The batch loop can skip every retryable outcome without report drift."""
+    results = [
+        DeliveryResult(event_id="pending", outcome=DeliveryOutcome.PENDING),
+        DeliveryResult(event_id="rejected", outcome=DeliveryOutcome.REJECTED),
+        DeliveryResult(event_id="transient", outcome=DeliveryOutcome.TRANSIENT),
+        DeliveryResult(
+            event_id="terminal",
+            outcome=DeliveryOutcome.TERMINAL_FAILED,
+        ),
+    ]
+
+    summary = _record(ledger, "target", results, selected=len(results))
+
+    assert summary.retryable_event_ids == ("pending", "rejected", "transient")
+    assert [failure.event_id for failure in summary.failures] == [
+        "rejected",
+        "transient",
+        "terminal",
+    ]
+
+
+def test_multi_batch_drain_skips_pending_head_through_live_dispatcher(
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pending rows defer to the next command while later rows drain now."""
+    journal.append(_make_event(3))
+    receiver = _PendingHeadStub()
+    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+
+    assert receiver.calls == [("evt-0", "evt-1"), ("evt-2", "evt-3")]
+    assert summary.selected == 4
+    assert summary.pending == 2
+    assert summary.delivered == 2
+    remaining = _select_undelivered(journal, ledger, target_a.target_id)
+    assert [event.event_id for event in remaining] == ["evt-0", "evt-1"]
+
+
+def test_multi_batch_drain_continues_after_singleton_terminal_failure(
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Canonical 413 halving parks one event, then drains the success tail.
+
+    After the oversized head (evt-0) is halved to a singleton and parked as
+    terminal_failed, the limit grows back (1 -> 2), so the healthy tail
+    (evt-1, evt-2) drains in one grown batch rather than one-event-per-POST.
+    The grow-back is the throughput-cliff fix; the old behavior emitted
+    ``("evt-1",), ("evt-2",)`` as separate singleton calls.
+    """
+    receiver = _AdaptiveOversizedStub()
+    runtime = SimpleNamespace(journal=journal, ledger=ledger)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+
+    assert receiver.calls == [
+        ("evt-0", "evt-1"),
+        ("evt-0",),
+        ("evt-1", "evt-2"),
+    ]
+    assert summary.selected == 3
+    assert summary.terminal_failed == 1
+    assert summary.delivered == 2
+    assert _select_undelivered(journal, ledger, target_a.target_id) == []
 
 
 # --------------------------------------------------------------------------- #

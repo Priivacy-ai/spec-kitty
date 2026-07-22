@@ -12,11 +12,18 @@ Standalone investigation and scope-assessment artifacts: issue analyses,
 compatibility matrices, model-first schema research, and mission review
 reports.
 
+- [Mission-type step-model unification](mission-type-step-model-unification.md) — retire
+  "template" as a mission-type discriminator; make recursive steps the building block.
+  Grounded by a design + code + adversarial squad; formalized in ADR `2026-07-16-2`.
 - [Mission Review Report: windows-compatibility-hardening-01KP5R6K](2026-04-14-windows-compatibility-hardening-mission-review.md)
 - [Issue #1040 — ADRs as First-Class Primitive: Scope Inclusion Assessment](issue-1040-scope-assessment.md)
 - [Issue #1111 Analysis — Branch Alignment Report](issue-1111-analysis.md)
 - [Mission-Next Compatibility Matrix](mission-next-compatibility.md)
 - [Model-First Schema Generation](model-first-schema-generation.md)
+- [WP & Op Schema Model](wp-op-schema-model.md)
+- [WP & Op Schema Model — Related Open Tracker Tickets](wp-op-schema-related-tickets.md)
+- [WP Prompt & Ops Debrief — Model / Schema Proposal](wp-op-schema-proposal.md)
+- [WP Runtime-State Eviction — Prerequisite Mission Scope](wp-runtime-state-eviction-scope.md)
 
 ## See also
 

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "mission_slug": "resolver-seam-completion-01KXK0KG",
+  "mission_id": "01KXK0KGE6MSVWDDC8JQ1M5ZY2",
+  "mission_branch": "kitty/mission-resolver-seam-completion-01KXK0KG",
+  "target_branch": "feat/2651-resolver-seam-completion",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/drg/models.py",
+        "src/doctrine/graph.yaml",
+        "tests/doctrine/drg/migration/test_extractor.py",
+        "tests/doctrine/drg/test_mission_type_nodes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/action_grain.py",
+        "tests/charter/test_action_grain.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_profiles.py",
+        "tests/architectural/test_no_parity_scaffold.py",
+        "tests/charter/test_resolved_mission_type_context.py",
+        "tests/missions/test_mission_type_profile_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/doctrine/drg/test_cross_grain_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/doctrine/test_mission_type_governance_isolation.py",
+        "tests/integration/test_mission_type_resolution_integration.py",
+        "tests/specify_cli/next/test_runtime_bridge_dispatch.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-15T15:08:07.696209+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

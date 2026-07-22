@@ -7,5 +7,6 @@
   "mission_type": "documentation",
   "slug": "018-merge-preflight-documentation",
   "source_description": "Full documentation for the feature we just built in line with existing documentation norms - this is a documentation feature sprint",
+  "status_phase": "1",
   "target_branch": "main"
 }

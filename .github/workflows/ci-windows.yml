@@ -9,6 +9,7 @@ jobs:
   changes:
     name: Detect Windows-critical changes
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
     steps:
@@ -51,7 +52,7 @@ jobs:
   windows-critical:
     name: Windows critical (pipx, pytest -m windows_ci)
     needs: [changes]
-    if: needs.changes.outputs.windows_critical == 'true'
+    if: ${{ (needs.changes.outputs.windows_critical == 'true') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     runs-on: blacksmith-4vcpu-windows-2025
     timeout-minutes: 20
     env:

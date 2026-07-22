@@ -12,6 +12,7 @@
   "purpose_context": "#2181 landed the frozen /tmp ratchet and EXPLICITLY deferred the existing-offender sweep to #1842 (test_no_tmp_paths_in_tests.py: 'their sweep belongs to issue #1842'; maintainer comment: 'existing ~98 occurrences out of scope, this issue remains open pending the full existing-offender sweep'). 99 baseline files across 21 dirs (specify_cli 30, sync 13, charter 7, doctrine 6, agent 6, status 4, long tail ~33). Two categories: ~68 genuine write-to-/tmp leaks (-> tmp_path/fixtures with teardown) and ~31 path-literals used as arbitrary absolute paths in test data/mocks (-> non-/tmp sentinel, preserve semantics). Sibling to the structural PR #2429 (reaper + namespacing + tombstone, 'Part of #1842'). This PR closes #1842.",
   "purpose_tldr": "Close #1842 by sweeping the 99 grandfathered /tmp-literal test files (tmp_ratchet_baseline.txt) off literal /tmp — real write-leaks to tmp_path/fixtures, arbitrary path-literals to non-/tmp sentinels — then empty the baseline and convert the ratchet from a frozen-baseline gate to a hard 'no /tmp literals in tests' gate (replacing the >50 anti-vacuity floor with a positive self-test).",
   "slug": "tmp-literal-offender-burndown-01KWWRW2",
+  "status_phase": "1",
   "target_branch": "fix/tmp-literal-offender-burndown",
   "topology": "coord",
   "vcs": "git",

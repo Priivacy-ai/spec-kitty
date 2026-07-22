@@ -12,6 +12,7 @@
   "purpose_context": "Four independent modules each shell out to git merge-base then git diff --name-only with their own error handling and tests. This consolidation routes all four onto a single core/vcs/git.py helper so the changed-files idiom is proven once and cannot drift, extending the milestone no-shadow-paths single-seam discipline to a duplicated VCS primitive.",
   "purpose_tldr": "Collapse four hand-rolled git merge-base to diff copies onto one shared helper.",
   "slug": "merge-base-diff-ssot-01KX44SD",
+  "status_phase": "1",
   "target_branch": "fix/merge-base-diff-ssot",
   "topology": "coord"
 }

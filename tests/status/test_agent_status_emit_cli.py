@@ -92,7 +92,11 @@ def test_status_emit_readback_failure_uses_structured_diagnostic(
 
     import specify_cli.status.store as status_store
 
-    monkeypatch.setattr(status_store, "append_event", lambda _feature_dir, _event: None)
+    monkeypatch.setattr(
+        status_store,
+        "_append_serialized_atomic",
+        lambda _feature_dir, _events: None,
+    )
 
     result = runner.invoke(
         app,

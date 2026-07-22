@@ -1,0 +1,426 @@
+"""WP05 / FR-008 — behavioral class-closing guard for INV-COORD-ROLLBACK (#2786 + #2367-B).
+
+INV-COORD-ROLLBACK (data-model): *after any merge rollback, either the
+coordination branch is coherent (no WP from this merge's write-set still reduces
+to ``DONE`` on the committed coord ref while its lane rolled back to
+``approved``) OR a ``pending_coord_reconcile`` marker names the stranded WP(s).*
+No rollback path may leave a stranded committed ``done`` **and** marker-absent.
+
+The invariant is **behavioral**, so this guard is behavioral — NOT a source grep
+for the mark call. Two complementary halves close the whole defect class:
+
+* **T015 — behavioral falsifier (non-vacuity).** The SAME invariant assertion
+  (:func:`_assert_coord_rollback_invariant`) is driven against a REAL bake-path
+  strand. With the real mark in place it is GREEN (the strand is marked, so the
+  committed/working split-brain is recoverable). When
+  ``_persist_coord_reconcile_marker`` / ``coord_incoherent_done_wps`` is
+  monkeypatched to a runtime no-op and the same real strand is re-driven, the
+  guard REDS (``strand-on-committed-ref ∧ marker-absent``). A guard that stayed
+  green under a runtime-stubbed mark would be a tautology and is rejected — these
+  ``pytest.raises(AssertionError)`` tests prove it does not.
+
+* **T016 — programmatic restore-site enumeration + topology-gating.** The seven
+  ``_restore_final_bookkeeping_snapshots`` restore-shape sites are enumerated
+  from the executor AST (never a hardcoded line-number list — they drift as
+  helpers move). The class-closing structural invariant is that the ONLY raw
+  ``_restore_final_bookkeeping_snapshots(`` call lives inside the marking
+  primitive ``_restore_and_guard_coord_coherence`` — every other restore site
+  routes through it, so a future un-routed restore site cannot strand silently.
+  Site ≈691 is asserted dead-for-coord (inside ``if not
+  run.done_marked_before_target:``) and site ≈701
+  (``_project_status_bookkeeping_to_target`` failure) is asserted
+  coord-reachable-and-routed — the live same-shape site the original six-site
+  enumeration missed.
+
+Behavioral harnesses (fixture bootstrap + bake-mid-write-set failure injection +
+git-reducible committed/working readers) are REUSED verbatim from the WP01
+red-first repro and the WP03 executor integration tests; this module never
+re-authors them.
+"""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+import pytest
+
+# Import the status package before any coordination submodule (production import
+# order; see the #2711 / #2367-B harness docstrings for rationale).
+import specify_cli.status  # noqa: F401  # import-order guard
+
+from specify_cli.coordination.coherence import coord_incoherent_done_wps
+from specify_cli.merge import executor as ex
+from specify_cli.merge.state import load_state
+
+# --- Reused bake-strand (#2367-B / WP01) harness ----------------------------
+from tests.regression.test_issue_2367_bake_strand import (
+    COHERENT_WP,
+    COORD_BRANCH,
+    MISSION_ID,
+    MISSION_SLUG,
+    STRANDED_WP,
+    _bootstrap_two_wp_coord_mission,
+    _run_bake_failing_merge,
+)
+
+# ``_init_git_repo`` is DEFINED in the #2711 harness and only re-exported by the
+# #2367-B module; import it from its definition site so mypy's strict
+# no-implicit-reexport check is satisfied.
+from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+    _init_git_repo,
+)
+
+pytestmark = [
+    pytest.mark.regression,
+    pytest.mark.architectural,
+    pytest.mark.git_repo,
+    pytest.mark.non_sandbox,
+]
+
+# This merge's pre-target ``done`` write-set for the 2-WP fixture. ``STRANDED_WP``
+# commits ``done`` before the injected bake failure (→ stranded on the committed
+# coord ref); ``COHERENT_WP`` is only ever ``approved`` (the coherent control).
+_WRITE_SET: list[str] = [STRANDED_WP, COHERENT_WP]
+
+
+# ===========================================================================
+# The behavioral invariant checker + guard (the thing T015 falsifies)
+# ===========================================================================
+
+
+def _feature_dir(repo: Path) -> Path:
+    """Primary feature dir (``name == slug``) anchoring the committed-coord read.
+
+    Mirrors ``executor._coord_reconcile_read_feature_dir`` — the same placement the
+    rollback marker derivation uses, so the checker reads the identical committed
+    coordination ref.
+    """
+    return repo / "kitty-specs" / MISSION_SLUG
+
+
+def _marker_stranded_wps(repo: Path) -> set[str]:
+    """WP ids named by the persisted ``pending_coord_reconcile`` marker (∅ if none)."""
+    state = load_state(repo, MISSION_ID)
+    marker = state.pending_coord_reconcile if state is not None else None
+    if not marker:
+        return set()
+    return {str(wp) for wp in marker["stranded_wp_ids"]}
+
+
+def _coord_rollback_violation(repo: Path) -> set[str]:
+    """Return the INV-COORD-ROLLBACK violation set (∅ ⇒ invariant holds).
+
+    The strand is derived from the COMMITTED coordination ref via the single
+    coordination authority :func:`coord_incoherent_done_wps` over this merge's
+    write-set — never a committed-vs-working diff (empty at the mark point per
+    data-model D7). The invariant holds when there is no strand OR every stranded
+    WP is named by a ``pending_coord_reconcile`` marker (recoverable). A stranded
+    WP with NO marker is the violation this guard exists to catch.
+    """
+    stranded = set(
+        coord_incoherent_done_wps(
+            COORD_BRANCH,
+            _WRITE_SET,
+            repo_root=repo,
+            feature_dir=_feature_dir(repo),
+        )
+    )
+    if not stranded:
+        return set()
+    return stranded - _marker_stranded_wps(repo)
+
+
+def _assert_coord_rollback_invariant(repo: Path) -> None:
+    """FR-008 behavioral guard: no rollback may strand a committed ``done`` unmarked.
+
+    This is the SINGLE assertion T015 drives both ways: GREEN with the real mark,
+    RED (``AssertionError`` carrying ``INV-COORD-ROLLBACK``) when the mark is
+    stubbed to a runtime no-op.
+    """
+    unreconciled = _coord_rollback_violation(repo)
+    assert not unreconciled, (
+        "INV-COORD-ROLLBACK violated (FR-008): the committed coordination ref "
+        f"strands {sorted(unreconciled)} at ``done`` while the working tree rolled "
+        "back to ``approved`` and NO pending_coord_reconcile marker names it — a "
+        "silent committed/working split-brain. The rollback must mark (or revert) "
+        "the stranded coord ``done`` so it stays recoverable."
+    )
+
+
+# ===========================================================================
+# T015 — behavioral falsifier: GREEN with the real mark, RED under a stubbed mark
+# ===========================================================================
+
+
+def test_guard_is_green_with_the_real_mark(tmp_path: Path) -> None:
+    """With the real mark, a bake-path strand is recorded → the invariant holds.
+
+    Drives a REAL #2367-B bake-mid-write-set failure. The leg-b byte-restore rolls
+    the working tree back to ``approved`` while ``STRANDED_WP``'s committed coord
+    ``done`` survives — a strand — but ``_persist_coord_reconcile_marker`` records
+    it, so ``strand ∧ marked`` ⇒ recoverable ⇒ INV-COORD-ROLLBACK holds.
+    """
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    _bootstrap_two_wp_coord_mission(repo)
+
+    exc, _calls = _run_bake_failing_merge(repo)
+    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+
+    # Precondition: the strand genuinely exists (else the guard would be vacuously
+    # green — nothing to reconcile). The real mark then names it.
+    assert coord_incoherent_done_wps(
+        COORD_BRANCH, _WRITE_SET, repo_root=repo, feature_dir=_feature_dir(repo)
+    ) == [STRANDED_WP], "precondition: the bake path must strand exactly STRANDED_WP"
+    assert _marker_stranded_wps(repo) == {STRANDED_WP}, (
+        "the real mark must record the stranded WP in pending_coord_reconcile"
+    )
+
+    # The behavioral guard is GREEN: strand present, but marked → recoverable.
+    _assert_coord_rollback_invariant(repo)
+
+
+def test_guard_reds_when_persist_marker_is_stubbed_to_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Non-vacuity (FR-008 / SC-005): stub the marker-persist → the guard REDS.
+
+    ``_persist_coord_reconcile_marker`` is monkeypatched to a runtime no-op and the
+    SAME real bake strand is re-driven. The leg-b byte-restore still runs (working
+    → ``approved``) and ``STRANDED_WP``'s committed ``done`` still survives, but now
+    NO marker names it → ``strand-on-committed-ref ∧ marker-absent``. The behavioral
+    guard must raise ``AssertionError`` — proving it is not a tautology that stays
+    green regardless of whether the mark actually fires.
+    """
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    _bootstrap_two_wp_coord_mission(repo)
+
+    monkeypatch.setattr(
+        ex, "_persist_coord_reconcile_marker", lambda run, error: None
+    )
+    exc, _calls = _run_bake_failing_merge(repo)
+    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+
+    # The strand is real (leg-b restore ran; committed ``done`` survives) …
+    assert coord_incoherent_done_wps(
+        COORD_BRANCH, _WRITE_SET, repo_root=repo, feature_dir=_feature_dir(repo)
+    ) == [STRANDED_WP], "precondition: the strand must exist even with the mark stubbed"
+    # … and, with the mark stubbed, unrecorded.
+    assert _marker_stranded_wps(repo) == set(), (
+        "precondition: the stubbed mark must leave pending_coord_reconcile absent"
+    )
+
+    # The falsifier: the SAME guard that was green above now REDS.
+    with pytest.raises(AssertionError, match="INV-COORD-ROLLBACK"):
+        _assert_coord_rollback_invariant(repo)
+    assert _coord_rollback_violation(repo) == {STRANDED_WP}
+
+
+def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Non-vacuity (second seam): stub the strand-derivation authority → guard REDS.
+
+    ``executor.coord_incoherent_done_wps`` is monkeypatched to always return ``[]``.
+    ``_persist_coord_reconcile_marker`` then derives an empty strand and writes no
+    marker, while the leg-b byte-restore still strands ``STRANDED_WP``'s committed
+    ``done``. The checker's OWN (unpatched) strand read still sees the strand, so
+    the behavioral guard REDS — falsifying the mark at the derivation seam as well
+    as the persist seam.
+    """
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    _bootstrap_two_wp_coord_mission(repo)
+
+    monkeypatch.setattr(
+        ex, "coord_incoherent_done_wps", lambda *args, **kwargs: []
+    )
+    exc, _calls = _run_bake_failing_merge(repo)
+    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+
+    assert _marker_stranded_wps(repo) == set(), (
+        "precondition: a no-op strand authority must leave the marker absent"
+    )
+    with pytest.raises(AssertionError, match="INV-COORD-ROLLBACK"):
+        _assert_coord_rollback_invariant(repo)
+    assert _coord_rollback_violation(repo) == {STRANDED_WP}
+
+
+# ===========================================================================
+# T016 — programmatic restore-site enumeration + topology-gating
+# ===========================================================================
+
+_EXECUTOR_PATH = Path(ex.__file__)
+_PRIMITIVE = "_restore_and_guard_coord_coherence"
+_RAW_RESTORE = "_restore_final_bookkeeping_snapshots"
+_RECORD_DONE_PHASE = "_phase_record_done_and_project"
+_DONE_GATE_TOKEN = "done_marked_before_target"
+_RECORD_DONE_CALLEE = "_record_merged_wps_done_for_merge"
+_PROJECT_CALLEE = "_project_status_bookkeeping_to_target"
+
+# Restore-shape sites that route through the marking primitive today (≈407, 536,
+# 670, 691, 701, 757, 786). Derived by enumerating the primitive's call-sites from
+# the AST below — NOT hardcoded line numbers. This is a drift tripwire: if you add
+# a legitimately-routed restore site, bump this AND confirm it routes; if you add a
+# RAW restore, ``test_only_raw_restore_call_routes_through_the_primitive`` reds.
+_EXPECTED_ROUTED_SITES = 7
+
+
+def _load_executor_ast() -> tuple[ast.Module, dict[ast.AST, ast.AST]]:
+    tree = ast.parse(_EXECUTOR_PATH.read_text(encoding="utf-8"), filename=str(_EXECUTOR_PATH))
+    parents: dict[ast.AST, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parents[child] = node
+    return tree, parents
+
+
+def _call_name(node: ast.Call) -> str:
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return ""
+
+
+def _calls_named(tree: ast.Module, name: str) -> list[ast.Call]:
+    return [n for n in ast.walk(tree) if isinstance(n, ast.Call) and _call_name(n) == name]
+
+
+def _path_to_root(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> list[ast.AST]:
+    path: list[ast.AST] = [node]
+    cur: ast.AST = node
+    while cur in parents:
+        cur = parents[cur]
+        path.append(cur)
+    return path
+
+
+def _enclosing_function(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> str:
+    for anc in _path_to_root(node, parents)[1:]:
+        if isinstance(anc, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return anc.name
+    return ""
+
+
+def _enclosing_if_tests(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> list[str]:
+    """Unparsed test source of every ``If`` whose *body* (not ``orelse``) holds node."""
+    path = _path_to_root(node, parents)
+    tests: list[str] = []
+    for lower, upper in zip(path, path[1:], strict=False):
+        if isinstance(upper, ast.If) and lower in upper.body:
+            tests.append(ast.unparse(upper.test))
+    return tests
+
+
+def _enclosing_except_try_body_callees(
+    node: ast.AST, parents: dict[ast.AST, ast.AST]
+) -> set[str]:
+    """Callee names in the *try body* of the nearest ``Try`` whose handler holds node."""
+    path = _path_to_root(node, parents)
+    for lower, upper in zip(path, path[1:], strict=False):
+        if isinstance(upper, ast.Try) and lower in upper.handlers:
+            return {
+                _call_name(n)
+                for stmt in upper.body
+                for n in ast.walk(stmt)
+                if isinstance(n, ast.Call)
+            }
+    return set()
+
+
+def test_only_raw_restore_call_routes_through_the_primitive() -> None:
+    """FR-008 class-closer: the ONLY raw ``_restore_final_bookkeeping_snapshots(``
+    call lives inside the marking primitive — every restore site routes through it.
+
+    This is the structural invariant that closes the whole defect class rather than
+    two hand-picked sites: a NEW restore-shape site added later that calls
+    ``_restore_final_bookkeeping_snapshots`` directly (bypassing the coherence
+    mark/heal) makes ``len(raw) > 1`` → RED, because it can strand a committed coord
+    ``done`` silently.
+    """
+    tree, parents = _load_executor_ast()
+    raw_calls = _calls_named(tree, _RAW_RESTORE)
+    assert len(raw_calls) == 1, (  # golden-count: cardinality-is-contract
+        f"expected EXACTLY ONE raw {_RAW_RESTORE}( call (inside the {_PRIMITIVE} "
+        f"primitive); found {len(raw_calls)} at lines {[c.lineno for c in raw_calls]}. "
+        "A restore call OUTSIDE the primitive can strand a committed coord ``done`` "
+        "without a marker (FR-008 class breach) — route it through "
+        f"{_PRIMITIVE} instead."
+    )
+    host = _enclosing_function(raw_calls[0], parents)
+    assert host == _PRIMITIVE, (
+        f"the sole raw {_RAW_RESTORE}( call must live inside {_PRIMITIVE}; "
+        f"found it in {host!r}"
+    )
+
+
+def test_all_restore_sites_route_through_the_marking_primitive() -> None:
+    """FR-008: the restore-shape sites are enumerated from the AST (not hardcoded
+    line numbers) and every one routes through the marking primitive.
+
+    Seven sites route today (≈407/536/670/691/701/757/786). ``_EXPECTED_ROUTED_SITES``
+    is a self-documenting drift tripwire; the load-bearing class-closer is the
+    raw-call-inside-the-primitive assertion above.
+    """
+    tree, _parents = _load_executor_ast()
+    routed = _calls_named(tree, _PRIMITIVE)
+    lines = sorted(c.lineno for c in routed)
+    assert len(routed) == _EXPECTED_ROUTED_SITES, (
+        f"expected {_EXPECTED_ROUTED_SITES} routed {_PRIMITIVE}( sites; found "
+        f"{len(routed)} at {lines}. If you added a legitimately-routed restore site, "
+        "bump _EXPECTED_ROUTED_SITES AND confirm it routes; if you added a RAW "
+        "restore, test_only_raw_restore_call_routes_through_the_primitive reds."
+    )
+
+
+def test_site_691_dead_for_coord_and_site_701_coord_reachable_and_routed() -> None:
+    """FR-008: the two ``_phase_record_done_and_project`` restore sites carry the
+    correct topology gating.
+
+    * Site ≈691 (``_record_merged_wps_done_for_merge`` failure) sits INSIDE
+      ``if not run.done_marked_before_target:`` → dead-for-coord (the primitive's
+      internal guard no-ops the mark/heal there); a refactor that flips that gating
+      REDs this test.
+    * Site ≈701 (``_project_status_bookkeeping_to_target`` failure) sits OUTSIDE
+      that guard → coord-reachable, after the target advanced, routed through the
+      primitive so it CAN mark. This is the live same-shape site the original
+      six-site enumeration missed; un-routing or gating it out REDs this test.
+    """
+    tree, parents = _load_executor_ast()
+    calls = [
+        c
+        for c in _calls_named(tree, _PRIMITIVE)
+        if _enclosing_function(c, parents) == _RECORD_DONE_PHASE
+    ]
+    assert len(calls) == 2, (  # golden-count: cardinality-is-contract
+        f"expected exactly two routed restore sites in {_RECORD_DONE_PHASE} "
+        f"(dead-for-coord ≈691 + coord-reachable ≈701); found {len(calls)} at "
+        f"{sorted(c.lineno for c in calls)}"
+    )
+
+    dead_for_coord: list[ast.Call] = []
+    coord_reachable: list[ast.Call] = []
+    for c in calls:
+        gated = any(_DONE_GATE_TOKEN in test for test in _enclosing_if_tests(c, parents))
+        try_callees = _enclosing_except_try_body_callees(c, parents)
+        if gated and _RECORD_DONE_CALLEE in try_callees:
+            dead_for_coord.append(c)
+        elif not gated and _PROJECT_CALLEE in try_callees:
+            coord_reachable.append(c)
+
+    assert len(dead_for_coord) == 1, (  # golden-count: cardinality-is-contract
+        "site ≈691 must be dead-for-coord: the restore in the "
+        f"{_RECORD_DONE_CALLEE} except handler must sit INSIDE "
+        f"``if not run.{_DONE_GATE_TOKEN}:`` — got "
+        f"{[c.lineno for c in dead_for_coord]} matching"
+    )
+    assert len(coord_reachable) == 1, (  # golden-count: cardinality-is-contract
+        "site ≈701 must be coord-reachable-and-routed: the restore in the "
+        f"{_PROJECT_CALLEE} except handler must route through {_PRIMITIVE} and NOT "
+        f"be gated by ``run.{_DONE_GATE_TOKEN}`` — got "
+        f"{[c.lineno for c in coord_reachable]} matching"
+    )

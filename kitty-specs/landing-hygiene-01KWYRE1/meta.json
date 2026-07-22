@@ -12,6 +12,7 @@
   "purpose_context": "Two low-risk hygiene follow-ups surfaced by epic #1931 landings. Independent WPs. Cross-fork draft closing #2439 #2443.",
   "purpose_tldr": "Two small independent landing-followup fixes: (1) cap + clean up per-invocation review-prompt files that accumulate unbounded within a repo under spec-kitty-review-prompts/ (#2439, LC-7 residual); (2) refresh the stale src/specify_cli/core/mission_detection.py entry in the internal diff-coverage --include allowlist and add a guard that every allowlist path resolves to an existing file (#2443)",
   "slug": "landing-hygiene-01KWYRE1",
+  "status_phase": "1",
   "target_branch": "fix/landing-hygiene",
   "topology": "coord",
   "vcs": "git",

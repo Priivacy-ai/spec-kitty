@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "mission_slug": "implement-loop-commit-hardening-01KXJ1ZX",
+  "mission_id": "01KXJ1ZX45S5CCGQ7TWD1B2EMZ",
+  "mission_branch": "kitty/mission-implement-loop-commit-hardening-01KXJ1ZX",
+  "target_branch": "mission/2533-pr-bound-coord-claim-precondition",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "tests/specify_cli/cli/commands/test_implement.py",
+        "tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py",
+        "tests/specify_cli/cli/commands/test_implement_json_safe_output.py",
+        "tests/specify_cli/cli/commands/test_implement_writeside.py",
+        "tests/specify_cli/cli/commands/test_precondition_ref_unification.py",
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/commit_router.py",
+        "tests/specify_cli/coordination/test_commit_router_partition_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/specify_cli/cli/commands/test_tasks_move_task_cwd.py",
+        "tests/specify_cli/cli/commands/test_tasks_move_task_degod.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-15T07:58:36.974564+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/implement.py' vs 'src/specify_cli/cli/commands/implement.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/implement.py' vs 'src/specify_cli/cli/commands/implement.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/implement.py' vs 'src/specify_cli/cli/commands/implement.py'"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/tasks_move_task.py' vs 'src/specify_cli/cli/commands/agent/tasks_move_task.py'; WP07 depends on WP06"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 4
+    }
+  }
+}

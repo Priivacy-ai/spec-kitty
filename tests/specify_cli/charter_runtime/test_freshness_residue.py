@@ -31,6 +31,7 @@ from ..charter_preflight._fixtures import (
     init_git_repo,
     seed_bundle_files,
     seed_charter,
+    seed_charter_yaml,
     seed_graph,
     seed_manifest,
     write_metadata,
@@ -49,6 +50,9 @@ def _seed_residue_repo(repo: Path) -> None:
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
     seed_bundle_files(repo)
+    # consolidate-charter-bundle WP06 (Landmine 2): charter_source/
+    # synced_bundle now resolve over charter.yaml.
+    seed_charter_yaml(repo)
     seed_manifest(repo, built_in_only=True)
     seed_graph(repo)  # residue: manifest disowns this graph.yaml
 
@@ -102,24 +106,26 @@ def test_residue_passes_preflight(tmp_path: Path) -> None:
 
 
 def test_genuine_invalid_still_blocks_preflight(tmp_path: Path) -> None:
-    """A real inconsistency (charter.md present but unhashable) stays ``invalid``.
+    """A real inconsistency (charter.yaml present but unparseable) stays
+    ``invalid``.
 
-    This guards FR-006 against over-downgrading: the ``_compute_charter_source``
-    ``:276`` producer ("charter.md exists but cannot be hashed") is NOT covered
-    by a ``built_in_only`` manifest declaration and MUST remain a terminal,
-    preflight-blocking ``invalid`` state.
+    consolidate-charter-bundle WP06 (Landmine 2) re-pins this test: the
+    genuine ``invalid`` producer moved from ``charter.md`` (unhashable) to
+    ``charter.yaml`` (unparseable) — the retired ``_charter_hash_of``
+    producer no longer exists. This guards FR-006 against over-downgrading:
+    an unparseable ``charter.yaml`` is NOT covered by a ``built_in_only``
+    manifest declaration and MUST remain a terminal, preflight-blocking
+    ``invalid`` state.
     """
     init_git_repo(tmp_path)
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    charter_path = charter_dir / "charter.md"
-    metadata_path = charter_dir / "metadata.yaml"
-    # Write a charter, record a stored hash, then make the charter unreadable so
-    # ``_charter_hash_of`` returns None → the genuine ``invalid`` producer fires.
-    charter_path.write_text("# Charter\n\nHello", encoding="utf-8")
-    write_metadata(metadata_path, charter_path)
-    charter_path.unlink()
-    charter_path.mkdir()  # a directory where a file is expected → unhashable
+    charter_yaml_path = charter_dir / "charter.yaml"
+    # Write a valid charter.yaml, then replace it with a directory so the
+    # genuine ``invalid`` producer (unparseable, not merely absent) fires.
+    seed_charter_yaml(tmp_path)
+    charter_yaml_path.unlink()
+    charter_yaml_path.mkdir()  # a directory where a file is expected → unparseable
 
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "invalid"

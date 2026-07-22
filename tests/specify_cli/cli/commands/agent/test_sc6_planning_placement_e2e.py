@@ -61,7 +61,7 @@ from tests.git.protected_target_fixtures import (  # noqa: F401 — pytest fixtu
     protected_target_repo,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
@@ -98,9 +98,10 @@ class _Topology:
 # (coordination/status_transition), not WP05's placement threading.
 _FLATTENED_BOOTSTRAP_CWD_GAP = (
     "legacy-topology status bootstrap resolves its commit destination from the "
-    "process CWD git context, not the resolved repo_root (out-of-scope "
-    "pre-existing gap; placement projection itself resolves flattened correctly "
-    "— see tests/mission_runtime/test_resolve_placement_only.py)"
+    "process CWD git context, not the resolved repo_root (tracked: #2802; "
+    "out-of-scope pre-existing gap; placement projection itself resolves "
+    "flattened correctly — see tests/mission_runtime/test_resolve_placement_only.py). "
+    "Closing #2802 fixes the gap and this strict xfail flips to XPASS — retire the marker."
 )
 
 _TOPOLOGIES = [

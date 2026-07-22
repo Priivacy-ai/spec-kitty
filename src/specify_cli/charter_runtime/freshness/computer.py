@@ -1,15 +1,51 @@
 """Freshness computation for charter / synced bundle / synthesized DRG.
 
-Detection rules (per ``contracts/charter-status-json.md``):
+Detection rules (per ``contracts/charter-status-json.md``, re-pointed at
+``charter.yaml`` by ``consolidate-charter-bundle`` WP06 / data-model.md
+Landmine 2):
 
-* ``charter_source.state = "stale"`` when ``.kittify/charter/charter.md``
-  SHA-256 differs from the hash stored in ``.kittify/charter/metadata.yaml``.
-* ``synced_bundle.state = "stale"`` when any bundle file mtime is older than
-  ``charter_source.last_change``.
+* ``charter_source.state`` reports whether the resolving charter source —
+  ``.kittify/charter/charter.yaml`` — exists and parses: ``missing`` when
+  absent, ``invalid`` when present but unparseable, ``fresh`` otherwise.
+  Post-inversion ``charter.yaml`` (not ``charter.md``) is the authoritative,
+  resolving source; ``charter.md`` is a curated, never-resolving prose
+  companion (data-model.md Entity: ``charter.md``) and is not consulted
+  here. The historical ``charter.md``-SHA-vs-``metadata.yaml::charter_hash``
+  staleness mechanism is **retired outright, not re-homed** — a hash of
+  ``charter.yaml`` cannot live *inside* ``charter.yaml`` (chicken-egg), so
+  there is no meaningful upstream artifact left to compare against at this
+  layer. ``charter_source`` therefore never returns ``stale``.
+* ``synced_bundle.state = "missing"`` when ``charter.yaml`` (the sole entry
+  in ``_BUNDLE_FILES`` / ``charter.bundle.BUNDLE_CONTENT_HASH_FILES``,
+  contracts/manifest-v2.md M1/M3) is absent; ``"stale"`` when it exists but
+  ``charter_source`` is not ``fresh`` (i.e. ``invalid``); ``"fresh"``
+  otherwise.
 * ``synthesized_drg.state = "stale"`` when the synthesis manifest's
-  ``run_id`` references inputs whose mtime is older than
-  ``synced_bundle.last_change`` (proxy: the synthesis manifest's
-  ``created_at`` is older than the latest bundle mtime).
+  ``bundle_content_hash`` does not match a freshly recomputed content-identity
+  hash of the current ``charter.yaml`` (``charter.bundle.
+  compute_bundle_content_hash``) — a content comparison, not a timestamp
+  comparison. A missing/``None`` stored hash is treated the same as a
+  mismatch: ``stale``. Two distinct ``None`` causes with different
+  recoveries: a *legacy-manifest* ``None`` (the field predates this fix)
+  self-heals to ``fresh`` on the next ``spec-kitty charter synthesize`` /
+  ``resynthesize`` run, which stamps the current hash; a *missing-file*
+  ``None`` (``compute_bundle_content_hash`` returns ``None`` when
+  ``charter.yaml`` itself is absent) does NOT self-heal via ``synthesize``
+  alone until the file exists. This comparison only runs once
+  ``synced_bundle.state == "fresh"`` (see the precedence rule below).
+
+  **Spurious authoring-staleness (data-model.md Landmine 2 extension,
+  alphonso MINOR-3 — DECIDED, option (b), see
+  ``traces/decisions.md``)**: because the authored surface and the
+  content-hash input are now the SAME file, an authoring-only edit to
+  ``governance``/``directives``/``activation`` (which does not change the
+  derived ``catalog``) also changes the whole-file hash and therefore trips
+  this comparison to ``stale`` — even though nothing *derived* drifted.
+  This is accepted as expected behaviour, not a defect: it is always
+  healable by the very next ``spec-kitty charter synthesize`` /
+  ``resynthesize`` (which recomputes the hash from current content and
+  re-stamps the manifest), so it is a transient, self-clearing state, never
+  a permanent-stale dead-end (unlike the retired #2758 missing-file trap).
 * ``synthesized_drg.state = "missing"`` when ``.kittify/doctrine/graph.yaml``
   is absent AND the manifest does not declare ``built_in_only: true``.
 * ``synthesized_drg.state = "built_in_only"`` when the manifest declares
@@ -20,8 +56,19 @@ Detection rules (per ``contracts/charter-status-json.md``):
   ``detail`` (the formerly-terminal ``invalid`` state is unreachable for this
   condition, so preflight is no longer blocked).
 * ``synthesized_drg`` never returns ``invalid`` — the only ``invalid`` producer
-  is ``_compute_charter_source`` ("charter.md exists but cannot be hashed"),
-  a genuine inconsistency that legitimately blocks preflight.
+  is ``_compute_charter_source`` ("charter.yaml exists but cannot be
+  parsed"), a genuine inconsistency that legitimately blocks preflight.
+
+Retired in this pass (#2759, data-model.md / contracts/manifest-v2.md):
+the config<->references/graph activation-parity read
+(``_activation_parity_drift_reason``) that used to run as a second signal
+composed with the content-hash comparison above. It is moot once freshness
+reads ``charter.yaml`` directly — activation now lives INSIDE the same file
+the content hash already covers, so a config<->references/graph divergence
+of the pre-relocation kind cannot exist anymore. (The #2758
+``first_missing_bundle_file`` helper is a separate, still-live concern owned
+by ``charter.bundle`` / ``specify_cli.cli.commands.charter._synthesis`` —
+not this module.)
 
 All sub-objects are always present in the result; ``state="missing"`` is the
 default when a file is absent.
@@ -120,9 +167,17 @@ class CharterFreshness:
 
 
 _CHARTER_DIR = Path(".kittify") / "charter"
-_CHARTER_FILENAME = "charter.md"
-_METADATA_FILENAME = "metadata.yaml"
-_BUNDLE_FILES = ("governance.yaml", "directives.yaml", "references.yaml", _METADATA_FILENAME)
+
+#: The sole resolving charter source (post-inversion; Landmine 1/2). Mirrors
+#: (does NOT import — see ``charter.bundle.BUNDLE_CONTENT_HASH_FILES``'s
+#: docstring, which explicitly keeps the ``charter``->``specify_cli``
+#: dependency direction intact by NOT being imported here) the content-hash
+#: input set consolidate-charter-bundle WP01 narrowed from the four legacy
+#: bundle files (``governance.yaml``, ``directives.yaml``, ``references.yaml``,
+#: ``metadata.yaml``) down to ``charter.yaml`` alone (contracts/manifest-v2.md
+#: M1/M3). ``test_bundle_file_lists_stay_in_sync`` pins the two tuples equal.
+_CHARTER_YAML_FILENAME = "charter.yaml"
+_BUNDLE_FILES = (_CHARTER_YAML_FILENAME,)
 
 
 def _synthesis_manifest_path(repo_root: Path) -> Path:
@@ -156,13 +211,14 @@ def _doctrine_dir() -> Path:
 
 
 def _safe_load_yaml(path: Path) -> dict[str, object] | None:
-    """Load a YAML file as a dict; return None when missing or unreadable.
+    """Load a YAML file as a dict; return None when missing, unreadable, or
+    not a mapping.
 
-    Retained for ``metadata.yaml`` (the bundle metadata file, owned by
-    ``charter.sync`` rather than the synthesizer manifest). LD-3 only routes
-    the synthesis manifest and graph reads through the chokepoint; the bundle
-    metadata read is a sibling concern still owned by this module's
-    ``_compute_charter_source`` path.
+    Used by ``_compute_charter_source`` to decide whether ``charter.yaml``
+    parses (``fresh``) or is a genuine inconsistency (``invalid``). LD-3
+    only routes the synthesis manifest and graph reads through the
+    chokepoint; this raw parse-check of ``charter.yaml`` itself is a sibling
+    concern still owned by this module.
     """
     if not path.exists():
         return None
@@ -204,21 +260,6 @@ def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifes
         return None
 
 
-def _charter_hash_of(path: Path) -> str | None:
-    """Return the canonical charter-content hash hex digest, or None when missing."""
-    if not path.exists():
-        return None
-    try:
-        from charter.hasher import hash_content  # noqa: PLC0415
-
-        hashed = hash_content(path.read_text(encoding="utf-8"))
-        if hashed.startswith("sha256:"):
-            return hashed.split(":", 1)[1]
-        return hashed
-    except OSError:
-        return None
-
-
 def _mtime_iso(path: Path) -> str | None:
     """Return ISO 8601 UTC mtime of a file, or None when missing."""
     if not path.exists():
@@ -249,54 +290,33 @@ def _latest_mtime(paths: list[Path]) -> str | None:
 
 
 def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
-    charter_path = repo_root / _CHARTER_DIR / _CHARTER_FILENAME
-    metadata_path = repo_root / _CHARTER_DIR / _METADATA_FILENAME
+    """Report presence/parseability of the resolving charter source.
 
-    if not charter_path.exists():
+    Landmine 2 (data-model.md): ``charter.yaml`` — not ``charter.md`` — is
+    the authoritative, resolving charter source post-inversion. The
+    historical ``charter.md``-SHA-vs-``metadata.yaml::charter_hash``
+    comparison is retired outright (module docstring); there is no
+    self-referential hash to compute here. This sub-state can therefore only
+    ever be ``missing``, ``invalid``, or ``fresh`` — never ``stale`` (the
+    content-drift question is answered downstream by ``synthesized_drg``).
+    """
+    charter_yaml_path = repo_root / _CHARTER_DIR / _CHARTER_YAML_FILENAME
+
+    if not charter_yaml_path.exists():
         return FreshnessSubState(
             state="missing",
             last_change=None,
             remediation="spec-kitty charter sync",
         )
 
-    current_hash = _charter_hash_of(charter_path)
-    last_change = _mtime_iso(charter_path)
+    last_change = _mtime_iso(charter_yaml_path)
 
-    metadata = _safe_load_yaml(metadata_path)
-    stored_hash_raw = ""
-    if isinstance(metadata, dict):
-        stored = metadata.get("charter_hash", "")
-        if isinstance(stored, str):
-            stored_hash_raw = stored
-
-    # Bundle hasher stores values prefixed with ``sha256:``.  Normalise both
-    # sides so a comparison is meaningful regardless of prefix.
-    def _normalize(h: str) -> str:
-        if h.startswith("sha256:"):
-            return h.split(":", 1)[1]
-        return h
-
-    if not stored_hash_raw:
-        # No metadata recorded yet → bundle was never synced.
-        return FreshnessSubState(
-            state="stale",
-            last_change=last_change,
-            remediation="spec-kitty charter sync",
-        )
-
-    if current_hash is None:
+    if _safe_load_yaml(charter_yaml_path) is None:
         return FreshnessSubState(
             state="invalid",
             last_change=last_change,
             remediation="spec-kitty charter sync",
-            detail="charter.md exists but cannot be hashed",
-        )
-
-    if _normalize(stored_hash_raw) != current_hash:
-        return FreshnessSubState(
-            state="stale",
-            last_change=last_change,
-            remediation="spec-kitty charter sync",
+            detail="charter.yaml exists but cannot be parsed",
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
@@ -306,6 +326,19 @@ def _compute_synced_bundle(
     repo_root: Path,
     charter_source: FreshnessSubState,
 ) -> FreshnessSubState:
+    """Report existence/parseability of the synced bundle (``_BUNDLE_FILES``).
+
+    ``_BUNDLE_FILES`` is now the single-entry ``("charter.yaml",)`` set
+    (Landmine 1/2), the same file ``charter_source`` inspects — so this
+    layer is largely a structural echo of ``charter_source`` kept for
+    contract-shape stability (``charter-status-json.md``'s three-key
+    payload) and for future re-widening if the bundle ever grows a second
+    tracked file. ``missing`` when the file is absent; ``stale`` when it
+    exists but ``charter_source`` found it unparseable (``"invalid"`` — the
+    only non-``fresh``, non-``missing`` state ``charter_source`` can report
+    once the file exists, since the ``charter.md``-hash ``"stale"`` branch
+    is retired); ``fresh`` otherwise.
+    """
     bundle_paths = [repo_root / _CHARTER_DIR / name for name in _BUNDLE_FILES]
     existing = [p for p in bundle_paths if p.exists()]
     if not existing:
@@ -317,20 +350,13 @@ def _compute_synced_bundle(
 
     last_change = _latest_mtime(existing)
 
-    # If charter_source itself is missing/invalid we cannot compare relative
-    # mtimes — surface the bundle as fresh-ish (its files exist) but signal
-    # "stale" when the upstream charter is stale so the operator runs sync.
-    if charter_source.state in ("missing", "stale", "invalid"):
+    if charter_source.state != "fresh":
         return FreshnessSubState(
             state="stale",
             last_change=last_change,
             remediation="spec-kitty charter sync",
         )
 
-    # charter_source already proves the canonical charter hash matches
-    # metadata.yaml.  Treat the bundle as fresh once required files exist;
-    # mtimes can move independently when git checks out or restages identical
-    # content, and must not make a synced bundle fail preflight.
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
 
 
@@ -349,54 +375,98 @@ def _compute_synthesized_drg(
 
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False
     graph_exists = graph_path.exists()
-    manifest_exists = manifest is not None
-
-    legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
 
     if built_in_only:
-        # FR-006 (C2-f, structural): the synthesis manifest is the declared
-        # authority over graph.yaml presence (#083). A graph.yaml the manifest
-        # disowns is *residue*, not a contradiction — so the reader reports the
-        # authoritative ``built_in_only`` state regardless of graph presence and,
-        # when residue is present, attaches a NON-BLOCKING diagnostic. This is a
-        # read-time normalization, NOT a reactive self-heal: the reader does not
-        # run ``synthesize`` and emits no remediation for residue (C-003). The
-        # blocking ``invalid`` branch for this specific condition is now
-        # unreachable, so preflight (``built_in_only`` ∈ ``_PASS_STATES``) passes.
-        if graph_exists:
-            return FreshnessSubState(
-                state="built_in_only",
-                last_change=_mtime_iso(graph_path),
-                remediation=None,
-                detail=(
-                    "stale graph residue: graph.yaml present but the synthesis "
-                    "manifest declares built_in_only; the manifest is "
-                    "authoritative, the residual graph.yaml is ignored"
-                ),
-            )
-        # Authoritative built-in-only state (FR-009).
-        return FreshnessSubState(
-            state="built_in_only",
-            last_change=_mtime_iso(manifest_path),
-            remediation=None,
-        )
+        # FR-006 (C2-f, structural): built_in_only is an authoritative,
+        # never-synthesized short-circuit that returns BEFORE the
+        # content-hash comparison in ``_synthesized_drg_graph_state`` is
+        # ever reached — a fresh-seed project must not be forced stale.
+        return _synthesized_drg_built_in_only_state(graph_path, manifest_path, graph_exists=graph_exists)
 
     if not graph_exists:
-        if _looks_like_legacy_fresh_seed(legacy_fresh_seed):
-            return FreshnessSubState(
-                state="built_in_only",
-                last_change=_mtime_iso(legacy_fresh_seed),
-                remediation=None,
-                detail="legacy fresh-project seed marker; re-run `spec-kitty charter synthesize` to write synthesis-manifest.yaml",
-            )
-        # No graph + manifest does not opt into built_in_only → missing.
-        return FreshnessSubState(
-            state="missing",
-            last_change=None,
-            remediation="spec-kitty charter synthesize",
-        )
+        # No graph + manifest does not opt into built_in_only → also a
+        # never-synthesized short-circuit (legacy-seed or missing); the
+        # content-hash comparison in ``_synthesized_drg_graph_state`` is
+        # equally unreached here.
+        return _synthesized_drg_missing_graph_state(repo_root)
 
-    # graph_exists is true → check staleness vs. synced_bundle.
+    return _synthesized_drg_graph_state(repo_root, graph_path, manifest, synced_bundle)
+
+
+def _synthesized_drg_built_in_only_state(
+    graph_path: Path,
+    manifest_path: Path,
+    *,
+    graph_exists: bool,
+) -> FreshnessSubState:
+    """FR-006 (C2-f, structural): the synthesis manifest is the declared
+    authority over graph.yaml presence (#083). A graph.yaml the manifest
+    disowns is *residue*, not a contradiction — so the reader reports the
+    authoritative ``built_in_only`` state regardless of graph presence and,
+    when residue is present, attaches a NON-BLOCKING diagnostic. This is a
+    read-time normalization, NOT a reactive self-heal: the reader does not
+    run ``synthesize`` and emits no remediation for residue (C-003). The
+    blocking ``invalid`` branch for this specific condition is now
+    unreachable, so preflight (``built_in_only`` ∈ ``_PASS_STATES``) passes.
+    """
+    if graph_exists:
+        return FreshnessSubState(
+            state="built_in_only",
+            last_change=_mtime_iso(graph_path),
+            remediation=None,
+            detail=(
+                "stale graph residue: graph.yaml present but the synthesis "
+                "manifest declares built_in_only; the manifest is "
+                "authoritative, the residual graph.yaml is ignored"
+            ),
+        )
+    # Authoritative built-in-only state (FR-009).
+    return FreshnessSubState(
+        state="built_in_only",
+        last_change=_mtime_iso(manifest_path),
+        remediation=None,
+    )
+
+
+def _synthesized_drg_missing_graph_state(repo_root: Path) -> FreshnessSubState:
+    """No project ``graph.yaml`` and the manifest does not declare
+    ``built_in_only`` — either a legacy fresh-project seed marker (self-heals
+    on the next synthesize) or a genuine ``missing`` state.
+    """
+    legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
+    if _looks_like_legacy_fresh_seed(legacy_fresh_seed):
+        return FreshnessSubState(
+            state="built_in_only",
+            last_change=_mtime_iso(legacy_fresh_seed),
+            remediation=None,
+            detail="legacy fresh-project seed marker; re-run `spec-kitty charter synthesize` to write synthesis-manifest.yaml",
+        )
+    return FreshnessSubState(
+        state="missing",
+        last_change=None,
+        remediation="spec-kitty charter synthesize",
+    )
+
+
+def _synthesized_drg_graph_state(
+    repo_root: Path,
+    graph_path: Path,
+    manifest: SynthesisManifest | None,
+    synced_bundle: FreshnessSubState,
+) -> FreshnessSubState:
+    """Compute the synthesized_drg substate once a project ``graph.yaml`` is
+    known to exist and the manifest does not short-circuit to
+    ``built_in_only``.
+
+    The content-identity hash comparison against ``synced_bundle`` (#2732's
+    contract, now re-pointed at ``charter.yaml`` — see the module docstring)
+    is the ONLY staleness signal at this layer. The former second signal
+    (#2759's config<->derived activation-parity read, composed with the
+    hash) is retired: it is moot once freshness reads ``charter.yaml``
+    directly, since activation now lives inside the same file the hash
+    already covers — a config<->references/graph divergence of the
+    pre-relocation kind cannot exist anymore.
+    """
     graph_mtime_iso = _mtime_iso(graph_path)
 
     if synced_bundle.state != "fresh" or synced_bundle.last_change is None:
@@ -408,32 +478,13 @@ def _compute_synthesized_drg(
             remediation="spec-kitty charter synthesize",
         )
 
-    try:
-        bundle_ts = datetime.fromisoformat(synced_bundle.last_change).timestamp()
-    except ValueError:
-        return FreshnessSubState(state="fresh", last_change=graph_mtime_iso, remediation=None)
+    # NFR-003: defer the ``charter.bundle`` import until this branch actually
+    # needs it, keeping it off the ``spec-kitty next`` startup hot path (LD-3).
+    from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
 
-    # Prefer the manifest's created_at when present (more precise than file
-    # mtime); fall back to graph mtime.
-    manifest_ts: float | None = None
-    if manifest is not None:
-        created_at = manifest.created_at
-        try:
-            manifest_ts = datetime.fromisoformat(created_at).timestamp()
-        except ValueError:
-            manifest_ts = None
-    if manifest_ts is None and manifest_exists:
-        try:
-            manifest_ts = manifest_path.stat().st_mtime
-        except OSError:
-            manifest_ts = None
-    if manifest_ts is None:
-        try:
-            manifest_ts = graph_path.stat().st_mtime
-        except OSError:
-            manifest_ts = None
-
-    if manifest_ts is not None and manifest_ts + 1.0 < bundle_ts:
+    current_hash = compute_bundle_content_hash(repo_root)
+    stored_hash = manifest.bundle_content_hash if manifest is not None else None
+    if stored_hash is None or current_hash is None or stored_hash != current_hash:
         return FreshnessSubState(
             state="stale",
             last_change=graph_mtime_iso,

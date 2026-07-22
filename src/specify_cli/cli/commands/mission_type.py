@@ -1445,7 +1445,7 @@ def show_mission_type(
     """Show the fully resolved MissionType definition for this project (FR-017).
 
     Displays all fields of the activated mission type:
-    id, display_name, action_sequence, governance_refs, template_set,
+    id, display_name, action_sequence, template_set,
     source_layer, extends.
 
     Exits with code 1 and lists registered IDs when ``mission_type_id``
@@ -1454,7 +1454,7 @@ def show_mission_type(
     from charter.mission_type_profiles import (  # noqa: PLC0415
         UnknownMissionTypeError,
         existing_mission_types,
-        resolve_action_sequence,
+        resolve_mission_type_context,
     )
     from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
 
@@ -1474,17 +1474,44 @@ def show_mission_type(
         raise typer.Exit(1)
 
     try:
-        action_seq = resolve_action_sequence(mission_type_id, repo_root)
+        resolved = resolve_mission_type_context(repo_root, mission_type=mission_type_id)
+        action_seq = resolved.action_sequence
+        # S-C cutover (mission-step-creatability-01KXQA6R WP01, FR-003): the
+        # retired `MissionType.template_set` field is replaced by the resolved
+        # context's `template_set` (still `ResolvedMissionType.template_set`
+        # per C-006 -- an immutable mapping, never the model field).
+        template_mapping = resolved.template_set
     except UnknownMissionTypeError:
-        action_seq = list(mt.action_sequence)
+        # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
+        # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
+        # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
+        action_seq = list(mt.action_sequence or [])
+        # Mirrors the resolver's own computation (FR-002): the retired model
+        # field has no fallback value to read, so this narrow branch computes
+        # the mapping straight from the step authority instead.
+        from doctrine.missions.mission_step_repository import (  # noqa: PLC0415
+            MissionStepRepository,
+        )
+        from doctrine.missions.step_projection import project_template_set  # noqa: PLC0415
+
+        fallback_steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type(mission_type_id, pack_context=None)
+            .values()
+        )
+        template_mapping = project_template_set(fallback_steps)
+
+    # `dict()`-wrap: `ResolvedMissionType.template_set` is a `MappingProxyType`,
+    # which `json.dumps` cannot serialize directly (TypeError) -- and the panel
+    # branch below needs a concrete mapping to test truthiness/sort on.
+    template_set = dict(template_mapping) if template_mapping is not None else None
 
     if json_output:
         data = {
             "id": mt.id,
             "display_name": mt.display_name,
             "action_sequence": action_seq,
-            "governance_refs": list(mt.governance_refs),
-            "template_set": mt.template_set,
+            "template_set": template_set,
             "source_layer": "built-in",
             "extends": mt.extends,
         }
@@ -1502,12 +1529,8 @@ def show_mission_type(
     if mt.extends:
         lines.append(f"[cyan]Extends:[/cyan] {mt.extends}")
     lines.append(f"[cyan]Action Sequence:[/cyan] {', '.join(action_seq)}")
-    if mt.governance_refs:
-        lines.append(f"[cyan]Governance Refs:[/cyan] {', '.join(mt.governance_refs)}")
-    else:
-        lines.append("[cyan]Governance Refs:[/cyan] (none)")
-    if mt.template_set:
-        tset_parts = [f"{k}={v}" for k, v in sorted(mt.template_set.items())]
+    if template_set:
+        tset_parts = [f"{k}={v}" for k, v in sorted(template_set.items())]
         lines.append(f"[cyan]Template Set:[/cyan] {', '.join(tset_parts)}")
     else:
         lines.append("[cyan]Template Set:[/cyan] (none)")

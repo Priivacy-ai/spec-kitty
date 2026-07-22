@@ -173,7 +173,6 @@ def test_command_help_matches_golden_fixture(command: str) -> None:
     assert result.stdout == fixture
 
 
-@pytest.mark.regression
 def test_help_fixtures_avoid_dependabot_requirements_trap() -> None:
     """Help snapshots must not use ``.txt`` — Dependabot's pip scanner treats any
     ``*requirements*.txt`` file as a requirements manifest and fails to evaluate

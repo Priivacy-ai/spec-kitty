@@ -285,9 +285,7 @@ def apply_post_condition(
 
     from .manifest import (  # noqa: PLC0415
         MANIFEST_PATH,
-        SynthesisManifest,
-        compute_manifest_hash,
-        dump_yaml,
+        finalize_manifest,
         load_yaml,
     )
     from .path_guard import PathGuard  # noqa: PLC0415
@@ -310,25 +308,15 @@ def apply_post_condition(
         return
 
     # Build the post-condition manifest (immutable Pydantic model -> copy).
-    manifest_hash = compute_manifest_hash(
-        manifest.model_copy(
-            update={
-                "built_in_only": desired_built_in_only,
-                "manifest_hash": "0" * 64,
-            }
-        )
-    )
-    new_manifest = SynthesisManifest(
-        schema_version=manifest.schema_version,
-        mission_id=manifest.mission_id,
-        created_at=manifest.created_at,
-        run_id=manifest.run_id,
-        adapter_id=manifest.adapter_id,
-        adapter_version=manifest.adapter_version,
-        synthesizer_version=manifest.synthesizer_version,
-        manifest_hash=manifest_hash,
-        artifacts=list(manifest.artifacts),
-        built_in_only=desired_built_in_only,
+    # model_copy PRESERVES every unlisted field (incl. bundle_content_hash,
+    # schema_version) -- the explicit-kwarg reconstruction this replaces
+    # silently dropped bundle_content_hash back to None (BLOCKER-1). Does
+    # NOT recompute bundle_content_hash here (data-model.md -- this site
+    # "preserves unchanged via model_copy"; the reader short-circuits on
+    # built_in_only before the hash comparison, so recomputing would be dead
+    # work).
+    new_manifest = finalize_manifest(
+        manifest.model_copy(update={"built_in_only": desired_built_in_only})
     )
 
     # All writes go through PathGuard (R-10). The tmp file is a sibling of
@@ -374,11 +362,6 @@ def apply_post_condition(
         with contextlib.suppress(OSError):
             tmp_path.unlink(missing_ok=True)
         raise
-
-    # Keep dump_yaml available so callers can detect we've consumed it; the
-    # explicit import above also ensures Pydantic validation runs on the
-    # round-trip when load_yaml is later invoked by readers.
-    _ = dump_yaml  # noqa: F841 — silence linter about unused import alias
 
 
 def persist(

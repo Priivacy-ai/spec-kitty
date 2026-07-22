@@ -66,7 +66,7 @@ and the WP05 task file).
   `uv sync` (or edit the version range), then
   `python scripts/snapshot_events_envelope.py --force`, then `pytest
   tests/contract/`. This is documented in
-  `docs/guides/contract-pinning.md`.
+  `docs/development/contract-pinning.md`.
 - **The mission-review gate has teeth.** FR-023 declares
   `pytest tests/contract/` a hard blocker; by removing hard-coded
   versions we eliminate the failure mode where the gate is "always
@@ -88,7 +88,7 @@ and the WP05 task file).
   2. Run `python scripts/snapshot_events_envelope.py --force` and
      commit the new snapshot.
 - The dev workflow is documented in
-  [`docs/guides/contract-pinning.md`](../../../docs/guides/contract-pinning.md).
+  [`docs/development/contract-pinning.md`](../../../docs/development/contract-pinning.md).
 
 ## Alternatives considered
 
@@ -126,7 +126,7 @@ of the upstream contract at a known point in time.
 - Research: `kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md` D8
 - Contract: `kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/events-envelope.md`
 - Companion ADR: `architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`
-- Dev workflow: `docs/guides/contract-pinning.md`
+- Dev workflow: `docs/development/contract-pinning.md`
 - Implementation:
   - `scripts/snapshot_events_envelope.py`
   - `tests/contract/test_events_envelope_matches_resolved_version.py`

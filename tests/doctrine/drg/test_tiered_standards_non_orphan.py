@@ -17,48 +17,45 @@ self-edge or unrelated edge will not satisfy it.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.loader import load_graph, merge_layers
 from doctrine.drg.models import Relation
 
-pytestmark = pytest.mark.fast
+if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
 
-SHIPPED_GRAPH = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "graph.yaml"
+pytestmark = pytest.mark.fast
 
 _STYLEGUIDE_URN = "styleguide:tiered-standards"
 _SOURCE_DIRECTIVE_URN = "directive:DIRECTIVE_030"
 _EXPECTED_RELATION = Relation.SUGGESTS
 
 
-def test_tiered_standards_node_exists() -> None:
+def test_tiered_standards_node_exists(built_in_graph: DRGGraph) -> None:
     """The tiered-standards styleguide node must be present in the shipped graph."""
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
-    node_urns = {node.urn for node in merged.nodes}
+    node_urns = {node.urn for node in built_in_graph.nodes}
     assert _STYLEGUIDE_URN in node_urns, (
-        f"Node {_STYLEGUIDE_URN!r} not found in shipped graph.yaml. "
+        f"Node {_STYLEGUIDE_URN!r} not found in shipped graph. "
         "Run 'spec-kitty doctrine regenerate-graph' to refresh."
     )
 
 
-def test_tiered_standards_has_inbound_edge_from_directive_030() -> None:
+def test_tiered_standards_has_inbound_edge_from_directive_030(
+    built_in_graph: DRGGraph,
+) -> None:
     """The tiered-standards styleguide must have an inbound edge from DIRECTIVE_030.
 
     This test proves the styleguide is non-orphan via a *specific* source node —
     not a weak ``len(inbound) >= 1`` check.  Removing the ``references`` entry
     for ``tiered-standards`` in
     ``src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml``
-    and regenerating graph.yaml will make this test fail.
+    and regenerating the graph will make this test fail.
     """
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
-
     inbound_from_directive_030 = [
         edge
-        for edge in merged.edges
+        for edge in built_in_graph.edges
         if edge.target == _STYLEGUIDE_URN
         and edge.source == _SOURCE_DIRECTIVE_URN
         and edge.relation == _EXPECTED_RELATION

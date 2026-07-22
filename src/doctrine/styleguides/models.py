@@ -17,7 +17,7 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
 
     The ``enhances``/``overrides`` fields were retired in the FR-028 hard
     cutover. Relationships are now authored exclusively as DRG fragment edges
-    merged into ``src/doctrine/graph.yaml``, never as inline artifact fields.
+    merged into ``src/doctrine/*.graph.yaml``, never as inline artifact fields.
     """
     if not isinstance(data, dict):
         return data

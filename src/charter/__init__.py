@@ -7,9 +7,11 @@ This subpackage provides tools for:
 - Emitting YAML config files for consumption by other modules
 
 Provides:
-- sync(): Parse charter.md → structured YAML files
-- load_governance_config(): Load governance rules for hook evaluation
-- post_save_hook(): Auto-trigger sync after CLI writes
+- load_governance_config() / load_directives_config(): read the
+  hand-authored ``governance`` / ``directives`` sections directly from
+  ``charter.yaml`` (IC-04 -- the prose->triad scrape is retired).
+- sync(): retained for its ``charter.md`` staleness-check contract; no
+  longer extracts or writes anything (see ``charter.sync`` module docstring).
 """
 
 from .bundle import (
@@ -26,7 +28,6 @@ from .compiler import (
     write_compiled_charter,
 )
 from .context import CharterContextResult, build_charter_context
-from .generator import CharterDraft, build_charter_draft, write_charter
 from .interview import (
     CharterInterview,
     MINIMAL_QUESTION_ORDER,
@@ -62,7 +63,6 @@ from .sync import (
     SyncResult,
     load_directives_config,
     load_governance_config,
-    post_save_hook,
     sync,
 )
 from .org_extends import (
@@ -71,14 +71,14 @@ from .org_extends import (
     resolve_extends_order,
 )
 from .mission_type_profiles import (
-    CANONICAL_MISSION_TYPES,
+    CrossGrainDoubleDeclarationError,
     GovernancePayload,
     MissionTypeProfile,
+    ResolvedGovernance,
+    ResolvedMissionType,
     UnknownMissionTypeError,
     existing_mission_types,
-    load_profile,
-    resolve_action_sequence,
-    resolve_mission_type_governance,
+    resolve_mission_type_context,
 )
 from .resolver import (
     GovernanceResolution,
@@ -104,9 +104,6 @@ __all__ = [
     "write_compiled_charter",
     "CharterContextResult",
     "build_charter_context",
-    "CharterDraft",
-    "build_charter_draft",
-    "write_charter",
     "CharterInterview",
     "QUESTION_ORDER",
     "MINIMAL_QUESTION_ORDER",
@@ -136,21 +133,20 @@ __all__ = [
     "SyncResult",
     "load_directives_config",
     "load_governance_config",
-    "post_save_hook",
     "sync",
     "GovernanceResolution",
     "GovernanceResolutionError",
     "resolve_governance_for_profile",
     "resolve_project_governance",
     "collect_governance_diagnostics",
-    "CANONICAL_MISSION_TYPES",
+    "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
     "MissionTypeProfile",
+    "ResolvedGovernance",
+    "ResolvedMissionType",
     "UnknownMissionTypeError",
     "existing_mission_types",
-    "load_profile",
-    "resolve_action_sequence",
-    "resolve_mission_type_governance",
+    "resolve_mission_type_context",
     "CharterTemplateResolver",
     "PackContext",
     "CharterActivationError",

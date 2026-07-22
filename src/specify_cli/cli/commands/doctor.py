@@ -80,6 +80,7 @@ from ._doctrine_collect import (  # noqa: E402
     _attach_pack_health,
     _build_selection_block,
     _collect_doctrine_collisions,
+    _run_cross_grain_check,
 )
 from ._doctrine_collect import (  # noqa: E402
     _build_pack_entries as _build_pack_entries,
@@ -1111,6 +1112,14 @@ def doctrine_check(
     # report — there is no parallel assembly (R-011-C / NFR-001).
     report = _collect_profile_health(repo_root)
 
+    # WP05 (#2666): fold the FR-013 built-in cross-grain scan into the same
+    # report, before ``exit_code`` is derived — a collision forces RC=1 on
+    # every output path (json / no-packs / human) the same way a profile-load
+    # crash already does. Extracted to a helper so this shim stays thin
+    # (C-003: the ``__all__`` re-add in ``charter.action_grain`` needs a real
+    # ``src`` caller, and this is it).
+    _run_cross_grain_check(report)
+
     # WP09 T050 / FR-018: the Selections diagnostic is independent of whether
     # org packs are configured, so build it for both branches.
     selection_block = _build_selection_block(repo_root)
@@ -1121,6 +1130,8 @@ def doctrine_check(
 
     if not registry.packs:
         _emit_doctrine_no_packs(report, selection_block, json_output=json_output)
+        if not json_output:
+            _render_cross_grain_findings(report)
         raise typer.Exit(exit_code)
 
     pack_entries = _build_pack_entries(registry, repo_root)
@@ -1152,6 +1163,9 @@ def doctrine_check(
     # WP08 (FR-010): surface unsanctioned built-in overrides loudly (the JSON
     # surface already carries them via the ``org_drg`` passthrough).
     _render_unsanctioned_override_findings(report)
+    # WP05 (#2666): surface FR-013 built-in cross-grain collisions loudly (the
+    # JSON surface already carries them via the ``org_drg`` passthrough).
+    _render_cross_grain_findings(report)
     raise typer.Exit(exit_code)
 
 
@@ -1185,6 +1199,36 @@ def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None
     console.print(
         "  [dim]Only org-tier overrides are adjudicated; project-tier "
         "(.kittify/doctrine/) overrides are intentionally ungoverned (FR-012).[/dim]"
+    )
+
+
+def _render_cross_grain_findings(report: DoctrineHealthReport) -> None:
+    """Render the loud FR-013 ``cross-grain doctrine-integrity`` block (#2666).
+
+    Reads the dedicated ``org_drg['cross_grain_collisions']`` key (assembled
+    by ``_run_cross_grain_check``) — mirrors
+    :func:`_render_unsanctioned_override_findings`'s shape. A no-op when there
+    are no findings (the built-in tree is disjoint, the common case).
+    """
+    org_drg = report.org_drg
+    findings = org_drg.get("cross_grain_collisions") if isinstance(org_drg, dict) else None
+    if not isinstance(findings, list) or not findings:
+        return
+    console.print(
+        f"\n[bold red]Cross-grain doctrine-integrity violation(s)[/bold red] — "
+        f"{len(findings)} artifact(s) declared in both grains (FR-013)\n"
+    )
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        console.print(
+            f"  • [red]{finding.get('artifact')}[/red] "
+            f"({finding.get('kind')}): declared in both the type grain and "
+            "an action grain for a shipped mission type."
+        )
+    console.print(
+        "  [dim]Remove the duplicate declaration — an artifact may appear in "
+        "at most one grain.[/dim]"
     )
 
 

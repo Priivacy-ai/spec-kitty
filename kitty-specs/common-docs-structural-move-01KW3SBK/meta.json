@@ -25,6 +25,7 @@
   "purpose_context": "Mission B of the Common Docs split - gated on Mission A's reconciliation ADR being merged. It performs the actual move: fold architecture/ into docs/ and re-section the existing docs/development/ + docs/engineering_notes/ into one 13-section docs/ root (two-root collapse, not four), convert the 117 unique ADRs (incl the 20 era-less) into adr/<era>/ with YAML frontmatter (bare status MADR key) while dropping the 47 byte-identical flat mirrors, rewrite the doc-path references (count regenerated from the live tree at plan time; src/ first), apply DocFX redirect stubs for URL continuity, rewrite docfx.json + TOCs, distil+move+redirect docs/3x (live charter content, not blind-delete), move the glossary per A's read-path mapping, backfill doc_status frontmatter from the 580-row inventory, and flip A's report-only rulers to blocking (non-uniform: lockfile gate is a code change, not a flag). Dogfoods A's governed doctrine. Closes #2165/#2054/#2192, folds #1815.",
   "purpose_tldr": "Execute the Common Docs structural consolidation: two-root collapse, adr/<era>/ + 117-unique-ADR conversion, the reference rewrites, redirect stubs, and flipping the rulers to blocking.",
   "slug": "common-docs-structural-move-01KW3SBK",
+  "status_phase": "1",
   "target_branch": "docs/2165-mission-b-structural-move",
   "topology": "single_branch",
   "vcs": "git",

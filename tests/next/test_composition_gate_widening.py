@@ -77,7 +77,7 @@ def test_builtin_software_dev_specify_returns_true() -> None:
     """Built-in ``software-dev/specify`` routes through composition unconditionally.
 
     Since WP07 (FR-007 / FR-008), the fast path is the live charter lookup via
-    ``charter.resolve_action_sequence``. ``repo_root`` is required; without it
+    ``charter.resolve_mission_type_context``. ``repo_root`` is required; without it
     the charter lookup is skipped and the gate falls through. The caller always
     supplies ``repo_root`` at runtime.
     """
@@ -95,7 +95,7 @@ def test_builtin_software_dev_all_composed_actions_return_true() -> None:
 def test_builtin_software_dev_short_circuits_without_run_dir(tmp_path: Path) -> None:
     """The charter fast path MUST NOT call ``_resolve_step_agent_profile``.
 
-    Critical regression trap: the charter lookup (``charter.resolve_action_sequence``)
+    Critical regression trap: the charter lookup (``charter.resolve_mission_type_context``)
     is the fast path for built-in missions since WP07. It short-circuits before any
     frozen-template I/O, preserving the PR #797 invariant that built-in dispatch
     correctness does not depend on template-on-disk state.

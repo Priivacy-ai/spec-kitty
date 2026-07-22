@@ -7,5 +7,6 @@
   "mission_type": "research",
   "slug": "004-modular-code-refactoring",
   "source_description": "__init__ and dashboard are now massive monolithic files. We need to refactor them so that file lengths stay (ideally) under 200 lines. This means identifying the subsystems of each and making libraries or utilities or components in separate files. The imports in each case must work locally and if installed via pip or uv.",
+  "status_phase": "1",
   "target_branch": "main"
 }

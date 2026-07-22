@@ -169,6 +169,72 @@ def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:
     gitignore_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
+def _sync_charter_if_present(charter_path: Path, charter_dir: Path) -> Any:
+    """Run the charter staleness check IFF a curated ``charter.md`` exists.
+
+    Post-inversion (consolidate-charter-bundle WP03/#2773), ``charter.md`` is a
+    curated companion that ``write_compiled_charter`` never writes
+    (data-model.md Landmine 3), and ``sync()`` no longer scrapes a derived
+    triad -- it is a pure staleness reporter. A brand-new project has no
+    ``charter.md`` yet -- skip the step entirely rather than surfacing a
+    "file not found" as a ``generate`` failure.
+    """
+    from charter.sync import sync as sync_charter  # noqa: PLC0415
+
+    if not charter_path.exists():
+        return None
+    return sync_charter(charter_path, charter_dir, force=True)
+
+
+_CHARTER_MD_COMPANION_SEED = """\
+# Project Charter — curated companion
+
+<!--
+This file is a hand-authored, display-only companion to the authoritative
+`.kittify/charter/charter.yaml`. It holds the human *rationale* behind your
+project's governance and doctrine.
+
+It is NEVER a charter-resolving input, and `charter generate` NEVER overwrites
+it — this starter was written only because the file was absent. Edit it freely.
+-->
+"""
+
+
+def _seed_charter_md_companion_if_absent(charter_path: Path) -> bool:
+    """Create a starter ``charter.md`` companion IFF one is not already present.
+
+    consolidate-charter-bundle (#2773 / ADR 2026-07-18-1): ``charter.md`` is a
+    hand-authored, display-only companion that the compiler
+    (``write_compiled_charter``) never emits and that no path ever *overwrites*.
+    To keep the companion discoverable and honor the FR-009 affordance that
+    ``charter generate`` yields a ``charter.md``, the ``generate`` command seeds
+    a minimal starter ONLY when the file is absent. An existing (curated)
+    ``charter.md`` is left byte-for-byte untouched, so the never-clobber
+    invariant (#2772 / IC-03) is preserved.
+
+    Returns ``True`` when a starter was written, ``False`` when a pre-existing
+    file was kept.
+    """
+    if charter_path.exists():
+        return False
+    charter_path.write_text(_CHARTER_MD_COMPANION_SEED, encoding="utf-8")
+    return True
+
+
+def _finalize_sync_result(sync_result: Any) -> tuple[list[str], list[str]]:
+    """Raise on a sync error; return ``(warnings, files_written)``.
+
+    ``sync_result`` is ``None`` when ``charter.md`` was absent (sync
+    skipped by :func:`_sync_charter_if_present`) -- empty lists in that
+    case, not an error.
+    """
+    if sync_result is None:
+        return [], []
+    if sync_result.error:
+        raise RuntimeError(sync_result.error)
+    return list(sync_result.warnings), list(sync_result.files_written)
+
+
 def _load_interview_for_generate(
     *,
     repo_root: Path,
@@ -236,7 +302,6 @@ def generate(
     """
     from charter.compiler import compile_charter, write_compiled_charter
     from charter.pack_context import PackContext
-    from charter.sync import sync as sync_charter
 
     try:
         repo_root = _charter_pkg.find_repo_root()
@@ -322,15 +387,14 @@ def generate(
             (charter_dir / "library").mkdir(exist_ok=True)
 
         charter_path = charter_dir / "charter.md"
-        sync_result = sync_charter(charter_path, charter_dir, force=True)
+        _seed_charter_md_companion_if_absent(charter_path)
+        sync_result = _sync_charter_if_present(charter_path, charter_dir)
+        sync_warnings, sync_files = _finalize_sync_result(sync_result)
 
-        if sync_result.error:
-            raise RuntimeError(sync_result.error)
-
-        diagnostics = [*compiled.diagnostics, *sync_result.warnings]
+        diagnostics = [*compiled.diagnostics, *sync_warnings]
 
         files_written = list(bundle_result.files_written)
-        for file_name in sync_result.files_written:
+        for file_name in sync_files:
             if file_name not in files_written:
                 files_written.append(file_name)
 
@@ -339,6 +403,9 @@ def generate(
         # entries for derived files. CANONICAL_MANIFEST is the single source
         # of truth for both sets — we read both fields here so the
         # auto-track contract never drifts from what bundle validate checks.
+        # consolidate-charter-bundle WP03: the manifest's tracked_files
+        # already includes charter.yaml (and charter.md) -- no separate
+        # references.yaml entry is added; that file is retired (T012/T013).
         from charter.bundle import CANONICAL_MANIFEST
 
         _ensure_gitignore_entries(
@@ -346,7 +413,6 @@ def generate(
         )
         commit_input_files = [
             *list(CANONICAL_MANIFEST.tracked_files),
-            Path(".kittify/charter/references.yaml"),
             Path(".gitignore"),
         ]
         _stage_charter_files(repo_root, commit_input_files)

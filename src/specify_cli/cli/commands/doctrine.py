@@ -5,9 +5,10 @@ Surface area:
 * ``spec-kitty doctrine fetch [--pack <name>] [--dry-run]`` — fetch one or
   all configured org doctrine packs into their local snapshot directories.
 * ``spec-kitty doctrine regenerate-graph [--check] [--json]`` — deterministically
-  regenerate the shipped DRG ``graph.yaml`` from the built-in doctrine tree
-  (FR-009 / WP09). ``--check`` compares without writing and exits non-zero when
-  the committed graph is stale.
+  regenerate the shipped DRG from the built-in doctrine tree as per-kind
+  ``src/doctrine/*.graph.yaml`` fragments (FR-009 / WP09; sharded per mission
+  #2680 WP05). ``--check`` compares without writing and exits non-zero when the
+  committed graph source is stale.
 * ``spec-kitty doctrine pack validate <pack-path> [--json]`` — validate a
   doctrine pack against the artifact / DRG / org-charter contracts.
 * ``spec-kitty doctrine pack assemble <out> <inputs...> [--force]
@@ -173,16 +174,17 @@ def fetch(
 # regenerate-graph — deterministic DRG regeneration (FR-009 / WP09 T026)
 # ----------------------------------------------------------------------
 def _doctrine_root() -> Path:
-    """Return the built-in doctrine root that owns the shipped ``graph.yaml``.
+    """Return the built-in doctrine root that owns the shipped DRG graph source.
 
     The extractor walks ``<doctrine_root>/directives/built-in`` etc. and writes
-    ``<doctrine_root>/graph.yaml``. Regeneration must target the *working-tree*
-    source (``src/doctrine``) when invoked from inside a spec-kitty checkout —
-    that is the file the freshness gate reads and that a developer commits.
+    the sharded ``<doctrine_root>/*.graph.yaml`` fragments (mission #2680 WP05).
+    Regeneration must target the *working-tree* source (``src/doctrine``) when
+    invoked from inside a spec-kitty checkout — that is the directory the
+    freshness gate reads and that a developer commits.
 
     Resolution order:
       1. Walk up from CWD for a ``src/doctrine`` dir carrying built-in
-         artifacts (``directives/built-in``) and a committed ``graph.yaml``.
+         artifacts (``directives/built-in``).
       2. Fall back to the installed :mod:`doctrine` package directory (e.g. a
          consumer project running the CLI from a non-editable install).
     """
@@ -203,9 +205,10 @@ def regenerate_graph(
         False,
         "--check",
         help=(
-            "Do not write; regenerate into a temp file and compare against the "
-            "committed graph.yaml. Exit 1 when stale (operator-runnable freshness "
-            "gate). Exit 0 when fresh."
+            "Do not write; regenerate into a temp directory and compare the "
+            "per-kind graph fragments against the committed src/doctrine source. "
+            "Exit 1 when stale (operator-runnable freshness gate). Exit 0 when "
+            "fresh."
         ),
     ),
     json_output: bool = typer.Option(
@@ -214,58 +217,89 @@ def regenerate_graph(
         help=_JSON_OPTION_HELP,
     ),
 ) -> None:
-    """Regenerate the shipped DRG ``graph.yaml`` deterministically (FR-009).
+    """Regenerate the shipped DRG graph source deterministically (FR-009).
 
-    Composes the DRG extractor + calibrator into ``src/doctrine/graph.yaml``.
-    Running twice on unchanged inputs yields byte-identical output. With
-    ``--check`` the command never writes: it regenerates into a temp file and
-    compares against the committed graph, exiting non-zero when stale — the
-    operator-facing twin of the ``test_shipped_graph_yaml_is_fresh`` gate.
+    Composes the DRG extractor + calibrator into per-populated-node-kind
+    ``src/doctrine/*.graph.yaml`` fragments (sharded per mission #2680 WP05),
+    retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
+    on unchanged inputs yields byte-identical fragments. With ``--check`` the
+    command never writes: it regenerates into a temp directory and compares the
+    fragment set against the committed source, exiting non-zero when stale — the
+    operator-facing twin of the freshness gate.
+
+    Both the write path and ``--check`` merge in the enumerable hand-authored
+    overlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the
+    ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
+    ``anti_pattern`` nodes hand-authored directly in the graph fragments
+    (mission doctrine-tension-edges-01KY1WPC). The extractor has no
+    frontmatter mechanism that could ever mint these, so a bare pure
+    regeneration would (a) silently drop them from the committed source on
+    write, and (b) always report "stale" under ``--check`` even when nothing
+    is actually stale.
     """
-    import tempfile
-
-    from doctrine.drg.migration.extractor import generate_graph
+    from doctrine.drg.migration.hand_authored_overlay import (
+        write_reference_graph_with_overlay,
+    )
     from doctrine.drg.validator import DRGValidationError
 
     doctrine_root = _doctrine_root()
-    committed = doctrine_root / "graph.yaml"
 
     if check:
+        import tempfile
+
         with tempfile.TemporaryDirectory() as tmp:
-            generated = Path(tmp) / "graph.yaml"
+            generated_dir = Path(tmp)
             try:
-                generate_graph(doctrine_root, generated)
+                write_reference_graph_with_overlay(doctrine_root, generated_dir / "graph.yaml")
             except DRGValidationError as exc:
                 _emit_regen_result(
                     status="invalid",
-                    path=committed,
+                    path=doctrine_root,
                     json_output=json_output,
                     detail="; ".join(exc.errors),
                 )
                 raise typer.Exit(1) from exc
-            fresh = generated.read_text(encoding="utf-8") == committed.read_text(
-                encoding="utf-8"
+            fresh = _read_graph_source(generated_dir) == _read_graph_source(
+                doctrine_root
             )
         _emit_regen_result(
             status="fresh" if fresh else "stale",
-            path=committed,
+            path=doctrine_root,
             json_output=json_output,
         )
         raise typer.Exit(0 if fresh else 1)
 
     try:
-        generate_graph(doctrine_root, committed)
+        write_reference_graph_with_overlay(doctrine_root, doctrine_root / "graph.yaml")
     except DRGValidationError as exc:
         _emit_regen_result(
             status="invalid",
-            path=committed,
+            path=doctrine_root,
             json_output=json_output,
             detail="; ".join(exc.errors),
         )
         raise typer.Exit(1) from exc
 
-    _emit_regen_result(status="written", path=committed, json_output=json_output)
+    _emit_regen_result(status="written", path=doctrine_root, json_output=json_output)
     raise typer.Exit(0)
+
+
+def _read_graph_source(doctrine_dir: Path) -> dict[str, str]:
+    """Return ``{filename: text}`` for the DRG graph source under *doctrine_dir*.
+
+    Layout-agnostic (mirrors ``load_graph_or_dir``): the ``graph.yaml`` monolith
+    when present, otherwise the ``*.graph.yaml`` fragments. Freshness is a
+    per-file byte-identity comparison over this mapping (DD-11), so a fragment
+    added, removed, or drifted between the temp regeneration and the committed
+    source all register as stale.
+    """
+    single = doctrine_dir / "graph.yaml"
+    files = (
+        [single]
+        if single.is_file()
+        else sorted(doctrine_dir.glob("*.graph.yaml"))
+    )
+    return {p.name: p.read_text(encoding="utf-8") for p in files}
 
 
 def _emit_regen_result(

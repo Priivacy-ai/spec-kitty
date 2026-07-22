@@ -24,6 +24,7 @@
   "purpose_context": "On a repository whose primary branch is named main or master, the sanctioned /spec-kitty.specify flow deadlocks: mission creation makes a coordination branch but no worktree, and the spec commit is refused on the protected primary with no materialized place to land. This mission makes the specify commit boundary work on any primary by (a) letting repository owners declare which branches are protected in .kittify config, resolved once at the system boundary and propagated inward via a configuration context object, and (b) materializing the coordination worktree on demand at the spec commit boundary for the protected case, so operators are never deadlocked and core logic stops re-reading git/filesystem state for the protection decision.",
   "purpose_tldr": "Let operators complete /spec-kitty.specify on a main/master primary, with owner-configurable branch protection resolved once at the system boundary.",
   "slug": "specify-protected-primary-coherence-01KVMBD6",
+  "status_phase": "1",
   "target_branch": "fix/specify-protected-primary-coherence",
   "vcs": "git",
   "vcs_locked_at": "2026-06-21T07:43:21.588851+00:00"

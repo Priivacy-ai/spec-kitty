@@ -87,13 +87,18 @@ EXPECTED_SOFTWARE_DEV_PROFILES: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 def _repo_root() -> Path:
-    """Locate the repository root that holds ``src/doctrine/graph.yaml``."""
+    """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
+
+    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    finder survives the WP05 monolith->fragment migration: the shipped
+    ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
+    """
     here = Path(__file__).resolve()
     for parent in (here, *here.parents):
-        if (parent / "src" / "doctrine" / "graph.yaml").is_file():
+        if (parent / "pyproject.toml").is_file():
             return parent
     raise RuntimeError(
-        "Could not locate repo root containing src/doctrine/graph.yaml"
+        "Could not locate repo root containing pyproject.toml"
     )
 
 

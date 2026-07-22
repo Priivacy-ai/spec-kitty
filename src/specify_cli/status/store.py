@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -31,7 +32,13 @@ from specify_cli.core.utils import ensure_within_any
 from specify_cli.events import sanitize_event_for_log
 from specify_cli.mission_metadata import load_meta
 
-from .models import StatusEvent
+from .models import EventStream, InnerStateChanged, StatusEvent
+
+#: Wire discriminator for off-axis runtime-state annotation events
+#: (``InnerStateChanged``). These are surfaced to ``reduce()`` — never
+#: skip-and-dropped — and are decoded by ``InnerStateChanged.from_dict``,
+#: never ``StatusEvent.from_dict``.
+ANNOTATION_KIND = "annotation"
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +354,79 @@ def append_primary_checkout_event_verified(feature_dir: Path, event: StatusEvent
     append_event_verified(feature_dir, event)
 
 
+def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
+    """Atomically append pre-serialized event dicts as sanitized JSONL lines.
+
+    Shared write core for both lane ``StatusEvent`` batches and off-axis
+    ``InnerStateChanged`` annotation batches: read existing text, append the new
+    sanitized rows, and ``os.replace`` a temp file so crash recovery never
+    observes a half-written batch.
+    """
+    if not rows:
+        return
+
+    path = _events_path(feature_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing = _read_text_without_following_symlinks(path)
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
+
+    additions = "".join(
+        json.dumps(sanitize_event_for_log(row), sort_keys=True) + "\n" for row in rows
+    )
+    fd, raw_tmp_path = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    tmp_path = Path(raw_tmp_path)
+    replaced = False
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(existing)
+            fh.write(additions)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_path, path)
+        replaced = True
+        _fsync_directory(path.parent)
+    finally:
+        if not replaced:
+            tmp_path.unlink(missing_ok=True)
+
+
+def _fsync_directory(directory: Path) -> None:
+    """Persist an atomic rename's directory entry on supported platforms."""
+    if os.name == "nt":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    dir_fd = os.open(directory, flags)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _read_text_without_following_symlinks(path: Path) -> str:
+    """Read an existing event log without following its final path component."""
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    if no_follow == 0 and path.is_symlink():
+        raise StoreError(f"Refusing to read symbolic link event log: {path}")
+    try:
+        fd = os.open(path, os.O_RDONLY | no_follow)
+    except FileNotFoundError:
+        return ""
+    except OSError as exc:
+        if path.is_symlink():
+            raise StoreError(
+                f"Refusing to read symbolic link event log: {path}"
+            ) from exc
+        raise
+    with os.fdopen(fd, "r", encoding="utf-8") as fh:
+        return fh.read()
+
+
 def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
     """Atomically persist a batch of StatusEvents as JSONL lines.
 
@@ -354,29 +434,75 @@ def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
     lifecycle operations use this helper so crash recovery never observes only
     half of a logical operation such as ``planned -> claimed -> in_progress``.
     """
+    _append_serialized_atomic(feature_dir, [event.to_dict() for event in events])
+
+
+def append_annotations_atomic_verified(
+    feature_dir: Path,
+    annotations: list[InnerStateChanged],
+) -> None:
+    """Durably append off-axis ``InnerStateChanged`` annotations and verify.
+
+    Mirrors :func:`append_events_atomic_verified` (the durability-verified
+    path) for the annotation partition: it appends atomically, then requires
+    every annotation to read back through :func:`read_event_stream` (the
+    annotation-aware read path — ``StatusEvent``'s ``to_lane``-keyed readback
+    cannot see an annotation). Raises :class:`StoreError` if the batch cannot
+    be appended or an appended annotation is missing on readback.
+    """
+    if not annotations:
+        return
+    try:
+        _append_serialized_atomic(feature_dir, [a.to_dict() for a in annotations])
+    except Exception as exc:
+        raise StoreError(f"annotation append failed: {exc}") from exc
+
+    persisted_ids = {a.event_id for a in read_event_stream(feature_dir).annotations}
+    for annotation in annotations:
+        if annotation.event_id not in persisted_ids:
+            raise StoreError(
+                f"annotation {annotation.event_id} missing after append (readback failed)"
+            )
+
+
+def append_event_stream_atomic_verified(
+    feature_dir: Path,
+    events: list[StatusEvent | InnerStateChanged],
+) -> None:
+    """Atomically append a mixed transition/annotation unit and verify it.
+
+    Claim operations use this seam when a lane transition and its resolved
+    binding annotation must become durable together. A single ``os.replace``
+    prevents observers from seeing the claim without its actual binding.
+    """
     if not events:
         return
-
-    path = _events_path(feature_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    existing = ""
-    if path.exists():
-        existing = path.read_text(encoding="utf-8")
-        if existing and not existing.endswith("\n"):
-            existing += "\n"
-
-    additions = "".join(
-        json.dumps(sanitize_event_for_log(event.to_dict()), sort_keys=True) + "\n"
-        for event in events
+    expected_transition = next(
+        (event for event in events if isinstance(event, StatusEvent)),
+        None,
     )
-    tmp_path = path.with_name(f"{path.name}.tmp")
-    with tmp_path.open("w", encoding="utf-8") as fh:
-        fh.write(existing)
-        fh.write(additions)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp_path, path)
+    try:
+        _append_serialized_atomic(feature_dir, [event.to_dict() for event in events])
+    except Exception as exc:
+        if expected_transition is not None:
+            raise EventPersistenceError(
+                problem=f"append failed: {exc}",
+                feature_dir=feature_dir,
+                expected=expected_transition,
+            ) from exc
+        raise StoreError(f"event-stream append failed: {exc}") from exc
+
+    stream = read_event_stream(feature_dir)
+    persisted_annotation_ids = {
+        annotation.event_id for annotation in stream.annotations
+    }
+    for event in events:
+        if isinstance(event, StatusEvent):
+            verify_event_readback(feature_dir, event)
+        elif event.event_id not in persisted_annotation_ids:
+            raise StoreError(
+                f"annotation {event.event_id} missing after mixed append (readback failed)"
+            )
 
 
 def append_events_atomic_verified(feature_dir: Path, events: list[StatusEvent]) -> None:
@@ -458,6 +584,14 @@ def is_retrospective_lifecycle_event(obj: Mapping[str, Any]) -> bool:
 
 def is_non_lane_event(obj: dict[str, Any]) -> bool:
     """Return True for non-lane events that intentionally share the JSONL file."""
+    # InnerStateChanged annotations are NOT skip-and-dropped: they are surfaced
+    # to reduce() via the annotation read path. This explicit branch is placed
+    # FIRST (before the ``event_type`` presence-skip below) so that even if a
+    # future annotation envelope grows an ``event_type`` key, the annotation can
+    # never be silently re-skipped (FR-001 discriminator reconciliation).
+    if obj.get("kind") == ANNOTATION_KIND:
+        return False
+
     event_name = obj.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
         return True
@@ -486,20 +620,28 @@ def is_non_lane_event(obj: dict[str, Any]) -> bool:
     return "event_type" in obj
 
 
-def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
-    """Deserialize StatusEvent objects from JSONL text.
+def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventStream:
+    """Deserialize JSONL text into an :class:`EventStream`.
 
-    Handles both legacy events (``mission_slug`` only) and new events
-    (``mission_slug`` + ``mission_id``).  For legacy events, the
-    ``mission_id`` is resolved from the corresponding ``meta.json`` via
-    the slug resolver (cached per call).
+    Partitions each line by its wire discriminator:
 
-    Blank lines are silently skipped.
-    Raises :class:`StoreError` on invalid JSON **or** invalid event
-    structure, including the 1-based line number in the message.
+    - ``kind == "annotation"`` decodes via :meth:`InnerStateChanged.from_dict`
+      into the ``annotations`` list (never through ``StatusEvent.from_dict``,
+      which hard-requires ``from_lane``/``to_lane``).
+    - retrospective / decision (non-lane) events are skipped in place.
+    - everything else decodes as a lane ``StatusEvent`` (with ``mission_id``
+      back-fill for legacy rows) into the ``transitions`` list.
+
+    A dict carrying an unknown ``kind`` value is a hard error (fail loud — a
+    silent skip would lose runtime state). Handles both legacy events
+    (``mission_slug`` only) and new events (``mission_slug`` + ``mission_id``).
+
+    Blank lines are silently skipped. Raises :class:`StoreError` on invalid
+    JSON **or** invalid event structure, including the 1-based line number.
     """
     resolver = _SlugResolver(feature_dir)
-    results: list[StatusEvent] = []
+    transitions: list[StatusEvent] = []
+    annotations: list[InnerStateChanged] = []
     for line_number, raw_line in enumerate(content.splitlines(), start=1):
         stripped = raw_line.strip()
         if not stripped:
@@ -512,6 +654,22 @@ def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
             raise StoreError(
                 f"Invalid event structure on line {line_number}: expected JSON object"
             )
+
+        kind = obj.get("kind")
+        if kind is not None:
+            if kind == ANNOTATION_KIND:
+                try:
+                    annotations.append(InnerStateChanged.from_dict(obj))
+                except (KeyError, ValueError, TypeError) as exc:
+                    raise StoreError(
+                        f"Invalid event structure on line {line_number}: {exc}"
+                    ) from exc
+                continue
+            # An unknown kind is never silently skipped — fail loud.
+            raise StoreError(
+                f"Unknown event kind {kind!r} on line {line_number}"
+            )
+
         if is_non_lane_event(obj):
             continue
 
@@ -525,12 +683,43 @@ def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
             event = StatusEvent.from_dict(obj)
         except (KeyError, ValueError, TypeError) as exc:
             raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
-        results.append(event)
-    return results
+        transitions.append(event)
+    return EventStream(transitions=transitions, annotations=annotations)
+
+
+def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
+    """Deserialize lane ``StatusEvent`` objects from JSONL text.
+
+    Backward-compatible transitions-only view. Off-axis ``annotation`` events
+    are partitioned out and NOT returned here — use
+    :func:`read_event_stream_from_text` when the annotations are needed.
+
+    Handles both legacy events (``mission_slug`` only) and new events
+    (``mission_slug`` + ``mission_id``).  For legacy events, the
+    ``mission_id`` is resolved from the corresponding ``meta.json`` via
+    the slug resolver (cached per call).
+
+    Blank lines are silently skipped.
+    Raises :class:`StoreError` on invalid JSON **or** invalid event
+    structure, including the 1-based line number in the message.
+    """
+    return _partition_event_stream_from_text(feature_dir, content).transitions
+
+
+def read_event_stream_from_text(feature_dir: Path, content: str) -> EventStream:
+    """Deserialize JSONL text into an :class:`EventStream` (transitions +
+    annotations). Same parsing semantics as :func:`read_events_from_text`,
+    but surfaces the off-axis ``annotation`` events instead of dropping them.
+    """
+    return _partition_event_stream_from_text(feature_dir, content)
 
 
 def read_events(feature_dir: Path) -> list[StatusEvent]:
-    """Read and deserialize StatusEvent objects from the events file.
+    """Read and deserialize lane ``StatusEvent`` objects from the events file.
+
+    Backward-compatible transitions-only view (off-axis ``annotation`` events
+    are partitioned out). Use :func:`read_event_stream` when the reducer needs
+    the annotations too.
 
     Handles both legacy events (``mission_slug`` only) and new events
     (``mission_slug`` + ``mission_id``).  For legacy events, the
@@ -547,3 +736,18 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
         return []
 
     return read_events_from_text(feature_dir, path.read_text(encoding="utf-8"))
+
+
+def read_event_stream(feature_dir: Path) -> EventStream:
+    """Read the events file into an :class:`EventStream`.
+
+    This is the annotation-aware read path the reducer uses: it surfaces both
+    lane ``transitions`` and off-axis ``annotations`` to ``reduce()`` without
+    changing the on-disk file. Returns an empty stream when the file does not
+    exist.
+    """
+    path = _events_path(feature_dir)
+    if not path.exists():
+        return EventStream(transitions=[], annotations=[])
+
+    return read_event_stream_from_text(feature_dir, path.read_text(encoding="utf-8"))

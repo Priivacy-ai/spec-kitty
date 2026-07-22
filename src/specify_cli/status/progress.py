@@ -22,12 +22,18 @@ from specify_cli.mission_metadata import mission_identity_fields
 from .models import Lane, StatusSnapshot
 from .reducer import materialize
 
-# Default lane weights for the 9 active/display lanes (10 enum members total;
-# genesis is excluded — it is a non-display lane and never appears in progress).
+# Full-roster weight map covering all 11 Lane enum members (defensive
+# completeness — see test_default_lane_weights_present). ``genesis`` and
+# ``uninitialized`` are both non-display lanes and never appear as the
+# current lane of a materialized WP, so ``compute_weighted_progress`` never
+# actually looks either key up (it only iterates ``snapshot.work_packages``);
+# both are pinned at 0.0 to document that non-display lanes contribute no
+# forward progress, should either ever be looked up defensively.
 # blocked and canceled contribute 0 — they don't represent forward progress.
 # in_review sits between for_review and approved in the review pipeline.
 DEFAULT_LANE_WEIGHTS: dict[str, float] = {
     "genesis": 0.0,
+    "uninitialized": 0.0,
     "planned": 0.0,
     "claimed": 0.05,
     "in_progress": 0.3,

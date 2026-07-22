@@ -8,10 +8,11 @@ StatusSnapshot, AgentAssignment, and RetrospectiveSnapshot.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Optional
+from typing import Any, ClassVar, Literal, Optional, TypeAlias
 
 from pydantic import BaseModel
 
@@ -35,9 +36,22 @@ class Lane(StrEnum):
     snapshot; once seeded it is ``planned``). It therefore does not appear on
     the kanban board or in the board summary. The nine post-genesis states
     (``PLANNED``..``CANCELED``) are the active, displayed lifecycle lanes.
+
+    ``UNINITIALIZED`` is a *non-display, non-transitionable read sentinel*
+    returned by the lane-reader surface (``lane_reader.get_wp_lane`` /
+    ``get_all_wp_lanes``) when a WP is **absent from the reduced snapshot**
+    (no events yet) or the event log **exists but is empty**. It is
+    deliberately **distinct** from ``GENESIS``: ``GENESIS`` means "seeded WP
+    on an unseeded lane" (has a ``WPCreated`` event, pre-finalize), while
+    ``UNINITIALIZED`` means "no lane events exist for this WP at all" (a pure
+    read-time absence marker). ``UNINITIALIZED`` is never persisted to the
+    event log, never appears as a ``from_lane``/``to_lane`` in a transition,
+    and never appears in a display summary — see ``NON_DISPLAY_LANES`` below,
+    which is the single canonical authority for "which lanes never display."
     """
 
     GENESIS = "genesis"
+    UNINITIALIZED = "uninitialized"
     PLANNED = "planned"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
@@ -47,6 +61,17 @@ class Lane(StrEnum):
     DONE = "done"
     BLOCKED = "blocked"
     CANCELED = "canceled"
+
+
+# Single canonical authority for "which lanes never display" (charter
+# single-canonical-authority principle). ``GENESIS`` (seeded-but-unfinalized)
+# and ``UNINITIALIZED`` (absent-from-snapshot read sentinel) are both
+# non-display: neither is ever the current lane of a materialized,
+# board-visible WP. Every display-filter site (reducer summaries, board
+# roster builders, kanban grouping) MUST consume this constant instead of
+# inlining an ``is not Lane.GENESIS``-style check, so a future non-display
+# lane cannot silently leak into a summary from a forgotten fifth site.
+NON_DISPLAY_LANES: frozenset[Lane] = frozenset({Lane.GENESIS, Lane.UNINITIALIZED})
 
 
 def get_all_lanes() -> tuple[Lane, ...]:
@@ -67,6 +92,72 @@ def get_all_lane_values() -> frozenset[str]:
 
 
 ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+
+#: A subtask's completion status reuses the canonical lane/status enum
+#: vocabulary (``Lane``) rather than introducing a divergent string type
+#: (data-model.md §WPInnerStateDelta). A subtask is "done" when its status is
+#: ``Lane.DONE``.
+Status = Lane
+
+
+#: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
+#: ``str`` identity (the common case) OR a ``{role, profile, tool, model}``
+#: structured *resolved binding* (FR-015 / IC-09). The dict form is the delivery
+#: vehicle that lets the SaaS fan-out ride the transition's *resolved* identity;
+#: ``spec_kitty_events`` 6.1.0 ``StatusTransitionPayload.actor`` already accepts
+#: ``Union[str, Dict]``, so no shared-package change is needed to carry it.
+ActorField: TypeAlias = str | dict[str, str | None]
+
+_STRUCTURED_ACTOR_FIELDS = ("role", "profile", "tool", "model")
+
+
+def decode_actor(value: Any) -> ActorField:
+    """Decode a wire ``actor`` value, preserving a structured (dict) actor.
+
+    A resolved-binding actor is a ``{role, profile, tool, model}`` dict that MUST
+    survive the ``status.events.jsonl`` round-trip uncorrupted. The legacy
+    ``from_dict`` decoders coerced *every* actor with ``str(...)`` — silently
+    flattening such a dict to its ``repr`` (``"{'role': …}"``) with **no**
+    exception (the load-bearing silent-corruption trap, FR-015). This decoder
+    validates and copies the dict so only those four keys with ``str | None``
+    values can cross the persistence/fan-out boundary. Every other value is
+    coerced to ``str`` (the legacy string-actor contract).
+    """
+    if isinstance(value, dict):
+        expected = set(_STRUCTURED_ACTOR_FIELDS)
+        actual = set(value)
+        if actual != expected:
+            raise ValueError(
+                "structured actor must contain exactly "
+                f"{sorted(expected)!r}; got {sorted(actual)!r}"
+            )
+        decoded: dict[str, str | None] = {}
+        for field_name in _STRUCTURED_ACTOR_FIELDS:
+            field_value = value[field_name]
+            if field_value is not None and not isinstance(field_value, str):
+                raise ValueError(
+                    "structured actor fields must be strings or null; "
+                    f"{field_name!r} was {type(field_value).__name__}"
+                )
+            decoded[field_name] = field_value
+        return decoded
+    return str(value)
+
+
+def actor_identity_str(actor: ActorField) -> str:
+    """Project an actor to its plain-string identity for guard / snapshot / display.
+
+    A structured (dict) resolved-binding actor projects to its ``tool`` (the agent
+    identity a plain-string actor already carries), falling back to ``role`` then
+    ``""``. A ``str`` actor is returned verbatim. This keeps guard inputs and the
+    reduced-snapshot ``actor`` slot ``str``-typed for the ``.strip()``/display
+    consumers, while the dict itself still rides ``StatusEvent.actor`` to the SaaS
+    fan-out untouched (the snapshot slot is a display identity, not the binding).
+    """
+    if isinstance(actor, dict):
+        identity = actor.get("tool") or actor.get("role") or ""
+        return str(identity)
+    return actor
 
 
 @dataclass(frozen=True)
@@ -224,7 +315,11 @@ class StatusEvent:
     from_lane: Lane
     to_lane: Lane
     at: str  # ISO 8601 UTC
-    actor: str
+    # ``str`` identity OR a ``{role, profile, tool, model}`` structured resolved
+    # binding (FR-015 / IC-09). Widened from bare ``str`` so a dispatch-resolved
+    # dict actor rides the transition to ``_saas_fan_out`` and round-trips the
+    # JSONL uncorrupted; see :data:`ActorField` / :func:`decode_actor`.
+    actor: ActorField
     force: bool
     execution_mode: str  # "worktree" or "direct_repo"
     reason: str | None = None
@@ -235,6 +330,9 @@ class StatusEvent:
     # mission_id (ULID) added in WP05; None for legacy events read from disk
     # before the migration, or for missions that pre-date mission_id minting.
     mission_id: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "actor", decode_actor(self.actor))
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -278,7 +376,9 @@ class StatusEvent:
             from_lane=cls._coerce_lane(data["from_lane"]),
             to_lane=cls._coerce_lane(data["to_lane"]),
             at=data["at"],
-            actor=data["actor"],
+            # Preserve a structured (dict) resolved-binding actor on read-back;
+            # a scalar is coerced to ``str`` (decode_actor guards the trap).
+            actor=decode_actor(data["actor"]),
             force=data["force"],
             execution_mode=data["execution_mode"],
             reason=data.get("reason"),
@@ -292,6 +392,258 @@ class StatusEvent:
             policy_metadata=data.get("policy_metadata"),
             mission_id=data.get("mission_id"),  # None for legacy events
         )
+
+
+@dataclass(frozen=True)
+class ReviewOverride:
+    """Review-cycle override slot carried by an ``InnerStateChanged`` delta.
+
+    Pinned shape (do NOT reuse the review-result shape near
+    ``wp_state._check_review_result`` and do NOT invent
+    ``review_artifact_override_*`` fields): WP03/WP09 reference these exact
+    four fields and the :meth:`complete` predicate verbatim.
+    """
+
+    at: str
+    actor: str
+    wp_id: str
+    reason: str
+
+    @property
+    def complete(self) -> bool:
+        """True only when all four fields are non-empty."""
+        return bool(self.at and self.actor and self.wp_id and self.reason)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "at": self.at,
+            "actor": self.actor,
+            "wp_id": self.wp_id,
+            "reason": self.reason,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> ReviewOverride:
+        # Actor audit (FR-015): the ``str(...)`` coercion is DELIBERATELY kept
+        # here. ``ReviewOverride.actor`` is definitionally a scalar reviewer/agent
+        # identity — the resolved-binding dict actor is routed ONLY through
+        # ``StatusEvent.actor`` (the transition) and the ``role``/``agent_profile``/
+        # ``model``/``provider`` delta slots, NEVER through a ``ReviewOverride``. A
+        # dict therefore never reaches this decoder, so the coercion cannot flatten
+        # one (unlike ``InnerStateChanged.from_dict`` / ``StatusEvent.from_dict``,
+        # which are in-path and use :func:`decode_actor`).
+        return cls(
+            at=str(data["at"]),
+            actor=str(data["actor"]),
+            wp_id=str(data["wp_id"]),
+            reason=str(data["reason"]),
+        )
+
+
+@dataclass(frozen=True)
+class WPInnerStateDelta:
+    """Typed partial runtime-state payload for an ``InnerStateChanged`` event.
+
+    Every field is optional; an absent (``None``) field leaves the
+    corresponding reduced-snapshot slot untouched. This is deliberately a
+    typed dataclass rather than a free ``dict[str, Any]`` (C-002).
+
+    ``tracker_refs`` is the *additive* channel (unions into the snapshot slot);
+    ``tracker_refs_replace`` is the *replace* channel (wholesale-replaces the
+    slot) that WP08's ``--replace`` needs so a replace does not resurrect stale
+    refs. Both are delta inputs; the reduced snapshot exposes a single
+    ``tracker_refs`` slot.
+
+    **Resolved-binding group (FR-013, C-008)**: ``role``, ``agent_profile``,
+    ``agent_profile_version``, ``model``, ``provider`` carry the *actual*
+    runtime identity that resolved and ran a WP. They are event-sourced and
+    folded latest-wins by the reducer — a later pick-up/reassign replaces them
+    (INV-8). These are the **resolved actual**, deliberately distinct from the
+    **authored recommendation** in frontmatter (C-008): never conflate "what
+    ran" with "what was designed to run". The recorded value originates from
+    ``resolve_profile``/``resolved_agent()`` / dispatch resolution, never a copy
+    of the frontmatter ``agent_profile`` string (C-007). Absence is valid — a
+    never-reclaimed WP leaves these slots ``None``.
+
+    **Single-source-of-truth field list (D-14 tidy-first)**: the plain
+    ``str | None`` scalar fields are enumerated **once** in
+    :data:`_SCALAR_FIELDS`, which backs both ``to_dict`` and ``from_dict``;
+    ``is_empty`` iterates the dataclass fields directly. Adding a scalar slot is
+    one field declaration plus one ``_SCALAR_FIELDS`` entry — no method carries
+    a hand-maintained field list. ``shell_pid`` (int coercion) and the
+    container/typed fields (``subtasks``/``note``/``tracker_refs``/
+    ``tracker_refs_replace``/``review``) are genuinely non-scalar and stay
+    explicit.
+    """
+
+    shell_pid: int | None = None
+    shell_pid_created_at: str | None = None
+    subtasks: Mapping[str, Status] | None = None
+    note: str | None = None
+    tracker_refs: list[str] | None = None
+    tracker_refs_replace: list[str] | None = None
+    agent: str | None = None
+    assignee: str | None = None
+    review: ReviewOverride | None = None
+    # Resolved-binding actuals (FR-013) — pure ``str | None`` scalar slots
+    # folded latest-wins by the reducer. Declared after ``review`` per the WP09
+    # contract; picked up automatically by _SCALAR_FIELDS / is_empty.
+    role: str | None = None
+    agent_profile: str | None = None
+    agent_profile_version: str | None = None
+    model: str | None = None
+    provider: str | None = None
+
+    #: Single authoritative list of the pure ``str | None`` scalar fields that
+    #: round-trip trivially on the wire. Backs ``to_dict``/``from_dict`` (one
+    #: source of truth — D-14). A new scalar slot is added here once; the two
+    #: serializers pick it up as data. NOT a dataclass field (``ClassVar``).
+    _SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
+        "shell_pid_created_at",
+        "agent",
+        "assignee",
+        "role",
+        "agent_profile",
+        "agent_profile_version",
+        "model",
+        "provider",
+    )
+
+    def is_empty(self) -> bool:
+        """True when the delta touches no slot (all fields ``None``).
+
+        Iterates the dataclass fields directly, so a newly-added optional field
+        is covered automatically with no hand-maintained list to keep in sync.
+        """
+        return all(getattr(self, f.name) is None for f in fields(self))
+
+    def to_dict(self) -> dict[str, Any]:
+        """Emit only present fields so the reducer's "absent leaves slot
+        untouched" rule is unambiguous on the wire.
+
+        Scalar fields are emitted by iterating the single ``_SCALAR_FIELDS``
+        list; the non-scalar fields (``shell_pid`` int, ``subtasks``, ``note``,
+        ``tracker_refs*``, ``review``) are handled explicitly.
+        """
+        d: dict[str, Any] = {}
+        if self.shell_pid is not None:
+            d["shell_pid"] = self.shell_pid
+        if self.subtasks is not None:
+            d["subtasks"] = {sid: str(status) for sid, status in self.subtasks.items()}
+        if self.note is not None:
+            d["note"] = self.note
+        if self.tracker_refs is not None:
+            d["tracker_refs"] = list(self.tracker_refs)
+        if self.tracker_refs_replace is not None:
+            d["tracker_refs_replace"] = list(self.tracker_refs_replace)
+        if self.review is not None:
+            d["review"] = self.review.to_dict()
+        for name in self._SCALAR_FIELDS:
+            value = getattr(self, name)
+            if value is not None:
+                d[name] = value
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> WPInnerStateDelta:
+        subtasks_raw = data.get("subtasks")
+        subtasks: dict[str, Status] | None = None
+        if subtasks_raw is not None:
+            subtasks = {str(sid): Status(value) for sid, value in subtasks_raw.items()}
+        review_raw = data.get("review")
+        review = ReviewOverride.from_dict(review_raw) if review_raw is not None else None
+        shell_pid_raw = data.get("shell_pid")
+        tracker_refs_raw = data.get("tracker_refs")
+        tracker_refs_replace_raw = data.get("tracker_refs_replace")
+        scalars: dict[str, Any] = {name: data.get(name) for name in cls._SCALAR_FIELDS}
+        return cls(
+            shell_pid=int(shell_pid_raw) if shell_pid_raw is not None else None,
+            subtasks=subtasks,
+            note=data.get("note"),
+            tracker_refs=list(tracker_refs_raw) if tracker_refs_raw is not None else None,
+            tracker_refs_replace=(
+                list(tracker_refs_replace_raw)
+                if tracker_refs_replace_raw is not None
+                else None
+            ),
+            review=review,
+            **scalars,
+        )
+
+
+@dataclass(frozen=True)
+class InnerStateChanged:
+    """Off-axis (non-transition) runtime-state annotation event.
+
+    Shares the append-only ``status.events.jsonl`` file with ``StatusEvent``
+    but carries **no** ``from_lane``/``to_lane`` and can never traverse the
+    FSM: it bypasses ``validate_transition`` and never increments
+    ``force_count``. The reducer folds its typed :class:`WPInnerStateDelta`
+    into the per-WP runtime slots in a dedicated post-transition pass.
+    """
+
+    event_id: str  # ULID
+    wp_id: str
+    at: str  # ISO 8601 UTC
+    # Widened to accept a structured resolved-binding actor for parity with
+    # ``StatusEvent.actor`` (FR-015 / IC-09); ``decode_actor`` guards the
+    # ``from_dict`` round-trip against the ``str(dict)`` flattening trap.
+    actor: ActorField
+    delta: WPInnerStateDelta
+    kind: str = "annotation"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "actor", decode_actor(self.actor))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "kind": self.kind,
+            "wp_id": self.wp_id,
+            "at": self.at,
+            "actor": self.actor,
+            "delta": self.delta.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> InnerStateChanged:
+        """Decode an annotation dict.
+
+        Distinct from :meth:`StatusEvent.from_dict` (which hard-requires the
+        ``from_lane``/``to_lane`` keys). Validates ``event_id`` against
+        ``ULID_PATTERN`` and requires ``kind == "annotation"``.
+        """
+        event_id = data["event_id"]
+        if not isinstance(event_id, str) or not ULID_PATTERN.match(event_id):
+            raise ValueError(f"InnerStateChanged.event_id is not a valid ULID: {event_id!r}")
+        kind = data.get("kind")
+        if kind != "annotation":
+            raise ValueError(f"InnerStateChanged requires kind == 'annotation', got {kind!r}")
+        delta_raw = data["delta"]
+        return cls(
+            event_id=event_id,
+            kind=kind,
+            wp_id=str(data["wp_id"]),
+            at=str(data["at"]),
+            # decode_actor: a dict resolved-binding actor round-trips uncorrupted;
+            # a scalar is ``str``-coerced (guards the models.py corruption trap).
+            actor=decode_actor(data["actor"]),
+            delta=WPInnerStateDelta.from_dict(delta_raw),
+        )
+
+
+@dataclass(frozen=True)
+class EventStream:
+    """Read-shape container partitioning the event log by kind.
+
+    ``read_event_stream`` surfaces both lane ``transitions`` and off-axis
+    ``annotations`` to the reducer without changing the on-disk file. Lane
+    events continue to flow through the existing ``read_events`` list shape;
+    this container is the reducer's annotation-aware read path.
+    """
+
+    transitions: list[StatusEvent] = field(default_factory=list)
+    annotations: list[InnerStateChanged] = field(default_factory=list)
 
 
 @dataclass
@@ -403,7 +755,7 @@ class TransitionRequest:
     force: bool = False
     reason: str | None = None
     # Actor
-    actor: str | None = None
+    actor: ActorField | None = None
     execution_mode: str = "worktree"
     # Evidence
     evidence: dict[str, Any] | None = None
@@ -415,6 +767,10 @@ class TransitionRequest:
     implementation_evidence_present: bool | None = None
     current_actor: str | None = None
     policy_metadata: dict[str, Any] | None = None
+    # Optional off-axis state change that belongs to the same logical claim as
+    # this transition. Emitters persist it in the same atomic/transactional
+    # unit as the lane event, so a resolved binding can never lag its claim.
+    annotation_delta: WPInnerStateDelta | None = None
 
 
 @dataclass

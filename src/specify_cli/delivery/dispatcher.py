@@ -77,7 +77,10 @@ class DispatchSummary:
 
     ``selected`` is how many journal events the drain pulled; the per-outcome fields
     sum to :attr:`recorded`. ``target_id`` is ``None`` only for a no-op drain (no
-    active target was resolvable — T039 step 4).
+    active target was resolvable — T039 step 4). ``retryable_event_ids`` carries
+    pending/rejected/transient IDs separately from reportable failures so a
+    multi-batch command can skip them in-memory while leaving them durably
+    selectable for the next command.
     """
 
     target_id: str | None
@@ -89,6 +92,7 @@ class DispatchSummary:
     transient: int
     terminal_failed: int
     failures: tuple[DispatchFailure, ...] = ()
+    retryable_event_ids: tuple[str, ...] = ()
 
     @property
     def recorded(self) -> int:
@@ -124,6 +128,7 @@ class DispatchSummary:
         selected: int,
         counts: Mapping[DeliveryOutcome, int],
         failures: Sequence[DispatchFailure] = (),
+        retryable_event_ids: Sequence[str] = (),
     ) -> DispatchSummary:
         """Build a summary from a :class:`DeliveryOutcome` -> count mapping."""
         return cls(
@@ -136,6 +141,7 @@ class DispatchSummary:
             transient=counts[DeliveryOutcome.TRANSIENT],
             terminal_failed=counts[DeliveryOutcome.TERMINAL_FAILED],
             failures=tuple(failures),
+            retryable_event_ids=tuple(retryable_event_ids),
         )
 
 
@@ -189,6 +195,7 @@ def _select_undelivered(
     target_id: str,
     *,
     limit: int | None = None,
+    exclude: frozenset[str] = frozenset(),
 ) -> list[Event]:
     """Return journal events still needing delivery to *target_id* (FR-004 / FR-015).
 
@@ -197,12 +204,20 @@ def _select_undelivered(
     ``select_undelivered`` filters out every event that already has a terminal-success
     or terminal-failed row for the active target. Order is preserved so re-runs are
     reproducible. No SQL and no ``queue.py`` import lives here.
+
+    *exclude* is a caller-supplied, in-memory skip set applied to the universe
+    **before** the ledger query, so the ``limit`` still fills with selectable
+    events. It is a transient, per-call filter (a drain pass uses it to advance
+    past events that made no progress this pass); it never changes durable ledger
+    state, so the ledger's non-terminal re-selection contract is preserved.
     """
     universe = journal.read_all()
     by_id = {event.event_id: event for event in universe}
     selected_ids = ledger.select_undelivered(
         target_id=target_id,
-        event_universe=[event.event_id for event in universe],
+        event_universe=[
+            event.event_id for event in universe if event.event_id not in exclude
+        ],
         limit=limit,
     )
     return [by_id[event_id] for event_id in selected_ids]
@@ -308,10 +323,17 @@ def _record(
     """Record every *result* and tally per-outcome counts into a :class:`DispatchSummary`."""
     counts: dict[DeliveryOutcome, int] = dict.fromkeys(DeliveryOutcome, 0)
     failures: list[DispatchFailure] = []
+    retryable_event_ids: list[str] = []
     with ledger.transaction():
         for result in results:
             _record_one(ledger, target_id, result)
             counts[result.outcome] += 1
+            if result.outcome in {
+                DeliveryOutcome.PENDING,
+                DeliveryOutcome.REJECTED,
+                DeliveryOutcome.TRANSIENT,
+            }:
+                retryable_event_ids.append(result.event_id)
             if result.outcome in {
                 DeliveryOutcome.REJECTED,
                 DeliveryOutcome.TRANSIENT,
@@ -326,7 +348,11 @@ def _record(
                     )
                 )
     return DispatchSummary.from_counts(
-        target_id, selected=selected, counts=counts, failures=failures
+        target_id,
+        selected=selected,
+        counts=counts,
+        failures=failures,
+        retryable_event_ids=retryable_event_ids,
     )
 
 
@@ -342,6 +368,7 @@ def dispatch(
     receiver: DeliveryReceiver,
     target: DeliveryTarget | None,
     limit: int | None = None,
+    exclude: frozenset[str] = frozenset(),
 ) -> DispatchSummary:
     """Drain undelivered journal events to one active *target* (contract §3/§4).
 
@@ -355,11 +382,19 @@ def dispatch(
     Activates WP08 coalescing on this live path first (D-020 / FR-011), then runs
     select -> post -> record. A successful drain leaves the journal row count
     unchanged and writes terminal-success ledger rows (FR-001).
+
+    *exclude* is an optional in-memory skip set (event IDs) applied to this
+    selection only. A multi-batch drain uses it to advance past events that made
+    no progress earlier in the same pass, so a permanent content rejection cannot
+    head-of-line-block deliverable events behind it. It never mutates the ledger,
+    so those events stay selectable on the next drain.
     """
     _install_coalescing(ledger)
     if target is None:
         return DispatchSummary.empty()
-    events = _select_undelivered(journal, ledger, target.target_id, limit=limit)
+    events = _select_undelivered(
+        journal, ledger, target.target_id, limit=limit, exclude=exclude
+    )
     results = _post(receiver, events)
     return _record(ledger, target.target_id, results, selected=len(events))
 

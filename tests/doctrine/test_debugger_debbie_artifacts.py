@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import load_graph
+from doctrine.drg.models import DRGGraph
 from doctrine.service import DoctrineService
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
@@ -51,8 +51,8 @@ def test_directive_040_loads(service: DoctrineService) -> None:
     assert any("five-paradigm" in procedure for procedure in directive.procedures)
 
 
-def test_debugger_debbie_graph_nodes_and_edges_exist() -> None:
-    graph = load_graph(BUILT_IN_ROOT / "graph.yaml")
+def test_debugger_debbie_graph_nodes_and_edges_exist(built_in_graph: DRGGraph) -> None:
+    graph = built_in_graph
     nodes = graph.node_urns()
 
     assert "directive:DIRECTIVE_040" in nodes

@@ -1,4 +1,4 @@
-# E3 baseline (mission ci-test-topology-performance-01KXBJRT WP02). REAL `pytest --collect-only` node-id UNION across every leg of job='slow-tests' (workflow='ci-quality.yml'), captured pre-WP06. Regenerate ONLY with an explicit provenance comment (data-model E3) when a WP legitimately changes this job's selection: uv run python -m tests.architectural._gate_coverage --freeze-baselines
+# E3 baseline (mission ci-test-topology-performance-01KXBJRT WP02). REAL `pytest --collect-only` node-id UNION across every leg of job='slow-tests' (workflow='ci-quality.yml'), refrozen by mission runtime-state-corpus-cutover-01KXZ0AX WP06 (#2816): the flag-OFF dual-write twin (test_move_task_rollback_clears_claim_flag_off) was deleted and the flag-ON/flag-OFF split suite reconciled to the single post-cutover snapshot-authority end-state, changing this job's collected node-id set. Regenerate ONLY with an explicit provenance comment (data-model E3) when a WP legitimately changes this job's selection: uv run python -m tests.architectural._gate_coverage --freeze-baselines
 tests/adversarial/test_distribution.py::TestInitWithoutTemplateRoot::test_init_creates_project_structure
 tests/adversarial/test_distribution.py::TestInitWithoutTemplateRoot::test_init_installs_bundled_skills
 tests/adversarial/test_distribution.py::TestUpgradeWithAllMissions::test_upgrade_updates_templates
@@ -35,7 +35,6 @@ tests/specify_cli/dossier/test_integration.py::TestLargeArtifactHandling::test_l
 tests/specify_cli/invocation/cli/test_invocations.py::test_list_performance_10k
 tests/specify_cli/invocation/test_doctor_ops.py::test_sweep_nfr_002_10k_files_under_5s
 tests/specify_cli/migration/test_runner.py::TestPerformance::test_migration_completes_in_under_10_seconds_for_5_features
-tests/specify_cli/next/test_runtime_bridge_dispatch.py::TestPerformanceRealIO::test_pack_context_from_config_p99_under_100ms
 tests/stress/test_concurrent_emits.py::test_concurrent_emits_produce_valid_event_log
 tests/sync/test_edge_cases.py::TestConcurrentEmission::test_clock_values_unique_under_concurrency_high_volume
 tests/sync/test_edge_cases.py::TestConcurrentEmission::test_concurrent_emits_no_corruption_high_volume

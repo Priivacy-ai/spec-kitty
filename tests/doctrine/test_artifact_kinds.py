@@ -26,6 +26,7 @@ class TestArtifactKindValues:
             "mission_step_contract",
             "template",
             "asset",
+            "anti_pattern",
         }
         assert {m.value for m in ArtifactKind} == expected
 
@@ -146,8 +147,11 @@ class TestPydanticIntegration:
 class TestNonAugmentationEligibleKinds:
     """T003/T004: the canonical exclusion set and its consumer, CHARTER_KIND_TOKENS."""
 
-    def test_exclusion_set_is_exactly_template_and_asset(self) -> None:
-        assert frozenset({ArtifactKind.TEMPLATE, ArtifactKind.ASSET}) == _NON_AUGMENTATION_ELIGIBLE_KINDS
+    def test_exclusion_set_is_exactly_template_asset_and_anti_pattern(self) -> None:
+        assert (
+            frozenset({ArtifactKind.TEMPLATE, ArtifactKind.ASSET, ArtifactKind.ANTI_PATTERN})
+            == _NON_AUGMENTATION_ELIGIBLE_KINDS
+        )
 
     def test_asset_not_in_charter_kind_tokens(self) -> None:
         assert ArtifactKind.ASSET.operator_token not in CHARTER_KIND_TOKENS

@@ -29,7 +29,7 @@ from specify_cli.status.emit import build_status_event
 from specify_cli.status.reducer import reduce
 from specify_cli.status.store import read_events
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.git_repo]
 
 MISSION_SLUG = "regression-1602"
 MID8 = "01J6CLB16"

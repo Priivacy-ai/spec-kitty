@@ -106,31 +106,32 @@ def _force_lane(feature_repo: Path, mission_slug: str, wp_id: str, to_lane: str)
     )
 
 
-def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, mission_slug: str) -> None:
-    # WP files now live in flat tasks/ directory
-    wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
-    front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
-    wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
+def _remove_runtime_annotation_field(
+    feature_repo: Path, mission_slug: str, field_name: str
+) -> None:
+    """Remove one runtime slot from the canonical annotation stream fixture."""
+    events_path = feature_repo / "kitty-specs" / mission_slug / "status.events.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+    for row in rows:
+        delta = row.get("delta")
+        if isinstance(delta, dict):
+            delta.pop(field_name, None)
+    events_path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
+def test_collect_feature_summary_reports_missing_canonical_metadata(
+    feature_repo: Path, mission_slug: str
+) -> None:
+    _remove_runtime_annotation_field(feature_repo, mission_slug, "assignee")
 
     # Move WP01 into an active lane (in_progress) via the canonical engine.
     _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug)
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
-
-
-def test_detect_mission_slug_prefers_explicit(
-    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # Auto-detection removed; must pass explicit_feature
-    assert acc.detect_mission_slug(feature_repo, explicit_feature=mission_slug) == mission_slug
-
-
-def test_detect_mission_slug_raises_without_explicit(feature_repo: Path, mission_slug: str) -> None:
-    # Without explicit_feature, must raise AcceptanceError (auto-detection removed)
-    with pytest.raises(acc.AcceptanceError, match="Mission slug is required"):
-        acc.detect_mission_slug(feature_repo)
 
 
 def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str) -> None:
@@ -695,14 +696,10 @@ def test_acceptance_succeeds_for_done_wp_without_assignee(feature_repo: Path, mi
     """Done WPs should not require assignee."""
     from tests.utils import run
 
-    # Move WP01 to done without assignee
-    wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
-    front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
-    wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
-
+    # Move WP01 to done without a canonical runtime assignee.
     _force_lane(feature_repo, mission_slug, "WP01", "done")
-    run(["git", "commit", "-am", "Move to done without assignee"], cwd=feature_repo)
+    _remove_runtime_annotation_field(feature_repo, mission_slug, "assignee")
+    run(["git", "commit", "-am", "Move to done without runtime assignee"], cwd=feature_repo)
 
     # Strict validation should NOT complain about missing assignee for done lane
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
@@ -716,15 +713,10 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, mission_sl
     """Doing and for_review WPs should still require assignee."""
     from tests.utils import run
 
-    wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
-
     # Test doing lane
-    front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
-    wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
-
     _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
-    run(["git", "commit", "-am", "Move to doing without assignee"], cwd=feature_repo)
+    _remove_runtime_annotation_field(feature_repo, mission_slug, "assignee")
+    run(["git", "commit", "-am", "Move to doing without runtime assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert any("missing assignee" in issue for issue in summary.metadata_issues), (
@@ -750,25 +742,25 @@ def test_required_fields_still_enforced(feature_repo: Path, mission_slug: str) -
     """
     from tests.utils import run
 
-    wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
-
-    # Test missing agent - move to doing first, then remove agent field manually
+    # Test missing agent in canonical state.
     _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
-    run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
-
-    front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    lines_no_agent = [line for line in front.splitlines() if not line.startswith("agent:")]
-    wp_path.write_text(th.build_document("\n".join(lines_no_agent), body, padding), encoding="utf-8")
+    _remove_runtime_annotation_field(feature_repo, mission_slug, "agent")
+    run(["git", "commit", "-am", "Move to doing without runtime agent"], cwd=feature_repo)
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert any("missing agent" in issue for issue in summary.metadata_issues), "Agent should still be required"
 
-    # Test missing shell_pid - restore agent, remove shell_pid
-    front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    lines_with_agent = front.splitlines()
-    if not any(line.startswith("agent:") for line in lines_with_agent):
-        lines_with_agent.insert(0, "agent: test-agent")
-    lines_no_pid = [line for line in lines_with_agent if not line.startswith("shell_pid:")]
-    wp_path.write_text(th.build_document("\n".join(lines_no_pid), body, padding), encoding="utf-8")
+    # Test missing shell_pid after restoring agent through a later annotation.
+    from specify_cli.status import WPInnerStateDelta, emit_inner_state_changed
+
+    emit_inner_state_changed(
+        feature_repo / "kitty-specs" / mission_slug,
+        "WP01",
+        WPInnerStateDelta(agent="test-agent"),
+        actor="test-agent",
+        mission_slug=mission_slug,
+        repo_root=feature_repo,
+    )
+    _remove_runtime_annotation_field(feature_repo, mission_slug, "shell_pid")
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert any("missing shell_pid" in issue for issue in summary.metadata_issues), "Shell_pid should still be required"
 

@@ -8,6 +8,7 @@
   "purpose_context": "Bundles spec-kitty issues #1090, #1088, #1087, and #1089 from the MVP launch blocker (planning#17). The 2026-05-17 incident showed work stranded in a legacy unauthenticated queue while the CLI reported 'authenticated', a stale daemon from a temp checkout owning delivery, and setup-plan emitting body uploads to the wrong scope. This mission fixes the CLI side of the identity boundary so foreground auth, active scoped queue, body upload queue, daemon owner, daemon version, and source path are coherent and truthfully reported.",
   "purpose_tldr": "Restore the single-identity boundary across foreground CLI auth, queue scopes, body uploads, and daemon ownership so authenticated work cannot strand in legacy queues or be owned by a stale daemon.",
   "slug": "mvp-sync-boundary-cli-01KRVCQS",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-05-17T16:46:13.507470+00:00"

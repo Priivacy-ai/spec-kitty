@@ -22,6 +22,19 @@ When a template change is intentional::
     PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v
 
 Commit the updated baseline files alongside the template change.
+
+TODO (reconsider this test's design if it keeps causing friction):
+    This guard pins *byte-identical* rendered output for 12 agents, so ANY
+    legitimate one-line prose edit to a doctrine source prompt
+    (``src/doctrine/missions/mission-steps/**``) forces regenerating ~12
+    baseline files, none of which the reviewer reads. The baseline asserts
+    byte-identity, not semantic correctness — it catches accidental drift but
+    also fires loudly on every intended change, and the large mechanical diff
+    can bury the actual source change. If this churn becomes a recurring tax
+    (observed: primary/merge terminology sweep, mission primary-merge-vocabulary
+    -01KXP11C T009), reconsider: e.g. assert structural invariants + a single
+    canonical-agent snapshot rather than a full 12-agent byte grid, or derive
+    the per-agent expectation from the source template instead of a frozen copy.
 """
 
 from __future__ import annotations

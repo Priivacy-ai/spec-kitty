@@ -12,6 +12,7 @@
   "purpose_context": "The HiC Tidy-first ruling puts long-standing debt ahead of functional work. This mission is the enabler-of-enablers for the upcoming unshim wave: it converts the last raw line-number-keyed architectural gate to drift-proof content-addressed keys (so upcoming code deletions stop churning gate allowlists), fixes the line-sensitive inventory comparison that produced a false-positive CI failure during the degod mission, encodes the operator's refactor-stable testing doctrine into the governing styleguide, and un-quarantines 15 tests that have silently been passing. Executes #2072 (CT1), #2310 (CT8), #2311 (CT9) under epic #2071, milestone 3.2.x.",
   "purpose_tldr": "Make the architectural gate substrate immune to benign refactors: drift-proof allowlist keys, the refactor-stable testing doctrine codified, and 15 stale quarantined tests returned to duty.",
   "slug": "refactor-stable-gate-substrate-01KWK3FY",
+  "status_phase": "1",
   "target_branch": "tidy/gate-substrate",
   "topology": "coord",
   "vcs": "git",

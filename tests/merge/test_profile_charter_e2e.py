@@ -200,9 +200,22 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     # targets the same synthetic built_in_root as the resolver. The
     # compiler imports the function into its own namespace, so we patch
     # the binding there.
+    #
+    # The compiler resolves the *built-in DRG graph* through a SECOND,
+    # deliberately-separate seam: ``doctrine.drg.loader.load_built_in_graph``
+    # (via ``built_in_graph_source`` -> ``files("doctrine")``). That seam does
+    # NOT consult ``resolve_doctrine_root`` -- doctrine sits below charter in
+    # the dependency graph (C-004) and must not import upward. Without patching
+    # it, the compiler's transitive walk loads the *installed* package graph,
+    # where none of the synthetic fixture URNs exist, and every start URN is
+    # recorded as an unresolved reference. Patch it to the same synthetic graph
+    # the resolver used so both seams agree.
     with patch(
         "charter.compiler.resolve_doctrine_root",
         return_value=built_in_root,
+    ), patch(
+        "doctrine.drg.loader.load_built_in_graph",
+        return_value=drg,
     ):
         compiled = compile_charter(
             mission="software-dev",
@@ -221,7 +234,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     assert resolution.tactics == ["review-tactic"]
     assert resolution.styleguides == ["review-style"]
     assert compiled.diagnostics == []
-    assert "charter.md" in result.files_written
+    assert "charter.yaml" in result.files_written  # consolidate-charter-bundle: write_compiled_charter no longer emits charter.md (INV-3)
     assert "agent_profile: reviewer" in compiled.markdown
     assert any(ref.kind == "tactic" and ref.title == "Review Tactic" for ref in compiled.references)
     assert any(ref.kind == "styleguide" and ref.title == "Review Style" for ref in compiled.references)
@@ -297,6 +310,19 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
         # ── Step 4: agents.yaml must NOT be generated ──
         assert not (charter_dir / "agents.yaml").exists(), "agents.yaml must NOT be generated"
 
+        # consolidate-charter-bundle (data-model.md Landmine 3, T028c):
+        # ``generate`` writes charter.yaml ONLY -- charter.md is a curated,
+        # hand-authored companion, NEVER produced by a generate/compile path
+        # (INV-3). ``build_charter_context``'s bootstrap/compact caching
+        # keys on charter.md's existence, so exercising that caching
+        # end-to-end (this test's actual subject, per its docstring) now
+        # requires the curated companion to exist -- exactly as a real
+        # operator would author it once, post-generate.
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n## Policy Summary\n\n- Curated companion authored post-generate.\n",
+            encoding="utf-8",
+        )
+
         # ── Step 5: first context call → bootstrap mode ──
         ctx1 = runner.invoke(app, ["context", "--action", "specify", "--json"])
         assert ctx1.exit_code == 0, ctx1.stdout
@@ -354,7 +380,7 @@ def test_local_support_additive_warning_when_overlapping_built_in_concept(tmp_pa
 
     # Write to disk and confirm no library/ directory is created
     result = write_compiled_charter(output_dir, compiled, force=True)
-    assert "charter.md" in result.files_written
+    assert "charter.yaml" in result.files_written  # consolidate-charter-bundle: write_compiled_charter no longer emits charter.md (INV-3)
     assert not (output_dir / "library").exists(), (
         "library/ directory must NOT be created even when local support files are declared"
     )

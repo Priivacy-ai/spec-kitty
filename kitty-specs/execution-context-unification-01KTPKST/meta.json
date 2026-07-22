@@ -23,6 +23,7 @@
   "purpose_context": "Spec Kitty commands (specify/plan/tasks/finalize/analyze/implement/review/merge/retrospect) each independently re-resolve where a mission's state, branch, status, and artifacts live, so the primary checkout and coordination branch drift apart. This mission implements the ratified #1619/#1666 design for those seams: a single resolved MissionExecutionContext threaded through all surfaces, with status/durable state owned by Mission-Management behind an OHS facade — structurally eliminating the split-brain rather than patching individual symptoms.",
   "purpose_tldr": "Drain the coord-vs-primary split-brain class by routing every command surface through one canonical MissionExecutionContext and a Mission-Management-owned status facade.",
   "slug": "execution-context-unification-01KTPKST",
+  "status_phase": "1",
   "target_branch": "fixups/code-engine-stabilization",
   "vcs": "git",
   "vcs_locked_at": "2026-06-09T18:21:24.891534+00:00"

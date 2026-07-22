@@ -1,0 +1,32 @@
+{
+  "accept_commit": "c9310be5831f07681dab907e371301a6d4f3a5d5",
+  "acceptance_history": [
+    {
+      "accept_commit": "c9310be5831f07681dab907e371301a6d4f3a5d5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-15T14:55:57.303775+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "cd74b8320525f69a58407cc51d7501513224584e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-15T14:55:57.303775+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "cd74b8320525f69a58407cc51d7501513224584e",
+  "baseline_merge_commit": "d67ba5a90e30728f5cf4664232c9dcbc729366cc",
+  "created_at": "2026-07-15T04:54:03.654400+00:00",
+  "flattened": false,
+  "friendly_name": "Implement-Loop Commit & Move-Task Hardening",
+  "mission_id": "01KXJ1ZX45S5CCGQ7TWD1B2EMZ",
+  "mission_number": 179,
+  "mission_slug": "implement-loop-commit-hardening-01KXJ1ZX",
+  "mission_type": "software-dev",
+  "purpose_context": "After the #2533 partition-aware precondition fix shipped, four residual items remained: agents cannot run move-task from inside a lane worktree; a rare protected-branch configuration silently commits planning files to the wrong branch; and the commit/move-task code carries maintainability debt plus a duplicated commit path. This mission closes all four so the implement/review loop is reliable from any working directory and the placement logic has a single, well-tested authority.",
+  "purpose_tldr": "Close four #2533 follow-ups: fix move-task-from-a-worktree, harden the protected-branch commit fallback, and pay down the placement/commit maintainability debt.",
+  "slug": "implement-loop-commit-hardening-01KXJ1ZX",
+  "source_description": "Follow-up of #2533: closes #2647 (move-task cwd bug), #2648 (protected-branch commit fallback), #2649 (Sonar degod of implement.py/tasks_move_task.py), #2650 (consolidate the two partition-aware commit executors) — all sub-issues of #2160.",
+  "status_phase": "1",
+  "target_branch": "mission/2533-pr-bound-coord-claim-precondition",
+  "topology": "single_branch",
+  "vcs": "git"
+}

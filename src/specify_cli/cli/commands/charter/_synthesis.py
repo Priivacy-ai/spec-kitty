@@ -17,6 +17,21 @@ from specify_cli.task_utils import TaskCliError
 # ``__init__`` itself, so the package import is performed lazily inside
 # functions to avoid a circular import at module-load time.
 
+# #2758: single hoisted message (Sonar S1192 -- also referenced verbatim by
+# the fail-closed preflight test) for the fail-closed bundle-completeness
+# guard. consolidate-charter-bundle WP03/T013: the bundle's sole
+# content-hash input is now ``charter.yaml`` (data-model.md Landmine 1 /
+# manifest v2 -- the legacy four-file set is retired). ``synthesize`` never
+# itself compiles ``charter.yaml`` (only ``charter generate`` /
+# ``compile_charter`` does), so failing closed toward ``charter generate``
+# / the fold migration is the only non-circular remediation -- re-running
+# ``synthesize`` can never self-heal a missing bundle file.
+BUNDLE_INCOMPLETE_MESSAGE = (
+    "Charter bundle incomplete: '{missing}' is missing. "
+    "Run `spec-kitty charter generate` (or the charter.yaml migration) first "
+    "to compile it, then retry `charter synthesize`."
+)
+
 
 def _build_synthesis_request(
     repo_root: Path,
@@ -488,6 +503,35 @@ def _list_resynthesis_topics(
     }
 
 
+def _raise_if_bundle_incomplete(repo_root: Path) -> None:
+    """Fail closed before a real synthesize run persists an un-healable ``None``.
+
+    Separate helper (not inlined into ``charter_synthesize``, which already
+    carries a pre-existing ``# noqa: C901``): the real-run path eventually
+    reaches ``write_pipeline.promote()``, which stamps
+    ``compute_bundle_content_hash(repo_root)`` into the synthesis manifest.
+    That helper is intentionally fail-safe (returns ``None``, never raises)
+    when the ``charter.yaml`` bundle file is missing, and a ``None`` stored
+    hash is unconditionally read back as ``stale`` by
+    ``specify_cli.charter_runtime.freshness.computer`` -- with no signal
+    telling the operator *why*, and no way for a subsequent ``synthesize``
+    re-run to fix it (issue #2758).
+
+    Raises
+    ------
+    TaskCliError
+        When :func:`charter.bundle.first_missing_bundle_file` reports a
+        missing file. consolidate-charter-bundle (#2773): the input is the
+        single authoritative ``charter.yaml``; the message points the operator
+        at ``spec-kitty upgrade`` / ``charter generate`` to produce it.
+    """
+    from charter.bundle import first_missing_bundle_file  # noqa: PLC0415
+
+    missing = first_missing_bundle_file(repo_root)
+    if missing is not None:
+        raise TaskCliError(BUNDLE_INCOMPLETE_MESSAGE.format(missing=missing))
+
+
 def _has_generated_artifacts(repo_root: Path) -> bool:
     """Return True iff ``.kittify/charter/generated/`` contains agent-authored YAMLs.
 
@@ -531,6 +575,7 @@ __all__ = [
     "_planned_fresh_doctrine_deletes",
     "_planned_fresh_doctrine_paths",
     "_provenance_to_planned_artifacts",
+    "_raise_if_bundle_incomplete",
     "_read_written_artifacts_from_manifest",
     "_run_synthesis_dry_run",
     "_run_synthesis_dry_run_with_artifacts",

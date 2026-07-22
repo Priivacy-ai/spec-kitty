@@ -159,6 +159,27 @@ def test_reference_relations_are_requires_suggests_and_refines() -> None:
     )
 
 
+def test_tension_vocabulary_excluded_from_reference_relations() -> None:
+    """T032 (FR-013, C-003): tension vocabulary never joins cascade's reference set.
+
+    ``in_tension_with``/``reconciles_tension``/``rejects`` (mission
+    ``doctrine-tension-edges-01KY1WPC``) achieve cascade exclusion **by
+    omission** -- they must never be added to ``REFERENCE_RELATIONS`` -- so
+    activating one side of a tension (or a reconciler) never auto-cascades to
+    the other side/reconciled artefacts (INV-003). There is no code change in
+    ``cascade.py`` to make this pass; the test IS the deliverable. This is
+    deliberately an explicit frozenset-intersection assertion, not a "cascade
+    doesn't crash" smoke test, which would pass vacuously.
+    """
+    assert (
+        frozenset(
+            {Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS}
+        )
+        & REFERENCE_RELATIONS
+        == frozenset()
+    )
+
+
 # ---------------------------------------------------------------------------
 # T049 — scoped cascade activation (FR-014)
 # ---------------------------------------------------------------------------

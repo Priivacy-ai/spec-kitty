@@ -12,6 +12,7 @@
   "purpose_context": "Playwright is not installed today; a dashboard click-through bug (PR 970: WP modal drops the agent field) shipped green because no layer exercised the flow. M6 of epic 1931. One-time framework bootstrap + ONE regression-guard e2e test + CI job (headless, synthetic-mission temp root) + docs; comprehensive UI coverage + visual regression are out of scope. Closes 1008.",
   "purpose_tldr": "Install pytest-playwright + one representative end-to-end test (kanban WP-card click -> modal asserts agent identity + prompt) + CI wiring, so the CLAUDE.md 'Playwright proof' rule points at a runnable test instead of an aspiration",
   "slug": "playwright-ui-e2e-bootstrap-01KWX72W",
+  "status_phase": "1",
   "target_branch": "feat/playwright-ui-e2e-bootstrap",
   "topology": "coord",
   "vcs": "git",

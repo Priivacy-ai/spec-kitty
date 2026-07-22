@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "067-runtime-recovery-and-audit-safety",
   "source_description": "P1 stabilization: merge/implementation crash recovery, canonical execution surface cleanup, audit-mode WPs, bulk-edit safety, truthful progress reporting",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

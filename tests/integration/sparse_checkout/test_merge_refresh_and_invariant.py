@@ -12,7 +12,7 @@ violation and must raise a merge-specific error.
 These tests drive ``_run_lane_based_merge_locked`` indirectly through
 ``_run_lane_based_merge`` with the heavy merge helpers patched out, so we can
 verify the two git subprocess calls (``git reset --hard HEAD`` and
-``git status --porcelain``) fire between ``merge_mission_to_target`` and
+``git status --porcelain``) fire between ``integrate_mission_into_target`` and
 ``safe_commit``.
 """
 
@@ -123,8 +123,8 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.merge.executor.require_no_sparse_checkout"),
             patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
             patch("specify_cli.merge.executor.commit_merge_bookkeeping", side_effect=fake_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check", return_value=stale_report),
@@ -231,8 +231,8 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.merge.executor.require_no_sparse_checkout"),
             patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
             patch("specify_cli.merge.executor.commit_merge_bookkeeping", side_effect=fake_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check", return_value=stale_report),

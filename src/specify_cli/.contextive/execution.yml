@@ -35,6 +35,8 @@ contexts:
         definition: "An ordered chain of processing steps that run before a mission step produces output. Each layer in the chain can extract terms, check for semantic conflicts, gate generation, prompt the Human-in-Charge for clarification, or resume from a checkpoint."
       - name: "MissionExecutionContext"
         definition: "The resolved set of workspace root, branch name, feature directory, and WP identity for an operation. Owned by `mission_runtime/context.py` (Open Host Service facade). Resolved once per operation via `resolve_action_context`; never re-derived from CWD by individual command surfaces. Renamed from `ExecutionContext` (FR-012) to match the ubiquitous language and disambiguate from the unrelated `core/context_validation.py::ExecutionContext(StrEnum)`."
+      - name: "repository root checkout"
+        definition: "The canonical repository-root working copy of a project — the single checkout from which planning commands run and against which lane worktrees are created. It is distinct from a lane worktree (an isolated per-work-package checkout under `.worktrees/`). This is `primary` Sense C; the charter §Branch-Intent Terminology Governance decrees \"repository root checkout\" as the canonical term for this sense. The retired alias phrases \"primary surface\" and \"primary checkout\" describe it."
       - name: "Seed File"
         definition: "An optional YAML file (`.kittify/glossaries/{scope}.yaml`) that pre-loads domain glossary terms before the runtime starts extracting new ones. Gives teams a head start by defining known terminology upfront."
       - name: "Semantic Check"

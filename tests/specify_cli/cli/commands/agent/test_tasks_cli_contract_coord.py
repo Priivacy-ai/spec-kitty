@@ -20,9 +20,9 @@ extraction (WP03+) can be proven byte-identical:
   a coord event emitted AND the conditional ``--json`` keys
   (``wp_file_update`` / ``status_events_path``) -- never exit-0 + key-presence
   alone (a non-skip success also exits 0).
-* **T005** -- the ``mark_status`` / ``map_requirements`` **refuse-exit-1** arms on
-  the same tree; the skip-vs-refuse divergence is *deliberately preserved*
-  (deferred #2300 -- do NOT reconcile it here; NFR-001 pure parity).
+* **T005** -- protected-tree contracts: event-only ``mark_status`` succeeds,
+  while authored-artifact ``map_requirements`` still refuses the protected
+  primary mutation.
 * **T006** -- EVERY other named ``move_task`` decision branch WP03 extracts
   (arbiter-override, rejected-verdict + its ``--skip-review-artifact-check``
   override, the FR-008a planning-artifact-WP ``done`` arm + its code-change
@@ -226,6 +226,7 @@ def _simple_mission(root: Path, slug: str, *, execution_mode: str = "code_change
         "title: Fixture WP01\n"
         f"execution_mode: {execution_mode}\n"
         "agent: testbot\n"
+        "subtasks: []\n"
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
@@ -341,7 +342,7 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         },
     )
 
-    # --- T005: refuse-exit-1 arms on the SAME coord+protected tree ---
+    # --- T005: protected-tree contracts on the SAME coord topology ---
     ctx_ms = _build_coord_protected_tree(mkdir())
     (ctx_ms.primary_feature_dir / "tasks.md").write_text(
         "# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8"
@@ -397,8 +398,19 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
             "--skip-review-artifact-check", "--note", "arbiter release: rejection superseded",
             "--no-auto-commit",
         ])
+    # FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+    # slot, not stamped onto the artifact frontmatter. Capture the reduced slot as
+    # the durable override evidence.
+    from specify_cli.status import materialize as _materialize
+
+    _review_slot = _materialize(fd).work_packages.get("WP01", {}).get("review") or {}
     out["rejected_verdict_override"] = Scenario(
-        code, text, evidence={"artifact_text": artifact.read_text(encoding="utf-8")}
+        code,
+        text,
+        evidence={
+            "review_override": _review_slot,
+            "artifact_text": artifact.read_text(encoding="utf-8"),
+        },
     )
 
     # planning-artifact-WP done (FR-008a): ancestry check SKIPPED for a non-code_change WP.
@@ -452,7 +464,12 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         code, text, _ = _invoke(["move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--no-auto-commit"])
     out["wp_file_write"] = Scenario(code, text, evidence={"wp_body": wp_file.read_text(encoding="utf-8")})
 
-    # tracker-ref frontmatter persistence.
+    # tracker-ref event-sourced union delta (WP06 FR-006): the move-task
+    # god-write is cut, so tracker refs land in the reduced ``tracker_refs``
+    # snapshot slot, NOT the WP frontmatter. Capture the reduced slot (mirroring
+    # the ``rejected_verdict_override`` review-slot capture above) plus the WP
+    # body so the re-pointed test can assert BOTH the union delta AND the
+    # absence of a frontmatter stamp.
     fd = _simple_mission(mkdir(), f"tracker-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress")])
     wp_file = fd / "tasks" / "WP01-fixture.md"
@@ -461,7 +478,19 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
             "move-task", "WP01", "--to", "for_review", "--mission", fd.name,
             "--tracker-ref", "#1298", "--tracker-ref", "JIRA-7", "--no-auto-commit", "--json",
         ])
-    out["tracker_ref"] = Scenario(code, text, evidence={"wp_body": wp_file.read_text(encoding="utf-8")})
+    from specify_cli.status import materialize as _materialize
+
+    _tracker_slot = list(
+        _materialize(fd).work_packages.get("WP01", {}).get("tracker_refs") or []
+    )
+    out["tracker_ref"] = Scenario(
+        code,
+        text,
+        evidence={
+            "wp_body": wp_file.read_text(encoding="utf-8"),
+            "tracker_refs": _tracker_slot,
+        },
+    )
 
     # --- extra move_task arms (coverage breadth for the T007 ratchet) ---
     # self-review fallback approval.
@@ -602,23 +631,20 @@ def test_move_task_coord_skip_arm_distinguishing_evidence(scenarios: dict[str, S
 
 
 # ---------------------------------------------------------------------------
-# T005 -- refuse-exit-1 arms (skip-vs-refuse divergence deliberately preserved)
+# T005 -- protected-tree command contracts
 # ---------------------------------------------------------------------------
 #
 # NFR-001 / deferred #2300: on the SAME coord + protected-primary tree where
-# move_task SKIPS (exit 0), mark_status and map_requirements REFUSE (exit 1)
-# because ``_protected_branch_status_commit_error`` fires unconditionally under
-# ``auto_commit`` — it does NOT consult ``_skip_target_branch_commit``. This
-# inconsistency is a real divergence but a behaviour change to reconcile; this
-# mission PRESERVES it. Do NOT "fix" the divergence in a later WP under the guise
-# of a refactor — that is a behaviour change, out of scope here.
+# ``mark-status`` is event-only after the runtime-state cutover, so it no longer
+# needs a protected-primary artifact commit. ``map-requirements`` still mutates
+# an authored artifact and therefore retains its refusal contract.
 
 
-def test_mark_status_refuses_exit_1_on_coord_protected_tree(scenarios: dict[str, Scenario]) -> None:
-    """T005: mark_status refuses (exit 1) where move_task skips (exit 0)."""
+def test_mark_status_succeeds_event_only_on_coord_protected_tree(scenarios: dict[str, Scenario]) -> None:
+    """T005: mark_status needs no protected-primary artifact commit."""
     sc = scenarios["refuse_mark_status"]
-    assert sc.exit_code == 1, sc.output
-    assert "protected branch" in sc.output and "auto-commit" in sc.output
+    assert sc.exit_code == 0, sc.output
+    assert '"updated": 1' in sc.output
 
 
 def test_map_requirements_refuses_exit_1_on_coord_protected_tree(scenarios: dict[str, Scenario]) -> None:
@@ -653,12 +679,18 @@ class TestMoveTaskDecisionBranchesFrozen:
         assert "--skip-review-artifact-check" in sc.output
 
     def test_rejected_verdict_override_reopens_path(self, scenarios: dict[str, Scenario]) -> None:
-        """--skip-review-artifact-check + --note durably overrides the rejection."""
+        """--skip-review-artifact-check + --note durably overrides the rejection.
+
+        FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+        slot, not stamped onto the artifact frontmatter.
+        """
         sc = scenarios["rejected_verdict_override"]
         assert sc.exit_code == 0, sc.output
-        assert "review_artifact_override_reason" in sc.evidence["artifact_text"], (
-            "override evidence must be stamped durably into the review artifact"
-        )
+        assert sc.evidence["review_override"].get("reason") == (
+            "arbiter release: rejection superseded"
+        ), "override evidence must be event-sourced into the review snapshot slot"
+        # The artifact frontmatter must carry no override evidence anymore.
+        assert "review_artifact_override" not in sc.evidence["artifact_text"]
 
     def test_planning_artifact_done_skips_ancestry(self, scenarios: dict[str, Scenario]) -> None:
         """FR-008a: a planning-artifact WP reaches done WITHOUT merge ancestry."""
@@ -715,19 +747,40 @@ class TestMoveTaskSideEffects:
         assert sc.evidence["head_before"] == sc.evidence["head_after"]
 
     def test_wp_file_activity_log_written(self, scenarios: dict[str, Scenario]) -> None:
-        """A forward move appends a real activity-log line to the WP file body."""
+        """A forward move records its activity in the EVENT LOG, not the WP file body.
+
+        Post-#2816 the WP-file activity-log god-write is retired: the move emits a
+        canonical status event (attribution lives there) and leaves the WP markdown
+        body untouched — no ``- `` activity row is appended (two-sided with the
+        ``tracker_ref`` god-write-cut sibling above).
+        """
         sc = scenarios["wp_file_write"]
         assert sc.exit_code == 0, sc.output
         body = sc.evidence["wp_body"]
         activity_lines = [line for line in body.splitlines() if line.startswith("- ")]
-        assert activity_lines, "move_task must append an activity-log entry to the WP file"
+        assert not activity_lines, (
+            "move_task must NOT append an activity-log row to the WP file body "
+            f"(WP-file god-write retired — attribution is event-sourced); found: {activity_lines}"
+        )
 
-    def test_tracker_ref_frontmatter_persisted(self, scenarios: dict[str, Scenario]) -> None:
-        """--tracker-ref values land in the WP frontmatter tracker_refs."""
+    def test_tracker_ref_event_sourced_union_delta(self, scenarios: dict[str, Scenario]) -> None:
+        """--tracker-ref values land in the event-sourced ``tracker_refs`` slot.
+
+        WP10 closeout re-point (FR-006 union delta): the move-task god-write is
+        cut, so tracker refs are recorded off-axis in the reduced snapshot's
+        ``tracker_refs`` slot rather than stamped onto WP frontmatter — the WP
+        body must NOT carry them.
+        """
         sc = scenarios["tracker_ref"]
         assert sc.exit_code == 0, sc.output
-        body = sc.evidence["wp_body"]
-        assert "#1298" in body and "JIRA-7" in body, "tracker refs must persist to WP frontmatter"
+        refs = sc.evidence["tracker_refs"]
+        assert "#1298" in refs and "JIRA-7" in refs, (
+            f"tracker refs must union into the event-sourced slot; got {refs!r}"
+        )
+        # Two-sided: the god-write cut means they are NOT stamped onto the WP body.
+        assert "#1298" not in sc.evidence["wp_body"], (
+            "tracker refs must NOT be written to WP frontmatter (god-write cut)"
+        )
 
 
 # Per-function branch-coverage floors, MEASURED from this harness's drives on the

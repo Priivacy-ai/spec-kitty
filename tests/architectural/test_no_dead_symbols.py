@@ -113,7 +113,8 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         SymbolKey("CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8"),  # charter._catalog_miss::CharterCatalogMissError
         # charter._catalog_miss::CharterCatalogMissWarning
         SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8"),
-        SymbolKey("ALLOWED_MISSION_TYPES", "0188ad499e11afbb0457146f8ebcc7f8bb1b2c65626ba76910d9f54fec71bba6"),  # charter.activations::ALLOWED_MISSION_TYPES
+        # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
+        SymbolKey("ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd"),
         SymbolKey("REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f"),  # charter.activations::REGISTERED_TRIGGERS
         SymbolKey("CompactView", "88c5804b596411b484f9a7d6ff3404a60d31a3c554ef77b96491aa4966b5aad2"),  # charter.compact::CompactView
         SymbolKey("extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633"),  # charter.compact::extract_section_anchors
@@ -184,7 +185,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # `_is_reexport_shim_symbol` structural auto-exempt category, so a
         # hand-curated entry here would violate the auto-exempt/hand-allowlist
         # disjointness invariant (test_auto_exempt_disjoint_from_hand_allowlist).
-        SymbolKey("detect_mission_slug", "143750225970858088a5a3b6d34f627090fd8bf46c908077f4fb08ff75407b58"),  # specify_cli.acceptance::detect_mission_slug
         SymbolKey("RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141"),  # specify_cli.auth.refresh_transaction::RefreshResult
         SymbolKey("DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab"),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
         SymbolKey("DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b"),  # specify_cli.cli.commands._auth_doctor::DoctorReport
@@ -278,7 +278,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.dossier.api::DossierOverviewResponse
         SymbolKey("DossierOverviewResponse", "c0eea0f2e556ff61a368cb4f3b41b870d439b890c082c04da5a1572b5f6a330f"),
         SymbolKey("SnapshotExportResponse", "91db1cf5fefd3a5b097d6eaa6273749184caa56906c0d30a45091f3db1d6e032"),  # specify_cli.dossier.api::SnapshotExportResponse
-        SymbolKey("add_history_entry", "a8066bf9c8b06e8e54dd61771f30e7048cb775a4250bba3fc8c5e40a373e4bf4"),  # specify_cli.frontmatter::add_history_entry
+        # (WP10/T039) ``add_history_entry`` allowlist entry removed: WP07/T028
+        # deleted the module fn + manager method + ``__all__`` export, so the
+        # symbol no longer exists to be dead — keeping the entry masks the next
+        # dead symbol. Confirmed gone from ``src/`` at closeout.
         SymbolKey("get_field", "3b2643bff1ddd668dc6bd85daeb01169fd44248d148357b2a87858349df7db9e"),  # specify_cli.frontmatter::get_field
         SymbolKey("validate_frontmatter", "83489690099bbb23896f190267e54965a3cfbddc23084e1c9698b74fe7a9a118"),  # specify_cli.frontmatter::validate_frontmatter
         SymbolKey("SparseCheckoutKind", "7628d183a1fdd02d956c9f1557061eb221dd5ea3ffb82aeabc1c54e80e4f7409"),  # specify_cli.git.sparse_checkout::SparseCheckoutKind
@@ -447,7 +450,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("ConsistencyReport", "986c5bad6aa5b227fbf959796bc1d7de84c782093342c0db1da44929f4d8d76e"),  # charter.consistency_check::ConsistencyReport
+        # charter.consistency_check::ConsistencyReport entry pruned
+        # (doctrine-tension-edges-01KY1WPC): removed from __all__ instead of
+        # re-pinning the hash -- no external caller imports it by name (only
+        # consumed via attribute access on run_consistency_check()'s return
+        # value), matching this file's own CharterYamlCorruptError precedent.
         # charter.invocation_context::ContextPreconditionError
         SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af"),
     }
@@ -552,10 +559,15 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         SymbolKey("TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e"),  # doctrine.drg.org_pack_loader::TOPOLOGY_KINDS
         # doctrine.drg.org_pack_loader::merge_topology_artifact
         SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9"),
-        SymbolKey("template_id_for", "0e816b5839625489512068cb183053b521d37802def537e897e8934e4e850def"),  # doctrine.template_catalog::template_id_for
+        # ``template_id_for`` and ``template_urn`` left the allowlist in
+        # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
+        # extractor's template-instantiation pass
+        # (``doctrine.drg.migration.extractor.extract_template_instantiation_edges``)
+        # is now their first live non-test caller, so the dead-symbol gate
+        # (FR-008) requires them removed. ``template_node``/``template_nodes``
+        # stay allowlisted -- still no live caller.
         SymbolKey("template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0"),  # doctrine.template_catalog::template_node
         SymbolKey("template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd"),  # doctrine.template_catalog::template_nodes
-        SymbolKey("template_urn", "0a08a189b1239da1a84fc6cf17349ce11ba78e2dfc2f8ab3d5924fdb9b0359e2"),  # doctrine.template_catalog::template_urn
         SymbolKey("PackHealth", "82268603b58f8a1449a0bf97456ddf08c217c11de4d66d85a41afc56819f7eee"),  # specify_cli.cli.commands._doctrine_health::PackHealth
     }
 )
@@ -643,7 +655,6 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey("_read_optional_bytes", "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8"),
         # specify_cli.merge.bookkeeping_projection::_restore_optional_bytes
         SymbolKey("_restore_optional_bytes", "d34e2cf5f0c1325386d4747c6111cd696a89d476dde3ced2018182c0dfba6fdb"),
-        SymbolKey("_MergeRunState", "eb3e8faf2395e6fb5c306930be32c2df208407f3f77c406c4da859e9e41837a3"),  # specify_cli.merge.executor::_MergeRunState
         SymbolKey("_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c"),  # specify_cli.merge.ordering::_already_baked
         # specify_cli.merge.ordering::_compute_next_mission_number_or_none
         SymbolKey("_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d"),
@@ -838,6 +849,91 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 
 
+# ---------- C. mission-type-drg-edges (#2677) charter.drg facade re-export ----------
+# ``charter.drg`` is a contract-required FACADE module: the
+# ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
+# ``charter-facade-modules.md`` Symbol table mandate it re-export ``load_graph``
+# so consumers reach the DRG loader through ``charter.drg.*`` -- an invariant
+# independently enforced by ``test_charter_facades_reexport_doctrine``. WP03 of
+# this mission rerouted the LAST in-``src/`` consumer of ``charter.drg.load_graph``
+# to ``load_built_in_graph``, so the contract-required re-export now has no
+# cross-file src/ caller (removing it would break the facade gate -- two-gate
+# tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
+# locations; ``charter.drg`` + ``doctrine.drg`` share a body_hash), so the
+# FR-005 classifier escalates it to the module_path tier and it is deliberately
+# NOT covered by ``_is_reexport_shim_symbol`` (escalated keys are hand-curated
+# by design). Tracker: #2677 (FR-303).
+
+_CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.drg::load_graph (escalated: live collision) -- contract-required
+        # facade re-export (charter-facade-modules.md) with no internal caller
+        # after WP03 rerouting -- same status as MissionStep.
+        SymbolKey("load_graph", "ae679d7777f4e1d2ba6289c8aeef09d3f9f179ddf5d4f3501f631fcf2593a8aa", module_path="charter.drg"),
+    }
+)
+
+
+# ---------- C. mission-step-creatability (01KXQA6R) WP07 URN resolution lane ----------
+# ``resolve_template_by_urn`` / ``TemplateURNError`` are the by-URN
+# compatibility-contract lane for template resolution (C-004,
+# ``contracts/name-urn-resolution.md``). WP07's scope is FR-010-bound to
+# "add the lane + a by-URN==by-name equivalence test only" -- wiring a real
+# production consumer is explicitly out of scope for this WP. The real
+# consumer (`charter context --include template:<id>`) lands in a later
+# mission/WP, so these two names are exported but currently have zero
+# production importers. Follow-up tracker: #2761.
+
+_CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.runtime.resolver::resolve_template_by_urn -- compatibility-contract
+        # URN lane (C-004/FR-010); consumer wired in #2761
+        SymbolKey("resolve_template_by_urn", "9bb6376d69e172430d4dbebb61800f0be7b11cd48522bb0201e6a4b2e8ad9b3d"),
+        # specify_cli.runtime.resolver::TemplateURNError -- compatibility-contract
+        # URN lane (C-004/FR-010); consumer wired in #2761
+        SymbolKey("TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813"),
+    }
+)
+
+
+# ---------- C. consolidate-charter-bundle (01KXSYB9) WP04 extractor retirement ----------
+# charter-deadcode-noop-campsite WP02: ``charter.extractor`` (the ``Extractor``
+# class this category used to allowlist) is fully deleted -- the module has
+# zero non-test src/ callers, and its test-only dependents were retired or
+# reconstructed without it. Category fully drained (formerly gated here
+# pending final class deletion; now closed).
+
+
+# ---------- C. consolidate-charter-bundle WP01 shared write-helper vocabulary ----------
+# ``charter.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
+# writer all three charter.yaml mutators -- activation_engine.commit_plan,
+# pack_manager.merge_defaults, compiler.write_compiled_charter -- route
+# through) IS wired with a live src/ caller. ``OWNED_SECTIONS`` (the public
+# vocabulary of section names callers may name) and
+# ``UnknownCharterYamlSectionError`` (the typed error the helper raises for
+# an unrecognised section) are the module's public *contract* surface for
+# that call, but every current caller passes a literal section string
+# rather than importing the vocabulary/exception to validate against --
+# so neither symbol itself has a cross-file src/ importer yet. Library-
+# primitive, test-exercised (tests/charter/test_charter_yaml_io.py
+# validates both the accepted-section vocabulary and the raised-on-unknown
+# contract). WP07 (consolidate-charter-bundle-01KXSYB9, #2773) declines to
+# force an artificial caller (e.g. a defensive pre-check duplicating the
+# helper's own validation) purely to satisfy this gate. Follow-up tracker:
+# #2773 (wire a real caller, e.g. a CLI/validation surface that echoes
+# ``OWNED_SECTIONS`` back to an operator, or fold the two symbols out of
+# ``__all__`` in a dedicated follow-up).
+
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.charter_yaml_io::OWNED_SECTIONS
+        SymbolKey("OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3"),
+        # charter.charter_yaml_io::UnknownCharterYamlSectionError
+        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -864,6 +960,9 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
+    | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
+    | _CATEGORY_C_URN_RESOLUTION_LANE
+    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
 )
 
 
@@ -1274,7 +1373,7 @@ def _symbol_has_caller(
       -- the parent re-exports the name via its own ``__all__``;
     * any submodule of ``mod_dotted`` (``X.startswith(mod_dotted + ".")``)
       -- this covers package ``__init__.py`` re-exports: a name listed
-      in ``charter.__all__`` and imported via ``charter.generator``
+      in ``charter.__all__`` and imported via ``charter.compiler``
       proves the symbol is live runtime code.
 
     The third rule is necessary because the WP08 anti-pattern we gate

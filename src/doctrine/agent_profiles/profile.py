@@ -21,7 +21,7 @@ from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_
 # Relationship fields retired in the FR-028 hard cutover. Agent-profile YAML
 # uses kebab-case keys, so both spellings are rejected. Lineage
 # (``specializes-from``) and augmentation (``enhances``/``overrides``) are
-# authored as DRG fragment edges merged into ``src/doctrine/graph.yaml`` —
+# authored as DRG fragment edges merged into ``src/doctrine/*.graph.yaml`` —
 # never as inline profile fields. NOTE: the lineage *resolver*
 # (``repository.py`` ``resolve_profile``/``get_ancestors``) migrates to read
 # the DRG edge in WP05; this WP only removes the field/accessors.

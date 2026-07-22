@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "profile-invocation-runtime-audit-trail-01KPQRX2",
   "source_description": "Phase 4 of Charter/Doctrine EPIC #461: make charter/doctrine drive live runtime consumption through the (profile, action, governance-context) primitive with a minimal viable audit trail.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

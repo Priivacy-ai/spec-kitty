@@ -26,8 +26,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.catalog import resolve_doctrine_root
-from doctrine.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
+from doctrine.drg.loader import (
+    has_graph_files,
+    load_built_in_graph,
+    load_graph_or_dir,
+    merge_layers,
+)
 from doctrine.drg.models import DRGGraph
 from doctrine.drg.validator import assert_valid
 
@@ -76,11 +80,10 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
         ValueError: If :func:`assert_valid` rejects the merged graph
             (dangling edges, duplicate edges, or ``requires`` cycles).
     """
-    doctrine_root = resolve_doctrine_root()
     if org_root is None:
         org_root = _resolve_org_root(repo_root)
 
-    built_in = load_graph_or_dir(doctrine_root)
+    built_in = load_built_in_graph()
     org = load_graph_or_dir(org_root) if org_root and org_root.exists() else None
     project_dir = repo_root / ".kittify" / "doctrine"
     project = (

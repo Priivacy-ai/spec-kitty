@@ -10,6 +10,13 @@ from unittest.mock import Mock, patch
 import pytest
 import typer
 
+from specify_cli.status import (
+    InnerStateChanged,
+    ReviewOverride,
+    WPInnerStateDelta,
+    append_annotations_atomic_verified,
+)
+
 from specify_cli.cli.commands.merge import (
     BaselineMergeCommitError,
     _assert_baseline_merge_commit_on_target,
@@ -31,21 +38,47 @@ def _write_minimal_meta(feature_dir: Path) -> None:
     )
 
 
-def _write_wp(path: Path, *, review_status: str = "", reviewed_by: str = "", agent: str = "") -> None:
+def _write_wp(path: Path) -> None:
     """Write a minimal WP file. Lane is tracked via event log, not frontmatter."""
     lines = [
         "---",
         'work_package_id: "WP01"',
         'title: "Test WP"',
         "dependencies: []",
-        f'review_status: "{review_status}"',
-        f'reviewed_by: "{reviewed_by}"',
-        f'agent: "{agent}"',
+        "subtasks: []",
         "---",
         "# WP01",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _seed_runtime(
+    feature_dir: Path,
+    *,
+    review_actor: str | None = None,
+    agent: str | None = None,
+) -> None:
+    review = None
+    if review_actor is not None:
+        review = ReviewOverride(
+            at="2026-07-21T00:00:00+00:00",
+            actor=review_actor,
+            wp_id="WP01",
+            reason="approved",
+        )
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id="01H11111111111111111111111",
+                wp_id="WP01",
+                at="2026-07-21T00:00:00+00:00",
+                actor=agent or review_actor or "merge-test",
+                delta=WPInnerStateDelta(agent=agent, review=review),
+            )
+        ],
+    )
 
 
 def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) -> None:
@@ -54,7 +87,8 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -130,7 +164,8 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -159,7 +194,8 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -198,7 +234,8 @@ def test_mark_wp_merged_done_replays_approved_before_done_for_primary_fallback(
         ),
         encoding="utf-8",
     )
-    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, review_actor="reviewer-1")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -229,13 +266,14 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    """When synthesizing evidence for approved WP, the agent field should come from typed metadata."""
+    """Lane-approved fallback uses the event-sourced runtime agent."""
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "021-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_minimal_meta(feature_dir)
-    _write_wp(tasks_dir / "WP01-test.md", agent="gemini-cli")
+    _write_wp(tasks_dir / "WP01-test.md")
+    _seed_runtime(feature_dir, agent="gemini-cli")
 
     emit_mock = Mock()
     monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
@@ -251,21 +289,19 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     assert request.evidence["review"]["reviewer"] == "gemini-cli"
 
 
-def test_mark_wp_merged_done_uses_typed_frontmatter(
+def test_mark_wp_merged_done_does_not_read_runtime_frontmatter(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    """Verify _mark_wp_merged_done uses read_wp_frontmatter (typed) not read_frontmatter (raw dict).
+    """Merge bookkeeping sources all mutable evidence from the event stream.
 
     WP08 (#2057): _mark_wp_merged_done moved to the ``done_bookkeeping`` seam, so
     the typed-frontmatter import now lives there (not on the command shim).
     """
     import specify_cli.merge.done_bookkeeping as db_mod
 
-    # The old read_frontmatter (raw dict) import must not exist on the seam.
-    assert not hasattr(db_mod, "read_frontmatter"), "done_bookkeeping still imports read_frontmatter; should use read_wp_frontmatter"
-    # The new typed import must be present where _mark_wp_merged_done now lives.
-    assert hasattr(db_mod, "read_wp_frontmatter"), "done_bookkeeping must import read_wp_frontmatter"
+    assert not hasattr(db_mod, "read_frontmatter")
+    assert not hasattr(db_mod, "read_wp_frontmatter")
 
 
 def test_assert_merged_wps_reached_done_allows_done_snapshot(
@@ -763,18 +799,34 @@ def test_coord_branch_assert_ignores_primary_checkout(
         _assert_merged_wps_reached_done(repo_root, _COORD_SLUG, ["WP01"])
 
 
-def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
+def test_project_status_bookkeeping_unions_coord_surface_into_primary_target(
     coord_branch_mission: dict,
 ) -> None:
-    """Final merge bookkeeping must stage primary paths, not .worktrees paths."""
+    """Final merge bookkeeping stages primary paths and UNIONS the event log.
+
+    FR-005 (#2709): the coord->target projection must union
+    ``source ∪ original`` (via ``merge_event_payloads``) and rematerialize
+    ``status.json`` from ``reduce(union)`` — never blind-overwrite the target
+    with the coord copy. A target-newer event the coord worktree lacks survives.
+    """
+    from specify_cli.status import (
+        materialize_to_json,
+        merge_event_log_texts,
+        read_events_from_text,
+        reduce,
+    )
+
     repo_root = coord_branch_mission["repo_root"]
     primary_dir = coord_branch_mission["primary_dir"]
     coord_specs = coord_branch_mission["coord_specs"]
 
-    (primary_dir / "status.events.jsonl").write_text("old-event\n", encoding="utf-8")
-    (primary_dir / "status.json").write_text('{"WP01": "approved"}\n', encoding="utf-8")
-    (coord_specs / "status.events.jsonl").write_text("new-done-event\n", encoding="utf-8")
-    (coord_specs / "status.json").write_text('{"WP01": "done"}\n', encoding="utf-8")
+    # Target (primary) carries a NEWER done event the coord worktree lacks.
+    _seed_done_event(primary_dir, _COORD_SLUG, "WP02")
+    # Coord worktree carries the WP01 done event.
+    _seed_done_event(coord_specs, _COORD_SLUG, "WP01")
+
+    coord_events_text = (coord_specs / "status.events.jsonl").read_text(encoding="utf-8")
+    target_events_text = (primary_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
     target_events, target_status = _project_status_bookkeeping_to_target(
         main_repo=repo_root,
@@ -786,8 +838,20 @@ def test_project_status_bookkeeping_copies_coord_surface_to_primary_target(
     assert target_status == primary_dir / "status.json"
     assert ".worktrees" not in target_events.parts
     assert ".worktrees" not in target_status.parts
-    assert target_events.read_text(encoding="utf-8") == "new-done-event\n"
-    assert target_status.read_text(encoding="utf-8") == '{"WP01": "done"}\n'
+
+    merged_events = target_events.read_text(encoding="utf-8")
+    assert "WP02" in merged_events, "target-newer WP02 event must survive the union"
+    assert "WP01" in merged_events, "coord-side WP01 event must survive the union"
+
+    expected_snapshot = materialize_to_json(
+        reduce(
+            read_events_from_text(
+                primary_dir,
+                merge_event_log_texts(coord_events_text, target_events_text),
+            )
+        )
+    )
+    assert target_status.read_text(encoding="utf-8") == expected_snapshot
 
 
 def test_project_status_bookkeeping_restores_primary_on_projection_failure(

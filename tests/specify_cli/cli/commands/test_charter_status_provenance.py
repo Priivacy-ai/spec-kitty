@@ -52,13 +52,21 @@ def _compute_manifest_hash(fields: dict) -> str:
 
 
 def _setup_charter_v1_project(project_path: Path) -> None:
-    """Create a minimal v1 charter bundle (no bundle_schema_version in metadata)."""
+    """Create a minimal v1 charter bundle (bundle_schema_version: 1).
+
+    consolidate-charter-bundle (#2773) retired the compiled ``metadata.yaml``
+    and folded ``bundle_schema_version`` under ``charter.yaml``'s ``metadata:``
+    section — the file/section ``get_bundle_schema_version`` now reads and the
+    ``charter status`` compat gate keys off (it only fires when ``charter.yaml``
+    exists). Stamping v1 here keeps the gate firing so the reader still blocks
+    with the upgrade hint (v1 → NEEDS_MIGRATION → exit 1).
+    """
     charter_dir = project_path / ".kittify" / "charter"
 
-    # metadata.yaml without bundle_schema_version → treated as v1
+    # charter.yaml stamped v1 → compat gate treats as NEEDS_MIGRATION.
     _write_yaml(
-        charter_dir / "metadata.yaml",
-        {"timestamp_utc": "2026-01-01T00:00:00Z"},
+        charter_dir / "charter.yaml",
+        {"metadata": {"bundle_schema_version": 1}},
     )
 
     # Minimal provenance sidecar — v1 schema
@@ -87,15 +95,17 @@ def _setup_charter_v1_project(project_path: Path) -> None:
 def _setup_charter_project_with_version(
     project_path: Path, *, bundle_schema_version: int
 ) -> None:
-    """Create a charter bundle with a specific bundle_schema_version."""
+    """Create a charter bundle with a specific bundle_schema_version.
+
+    consolidate-charter-bundle (#2773): ``bundle_schema_version`` now lives
+    under ``charter.yaml``'s ``metadata:`` section (the source
+    ``get_bundle_schema_version`` reads and the compat gate keys off).
+    """
     charter_dir = project_path / ".kittify" / "charter"
 
     _write_yaml(
-        charter_dir / "metadata.yaml",
-        {
-            "bundle_schema_version": bundle_schema_version,
-            "timestamp_utc": "2026-01-01T00:00:00Z",
-        },
+        charter_dir / "charter.yaml",
+        {"metadata": {"bundle_schema_version": bundle_schema_version}},
     )
 
     (charter_dir / "charter.md").write_text("# Test Charter\n", encoding="utf-8")

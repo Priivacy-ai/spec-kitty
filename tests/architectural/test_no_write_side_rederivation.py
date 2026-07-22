@@ -673,11 +673,22 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         token_substring="CommitTarget ( ref = self . destination_ref )",
         occurrence=None,
         rationale=(
-            "tracked: #2453 - BookkeepingTransaction.commit()'s legacy-mission "
-            "override (_resolve_legacy_lane_destination reads the lane "
-            "worktree's HEAD) constructs CommitTarget(ref=self.destination_ref) "
-            "for pre-coordination-topology missions; deferred to the #2453 "
-            "sweep."
+            "FIXED (#2453) and NARROWED: BookkeepingTransaction.commit()'s "
+            "single CommitTarget(ref=self.destination_ref) construction serves "
+            "BOTH the genuinely-legacy and modern-coordination-less arms of "
+            "_acquire_locked's legacy branch, so this AST finding cannot be "
+            "split further by the scanner -- but as of the #2453 fix, "
+            "_resolve_legacy_lane_destination's Path.cwd() HEAD read only "
+            "reaches self.destination_ref for a GENUINELY-legacy mission (no "
+            "stored topology, per _warrants_legacy_warning's classification). "
+            "A modern coordination-less mission (stored single_branch/lanes "
+            "topology, or flattened) now populates self.destination_ref from "
+            "the caller-supplied, CWD-invariant destination_ref instead (routed "
+            "to repo_root, never Path.cwd()) -- the #2647 write-side taint this "
+            "entry originally tracked is closed for that shape. The remaining "
+            "genuinely-legacy re-derivation is intentional, permanent debt (a "
+            "pre-SSOT mission has no other reliable write target) -- there is "
+            "no #2453 sweep left to defer."
         ),
     ),
     ContentDescriptor(

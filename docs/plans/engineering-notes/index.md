@@ -26,8 +26,17 @@ maintainers rather than end-user documentation.
 - [Reflections](reflections/README.md) — retrospective engineering reflections.
 
 Additional clusters cover infra/logic separation (`2173-infra-logic-separation/`),
-surface-resolution work (`3-2-3-surface-resolution-cluster/`), and naming/identity SSOT
-(`naming-identity-ssot-strangler/`).
+surface-resolution work (`3-2-3-surface-resolution-cluster/`), naming/identity SSOT
+(`naming-identity-ssot-strangler/`), transient mission-scoped classifications
+([mission notes](mission-notes/index.md)), and a preserved historical mission closeout
+([01KSMG8Y — Pre-Doctrine Test Stabilization](01KSMG8Y-closeout/index.md)).
+
+## Field reports
+
+Maintainer-facing narratives of a full run under the doctrine — process, operator decisions,
+and where the charter/ADRs/guides changed the outcome:
+
+- [Doctrine-driven P0 remediation, end to end (2026-07-18)](2026-07-18-doctrine-driven-p0-remediation-field-report.md) — remediating the merge-core P0 pair #2709/#2711 and fast-follow #2786; what the adversarial-squad cadence and the red-main / tracker-hygiene / seam docs actually bought.
 
 ## See also
 

@@ -13,14 +13,22 @@ hand-built substrate instead of the live workflow file.
 """
 from __future__ import annotations
 
+import contextlib
+import signal
 import subprocess
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 import pytest
 
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
-from specify_cli.review.pre_review_gate import GateOutcome, HeadRunResult, ScopeResult
+from specify_cli.review.pre_review_gate import (
+    GateOutcome,
+    HeadRunResult,
+    HeadRunState,
+    ScopeResult,
+)
 
 # Module-level marker required by tests/architectural/test_pytest_marker_convention.py
 # (WP01 landed this file without one — a pre-existing arch-gate red this WP02 sweep
@@ -73,6 +81,50 @@ FAKE_ROUTING: dict[str, pre_review_gate._CompositeRoute] = {
 }
 
 _DUMMY_ROOT = Path(".")
+
+
+# ---------------------------------------------------------------------------
+# Live-authority loading: consumer-repo detection (#2534)
+# ---------------------------------------------------------------------------
+#
+# ``tests/architectural/_gate_coverage.py`` only ever exists inside the
+# spec-kitty SOURCE repo itself. Any project that ran ``spec-kitty init``
+# (a "consumer repo") legitimately lacks it — that absence must degrade to a
+# calm, non-blocking warn (never a message naming the internal module), while
+# a genuinely-broken authority INSIDE the source repo keeps its detailed,
+# internal-audience message. ``GateAuthoritiesUnavailable.is_consumer_repo``
+# is the discriminator the CLI hook (``tasks_move_task._mt_pre_review_gate_verdict``)
+# branches on to pick the message shape.
+
+
+@pytest.mark.fast
+def test_is_spec_kitty_source_repo_true_when_gate_coverage_module_present(tmp_path: Path) -> None:
+    gate_coverage = tmp_path / "tests" / "architectural" / "_gate_coverage.py"
+    gate_coverage.parent.mkdir(parents=True)
+    gate_coverage.write_text("", encoding="utf-8")
+
+    assert pre_review_gate._is_spec_kitty_source_repo(tmp_path) is True
+
+
+@pytest.mark.fast
+def test_is_spec_kitty_source_repo_false_for_a_bare_consumer_checkout(tmp_path: Path) -> None:
+    """A bare consumer repo (no ``tests/architectural/_gate_coverage.py`` of
+    its own) must NOT be misidentified as the spec-kitty source repo."""
+    (tmp_path / "src").mkdir()
+
+    assert pre_review_gate._is_spec_kitty_source_repo(tmp_path) is False
+
+
+@pytest.mark.fast
+def test_load_gate_coverage_module_marks_consumer_repo_on_missing_module(tmp_path: Path) -> None:
+    """#2534 (calm-degrade regression guard): a consumer repo (no
+    ``tests/architectural/_gate_coverage.py``) raises ``GateAuthoritiesUnavailable``
+    with ``is_consumer_repo=True`` so the CLI hook can compose a calm warn instead
+    of naming the internal module."""
+    with pytest.raises(pre_review_gate.GateAuthoritiesUnavailable) as excinfo:
+        pre_review_gate._load_gate_coverage_module(tmp_path)
+
+    assert excinfo.value.is_consumer_repo is True
 
 
 def _derive(changed_files: list[str]) -> ScopeResult:
@@ -197,12 +249,128 @@ def _write_tiny_pytest_project(base: Path, *, failing: bool) -> None:
     (base / "test_sample.py").write_text(body, encoding="utf-8")
 
 
+class _FakeProcess:
+    """Small ``Popen`` double for runner lifecycle tests."""
+
+    def __init__(self, *, returncode: int = 0, stdout: str = "", stderr: str = "") -> None:
+        self.pid = 424242
+        self.returncode = returncode
+        self.stdout_text = stdout
+        self.stderr_text = stderr
+        self.terminated = False
+        self.killed = False
+
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+        del timeout
+        return self.stdout_text, self.stderr_text
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+
+    def poll(self) -> int | None:
+        return self.returncode
+
+
 @pytest.mark.fast
 def test_empty_test_targets_never_invokes_subprocess() -> None:
     result = pre_review_gate.run_scoped_tests_at_head([], repo_root=_DUMMY_ROOT)
     assert result.ran is False
     assert result.current_failures == ()
     assert "empty test scope" in (result.error or "")
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    ("platform", "expected_key"),
+    [("posix", "start_new_session"), ("nt", "creationflags")],
+)
+def test_launch_uses_platform_process_group_isolation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    platform: str,
+    expected_key: str,
+) -> None:
+    calls: list[dict[str, object]] = []
+    process = _FakeProcess()
+
+    def _popen(command: list[str], **kwargs: object) -> _FakeProcess:
+        del command
+        calls.append(kwargs)
+        return process
+
+    monkeypatch.setattr(pre_review_gate.subprocess, "Popen", _popen)
+    monkeypatch.setattr(
+        pre_review_gate.subprocess,
+        "CREATE_NEW_PROCESS_GROUP",
+        512,
+        raising=False,
+    )
+
+    launched = pre_review_gate._launch_scoped_process(
+        ["pytest"],
+        repo_root=tmp_path,
+        env={},
+        platform=platform,
+    )
+
+    assert launched is process
+    assert len(calls) == 1
+    assert calls[0][expected_key] == (True if platform == "posix" else 512)
+    unexpected_key = "creationflags" if platform == "posix" else "start_new_session"
+    assert unexpected_key not in calls[0]
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("force", [False, True])
+def test_windows_signal_targets_owned_descendant_tree(
+    force: bool,
+) -> None:
+    process = _FakeProcess()
+    commands: list[tuple[str, ...]] = []
+
+    def _taskkill(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(tuple(command))
+        return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+
+    pre_review_gate._signal_owned_process_tree(
+        process,
+        force=force,
+        platform="nt",
+        windows_tree_kill=_taskkill,
+    )
+
+    expected = ("taskkill", "/PID", str(process.pid), "/T")
+    if force:
+        expected += ("/F",)
+    assert commands == [expected]
+    assert process.terminated is False
+    assert process.killed is False
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    ("force", "expected_signal"),
+    [(False, signal.SIGTERM), (True, signal.SIGKILL)],
+)
+def test_posix_signal_targets_owned_process_group(
+    monkeypatch: pytest.MonkeyPatch,
+    force: bool,
+    expected_signal: signal.Signals,
+) -> None:
+    process = _FakeProcess()
+    calls: list[tuple[int, signal.Signals]] = []
+    monkeypatch.setattr(pre_review_gate.os, "killpg", lambda pid, sig: calls.append((pid, sig)))
+
+    pre_review_gate._signal_owned_process_tree(
+        process,
+        force=force,
+        platform="posix",
+    )
+
+    assert calls == [(process.pid, expected_signal)]
 
 
 def _spy_on_resolve_pytest_command(
@@ -269,50 +437,238 @@ def test_real_subprocess_run_with_no_failures_yields_empty_current_failures(
 def test_missing_junit_output_degrades_to_a_warn_not_a_crash(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
-    def _fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(args=command, returncode=1, stdout="", stderr="boom")
-
-    monkeypatch.setattr(pre_review_gate.subprocess, "run", _fake_run)
+    monkeypatch.setattr(
+        pre_review_gate.subprocess,
+        "Popen",
+        lambda *args, **kwargs: _FakeProcess(returncode=1, stderr="boom"),
+    )
     result = pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path)
     assert result.ran is False
     assert result.returncode == 1
+    assert result.state is HeadRunState.INCOMPLETE_OUTPUT
     assert "no JUnit XML produced" in (result.error or "")
 
 
 @pytest.mark.fast
 def test_timeout_degrades_to_a_warn_not_a_crash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def _raise_timeout(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        raise subprocess.TimeoutExpired(cmd="pytest", timeout=1)
+    process = _FakeProcess()
+    waits = 0
 
-    monkeypatch.setattr(pre_review_gate.subprocess, "run", _raise_timeout)
-    result = pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path, timeout=1)
+    def _wait(candidate: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
+        nonlocal waits
+        del candidate
+        waits += 1
+        if waits == 1:
+            raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout)
+        return "", "timed out"
+
+    monkeypatch.setattr(pre_review_gate.subprocess, "Popen", lambda *args, **kwargs: process)
+    monkeypatch.setattr(pre_review_gate, "_signal_owned_process_tree", lambda *args, **kwargs: None)
+    clock = iter((0.0, 1.0, 1.0))
+    result = pre_review_gate.run_scoped_tests_at_head(
+        ["tests/status"],
+        repo_root=tmp_path,
+        timeout=1,
+        monotonic=lambda: next(clock),
+        wait=_wait,
+    )
     assert result.ran is False
+    assert result.state is HeadRunState.TIMED_OUT
     assert "timed out" in (result.error or "")
 
 
 @pytest.mark.fast
 def test_launch_failure_degrades_to_a_warn_not_a_crash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def _raise_oserror(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _raise_oserror(command: list[str], **kwargs: object) -> _FakeProcess:
         raise OSError("no such file or directory")
 
-    monkeypatch.setattr(pre_review_gate.subprocess, "run", _raise_oserror)
+    monkeypatch.setattr(pre_review_gate.subprocess, "Popen", _raise_oserror)
     result = pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path)
     assert result.ran is False
+    assert result.state is HeadRunState.LAUNCH_FAILED
     assert "failed to launch" in (result.error or "")
 
 
 @pytest.mark.fast
 def test_malformed_junit_degrades_to_a_warn_not_a_crash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def _fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def _fake_popen(command: list[str], **kwargs: object) -> _FakeProcess:
         junit_arg = next(arg for arg in command if arg.startswith("--junitxml="))
         junit_path = Path(junit_arg.split("=", 1)[1])
         junit_path.write_text("not valid xml <<<", encoding="utf-8")
-        return subprocess.CompletedProcess(args=command, returncode=1, stdout="", stderr="")
+        return _FakeProcess(returncode=1)
 
-    monkeypatch.setattr(pre_review_gate.subprocess, "run", _fake_run)
+    monkeypatch.setattr(pre_review_gate.subprocess, "Popen", _fake_popen)
     result = pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path)
     assert result.ran is False
+    assert result.state is HeadRunState.INCOMPLETE_OUTPUT
     assert "failed to parse" in (result.error or "")
+
+
+@pytest.mark.fast
+def test_observer_emits_bounded_heartbeats_without_delaying_completion() -> None:
+    process = _FakeProcess()
+    now = 0.0
+    wait_calls = 0
+    heartbeats: list[float] = []
+
+    def _wait(candidate: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
+        nonlocal now, wait_calls
+        del candidate
+        wait_calls += 1
+        if wait_calls <= 2:
+            now += timeout
+            raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout)
+        return "done", ""
+
+    state, stdout, stderr = pre_review_gate._observe_process(
+        process,
+        timeout=300,
+        progress_callback=heartbeats.append,
+        monotonic=lambda: now,
+        wait=_wait,
+    )
+
+    assert state is HeadRunState.COMPLETED
+    assert (stdout, stderr) == ("done", "")
+    assert heartbeats == [30.0, 60.0]
+
+
+@pytest.mark.fast
+def test_observer_cancellation_terminates_and_reaps_owned_child(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = _FakeProcess(stderr="cancelled")
+    waits = 0
+    signals: list[bool] = []
+
+    def _wait(candidate: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
+        nonlocal waits
+        del candidate, timeout
+        waits += 1
+        if waits == 1:
+            raise KeyboardInterrupt
+        return "", process.stderr_text
+
+    monkeypatch.setattr(
+        pre_review_gate,
+        "_signal_owned_process_tree",
+        lambda candidate, *, force: signals.append(force),
+    )
+    state, _stdout, stderr = pre_review_gate._observe_process(
+        process,
+        timeout=300,
+        progress_callback=None,
+        monotonic=lambda: 0.0,
+        wait=_wait,
+    )
+
+    assert state is HeadRunState.CANCELLED
+    assert stderr == "cancelled"
+    assert signals == [False]
+    assert waits == 2
+
+
+@pytest.mark.fast
+def test_termination_escalates_to_kill_and_reaps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = _FakeProcess(stdout="diagnostic")
+    signals: list[bool] = []
+
+    def _wait(candidate: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
+        del candidate
+        raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout)
+
+    monkeypatch.setattr(
+        pre_review_gate,
+        "_signal_owned_process_tree",
+        lambda candidate, *, force: signals.append(force),
+    )
+    output = pre_review_gate._terminate_and_reap(process, wait=_wait)
+
+    assert signals == [False, True]
+    assert output == ("diagnostic", "")
+
+
+@pytest.mark.fast
+def test_reap_is_bounded_when_escaped_grandchild_holds_pipe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The post-SIGKILL reap must return within a bound, never hang forever.
+
+    A grandchild that escaped the process group (self-``setsid``) can inherit
+    and hold the stdout pipe, so ``communicate`` never sees EOF even though the
+    owned child is dead. The reap must fall back to reaping the child by PID and
+    return, rather than wedging the gate on the leaked pipe.
+    """
+
+    class _PipeHeldProcess:
+        pid = 909090
+
+        def __init__(self) -> None:
+            self.waited = False
+
+        def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            # EOF never arrives — the escaped grandchild still holds the pipe.
+            raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout or 0.0)
+
+        def wait(self, timeout: float | None = None) -> int:
+            self.waited = True
+            return -9
+
+    process = _PipeHeldProcess()
+
+    def _wait(candidate: object, timeout: float) -> tuple[str, str]:
+        del candidate
+        raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout)
+
+    monkeypatch.setattr(
+        pre_review_gate, "_signal_owned_process_tree", lambda *a, **k: None
+    )
+
+    output = pre_review_gate._terminate_and_reap(process, wait=_wait)  # type: ignore[arg-type]
+
+    assert output == ("", "")
+    assert process.waited is True  # the dead child was reaped by PID, not left
+
+
+@pytest.mark.fast
+def test_cancellation_releases_scoped_run_lock(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    process = _FakeProcess()
+    lock_events: list[str] = []
+    waits = 0
+
+    @contextlib.contextmanager
+    def _recording_lock() -> Iterator[None]:
+        lock_events.append("enter")
+        try:
+            yield
+        finally:
+            lock_events.append("exit")
+
+    def _wait(candidate: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
+        nonlocal waits
+        del candidate, timeout
+        waits += 1
+        if waits == 1:
+            raise KeyboardInterrupt
+        return "", ""
+
+    monkeypatch.setattr(pre_review_gate, "_scoped_run_lock", _recording_lock)
+    monkeypatch.setattr(pre_review_gate.subprocess, "Popen", lambda *args, **kwargs: process)
+    monkeypatch.setattr(pre_review_gate, "_signal_owned_process_tree", lambda *args, **kwargs: None)
+
+    result = pre_review_gate.run_scoped_tests_at_head(
+        ["tests/status"],
+        repo_root=tmp_path,
+        wait=_wait,
+    )
+
+    assert result.state is HeadRunState.CANCELLED
+    assert lock_events == ["enter", "exit"]
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +742,42 @@ def test_run_that_does_not_complete_degrades_to_no_coverage_warn(monkeypatch: py
     )
     assert verdict.outcome is GateOutcome.NO_COVERAGE
     assert "scoped test run did not complete" in (verdict.reason or "")
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    ("state", "outcome"),
+    [
+        (HeadRunState.TIMED_OUT, GateOutcome.TIMED_OUT),
+        (HeadRunState.CANCELLED, GateOutcome.CANCELLED),
+    ],
+)
+def test_terminal_interruption_remains_typed_in_gate_verdict(
+    monkeypatch: pytest.MonkeyPatch,
+    state: HeadRunState,
+    outcome: GateOutcome,
+) -> None:
+    monkeypatch.setattr(
+        pre_review_gate,
+        "run_scoped_tests_at_head",
+        lambda *args, **kwargs: HeadRunResult(
+            ran=False,
+            error=state.value,
+            state=state,
+        ),
+    )
+
+    verdict = pre_review_gate.evaluate_pre_review_gate(
+        ["src/specify_cli/git/foo.py"],
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        filter_groups=FAKE_GROUPS,
+        composite_routing=FAKE_ROUTING,
+    )
+
+    assert verdict.outcome is outcome
+    assert verdict.run_state is state
+    assert verdict.outcome is not GateOutcome.NO_COVERAGE
 
 
 @pytest.mark.fast

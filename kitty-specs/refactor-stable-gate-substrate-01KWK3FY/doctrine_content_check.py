@@ -219,7 +219,7 @@ def check_anti_patterns(data: dict, failures: list[str]) -> None:  # type: ignor
         )
 
 
-def check_pr2308_citation(data: dict, failures: list[str]) -> None:  # type: ignore[type-arg]
+def check_pr2308_citation(_data: dict, failures: list[str]) -> None:  # type: ignore[type-arg]
     """(c) At least one entry literally cites #2308 or one of its commits."""
     raw_text = _STYLEGUIDE.read_text(encoding="utf-8")
     citations = ["#2308", "052d465e9", "50abe2fdc"]

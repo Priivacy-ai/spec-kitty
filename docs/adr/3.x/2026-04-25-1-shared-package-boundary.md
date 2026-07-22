@@ -72,7 +72,7 @@ in 10 work packages. Concretely:
 7. `[tool.uv.sources]` does not contain editable / path entries for any
    shared package on the committed configuration path. Developer
    overrides live in dev-only configuration documented in
-   [`docs/guides/local-overrides.md`](../../../docs/guides/local-overrides.md).
+   [`docs/development/local-overrides.md`](../../../docs/development/local-overrides.md).
    (WP08)
 8. `constraints.txt` is removed; its only purpose (papering over the
    `spec-kitty-runtime` transitive `spec-kitty-events<4.0` pin
@@ -125,7 +125,7 @@ in 10 work packages. Concretely:
 
 - Mission spec: `kitty-specs/shared-package-boundary-cutover-01KQ22DS/spec.md`
 - Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](../../migrations/shared-package-boundary-cutover.md)
-- Local-overrides dev doc: [`docs/guides/local-overrides.md`](../../../docs/guides/local-overrides.md)
+- Local-overrides dev doc: [`docs/development/local-overrides.md`](../../../docs/development/local-overrides.md)
 - Architectural enforcement:
   - [`tests/architectural/test_shared_package_boundary.py`](../../../tests/architectural/test_shared_package_boundary.py)
   - [`tests/architectural/test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py)

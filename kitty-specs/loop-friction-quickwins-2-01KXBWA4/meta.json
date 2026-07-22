@@ -12,6 +12,7 @@
   "purpose_context": "The implement-review loop's guards and gates repeatedly block legitimate in-flight actions (a guard trips on the very frontmatter it just wrote; the pre-review gate can't find pytest and forces a --force on a green tree). Each is worked around manually, which erodes gate trust and trains agents into off-workflow habits. This mission clears the highest-friction, lowest-risk of those points as the successor slice to the loop-friction fast-follow.",
   "purpose_tldr": "Stop lifecycle guards from blocking legitimate work by tripping on their own runtime writes, and make the pre-review gate return real verdicts instead of forcing --force.",
   "slug": "loop-friction-quickwins-2-01KXBWA4",
+  "status_phase": "1",
   "target_branch": "feat/loop-friction-quickwins-2",
   "topology": "coord"
 }

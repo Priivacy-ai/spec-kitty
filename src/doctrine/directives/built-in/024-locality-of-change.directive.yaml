@@ -21,10 +21,3 @@ validation_criteria:
 explicit_allowances:
   - Preparatory cleanup may extend beyond the immediate target diff when it removes failing-test noise or existing local breakage that would otherwise obscure the implementation work.
   - The allowance applies only when the extra cleanup is proportional, directly connected to the target behavior, and documented in task or review context.
-opposed_by:
-  - type: directive
-    id: DIRECTIVE_025
-    reason: >
-      The Boy Scout Rule endorses opportunistic improvement of touched areas,
-      which can justify expanding a change beyond the strict locality boundary
-      this directive enforces.

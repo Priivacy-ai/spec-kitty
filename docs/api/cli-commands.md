@@ -384,7 +384,7 @@ _Charter bundle validation commands._
 │ --selected-directives        TEXT  Comma-separated directive IDs override    │
 │ --available-tools            TEXT  Comma-separated tool IDs override         │
 │ --json                             Output JSON                               │
-│ --mission-slug               TEXT  Mission slug for Decision Moment paper    │
+│ --mission-slug               TEXT  Mission slug for decision moment paper    │
 │                                    trail (optional)                          │
 │ --help                             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -793,7 +793,7 @@ _Query workspace context information_
  --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp             TEXT  Work package code (e.g., WP01) [required]          │
+│ *  --wp             TEXT  work package code (e.g., WP01) [required]          │
 │    --mission        TEXT  Mission slug (e.g., 057-mission-name)              │
 │    --agent          TEXT  Agent name (default: 'unknown')                    │
 │    --json                 Output full JSON context (default: token only)     │
@@ -1750,7 +1750,7 @@ _Glossary management commands_
  See FR-503 and D-4 in the 3.1.1 spec.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (for example, WP01) [required]         │
+│ *    wp_id      TEXT  work package ID (for example, WP01) [required]         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                                      TEXT  Mission slug (for       │
@@ -2017,7 +2017,7 @@ _Search tracker issues via the hosted read path_
 │                                                            remove-worktree]  │
 │ --push                                                     Push to origin    │
 │                                                            after merge       │
-│ --target                                  TEXT             Target branch to  │
+│ --target                                  TEXT             target branch to  │
 │                                                            merge into        │
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
@@ -2137,6 +2137,54 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty migrate backfill-runtime-state
+
+```
+ Usage: spec-kitty migrate backfill-runtime-state [OPTIONS]
+
+ Seed legacy runtime state as events, verify fail-closed, and flip
+ status_phase.
+
+ Drives the shared
+ :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`
+ helper over the corpus (or a single ``--mission``). For every mission it seeds
+ the frontmatter/checkbox runtime state into the event log, verifies the
+ reduced
+ snapshot equals the OLD reader by **count + value**, and flips ``meta.json``
+ ``status_phase`` to snapshot-authority **only** for missions that verify.
+
+ Per-mission best-effort (research D-03): a mission whose verify fails is left
+ un-flipped (``status_phase`` untouched) and named in the summary; other
+ missions
+ still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+
+ Exit codes:
+
+ - ``0`` — every visited mission flipped or is already migrated (verify ok, no
+ error)
+ - ``1`` — one or more missions failed verify / errored, or ``--mission`` named
+ an
+   unknown handle
+
+ Examples:
+
+     spec-kitty migrate backfill-runtime-state --dry-run
+
+     spec-kitty migrate backfill-runtime-state --mission my-mission-01ABCD
+
+     spec-kitty migrate backfill-runtime-state --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run                Seed nothing and flip nothing; report per-mission   │
+│                          would-seed counts and would-flip.                   │
+│ --mission        HANDLE  Scope to a single mission (mission_id / mid8 /      │
+│                          slug). Omit to process the whole corpus.            │
+│ --json                   Emit the per-mission cutover result list as         │
+│                          structured JSON.                                    │
+│ --help                   Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty migrate backfill-topology
 
 ```
@@ -2249,6 +2297,55 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                        filesystem                                            │
 │ --mission        SLUG  Scope to a single mission slug (e.g. 083-foo-bar).    │
 │                        Omit to process all.                                  │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate rewrite-opposed-by
+
+```
+ Usage: spec-kitty migrate rewrite-opposed-by [OPTIONS]
+
+ Rewrite a pack's legacy ``opposed_by`` entries into DRG edges.
+
+ Scans every ``*.directive.yaml``/``*.tactic.yaml``/``*.paradigm.yaml``
+ file under ``--pack`` for ``opposed_by`` entries, classifies each as
+ tension-style (rewritten to an ``in_tension_with`` edge) or
+ anti-pattern-rejection-style (rewritten to a ``rejects`` edge, creating
+ the target ``anti_pattern`` node if absent), writes the new edges into
+ the pack's ``<kind>.graph.yaml`` fragments, and removes the migrated
+ ``opposed_by`` key from the source YAML.
+
+ This command is **idempotent** — once a pack has no remaining
+ ``opposed_by`` entries, running it again is a no-op.
+
+ **When to run:**
+
+ - Before upgrading to a spec-kitty release that drops ``opposed_by``
+   from the ``directive``/``tactic``/``paradigm`` schemas
+ - As part of CI checks on an org pack that still authors ``opposed_by``
+
+ Exit codes:
+
+ - ``0`` — every entry was rewritten (or, in ``--dry-run``, would be)
+ - ``1`` — one or more entries could not be unambiguously classified
+
+ Examples:
+
+     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
+
+     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --json
+
+     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack           PATH  Root directory of the target pack to migrate (org     │
+│                        pack or any directory shaped like the built-in        │
+│                        doctrine tree).                                       │
+│                        [default: .]                                          │
+│ --dry-run              Report planned rewrites without writing any files.    │
+│                        The JSON shape is identical to a live run.            │
+│ --json                 Emit a structured JSON report on stdout.              │
 │ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2945,7 +3042,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  Work package ID [required]                         │
+│ *  --wp             TEXT  work package ID [required]                         │
 │ *  --actor          TEXT  Actor identity [required]                          │
 │ *  --note           TEXT  History note to append [required]                  │
 │    --help                 Show this message and exit.                        │
@@ -2991,7 +3088,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission         TEXT  Mission slug [required]                           │
-│    --target          TEXT  Target branch to merge into (auto-detected from   │
+│    --target          TEXT  target branch to merge into (auto-detected from   │
 │                            meta.json)                                        │
 │    --strategy        TEXT  Merge strategy: merge, squash, or rebase          │
 │                            [default: merge]                                  │
@@ -3028,7 +3125,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  Work package ID [required]                         │
+│ *  --wp             TEXT  work package ID [required]                         │
 │    --help                 Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3042,7 +3139,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  Work package ID [required]                         │
+│ *  --wp             TEXT  work package ID [required]                         │
 │ *  --actor          TEXT  Actor identity [required]                          │
 │    --policy         TEXT  Policy metadata JSON (required)                    │
 │    --help                 Show this message and exit.                        │
@@ -3058,7 +3155,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission           TEXT  Mission slug [required]                         │
-│ *  --wp                TEXT  Work package ID [required]                      │
+│ *  --wp                TEXT  work package ID [required]                      │
 │ *  --actor             TEXT  Actor identity [required]                       │
 │    --policy            TEXT  Policy metadata JSON (required)                 │
 │    --review-ref        TEXT  Review feedback reference (optional, not        │
@@ -3076,7 +3173,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission                            TEXT  Mission slug [required]        │
-│ *  --wp                                 TEXT  Work package ID [required]     │
+│ *  --wp                                 TEXT  work package ID [required]     │
 │ *  --to                                 TEXT  Target lane [required]         │
 │ *  --actor                              TEXT  Actor identity [required]      │
 │    --note                               TEXT  Reason/note for the transition │
@@ -3398,12 +3495,17 @@ _Cross-mission retrospective summary._
  dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission handle (id, mid8, or slug).                   │
-│ --mode           TEXT  Review mode: 'lightweight' (consistency check only)   │
-│                        or 'post-merge' (full release-gate contract).         │
-│                        Auto-detected from meta.json.baseline_merge_commit    │
-│                        when omitted.                                         │
-│ --help                 Show this message and exit.                           │
+│ --mission               TEXT  Mission handle (id, mid8, or slug).            │
+│ --mode                  TEXT  Review mode: 'lightweight' (consistency check  │
+│                               only) or 'post-merge' (full release-gate       │
+│                               contract). Auto-detected from                  │
+│                               meta.json.baseline_merge_commit when omitted.  │
+│ --check-residual              Run the CI residual (unit or contract) marker  │
+│                               selection locally over tests/, then exit --    │
+│                               skips the mission-scoped review gates. The -m  │
+│                               expression is read live from the CI workflow,  │
+│                               never hand-copied.                             │
+│ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3517,8 +3619,13 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │                                                   coordination branch;       │
 │                                                   branch-flat shapes         │
 │                                                   (single_branch, lanes) do  │
-│                                                   not. Default: coord.       │
-│                                                   [default: coord]           │
+│                                                   not. Default:              │
+│                                                   context-derived (#2581) —  │
+│                                                   coord on the primary       │
+│                                                   branch or with --pr-bound, │
+│                                                   single_branch on a         │
+│                                                   non-primary feature        │
+│                                                   branch.                    │
 │ --json                                            Emit JSON result           │
 │ --help                                            Show this message and      │
 │                                                   exit.                      │
@@ -4029,7 +4136,7 @@ _Work-package mapping commands_
  mappings in the Spec Kitty dashboard instead.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp-id               TEXT  Work package ID (e.g., WP01) [required]       │
+│ *  --wp-id               TEXT  work package ID (e.g., WP01) [required]       │
 │ *  --external-id         TEXT  External issue ID [required]                  │
 │    --external-key        TEXT  External issue key                            │
 │    --external-url        TEXT  External issue URL                            │

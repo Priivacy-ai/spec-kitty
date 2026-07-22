@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "025-cli-event-log-integration",
   "source_description": "Spec Kitty SaaS Transformation - Next Steps Plan: Integrate the completed spec-kitty-events library into the CLI. Replace primitive YAML activity logs with structured event log using Lamport clocks and CRDT merge rules. Events stored in .kittify/events/YYYY-MM-DD.jsonl with Git replication. This is Dependency 0 for the SaaS platform - everything else blocks on it.",
+  "status_phase": "1",
   "target_branch": "2.x",
   "vcs": "git",
   "vcs_locked_at": "2026-01-28T05:30:29.266188+00:00"

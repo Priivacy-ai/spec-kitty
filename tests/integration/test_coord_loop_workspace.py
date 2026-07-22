@@ -692,8 +692,8 @@ class TestLocateWorkPackageReadsFromPrimary:
 
         ctx = coord_topology_mission
         _write_explicit_code_change_wp(ctx.primary_feature_dir)
-        # Write parseable status events so get_wp_lane succeeds.
-        _write_parseable_status_events(ctx.primary_feature_dir, ctx.slug)
+        # Mutable status belongs to the coordination partition.
+        _write_parseable_status_events(ctx.coord_feature_dir, ctx.slug)
 
         try:
             wp = locate_work_package(ctx.repo, ctx.slug, "WP01")

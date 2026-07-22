@@ -1,0 +1,79 @@
+{
+  "mission_slug": "implement-review-loop-recovery-01KXG2TD",
+  "mission_number": 178,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Human mode emits an initial pre-review progress indication within two seconds.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py; WP01 cycle-2 focused suite (80 passed)",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Independently rerun during cycle-2 review."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Human mode emits bounded ongoing liveness while the gate remains active.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py; dedicated RED regression-test commit followed by the final GREEN implementation commit",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Historical RED remained test-only and the timing assertion was not weakened."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "JSON mode emits exactly one parseable standard-output document for every terminal gate outcome.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py; WP01 cycle-2 focused suite",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Success, failure, timeout, and catchable cancellation are covered."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "JSON progress cannot corrupt standard output.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py; WP01 cycle-2 focused suite",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Reviewer verified singular JSON output and separated progress."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Timeout and catchable cancellation preserve prior authoritative state before transition mutation.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py; exact-entry residue matrix across primary, coordination, and lane checkouts",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Snapshots cover events, materialized lane, WP bytes, HEAD/commit count, placement, and owned dirty paths."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Existing escape and synchronization controls remain behaviorally honest.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_escape_hatch.py and focused compatibility suite",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Explicit sync-disable remains a truthful skipped/unverified outcome."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Uncatchable termination has deterministic authoritative-state reconciliation.",
+      "proof_type": "automated_test",
+      "evidence": "test_sigkill_recovery_reads_prior_authoritative_lane; actual Typer command killed while synchronized inside the real pytest gate",
+      "pass_fail": "pass",
+      "verified_by": "codex:default:reviewer-renata:reviewer",
+      "verified_at": "2026-07-14T13:35:00Z",
+      "notes": "Linux subreaper fixture reaps the orphaned runner child; no rollback claim is made."
+    }
+  ],
+  "negative_invariants": []
+}

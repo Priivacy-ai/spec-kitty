@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 90  # justification: +2 (88->90): m_3_2_4_runtime_dirs_gitignore_backfill (#2384, #2388) and m_3_2_5_agents_skills_gitignore_backfill (#2412) are auto-discovered migrations loaded via pkgutil.iter_modules + @MigrationRegistry.register, never statically imported — same sibling shape as the m_3_2_3 backfill above.
+  category_1_auto_discovered_migrations: 93  # justification: 93 auto-discovered migrations after #2816 added m_zz_runtime_state_backfill, registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer; it sorts after the charter folds and performs the fail-closed corpus cutover on upgrade.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -54,8 +54,11 @@ test_no_dead_modules:
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
   category_4_backcompat_shims: 0
-  # justification: 3 compat-shim WP-in-flight adapters.
-  category_5_wp_in_flight_adapters: 0  # emptied: the 3 dead compat._adapters shim modules deleted (salvaged from closed #2159/#2049)
+  # justification: 0 compat-shim WP-in-flight adapters. charter.extractor
+  # (the last entry) is fully deleted by charter-deadcode-noop-campsite
+  # WP02 -- module removed, test-only refs retired/reconstructed. Category
+  # fully drained (1->0 SHRINK).
+  category_5_wp_in_flight_adapters: 0
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -77,6 +80,11 @@ test_no_dead_modules:
   # policy.audit) carry documented deferral verdicts (ADR 2026-05-18-2 / Robert;
   # adopt-as-follow-up respectively). Shrink of 4 satisfies the C-006 ">= 2 per
   # major release" burn-down floor for this wave.
+  # 2 -> 3 (#2684 runtime-state eviction): migration.backfill_runtime_state is a
+  # deferred backfill library; CLI wiring tracked in #2816 (TODO(triage)).
+  # 3 -> 2 (#2816 runtime-state-corpus-cutover WP01): the backfill library now has a
+  # live src/ caller (migration.runtime_state_cutover), so it is no longer an orphan;
+  # the Cat-7 entry was removed. Shrink — reverses the #2684 deferral bump.
   category_7_grandfathered_orphans: 2
 
 # tests/architectural/test_migration_chain_integrity.py
@@ -238,11 +246,14 @@ test_no_dead_symbols:
   # (``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` 4->0, FR-002): the
   # aggregate ``_SYMBOL_ALLOWLIST`` still strictly decreases (317->313).
   category_b_grandfathered_legacy: 193
-  # 6->4 (org-doctrine close-out WP04): removed the now-wired
-  # charter.invocation_context::{OperationalContext,build_operational_context}
-  # (WP14 added live src/ callers). Remaining 4: the two require_active_*
-  # method entries, ContextPreconditionError, ConsistencyReport.
-  category_c_wp_in_flight_charter_scope: 4
+  # 6->4->1 (org-doctrine close-out WP04, then doctrine-tension-edges-01KY1WPC):
+  # removed the now-wired charter.invocation_context::{OperationalContext,
+  # build_operational_context} (WP14 added live src/ callers), then pruned
+  # the now-dangling charter.consistency_check::ConsistencyReport entry
+  # (removed from __all__ instead of re-pinning its hash after WP05 extended
+  # the dataclass -- no external caller imports it by name). Remaining 1:
+  # ContextPreconditionError.
+  category_c_wp_in_flight_charter_scope: 1
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from

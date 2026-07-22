@@ -88,12 +88,18 @@ class TestBuildWorkPackageState:
     def test_active_lane_missing_all_three_flags_all_issues(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee=None, shell_pid=None)
 
-        state, issues = build_work_package_state(wp, "WP01", "in_progress", repo_root=tmp_path, strict_metadata=True)
+        state, issues = build_work_package_state(
+            wp,
+            "WP01",
+            {"lane": "in_progress"},
+            repo_root=tmp_path,
+            strict_metadata=True,
+        )
 
         assert issues == [
-            "WP01: missing agent in frontmatter",
-            "WP01: missing assignee in frontmatter",
-            "WP01: missing shell_pid in frontmatter",
+            "WP01: missing agent in canonical runtime state",
+            "WP01: missing assignee in canonical runtime state",
+            "WP01: missing shell_pid in canonical runtime state",
         ]
         assert state.lane == "in_progress"
         assert state.has_lane_entry is True
@@ -105,21 +111,73 @@ class TestBuildWorkPackageState:
         still required; assignee/shell_pid are exempt outside active lanes."""
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent="claude", assignee=None, shell_pid=None)
 
-        _state, issues = build_work_package_state(wp, "WP01", "done", repo_root=tmp_path, strict_metadata=True)
+        _state, issues = build_work_package_state(
+            wp,
+            "WP01",
+            {"lane": "done", "agent": "claude"},
+            repo_root=tmp_path,
+            strict_metadata=True,
+        )
 
         assert issues == []
+
+    def test_terminal_lane_still_requires_canonical_runtime_agent(self, tmp_path: Path) -> None:
+        wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent="authored-only")
+
+        _state, issues = build_work_package_state(
+            wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
+        )
+
+        assert issues == ["WP01: missing agent in canonical runtime state"]
 
     def test_non_strict_metadata_suppresses_all_issues(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee=None, shell_pid=None)
 
-        _state, issues = build_work_package_state(wp, "WP01", "in_progress", repo_root=tmp_path, strict_metadata=False)
+        _state, issues = build_work_package_state(
+            wp,
+            "WP01",
+            {"lane": "in_progress"},
+            repo_root=tmp_path,
+            strict_metadata=False,
+        )
 
         assert issues == []
+
+    def test_runtime_metadata_comes_only_from_snapshot(self, tmp_path: Path) -> None:
+        wp = _wp(
+            path=tmp_path / "tasks" / "WP01.md",
+            agent="legacy-agent",
+            assignee="legacy-assignee",
+            shell_pid="111",
+        )
+
+        state, issues = build_work_package_state(
+            wp,
+            "WP01",
+            {
+                "lane": "in_progress",
+                "agent": "resolved-agent",
+                "assignee": "resolved-assignee",
+                "shell_pid": "222",
+            },
+            repo_root=tmp_path,
+            strict_metadata=True,
+        )
+
+        assert issues == []
+        assert state.metadata == {
+            "lane": "in_progress",
+            "agent": "resolved-agent",
+            "assignee": "resolved-assignee",
+            "shell_pid": "222",
+        }
 
     def test_canonical_lane_none_buckets_to_planned(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md")
 
-        state, _issues = build_work_package_state(wp, "WP01", None, repo_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(
+            wp, "WP01", None, repo_root=tmp_path, strict_metadata=True
+        )
 
         assert state.lane == "planned"
         assert state.has_lane_entry is False
@@ -129,14 +187,18 @@ class TestBuildWorkPackageState:
         wp_path = tmp_path / "kitty-specs" / "trio-mission" / "tasks" / "WP01.md"
         wp = _wp(path=wp_path)
 
-        state, _issues = build_work_package_state(wp, "WP01", "approved", repo_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(
+            wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
+        )
 
         assert state.path == str(Path("kitty-specs") / "trio-mission" / "tasks" / "WP01.md")
 
     def test_title_strips_surrounding_quotes(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "WP01.md", title='"Quoted Title"')
 
-        state, _issues = build_work_package_state(wp, "WP01", "approved", repo_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(
+            wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
+        )
 
         assert state.title == "Quoted Title"
 

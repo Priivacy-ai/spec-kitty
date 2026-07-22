@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.status.models import Lane
+from specify_cli.status.models import NON_DISPLAY_LANES, Lane
 from specify_cli.status.wp_state import (
     InProgressState,
     InReviewState,
@@ -213,10 +213,11 @@ class TestInReviewMetrics:
     def test_all_nine_lanes_accounted_for(self):
         """Every display Lane enum value has a slot in the by_lane grouping dict.
 
-        'genesis' is a non-display lane (pre-finalize state); it is never a
-        board column, so it is excluded from the grouping dict by design.
+        'genesis' and 'uninitialized' are non-display lanes; neither is ever
+        a board column, so both are excluded from the grouping dict by design
+        (NON_DISPLAY_LANES).
         """
-        expected_lanes = {lane.value for lane in Lane if lane is not Lane.GENESIS}
+        expected_lanes = {lane.value for lane in Lane if lane not in NON_DISPLAY_LANES}
         grouping_lanes = {
             "planned",
             "claimed",

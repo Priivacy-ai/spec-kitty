@@ -249,3 +249,17 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Applicable to** | `3.x` |
 | **Examples** | git commit, pull request, PR comment, CI run result |
 | **Related terms** | [Effector](#effector) |
+
+---
+
+### repository root checkout
+
+| | |
+|---|---|
+| **Definition** | The canonical repository-root working copy of a project — the single checkout from which planning commands run and against which lane worktrees are created. It is distinct from a lane worktree (an isolated per-work-package checkout under `.worktrees/`). This is `primary` **Sense C**; the charter §Branch-Intent Terminology Governance decrees "repository root checkout" as the canonical term for this sense. The retired alias phrases "primary surface" and "primary checkout" describe it. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Symbols unchanged this slice** | This entry canonicalizes the prose term only. The underlying code symbols (`primary_feature_dir_*` and the rest of the Sense-C checkout cluster) are **not** renamed in this mission; the code rename is Track 2 (#2730). |
+| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](./orchestration.md#primary-partition). The concept is the repository's default integration branch — use [Primary Branch](./orchestration.md#primary-branch). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Avoid the retired aliases "primary surface" and "primary checkout". |
+| **Related terms** | [Build](./orchestration.md#build), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [Primary Branch](./orchestration.md#primary-branch) |

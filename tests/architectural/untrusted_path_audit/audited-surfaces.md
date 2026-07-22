@@ -27,6 +27,8 @@ AST-discovered set) are removed from this file. The two-section split
 ## Surfaces already routed-through-seam (regression-guard targets)
 
 - `src/specify_cli/missions/_read_path_resolver.py`
+- `src/specify_cli/migration/backfill_runtime_state.py`
+- `src/specify_cli/migration/runtime_state_cutover.py`
 - `src/specify_cli/review/cycle.py`
 - `src/specify_cli/status/aggregate.py`
 - `src/specify_cli/status/lifecycle.py`

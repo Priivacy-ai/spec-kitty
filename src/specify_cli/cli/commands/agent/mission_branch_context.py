@@ -198,39 +198,20 @@ def _resolve_primary_branch_for_recommendation(
     repo_root: Path,
     current_branch: str | None,
 ) -> str:
-    """Resolve primary branch for recommendations without feature-branch bias."""
-    try:
-        result = subprocess.run(
-            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            ref = result.stdout.strip()
-            branch = ref.split("/")[-1]
-            if branch:
-                return branch
-    except subprocess.TimeoutExpired:
-        pass
+    """Resolve the primary branch for recommendations without feature-branch bias.
 
-    common_primary_branches = ("main", "master", "develop")
-    if current_branch in common_primary_branches:
-        return current_branch
-    for branch in common_primary_branches:
-        try:
-            if _git_local_or_remote_branch_exists(repo_root, branch):
-                return branch
-        except subprocess.TimeoutExpired:
-            continue
-
+    FR-007 (mission ``primary-merge-vocabulary``): folded onto the canonical
+    :func:`specify_cli.core.git_ops.resolve_primary_branch` via its ``bias``
+    flag — this is now a thin, named delegating wrapper rather than a parallel
+    re-implementation of the origin/HEAD cascade. ``bias=False`` preserves the
+    deliberate no-feature-bias behavior (a ticket branch is never mistaken for
+    the primary branch). The name is retained so the historical
+    ``mission._resolve_primary_branch_for_recommendation`` monkeypatch target
+    and re-export stay intact.
+    """
     from specify_cli.core.git_ops import resolve_primary_branch
 
-    return str(resolve_primary_branch(repo_root))
+    return str(resolve_primary_branch(repo_root, current_branch=current_branch, bias=False))
 
 
 def _switch_to_start_branch(repo_root: Path | None, start_branch: str) -> str:

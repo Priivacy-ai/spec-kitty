@@ -175,7 +175,7 @@ class TestFR008MessagesNameFeatureBranch:
             "resolve_placement_only": lambda _r, _s, *, kind: CommitTarget(ref="main"),
             "resolve_topology": lambda _r, _s: None,
             "routes_through_coordination": lambda _t: False,
-            "_resolve_primary_target_branch": lambda _r, _s: "main",
+            "_resolve_mission_target_branch": lambda _r, _s: "main",
         }
         import pytest as _pytest
 
@@ -353,7 +353,7 @@ class TestTasksTailsProtectedPrimaryByteIdentical:
             f"{payload['error']!r}"
         )
 
-    def test_mark_status_protected_primary_message_byte_identical(
+    def test_mark_status_event_only_bypasses_artifact_protection(
         self, _protected_main: object
     ) -> None:
         from typer.testing import CliRunner
@@ -365,9 +365,9 @@ class TestTasksTailsProtectedPrimaryByteIdentical:
             ["mark-status", "T001", "--status", "done", "--mission", _SLUG, "--auto-commit", "--json"],
         )
         assert result.exit_code == 1, result.output
-        self._assert_json_error_byte_identical(
-            result.output, "spec-kitty agent tasks mark-status"
-        )
+        payload = json.loads(result.output.strip().splitlines()[-1])
+        assert payload["error"].startswith("meta.json not found for mission")
+        assert "protected branch" not in payload["error"]
 
     def test_map_requirements_protected_primary_message_byte_identical(
         self, _protected_main: object

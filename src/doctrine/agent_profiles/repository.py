@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from doctrine.drg.loader import DRGLoadError, load_graph
+from doctrine.drg.loader import DRGLoadError, load_built_in_graph
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from doctrine.shared.exceptions import InlineReferenceRejectedError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
@@ -266,27 +266,21 @@ class AgentProfileRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "built-in"
 
-    @staticmethod
-    def _default_drg_path() -> Path:
-        """Locate the shipped built-in DRG graph (``src/doctrine/graph.yaml``)."""
-        try:
-            resource = files("doctrine")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("graph.yaml")))
-            return Path(str(resource)) / "graph.yaml"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent.parent / "graph.yaml"
-
     @classmethod
     def _default_drg(cls) -> DRGGraph:
         """Load the shipped DRG graph used to resolve lineage.
 
+        Routes through the canonical :func:`load_built_in_graph` seam (WP03,
+        mission #2680) so the built-in graph is read in exactly one place. The
+        seam yields the doctrine *directory* and prefers ``graph.yaml`` while the
+        monolith is present, so this stays behaviour-preserving today and follows
+        the monolith->fragment migration (WP05) with no further edits here.
+
         If the shipped graph cannot be loaded, lineage resolution degrades to an
         empty graph (no parents) rather than crashing the whole repository load.
         """
-        path = cls._default_drg_path()
         try:
-            return load_graph(path)
+            return load_built_in_graph()
         except DRGLoadError:
             return DRGGraph(
                 schema_version="1.0",

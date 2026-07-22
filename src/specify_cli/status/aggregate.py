@@ -31,12 +31,6 @@ from typing import TYPE_CHECKING, Any, Literal
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.mission_metadata import load_meta
 
-# Legacy sentinel emitted by older transactional readers; not a Lane enum value.
-# Canonical definition lives in lane_reader (the canonical read surface); imported
-# as a private alias to preserve existing usage patterns throughout this module.
-# See LEGACY_UNINITIALIZED_SENTINEL in status/lane_reader.py for documentation.
-from .lane_reader import LEGACY_UNINITIALIZED_SENTINEL as _LEGACY_UNINITIALIZED_SENTINEL
-
 if TYPE_CHECKING:
     from specify_cli.coordination.types import CommitReceipt
     from specify_cli.status import TransitionRequest
@@ -594,7 +588,7 @@ class MissionStatus:
                 requested (from_lane, to_lane) pair is not allowed.
         """
         from specify_cli.status import validate_transition
-        from specify_cli.status.models import GuardContext, Lane
+        from specify_cli.status.models import GuardContext, Lane, actor_identity_str
         from specify_cli.coordination.status_transition import (
             emit_status_transition_transactional,
             read_current_wp_state_transactional,
@@ -641,7 +635,11 @@ class MissionStatus:
 
         # Build a GuardContext from behavior-preserving inferred request fields.
         ctx = GuardContext(
-            actor=request.actor,
+            actor=(
+                actor_identity_str(request.actor)
+                if request.actor is not None
+                else None
+            ),
             workspace_context=workspace_context,
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
@@ -679,16 +677,34 @@ class MissionStatus:
         An unseeded WP resolves to ``genesis`` (``lane_unseeded``), NOT ``planned``:
         a created-but-unfinalized WP cannot be claimed, and the FSM correctly
         rejects ``genesis -> claimed``. The transactional reader already returns
-        ``Lane.GENESIS`` for unseeded WPs; the ``"uninitialized"`` string sentinel
-        is handled here for any reader that still emits it (#1775 review M4/Tier 3).
+        ``Lane.GENESIS`` for unseeded WPs; the ``Lane.UNINITIALIZED`` read
+        sentinel is handled here for any reader that still emits it (#1775
+        review M4/Tier 3).
+
+        Verified unreachable via the current production feeder (#2675
+        harden): ``read_current_wp_state_transactional`` (the sole caller
+        wires ``specify_cli.coordination.status_transition``'s
+        implementation) converts ``UNINITIALIZED`` -> ``GENESIS`` itself on
+        every path before returning, so ``from_lane_enum`` never actually
+        equals ``UNINITIALIZED`` in production today. The branch is kept
+        anyway: ``read_current_wp_state_transactional`` is an injected
+        callable (typed ``Any`` precisely so tests can substitute readers),
+        this method is the single place documented as handling the
+        sentinel, and ``test_resolve_current_lane_maps_uninitialized_to_genesis``
+        / ``test_transition_helper_maps_uninitialized_lane_to_genesis`` pin
+        the mapping directly via an injected reader. Removing it would
+        silently drop that documented contract for any future reader
+        implementation that legitimately surfaces the sentinel.
         """
+        from specify_cli.status.models import Lane as _Lane
+
         from_lane_enum, current_actor = read_current_wp_state_transactional(
             feature_dir=self.read_dir,
             mission_slug=self.mission_slug,
             wp_id=request.wp_id or "",
             repo_root=self.repo_root,
         )
-        if str(from_lane_enum) == _LEGACY_UNINITIALIZED_SENTINEL:
+        if from_lane_enum == _Lane.UNINITIALIZED:
             from_lane_enum = lane_unseeded
         return str(from_lane_enum), current_actor
 
@@ -713,7 +729,7 @@ class MissionStatus:
         subtasks_complete = request.subtasks_complete
         implementation_evidence_present = request.implementation_evidence_present
         entering_review = from_lane_str == lane_in_progress and resolved_to_lane == lane_for_review
-        if entering_review and subtasks_complete is None:
+        if entering_review:
             # T010/FR-003 (folded into the #2574 single seam): route through the
             # canonical resolve_subtasks_gate_dir seam so a coord-topology
             # mission's completeness check reads the PRIMARY tasks.md, not
@@ -721,13 +737,28 @@ class MissionStatus:
             # coord-topology missions) -- ``self.repo_root``/``self.mission_slug``
             # are dataclass-required fields, so no None-guard is needed here.
             from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir
+            from specify_cli.coordination.status_transition import (
+                read_event_stream_transactional,
+            )
 
             subtasks_dir = resolve_subtasks_gate_dir(self.read_dir, self.repo_root, self.mission_slug)
-            subtasks_complete = status_emit._infer_subtasks_complete(subtasks_dir, request.wp_id or "")
-        if entering_review and implementation_evidence_present is None:
-            implementation_evidence_present = status_emit._infer_implementation_evidence(
-                self.read_dir, request.wp_id or ""
+            event_stream = read_event_stream_transactional(
+                feature_dir=self.read_dir,
+                mission_slug=self.mission_slug,
+                repo_root=self.repo_root,
             )
+            if not request.force:
+                subtasks_complete = status_emit._infer_subtasks_complete(
+                    subtasks_dir,
+                    request.wp_id or "",
+                    event_stream=event_stream,
+                )
+            if implementation_evidence_present is None:
+                implementation_evidence_present = (
+                    status_emit._infer_implementation_evidence_from_event_stream(
+                        event_stream, request.wp_id or ""
+                    )
+                )
         return subtasks_complete, implementation_evidence_present
 
     def save(self, *, operation: str) -> CommitReceipt:

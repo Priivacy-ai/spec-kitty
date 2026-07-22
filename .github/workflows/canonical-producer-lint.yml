@@ -51,6 +51,7 @@ jobs:
   lint:
     name: AST lint -- canonical producers
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     steps:
       - name: Checkout

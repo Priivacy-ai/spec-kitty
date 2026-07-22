@@ -93,6 +93,57 @@ class TestKittyOpsStorage:
         assert not (tmp_path / "invocation-index.jsonl").exists()
         assert not (tmp_path / ".kittify" / "events" / "invocation-index.jsonl").exists()
 
+    @pytest.mark.parametrize(
+        "invalid_id",
+        ["../outside", "nested/path", ".", "", "01abcdefghjkmnpqrstvwxyz12"],
+    )
+    def test_invocation_path_rejects_non_ulid_before_composing_path(
+        self,
+        tmp_path: Path,
+        invalid_id: str,
+    ) -> None:
+        writer = InvocationWriter(tmp_path)
+
+        with pytest.raises(ValueError, match="26-char ULID"):
+            writer.invocation_path(invalid_id)
+
+        assert not (tmp_path / "outside.jsonl").exists()
+
+    def test_invocation_path_rejects_symlink_escape_from_kitty_ops(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        writer = InvocationWriter(tmp_path)
+        events_dir = tmp_path / EVENTS_DIR
+        events_dir.mkdir()
+        outside = tmp_path / "outside.jsonl"
+        outside.write_text("attacker controlled\n", encoding="utf-8")
+        link = events_dir / f"{_INVOCATION_ID}.jsonl"
+        try:
+            link.symlink_to(outside)
+        except OSError as exc:  # pragma: no cover - platform privilege dependent
+            pytest.skip(f"symlinks unavailable: {exc}")
+
+        with pytest.raises(ValueError, match="outside trusted roots"):
+            writer.invocation_path(_INVOCATION_ID)
+
+    def test_index_append_does_not_follow_preplanted_symlink(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        events_dir = tmp_path / EVENTS_DIR
+        events_dir.mkdir()
+        outside = tmp_path / "outside-index.jsonl"
+        outside.write_text("KEEP\n", encoding="utf-8")
+        try:
+            (events_dir / "ops-index.jsonl").symlink_to(outside)
+        except OSError as exc:  # pragma: no cover - platform privilege dependent
+            pytest.skip(f"symlinks unavailable: {exc}")
+
+        InvocationWriter(tmp_path).write_started(_make_started())
+
+        assert outside.read_text(encoding="utf-8") == "KEEP\n"
+
 
 def test_lifecycle_log_relative_path_is_kitty_ops() -> None:
     assert Path("kitty-ops") / "lifecycle.jsonl" == LIFECYCLE_LOG_RELATIVE_PATH
@@ -118,6 +169,41 @@ class TestWriteCompletedAppendsLine:
         writer.write_started(_make_started())
         path = writer.write_completed(_make_completed())
         assert path == writer.invocation_path(_INVOCATION_ID)
+
+    def test_write_completed_rejects_same_root_symlink_substitution(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        writer = InvocationWriter(tmp_path)
+        target = writer.write_started(_make_started(_INVOCATION_ID_2))
+        link = tmp_path / EVENTS_DIR / f"{_INVOCATION_ID}.jsonl"
+        try:
+            link.symlink_to(target.name)
+        except OSError as exc:  # pragma: no cover - platform privilege dependent
+            pytest.skip(f"symlinks unavailable: {exc}")
+
+        with pytest.raises(ValueError, match="symbolic link"):
+            writer.write_completed(_make_completed(_INVOCATION_ID))
+
+        rows = target.read_text(encoding="utf-8").splitlines()
+        assert len(rows) == 1  # golden-count: cardinality-is-contract
+
+    def test_write_completed_rejects_embedded_started_id_mismatch(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        writer = InvocationWriter(tmp_path)
+        path = tmp_path / EVENTS_DIR / f"{_INVOCATION_ID}.jsonl"
+        path.parent.mkdir()
+        path.write_text(
+            _make_started(_INVOCATION_ID_2).to_jsonl_line() + "\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(InvocationError, match="identity mismatch"):
+            writer.write_completed(_make_completed(_INVOCATION_ID))
+
+        assert len(path.read_text(encoding="utf-8").splitlines()) == 1  # golden-count: cardinality-is-contract
 
 
 class TestWriteStartedAppendOnly:
@@ -271,3 +357,20 @@ class TestInvocationPathFormat:
         assert path.name == f"{_INVOCATION_ID}.jsonl"
         # Confirm there is no profile_id prefix
         assert "implementer" not in path.name
+
+
+def test_append_correlation_rejects_embedded_started_id_mismatch(
+    tmp_path: Path,
+) -> None:
+    writer = InvocationWriter(tmp_path)
+    path = tmp_path / EVENTS_DIR / f"{_INVOCATION_ID}.jsonl"
+    path.parent.mkdir()
+    path.write_text(
+        _make_started(_INVOCATION_ID_2).to_jsonl_line() + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(InvocationError, match="identity mismatch"):
+        writer.append_correlation_link(_INVOCATION_ID, ref="spec.md")
+
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1  # golden-count: cardinality-is-contract

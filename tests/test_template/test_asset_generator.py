@@ -455,8 +455,14 @@ After {SCRIPT}
     repo_root = tmp_path / "project"
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
-    (charter_dir / "governance.yaml").write_text(
-        "doctrine:\n  selected_paradigms:\n    - structured-prompt-driven-development\n",
+    # consolidate-charter-bundle (#2773): SPDD-active detection
+    # (doctrine.spdd_reasons.activation) reads charter.yaml's governance
+    # section, not the retired governance.yaml.
+    (charter_dir / "charter.yaml").write_text(
+        "governance:\n"
+        "  doctrine:\n"
+        "    selected_paradigms:\n"
+        "      - structured-prompt-driven-development\n",
         encoding="utf-8",
     )
 

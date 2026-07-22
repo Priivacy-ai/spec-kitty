@@ -320,7 +320,20 @@ def test_tactic_references_resolve_to_known_tactics() -> None:
 
 
 # ---------------------------------------------------------------------------
-# opposed_by resolution checks
+# Shipped-artifact ID lookups (used by the reference-resolution checks above
+# and by ``test_no_paradigm_carries_inline_tactic_refs`` below).
+#
+# The three contradiction-declaration resolution checks that used to live in
+# this section (retired-field entries resolving to known artifacts) were
+# removed in WP03 of doctrine-tension-edges-01KY1WPC alongside the retired
+# field itself. Their coverage is not lost: every edge in the shipped graph
+# (including the hand-authored ``in_tension_with``/``reconciles_tension``/
+# ``rejects`` edges that replaced the old contradiction declarations) is
+# already validated for dangling references by ``assert_valid`` via the
+# ``shipped_drg_graph`` fixture (``tests/doctrine/conftest.py``), which every
+# DRG-consuming test in this suite shares. A ``rejects`` edge's target being
+# specifically anti-pattern-kinded is WP04's dedicated validator test
+# (INV-004), not duplicated here.
 # ---------------------------------------------------------------------------
 
 def _shipped_directive_ids() -> set[str]:
@@ -341,84 +354,6 @@ def _shipped_paradigm_ids() -> set[str]:
         if p_id:
             ids.add(p_id)
     return ids
-
-
-def test_directive_opposed_by_refs_resolve() -> None:
-    """All opposed_by entries in shipped directives must point to known artifacts.
-
-    _proposed directives are excluded — their opposed_by links may be aspirational.
-    """
-    directive_ids = _shipped_directive_ids()
-    tactic_ids = _shipped_tactic_ids()
-    paradigm_ids = _shipped_paradigm_ids()
-    id_map = {"directive": directive_ids, "tactic": tactic_ids, "paradigm": paradigm_ids}
-
-    unresolved: list[str] = []
-    for path in _multi_glob([_SHIPPED_DIRECTIVES_DIR], "*.directive.yaml"):
-        data = _load_yaml(path)
-        source_id = str(data.get("id", "")).strip()
-        for entry in data.get("opposed_by", []) or []:
-            ref_type = str(entry.get("type", "")).strip()
-            ref_id = str(entry.get("id", "")).strip()
-            if ref_type not in id_map:
-                unresolved.append(f"{source_id}: unknown opposed_by type '{ref_type}'")
-                continue
-            if ref_id and ref_id not in id_map[ref_type]:
-                unresolved.append(
-                    f"{source_id}: opposed_by {ref_type} '{ref_id}' not found"
-                )
-    assert not unresolved, "Unresolved directive opposed_by references:\n" + "\n".join(unresolved)
-
-
-def test_tactic_opposed_by_refs_resolve() -> None:
-    """All opposed_by entries in shipped tactics must point to known artifacts.
-
-    _proposed tactics are excluded — their opposed_by links may be aspirational.
-    """
-    directive_ids = _shipped_directive_ids()
-    tactic_ids = _shipped_tactic_ids()
-    paradigm_ids = _shipped_paradigm_ids()
-    id_map = {"directive": directive_ids, "tactic": tactic_ids, "paradigm": paradigm_ids}
-
-    unresolved: list[str] = []
-    for path in _multi_glob([_BUILT_IN_TACTICS_DIR], "*.tactic.yaml"):
-        data = _load_yaml(path)
-        source_id = str(data.get("id", "")).strip()
-        for entry in data.get("opposed_by", []) or []:
-            ref_type = str(entry.get("type", "")).strip()
-            ref_id = str(entry.get("id", "")).strip()
-            if ref_type not in id_map:
-                unresolved.append(f"{source_id}: unknown opposed_by type '{ref_type}'")
-                continue
-            if ref_id and ref_id not in id_map[ref_type]:
-                unresolved.append(
-                    f"{source_id}: opposed_by {ref_type} '{ref_id}' not found"
-                )
-    assert not unresolved, "Unresolved tactic opposed_by references:\n" + "\n".join(unresolved)
-
-
-def test_paradigm_opposed_by_refs_resolve() -> None:
-    """All opposed_by entries in shipped paradigms must point to DRG nodes."""
-    graph = _load_yaml(_DOCTRINE_ROOT / "graph.yaml")
-    node_urns = {
-        str(node.get("urn", "")).strip()
-        for node in graph.get("nodes", []) or []
-        if isinstance(node, dict)
-    }
-
-    unresolved: list[str] = []
-    for path in _multi_glob([_SHIPPED_PARADIGMS_DIR], "*.paradigm.yaml"):
-        data = _load_yaml(path)
-        source_id = str(data.get("id", "")).strip() or path.name
-        for entry in data.get("opposed_by", []) or []:
-            ref_type = str(entry.get("type", "")).strip()
-            ref_id = str(entry.get("id", "")).strip()
-            ref_urn = f"{ref_type}:{ref_id}" if ref_type and ref_id else ""
-            if ref_urn and ref_urn not in node_urns:
-                unresolved.append(
-                    f"{source_id}: opposed_by target '{ref_urn}' not found in graph.yaml"
-                )
-    assert not unresolved, "Unresolved paradigm opposed_by references:\n" + "\n".join(unresolved)
 
 
 def test_no_paradigm_carries_inline_tactic_refs() -> None:

@@ -79,7 +79,7 @@ def test_typo_field_reports_extra_input(tmp_path: Path) -> None:
 
 def test_invalid_version_type_is_reported(tmp_path: Path) -> None:
     """Wrong types (int version) should be rejected."""
-    config = build_valid_config(version=1)  # type: ignore[arg-type]
+    config = build_valid_config(version=1)
     mission_dir = _write_mission(tmp_path, config)
 
     with pytest.raises(MissionError) as excinfo:
@@ -222,22 +222,28 @@ class TestGetFeatureMissionKey:
         """Should extract research mission key."""
         assert get_mission_type(feature_with_research_mission) == "research"
 
-    def test_defaults_to_software_dev_when_no_mission_field(self, legacy_feature: Path) -> None:
-        """Should default to software-dev when mission field is missing."""
-        assert get_mission_type(legacy_feature) == "software-dev"
+    def test_degrades_neutrally_when_no_mission_field(self, legacy_feature: Path) -> None:
+        """FR-003a: a typeless meta.json degrades to neutral, never software-dev."""
+        result = get_mission_type(legacy_feature)
+        assert result == ""
+        assert result != "software-dev"
 
-    def test_defaults_to_software_dev_when_no_meta_json(self, tmp_path: Path) -> None:
-        """Should default to software-dev when meta.json doesn't exist."""
+    def test_degrades_neutrally_when_no_meta_json(self, tmp_path: Path) -> None:
+        """FR-003a: an absent meta.json degrades to neutral, never software-dev."""
         empty_feature = tmp_path / "kitty-specs" / "empty"
         empty_feature.mkdir(parents=True)
-        assert get_mission_type(empty_feature) == "software-dev"
+        result = get_mission_type(empty_feature)
+        assert result == ""
+        assert result != "software-dev"
 
-    def test_defaults_to_software_dev_on_invalid_json(self, tmp_path: Path) -> None:
-        """Should default to software-dev when meta.json is invalid JSON."""
+    def test_degrades_neutrally_on_invalid_json(self, tmp_path: Path) -> None:
+        """FR-003a: an unreadable meta.json degrades to neutral, never software-dev."""
         feature_dir = tmp_path / "kitty-specs" / "bad-json"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("{ invalid json }")
-        assert get_mission_type(feature_dir) == "software-dev"
+        result = get_mission_type(feature_dir)
+        assert result == ""
+        assert result != "software-dev"
 
 
 @pytest.mark.non_sandbox

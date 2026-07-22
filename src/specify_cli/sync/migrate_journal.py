@@ -32,7 +32,17 @@ Guarantees pinned by ``tests/sync/test_migrate_journal.py``:
 Per **C-001** this module writes only through the WP03 journal public API and its
 own migration-audit store (provenance/conflicts are migration metadata that have
 no home on a delivery-state ledger row); it never re-implements those tables.
-Source DBs are opened **read-only** so they are structurally untouched.
+During **import** (:func:`migrate_queues_to_journal`) source DBs are opened
+**read-only** so they are structurally untouched.
+
+**Cleanup (#2665).** Import alone never converges the legacy-row boundary: the
+rows stay in the source queues, so ``sync now`` / ``sync opt-in`` refuse forever.
+:func:`cleanup_migrated_sources` is the separate, gated follow-up that deletes
+the confirmed-migrated rows (provenance ∩ journal) from each source once a
+migration is clean (no conflicts, no source errors) — by id, never a blanket
+clear. It is safe because delivery reads solely from the journal (the legacy
+offline-queue drain is retired), so a row proven durable in the journal remains
+deliverable after its source copy is removed.
 """
 from __future__ import annotations
 
@@ -156,6 +166,15 @@ CREATE TABLE IF NOT EXISTS migration_conflicts (
     recorded_at   TEXT NOT NULL,
     PRIMARY KEY (event_id, source_digest)
 );
+CREATE TABLE IF NOT EXISTS quarantined_conflicts (
+    event_id      TEXT NOT NULL,
+    source_digest TEXT NOT NULL,
+    payload       BLOB NOT NULL,
+    existing_sha  TEXT NOT NULL,
+    incoming_sha  TEXT NOT NULL,
+    resolved_at   TEXT NOT NULL,
+    PRIMARY KEY (event_id, source_digest)
+);
 """
 
 
@@ -251,6 +270,21 @@ class MigrationAudit:
         ).fetchone()
         return None if row is None else str(row["target_id"])
 
+    def event_ids_for_source(self, source_digest: str) -> list[str]:
+        """Return the distinct ``event_id``s migrated from *source_digest*.
+
+        Only imported/deduped rows record provenance (divergent duplicates go to
+        the conflict table instead), so this is exactly the set that is safe to
+        delete from that source once the migration is clean — conflicted ids are
+        never returned here. Ordered for reproducibility.
+        """
+        rows = self._conn.execute(
+            "SELECT DISTINCT event_id FROM migration_provenance "
+            "WHERE source_digest = ? ORDER BY event_id",
+            (source_digest,),
+        ).fetchall()
+        return [str(row["event_id"]) for row in rows]
+
     def conflicts(self) -> list[MigrationConflict]:
         """Return every recorded migration conflict (ordered for reproducibility)."""
         rows = self._conn.execute(
@@ -271,6 +305,40 @@ class MigrationAudit:
     def has_conflicts(self) -> bool:
         row = self._conn.execute("SELECT 1 FROM migration_conflicts LIMIT 1").fetchone()
         return row is not None
+
+    def quarantine_conflict(
+        self,
+        *,
+        event_id: str,
+        source_digest: str,
+        payload: bytes,
+        existing_sha: str,
+        incoming_sha: str,
+    ) -> None:
+        """Archive a divergent source payload before its source row is deleted.
+
+        Idempotent on ``(event_id, source_digest)`` so a re-run never duplicates
+        the archive. This preserves the superseded source copy — keep-journal
+        resolution converges the boundary without ever losing data.
+        """
+        self._conn.execute(
+            "INSERT OR IGNORE INTO quarantined_conflicts "
+            "(event_id, source_digest, payload, existing_sha, incoming_sha, resolved_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (event_id, source_digest, payload, existing_sha, incoming_sha, now_utc_iso()),
+        )
+
+    def clear_conflict(self, event_id: str, source_digest: str) -> None:
+        """Remove a resolved conflict from the active conflict table."""
+        self._conn.execute(
+            "DELETE FROM migration_conflicts WHERE event_id = ? AND source_digest = ?",
+            (event_id, source_digest),
+        )
+
+    def quarantined_count(self) -> int:
+        """Return the number of archived (quarantined) conflict payloads."""
+        row = self._conn.execute("SELECT COUNT(*) FROM quarantined_conflicts").fetchone()
+        return int(row[0]) if row else 0
 
 
 # --- per-source outcomes + overall result ---------------------------------
@@ -623,18 +691,282 @@ def migrate_queues_to_journal(
     return result
 
 
+# --- source cleanup after a clean migration (#2665) -----------------------
+
+
+@dataclass
+class CleanupOutcome:
+    """Per-source outcome of the post-migration source-queue cleanup."""
+
+    digest: str
+    is_legacy: bool
+    deleted: int = 0
+    error: str | None = None
+
+
+@dataclass
+class CleanupResult:
+    """Observable outcome of one :func:`cleanup_migrated_sources` run.
+
+    ``ran`` is ``False`` when cleanup was blocked (a no-op), so callers can
+    distinguish "nothing to clean" from "cleanup was gated off".
+    """
+
+    ran: bool = False
+    outcomes: list[CleanupOutcome] = field(default_factory=list)
+
+    @property
+    def total_deleted(self) -> int:
+        return sum(outcome.deleted for outcome in self.outcomes)
+
+    @property
+    def sources_cleaned(self) -> int:
+        return sum(1 for outcome in self.outcomes if outcome.deleted)
+
+    @property
+    def had_errors(self) -> bool:
+        return any(outcome.error for outcome in self.outcomes)
+
+
+def _delete_migrated_rows(source_path: Path, event_ids: list[str]) -> int:
+    """Delete *event_ids* from a source queue DB via the canonical queue class.
+
+    Imported lazily to avoid a queue<->migrate import cycle.
+    """
+    from specify_cli.sync.queue import OfflineQueue  # noqa: PLC0415 - avoid import cycle
+
+    deleted: int = OfflineQueue(db_path=source_path).remove_events(event_ids)
+    return deleted
+
+
+def cleanup_migrated_sources(
+    spec_kitty_dir: Path,
+    *,
+    journal: EventJournal,
+    audit: MigrationAudit,
+    result: MigrationResult,
+) -> CleanupResult:
+    """Delete confirmed-migrated rows from source queues after a CLEAN migration.
+
+    :func:`migrate_queues_to_journal` is deliberately read-only — it copies
+    queued events into the journal but never deletes the source rows. Without a
+    follow-up delete the legacy ``queue.db`` rows persist forever, the preflight
+    boundary keeps counting them, and ``sync now`` / ``sync opt-in`` refuse
+    indefinitely (#2665). This is that follow-up, and it is **gated and safe**:
+
+    * **No-op when cleanup is blocked** (``result.cleanup_blocked`` — any
+      divergent-duplicate conflict or source read/import error). Nothing is
+      deleted until an operator resolves the blockers, so a conflicted event is
+      never dropped from its source.
+    * **Per-source error isolation** — a source that errored during import is
+      skipped individually (its rows are left intact).
+    * **Delete only confirmed-migrated ids** — an ``event_id`` is removed only
+      when it carries migration *provenance* (imported/deduped, never
+      conflicted) **and** is present in the journal, and it is deleted *by id*,
+      never via a blanket clear, so a row enqueued after the migration snapshot
+      is preserved.
+
+    Deleting is safe because delivery reads from the journal, not the queues:
+    the legacy offline-queue drain is retired (``sync now`` delivers solely from
+    the journal), so a row proven durable in the journal remains fully
+    deliverable after its source copy is removed.
+    """
+    cleanup = CleanupResult()
+    if result.cleanup_blocked:
+        # Any conflict or source import error blocks ALL cleanup, so by the time
+        # we get past this guard every source imported cleanly — no per-source
+        # error handling is needed inside the loop below.
+        return cleanup
+    cleanup.ran = True
+    for source in discover_source_dbs(spec_kitty_dir):
+        migrated = [
+            event_id
+            for event_id in audit.event_ids_for_source(source.digest)
+            if journal.read_by_id(event_id) is not None
+        ]
+        if not migrated:
+            cleanup.outcomes.append(CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy))
+            continue
+        try:
+            deleted = _delete_migrated_rows(source.path, migrated)
+        except sqlite3.Error as exc:  # a locked/corrupt source — report, keep going
+            cleanup.outcomes.append(
+                CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, error=str(exc))
+            )
+            continue
+        cleanup.outcomes.append(
+            CleanupOutcome(digest=source.digest, is_legacy=source.is_legacy, deleted=deleted)
+        )
+    return cleanup
+
+
+# --- keep-journal conflict resolution (#2665, explicit operator recovery) --
+
+
+@dataclass
+class ConflictResolution:
+    """Outcome of one :func:`resolve_conflicts_keep_journal` run."""
+
+    resolved: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    already_absent: list[str] = field(default_factory=list)
+
+    @property
+    def resolved_count(self) -> int:
+        return len(self.resolved)
+
+
+def _read_row_payload(source_path: Path, event_id: str) -> bytes | None:
+    """Return one queued row's canonical payload from *source_path* (read-only)."""
+    for row in _read_queued_rows(source_path):
+        if row.event_id == event_id:
+            return _canonical_payload(row.data)
+    return None
+
+
+def resolve_conflicts_keep_journal(
+    spec_kitty_dir: Path,
+    *,
+    journal: EventJournal,
+    audit: MigrationAudit,
+) -> ConflictResolution:
+    """Resolve divergent-duplicate conflicts by keeping the journal (canonical).
+
+    An explicit operator recovery path for the migrate-conflict deadlock: when a
+    source row and the journal disagree on the canonical payload for the same
+    ``event_id``, the migration quarantines it and blocks cleanup (FR-018), and
+    there is otherwise no way to converge the boundary. This resolves each such
+    conflict *journal-wins*:
+
+    1. only when the ``event_id`` is durable in the journal (the journal copy is
+       canonical/delivered; a conflict whose id is not in the journal is left
+       intact — never dropped);
+    2. archive the divergent SOURCE payload to the audit quarantine (nothing is
+       lost — the superseded copy is recoverable);
+    3. delete that row from its source queue by id; and
+    4. clear the conflict record so cleanup is no longer blocked.
+
+    The journal payload is never overwritten and no ``event_id`` is rewritten
+    (C-005/FR-018) — only the superseded source copy is removed, after it is
+    preserved. This is the only contract-legal resolution direction.
+    """
+    resolution = ConflictResolution()
+    conflicts = audit.conflicts()
+    if not conflicts:
+        return resolution
+    sources = {source.digest: source for source in discover_source_dbs(spec_kitty_dir)}
+    for conflict in conflicts:
+        if journal.read_by_id(conflict.event_id) is None:
+            resolution.skipped.append(conflict.event_id)  # not canonical yet — keep it
+            continue
+        source = sources.get(conflict.source_digest)
+        if source is None:
+            resolution.skipped.append(conflict.event_id)  # source gone from disk
+            continue
+        payload = _read_row_payload(source.path, conflict.event_id)
+        if payload is None:  # row already absent from source — just clear the record
+            audit.clear_conflict(conflict.event_id, conflict.source_digest)
+            resolution.already_absent.append(conflict.event_id)
+            continue
+        audit.quarantine_conflict(
+            event_id=conflict.event_id,
+            source_digest=conflict.source_digest,
+            payload=payload,
+            existing_sha=conflict.existing_sha,
+            incoming_sha=conflict.incoming_sha,
+        )
+        # Write-ahead: the quarantine archive MUST be durable before the source
+        # row is destroyed (the delete below commits queue.db immediately). A
+        # crash between the two would otherwise leave the row deleted but the
+        # archive rolled back — losing the superseded payload the docstring
+        # promises is recoverable. Mirrors the import path's provenance-first
+        # commit ordering (see ``audit.commit()`` before ``txn.commit()`` above).
+        audit.commit()
+        _delete_migrated_rows(source.path, [conflict.event_id])
+        audit.clear_conflict(conflict.event_id, conflict.source_digest)
+        resolution.resolved.append(conflict.event_id)
+    audit.commit()
+    return resolution
+
+
+# --- one-shot legacy convergence (the migration engine, #2665/#2180) -------
+
+
+@dataclass
+class ConvergeResult:
+    """Observable outcome of one :func:`converge_legacy_runtime` run."""
+
+    migration: MigrationResult
+    resolution: ConflictResolution | None = None
+    cleanup: CleanupResult | None = None
+
+    @property
+    def converged(self) -> bool:
+        """True iff the boundary is coherent after the run (cleanup ran clean)."""
+        return not self.migration.cleanup_blocked and self.cleanup is not None and self.cleanup.ran
+
+    @property
+    def blocked_conflicts(self) -> int:
+        """Conflicts still blocking convergence (e.g. resolution disabled/partial)."""
+        return len(self.migration.conflicts)
+
+
+def converge_legacy_runtime(
+    spec_kitty_dir: Path,
+    *,
+    journal: EventJournal,
+    audit: MigrationAudit,
+    resolved_target: ResolvedSyncTarget | None = None,
+    resolve_conflicts: bool = False,
+    cleanup: bool = True,
+) -> ConvergeResult:
+    """Converge a legacy runtime into the journal in one idempotent pass.
+
+    The single orchestration shared by ``sync migrate`` and the auto-migration:
+
+    1. import queued events into the journal (read-only on sources);
+    2. optionally resolve divergent-duplicate conflicts journal-wins (archiving
+       each divergent source payload to the quarantine), then re-import so the
+       result reflects the converged state;
+    3. optionally delete the confirmed-migrated rows from their sources so the
+       legacy-row boundary converges.
+
+    Idempotent: on an already-converged runtime every step is a no-op. Nothing
+    is ever lost — import is read-only, conflict resolution quarantines before
+    removing, and cleanup deletes only journal-confirmed rows by id.
+    """
+    result = migrate_queues_to_journal(
+        spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
+    )
+    resolution: ConflictResolution | None = None
+    if resolve_conflicts and result.conflicts:
+        resolution = resolve_conflicts_keep_journal(spec_kitty_dir, journal=journal, audit=audit)
+        result = migrate_queues_to_journal(
+            spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
+        )
+    cleanup_result: CleanupResult | None = None
+    if cleanup and not result.cleanup_blocked:
+        cleanup_result = cleanup_migrated_sources(
+            spec_kitty_dir, journal=journal, audit=audit, result=result
+        )
+    return ConvergeResult(migration=result, resolution=resolution, cleanup=cleanup_result)
+
+
 __all__ = [
     "AUDIT_DB_NAME",
     "KNOWN_PREFIX",
     "LEGACY_DIGEST",
     "MIGRATION_NOTE",
+    "CleanupResult",
+    "ConflictResolution",
+    "ConvergeResult",
     "MigrationAudit",
     "MigrationConflict",
     "MigrationResult",
     "SourceDb",
     "SourceOutcome",
     "UNKNOWN_PREFIX",
+    "converge_legacy_runtime",
     "discover_source_dbs",
-    "migrate_queues_to_journal",
     "migration_target_token",
 ]

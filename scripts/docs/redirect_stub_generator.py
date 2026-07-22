@@ -205,6 +205,11 @@ def _relocate(repo_path: str, moves: list[Move]) -> str | None:
     for move in moves:
         for src in move.sources:
             if repo_path == src:
+                # An explicit file-path `dest` (rename, not just relocate) is
+                # used as-is; a directory `dest` preserves the source's
+                # basename under the new location.
+                if move.dest.endswith(MD_SUFFIX):
+                    return move.dest
                 return f"{move.dest}/{Path(src).name}"
             prefix = f"{src.rstrip('/')}/"
             if repo_path.startswith(prefix):

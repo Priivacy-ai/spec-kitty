@@ -83,7 +83,7 @@ def _make_event(
 
 
 def test_default_lane_weights_present():
-    """DEFAULT_LANE_WEIGHTS covers all 8 lanes."""
+    """DEFAULT_LANE_WEIGHTS covers every Lane enum member (full-roster map)."""
     expected_lanes = {lane.value for lane in Lane}
     assert set(DEFAULT_LANE_WEIGHTS.keys()) == expected_lanes
 

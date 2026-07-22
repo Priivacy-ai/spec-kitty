@@ -1,0 +1,235 @@
+schema_version: 1
+mission_id: 01KXW08BNJPJR342RBG5JHAG3Y
+mission_slug: sync-batch-400-poison-isolation-01KXW08B
+mission_number:
+friendly_name: Sync batch-400 poison isolation (bisection)
+mission_type: software-dev
+target_branch: fix/2736-batch-400-poisoning-isolation
+created_at: '2026-07-19T03:56:30.239143+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-19T03:56:30.239143+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-011
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-002
+  category: tooling
+  summary: 'Tracer: F1 — Analysis-report staleness churn. [STILL BITES]'
+  evidence_refs:
+  - e-012
+  details: "- **F1 — Analysis-report staleness churn. [STILL BITES]** `mark-status` writes `[D]` progress markers into\n \
+    \ `tasks.md`, changing the content-hash the analysis report is pinned to, so `agent action implement WP##`\n  refuses
+    with `stale_analysis_report` and forces a `record-analysis` re-run **before each gated implement**\n  (recurred at every
+    WP boundary on the merge-coord run, 5×). Candidate fix: exclude progress-marker-only\n  `tasks.md` deltas from the analysis
+    freshness hash, or auto-refresh on the implement path."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: F10 — Baseline-red attribution cost (the gotcha).'
+  evidence_refs:
+  - e-012
+  details: "- **F10 — Baseline-red attribution cost (the gotcha).** Broad local/backgrounded `pytest` sweeps surface\n  reds
+    that are NOT the diff's (known-P0, CI-env sync-toggles — #2794 — stale-install). Navigated correctly\n  via the AGENTS.md
+    gotcha, but it costs attribution time each sweep.\n\n## Mission-specific tooling to watch (this run)\n\n- The pre-review
+    gate reuses the **sync disable toggles** — the very #2794 coupling being fixed elsewhere.\n  When running this mission's
+    `tests/delivery/` / `tests/sync/` in parallel, watch for the\n  `SPEC_KITTY_SYNC_MINIMAL_IMPORT` leak (my #2794 fix is
+    on a separate branch, not yet on this base).\n- `spec-commit` with backticks in `-m` triggered shell command-substitution
+    and dropped a phrase from a\n  commit body (my error) — use a heredoc / `-F -` for messages containing backticks.\n\n\
+    ## Post-plan squad additions\n\n- 2026-07-19 — **No new tooling friction from the post-plan squad itself** — the three
+    delegates (alphonso /\n  pedro / renata) ran clean via the Ag"
+- id: n-003
+  category: tooling
+  summary: "Tracer: F2 — `record-analysis` refuses on a dirty tree AND doesn't auto-commit."
+  evidence_refs:
+  - e-012
+  details: "- **F2 — `record-analysis` refuses on a dirty tree AND doesn't auto-commit.** Errors `Refusing to record\n  analysis
+    report with pre-existing dirty working tree` (blocks on any tracked-modified file) and returns\n  `commit_hash: null`
+    (report left uncommitted). Loop becomes: commit bookkeeping → record → commit report\n  → retry. Couples F1's churn to
+    F3's preflight."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: F3 — `move-task` preflight blocks on uncommitted *owned* files (analysis-report / lane bookkeeping).'
+  evidence_refs:
+  - e-012
+  details: "- **F3 — `move-task` preflight blocks on uncommitted *owned* files (analysis-report / lane bookkeeping).**\n \
+    \ Every transition (`for_review`, `approved`) fails until the mission-dir bookkeeping is committed — repeated\n  commit-then-retry.
+    The \"N unrelated dirty files ignored\" line is good, but the owned-file block fires on\n  the analysis-report the gate
+    itself just wrote (see F2)."
+- id: n-005
+  category: tooling
+  summary: 'Tracer: F4 — Approval gate needs `issue-matrix.md` verdicts filled — discovered LATE (first approval blocked).'
+  evidence_refs:
+  - e-012
+  details: "- **F4 — Approval gate needs `issue-matrix.md` verdicts filled — discovered LATE (first approval blocked).**\n\
+    \  `move-task --to approved` refuses with `issue-matrix.md has unresolved entries` naming every referenced\n  issue. The
+    matrix lives on the **coord branch** (not the primary working tree), so it isn't obvious it\n  needs filling. Worse: `in-mission`
+    verdicts are accepted at per-WP `approved` but **rejected at mission\n  `done`** — a second late surprise. Candidate:
+    surface the matrix requirement at mission-create / first\n  implement, not at first approval."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: F5 — Review-artifact frontmatter schema is strict + undocumented at the point of use. [STILL BITES]'
+  evidence_refs:
+  - e-012
+  details: "- **F5 — Review-artifact frontmatter schema is strict + undocumented at the point of use. [STILL BITES]**\n  A
+    hand-written `review-cycle-N.md` (plain-markdown feedback) → `move-task --to approved` fails with\n  `has no parseable
+    review verdict`. The gate (`_get_wp_review_verdict`) needs YAML frontmatter\n  (`review_cycle` / `verdict: approved|rejected`
+    / `reviewer` / …). The `--review-feedback-file` (reject)\n  path does NOT stamp this frontmatter, so the reviewer authors
+    it by hand. Two schemas coexist in-tree\n  (older `work_package_id`/`changes_requested` vs current `cycle_number`/`approved|rejected`)."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: F6 — `finalize-tasks` did not parse the `tasks.md` "Depends on WP##" phrasing.'
+  evidence_refs:
+  - e-012
+  details: "- **F6 — `finalize-tasks` did not parse the `tasks.md` \"Depends on WP##\" phrasing.** Even with the exact\n \
+    \ regex-matching phrasing (verified against `core/dependency_parser.py`), `finalize-tasks` wrote `deps: []`\n  (`updated_wp_count:
+    0`). Workaround: set `dependencies` in each WP frontmatter directly + rely on the\n  **preserve-existing** path. The CLI's
+    internal reader diverges from the standalone parser — a real bug to\n  file."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: F7 — Coord/primary partition footguns (the load-bearing trap this session). [partially improved]'
+  evidence_refs:
+  - e-012
+  details: "- **F7 — Coord/primary partition footguns (the load-bearing trap this session). [partially improved]**\n  `issue-matrix.md`,
+    `review-cycle-*.md`, status runtime files live on the **coord branch**; `spec-commit`\n  materializes the coord worktree
+    and lands there (\"Spec artifact(s) unchanged\" when already on coord); the\n  primary working tree lacks them. Editing
+    the matrix required `cd`-ing into `.worktrees/…-coord`. When\n  consolidating a clean PR branch off upstream/main, tracked
+    planning files vanish on branch-switch and had\n  to be `git checkout`-ed back per-partition."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: F8 — Lane `.venv` missing pytest in the pre-review gate scoped run. [noise, non-blocking]'
+  evidence_refs:
+  - e-012
+  details: "- **F8 — Lane `.venv` missing pytest in the pre-review gate scoped run. [noise, non-blocking]** The gate's\n \
+    \ scoped run reported `No module named pytest` / `no_coverage — scoped test run did not complete` from the\n  freshly-`uv`-built
+    lane venv, but the transition still succeeded. Reads like a failure; isn't one."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: F9 — Pre-review gate scope-exclusion silently let red-first tests through.'
+  evidence_refs:
+  - e-012
+  details: "- **F9 — Pre-review gate scope-exclusion silently let red-first tests through.** `move-task --to for_review`\n\
+    \  on a red-first WP returned `no_coverage — excluded scope` (the `tests/regression/` files fell into a\n  catch-all group)
+    and passed — the desired outcome here, but it means the gate isn't running the changed\n  tests for those paths. A coverage
+    gap worth noting."
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity 
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design 
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/tasks/WP01-batch-partition-primitive.md
+- id: e-006
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/tasks/WP02-receiver-poison-isolation-bisection.md
+- id: e-007
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/tasks/WP03-cli-fsm-force-free-contract.md
+- id: e-008
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/tasks/WP04-offline-queue-live-400-disposition.md
+- id: e-009
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/tasks/WP05-2755-ssot-retrofit-guard.md
+- id: e-010
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/status.events.jsonl
+- id: e-011
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/analysis-report.md
+- id: e-012
+  kind: file
+  path: kitty-specs/sync-batch-400-poison-isolation-01KXW08B/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

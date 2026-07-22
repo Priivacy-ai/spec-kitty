@@ -3,7 +3,7 @@ id: delivery-first
 name: Delivery-First Doctrine
 summary: Bias toward small, frequent, verifiable delivery increments.
 # Post-WP02: inline `tactic_refs` removed — relationships live in graph.yaml.
-opposed_by:
-  - type: paradigm
-    id: test-first
-    reason: Delivery-first may deprioritize test coverage when velocity is constrained; test-first insists on tests preceding implementation regardless of schedule pressure.
+# Post-WP03 (doctrine-tension-edges-01KY1WPC): the contradiction-declaration
+# field this fixture used to carry (test-first tension) is retired — tension
+# relationships are now hand-authored DRG edges in graph.yaml, not an inline
+# artifact field.

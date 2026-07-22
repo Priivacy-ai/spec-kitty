@@ -29,7 +29,16 @@ from typing import Any
 from kernel.errors import KittyInternalConsistencyError
 from ruamel.yaml import YAML
 
-__all__ = ["CharterPackConfigError", "PackContext"]
+from charter.charter_yaml_io import load_charter_yaml
+
+__all__ = ["CharterPackConfigError", "PackContext", "resolve_charter_yaml_pointer"]
+
+#: The single ``config.yaml`` key naming the active charter (consolidate-
+#: charter-bundle WP02, data-model.md "Entity: .kittify/config.yaml (after
+#: relocation)"). Absent -> legacy/un-migrated project (activation stays in
+#: ``config.yaml`` itself). Present -> the resolver follows it to
+#: ``charter.yaml`` (INV-2).
+_CHARTER_POINTER_KEY = "charter"
 
 
 class CharterPackConfigError(KittyInternalConsistencyError):
@@ -42,11 +51,6 @@ class CharterPackConfigError(KittyInternalConsistencyError):
 # ---------------------------------------------------------------------------
 # Built-in constants
 # ---------------------------------------------------------------------------
-
-#: IDs of the four built-in mission types shipped with spec-kitty.
-#: Used as the default for ``activated_mission_types`` when config.yaml
-#: has no ``mission_type_activations`` key (backward-compat / new project).
-_BUILTIN_MISSION_TYPE_IDS: frozenset[str] = frozenset({"software-dev", "documentation", "research", "plan"})
 
 #: All built-in artifact kinds (plural form used by DoctrineService).
 #: Mirrors ``charter.activations._ALLOWED_KINDS`` and
@@ -149,6 +153,9 @@ class PackContext:
     activated_mission_step_contracts: frozenset[str] | None = None
     """Mission step contract IDs activated for this project (three-state)."""
 
+    activated_anti_patterns: frozenset[str] | None = None
+    """Anti-pattern node IDs activated for this project (three-state)."""
+
     # ------------------------------------------------------------------
     # Constructor
     # ------------------------------------------------------------------
@@ -174,11 +181,20 @@ class PackContext:
         """
         data = _load_config(repo_root)
 
+        # --- activation source (two-file read, INV-2) -------------------
+        # Absent `charter:` pointer -> legacy/un-migrated project: activation
+        # keys are read directly from the already-loaded config.yaml mapping
+        # (unchanged pre-relocation behavior). Present pointer -> the
+        # resolved charter.yaml supplies the flat activation keys instead;
+        # `org_pack_names`/`pack_roots` below STILL read from `data`
+        # (config.yaml), never from the activation source.
+        activation = _load_charter_activation_source(repo_root, data)
+
         # --- activated_kinds -------------------------------------------
-        activated_kinds = _read_activated_kinds(data)
+        activated_kinds = _read_activated_kinds(activation)
 
         # --- activated_mission_types -----------------------------------
-        activated_mission_types = _read_activated_mission_types(data)
+        activated_mission_types = _read_activated_mission_types(activation)
 
         # --- org packs -------------------------------------------------
         org_pack_names, org_pack_roots = _read_org_packs(repo_root, data)
@@ -193,14 +209,15 @@ class PackContext:
             pack_roots=pack_roots,
             org_pack_names=org_pack_names,
             repo_root=repo_root,
-            activated_directives=_read_activated_directives(data),
-            activated_tactics=_read_activated_tactics(data),
-            activated_styleguides=_read_activated_styleguides(data),
-            activated_toolguides=_read_activated_toolguides(data),
-            activated_paradigms=_read_activated_paradigms(data),
-            activated_procedures=_read_activated_procedures(data),
-            activated_agent_profiles=_read_activated_agent_profiles(data),
-            activated_mission_step_contracts=_read_activated_mission_step_contracts(data),
+            activated_directives=_read_activated_directives(activation),
+            activated_tactics=_read_activated_tactics(activation),
+            activated_styleguides=_read_activated_styleguides(activation),
+            activated_toolguides=_read_activated_toolguides(activation),
+            activated_paradigms=_read_activated_paradigms(activation),
+            activated_procedures=_read_activated_procedures(activation),
+            activated_agent_profiles=_read_activated_agent_profiles(activation),
+            activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
+            activated_anti_patterns=_read_activated_anti_patterns(activation),
         )
 
 
@@ -217,7 +234,63 @@ def _yaml_loader() -> YAML:
 
 
 def _config_error(message: str) -> CharterPackConfigError:
-    return CharterPackConfigError(f"{message}\nRemediation: fix .kittify/config.yaml or run `spec-kitty upgrade` to restore the default charter pack shape.")
+    return CharterPackConfigError(
+        f"{message}\nRemediation: fix .kittify/config.yaml (or the charter.yaml "
+        f"it points to) or run `spec-kitty upgrade` to restore the default "
+        f"charter pack shape."
+    )
+
+
+def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -> Path | None:
+    """Resolve the ``charter:`` pointer key from parsed ``config.yaml`` data.
+
+    Returns ``None`` when the key is absent — the legacy/un-migrated state,
+    where callers fall back to reading/writing activation directly in
+    ``config.yaml`` (INV-2). Returns the resolved (repo-root-relative or
+    absolute) path when the key is present, WITHOUT checking existence:
+    callers apply their own fail-loud policy so the "missing file" error can
+    name the calling operation (read vs write).
+
+    Shared by :meth:`PackContext.from_config` (read) and
+    ``charter.pack_manager`` (write) so pointer resolution has exactly one
+    implementation (INV-5).
+    """
+    pointer = config_data.get(_CHARTER_POINTER_KEY)
+    if pointer is None:
+        return None
+    pointer_path = Path(str(pointer))
+    return pointer_path if pointer_path.is_absolute() else repo_root / pointer_path
+
+
+def _load_charter_activation_source(repo_root: Path, data: dict[str, Any]) -> dict[str, Any]:
+    """Return the mapping ``_read_activated_*`` reads activation keys from.
+
+    Two-state resolution keyed on the ``charter:`` pointer (INV-2/INV-5):
+
+    * Pointer absent -> legacy/un-migrated project. Activation is read
+      directly from ``config.yaml`` (the pre-relocation behavior, preserved
+      byte-for-byte for projects that have not yet run the charter-bundle
+      migration).
+    * Pointer present -> the project has been migrated. The pointer MUST
+      resolve to a readable ``charter.yaml``; a dangling/unreadable pointer
+      is a fail-loud error (INV-5, re-homed #2530) — never a silent
+      fallback to the legacy config-embedded keys.
+    """
+    charter_path = resolve_charter_yaml_pointer(repo_root, data)
+    if charter_path is None:
+        return data
+    if not charter_path.exists():
+        raise _config_error(
+            f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
+            f"which does not exist."
+        )
+    try:
+        loaded = load_charter_yaml(charter_path)
+    except Exception as exc:
+        raise _config_error(f"Invalid YAML in {charter_path}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise _config_error(f"{charter_path} root must be a mapping.")
+    return dict(loaded)
 
 
 def _load_config(repo_root: Path) -> dict[str, Any]:
@@ -246,7 +319,7 @@ def _read_list_key(data: dict[str, Any], key: str) -> frozenset[str] | None:
     if raw is None:
         return None
     if not isinstance(raw, list):
-        raise _config_error(f".kittify/config.yaml key '{key}' must be a list, got {type(raw).__name__}.")
+        raise _config_error(f"Activation key '{key}' must be a list, got {type(raw).__name__}.")
     return frozenset(str(item) for item in raw)
 
 
@@ -263,12 +336,22 @@ def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
 def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
     """Extract ``mission_type_activations`` from parsed config data.
 
-    Falls back to the four built-in mission type IDs when the key is
-    absent (new project / pre-migration state — FR-019 migration intent).
-    An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
+    Falls back to the built-in mission type IDs when the key is absent
+    (new project / pre-migration state — FR-019 migration intent). An
+    explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
+
+    The default is derived lazily from the single canonical accessor
+    (:func:`doctrine.missions.mission_type_repository.builtin_mission_type_id_set`,
+    #2669 Roster B) rather than a hardcoded literal — importing this module
+    must not read ``mission_types/`` off disk (NFR-001), so the import is
+    function-local and only fires when the key is actually absent.
     """
+    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; import-time-I/O timing (NFR-001), not cycle avoidance
+        builtin_mission_type_id_set,
+    )
+
     activated = _read_list_key(data, "mission_type_activations")
-    return _BUILTIN_MISSION_TYPE_IDS if activated is None else activated
+    return builtin_mission_type_id_set() if activated is None else activated
 
 
 def _read_activated_directives(data: dict[str, Any]) -> frozenset[str] | None:
@@ -316,6 +399,11 @@ def _read_activated_mission_step_contracts(
 ) -> frozenset[str] | None:
     """Extract ``activated_mission_step_contracts`` from parsed config data (three-state)."""
     return _read_list_key(data, "activated_mission_step_contracts")
+
+
+def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_anti_patterns`` from parsed config data (three-state)."""
+    return _read_list_key(data, "activated_anti_patterns")
 
 
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:

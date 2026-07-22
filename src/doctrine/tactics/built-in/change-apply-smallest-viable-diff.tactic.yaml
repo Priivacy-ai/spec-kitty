@@ -2,15 +2,6 @@ schema_version: "1.0"
 id: change-apply-smallest-viable-diff
 name: Change Apply Smallest Viable Diff
 purpose: Introduce changes using the smallest possible modification that achieves the stated goal, minimising unintended side effects.
-opposed_by:
-  - type: directive
-    id: DIRECTIVE_025
-    reason: >
-      The Boy Scout Rule encourages leaving touched code better than found,
-      which can justify changes beyond the smallest viable diff. The tension
-      is real: apply smallest-diff discipline for goal delivery, and defer
-      opportunistic improvements to explicit tasks unless the cleanup is
-      strictly necessary for correctness.
 steps:
   - title: Identify the minimal file set
     description: Determine the minimum number of files that must change to achieve the stated goal. Do not open unrelated files.

@@ -9,7 +9,10 @@ import os
 from datetime import UTC, datetime
 from kernel._safe_re import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from specify_cli.status.wp_view import WPView
 
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.lanes.branch_naming import resolve_mid8
@@ -21,6 +24,7 @@ from specify_cli.missions._read_path_resolver import (
 from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
+from specify_cli.status import NON_DISPLAY_LANES
 from specify_cli.text_sanitization import sanitize_file
 
 
@@ -630,7 +634,10 @@ def _count_wps_by_lane(tasks_dir: Path, status_dir: Path | None = None) -> dict[
         lane = event_lanes.get(wp_id, Lane.GENESIS)
 
         # Genesis/uninitialized WPs are non-display and must not inflate planned.
-        if lane in {Lane.GENESIS, Lane.GENESIS.value, "uninitialized"}:
+        # NON_DISPLAY_LANES is the single canonical authority (models.py); Lane
+        # is a StrEnum so membership works whether ``lane`` is a Lane or a
+        # plain str (both hash/compare equal to the same string value).
+        if lane in NON_DISPLAY_LANES:
             continue
         state = wp_state_for(lane)
         column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
@@ -857,14 +864,132 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
     return features
 
 
+def _canonical_wp_id(stem: str) -> str:
+    """Uppercase canonical ``WP<n>`` id from a file stem (``WP04-slug`` -> ``WP04``)."""
+    match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
+    return match.group(1).upper() if match else stem
+
+
+def _resolve_wp_title(content: str, wp_meta: Any, prompt_file: Path) -> str:
+    """Presentation title -- a dashboard-CONSUMER concern the reconstruction reader
+    deliberately does NOT produce: the ``# Work Package Prompt:`` header, else the
+    frontmatter ``title``, else the file stem."""
+    title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
+    if title_match:
+        return title_match.group(1)
+    if wp_meta.title is not None:
+        return str(wp_meta.title).strip()
+    return prompt_file.stem
+
+
+def _resolve_wp_lane_and_dir(
+    prompt_file: Path,
+    canonical_wp_id: str,
+    default_lane: str,
+    status_dir: Path | None,
+) -> tuple[Any, Path]:
+    """Resolve ``(lane, event_log_dir)``.
+
+    ``lane`` stays event-sourced through ``reconstruct_wp_view``. ``event_log_dir`` is the
+    surface that carries the live event log -- the status surface (coord worktree)
+    when present, else the WP's feature dir (#2430) -- and is what the
+    reconstruction reader reads resolved runtime state from. A legacy feature
+    falls back to ``default_lane`` and the (log-less) feature dir; a non-legacy
+    feature with no canonical log raises the finalize hint.
+    """
+    from specify_cli.status import (
+        CanonicalStatusNotFoundError,
+        has_event_log,
+        reconstruct_wp_view,
+    )
+
+    candidate = prompt_file.parent.parent
+    if status_dir is not None and has_event_log(status_dir):
+        event_log_dir = status_dir
+    elif has_event_log(candidate):
+        event_log_dir = candidate
+    elif has_event_log(candidate.parent):
+        event_log_dir = candidate.parent
+    else:
+        event_log_dir = None
+    if event_log_dir is not None:
+        lane = reconstruct_wp_view(event_log_dir, canonical_wp_id).resolved.lane
+        return lane or default_lane, event_log_dir
+    feature_candidate = candidate if candidate.name != "tasks" else candidate.parent
+    if is_legacy_format(feature_candidate):
+        return default_lane, candidate
+    raise CanonicalStatusNotFoundError(
+        f"Canonical status not found for feature "
+        f"'{feature_candidate.name}'. Run 'spec-kitty agent mission "
+        f"finalize-tasks --mission {feature_candidate.name}' to "
+        f"bootstrap the event log."
+    )
+
+
+def _wp_runtime_view(event_log_dir: Path, canonical_wp_id: str, wp_meta: Any) -> WPView:
+    """Reconstruct the WP view through the ONE canonical reader (T044 / SC-007).
+
+    ``metadata`` is threaded so the authored group is sourced from the (possibly
+    planning-surface) prompt file already parsed here -- the reader does not
+    re-read it -- while resolved runtime state comes from ``event_log_dir``.
+    """
+    from specify_cli.status import reconstruct_wp_view
+
+    return reconstruct_wp_view(event_log_dir, canonical_wp_id, metadata=wp_meta)
+
+
+def _wp_identity_fields(view: WPView) -> dict[str, str]:
+    """Return separately labelled resolved-actual and authored identity fields.
+
+    Empty resolved slots remain empty: authored recommendations never
+    masquerade as runtime facts at the dashboard API boundary (INV-7).
+    """
+    resolved = view.resolved
+    return {
+        "agent": resolved.agent or "",
+        "model": resolved.model or "",
+        "agent_profile": resolved.agent_profile or "",
+        "agent_profile_version": resolved.agent_profile_version or "",
+        "role": resolved.role or "",
+        "provider": resolved.provider or "",
+        "assignee": resolved.assignee or "",
+        "authored_model": view.authored.model or "",
+        "authored_agent_profile": view.authored.agent_profile or "",
+        "authored_role": view.authored.role or "",
+    }
+
+
+def _wp_subtask_progress(view: WPView) -> tuple[int, int]:
+    """Return progress from the authored roster plus resolved completion state.
+
+    Membership is static design intent from ``view.authored.subtasks``; status
+    is the event-sourced ``view.resolved.subtasks`` mapping. Missing resolved
+    entries are unfinished, so marking one item in a two-item roster reports
+    ``1/2`` rather than the false-complete ``1/1``. No markdown checkbox state
+    participates in either side of the calculation.
+    """
+    resolved_subtasks = view.resolved.subtasks
+    done = sum(
+        1
+        for task_id in view.authored.subtasks
+        if resolved_subtasks.get(task_id) == str(Lane.DONE)
+    )
+    return done, len(view.authored.subtasks)
+
+
 def _process_wp_file(
     prompt_file: Path,
     project_dir: Path,
     default_lane: str,
     status_dir: Path | None = None,
-    tasks_md_text: str | None = None,
 ) -> dict[str, Any] | None:
-    """Process a single WP file and return task data or None on error."""
+    """Process a single WP file and return task data or None on error.
+
+    Runtime identity (agent/model/agent_profile/role/assignee + subtask progress)
+    is reconstructed through the ONE canonical ``reconstruct_wp_view`` reader
+    (T044/T045); the presentation fields (``title`` / ``prompt_markdown`` /
+    ``prompt_path``) stay consumer-side -- the reader never produces them.
+    """
     content, error = read_file_resilient(prompt_file, auto_fix=True)
 
     if content is None:
@@ -888,93 +1013,38 @@ def _process_wp_file(
     from specify_cli.status import read_wp_frontmatter
 
     try:
-        wp_meta_dict, prompt_body = read_wp_frontmatter(prompt_file)
+        wp_meta, prompt_body = read_wp_frontmatter(prompt_file)
     except Exception:
         return None
 
-    title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
-    if title_match:
-        title = title_match.group(1)
-    elif wp_meta_dict.title is not None:
-        title = wp_meta_dict.title.strip()
-    else:
-        title = prompt_file.stem
+    canonical_wp_id = _canonical_wp_id(prompt_file.stem)
+    lane, event_log_dir = _resolve_wp_lane_and_dir(prompt_file, canonical_wp_id, default_lane, status_dir)
 
-    wp_id = wp_meta_dict.work_package_id
-    from specify_cli.status import has_event_log, get_wp_lane
+    view = _wp_runtime_view(event_log_dir, canonical_wp_id, wp_meta)
+    identity = _wp_identity_fields(view)
+    subtasks_done, subtasks_total = _wp_subtask_progress(view)
 
-    stem = prompt_file.stem
-    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
-    canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
-
-    candidate = prompt_file.parent.parent
-    # The live event log may sit on the status surface (coord worktree) while
-    # the WP file being processed lives on the planning surface (#2430).
-    if status_dir is not None and has_event_log(status_dir):
-        lane = get_wp_lane(status_dir, canonical_wp_id)
-    elif has_event_log(candidate):
-        lane = get_wp_lane(candidate, canonical_wp_id)
-    elif has_event_log(candidate.parent):
-        lane = get_wp_lane(candidate.parent, canonical_wp_id)
-    else:
-        feature_candidate = candidate if candidate.name != "tasks" else candidate.parent
-        if is_legacy_format(feature_candidate):
-            lane = default_lane
-        else:
-            from specify_cli.status import CanonicalStatusNotFoundError
-
-            raise CanonicalStatusNotFoundError(
-                f"Canonical status not found for feature "
-                f"'{feature_candidate.name}'. Run 'spec-kitty agent mission "
-                f"finalize-tasks --mission {feature_candidate.name}' to "
-                f"bootstrap the event log."
-            )
-
-    agent_raw = wp_meta_dict.agent
-    if isinstance(agent_raw, dict):
-        agent_str = agent_raw.get("tool", "")
-        model_str = agent_raw.get("model", "")
-    else:
-        agent_str = str(agent_raw) if agent_raw else ""
-        model_str = ""
-
-    if not model_str:
-        model_str = str(wp_meta_dict.model or "") if wp_meta_dict.model else ""
-
-    # Progress from the canonical ``- [ ] T###`` checkbox rows (#2504), via the
-    # shared definitions the lane-transition guard consumes. Standard layout
-    # keeps them in tasks.md's per-WP section (the guard's blocking source) —
-    # prefer that; fall back to rows in the WP body for repos that keep the
-    # checklist in the prompt file. (0, 0) when neither tracks completion via
-    # checkboxes; the frontend then shows the plain frontmatter count badge.
-    from specify_cli.core.subtask_rows import (
-        count_subtask_rows,
-        count_wp_section_subtask_rows,
-    )
-
-    subtasks_done, subtasks_total = 0, 0
-    if tasks_md_text is not None:
-        subtasks_done, subtasks_total = count_wp_section_subtask_rows(
-            tasks_md_text, canonical_wp_id
-        )
-    if subtasks_total == 0:
-        subtasks_done, subtasks_total = count_subtask_rows(prompt_body)
-
+    prompt_path = str(prompt_file.relative_to(project_dir)) if prompt_file.is_relative_to(project_dir) else str(prompt_file)
     return {
-        "id": wp_id,
-        "title": title,
+        "id": wp_meta.work_package_id,
+        "title": _resolve_wp_title(content, wp_meta, prompt_file),
         "lane": lane,
-        "subtasks": wp_meta_dict.subtasks or [],
+        "subtasks": list(view.authored.subtasks),
         "subtasks_done": subtasks_done,
         "subtasks_total": subtasks_total,
-        "agent": agent_str,
-        "model": model_str,
-        "agent_profile": wp_meta_dict.agent_profile or "",
-        "role": wp_meta_dict.role or "",
-        "assignee": wp_meta_dict.assignee or "",
-        "phase": wp_meta_dict.phase or "",
+        "agent": identity["agent"],
+        "model": identity["model"],
+        "agent_profile": identity["agent_profile"],
+        "agent_profile_version": identity["agent_profile_version"],
+        "role": identity["role"],
+        "provider": identity["provider"],
+        "assignee": identity["assignee"],
+        "authored_model": identity["authored_model"],
+        "authored_agent_profile": identity["authored_agent_profile"],
+        "authored_role": identity["authored_role"],
+        "phase": wp_meta.phase or "",
         "prompt_markdown": prompt_body.strip(),
-        "prompt_path": str(prompt_file.relative_to(project_dir)) if prompt_file.is_relative_to(project_dir) else str(prompt_file),
+        "prompt_path": prompt_path,
     }
 
 
@@ -1014,14 +1084,6 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
         # as legacy without iterating lane subdirectories.
         return lanes
 
-    # Read tasks.md once for the whole board: its per-WP sections carry the
-    # canonical subtask checkbox rows used for card progress (#2504).
-    tasks_md_text: str | None = None
-    tasks_md = planning_dir / "tasks.md"
-    if tasks_md.exists():
-        with contextlib.suppress(OSError, UnicodeDecodeError):
-            tasks_md_text = tasks_md.read_text(encoding="utf-8-sig")
-
     # New format: scan flat tasks/ directory, lane from event log
     from specify_cli.status import CanonicalStatusNotFoundError
 
@@ -1032,7 +1094,6 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
                 project_dir,
                 "planned",
                 status_dir=status_dir,
-                tasks_md_text=tasks_md_text,
             )
             if task_data is not None:
                 raw_lane = task_data.get("lane", "planned")

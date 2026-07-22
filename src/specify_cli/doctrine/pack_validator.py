@@ -496,7 +496,7 @@ def _validate_drg(
     advisories: list[ValidationIssue] = []
 
     try:
-        from doctrine.drg.loader import DRGLoadError, load_graph
+        from doctrine.drg.loader import DRGLoadError, load_built_in_graph, load_graph
     except ModuleNotFoundError:  # pragma: no cover - doctrine package always present
         return errors, advisories
 
@@ -504,13 +504,11 @@ def _validate_drg(
     if not fragments:
         return errors, advisories
 
-    # Load built-in graph (best-effort).
+    # Load built-in graph (best-effort) via the canonical seam (WP03, #2680).
     built_in_urns: set[str] = set()
     built_in_kinds: dict[str, str] = {}
     try:
-        from charter.catalog import resolve_doctrine_root
-
-        built_in_graph = load_graph(resolve_doctrine_root() / "graph.yaml")
+        built_in_graph = load_built_in_graph()
         built_in_urns = {n.urn for n in built_in_graph.nodes}
         built_in_kinds = {n.urn: n.kind.value for n in built_in_graph.nodes}
     except (ModuleNotFoundError, DRGLoadError, OSError):

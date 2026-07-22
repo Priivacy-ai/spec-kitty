@@ -1,0 +1,56 @@
+{
+  "event_count": 35,
+  "last_event_id": "01KXW88V3Q53TDA5AKQHP1RVFR",
+  "materialized_at": "2026-07-19T03:56:12.279850+00:00",
+  "mission_number": "",
+  "mission_slug": "sync-batch-400-poison-isolation-01KXW08B",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXW881PYHX6RNEJWS5QA04AR",
+      "last_transition_at": "2026-07-19T03:55:46.270816+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXW88MQZVJ84EK0616CQYNGY",
+      "last_transition_at": "2026-07-19T03:56:05.759139+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXW88849Y4EHWGN0WFXZ1TJS",
+      "last_transition_at": "2026-07-19T03:55:52.841544+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXW88EFE58B7V777R5YY3Q9E",
+      "last_transition_at": "2026-07-19T03:55:59.342492+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXW88V3Q53TDA5AKQHP1RVFR",
+      "last_transition_at": "2026-07-19T03:56:12.279850+00:00"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "event_count": 21,
+  "last_event_id": "01KXHAP8474FCHDGDRW1GWA42A",
+  "materialized_at": "2026-07-14T22:06:49.991520+00:00",
+  "mission_number": "178",
+  "mission_slug": "implement-claim-precondition-partition-01KXGWSP",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXHAP6J64CHWHWQW2ZSVSFJG",
+      "last_transition_at": "2026-07-14T22:06:48.390730+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXHAP7DD9GRTD8G9JXP2JET8",
+      "last_transition_at": "2026-07-14T22:06:49.261077+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXHAP8474FCHDGDRW1GWA42A",
+      "last_transition_at": "2026-07-14T22:06:49.991520+00:00"
+    }
+  }
+}

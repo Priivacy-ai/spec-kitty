@@ -28,6 +28,7 @@ jobs:
   no-bundled-orchestrator:
     name: Verify bundled orchestrator is removed
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
 
@@ -50,6 +51,7 @@ jobs:
   no-banned-flags-in-runtime:
     name: Verify no banned flags in core runtime
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
 

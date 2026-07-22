@@ -8,17 +8,17 @@ Verifies:
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.loader import load_graph, merge_layers
 from doctrine.drg.models import DRGNode, NodeKind
 from doctrine.drg.validator import assert_valid
 
-pytestmark = pytest.mark.fast
+if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
 
-SHIPPED_GRAPH = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "graph.yaml"
+pytestmark = pytest.mark.fast
 
 
 def test_node_kind_glossary_value() -> None:
@@ -53,15 +53,13 @@ def test_drg_node_glossary_wrong_prefix_rejected() -> None:
         DRGNode(urn="action:abc12345", kind=NodeKind.GLOSSARY)
 
 
-def test_shipped_graph_still_loads_after_glossary_addition() -> None:
+def test_shipped_graph_still_loads_after_glossary_addition(built_in_graph: DRGGraph) -> None:
     """Backward-compat: adding NodeKind.GLOSSARY must not break existing graph."""
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
-    assert_valid(merged)
+    assert_valid(built_in_graph)
     # The shipped graph must not yet contain glossary nodes
     # (the layer is built dynamically, not baked into the shipped graph)
-    glossary_nodes = [n for n in merged.nodes if n.kind == NodeKind.GLOSSARY]
+    glossary_nodes = [n for n in built_in_graph.nodes if n.kind == NodeKind.GLOSSARY]
     assert glossary_nodes == [], (
-        "Shipped graph.yaml should not contain NodeKind.GLOSSARY nodes; "
+        "Shipped graph should not contain NodeKind.GLOSSARY nodes; "
         "the glossary layer is built dynamically by build_glossary_drg_layer()"
     )

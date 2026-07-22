@@ -16,14 +16,8 @@ from datetime import datetime, UTC
 from kernel._safe_re import re
 from pathlib import Path
 
-from specify_cli.core.utils import write_text_within_directory
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
-from specify_cli.task_utils import (
-    build_document,
-    set_scalar,
-    split_frontmatter,
-)
 
 # WP02 (#2058): the shared result vocabulary, the inline-subtasks regex, and the
 # pipe-table row parsers live in the ``tasks_outline`` seam. Imported here so
@@ -51,88 +45,39 @@ def _persist_review_artifact_override(
     actor: str,
     reason: str,
 ) -> None:
-    """Record durable evidence that a rejected latest review was superseded."""
-    text = artifact_path.read_text(encoding="utf-8-sig")
-    frontmatter, body, padding = split_frontmatter(text)
-    timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_at", timestamp)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_actor", actor)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_wp_id", wp_id)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_reason", reason)
-    write_text_within_directory(
-        artifact_path,
-        build_document(frontmatter, body, padding),
-        root=repo_root,
-        encoding="utf-8",
-    )
+    """Record durable evidence that a rejected latest review was superseded.
 
-
-def _persist_review_artifact_override_in_coord(
-    primary_artifact_path: Path,
-    *,
-    coord_feature_dir: Path,
-    wp_id: str,
-    actor: str,
-    reason: str,
-) -> bool:
-    """Stamp the approval override onto the matching coord-worktree review artifact.
-
-    The merge gate reads review artifacts from the coord worktree via
-    ``find_rejected_review_artifact_conflicts(coord_feature_dir)`` →
-    ``_artifact_dirs_for_wp(coord_feature_dir, wp_id)``.  When the approval
-    handler stamps an override on the primary/lane artifact only, the coord
-    copy is unchanged (``verdict: rejected``, no override block) — falsely
-    blocking the gate (#2275 / FR-008).
-
-    This helper resolves the coord artifact via the SAME ``_artifact_dirs_for_wp``
-    path that the gate uses, guaranteeing byte-for-byte read/write symmetry.
-    The existing ``has_complete_override`` check in ``artifacts.py`` (#1924) is
-    honored: if the coord artifact already carries a complete override block the
-    gate would not have fired, so no duplicate write is needed.
-
-    ``primary_artifact_path`` supplies the artifact filename (``review-cycle-N.md``)
-    and the sub-directory name (``WP01-slug``), which are identical in both the
-    primary and coord worktrees.  Only the feature-dir root changes.
-
-    Returns True when the coord artifact was found and stamped; False when no
-    matching coord artifact exists (no-op — the gate would not block on it either).
-
-    Args:
-        primary_artifact_path: Path to the primary/lane review artifact (provides
-            the filename and sub-directory name for the coord lookup).
-        coord_feature_dir: The coord worktree's mission feature_dir, resolved via
-            ``candidate_feature_dir_for_mission`` (the write-side resolver) by
-            the caller.  Must be the same root the merge gate passes to
-            ``find_rejected_review_artifact_conflicts``.
-        wp_id: Canonical work-package identifier (e.g. ``"WP01"``).
-        actor: Identity of the approver (operator or agent name).
-        reason: Human-readable rationale for the override (required by the
-            approval gate; must be non-empty before reaching this call).
+    FR-009 (WP09): event-sourced. Rather than stamping the four
+    ``review_artifact_override_*`` scalars onto the artifact frontmatter — and
+    mirroring the identical scalars into the coord worktree so the merge gate
+    would see them (the former ``_persist_review_artifact_override_in_coord``
+    duplication) — emit a single, topology-resolved ``InnerStateChanged``
+    ``review`` delta carrying a :class:`ReviewOverride` ``{at, actor, wp_id,
+    reason}``. The reduced ``review`` snapshot slot is the single authority both
+    the primary and coord worktrees resolve, so the primary/coord frontmatter
+    mirror collapses to this one emit. Only the *storage* changes; the approval
+    handler still fires the override at exactly the same moment.
     """
-    # The artifact sub-directory name (e.g. "WP01-slug") and the artifact
-    # filename (e.g. "review-cycle-1.md") are structurally identical in primary
-    # and coord.  Derive both from primary_artifact_path so this is not a
-    # hand-built path.
-    artifact_subdir_name = primary_artifact_path.parent.name
-    coord_artifact_path = (
-        coord_feature_dir / "tasks" / artifact_subdir_name / primary_artifact_path.name
-    )
-    if not coord_artifact_path.exists():
-        return False
-    text = coord_artifact_path.read_text(encoding="utf-8-sig")
-    frontmatter, body, padding = split_frontmatter(text)
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import ReviewOverride, WPInnerStateDelta
+
+    # Resolve the emit target from the caller-resolved artifact path (stored
+    # topology), never ``Path.cwd()`` (C-003 / #2647). Review artifacts live at
+    # ``<feature_dir>/tasks/<wp-slug>/review-cycle-N.md`` so ``parents[2]`` is the
+    # kitty-specs feature_dir and its directory name is the mission slug.
+    feature_dir = artifact_path.parents[2]
+    mission_slug = feature_dir.name
     timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_at", timestamp)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_actor", actor)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_wp_id", wp_id)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_reason", reason)
-    write_text_within_directory(
-        coord_artifact_path,
-        build_document(frontmatter, body, padding),
-        root=coord_feature_dir,
-        encoding="utf-8",
+    override = ReviewOverride(at=timestamp, actor=actor, wp_id=wp_id, reason=reason)
+    emit_inner_state_changed(
+        feature_dir,
+        wp_id,
+        WPInnerStateDelta(review=override),
+        actor=actor,
+        mission_slug=mission_slug,
+        at=timestamp,
+        repo_root=repo_root,
     )
-    return True
 
 
 def _collect_status_artifacts(feature_dir: Path) -> list[Path]:

@@ -48,7 +48,7 @@ import typer
 from specify_cli.cli.commands.agent import tasks, tasks_status_cmd
 from specify_cli.cli.commands.agent.tasks_status_cmd import _StatusState
 from specify_cli.cli.commands.agent.tasks_status_view import StatusView
-from specify_cli.status import Lane
+from specify_cli.status import NON_DISPLAY_LANES, Lane
 
 pytestmark = pytest.mark.fast
 
@@ -76,7 +76,7 @@ def _make_state(**overrides: Any) -> _StatusState:
 
 
 def _empty_lanes() -> dict[Lane | str, list[dict[str, object]]]:
-    return {lane: [] for lane in Lane if lane is not Lane.GENESIS}
+    return {lane: [] for lane in Lane if lane not in NON_DISPLAY_LANES}
 
 
 def _view(**overrides: Any) -> StatusView:

@@ -208,10 +208,6 @@ def test_runtime_gitignore_entries_exact():
         ".agents/skills/",
         ".kittify/.dashboard",
         ".kittify/charter/context-state.json",
-        ".kittify/charter/directives.yaml",
-        ".kittify/charter/governance.yaml",
-        ".kittify/charter/metadata.yaml",
-        ".kittify/charter/references.yaml",
         ".kittify/derived/",
         ".kittify/dossiers/",
         ".kittify/encoding-provenance/",
@@ -311,15 +307,36 @@ def test_deprecated_authority_class():
 # ---------------------------------------------------------------------------
 
 
-def test_charter_references_is_local_runtime_ignored():
-    """charter_references must be LOCAL_RUNTIME / IGNORED (local machine state)."""
-    surface = next(s for s in STATE_SURFACES if s.name == "charter_references")
-    assert surface.authority == AuthorityClass.LOCAL_RUNTIME, (
-        f"Expected LOCAL_RUNTIME, got {surface.authority}"
+def test_charter_references_surface_retired():
+    """consolidate-charter-bundle (WP07): charter_references is RETIRED.
+
+    The four legacy IGNORED/DERIVED bundle surfaces (charter_references,
+    charter_governance, charter_directives, charter_sync_metadata) are
+    folded into the single git-tracked ``charter_yaml`` surface -- see
+    ``test_charter_yaml_is_authoritative_tracked`` below.
+    """
+    names = {s.name for s in STATE_SURFACES}
+    assert "charter_references" not in names
+    assert "charter_governance" not in names
+    assert "charter_directives" not in names
+    assert "charter_sync_metadata" not in names
+
+
+def test_charter_yaml_is_authoritative_tracked():
+    """charter_yaml must be AUTHORITATIVE / TRACKED (data-model.md Landmine 1).
+
+    Replaces the four retired IGNORED/DERIVED bundle surfaces: governance
+    and directives are hand-authored sections, catalog is a DERIVED-but-
+    committed projection -- all inside one git-tracked file.
+    """
+    surface = next(s for s in STATE_SURFACES if s.name == "charter_yaml")
+    assert surface.authority == AuthorityClass.AUTHORITATIVE, (
+        f"Expected AUTHORITATIVE, got {surface.authority}"
     )
-    assert surface.git_class == GitClass.IGNORED, (
-        f"Expected IGNORED, got {surface.git_class}"
+    assert surface.git_class == GitClass.TRACKED, (
+        f"Expected TRACKED, got {surface.git_class}"
     )
+    assert surface.path_pattern == ".kittify/charter/charter.yaml"
 
 
 def test_charter_library_is_authoritative_tracked():
@@ -384,11 +401,8 @@ def test_section_b_charter_surfaces_present():
     expected = {
         "charter_source",
         "charter_interview_answers",
-        "charter_references",
         "charter_library",
-        "charter_governance",
-        "charter_directives",
-        "charter_sync_metadata",
+        "charter_yaml",
         "charter_context_state",
     }
     missing = expected - names

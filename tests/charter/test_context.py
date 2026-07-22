@@ -19,7 +19,6 @@ from charter.context import (
     _project_charter_json_block,
     _project_directive_entries,
     _relative_json_path,
-    _render_action_scoped,
     _render_bootstrap,
     build_charter_context,
     build_charter_context_json,
@@ -85,13 +84,22 @@ _GOVERNANCE_YAML = textwrap.dedent("""\
       available_tools: []
 """)
 
-_REFERENCES_YAML = textwrap.dedent("""\
-    schema_version: "1.0.0"
-    references:
-      - id: "USER:PROJECT_PROFILE"
-        kind: user_profile
-        title: User Project Profile
-        local_path: _LIBRARY/user-project-profile.md
+# consolidate-charter-bundle (#2773): the reference catalog is the DERIVED
+# ``catalog.references`` projection inside the authoritative ``charter.yaml`` —
+# the retired ``references.yaml`` is no longer read by ``build_charter_context``.
+_CHARTER_YAML = textwrap.dedent("""\
+    schema_version: "2.0.0"
+    catalog:
+      mission: null
+      template_set: software-dev-default
+      languages: []
+      references:
+        - id: "USER:PROJECT_PROFILE"
+          kind: user_profile
+          title: User Project Profile
+          local_path: _LIBRARY/user-project-profile.md
+    metadata:
+      bundle_schema_version: 2
 """)
 
 
@@ -101,7 +109,9 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(_GOVERNANCE_YAML, encoding="utf-8")
-    (charter_dir / "references.yaml").write_text(_REFERENCES_YAML, encoding="utf-8")
+    # References are read from charter.yaml's ``catalog.references`` (#2773), not
+    # the retired references.yaml — writing charter.yaml here exercises that path.
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML, encoding="utf-8")
 
 
 def _write_graph_fixture(tmp_path: Path) -> None:
@@ -148,12 +158,13 @@ class TestBuildContextV2:
         graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
         mock_graph = DRGGraph.model_validate(graph_data)
 
-        def patched_load_graph(path: Path) -> DRGGraph:
-            # Return our minimal test graph regardless of path
-            return mock_graph
-
+        # Patch the merged-graph seam directly (mission #2680 WP05): the shipped
+        # DRG now loads as multiple ``*.graph.yaml`` fragments, so patching the
+        # per-file ``load_graph`` would return this fixture once per fragment and
+        # ``merge_layers`` would concatenate it into duplicate edges. Replacing
+        # ``load_validated_graph`` yields the fixture graph exactly once.
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("doctrine.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
@@ -163,6 +174,10 @@ class TestBuildContextV2:
                 action=action,
                 depth=depth,
                 mark_loaded=mark_loaded,
+                # WP04 (#883): the fixture graph is a software-dev graph; the
+                # mission type is now declared explicitly rather than inferred
+                # from the project-level ``template_set`` proxy (FR-002).
+                mission_type="software-dev",
             )
 
     def test_returns_charter_context_result(self, tmp_path: Path) -> None:
@@ -213,17 +228,15 @@ class TestBuildContextV2:
         _setup_fixture_repo(tmp_path)
         (tmp_path / "spec").mkdir()
         (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
-        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
-            _CHARTER_MD
-            + textwrap.dedent("""\
-
-                ## Supporting Governance
-
-                ```yaml
-                governance_references:
-                  - spec/constitution.md
-                ```
-            """),
+        # consolidate-charter-bundle (IC-04 / WP04, T028c): the charter.md
+        # fenced-YAML -> governance.yaml extraction this fixture used to rely
+        # on is retired (sync() no longer scrapes anything); governance is
+        # hand-authored directly in charter.yaml now.
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
+            "governance:\n"
+            "  doctrine:\n"
+            "    governance_references:\n"
+            "      - spec/constitution.md\n",
             encoding="utf-8",
         )
 
@@ -265,18 +278,15 @@ class TestBuildContextV2:
         _setup_fixture_repo(tmp_path)
         (tmp_path / "spec").mkdir()
         (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
-        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
-            _CHARTER_MD
-            + textwrap.dedent("""\
-
-                ## Supporting Governance
-
-                ```yaml
-                governance_references:
-                  - spec/constitution.md
-                  - docs/missing-governance.md
-                ```
-            """),
+        # consolidate-charter-bundle (IC-04 / WP04, T028c): governance is
+        # hand-authored directly in charter.yaml now -- the charter.md
+        # fenced-YAML extraction this fixture used to rely on is retired.
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
+            "governance:\n"
+            "  doctrine:\n"
+            "    governance_references:\n"
+            "      - spec/constitution.md\n"
+            "      - docs/missing-governance.md\n",
             encoding="utf-8",
         )
 
@@ -301,13 +311,17 @@ class TestBuildContextV2:
     def test_selected_directive_closure_contributes_action_context(self, tmp_path: Path) -> None:
         """Selected directives contribute their DRG closure even without action-scope edges."""
         _setup_fixture_repo(tmp_path)
-        (tmp_path / ".kittify" / "charter" / "governance.yaml").write_text(
+        # consolidate-charter-bundle (IC-04 / WP04, T028c): governance is
+        # hand-authored directly in charter.yaml now; the retired
+        # governance.yaml is never read by load_governance_config.
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").write_text(
             textwrap.dedent("""\
-                doctrine:
-                  template_set: software-dev-default
-                  selected_paradigms: []
-                  selected_directives: [DIRECTIVE_039]
-                  available_tools: []
+                governance:
+                  doctrine:
+                    template_set: software-dev-default
+                    selected_paradigms: []
+                    selected_directives: [DIRECTIVE_039]
+                    available_tools: []
             """),
             encoding="utf-8",
         )
@@ -341,12 +355,17 @@ class TestBuildContextV2:
         mock_graph = DRGGraph.model_validate(yaml.load(StringIO(graph_yaml)))
 
         with (
-            patch("doctrine.drg.loader.load_graph", return_value=mock_graph),
+            # WP05 (#2680): patch the merged-graph seam, not per-file load_graph,
+            # so the sharded fragment layout does not duplicate the fixture.
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("doctrine.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
-            result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
+            result = build_charter_context(
+                tmp_path, action="implement", depth=2, mark_loaded=False,
+                mission_type="software-dev",
+            )
 
         assert "DIRECTIVE_039" in result.text
         assert "boring-code-review" in result.text
@@ -424,7 +443,10 @@ class TestBuildContextV2:
             patch("doctrine.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
-            result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
+            result = build_charter_context(
+                tmp_path, action="implement", depth=2, mark_loaded=False,
+                mission_type="software-dev",
+            )
 
         action_block = result.text.split("Action Doctrine (implement):", 1)[1]
         assert "DIRECTIVE_039" in action_block
@@ -534,15 +556,20 @@ class TestBuildContextV2:
         """Compact JSON still exposes project-local charter facts."""
         _setup_fixture_repo(tmp_path)
         charter_dir = tmp_path / ".kittify" / "charter"
-        (charter_dir / "directives.yaml").write_text(
+        # consolidate-charter-bundle (IC-04 / WP04, T028c):
+        # _project_directive_entries -> load_directives_config now reads
+        # charter.yaml's directives: section; the retired directives.yaml
+        # is never read.
+        (charter_dir / "charter.yaml").write_text(
             textwrap.dedent("""\
                 directives:
-                  - id: DIR-001
-                    title: First directive
-                    description: First rule
-                  - id: DIR-002
-                    title: Second directive
-                    description: Second rule
+                  directives:
+                    - id: DIR-001
+                      title: First directive
+                      description: First rule
+                    - id: DIR-002
+                      title: Second directive
+                      description: Second rule
             """),
             encoding="utf-8",
         )
@@ -704,25 +731,88 @@ class TestBuildContextV2:
         assert directive_ids == ["DIR-LOCAL"]
 
 
+# ---------------------------------------------------------------------------
+# WP04 (#883) — action-path leak closure: key off meta.json mission_type,
+# never the project-level ``template_set`` proxy.
+# ---------------------------------------------------------------------------
+
+_LEAK_GRAPH_YAML = textwrap.dedent("""\
+    schema_version: "1.0"
+    generated_at: "2026-07-14T10:00:00+00:00"
+    generated_by: "test"
+    nodes:
+      - urn: "action:software-dev/implement"
+        kind: action
+        label: implement
+      - urn: "action:documentation/implement"
+        kind: action
+        label: implement
+      - urn: "directive:DIRECTIVE_001"
+        kind: directive
+        label: Software Dev Directive
+      - urn: "directive:DIRECTIVE_100"
+        kind: directive
+        label: Documentation Directive
+    edges:
+      - source: "action:software-dev/implement"
+        target: "directive:DIRECTIVE_001"
+        relation: scope
+      - source: "action:documentation/implement"
+        target: "directive:DIRECTIVE_100"
+        relation: scope
+""")
+
+
+def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> None:
+    """A non-software mission must not inherit software-dev action doctrine (FR-002).
+
+    The project's ``template_set`` is ``software-dev-default`` (the legacy
+    proxy), but the mission's ``meta.json`` declares ``documentation``.  The
+    shared action name ``implement`` exists under BOTH mission types in the
+    graph.  The rendered context must resolve the *documentation* action node
+    (DIRECTIVE_100), never leak the *software-dev* one (DIRECTIVE_001).
+
+    This is the #883 leak reproduction — RED before the rewire, GREEN after.
+    """
+    from io import StringIO
+
+    from doctrine.drg.models import DRGGraph
+    from ruamel.yaml import YAML
+
+    _setup_fixture_repo(tmp_path)  # governance.yaml: template_set=software-dev-default
+
+    feature_dir = tmp_path / "kitty-specs" / "883-doc-mission"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        '{"mission_type": "documentation"}', encoding="utf-8"
+    )
+
+    yaml = YAML(typ="safe")
+    mock_graph = DRGGraph.model_validate(yaml.load(StringIO(_LEAK_GRAPH_YAML)))
+
+    with (
+        # WP05 (#2680): patch the merged-graph seam, not per-file load_graph, so
+        # the sharded fragment layout does not duplicate the fixture on merge.
+        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("doctrine.drg.validator.assert_valid"),
+    ):
+        result = build_charter_context(
+            tmp_path,
+            action="implement",
+            depth=2,
+            mark_loaded=False,
+            feature_dir=feature_dir,
+        )
+
+    # Documentation mission resolves ITS OWN action doctrine ...
+    assert "DIRECTIVE_100" in result.text
+    # ... and never leaks the software-dev action doctrine (the #883 defect).
+    assert "DIRECTIVE_001" not in result.text
+
+
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
     text = _render_bootstrap(Path("/nonexistent/charter.md"), [], [])
-
-    assert "Policy Summary:" in text
-    assert "No explicit policy summary section found in charter.md." in text
-    assert "Reference Docs:" in text
-    assert "No references manifest found." in text
-
-
-def test_render_action_scoped_uses_fallback_labels_without_summary_or_references(tmp_path: Path) -> None:
-    with patch("charter.context._append_action_doctrine_lines") as append_action_doctrine_lines:
-        append_action_doctrine_lines.return_value = None
-        text = _render_action_scoped(
-            tmp_path,
-            "implement",
-            tmp_path / "charter.md",
-            [],
-            [],
-        )
 
     assert "Policy Summary:" in text
     assert "No explicit policy summary section found in charter.md." in text
@@ -866,11 +956,12 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
 ) -> None:
     """WP02/T010: the real (non-monkeypatched) infer_repo_languages resolution.
 
-    Writes a real compiled-charter fixture (references.yaml with the T008
-    structured ``languages`` field) alongside an interview transcript that
-    disagrees, then confirms ``_build_doctrine_service`` receives the
-    compiled value via ``active_languages`` — proving there is no separate
-    precedence logic duplicated in ``context.py`` itself.
+    Writes a real compiled-charter fixture (charter.yaml with the
+    ``catalog.languages`` field — WP08 re-pointed tier-1 from the retired
+    ``references.yaml`` to this authoritative source) alongside an interview
+    transcript that disagrees, then confirms ``_build_doctrine_service``
+    receives the compiled value via ``active_languages`` — proving there is
+    no separate precedence logic duplicated in ``context.py`` itself.
     """
     from ruamel.yaml import YAML
 
@@ -895,20 +986,21 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     )
     write_interview_answers(answers_path, interview)
 
-    # Compiled charter (references.yaml) says "rust" — this is the canonical
-    # answer once it exists.
-    references_path = tmp_path / ".kittify" / "charter" / "references.yaml"
+    # Compiled charter (charter.yaml catalog.languages) says "rust" — this is
+    # the canonical answer once it exists.
+    charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
     yaml = YAML()
     yaml.default_flow_style = False
-    with references_path.open("w", encoding="utf-8") as handle:
+    with charter_yaml_path.open("w", encoding="utf-8") as handle:
         yaml.dump(
             {
-                "schema_version": "1.0.0",
-                "generated_at": "2026-07-07T00:00:00Z",
-                "mission": "software-dev",
-                "template_set": "default",
-                "languages": ["rust"],
-                "references": [],
+                "schema_version": "2.0.0",
+                "catalog": {
+                    "mission": "software-dev",
+                    "template_set": "default",
+                    "languages": ["rust"],
+                    "references": [],
+                },
             },
             handle,
         )

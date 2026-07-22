@@ -2,24 +2,6 @@
 # Regenerated from in-file frontmatter by scripts/docs/inventory_lockfile.py
 # (ADR 2026-06-27-1 decision D1). Sorted alphabetically by `path` for a
 # deterministic diff. The retired `citation_refs` field is not emitted.
-- path: docs/01KSMG8Y-closeout/baseline.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/01KSMG8Y-closeout/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/01KSMG8Y-closeout/retro.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/adr/1.x/2026-01-23-1-record-architecture-decisions.md
   tag: current
   divio_type: none
@@ -770,6 +752,54 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-16-2-mission-type-step-authority-and-template-vocabulary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -977,6 +1007,18 @@
 - path: docs/architecture/06_unified_charter_bundle.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/883-mission-type-authority-brief.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/883-research-synthesis.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -1232,6 +1274,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/mission-type-resolution.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/multi-agent-orchestration.md
   tag: current
   divio_type: none
@@ -1287,6 +1335,12 @@
   current_target: true
   notes: null
 - path: docs/architecture/vision/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/wp-runtime-state-eviction.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1492,7 +1546,7 @@
   notes: null
 - path: docs/context/charter-overview.md
   tag: current
-  divio_type: none
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -1532,6 +1586,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/historical-terms.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/identity-fields.md
   tag: current
   divio_type: none
@@ -1553,6 +1613,24 @@
 - path: docs/context/lexical.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/context/mission-types.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/context/naming-decision-tool-vs-agent.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/context/ops-vs-missions.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -1604,15 +1682,81 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/core-concepts/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/contract-pinning.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/contributing.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/coverage-signals.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/index.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/internal-hosted-readiness.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/local-overrides.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/manage-issue-tracker.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/pr-landing.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/quality-and-tech-debt-standing-orders.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/red-main-and-release-readiness.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/review-gates.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/run-mutation-tests.md
+  tag: current
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -1628,15 +1772,51 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/terminology-sweep-report.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/testing-flakiness.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/testing-parallel.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/ui-e2e.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/write-time-dependent-tests.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/doctrine/README.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/doctrine/create-a-doctrine-artifact.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/doctrine/doctrine-kinds.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -1654,7 +1834,7 @@
   notes: null
 - path: docs/guides/accept-and-merge.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -1672,7 +1852,7 @@
   notes: null
 - path: docs/guides/charter-governed-workflow.md
   tag: current
-  divio_type: none
+  divio_type: tutorial
   owning_workstream: none
   current_target: true
   notes: null
@@ -1688,24 +1868,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/contract-pinning.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/guides/contributing.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/guides/coverage-signals.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/create-an-org-doctrine-pack.md
   tag: current
   divio_type: none
@@ -1714,13 +1876,13 @@
   notes: null
 - path: docs/guides/create-plan.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
 - path: docs/guides/create-specification.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -1732,13 +1894,13 @@
   notes: null
 - path: docs/guides/generate-tasks.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
 - path: docs/guides/getting-started.md
   tag: current
-  divio_type: none
+  divio_type: tutorial
   owning_workstream: none
   current_target: true
   notes: null
@@ -1864,7 +2026,7 @@
   notes: null
 - path: docs/guides/implement-work-package.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -1882,7 +2044,7 @@
   notes: null
 - path: docs/guides/install-claude-code-plugin.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -1910,19 +2072,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/internal-hosted-readiness.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/keep-main-clean.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/guides/local-overrides.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1940,27 +2090,21 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/manage-issue-tracker.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/merge-feature.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
 - path: docs/guides/missions-overview.md
   tag: current
-  divio_type: none
+  divio_type: tutorial
   owning_workstream: none
   current_target: true
   notes: null
 - path: docs/guides/multi-agent-workflow.md
   tag: current
-  divio_type: none
+  divio_type: tutorial
   owning_workstream: none
   current_target: true
   notes: null
@@ -1972,17 +2116,11 @@
   notes: null
 - path: docs/guides/orchestrator-quickstart.md
   tag: current
-  divio_type: none
+  divio_type: tutorial
   owning_workstream: none
   current_target: true
   notes: null
 - path: docs/guides/parallel-development.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/guides/pr-landing.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2006,15 +2144,9 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/review-gates.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/review-work-package.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -2036,12 +2168,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/run-mutation-tests.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/setup-codex-spec-kitty-launcher.md
   tag: current
   divio_type: none
@@ -2050,7 +2176,7 @@
   notes: null
 - path: docs/guides/setup-governance.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -2072,18 +2198,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/testing-flakiness.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/guides/testing-parallel.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/tool-surface-upgrade-and-repair.md
   tag: current
   divio_type: none
@@ -2092,13 +2206,13 @@
   notes: null
 - path: docs/guides/troubleshoot-charter.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
 - path: docs/guides/troubleshoot-merge.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -2128,7 +2242,7 @@
   notes: null
 - path: docs/guides/use-dashboard.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -2140,7 +2254,7 @@
   notes: null
 - path: docs/guides/use-retrospective-learning.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -2156,15 +2270,9 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/write-time-dependent-tests.md
+- path: docs/guides/your-first-mission.md
   tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/guides/your-first-feature.md
-  tag: current
-  divio_type: none
+  divio_type: tutorial
   owning_workstream: none
   current_target: true
   notes: null
@@ -2282,18 +2390,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/notes/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/notes/runtime-bridge-delegate-classification.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/operations/identity-boundary-ci-gate.md
   tag: current
   divio_type: none
@@ -2324,7 +2420,19 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/output/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/p0-baseline-refresh.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/2497-external-observability-endpoints-assessment.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2385,6 +2493,12 @@
   current_target: true
   notes: null
 - path: docs/plans/3-2-doc-publication/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/3-2-x-approach.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2457,6 +2571,36 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/wp-prompt-governance-atdd-findings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/01KSMG8Y-closeout/baseline.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/01KSMG8Y-closeout/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/01KSMG8Y-closeout/retro.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-07-18-doctrine-driven-p0-remediation-field-report.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-07-19-migration-contract-step-ownership-field-report.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2660,6 +2804,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
   tag: current
   divio_type: none
@@ -2673,6 +2823,24 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/mission-notes/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/mission-notes/mission-type-completion-arc-research.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/mission-notes/runtime-bridge-delegate-classification.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3098,6 +3266,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/2684-task-move-cluster-scoping.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/2684-task-move-cluster-spec.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/index.md
   tag: current
   divio_type: none
@@ -3122,7 +3302,61 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/mission-type-step-model-unification.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/model-first-schema-generation.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-model.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-proposal.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-related-tickets.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/code-as-is.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/feasibility.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/roadmap-adr.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-runtime-state-eviction-scope.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3386,6 +3620,174 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/reference/agent_profiles/architect-alphonso.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/curator-carla.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/debugger-debbie.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/designer-dagmar.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/doctrine-daphne.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/frontend-freddy.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/generic-agent.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/human-in-charge.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/implementer-ivan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/java-jenny.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/node-norris.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/paula-patterns.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/planner-priti.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/python-pedro.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/randy-reducer.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/researcher-robbie.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/retrospective-facilitator.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/agent_profiles/reviewer-renata.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-admin-setup-doctor.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-doctrine-profile-load.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-gate-mission-review.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-meta-skill-map.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-run-implement-review.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-run-next.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reference/skills/spk-start-here.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/release-goals/3.2.x.md
   tag: current
   divio_type: none
@@ -3435,6 +3837,12 @@
   current_target: true
   notes: null
 - path: docs/trail-model.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/updates/index.md
   tag: current
   divio_type: none
   owning_workstream: none

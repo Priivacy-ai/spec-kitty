@@ -38,8 +38,6 @@
   href: worktrees-with-mcp-agents.md
 - name: Review Work Packages
   href: review-work-package.md
-- name: Write Time-Dependent Tests
-  href: write-time-dependent-tests.md
 - name: Run an Autonomous Mission
   href: run-an-autonomous-mission.md
 - name: Accept and Merge
@@ -66,8 +64,6 @@
   href: use-dashboard.md
 - name: Manage the Glossary
   href: manage-glossary.md
-- name: Manage the Issue Tracker
-  href: manage-issue-tracker.md
 - name: Non-Interactive Init
   href: non-interactive-init.md
 - name: Set Up Project Governance
@@ -82,5 +78,3 @@
   href: use-retrospective-learning.md
 - name: Troubleshoot Charter Failures
   href: troubleshoot-charter.md
-- name: Internal Hosted-Readiness (Pre-Launch)
-  href: internal-hosted-readiness.md

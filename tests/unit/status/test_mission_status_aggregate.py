@@ -558,8 +558,8 @@ class TestTransitionHappyPath:
         ``repo_root / "kitty-specs" / mission_slug``, not ``repo_root``
         itself, even though this fixture's ``read_dir == repo_root ==
         tmp_path`` (a legacy/no-coord-husk topology where the two happen to
-        coincide pre-resolution). The implementation-evidence check is
-        untouched by this WP and keeps consulting ``self.read_dir`` directly.
+        coincide pre-resolution). Both inferred guards consume the same
+        canonical event stream.
         """
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
@@ -584,14 +584,22 @@ class TestTransitionHappyPath:
 
         class _StatusEmit:
             @staticmethod
-            def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
+            def _infer_subtasks_complete(
+                read_dir: Path,
+                wp_id: str,
+                *,
+                event_stream: object,
+            ) -> bool:
                 assert read_dir == expected_primary_subtasks_dir
                 assert wp_id == "WP07"
+                assert event_stream is not None
                 return True
 
             @staticmethod
-            def _infer_implementation_evidence(read_dir: Path, wp_id: str) -> bool:
-                assert read_dir == tmp_path
+            def _infer_implementation_evidence_from_event_stream(
+                event_stream: object, wp_id: str
+            ) -> bool:
+                assert event_stream is not None
                 assert wp_id == "WP07"
                 return True
 
@@ -759,6 +767,12 @@ class TestTransitionHappyPath:
 
         primary_dir = _make_mission_dir(repo, slug)
         _write_meta(primary_dir, mission_id=mission_id, coordination_branch=coord_branch)
+        tasks_dir = primary_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\nsubtasks: []\n---\n# WP01\n",
+            encoding="utf-8",
+        )
         _write_events_file(primary_dir, [
             _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH32"),
         ])
@@ -917,9 +931,31 @@ class TestTransitionHappyPath:
             _make_event(slug, "WP01", "planned", "claimed", event_id="01HXYZ0123456789ABCDEFGH24"),
             _make_event(slug, "WP01", "claimed", "in_progress", event_id="01HXYZ0123456789ABCDEFGH25"),
         ])
-        (mission_dir / "tasks.md").write_text(
-            "### WP01: Implement\n\n- [x] T001 Done\n",
+        (mission_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = mission_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-test.md").write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\nsubtasks: [T001]\n---\n# WP01\n",
             encoding="utf-8",
+        )
+        from specify_cli.status import (
+            InnerStateChanged,
+            Status,
+            WPInnerStateDelta,
+            append_annotations_atomic_verified,
+        )
+
+        append_annotations_atomic_verified(
+            mission_dir,
+            [
+                InnerStateChanged(
+                    event_id="01H33333333333333333333333",
+                    wp_id="WP01",
+                    at="2026-06-01T13:00:00+00:00",
+                    actor="claude",
+                    delta=WPInnerStateDelta(subtasks={"T001": Status.DONE}),
+                )
+            ],
         )
 
         from specify_cli.status import TransitionRequest

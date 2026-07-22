@@ -38,9 +38,34 @@ falls under one of a registered group's roots, driven by iterating
 ``tests._shard_registry.all_groups()``, looked up via
 ``tests._shard_registry.shard_for``. Nothing outside a group's roots is
 touched: ``shard_for`` returns ``None`` for any path not covered by the
-requested group, which is what keeps the hook scoped (enforced by
+requested group and not auto-covered by the fallback described below, which
+is what keeps the hook scoped (enforced by
 ``tests/architectural/test_arch_shard_marker_completeness.py`` /
 ``test_next_shard_marker_completeness.py``, GC-1).
+
+**Auto-cover fallback (FR-011, #2671) — new files no longer require a manual
+edit to keep main green.** Before this WP, a new ``tests/architectural/*.py``
+file that was not appended to one of the ``_ARCH_SHARD_N_FILES`` tuples below
+resolved to ``shard_for(...) is None``: the collection hook applied no
+``arch_shard_N`` marker, and both the GC-1 completeness gate and the
+zero-gate-orphan gate (``tests/architectural/test_gate_coverage.py``) went
+red. This landing gap recurred 3+ times (see the "Added post-data-model.md"
+annotations scattered through the tables below — each one documents a prior
+occurrence that had to be hand-patched). This module's ``arch`` row now sets
+``default_fallback=True`` on its ``ShardGroup`` (``tests/_shard_registry.py``
+owns the mechanism): any under-root file that misses every explicit
+``dir_assignment`` / ``file_assignment`` entry is assigned a deterministic
+hash-bucket shard instead of ``None``, so a brand-new file is auto-covered by
+construction — **no manual table edit is required just to keep main green.**
+
+The explicit ``_ARCH_SHARD_N_FILES`` / ``_ARCH_SHARD_N_DIRS`` tables below
+remain the **authoritative balance control**, not a keep-green obligation:
+add a file here only when you want to pin it to a specific shard for load
+balance (or to keep a related family of tests on one leg, as several of the
+comments below do) — an explicit entry always overrides the hash-bucket
+fallback. The ``next`` group (``tests/_next_shard_map.py``) has deliberately
+NOT opted into the fallback (``default_fallback`` is omitted there, so it
+stays ``False``) — this generalization is scoped to ``arch`` only.
 
 This module is pure data + one ``register()`` call at import time — no
 pytest import — so it stays trivially unit-testable and reviewable as "just a
@@ -76,6 +101,17 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     # was picked first (alphabetically paired with test_workflow_dist_lint.py
     # in shard_2 below) to keep the pick auditable.
     "tests/architectural/test_marker_baseline.py",
+    # Added post-data-model.md (new file, mission
+    # resolver-seam-completion / #2651 commit 96e225d07 — the C-003
+    # ``*parity_scaffold*`` reappearance guard). That commit landed the file
+    # without registering it in this shard map, leaving it selected by zero
+    # ``arch_shard_N`` marker (GC-1 violation) AND absent from the
+    # gate-coverage baseline (a zero-gate orphan) — main went red on both
+    # ``test_arch_shard_marker_completeness`` and ``test_no_new_orphan_surfaces``.
+    # Folded here during the #2670 landing pass (campsite cleaning). shard_1
+    # and shard_2 were tied lightest by file count (35 vs 35/39) when this fix
+    # landed; shard_1 is the convention's default first pick on a tie.
+    "tests/architectural/test_no_parity_scaffold.py",
     # Added post-data-model.md (new file at implementation time, mission
     # cmd-output-file-leak-guard-01KWVZX7 #2169 WP01). All three shards were
     # tied at 30 files each when this guard landed; shard_1 was picked
@@ -179,6 +215,12 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     "tests/architectural/test_wp05_write_target_drain.py",
     "tests/architectural/test_wp_prompt_build_latency.py",
     "tests/architectural/test_write_surface_placement_guard.py",
+    # Added post-data-model.md (new file, mission
+    # mission-type-single-source-gate-wiring-01KXKHVZ WP05, #2666 — the FR-013
+    # built-in cross-grain-scan structural gate). shard_1 and shard_2 were
+    # tied lightest by file count (35 vs 35/39) when this file landed;
+    # shard_2 was picked to keep the split even.
+    "tests/architectural/test_cross_grain_builtin_gate.py",
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (
@@ -301,5 +343,6 @@ register(
         marker_prefix="arch_shard",
         dir_assignment=_ARCH_DIR_ASSIGNMENT,
         file_assignment=_ARCH_FILE_ASSIGNMENT,
+        default_fallback=True,
     )
 )

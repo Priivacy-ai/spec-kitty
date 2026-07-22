@@ -60,8 +60,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # retired seam file's own ``_MOVE_SET`` (grouped for readability; the guard
 # treats the union as one required key-set). Counts noted per group for
 # traceability against the seam files' own docstring counts at authoring
-# time (finalize=8, map_requirements=15, shared=21, status_cmd=21,
-# move_task=51, mark_status=13 — 129 total).
+# time (finalize=8, map_requirements=15, shared=20, status_cmd=21,
+# move_task=65, mark_status=13 — 142 total). WP04 (#2684) added two net-new
+# natively-defined symbols atop that baseline: ``_legacy_unchecked_subtask_ids``
+# (shared=21) and ``_ms_emit_subtask_state`` (mark_status=14) — 144 total. #2816
+# WP13 (IC-10) then retired ``_legacy_unchecked_subtask_ids`` (shared 21 -> 20)
+# when the guard stopped reading checkbox rows.
 # ---------------------------------------------------------------------------
 
 _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
@@ -93,8 +97,11 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2) — 15 symbols
     "_map_requirements_feature_dir",
 )
 
-_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 21 symbols
-    "resolve_primary_branch",
+_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
+    # ``resolve_primary_branch`` removed by FR-007 (mission
+    # primary-merge-vocabulary, WP04): the delegating shim was retired so the
+    # canonical ``core.git_ops.resolve_primary_branch`` is the single source
+    # (21 -> 20; total 141 -> 140).
     "_review_currency_check_branch",
     "_RUNTIME_STATE_DENY_LIST",
     "_filter_runtime_state_paths",
@@ -117,10 +124,12 @@ _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 21 symbols
     "_mark_status_json_payload",
 )
 
-_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
+_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +gated runtime seam, +reconstruct-reader row)
     "_default_status_ports",
     "_StatusState",
     "_st_resolve_dirs",
+    "_st_gated_runtime_fields",
+    "_st_runtime_row",
     "_st_resolve_execution_mode",
     "_st_load_work_packages",
     "_st_apply_review_flags",
@@ -141,15 +150,20 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate skip-reason pair)
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
+    # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
+    # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
+    # #2639: +complete-deferred-readiness + pre-review-dirty-paths)
     "_default_move_task_ports",
     "_MoveTaskState",
+    "_MoveTaskArgs",
     "_mt_warn_worktree_kitty_specs",
     "_mt_resolve_targets",
     "_mt_resolve_feedback",
     "_mt_build_request",
     "_lane_deliverable_paths",
     "_mt_commit_lane_deliverables",
+    "_mt_complete_deferred_for_review_readiness",
     "_mt_gather_review_facts",
     "_mt_fire_override_persist",
     "_mt_done_ancestry_facts",
@@ -163,19 +177,38 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#216
     "_mt_hop_review_result",
     "_mt_hop_actor",
     "_mt_emit_transitions",
-    "_mt_commit_wp_file",
-    "_mt_persist_tracker_refs",
-    # #2160 (coord-shadows-arm-closeout, FR-010): rollback-to-planned claim-marker
-    # clear + the umbrella reset entry point join the family surface.
-    "_mt_clear_rollback_claim_markers",
+    # WP10 (wp-runtime-state-eviction, closeout reconciliation): the god-write
+    # cut (WP06/WP07, FR-006/FR-007/FR-008) DELETED the frontmatter-writing
+    # runtime-state family — ``_mt_persist_tracker_refs`` (tracker refs now an
+    # off-axis union delta), ``_mt_clear_rollback_claim_markers`` /
+    # ``_mt_uncheck_rollback_subtasks`` / ``_mt_attempt_uncheck_write`` /
+    # ``_mt_commit_uncheck_tasks_md`` / ``_mt_reset_for_planned_rollback`` (the
+    # rollback-to-planned reset is now an event-sourced ``InnerStateChanged``
+    # ``subtasks`` delta). Their rows are removed from this guard; the six
+    # event-sourcing helpers that REPLACED them are added below. The unit test
+    # modules that imported the deleted symbols are reconciled in the same
+    # closeout.
     "_mt_persist_wp_file",
-    "_mt_uncheck_rollback_subtasks",
-    "_mt_reset_for_planned_rollback",
     "_mt_release_review_lock",
+    # WP10 closeout: the event-sourcing helpers WP06/WP07 added to the move_task
+    # seam (off-axis runtime-state emit, claim-triple policy_metadata packer,
+    # review planner, rollback subtask-reset delta builder, shell-pid baseline
+    # reader, current-agent resolver). Each is a genuine native def with an
+    # identity re-export on ``tasks``, so it joins the compat surface like every
+    # other def. #2816/IC-04 (runtime-state-corpus-cutover, WP05) deleted the
+    # flag-OFF ``_mt_dual_write_wp_file`` bridge (the last dual-write path was
+    # cut) and added ``_mt_resolve_current_agent`` (the ownership-read reroute
+    # onto the snapshot seam) — reconciled here (net 0).
+    "_mt_emit_runtime_state",
+    "_mt_reassignment_binding_fields",
+    "_mt_resolve_current_agent",
+    "_mt_hop_policy_metadata",
+    "_mt_plan_review_result",
+    "_mt_rollback_subtasks_reset",
+    "_mt_shell_pid_baseline",
     "_mt_execute",
     "_mt_output",
     "_do_move_task",
-    "_primary_bundle_status_artifacts",
     "_coord_status_events_path",
     "_status_event_result_fields",
     "_detect_reviewer_name",
@@ -184,6 +217,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#216
     "_mt_run_pre_review_gate",
     "_mt_resolve_pre_review_workspace",
     "_mt_pre_review_changed_files",
+    "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
     "_mt_pre_review_gate_verdict",
@@ -198,14 +232,6 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#216
     "_mt_pre_review_scope_override",
     "_pre_review_gate_filter_groups",
     "_pre_review_gate_composite_routing",
-    "_mt_resolve_status_placement_ref",
-    "_mt_write_and_commit_wp_file",
-    "_mt_wp_commit_success_message",
-    # WP07 (loop-friction-quickwins-2-01KXBWA4, T025, FR-010/#2555.1): the
-    # authority-path planning-artifact staging discovery + the shared
-    # fallback-write helper join the family surface like every other def.
-    "_mt_untracked_planning_artifact_paths",
-    "_write_wp_fallback",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
@@ -217,6 +243,7 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
     "_ms_report_none_resolved",
     "_ms_commit",
     "_ms_apply_updates",
+    "_ms_emit_subtask_state",
     "_ms_emit_history",
     "_ms_dossier_sync",
     "_ms_output",
@@ -364,10 +391,10 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_136_symbol_surface() -> None:
+def test_guard_covers_full_142_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 21 + 21 + 58 + 13 = 136). A change here is
+    authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
     reviewed edit — not a silent drift. #2513/#2160 added
     ``_mt_uncheck_rollback_subtasks``, ``_mt_clear_rollback_claim_markers`` and
@@ -376,5 +403,37 @@ def test_guard_covers_full_136_symbol_surface() -> None:
     ``_mt_pre_review_gate_skip_reason`` (54 -> 56). WP07
     (loop-friction-quickwins-2-01KXBWA4, T025, #2555.1) added
     ``_mt_untracked_planning_artifact_paths`` and ``_write_wp_fallback``
-    (56 -> 58)."""
-    assert len(SYMBOL_TO_MODULE) == 136
+    (56 -> 58). WP07 (implement-loop-commit-hardening-01KXJ1ZX, #2649) added
+    the ``_MoveTaskArgs`` param object plus the ``_mt_commit_wp_file`` /
+    ``_mt_uncheck_rollback_subtasks`` degod helpers (``_mt_wp_commit_message``,
+    ``_mt_report_commit_outcome``, ``_mt_attempt_uncheck_write``,
+    ``_mt_commit_uncheck_tasks_md``) (58 -> 63). FR-007
+    (primary-merge-vocabulary, WP04) retired the ``tasks_shared``
+    ``resolve_primary_branch`` delegating shim (tasks_shared 21 -> 20). #2639
+    (pre-review transitions observable/interruption-safe) added
+    ``_mt_complete_deferred_for_review_readiness`` and
+    ``_mt_pre_review_dirty_paths`` (63 -> 65). Net tasks-surface total
+    141 -> 142. WP04 (#2684, subtask-emit + reader-delegate) added
+    ``_legacy_unchecked_subtask_ids`` (tasks_shared 20 -> 21) and
+    ``_ms_emit_subtask_state`` (tasks_mark_status 13 -> 14): 142 -> 144.
+    #2816 Phase B (bypass-reader gating) added ``_st_gated_runtime_fields``
+    (tasks_status_cmd 21 -> 22): 144 -> 145. #2816 WP11 (IC-07 reconstruction
+    reader) added ``_st_runtime_row`` — the board's snapshot read routed through
+    the one ``reconstruct_wp_view`` reader (tasks_status_cmd 22 -> 23): 145 -> 146.
+    #2816/IC-04 (runtime-state-corpus-cutover, WP05) then swapped the
+    tasks_move_task seam's ``_mt_dual_write_wp_file`` (deleted with the last
+    dual-write path) for ``_mt_resolve_current_agent`` (the ownership-read
+    snapshot reroute): net 0, still 146. #2816/IC-06 (runtime-state-corpus-cutover,
+    WP07) then deleted the now production-dead WP-file write/commit closure that
+    WP05 orphaned when it removed ``_mt_dual_write_wp_file`` (the last caller):
+    ``_mt_commit_wp_file``, ``_mt_write_and_commit_wp_file``,
+    ``_mt_wp_commit_message``, ``_mt_report_commit_outcome``,
+    ``_mt_wp_commit_success_message``, ``_write_wp_fallback``,
+    ``_mt_untracked_planning_artifact_paths``, ``_mt_resolve_status_placement_ref``
+    and ``_primary_bundle_status_artifacts`` (tasks_move_task 65 -> 56):
+    146 -> 137. #2816 WP13 (IC-10, subtask-completion event-sourced) then retired
+    ``_legacy_unchecked_subtask_ids`` — the guard's only live caller stopped
+    reading checkbox rows (tasks_shared 21 -> 20): 137 -> 136. The resolved-
+    binding reassignment helper is a native move-task seam and therefore joins
+    the registration-shim compatibility surface: 136 -> 137."""
+    assert len(SYMBOL_TO_MODULE) == 137  # golden-count: cardinality-is-contract

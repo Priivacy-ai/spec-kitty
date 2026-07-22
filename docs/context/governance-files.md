@@ -2,22 +2,25 @@
 title: Governance Files Reference
 description: Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-18'
 related:
 - docs/context/charter-overview.md
 ---
 # Governance Files Reference
 
 The Charter governance layer lives primarily in `.kittify/charter/`, with promoted project-local
-doctrine under `.kittify/doctrine/`. Most files are derived, runtime-managed, or agent-generated
-inputs and must not be hand-edited. This page describes the common Charter-era files and the
-commands that own them.
+doctrine under `.kittify/doctrine/`. Most files are runtime-managed or agent-generated inputs and
+must not be hand-edited. This page describes the common Charter-era files and the commands that
+own them.
 
-> **Key rule**: edit `.kittify/charter/charter.md` for Spec Kitty runtime policy changes.
-> External governance docs such as `spec/constitution.md` are supporting context referenced
-> from the charter, not alternate authoritative charter paths. Re-run `charter sync` and
-> `charter synthesize` instead of patching derived YAML, runtime state, or synthesis outputs
-> by hand.
+> **Key rule**: edit `.kittify/charter/charter.yaml` for Spec Kitty runtime policy changes —
+> specifically its `governance:`, `directives:`, activation, and `overrides:` sections.
+> `.kittify/charter/charter.md` is a curated narrative companion; the runtime never reads it for
+> policy. External governance docs such as `spec/constitution.md` are supporting context
+> referenced from `charter.yaml`, not alternate authoritative charter paths. Re-run
+> `charter generate` to refresh `charter.yaml`'s `catalog`/`metadata` sections, and
+> `charter synthesize` to promote doctrine artifacts — do not patch those sections, runtime state,
+> or synthesis outputs by hand.
 
 ---
 
@@ -25,12 +28,10 @@ commands that own them.
 
 | File path | Who writes it | Contains | Edit directly? |
 |---|---|---|---|
-| `.kittify/charter/charter.md` | **Human** via interview/generate, then direct edits | Mission vision, directives, doctrine selections, policy decisions | Yes |
+| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/activation/`overrides`); `charter generate` (`catalog`/`metadata` sections only) | The single structured charter: hand-authored policy plus a generator-refreshed doctrine catalog | `governance`/`directives`/activation/`overrides`: yes. `catalog`/`metadata`: no |
+| `.kittify/charter/charter.md` | **Human**, or an agent during `/spec-kitty.charter`'s chat flow — never `charter generate` | Narrative summary of policy; may reference or summarize an external constitution | Yes — but edits have no runtime effect |
+| `.kittify/config.yaml` (`charter:` key) | Minted once by `charter generate` on first bootstrap; human-editable afterward | The single pointer resolving to the active `charter.yaml` | Yes, to redirect to a different charter file |
 | `.kittify/charter/interview/answers.yaml` | `charter interview` | Captured answers used by `charter generate` | Prefer re-running `charter interview` |
-| `.kittify/charter/references.yaml` | `charter generate` | Reference manifest for built-in doctrine and local support files | No |
-| `.kittify/charter/governance.yaml` | `charter sync` / `charter generate` | Testing, quality, performance, branch, and doctrine-selection config | No |
-| `.kittify/charter/directives.yaml` | `charter sync` / `charter generate` | Extracted directives with IDs, descriptions, and severity | No |
-| `.kittify/charter/metadata.yaml` | `charter sync` / `charter generate` | Charter hash, extraction timestamp, source path, parser stats | No |
 | `.kittify/charter/context-state.json` | Runtime context loader | Per-action first-load state for compact/bootstrap context | No |
 | `.kittify/charter/generated/{directives,tactics,styleguides}/` | Agent harness | Candidate YAML artifacts consumed by `charter synthesize` | No routine hand edits |
 | `.kittify/charter/synthesis-manifest.yaml` | `charter synthesize` / `charter resynthesize` | Manifest of promoted synthesized artifacts and content hashes | No |
@@ -39,13 +40,15 @@ commands that own them.
 | `.kittify/doctrine/` | `charter synthesize` / `charter resynthesize` | Project-local doctrine overlay used with built-in doctrine | No |
 | `.kittify/doctrine/PROVENANCE.md` | `charter synthesize` fresh-project path | Human-readable provenance for the minimal fresh-project doctrine seed | No |
 
-Current `charter generate` writes `charter.md` and `references.yaml`, then runs `charter sync`.
-It no longer materializes doctrine library pages as authoritative `library/*.md` files; doctrine
-content is resolved through `references.yaml` and the built-in/project doctrine service.
+`charter generate` refreshes `charter.yaml`'s `catalog` (doctrine reference manifest) and
+`metadata` (generation timestamp) sections deterministically; it never writes `charter.md`. It no
+longer materializes doctrine library pages as authoritative `library/*.md` files; doctrine content
+is resolved through `charter.yaml`'s `catalog` section and the built-in/project doctrine service.
 
 Normal hand-authored `.kittify/charter/charter.md` is the supported default. `charter generate`
 refuses to overwrite a symlinked `charter.md`, including with `--force`; replace the symlink with
-a normal file before generation.
+a normal file before generation. This guard protects the companion file from an accidental
+clobber — it has no bearing on runtime policy, which never reads `charter.md`.
 
 ---
 
@@ -53,59 +56,48 @@ a normal file before generation.
 
 Some repositories already have a public constitution, governance policy, or engineering handbook
 outside `.kittify/` (for example `spec/constitution.md`). Do not treat `.kittify/charter/charter.md`
-as a second full copy that must stay byte-for-byte equal to that document.
+or `.kittify/charter/charter.yaml` as a second full copy that must stay byte-for-byte equal to that
+document.
 
 Use this ownership model instead:
 
 | Document | Role |
 |---|---|
 | Public governance document outside `.kittify/` | Human-facing policy, historical record, or public project constitution. |
-| `.kittify/charter/charter.md` | Runtime charter consumed by Spec Kitty. It should contain the operative directives agents need, plus pointers to external authority when useful. |
-| `.kittify/charter/governance.yaml`, `directives.yaml`, `metadata.yaml` | Generated runtime bundle derived only from the current contents of `.kittify/charter/charter.md`. |
+| `.kittify/charter/charter.yaml` | Runtime charter consumed by Spec Kitty. Its `governance`/`directives` sections should contain the operative policy agents need, plus `governance.doctrine.governance_references` pointers to external authority when useful. |
+| `.kittify/charter/charter.md` | Human-facing narrative companion. Useful for onboarding and review; not consumed by the runtime. |
 
 Recommended pattern:
 
 1. Keep the external constitution as the public source for long-form governance.
-2. Keep `.kittify/charter/charter.md` concise and runtime-oriented: summarize the binding
-   directives, name the public constitution, and record where agents should look for supporting
-   policy.
-3. If agents should inspect a directory of supporting policy, declare that directory in the
-   charter's fenced `authority_paths` block:
-
-````markdown
-## External Governance Authority
-
-The public project constitution lives in `spec/constitution.md`. The Spec Kitty runtime charter
-summarizes the directives that must be injected into mission prompts; the public constitution
-remains the long-form public governance record.
+2. Keep `.kittify/charter/charter.yaml`'s `governance`/`directives` sections concise and
+   runtime-oriented: encode the binding directives, and reference the public constitution through
+   `governance.doctrine.governance_references`.
+3. If agents should inspect a directory of supporting policy, declare that directory under
+   `governance.doctrine.authority_paths`:
 
 ```yaml
-authority_paths:
-  - spec/
+governance:
+  doctrine:
+    authority_paths:
+      - spec/
+    governance_references:
+      - spec/constitution.md
 ```
-````
 
 Current Spec Kitty does not support a configured external charter path that replaces
-`.kittify/charter/charter.md`. If a project needs a single physical file for sync-only extraction,
-a symlink can point `.kittify/charter/charter.md` at another markdown file, subject to the sync and
-generate behavior below. Do not use the symlink model for Windows or mixed-platform projects unless
-native Windows CI proves the checkout can create and preserve the symlink; use a runtime summary or
-generated copy instead.
+`.kittify/charter/charter.yaml` itself — the `.kittify/config.yaml` `charter:` pointer is the one
+supported redirection mechanism, and it points at a `charter.yaml` file, not at `charter.md`.
 
-### Sync Behavior by Charter Shape
+### Sync Behavior
 
-`spec-kitty charter sync` always treats `.kittify/charter/charter.md` as the input path and writes
-the generated YAML bundle into `.kittify/charter/`.
-
-| Charter shape | Command behavior | Operator responsibility |
-|---|---|---|
-| Hand-authored `.kittify/charter/charter.md` | `charter sync` reads that file and writes `governance.yaml`, `directives.yaml`, and `metadata.yaml` next to it. `charter generate --force` may overwrite it. | Edit `charter.md`, run `spec-kitty charter sync`, then review drift with `charter status`. |
-| Generated copy in `.kittify/charter/charter.md` | `charter sync` reads the generated copy as the source for runtime extraction. It does not pull from the external document that produced the copy. | Re-run the external copy/generation step first, then run `spec-kitty charter sync`. Do not hand-edit the generated copy unless it has become the runtime source. |
-| Symlink at `.kittify/charter/charter.md` | `charter sync` follows the symlink for reading charter content. Generated YAML still lands in `.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a symlinked charter before compilation, sync, gitignore updates, or staging. | Treat this as a sync-only, Unix-oriented model. Keep the symlink target committed and available on every checkout. Broken or platform-incompatible symlinks make sync fail. Prefer another model for Windows/shared checkouts. |
-
-Avoid equality checks between a public constitution and `.kittify/charter/charter.md` unless the
-project has deliberately adopted a mirror policy. A better check is that the runtime charter
-names the public authority and that `charter status` reports no drift in the generated bundle.
+`spec-kitty charter sync` is retained for its canonical-root resolution and the internal
+`ensure_charter_bundle_fresh()` staleness check that other charter-layer modules still call — the
+`charter sync` CLI command itself, the dashboard, and the bundle-migration upgrader all depend on
+its signature. It performs **no extraction** any more: it always reports `synced=False` and
+`files_written=[]`, because there is nothing left to derive from `charter.md`. Running
+`spec-kitty charter sync` after a hand edit to `charter.yaml` is a harmless no-op, not a required
+step.
 
 ---
 
@@ -117,38 +109,35 @@ projects:
 
 | Path | Git policy | Refresh command |
 |---|---|---|
-| `.kittify/charter/charter.md` | Commit. This is the Spec Kitty runtime policy source. | Edit directly, then run `spec-kitty charter sync`. |
-| `.kittify/charter/governance.yaml` | Do not commit. Generated from `charter.md`. | `spec-kitty charter sync` |
-| `.kittify/charter/directives.yaml` | Do not commit. Generated from `charter.md`. | `spec-kitty charter sync` |
-| `.kittify/charter/metadata.yaml` | Do not commit. Generated hash/parser state. | `spec-kitty charter sync` |
-| `.kittify/charter/references.yaml` | Do not commit by default. Generated by `charter generate`; treat as derived unless a project explicitly adopts a stricter tracked-reference policy. | `spec-kitty charter generate --from-interview` |
+| `.kittify/charter/charter.yaml` | Commit. This is the Spec Kitty runtime policy source. | Edit `governance:`/`directives:`/activation/`overrides:` directly; run `spec-kitty charter generate` to refresh `catalog`/`metadata`. |
+| `.kittify/charter/charter.md` | Commit. Curated narrative companion, not a runtime source. | Edit directly, whenever convenient. |
+| `.kittify/config.yaml` | Commit. Holds the `charter:` pointer plus agent/pack config. | Edit directly to redirect the pointer. |
 | `.kittify/charter/provenance/*` | Do not commit. Synthesis provenance is regenerated with the promoted doctrine overlay. | `spec-kitty charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Do not commit. Generated synthesis manifest. | `spec-kitty charter synthesize` |
 | `.kittify/doctrine/graph.yaml` | Do not commit. Project-local DRG overlay synthesized locally when needed. | `spec-kitty charter synthesize` |
 | `.kittify/doctrine/{directive,tactic,procedure,overlays}/` | Commit only when the project intentionally carries a durable project-local doctrine overlay. | `spec-kitty charter synthesize` or `spec-kitty charter resynthesize` |
 
 If a project has a public governance document, keep it in that public location and reference it
-from `charter.md`:
+from `charter.yaml`:
 
 ```yaml
-governance_references:
-  - spec/constitution.md
+governance:
+  doctrine:
+    governance_references:
+      - spec/constitution.md
 ```
 
-Do not enforce markdown equality between the public document and `.kittify/charter/charter.md`
-unless the project deliberately adopts a mirror policy outside Spec Kitty's defaults.
+Do not enforce markdown equality between the public document and `.kittify/charter/charter.md` or
+`.kittify/charter/charter.yaml` unless the project deliberately adopts a mirror policy outside
+Spec Kitty's defaults.
 
-The `.gitignore` should match that policy: ignore generated charter YAML,
-provenance, synthesis manifests, and `.kittify/doctrine/**`, then re-include
-only durable doctrine overlay subdirectories if the project commits them.
-Spec Kitty's own repository follows that split: `charter.md` and selected
-project-local doctrine overlays are tracked, while generated charter YAML and
-`graph.yaml` remain local.
+Spec Kitty's own repository follows this split: `charter.yaml`, `charter.md`, and selected
+project-local doctrine overlays are tracked, while synthesis provenance and `graph.yaml` remain
+local.
 
 When a required local generated file is missing, do not hand-create it. Run:
 
 ```bash
-spec-kitty charter sync
 spec-kitty charter status
 spec-kitty charter synthesize
 spec-kitty charter bundle validate
@@ -157,35 +146,36 @@ spec-kitty charter bundle validate
 Use `charter status` to detect missing or stale local synthesis state such as
 a missing synthesized DRG. Use `charter synthesize` to regenerate that local
 state. `charter bundle validate` validates the committed charter-bundle
-manifest and reports missing tracked policy, missing generated charter YAML,
-missing `.gitignore` entries, and invalid synthesis state when synthesis
-artifacts are present; it does not require a project-local DRG to exist in
-fresh checkouts that intentionally rely on built-in doctrine.
+manifest and reports missing tracked policy, missing `.gitignore` entries (if any project-local
+entries are required), and invalid synthesis state when synthesis artifacts are present; it does
+not require a project-local DRG to exist in fresh checkouts that intentionally rely on built-in
+doctrine.
 
 ---
 
-## What Happens If You Edit a Generated File
+## What Happens If You Edit a Generated Section
 
-The owning command can overwrite generated-file edits. If you edit `governance.yaml` or
-`directives.yaml` directly and then run `charter sync` or `charter generate`, your edits will be
-lost because those files are re-derived from `charter.md`.
+`charter generate` can overwrite `charter.yaml`'s `catalog` and `metadata` sections on every run —
+that refresh is a merge that leaves `governance`, `directives`, activation, and `overrides` alone,
+but any hand edit made directly inside `catalog` or `metadata` will be lost the next time
+`charter generate` runs. `governance` and `directives` are never touched by `generate` — edit them
+freely.
 
-Use these commands to detect drift before relying on the bundle:
+Use these commands to check the state of the bundle before relying on it:
 
 ```bash
-# Check whether charter.md is out of sync with the bundle
-uv run spec-kitty charter status
-
 # Detect orphaned artifacts, contradictions, and staleness in the graph
 uv run spec-kitty charter lint
 
 # Validate the bundle against the canonical schema
 uv run spec-kitty charter bundle validate
+
+# Inspect current bundle state
+uv run spec-kitty charter status
 ```
 
-If `charter status` reports drift, run `charter sync` first to update the deterministic YAML from
-the current `charter.md`, then run `charter synthesize` if project-local doctrine also needs to be
-promoted.
+If `charter lint` reports decay, run `charter synthesize` if project-local doctrine needs to be
+re-promoted, or edit `charter.yaml` directly to fix the underlying policy.
 
 ## Migrating Constitution-Era Files
 
@@ -193,32 +183,29 @@ Projects upgraded from early Spec Kitty layouts may still have stale governance 
 
 | Legacy path | Current action |
 |---|---|
-| `.kittify/memory/constitution.md` | Move current runtime policy into `.kittify/charter/charter.md`, or keep the old file only as archived project history. |
-| `.kittify/constitution/constitution.md` | Move current runtime policy into `.kittify/charter/charter.md`; do not keep it as an alternate runtime source. |
-| `.kittify/constitution/{governance,directives,metadata}.yaml` | Delete or archive after confirming `.kittify/charter/{governance,directives,metadata}.yaml` is generated by `charter sync`. |
+| `.kittify/memory/constitution.md` | Move current runtime policy into `.kittify/charter/charter.yaml`'s `governance`/`directives` sections, or keep the old file only as archived project history. |
+| `.kittify/constitution/constitution.md` | Move current runtime policy into `.kittify/charter/charter.yaml`; do not keep it as an alternate runtime source. |
+| `.kittify/charter/{governance,directives,metadata,references}.yaml` | Legacy pre-inversion derived files. The upgrade migration folds their content into `.kittify/charter/charter.yaml` and removes them; do not hand-recreate them. |
+| `.kittify/constitution/{governance,directives,metadata}.yaml` | Delete or archive after confirming the upgrade migration has folded any remaining content into `.kittify/charter/charter.yaml`. |
 
 If the old constitution file is still useful as public or organizational context, put it in a
-normal project path such as `spec/constitution.md` and list that path in `governance_references`.
+normal project path such as `spec/constitution.md` and list that path under
+`governance.doctrine.governance_references` in `charter.yaml`.
 
 ---
 
 ## Bundle Validation
 
-The core charter bundle is validated against the **CharterBundleManifest v1.0.0** schema by:
+The core charter bundle is validated against the **CharterBundleManifest v2.0.0** schema by:
 
 ```bash
 uv run spec-kitty charter bundle validate
 ```
 
-The v1.0.0 manifest scope is intentionally narrow: tracked `charter.md` plus the derived
-`governance.yaml`, `directives.yaml`, and `metadata.yaml` files, with required `.gitignore`
-entries for the derived files. `references.yaml` and `context-state.json` are valid Charter files
-but are out of v1.0.0 manifest scope, so validation may report them as informational
-out-of-scope files rather than errors.
-
-Bundle validation also performs additive synthesis-state checks when `.kittify/doctrine/`,
-`.kittify/charter/provenance/`, or `.kittify/charter/synthesis-manifest.yaml` are present.
-Run it after generation and synthesis before relying on governed mission prompts.
+The v2.0.0 manifest tracks two files — `charter.md` and `charter.yaml` — and derives nothing:
+`derived_files` is empty. `charter.yaml` is also the sole entry in `content_hash_files`, the
+content-identity input set used for the bundle's freshness hash. `charter.md` is tracked (git
+must contain it) but contributes nothing to that hash, since it is a companion, not an input.
 
 `charter lint` performs graph-native decay checks — it detects orphaned directives (directives
 that appear in the DRG but have no referencing tactic), contradictions (two directives with
@@ -227,18 +214,18 @@ superseded built-in directive).
 
 ---
 
-## Sync vs Synthesize
+## Generate vs Synthesize
 
 These two operations are different:
 
 | Command | What it does |
 |---|---|
-| `charter generate` | Renders `charter.md` and `references.yaml` from interview answers, then runs sync. |
-| `charter sync` | Syncs `charter.md` content to `governance.yaml`, `directives.yaml`, and `metadata.yaml`. Use after hand-editing `charter.md`. |
+| `charter generate` | Refreshes `charter.yaml`'s `catalog` and `metadata` sections from interview answers + doctrine references. Bootstraps `governance`/`directives` from a legacy triad only on first creation of `charter.yaml`; on every later run it leaves them untouched. Never writes `charter.md`. |
+| `charter sync` | Retained for canonical-root resolution and back-compat call sites. Performs no extraction — always a no-op (`synced=False`, `files_written=[]`). |
 | `charter synthesize` | Validates and promotes agent-generated project-local doctrine artifacts from `.kittify/charter/generated/` to `.kittify/doctrine/`. |
 
-Run `charter sync` first when you have edited `charter.md` by hand, then `charter synthesize`
-when the doctrine overlay needs to be refreshed.
+Edit `charter.yaml`'s `governance`/`directives` sections directly for policy changes; run
+`charter synthesize` when the doctrine overlay needs to be refreshed.
 
 ---
 

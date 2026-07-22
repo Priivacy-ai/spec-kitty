@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances org charter activations runtime wiring on design/org-charter-activations-2365 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "org charter activations runtime wiring",
   "slug": "org-charter-activations-runtime-wiring-01KWPS9E",
+  "status_phase": "1",
   "target_branch": "design/org-charter-activations-2365",
   "topology": "single_branch",
   "vcs": "git",

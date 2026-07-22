@@ -8,5 +8,6 @@
   "purpose_context": "This mission advances status writepath profile surface remediation on feature/status-writepath-profile-surface-remediation so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "status writepath profile surface remediation",
   "slug": "status-writepath-profile-surface-remediation-01KTB6AN",
+  "status_phase": "1",
   "target_branch": "feature/status-writepath-profile-surface-remediation"
 }

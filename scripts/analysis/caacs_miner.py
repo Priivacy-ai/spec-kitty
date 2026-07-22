@@ -16,7 +16,6 @@ Read-only; no repo mutation.
 from __future__ import annotations
 
 import subprocess
-import sys
 from collections import Counter, defaultdict
 
 SRC_PREFIX = "src/"
@@ -44,7 +43,9 @@ def main() -> None:
     test_changes: Counter[str] = Counter()
     test_co_src: Counter[str] = Counter()
     partners: dict[str, Counter[str]] = defaultdict(Counter)
-    src_module = lambda p: "/".join(p.split("/")[:4])  # src/specify_cli/<pkg>/<file>
+
+    def src_module(p: str) -> str:  # src/specify_cli/<pkg>/<file>
+        return "/".join(p.split("/")[:4])
 
     for files in commits():
         srcs = [f for f in files if f.startswith(SRC_PREFIX) and f.endswith(".py")]
@@ -79,7 +80,7 @@ def main() -> None:
         "tests/unit/status", "tests/specify_cli/acceptance", "tests/agent/",
     ))]
 
-    print(f"# CaaCS test change-coupling report\n")
+    print("# CaaCS test change-coupling report\n")
     print(f"History mined: {sum(1 for _ in commits())} non-merge commits.")
     print(f"Test files seen: {len(test_changes)} · arch: {len(arch)} · core-pkg: {len(core)}")
 

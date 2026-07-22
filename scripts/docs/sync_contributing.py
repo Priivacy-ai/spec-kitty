@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard the root ``CONTRIBUTING.md`` symlink to ``docs/guides/contributing.md``.
+"""Guard the root ``CONTRIBUTING.md`` symlink to ``docs/development/contributing.md``.
 
 The canonical file is the single source of truth for contributor-guide
 content.  The root ``CONTRIBUTING.md`` is a **symlink** to it — there is no
@@ -27,11 +27,11 @@ from pathlib import Path
 from typing import Final
 
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-_CANONICAL_PATH: Final[Path] = _REPO_ROOT / "docs" / "guides" / "contributing.md"
+_CANONICAL_PATH: Final[Path] = _REPO_ROOT / "docs" / "development" / "contributing.md"
 _ROOT_PATH: Final[Path] = _REPO_ROOT / "CONTRIBUTING.md"
 
 #: The exact link target the root symlink must carry (relative, POSIX form).
-SYMLINK_TARGET: Final[str] = "docs/guides/contributing.md"
+SYMLINK_TARGET: Final[str] = "docs/development/contributing.md"
 
 _DRIFT_MESSAGE: Final[str] = (
     "CONTRIBUTING layout drift: {root} must be a symlink to {target}.\n"
@@ -65,7 +65,7 @@ def write(root: Path | None = None, target: str | None = None) -> int:
 def main() -> int:
     """Entry point for ``--check`` / ``--write`` CLI."""
     parser = argparse.ArgumentParser(
-        description="Guard the root CONTRIBUTING.md symlink to docs/guides/contributing.md."
+        description="Guard the root CONTRIBUTING.md symlink to docs/development/contributing.md."
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(

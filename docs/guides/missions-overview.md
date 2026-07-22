@@ -2,10 +2,12 @@
 title: Understanding Spec Kitty Missions
 description: 'Tutorial for Understanding Spec Kitty Missions in Spec Kitty 3.2: Spec Kitty supports four mission types that tailor the workflow and artifacts to your goal.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-21'
+type: tutorial
 related:
 - docs/guides/getting-started.md
-- docs/guides/your-first-feature.md
+- docs/guides/your-first-mission.md
+- docs/context/mission-types.md
 ---
 # Understanding Spec Kitty Missions
 
@@ -18,9 +20,11 @@ Spec Kitty supports four mission types that tailor the workflow and artifacts to
 
 ## What Is a Mission?
 
-A mission selects the default templates, prompts, and outputs for your feature. You choose it during `spec-kitty init` or when running `/spec-kitty.specify`.
+A mission selects the default templates, prompts, and outputs for your work. You choose it during `spec-kitty init` or when running `/spec-kitty.specify`. A mission is the unit that runs the whole spec-to-merge lifecycle; each mission decomposes into work packages (WPs) your agent implements one at a time — see [Your First Mission](your-first-mission.md) for that loop.
 
-## The Three Missions
+## The Four Mission Types
+
+For the full purpose, phases, and required artifacts of each type, see [Mission Types](../context/mission-types.md) — this page only covers what you need to pick one and get moving.
 
 ### Software Dev Kitty
 
@@ -52,9 +56,19 @@ Example use cases:
 - API reference overhaul
 - Internal playbooks
 
-## Try It: Create a Research Feature
+### Plan Kitty
 
-Create a project and select the research mission when specifying a feature:
+Best for goal-oriented planning and strategy documents where you expect to iterate — not code, not docs.
+
+Example use cases:
+
+- Multi-quarter roadmap or strategy doc
+- A structured decision/investigation writeup with a rollback-to-draft cycle
+- Any goal-oriented plan you want gated by explicit review/approval rather than a code-review or publication gate
+
+## Try It: Create a Research Mission
+
+Create a project, then start the research mission:
 
 ```bash
 spec-kitty init my-research-project --ai claude
@@ -80,14 +94,22 @@ Expected results (abridged):
 - **Artifacts**: Research missions create research notes; documentation missions generate Divio-oriented sections.
 - **Validation**: Review criteria differ based on mission expectations.
 
+## The Mission Lifecycle, Briefly
+
+```
+specify → plan → tasks → analyze → implement (per WP: claim → implement → review, with rejection cycles) → accept → merge
+```
+
+Every mission type — Software Dev, Deep Research, Documentation, and Plan — moves through this same loop; only the artifacts and templates change per type. For the full walkthrough with real commands, see [Your First Mission](your-first-mission.md).
+
 ## Troubleshooting
 
 - **"Unknown mission"**: Use `spec-kitty mission list` to list available missions.
-- **Missing `/spec-kitty.research`**: Re-run `spec-kitty init --mission research` or refresh agent context with `spec-kitty agent context update-context`.
+- **Missing `/spec-kitty.research`**: Your agent's command files are stale or weren't generated for this project. Run `spec-kitty upgrade` to regenerate them, then check `ls .claude/commands/` (or the equivalent directory for your agent) for `spec-kitty.research.md`.
 
 ## What's Next?
 
-Explore the full workflow in [Your First Feature](your-first-feature.md) or dive deeper into specific missions.
+Explore the full workflow in [Your First Mission](your-first-mission.md) or dive deeper into specific missions.
 
 ### Related How-To Guides
 
@@ -100,9 +122,3 @@ Explore the full workflow in [Your First Feature](your-first-feature.md) or dive
 - [Missions](../api/missions.md) - All mission types reference
 - [CLI Commands](../api/cli-commands.md) - Full command reference
 - [Configuration](../api/configuration.md) - Project settings
-
-### Learn More
-
-- [Mission System](../architecture/mission-system.md) - How missions work internally
-- [Documentation Mission](../architecture/documentation-mission.md) - Divio-based docs workflow
-- [Spec-Driven Development](../architecture/spec-driven-development.md) - The underlying philosophy

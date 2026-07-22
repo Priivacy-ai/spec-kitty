@@ -8,6 +8,7 @@
   "purpose_context": "queue_event() currently opens a SQLite connection, runs SELECT COUNT(*), inserts, commits, and closes for each non-coalesced event. We need to batch queue writes where safe, avoid full count queries on every insert (or maintain bounded-cap metadata), and preserve cap/eviction behavior and dossier event coalescing. Tracks GitHub issue #352.",
   "purpose_tldr": "Remove per-event SQLite overhead from the non-coalesced queue hot path.",
   "slug": "offline-queue-enqueue-performance-01KRC4HN",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-05-11T18:29:54.220849+00:00"

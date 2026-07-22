@@ -1,0 +1,20 @@
+{
+  "baseline_merge_commit": "81530f51833016db140c2fb45504c5431e853cac",
+  "coordination_branch": "kitty/mission-mission-step-authority-01KXNZMT",
+  "created_at": "2026-07-16T17:30:01.536477+00:00",
+  "flattened": false,
+  "friendly_name": "Step authority: step.yaml as single source",
+  "mission_id": "01KXNZMTXZ36XXM3JG0WTJ7BKQ",
+  "mission_number": 181,
+  "mission_slug": "mission-step-authority-01KXNZMT",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today a mission-type step is authored twice — a flat action_sequence/template_set and a rich step.yaml the DRG never reads — a split-brain that lets the graph and the runtime disagree. This mission makes step.yaml the single authority, derives the flat forms as read-projections, points the DRG extractor at the step, and adds advisory recommended-role/model-tier offers behind a charter/runtime override seam.",
+  "purpose_tldr": "Make step.yaml the single authority for mission-type steps; derive action_sequence/template_set as projections.",
+  "slug": "mission-step-authority-01KXNZMT",
+  "status_phase": "1",
+  "target_branch": "feat/mission-step-authority",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-16T18:44:14.849467+00:00"
+}

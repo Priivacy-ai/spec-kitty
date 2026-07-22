@@ -37,7 +37,7 @@ import pytest
 
 from charter.compiler import compile_charter
 from charter.interview import read_interview_answers
-from doctrine.drg.loader import load_graph
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.models import DRGGraph, Relation
 from doctrine.drg.query import resolve_transitive_refs
 from doctrine.drg.validator import assert_valid
@@ -46,7 +46,6 @@ from doctrine.service import DoctrineService
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-GRAPH_PATH = REPO_ROOT / "src" / "doctrine" / "graph.yaml"
 ANSWERS_PATH = REPO_ROOT / ".kittify" / "charter" / "interview" / "answers.yaml"
 CHARTER_PATH = REPO_ROOT / ".kittify" / "charter" / "charter.md"
 
@@ -66,7 +65,7 @@ _AUTONOMOUS_OPERATION_PURPOSE_FRAGMENT = "clear decision boundaries"
 
 
 def _load_shipped_graph() -> DRGGraph:
-    graph = load_graph(GRAPH_PATH)
+    graph = load_built_in_graph()
     assert_valid(graph)
     return graph
 

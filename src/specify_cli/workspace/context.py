@@ -34,7 +34,7 @@ from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
-from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+from specify_cli.status.wp_metadata import WPMetadata, read_authored_wp_frontmatter
 
 
 #: Operator recovery command named by workspace husk resolution errors
@@ -498,7 +498,7 @@ def resolve_active_wp_for_branch(
         active_candidates = [
             wp_id
             for wp_id in lane_wp_ids
-            if str(lanes_by_wp.get(wp_id)) == Lane.IN_PROGRESS.value
+            if lanes_by_wp.get(wp_id) == Lane.IN_PROGRESS
         ]
     except Exception as exc:
         return _active_wp_diagnostic(
@@ -510,7 +510,7 @@ def resolve_active_wp_for_branch(
     if len(active_candidates) != 1:
         candidates = ", ".join(active_candidates) if active_candidates else "none"
         lane_states = ", ".join(
-            f"{wp_id}={lanes_by_wp.get(wp_id, 'uninitialized')}"
+            f"{wp_id}={lanes_by_wp.get(wp_id, Lane.UNINITIALIZED)}"
             for wp_id in lane_wp_ids
         )
         return _active_wp_diagnostic(
@@ -542,7 +542,7 @@ def resolve_active_wp_for_branch(
         )
 
     try:
-        metadata, _body = read_wp_frontmatter(wp_path)
+        metadata, _body = read_authored_wp_frontmatter(wp_path)
     except Exception as exc:
         return _active_wp_diagnostic(
             context,
@@ -614,7 +614,7 @@ def _wp_id_from_path(wp_file: Path) -> str:
 
 
 def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackage:
-    metadata, _body = read_wp_frontmatter(wp_file)
+    metadata, _body = read_authored_wp_frontmatter(wp_file)
     normalized_meta = metadata
     mode_source = "frontmatter"
     diagnostic: str | None = None

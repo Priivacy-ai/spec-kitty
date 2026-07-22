@@ -12,11 +12,6 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from specify_cli.git.commit_helpers import (
-    ProtectedBranchRefused,
-    SafeCommitBackstopError,
-    UnexpectedStagedPath,
-)
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from specify_cli.status.models import TransitionRequest
@@ -73,7 +68,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 
@@ -346,7 +341,7 @@ class TestListReady:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
 
@@ -371,7 +366,7 @@ class TestListReady:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
@@ -491,6 +486,7 @@ class TestStartImplementation:
             "title: Test WP02\n"
             "lane: planned\n"
             "dependencies: [WP01]\n"
+            "subtasks: []\n"
             "---\n\n"
             "# WP02\n",
             encoding="utf-8",
@@ -540,7 +536,7 @@ class TestStartImplementation:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
@@ -580,7 +576,7 @@ class TestStartImplementation:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
         (mission_dir / "tasks" / "WP02.md").write_text(
-            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
             encoding="utf-8",
         )
 
@@ -1031,6 +1027,15 @@ class TestTransition:
 
 
 # ── append-history ────────────────────────────────────────────────
+#
+# WP08 (runtime-state-eviction, FR-007 / T031): ``append-history`` no longer
+# mutates the WP prompt file or calls ``safe_commit`` -- it emits a ``note``
+# ``InnerStateChanged`` annotation via WP01's ``emit_inner_state_changed``.
+# The old safe-commit-failure-mode tests (``SAFE_COMMIT_PROTECTED_BRANCH`` /
+# ``SAFE_COMMIT_BACKSTOP`` / ``SAFE_COMMIT_NOT_A_WORKTREE``) pinned a git-commit
+# code path that no longer exists on this command; they are replaced below by
+# the event-sourced contract (annotation persisted, WP file byte-unchanged, a
+# failed emit still surfaces a structured envelope).
 
 
 class TestAppendHistory:
@@ -1038,19 +1043,9 @@ class TestAppendHistory:
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
 
-        with (
-            patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
-                return_value=repo_root,
-            ),
-            patch(
-                "specify_cli.orchestrator_api.commands.subprocess.check_output",
-                return_value="feature/test\n",
-            ),
-            patch(
-                "specify_cli.orchestrator_api.commands.safe_commit",
-                return_value=True,
-            ),
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
         ):
             result = runner.invoke(
                 app,
@@ -1073,29 +1068,17 @@ class TestAppendHistory:
         assert data["data"]["history_entry_id"].startswith("hist-")
         assert data["data"]["wp_id"] == "WP01"
 
-    def test_safe_commit_failure_returns_json_envelope(self, tmp_path):
+    def test_note_annotation_persisted_and_wp_file_unchanged(self, tmp_path):
+        """WP08 / FR-007: the note lands as an event, the WP file never changes."""
+        from specify_cli.status.store import read_event_stream
+
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         wp_path = mission_dir / "tasks" / "WP01.md"
         original = wp_path.read_text(encoding="utf-8")
-        error = ProtectedBranchRefused(
-            destination_ref="main",
-            worktree_root=repo_root,
-            commit_message="hist: append activity log entry for 099-test-mission/WP01",
-        )
 
-        with (
-            patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
-                return_value=repo_root,
-            ),
-            patch(
-                "specify_cli.orchestrator_api.commands.subprocess.check_output",
-                return_value="main\n",
-            ),
-            patch(
-                "specify_cli.orchestrator_api.commands.safe_commit",
-                side_effect=error,
-            ),
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
         ):
             result = runner.invoke(
                 app,
@@ -1112,22 +1095,24 @@ class TestAppendHistory:
                 ],
             )
 
-        assert result.exit_code == 1
-        data = json.loads(result.output)
-        assert data["success"] is False
-        assert data["error_code"] == "SAFE_COMMIT_PROTECTED_BRANCH"
-        assert data["data"]["destination_ref"] == "main"
-        assert "protected branch" in data["data"]["message"]
+        assert result.exit_code == 0, result.output
         assert wp_path.read_text(encoding="utf-8") == original
 
-    def test_safe_commit_backstop_failure_preserves_error_code(self, tmp_path):
+        stream = read_event_stream(mission_dir)
+        notes = [ann for ann in stream.annotations if ann.wp_id == "WP01" and ann.delta.note is not None]
+        assert len(notes) == 1
+        assert "Started implementation" in notes[0].delta.note
+        assert notes[0].actor == "claude"
+
+    def test_emit_failure_surfaces_structured_error_envelope(self, tmp_path):
+        """A failed emit still returns ``_fail``'s structured envelope (WP08 DoD).
+
+        Never a bare traceback -- the orchestrator-api machine contract always
+        emits a single JSON error object on failure.
+        """
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         wp_path = mission_dir / "tasks" / "WP01.md"
         original = wp_path.read_text(encoding="utf-8")
-        error = SafeCommitBackstopError(
-            unexpected=(UnexpectedStagedPath(path="unrelated.txt", status_code="A "),),
-            requested=("kitty-specs/099-test-mission/tasks/WP01.md",),
-        )
 
         with (
             patch(
@@ -1135,12 +1120,8 @@ class TestAppendHistory:
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands.subprocess.check_output",
-                return_value="feature/test\n",
-            ),
-            patch(
-                "specify_cli.orchestrator_api.commands.safe_commit",
-                side_effect=error,
+                "specify_cli.status.emit.emit_inner_state_changed",
+                side_effect=ValueError("boom"),
             ),
         ):
             result = runner.invoke(
@@ -1156,27 +1137,23 @@ class TestAppendHistory:
                     "--note",
                     "Started implementation",
                 ],
+                catch_exceptions=False,
             )
 
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert data["success"] is False
-        assert data["error_code"] == "SAFE_COMMIT_BACKSTOP"
-        assert data["data"]["requested"] == ["kitty-specs/099-test-mission/tasks/WP01.md"]
-        assert data["data"]["unexpected"] == [{"path": "unrelated.txt", "status_code": "A "}]
+        assert data["error_code"] == "HISTORY_COMMIT_FAILED"
         assert wp_path.read_text(encoding="utf-8") == original
 
-    def test_commit_failure_captures_error_in_json_and_restores_wp(self, tmp_path):
-        """A commit-time git failure surfaces as a JSON error and restores the WP file.
+    def test_succeeds_without_git_no_commit_required(self, tmp_path):
+        """WP08 regression pin: ``append-history`` needs no git commit at all now.
 
-        write-surface-coherence WP03 / T013: the WP prompt file is a primary kind
-        committed directly to the primary ``target_branch`` (no coord transit). In
-        a NON-git fixture the placement resolves to ``main`` but ``safe_commit``
-        then refuses because the checkout is not a git worktree
-        (``SAFE_COMMIT_NOT_A_WORKTREE``). The endpoint must still capture the
-        failure as a structured JSON error (a ``SafeCommitError`` code) and roll
-        the WP file back — the resilience contract the prior test pinned, now via
-        the primary-direct commit path.
+        ``_make_mission`` is a deliberately git-free fixture (module docstring:
+        "no subprocess, no git"). Historically this command still shelled out to
+        ``safe_commit`` internally (mocked away by every other test in this
+        class); now that the write is a pure event-log annotation, a bare
+        non-git ``repo_root`` is no longer a failure mode.
         """
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         wp_path = mission_dir / "tasks" / "WP01.md"
@@ -1201,16 +1178,9 @@ class TestAppendHistory:
                 ],
             )
 
-        assert result.exit_code == 1
-        assert result.stderr == ""
+        assert result.exit_code == 0, result.output
         data = json.loads(result.output)
-        assert data["success"] is False
-        # A commit-time failure surfaces as a structured error code (the WP file
-        # never lands) and the WP file is rolled back unchanged.
-        assert data["error_code"] in {
-            "SAFE_COMMIT_NOT_A_WORKTREE",
-            "HISTORY_COMMIT_FAILED",
-        }, data
+        assert data["success"] is True
         assert wp_path.read_text(encoding="utf-8") == original
 
     def test_wp_not_found_error(self, tmp_path):
@@ -1728,11 +1698,11 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     tasks_dir.mkdir(parents=True)
 
     (tasks_dir / "WP01-core-setup.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\n---\n\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n",
         encoding="utf-8",
     )
     (tasks_dir / "WP07-adapter-implementations.md").write_text(
-        "---\nwork_package_id: WP07\ntitle: Adapter Implementations\nlane: planned\ndependencies: []\n---\n\n# WP07\n",
+        "---\nwork_package_id: WP07\ntitle: Adapter Implementations\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP07\n",
         encoding="utf-8",
     )
     # Also include a non-WP file to verify it is excluded

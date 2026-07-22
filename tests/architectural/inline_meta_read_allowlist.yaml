@@ -56,8 +56,8 @@ inline_meta_read:
   rationale: "src/charter/ is a package-boundary-separated module (Shared Package Boundary ADR, 2026-04-25) from specify_cli.mission_metadata; adopting load_meta here would introduce a new cross-package dependency the charter layer does not otherwise carry. Deferred pending a charter-side canonical reader or an explicitly-approved cross-package import."
   issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2480"
 - file: src/charter/mission_type_profiles.py
-  qualname: resolve_mission_type_governance
-  line: 372
-  token: "meta = json . loads ( meta_path . read_text ( encoding = ) )"
-  rationale: "Same src/charter/ package-boundary rationale as _io.py:380 — the charter package intentionally does not depend on specify_cli.mission_metadata (Shared Package Boundary ADR)."
+  qualname: _read_meta_mission_type
+  line: 441
+  token: "data = json . loads ( meta_path . read_text ( encoding = ) )"
+  rationale: "Same src/charter/ package-boundary rationale as _io.py:380 — the charter package intentionally does not depend on specify_cli.mission_metadata (Shared Package Boundary ADR). WP03 moved this inline read from the subsumed resolve_mission_type_governance into the unified resolver's meta-type helper."
   issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2480"

@@ -34,7 +34,7 @@ from specify_cli.missions._read_path_resolver import (
     resolve_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
-from specify_cli.status import WPMetadata, read_wp_frontmatter
+from specify_cli.status import WPMetadata, read_authored_wp_frontmatter
 
 
 def _generate_token() -> str:
@@ -109,7 +109,7 @@ def _read_wp_metadata(feature_dir: Path, wp_code: str) -> WPMetadata:
     """Read WP frontmatter as a typed WPMetadata model.
 
     Scans tasks/ directory for a file matching the wp_code pattern
-    (e.g., WP01-*.md or WP01.md), then parses via ``read_wp_frontmatter``.
+    (e.g., WP01-*.md or WP01.md), then parses the authored metadata only.
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
@@ -124,7 +124,7 @@ def _read_wp_metadata(feature_dir: Path, wp_code: str) -> WPMetadata:
 
     wp_path = candidates[0]
     try:
-        metadata, _body = read_wp_frontmatter(wp_path)
+        metadata, _body = read_authored_wp_frontmatter(wp_path)
     except Exception as exc:
         msg = f"WP file {wp_path} has invalid or missing frontmatter: {exc}"
         raise WorkPackageNotFoundError(msg) from exc

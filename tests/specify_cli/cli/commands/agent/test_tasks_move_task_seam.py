@@ -277,49 +277,11 @@ def test_patched_feature_status_lock_intercepts_execute(tmp_path: Path) -> None:
     lock_mock.assert_called_once_with(tmp_path, "034-feature")
 
 
-def test_patched_protection_policy_intercepts_commit_wp_file(tmp_path: Path) -> None:
-    """``tasks.ProtectionPolicy`` bites through ``_mt_commit_wp_file``'s
-    ``_tasks.<attr>`` route and the resolved policy reaches ``commit_artifact``."""
-    wp_file = tmp_path / "WP01-x.md"
-    wp_file.write_text("body", encoding="utf-8")
-    st = _make_state()
-    st.main_repo_root = tmp_path
-    st.mission_slug = "034-feature"
-    st.feature_dir = tmp_path
-    st.target_branch = "main"
-    st.wp = cast(Any, SimpleNamespace(path=wp_file))
-    ports = MagicMock()
-    ports.coord.commit_artifact.return_value = SimpleNamespace(
-        status="committed", diagnostic=None
-    )
-    with (
-        patch(f"{_TASKS}.ProtectionPolicy") as policy_cls,
-        patch(
-            f"{_TASKS}._primary_bundle_status_artifacts", return_value=[]
-        ) as bundle_mock,
-    ):
-        tasks_move_task._mt_commit_wp_file(
-            st, ports, updated_doc="updated", agent_name="unknown", skip_target_commit=False
-        )
-    policy_cls.resolve.assert_called_once_with(tmp_path)
-    bundle_mock.assert_called_once()
-    assert (
-        ports.coord.commit_artifact.call_args.kwargs["policy"]
-        is policy_cls.resolve.return_value
-    )
-    assert wp_file.read_text(encoding="utf-8") == "updated"
-
-
-def test_patched_console_intercepts_tracker_ref_warning(tmp_path: Path) -> None:
-    """``tasks.console`` bites through ``_mt_persist_tracker_refs``'s defensive
-    warning leg (human output; the moved body prints via ``_tasks.console``)."""
-    st = _make_state(json_output=False)
-    st.tracker_ref_values = ("#1298",)
-    st.wp = cast(Any, SimpleNamespace(path=tmp_path / "missing" / "WP01-x.md"))
-    with patch(f"{_TASKS}.console") as console_mock:
-        tasks_move_task._mt_persist_tracker_refs(st, skip_target_commit=False)
-    assert console_mock.print.call_count == 1
-    assert "Failed to persist --tracker-ref" in console_mock.print.call_args.args[0]
+# (WP10 closeout) ``test_patched_console_intercepts_tracker_ref_warning`` removed:
+# it drove ``_mt_persist_tracker_refs``, the frontmatter tracker-refs writer the
+# god-write cut (WP06, FR-006) DELETED — tracker refs are now an off-axis
+# ``InnerStateChanged`` union delta, so there is no longer a WP-file write leg to
+# warn about. The remaining seam bindings above still pin the compat surface.
 
 
 def test_patched_output_helpers_intercept_mt_output(tmp_path: Path) -> None:

@@ -12,7 +12,10 @@ from typing import Any
 
 from specify_cli.task_utils import TaskCliError
 
-from specify_cli.cli.commands.charter._app import METADATA_FILENAME
+from specify_cli.cli.commands.charter._app import (
+    CHARTER_YAML_FILENAME,
+    METADATA_FILENAME,
+)
 from specify_cli.cli.commands.charter._common import (
     _display_path,
     _resolve_charter_path,
@@ -59,16 +62,21 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
+        charter_yaml_path = output_dir / CHARTER_YAML_FILENAME
 
-        stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
+        # consolidate-charter-bundle (#2773): the charter.md<->metadata.yaml hash
+        # staleness model is retired (metadata.yaml folded into charter.yaml).
+        # charter.yaml is the authoritative bundle and freshness is reported
+        # separately (read-only) via compute_freshness. When metadata.yaml is
+        # absent (post-migration), report presence of charter.yaml rather than a
+        # misleading perpetual "stale".
+        if metadata_path.exists():
+            stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
+        else:
+            stale, current_hash, stored_hash = (not charter_yaml_path.exists()), "", ""
 
         files_info: list[dict[str, str | bool | float]] = []
-        for filename in [
-            "governance.yaml",
-            "directives.yaml",
-            METADATA_FILENAME,
-            "references.yaml",
-        ]:
+        for filename in [CHARTER_YAML_FILENAME, "charter.md"]:
             file_path = output_dir / filename
             if file_path.exists():
                 size = file_path.stat().st_size
@@ -409,11 +417,10 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     from charter.drg import (  # noqa: PLC0415
         OrgDRGConflictError,
         OrgPackMissingError,
+        load_built_in_graph,
         load_org_drg,
         merge_three_layers,
     )
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
-    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
 
     result: dict[str, Any] = {
         "has_built_in": True,  # built-in layer is always present
@@ -448,7 +455,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
 
     # Run merge to surface collision warnings (best-effort).
     try:
-        built_in = load_graph_or_dir(resolve_doctrine_root())
+        built_in = load_built_in_graph()
         merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
         for conflict in exc.conflicts:

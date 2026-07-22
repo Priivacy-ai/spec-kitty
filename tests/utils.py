@@ -43,11 +43,18 @@ def _seed_canonical_wp_state(
     lane: str,
     *,
     actor: str,
+    assignee: str,
+    shell_pid: str,
     timestamp: str,
 ) -> None:
-    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
     from specify_cli.status.reducer import materialize, reduce
-    from specify_cli.status.store import append_event, read_events
+    from specify_cli.status.store import (
+        append_annotations_atomic_verified,
+        append_event,
+        read_event_stream,
+        read_events,
+    )
 
     feature_dir = repo_root / "kitty-specs" / feature
     canonical_target = _canonical_lane(lane)
@@ -55,26 +62,53 @@ def _seed_canonical_wp_state(
     snapshot = reduce(existing_events)
     current_lane = snapshot.work_packages.get(wp_id, {}).get("lane")
 
-    if current_lane == canonical_target:
-        if existing_events and not (feature_dir / "status.json").exists():
-            materialize(feature_dir)
-        return
+    if current_lane != canonical_target:
+        event = StatusEvent(
+            event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
+            mission_slug=feature,
+            wp_id=wp_id,
+            # T028: use "genesis" as the default (not "planned") so an unseeded WP
+            # gets a legal genesis->target event instead of an illegal planned->planned.
+            from_lane=Lane(current_lane or "genesis"),
+            to_lane=Lane(canonical_target),
+            at=_event_timestamp(timestamp),
+            actor=actor,
+            force=True,
+            execution_mode="direct_repo",
+            reason="test fixture bootstrap",
+        )
+        append_event(feature_dir, event)
 
-    event = StatusEvent(
-        event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
-        mission_slug=feature,
-        wp_id=wp_id,
-        # T028: use "genesis" as the default (not "planned") so an unseeded WP
-        # gets a legal genesis->target event instead of an illegal planned->planned.
-        from_lane=Lane(current_lane or "genesis"),
-        to_lane=Lane(canonical_target),
-        at=_event_timestamp(timestamp),
-        actor=actor,
-        force=True,
-        execution_mode="direct_repo",
-        reason="test fixture bootstrap",
-    )
-    append_event(feature_dir, event)
+    event_stream = read_event_stream(feature_dir)
+    runtime_state = reduce(
+        event_stream.transitions,
+        event_stream.annotations,
+    ).work_packages.get(wp_id, {})
+    shell_pid_value = int(shell_pid) if shell_pid else None
+    if (
+        runtime_state.get("agent") != actor
+        or runtime_state.get("assignee") != assignee
+        or runtime_state.get("shell_pid") != shell_pid_value
+    ):
+        append_annotations_atomic_verified(
+            feature_dir,
+            [
+                InnerStateChanged(
+                    event_id=(
+                        f"01H{len(event_stream.transitions) + len(event_stream.annotations) + 1:023d}"
+                    ),
+                    wp_id=wp_id,
+                    at=_event_timestamp(timestamp),
+                    actor="test-fixture",
+                    delta=WPInnerStateDelta(
+                        agent=actor,
+                        assignee=assignee,
+                        shell_pid=shell_pid_value,
+                        shell_pid_created_at=_event_timestamp(timestamp),
+                    ),
+                )
+            ],
+        )
     materialize(feature_dir)
 
 
@@ -124,6 +158,7 @@ def write_wp(
             f'agent: "{agent}"',
             f'assignee: "{assignee}"',
             f'shell_pid: "{shell_pid}"',
+            "subtasks: []",
         ]
     )
     frontmatter = "\n".join(frontmatter_lines)
@@ -148,6 +183,8 @@ def write_wp(
             wp_id,
             lane,
             actor=agent,
+            assignee=assignee,
+            shell_pid=shell_pid,
             timestamp=timestamp,
         )
     return path

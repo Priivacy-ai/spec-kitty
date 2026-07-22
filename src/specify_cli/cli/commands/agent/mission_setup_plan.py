@@ -15,7 +15,7 @@ Typer ``app`` and re-exports ``setup_plan`` / ``_commit_to_branch`` /
 ``CommitToBranchResult`` / ``_kind_for_artifact`` (imported by tests and by
 ``lifecycle.py``). The relocated body resolves test-patched cross-cutting symbols
 (``locate_project_root`` / ``_enforce_git_preflight`` / ``_find_feature_directory``
-/ ``_show_branch_context`` / ``get_current_branch`` / ``resolve_template`` /
+/ ``_show_branch_context`` / ``get_current_branch`` / ``resolve_configured_template`` /
 ``_commit_to_branch``) through the ``mission`` module at call time so the
 historical ``mission.<name>`` patch seams keep working without an import cycle.
 
@@ -39,10 +39,14 @@ from typing import Annotated, Literal, cast
 from specify_cli.cli.console import console
 import typer
 
+from charter import resolve_mission_type_context
+from charter.resolution import ResolutionResult
 from mission_runtime import MissionArtifactKind
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
-from specify_cli.mission import get_mission_type
+from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
+from specify_cli.mission_metadata import load_meta
+from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
@@ -53,7 +57,6 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _kind_for_artifact as _kind_for_artifact,
     _sole_mission_slug_or_none,
 )
-
 
 
 def _emit_json(payload: dict[str, object]) -> None:
@@ -67,6 +70,8 @@ def _emit_json(payload: dict[str, object]) -> None:
     from specify_cli.cli.commands.agent import mission as _mission
 
     _mission._emit_json(payload)
+
+
 logger = logging.getLogger(__name__)
 
 SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
@@ -98,9 +103,7 @@ def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
     return status.returncode == 0 and not status.stdout.strip()
 
 
-def _artifact_absent_at_placement(
-    worktree_root: Path, commit_paths: tuple[Path, ...], file_path: Path
-) -> bool:
+def _artifact_absent_at_placement(worktree_root: Path, commit_paths: tuple[Path, ...], file_path: Path) -> bool:
     """Return True iff the artifact is NOT present at the resolved placement.
 
     FR-006 / D-5: a commit that would run against a worktree where the artifact
@@ -290,7 +293,11 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
     try:
         from mission_runtime import ActionContextError
 
-        return _mission._find_feature_directory(repo_root, cwd, explicit_feature=resolved_feature)
+        return _mission._find_feature_directory(
+            repo_root,
+            cwd,
+            explicit_feature=resolved_feature,
+        )
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
         if json_output:
@@ -386,26 +393,82 @@ def _enforce_spec_gate(
     return True
 
 
-def _scaffold_plan_template(plan_file: Path, repo_root: Path) -> None:
+def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
+    """Resolve the activated mission's configured ``plan`` template once.
+
+    Mission context comes from the canonical charter seam and configured
+    artifact lookup remains routed through the historical ``mission`` shim.
+    The effective winner is then shared by scaffolding and pristine comparison.
+
+    The charter seam intentionally offers a best-effort metadata reader, but at
+    this mutating boundary absence, corruption, and semantic invalidity are not
+    equivalent.  Read metadata exactly once through the canonical strict-
+    malformed reader.  Only an absent file may produce the neutral context used
+    by the temporary #2660 selector.  Present metadata must carry a non-blank
+    canonical ``mission_type`` or supported legacy ``mission`` field; that
+    captured value is passed explicitly into the charter seam so a subsequent
+    filesystem mutation cannot change authority.
+    """
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    meta_path = feature_dir / "meta.json"
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    if meta is None:
+        # ``Path.exists()`` follows links, so the canonical reader reports None
+        # for both a physically absent path and a broken/self-referential link.
+        # Only the former is the temporary #2660 legacy condition.  is_symlink
+        # uses lstat semantics and therefore detects both broken and loop links.
+        if meta_path.is_symlink():
+            raise TemplateConfigurationError(
+                mission_type=None,
+                artifact_kind="plan",
+                reason=(f"cannot be resolved because {meta_path} is a symlink without readable mission metadata; repair or remove the link"),
+            )
+        resolved_mission_type = resolve_mission_type_context(repo_root)
+    else:
+        captured_mission_type = _canonical_meta_mission_type(meta)
+        if captured_mission_type is None:
+            raise TemplateConfigurationError(
+                mission_type=None,
+                artifact_kind="plan",
+                reason=(f"cannot be resolved because {feature_dir / 'meta.json'} must contain a non-blank string field 'mission_type' or legacy field 'mission'"),
+            )
+        resolved_mission_type = resolve_mission_type_context(
+            repo_root,
+            mission_type=captured_mission_type,
+        )
+    if resolved_mission_type.mission_type is None:
+        # C-005 compatibility boundary: existing typeless missions keep their
+        # historical template until #2660 removes neutral-reader support.  This
+        # is deliberately outside ``resolve_configured_template``; that new
+        # seam must reject neutral contexts rather than invent software-dev.
+        return _mission.resolve_template(
+            "plan-template.md",
+            repo_root,
+            mission="software-dev",
+        )
+    return _mission.resolve_configured_template(
+        "plan",
+        repo_root,
+        resolved_mission_type,
+    )
+
+
+def _scaffold_plan_template(
+    plan_file: Path,
+    plan_template: ResolutionResult,
+) -> None:
     """Copy the plan template into ``plan_file`` when it does not yet exist (C-007).
 
-    Routes ``resolve_template`` through the ``mission`` module so the
-    ``mission.resolve_template`` patch seam keeps working.
+    ``plan_template`` is the configured winner resolved once by
+    :func:`_resolve_plan_template` and reused by pristine comparison.
     """
     if plan_file.exists():
         return
-    from specify_cli.cli.commands.agent import mission as _mission
-
-    try:
-        plan_template = _mission.resolve_template("plan-template.md", repo_root, mission="software-dev")
-    except FileNotFoundError as exc:
-        raise FileNotFoundError("Plan template not found in repository or package") from exc
     shutil.copy2(plan_template.path, plan_file)
 
 
-def _resolve_plan_result_state(
-    *, is_substantive: bool, is_pristine: bool, committed: bool
-) -> tuple[Literal["success", "blocked"], bool]:
+def _resolve_plan_result_state(*, is_substantive: bool, is_pristine: bool, committed: bool) -> tuple[Literal["success", "blocked"], bool]:
     """Pure state-resolution for the plan-scaffold result (FR-009 / #2566).
 
     Mirrors the shipped ``mission_create`` twin's ``scaffold_only`` flag
@@ -440,22 +503,20 @@ def _resolve_plan_result_state(
     return "blocked", False
 
 
-def _is_plan_pristine(plan_file: Path, repo_root: Path) -> bool:
+def _is_plan_pristine(
+    plan_file: Path,
+    plan_template: ResolutionResult,
+) -> bool:
     """Return True iff ``plan_file`` is byte-identical to the freshly-copied template.
 
     Resolves the SAME template :func:`_scaffold_plan_template` would copy, so a
     file that has never been touched since scaffolding reads as pristine no
-    matter how many times ``setup-plan`` re-runs against it. Returns False
-    (never pristine) when the template cannot be resolved — that degrades to
-    the pre-existing populated-but-insufficient path rather than raising.
+    matter how many times ``setup-plan`` re-runs against it. Configuration
+    failures are raised before this helper, so missing mappings cannot silently
+    degrade to the populated-but-insufficient path.
     """
-    from specify_cli.cli.commands.agent import mission as _mission
     from specify_cli.missions._substantive import is_pristine_scaffold
 
-    try:
-        plan_template = _mission.resolve_template("plan-template.md", repo_root, mission="software-dev")
-    except FileNotFoundError:
-        return False
     return is_pristine_scaffold(
         plan_file.read_text(encoding="utf-8"),
         plan_template.path.read_text(encoding="utf-8"),
@@ -498,6 +559,7 @@ def _commit_plan_if_substantive(
     *,
     target_branch: str,
     json_output: bool,
+    plan_template: ResolutionResult,
 ) -> tuple[CommitToBranchResult | None, str | None, bool]:
     """Commit plan.md when substantive; otherwise resolve blocked vs. scaffold_only.
 
@@ -531,7 +593,7 @@ def _commit_plan_if_substantive(
 
     _, scaffold_only = _resolve_plan_result_state(
         is_substantive=False,
-        is_pristine=_is_plan_pristine(plan_file, repo_root),
+        is_pristine=_is_plan_pristine(plan_file, plan_template),
         committed=is_committed(plan_file, repo_root),
     )
     if scaffold_only:
@@ -678,12 +740,8 @@ def _run_documentation_wiring(
     if get_mission_type(feature_dir) != MISSION_TYPE_DOCUMENTATION:
         return None, []
     meta_file = feature_dir / "meta.json"
-    gap_analysis_path = _run_documentation_gap_analysis(
-        feature_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output
-    )
-    generators_detected = _detect_and_configure_generators(
-        mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output
-    )
+    gap_analysis_path = _run_documentation_gap_analysis(feature_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
+    generators_detected = _detect_and_configure_generators(mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     return gap_analysis_path, generators_detected
 
 
@@ -826,7 +884,8 @@ def setup_plan(
     # Deferred import keeps this leaf free of an import cycle while honoring the
     # historical ``mission.<name>`` patch seams (``locate_project_root`` /
     # ``_enforce_git_preflight`` / ``_show_branch_context`` / ``get_current_branch`` /
-    # ``_find_feature_directory`` / ``resolve_template`` / ``_commit_to_branch``).
+    # ``_find_feature_directory`` / ``resolve_configured_template`` /
+    # ``_commit_to_branch``).
     from specify_cli.cli.commands.agent import mission as _mission
 
     try:
@@ -869,7 +928,11 @@ def setup_plan(
         # (PRIMARY-partition kinds) to the primary dir for ALL topologies, so the
         # reads converge on the real artifact. Only the PLANNING reads move
         # (C-002): ``feature_dir`` stays the surface for STATUS/lifecycle emission
-        # (``emit_artifact_phase``) and mission-type / dossier lookups below.
+        # (``emit_artifact_phase``) and dossier lookups below. Template context is
+        # itself planning configuration, so it must resolve from ``plan_read_dir``
+        # where the canonical ``meta.json`` lives; a coord husk may legitimately
+        # be meta-less and must not turn a typed mission into the typeless
+        # compatibility branch.
         # Routed through the ``mission`` shim (``_mission`` deferred-imported at the
         # top of this body) so the historical ``mission._planning_read_dir`` patch
         # seam — exercised by ``test_setup_plan_read_surface`` — reaches this caller.
@@ -889,7 +952,11 @@ def setup_plan(
         ):
             return
 
-        _scaffold_plan_template(plan_file, repo_root)
+        try:
+            plan_template = _resolve_plan_template(repo_root, plan_read_dir)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError("Plan template not found in repository or package") from exc
+        _scaffold_plan_template(plan_file, plan_template)
         _emit_spec_plan_phase_events(feature_dir, mission_slug, spec_file, repo_root)
 
         from specify_cli.missions._substantive import is_substantive
@@ -902,6 +969,7 @@ def setup_plan(
             repo_root,
             target_branch=target_branch,
             json_output=json_output,
+            plan_template=plan_template,
         )
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
@@ -928,6 +996,22 @@ def setup_plan(
 
     except typer.Exit:
         raise
+    except TemplateConfigurationError as e:
+        payload: dict[str, object] = {
+            "result": "error",
+            "phase_complete": False,
+            "error_code": "TEMPLATE_CONFIGURATION_ERROR",
+            "error": str(e),
+            "mission_type": e.mission_type,
+            "artifact_kind": e.artifact_kind,
+        }
+        if e.mapped_filename is not None:
+            payload["mapped_filename"] = e.mapped_filename
+        if json_output:
+            _emit_json(payload)
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from None
     except Exception as e:
         if json_output:
             _emit_json({"error": str(e)})

@@ -27,6 +27,7 @@
   "purpose_context": "Second slice of the tidy-first unshim cluster (epic #1797) per the HiC current-cycle ruling (registering shims at a version target recreates the rescinded deferral — hence full delete). Pre-planning 3-lens squad (debbie/priti/alphonso, 2026-07-03, main@47fed302d): next-shim has 3 src callers (one is a monkeypatch seam) + 77 test files/~480 refs (issue said 49 — drifted); glossary is a zero-src-caller husk; #2290 is ~4x its issue framing (19 test files + the test_charter_runtime_shim_paths.py lock-gate must retire + canonical-imports-legacy defect at charter_runtime/preflight/runner.py:36 + 4th unmarked shim charter_activate.py); runtime.next.* is ALREADY the sanctioned surface (no prerequisite work); WS1 layer rule proven NOT a blocker (no import edge) but folds in as a probe/bind WP; category_6 frozen re-exports NOT in scope (falsified claim). Risk class: live-caller re-point THEN delete; the 80 patch-string targets are the silent-no-op class Wave 1 proved real.",
   "purpose_tldr": "Execute #2291 (delete the specify_cli.next + specify_cli.glossary registered shims after re-pointing all live callers to runtime.next/glossary canonical surfaces) and #2290 as FULL charter-shim deletion (re-point + delete charter_lint/freshness/preflight + adjudicate charter_activate), with fold-ins: #2326 dead-wrapper prune and the WS1 mission_runtime layer-rule bind.",
   "slug": "unshim-wave2-01KWMCAX",
+  "status_phase": "1",
   "target_branch": "tidy/unshim-wave2",
   "topology": "coord",
   "vcs": "git",

@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KY0QAADWA0YXA3VGKXV1WVWA",
+  "completed_at": "2026-07-20T21:39:42.841134+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "docs/toc.yml"
+}

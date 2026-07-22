@@ -7,5 +7,6 @@
   "mission_type": "research",
   "slug": "008-unified-python-cli",
   "source_description": "Migrate all bash scripts to a unified Python CLI under spec-kitty agent namespace, eliminating worktree script copying and providing agents with a reliable, location-aware command interface",
+  "status_phase": "1",
   "target_branch": "main"
 }

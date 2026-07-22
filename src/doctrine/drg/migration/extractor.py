@@ -4,11 +4,19 @@ Public API:
     extract_artifact_edges(doctrine_root) -> (nodes, edges)
     extract_action_edges(doctrine_root)   -> (nodes, edges)
     generate_graph(doctrine_root, output_path) -> DRGGraph
+
+``generate_graph`` composes + validates the graph and writes it to disk as
+per-populated-node-kind ``<kind>.graph.yaml`` fragments in ``output_path``'s
+directory, retiring any ``graph.yaml`` monolith in that directory atomically
+(mission #2680, WP05 — DD-7/DD-8). ``output_path``'s file name is used only to
+locate the target directory; the returned in-memory ``DRGGraph`` is unaffected.
 """
 
 from __future__ import annotations
 
 import re
+from collections import defaultdict
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +26,9 @@ from doctrine.drg.migration.calibrator import calibrate_surfaces
 from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
+from doctrine.missions.mission_step_repository import MissionStepRepository
+from doctrine.missions.step_projection import iter_template_refs, project_action_sequence
+from doctrine.template_catalog import template_id_for, template_urn
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 
@@ -129,6 +140,7 @@ _KIND_MAP: dict[str, NodeKind] = {
     "agent_profile": NodeKind.AGENT_PROFILE,
     "template": NodeKind.TEMPLATE,
     "action": NodeKind.ACTION,
+    "mission_type": NodeKind.MISSION_TYPE,
 }
 
 # Reference types that are NOT DRG node kinds (skipped during extraction).
@@ -358,26 +370,6 @@ def extract_artifact_edges(  # noqa: C901
                     )
                 )
 
-            # opposed_by
-            for opp in data.get("opposed_by", []) or []:
-                opp_type: str = opp.get("type", "")
-                opp_id: str = opp.get("id", "")
-                if not opp_type or not opp_id:
-                    continue
-                opp_kind = _kind_for_type(opp_type)
-                if opp_kind is None:
-                    continue
-                tgt_urn = artifact_to_urn(opp_type, opp_id)
-                _ensure_node(nodes_by_urn, tgt_urn, opp_kind)
-                _add_edge(
-                    DRGEdge(
-                        source=src_urn,
-                        target=tgt_urn,
-                        relation=Relation.REPLACES,
-                        reason=opp.get("reason"),
-                    )
-                )
-
     # --- Tactics ---
     tactics_dir = doctrine_root / "tactics" / "built-in"
     if tactics_dir.is_dir():
@@ -466,26 +458,6 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=Relation.REQUIRES,
-                    )
-                )
-
-            # opposed_by
-            for opp in data.get("opposed_by", []) or []:
-                opp_type = opp.get("type", "")
-                opp_id = opp.get("id", "")
-                if not opp_type or not opp_id:
-                    continue
-                opp_kind = _kind_for_type(opp_type)
-                if opp_kind is None:
-                    continue
-                tgt_urn = artifact_to_urn(opp_type, opp_id)
-                _ensure_node(nodes_by_urn, tgt_urn, opp_kind)
-                _add_edge(
-                    DRGEdge(
-                        source=src_urn,
-                        target=tgt_urn,
-                        relation=Relation.REPLACES,
-                        reason=opp.get("reason"),
                     )
                 )
 
@@ -765,6 +737,184 @@ def _discover_built_in_artifact_nodes(
             _ensure_node(nodes_by_urn, urn, node_kind, label or None)
 
 
+def _iter_mission_type_data(
+    doctrine_root: Path,
+) -> Iterator[tuple[str, dict[str, Any], Path]]:
+    """Yield ``(id, data, path)`` for each shipped mission-type YAML.
+
+    Canonical discovery source for the ``src/doctrine/missions/mission_types/``
+    surface: both :func:`_discover_mission_type_nodes` (nodes) and
+    :func:`extract_mission_type_edges` (edges) consume it so the glob is defined
+    once. Files without an ``id`` or that fail to parse are skipped.
+    """
+    mission_types_dir = doctrine_root / "missions" / "mission_types"
+    if not mission_types_dir.is_dir():
+        return
+    for path in sorted(mission_types_dir.glob("*.yaml")):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        mission_type_id: str = data.get("id", "")
+        if not mission_type_id:
+            continue
+        yield mission_type_id, data, path
+
+
+def _discover_mission_type_nodes(
+    doctrine_root: Path,
+    nodes_by_urn: dict[str, DRGNode],
+) -> None:
+    """Register a ``mission_type`` node for each shipped mission-type YAML.
+
+    Mirrors :func:`_discover_built_in_artifact_nodes`: one node per
+    ``src/doctrine/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
+    labelled with the file's ``display_name``. Edges from each mission_type to
+    its ``action_sequence`` steps are emitted by
+    :func:`extract_mission_type_edges`, so ``_KIND_MAP`` now carries a
+    ``mission_type`` entry.
+
+    Raises:
+        ValueError: if two mission-type YAMLs declare the same ``id``. Left
+            unchecked, ``_ensure_node`` would silently collapse the pair onto
+            one URN (masking a real authoring collision behind a freshness-clean
+            graph); the loud failure mirrors ``MissionTypeRepository``'s
+            id/stem invariant.
+    """
+    seen_ids: dict[str, Path] = {}
+    for mission_type_id, data, path in _iter_mission_type_data(doctrine_root):
+        if mission_type_id in seen_ids:
+            msg = (
+                f"Duplicate mission_type id {mission_type_id!r} declared by "
+                f"both {seen_ids[mission_type_id].name} and {path.name} in "
+                f"{path.parent}"
+            )
+            raise ValueError(msg)
+        seen_ids[mission_type_id] = path
+        label: str = data.get("display_name", "")
+        urn = artifact_to_urn("mission_type", mission_type_id)
+        _ensure_node(nodes_by_urn, urn, NodeKind.MISSION_TYPE, label or None)
+
+
+def _resolve_action_sequence(
+    step_repo: MissionStepRepository, mission_type_id: str, data: dict[str, Any]
+) -> list[str]:
+    """Resolve *mission_type_id*'s action sequence via the WP02 projection seam.
+
+    Builtin-only (``pack_context=None``): org/project overrides never leak into
+    the shipped graph -- those apply through the separate runtime consumer
+    switch (WP06), not this repository-load-time extraction. Steps are read
+    through :meth:`MissionStepRepository.resolve_all_for_mission_type` (never a
+    raw ``mission-steps/`` directory listing at this call site -- a naive
+    listing would blow ``software-dev`` from 5 to 12 edges by including its 7
+    non-sequence steps).
+
+    Mirrors the transitional fallback in
+    :func:`~doctrine.missions.mission_type_repository._inject_projected_fields`:
+    an empty projection -- mission types whose steps are not yet annotated
+    with ``sequence_index``/``in_action_sequence`` (pending WP05) -- falls
+    back to the still-authored raw YAML ``action_sequence`` so the shipped
+    graph stays byte-identical (NFR-002) until the full cutover (WP07).
+    """
+    steps = step_repo.resolve_all_for_mission_type(
+        mission_type_id, pack_context=None
+    ).values()
+    projected = project_action_sequence(steps)
+    return projected or list(data.get("action_sequence", []) or [])
+
+
+def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
+    """Emit ``mission_type:<id> --requires--> action:<id>/<step>`` edges.
+
+    For each shipped mission-type YAML, resolve its action sequence through
+    the WP02 projection seam (see :func:`_resolve_action_sequence`) and emit
+    one :attr:`Relation.REQUIRES` edge per step to the matching
+    ``action:<id>/<step>`` node minted by :func:`extract_action_edges`. Steps
+    absent from every action sequence (e.g. ``retrospect``, and
+    ``software-dev``'s 7 non-sequence steps) get no edge; they remain
+    non-orphan via their own ``scope`` edges. Each edge is emitted exactly
+    once (steps within a sequence are unique), so no dedup is needed here --
+    duplicate/dangling/cycle safety is enforced by ``assert_valid``.
+    """
+    edges: list[DRGEdge] = []
+    step_repo = MissionStepRepository(doctrine_root / "missions" / "mission-steps")
+    for mission_type_id, data, _path in _iter_mission_type_data(doctrine_root):
+        source_urn = artifact_to_urn("mission_type", mission_type_id)
+        sequence = _resolve_action_sequence(step_repo, mission_type_id, data)
+        for step in sequence:
+            edges.append(
+                DRGEdge(
+                    source=source_urn,
+                    target=artifact_to_urn("action", f"{mission_type_id}/{step}"),
+                    relation=Relation.REQUIRES,
+                )
+            )
+    return edges
+
+
+def extract_template_instantiation_edges(
+    doctrine_root: Path,
+) -> tuple[list[DRGNode], list[DRGEdge]]:
+    """Emit ``template:<mission>/<file>`` nodes + ``action --instantiates--> template`` edges.
+
+    Graphs-back the ``mission_type -> step -> template`` chain (FR-009): a
+    step's ``template`` field is a structured :class:`MissionStepTemplateRef`,
+    not a ``references:`` list entry, so no existing pass ever traverses it --
+    unlike :func:`extract_mission_type_edges` (modelled on here), this is a
+    genuinely new pass rather than an unskip of ``_SKIP_REF_TYPES`` (which is
+    empty).
+
+    For each shipped mission-type YAML, resolve its steps through the same
+    builtin-only :meth:`MissionStepRepository.resolve_all_for_mission_type`
+    seam :func:`extract_mission_type_edges` uses, then walk
+    :func:`~doctrine.missions.step_projection.iter_template_refs` -- the
+    **sole traversal** of ``MissionStep.template`` (C-003) -- rather than
+    re-checking ``step.template`` independently here.
+
+    Each ``(step, template_ref)`` pair mints:
+
+    - a mission-qualified ``template:<mission_type>/<template_file>`` node
+      (via :func:`doctrine.template_catalog.template_urn`), deduplicated by
+      URN (two steps in the same mission type never share a template file
+      today, but a future one might);
+    - one :attr:`Relation.INSTANTIATES` edge from the step's own
+      ``action:<mission_type>/<step_id>`` node (already minted by
+      :func:`extract_action_edges`) to that template node.
+
+    Edges are emitted sorted by ``(source, target)`` (FR-011) so the pass is
+    deterministic independent of the composing ``generate_graph`` sort.
+    Callers land the returned edges in ``action.graph.yaml`` (action-sourced)
+    and the returned nodes in ``template.graph.yaml`` (nodes only) -- the 16
+    bare ``template:<name>`` exemplars (#2712) are untouched by this pass,
+    which only ever mints mission-qualified URNs.
+    """
+    nodes: list[DRGNode] = []
+    edges: list[DRGEdge] = []
+    seen_node_urns: set[str] = set()
+    step_repo = MissionStepRepository(doctrine_root / "missions" / "mission-steps")
+    for mission_type_id, _data, _path in _iter_mission_type_data(doctrine_root):
+        steps = step_repo.resolve_all_for_mission_type(
+            mission_type_id, pack_context=None
+        ).values()
+        for step, template_ref in iter_template_refs(steps):
+            template_id = template_id_for(mission_type_id, template_ref.template_file)
+            node_urn = template_urn(template_id)
+            if node_urn not in seen_node_urns:
+                seen_node_urns.add(node_urn)
+                nodes.append(
+                    DRGNode(urn=node_urn, kind=NodeKind.TEMPLATE, label=template_id)
+                )
+            action_urn = artifact_to_urn("action", f"{mission_type_id}/{step.id}")
+            edges.append(
+                DRGEdge(
+                    source=action_urn,
+                    target=node_urn,
+                    relation=Relation.INSTANTIATES,
+                )
+            )
+    edges.sort(key=lambda e: (e.source, e.target))
+    return nodes, edges
+
+
 def generate_graph(
     doctrine_root: Path,
     output_path: Path,
@@ -775,7 +925,10 @@ def generate_graph(
 
     Args:
         doctrine_root: Path to ``src/doctrine/``.
-        output_path: Where to write the resulting YAML.
+        output_path: Locates the output *directory* (``output_path.parent``).
+            The graph is written there as per-kind ``<kind>.graph.yaml``
+            fragments and any ``graph.yaml`` monolith in that directory is
+            removed in the same write (DD-7/DD-8).
         generated_at: Optional fixed timestamp for deterministic output.
             If ``None``, ``"STATIC"`` is used so the output is always
             identical for the same input (idempotent).
@@ -797,8 +950,24 @@ def generate_graph(
     # Step 4: Discover built-in artifacts not yet tracked
     _discover_built_in_artifact_nodes(doctrine_root, nodes_by_urn)
 
-    # Step 5: Merge all edges
-    all_edges = artifact_edges + action_edges
+    # Step 4b: Discover mission-type nodes
+    _discover_mission_type_nodes(doctrine_root, nodes_by_urn)
+
+    # Step 4c: Graph-back the mission_type->step->template chain (FR-009):
+    # mint mission-qualified template nodes + action->template instantiates
+    # edges from the WP01 iter_template_refs projection.
+    template_nodes, template_instantiation_edges = extract_template_instantiation_edges(
+        doctrine_root
+    )
+    for node in template_nodes:
+        _ensure_node(nodes_by_urn, node.urn, node.kind, node.label)
+
+    # Step 5: Merge all edges (mission_type->action edges join before
+    # calibration + the deterministic sort so they are treated uniformly)
+    mission_type_edges = extract_mission_type_edges(doctrine_root)
+    all_edges = (
+        artifact_edges + action_edges + mission_type_edges + template_instantiation_edges
+    )
 
     # Step 6: Calibrate surfaces
     all_nodes_list = list(nodes_by_urn.values())
@@ -836,16 +1005,93 @@ def generate_graph(
     # Step 8: Validate
     assert_valid(graph)
 
-    # Step 9: Write YAML
+    # Step 9: Write sharded YAML fragments (per populated node-kind) and
+    # atomically retire the monolith in the same directory.
     _write_graph_yaml(graph, output_path)
 
     return graph
 
 
-def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
-    """Write the graph to *output_path* as sorted YAML."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+#: File name of the retired single-file DRG layout. ``load_graph_or_dir``
+#: prefers it when present, so it must never coexist with fragments (DD-7).
+_MONOLITH_NAME = "graph.yaml"
+_FRAGMENT_SUFFIX = ".graph.yaml"
 
+
+def _partition_by_kind(graph: DRGGraph) -> dict[NodeKind, DRGGraph]:
+    """Partition *graph* into one sub-graph per **populated** node-kind (DD-8).
+
+    Every node-kind that owns at least one node yields a fragment carrying that
+    kind's node set plus the edges whose **source** node is of that kind. Each
+    node lands in exactly one fragment (by its kind) and each edge in exactly
+    one fragment (by its source-node kind), so concatenating the fragments
+    reconstructs the whole graph with no node or edge lost or duplicated.
+
+    Target-only kinds — kinds that own nodes but are never an edge source (e.g.
+    ``template``) — still get a fragment (with an empty edge list); omitting
+    them would silently drop their nodes on reload (not behaviour-preserving).
+
+    Each fragment is emitted in canonical intra-fragment order (DD-11): nodes by
+    URN, edges by ``(source, target, relation)``.
+    """
+    kind_by_urn: dict[str, NodeKind] = {n.urn: n.kind for n in graph.nodes}
+    nodes_by_kind: dict[NodeKind, list[DRGNode]] = defaultdict(list)
+    for node in graph.nodes:
+        nodes_by_kind[node.kind].append(node)
+    edges_by_kind: dict[NodeKind, list[DRGEdge]] = defaultdict(list)
+    for edge in graph.edges:
+        # ``assert_valid`` (run before writing) guarantees no dangling edge, so
+        # every source URN maps to a known node kind.
+        edges_by_kind[kind_by_urn[edge.source]].append(edge)
+
+    fragments: dict[NodeKind, DRGGraph] = {}
+    for kind, nodes in nodes_by_kind.items():
+        fragments[kind] = DRGGraph(
+            schema_version=graph.schema_version,
+            generated_at=graph.generated_at,
+            generated_by=graph.generated_by,
+            nodes=sorted(nodes, key=lambda n: n.urn),
+            edges=sorted(
+                edges_by_kind.get(kind, []),
+                key=lambda e: (e.source, e.target, e.relation.value),
+            ),
+        )
+    return fragments
+
+
+def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
+    """Write *graph* as per-kind fragments beside *output_path*; retire monolith.
+
+    DD-7/DD-8: the graph is stored as one ``<kind>.graph.yaml`` fragment per
+    populated node-kind in ``output_path.parent`` (the loader glob root). Any
+    ``graph.yaml`` monolith or stale fragment in that directory is removed in
+    the same write so the directory never carries both layouts — otherwise
+    ``load_graph_or_dir`` would prefer the monolith and silently mask the
+    fragments.
+    """
+    output_dir = output_path.parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    fragments = _partition_by_kind(graph)
+    written: set[str] = set()
+    for kind, fragment in fragments.items():
+        fragment_path = output_dir / f"{kind.value}{_FRAGMENT_SUFFIX}"
+        _dump_graph_document(fragment, fragment_path)
+        written.add(fragment_path.name)
+
+    # Remove stale fragments from a prior run whose kind is no longer populated.
+    for existing in output_dir.glob(f"*{_FRAGMENT_SUFFIX}"):
+        if existing.name not in written:
+            existing.unlink()
+
+    # Atomic monolith retirement (DD-7): never leave graph.yaml beside fragments.
+    monolith = output_dir / _MONOLITH_NAME
+    if monolith.is_file():
+        monolith.unlink()
+
+
+def _dump_graph_document(graph: DRGGraph, output_path: Path) -> None:
+    """Serialise a single ``DRGGraph`` document to *output_path* as sorted YAML."""
     # Build plain dict for YAML serialisation (sorted keys for determinism)
     data: dict[str, Any] = {
         "schema_version": graph.schema_version,
@@ -874,6 +1120,8 @@ def _node_to_dict(node: DRGNode) -> dict[str, Any]:
     d: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
     if node.label is not None:
         d["label"] = node.label.strip()
+    if node.tags:
+        d["tags"] = list(node.tags)
     return d
 
 

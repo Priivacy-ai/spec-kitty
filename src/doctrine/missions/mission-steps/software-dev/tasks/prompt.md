@@ -128,23 +128,27 @@ Prompts do not rediscover feature context. Commands do.
 
    ### Task Tracking Format
 
-   Use **checkbox format** for all per-WP task tracking rows in `tasks.md`:
+   Per-WP subtask rows in `tasks.md` are **reference rows**, not checkboxes. Subtask
+   completion is **solely event-sourced** — the reduced event-log snapshot is the
+   authority (#2816 IC-10 / FR-016); there is **no `- [ ]` box to tick**. Emit each
+   `Txxx` as a plain reference row under its work package:
 
    ```markdown
-   - [ ] T001 Description of task (WP01)
-   - [ ] T002 Another task (WP01)
+   T001 Description of task (WP01)
+   T002 Another task (WP01)
    ```
 
-   Do **not** use pipe-table format for tracking rows in work-package sections.
-   `mark-status` targets these per-WP checkbox rows; it also supports pipe-table
-   rows for backward compatibility, but new generation must use checkboxes exclusively.
+   Record completion with `spec-kitty agent tasks mark-status T001 T002 --status done`
+   (single or batch). `mark-status` writes the completion into the event log; it does
+   **not** flip a markdown checkbox. Do **not** use pipe-table format for tracking rows
+   in work-package sections.
 
-   **Important distinction — Subtask Index vs. tracking rows**:
+   **Important distinction — Subtask Index vs. reference rows**:
    The top-level **Subtask Index** pipe-table (e.g. `| T001 | desc | WP | Parallel |`) is
-   a **reference table** only — it is not a tracking surface.  The `[P]` marker in its
-   "Parallel" column indicates parallelism, not task status.  `mark-status` tracks
-   progress via the per-WP checkbox rows (`- [ ] T001 …`) below each work-package
-   heading, not via the index table.
+   a **reference table** only — it is not a tracking surface. The `[P]` marker in its
+   "Parallel" column indicates parallelism, not task status. `mark-status` records
+   completion in the reduced event-log snapshot keyed by the `Txxx` id, never by
+   editing a markdown row.
 
 5. **Roll subtasks into work packages** (IDs `WP01`, `WP02`, ...):
 
@@ -176,10 +180,10 @@ Prompts do not rediscover feature context. Commands do.
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
      - Summary (goal, priority, independent test)
-     - Included subtasks (checkbox list referencing `Txxx`)
+     - Included subtasks (reference list of `Txxx` ids, tracked via `mark-status`)
      - Implementation sketch (high-level sequence)
      - Parallel opportunities, dependencies, and risks
-   - Preserve the checklist style so implementers can mark progress
+   - Keep the reference-list style; implementers record progress with `spec-kitty agent tasks mark-status`, not by ticking boxes
 
 7. **Generate prompt files (one per work package)**:
    - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
@@ -508,7 +512,7 @@ For each cohesive unit of work:
 
 Create work package sections with:
 - Summary (goal, priority, test criteria)
-- Included subtasks (checkbox list)
+- Included subtasks (reference list of `Txxx` ids, tracked via `mark-status`)
 - Implementation notes
 - Parallel opportunities
 - Dependencies

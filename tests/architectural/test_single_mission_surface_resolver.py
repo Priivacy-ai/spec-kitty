@@ -127,9 +127,13 @@ C-003 status: PRESENT on the base. T038/T040 may build on it.
 from __future__ import annotations
 
 import functools
+import hashlib
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -661,35 +665,75 @@ def test_all_allowlisted_entries_have_rationale() -> None:
 # ===========================================================================
 
 
-class _SourceInsertion:
-    """Context manager: insert a line right after the first line containing
-    ``anchor_substring`` in a real source file, then restore.
+class _IsolatedSourceInsertion:
+    """Context manager: insert a line into a TMP COPY of *path*, never the
+    real file.
 
-    Unlike :class:`_SourceMutation` (which only appends at EOF), this shifts
-    every line AFTER the insertion point down by one — the exact "line
-    inserted above a migrated site" shape the T019 motion battery must prove
-    stays green.  The original bytes are restored on exit even if the body
-    raises.
+    Isolated counterpart of the retired real-file-mutating
+    ``_SourceInsertion`` (see the WP02/#2673+#2638 module note below
+    ``_IsolatedSourceMutation``, whose ``_PATCHED_ROOT_NAMES`` root-patch
+    logic this class reuses). Copies *path* into a tmp root OUTSIDE the
+    scanned source tree and inserts *inserted_line* directly after the first
+    line containing *anchor_substring* in the COPY — shifting every line
+    AFTER the insertion point down by one, the exact "line inserted above a
+    migrated site" shape the T019 motion battery must prove stays green.
+    Monkeypatches the surface-resolution audit module's root globals so any
+    ``discover_rows()`` / ``discover_selection_callsites()`` call made inside
+    the ``with`` block scans the tmp copy; the real file is opened READ-ONLY
+    and is NEVER written.
     """
 
-    def __init__(self, path: Path, anchor_substring: str, inserted_line: str) -> None:
+    def __init__(
+        self,
+        path: Path,
+        anchor_substring: str,
+        inserted_line: str,
+        audit_mod: ModuleType,
+    ) -> None:
         self._path = path
         self._anchor_substring = anchor_substring
         self._inserted_line = inserted_line
-        self._original: str = ""
+        self._audit_mod = audit_mod
+        self._tmp_dir: tempfile.TemporaryDirectory[str] | None = None
+        self._saved_roots: dict[str, Path] = {}
+        self.tmp_src_root: Path = path
+        self.tmp_target: Path = path
 
-    def __enter__(self) -> Path:
-        self._original = self._path.read_text(encoding="utf-8")
-        lines = self._original.splitlines(keepends=True)
+    def __enter__(self) -> _IsolatedSourceInsertion:
+        rel = self._path.relative_to(_SRC_ROOT)
+        self._tmp_dir = tempfile.TemporaryDirectory(prefix="wp06-bite-battery-")
+        tmp_root = Path(self._tmp_dir.name)
+        self.tmp_src_root = tmp_root / "src"
+        self.tmp_target = self.tmp_src_root / rel
+        self.tmp_target.parent.mkdir(parents=True, exist_ok=True)
+
+        original = self._path.read_text(encoding="utf-8")
+        lines = original.splitlines(keepends=True)
         anchor_index = next(
             i for i, line in enumerate(lines) if self._anchor_substring in line
         )
         lines.insert(anchor_index + 1, self._inserted_line + "\n")
-        self._path.write_text("".join(lines), encoding="utf-8")
-        return self._path
+        self.tmp_target.write_text("".join(lines), encoding="utf-8")
+
+        self._saved_roots = {
+            name: getattr(self._audit_mod, name)
+            for name in _IsolatedSourceMutation._PATCHED_ROOT_NAMES
+        }
+        patched_roots: dict[str, Path] = {
+            "_REPO_ROOT": tmp_root,
+            "_SRC_ROOT": self.tmp_src_root,
+            "SRC_SPECIFY_CLI": self.tmp_src_root / "specify_cli",
+            "SRC_MISSION_RUNTIME": self.tmp_src_root / "mission_runtime",
+        }
+        for name in _IsolatedSourceMutation._PATCHED_ROOT_NAMES:
+            setattr(self._audit_mod, name, patched_roots[name])
+        return self
 
     def __exit__(self, *exc: object) -> None:
-        self._path.write_text(self._original, encoding="utf-8")
+        for name, value in self._saved_roots.items():
+            setattr(self._audit_mod, name, value)
+        if self._tmp_dir is not None:
+            self._tmp_dir.cleanup()
 
 
 #: The shared file both the motion-battery and same-qualname-sibling plants
@@ -711,21 +755,146 @@ def test_raw_join_motion_battery_zero_false_reds() -> None:
     (``coord_candidate``) and RJ#2 (``primary_candidate``) live in the SAME
     ``_coord_mid8`` qualname, so a single insertion exercises both at once.
     """
-    with _SourceInsertion(
+    with _IsolatedSourceInsertion(
         _COORD_MID8_FILE,
         _COORD_MID8_ANCHOR,
         "    # T019 motion-battery witness: benign comment, no semantic change.",
-    ):
+        _audit_mod,
+    ) as insertion:
         for descriptor, seeded_key in _RAW_JOIN_SEEDED_KEYS.items():
             if descriptor.rel_path != "specify_cli/coordination/surface_resolver.py":
                 continue
-            source = _COORD_MID8_FILE.read_text(encoding="utf-8")
+            source = insertion.tmp_target.read_text(encoding="utf-8")
             assert descriptor_still_live(source, descriptor, seeded_key), (
                 f"Motion battery FALSE-RED: {descriptor.qualname} / "
                 f"{descriptor.token_substring!r} stopped resolving to its seeded "
                 "key after a benign comment insertion above the site — the "
                 "descriptor is NOT content-addressed as intended."
             )
+
+
+# ---------------------------------------------------------------------------
+# WP02 (#2673 + #2638) + WP06 (#2678) — bite-battery mutation isolation.
+#
+# ``_IsolatedSourceMutation`` (and its insertion counterpart
+# ``_IsolatedSourceInsertion`` above) replaces the real-file-mutating pattern
+# for EVERY bite-battery test in this module. Each copies the target file
+# into an isolated tmp root OUTSIDE the scanned source tree, injects the
+# witness snippet/line into the COPY, and monkeypatches the surface-resolution
+# audit module's root globals (``_REPO_ROOT`` / ``_SRC_ROOT`` /
+# ``SRC_SPECIFY_CLI`` / ``SRC_MISSION_RUNTIME``) so ``discover_rows()`` /
+# ``discover_selection_callsites()`` scan the tmp copy for the duration of the
+# ``with`` block. The real file on disk is opened READ-ONLY and is NEVER
+# written — under ``pytest-xdist -n auto --dist loadfile``, workers are
+# separate PROCESSES, so a sibling worker's scanner (reading the real,
+# never-mutated tree) can no longer observe an injected witness mid-window.
+# The formerly real-file-mutating ``_SourceMutation`` / ``_SourceInsertion``
+# context managers carried the identical hazard for their remaining call
+# sites and have been retired (WP06 / #2678) now that every battery in this
+# module is isolated.
+# ---------------------------------------------------------------------------
+
+
+class _IsolatedSourceMutation:
+    """Context manager: mutate a TMP COPY of *path*, never the real file.
+
+    See the module note above (WP02 / #2673 + #2638). ``__enter__`` returns
+    ``self`` so callers can read ``tmp_src_root`` (the isolated root the
+    patched audit module now scans) to resolve composite keys for the
+    injected copy exactly as they would against the real tree.
+    """
+
+    #: Audit-module root globals patched for the mutation window. Accessed via
+    #: ``getattr``/``setattr`` (not dotted attribute access) — *audit_mod* is a
+    #: dynamically ``importlib``-loaded module, and mypy cannot statically
+    #: confirm these names exist on a bare ``ModuleType``.
+    _PATCHED_ROOT_NAMES: tuple[str, ...] = (
+        "_REPO_ROOT",
+        "_SRC_ROOT",
+        "SRC_SPECIFY_CLI",
+        "SRC_MISSION_RUNTIME",
+    )
+
+    def __init__(self, path: Path, snippet: str, audit_mod: ModuleType) -> None:
+        self._path = path
+        self._snippet = snippet
+        self._audit_mod = audit_mod
+        self._tmp_dir: tempfile.TemporaryDirectory[str] | None = None
+        self._saved_roots: dict[str, Path] = {}
+        self.tmp_src_root: Path = path
+        self.tmp_target: Path = path
+
+    def __enter__(self) -> _IsolatedSourceMutation:
+        rel = self._path.relative_to(_SRC_ROOT)
+        self._tmp_dir = tempfile.TemporaryDirectory(prefix="wp02-bite-battery-")
+        tmp_root = Path(self._tmp_dir.name)
+        self.tmp_src_root = tmp_root / "src"
+        self.tmp_target = self.tmp_src_root / rel
+        self.tmp_target.parent.mkdir(parents=True, exist_ok=True)
+        original = self._path.read_text(encoding="utf-8")
+        self.tmp_target.write_text(original + self._snippet, encoding="utf-8")
+
+        self._saved_roots = {
+            name: getattr(self._audit_mod, name) for name in self._PATCHED_ROOT_NAMES
+        }
+        patched_roots: dict[str, Path] = {
+            "_REPO_ROOT": tmp_root,
+            "_SRC_ROOT": self.tmp_src_root,
+            "SRC_SPECIFY_CLI": self.tmp_src_root / "specify_cli",
+            "SRC_MISSION_RUNTIME": self.tmp_src_root / "mission_runtime",
+        }
+        for name in self._PATCHED_ROOT_NAMES:
+            setattr(self._audit_mod, name, patched_roots[name])
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        for name, value in self._saved_roots.items():
+            setattr(self._audit_mod, name, value)
+        if self._tmp_dir is not None:
+            self._tmp_dir.cleanup()
+
+
+def test_raw_join_bite_battery_real_file_byte_unchanged_during_mutation() -> None:
+    """NFR-002 (T010, PRIMARY gate): the real ``mission_creation.py`` is
+    BYTE-UNCHANGED for the ENTIRE bite-battery run — including the mutation
+    WINDOW, not just before/after.
+
+    #2673 / #2638 root cause: a real-file-mutating context manager restores
+    the original bytes on exit, so a plain before/after hash comparison is
+    trivially green even though the file WAS rewritten transiently — and that
+    transient window is exactly what a sibling ``pytest-xdist`` worker's
+    root-scanning test can observe. This assertion is structural (deterministic
+    hash, not a flaky repeated-run reproduction): it hashes the real file
+    before entering the mutation context, hashes it again from INSIDE the
+    active mutation window, and hashes it once more after exit — all three
+    must match. A real-file-mutating implementation fails the mid-window
+    hash; ``_IsolatedSourceMutation`` (which never opens the real file for
+    writing) passes all three.
+    """
+    target = _SRC_SPECIFY_CLI / "core" / "mission_creation.py"
+    # noqa: TID251 justification — file-integrity check (NFR-002): verifies the
+    # real production file's bytes are untouched across the mutation window;
+    # not charter content, so charter.hasher.hash_content() (which normalizes
+    # BOM/CRLF for markdown staleness comparison) is the wrong tool here.
+    before = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: TID251
+    snippet = (
+        "\n\n"
+        "def _wp02_byte_unchanged_witness(repo_root, mission_slug):  # noqa: injected T010\n"
+        "    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
+    )
+    with _IsolatedSourceMutation(target, snippet, _audit_mod):
+        during = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: TID251
+        assert during == before, (
+            "Bite battery hazard: the real mission_creation.py was rewritten "
+            "DURING the mutation window — a sibling pytest-xdist worker "
+            "scanning src/specify_cli could observe the injected witness "
+            "mid-mutation and produce a false RED (#2673 / #2638)."
+        )
+    after = hashlib.sha256(target.read_bytes()).hexdigest()  # noqa: TID251
+    assert after == before, (
+        "The real mission_creation.py was not byte-identical to its original "
+        "content after the isolated mutation context exited."
+    )
 
 
 def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
@@ -736,23 +905,49 @@ def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
     composite key is absent from ``_ALLOWLISTED_RAW_JOINS`` must be flagged as
     an unexpected functional bypass, proving the migration didn't accidentally
     widen the guard.
+
+    WP02 (#2673 + #2638): the mutation targets an ISOLATED tmp copy
+    (``_IsolatedSourceMutation``), never the real file — see the module note
+    above. Detection still runs through the real, unmodified ``discover_rows``
+    detector code path (it is root-agnostic: it scans whatever
+    ``SRC_ROOT``/``SRC_SPECIFY_CLI`` currently points at), so pointing it at
+    the tmp copy for the duration of the ``with`` block still exercises the
+    genuine detector, not a stub.
     """
+    target = _SRC_SPECIFY_CLI / "core" / "mission_creation.py"
+
+    def _unexpected_mission_creation_rows(src_root: Path) -> list[Any]:
+        # ``ResolutionRow`` is a runtime value bound from the dynamically
+        # loaded audit module (not a mypy-visible type), so the element type
+        # is deliberately ``Any`` here — the assertions below only rely on
+        # ``.rel_path``/``.call_name``/``.line``, all present at runtime.
+        return [
+            row
+            for row in discover_rows()
+            if row.call_name == "raw-path-join"
+            and row.rel_path.endswith("core/mission_creation.py")
+            and composite_key_from_file(src_root / row.rel_path, row.line)
+            not in _ALLOWLISTED_RAW_JOINS
+        ]
+
+    # Live-detector proof (T013, anti-tautology): BEFORE injection, the same
+    # filter against the REAL (never-touched) file finds nothing unexpected —
+    # the assertion below is not vacuously true; it depends on the injected
+    # snippet actually being present in what discover_rows() scans.
+    baseline = _unexpected_mission_creation_rows(_SRC_ROOT)
+    assert not baseline, (
+        "Bite battery precondition violated: an unexpected raw-path-join row "
+        "already exists for mission_creation.py BEFORE injection — the "
+        "post-injection assertion would be a tautology."
+    )
+
     snippet = (
         "\n\n"
         "def _wp04_bite_witness(repo_root, mission_slug):  # noqa: injected T019\n"
         "    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
     )
-    with _SourceMutation(_SRC_SPECIFY_CLI / "core" / "mission_creation.py", snippet):
-        unexpected = [
-            row
-            for row in discover_rows()
-            if row.call_name == "raw-path-join"
-            and composite_key_from_file(_SRC_ROOT / row.rel_path, row.line)
-            not in _ALLOWLISTED_RAW_JOINS
-        ]
-        witness = [
-            row for row in unexpected if row.rel_path.endswith("core/mission_creation.py")
-        ]
+    with _IsolatedSourceMutation(target, snippet, _audit_mod) as mutation:
+        witness = _unexpected_mission_creation_rows(mutation.tmp_src_root)
         assert witness, (
             "Bite battery FALSE-GREEN: the injected _wp04_bite_witness raw "
             "KITTY_SPECS_DIR/mission_slug join was NOT flagged as an unexpected "
@@ -785,8 +980,8 @@ def test_raw_join_same_qualname_sibling_bites() -> None:
         and descriptor.token_substring == "coord_candidate = repo_root"
     )
     seeded_key = _RAW_JOIN_SEEDED_KEYS[rj1]
-    with _SourceMutation(_COORD_MID8_FILE, snippet):
-        source = _COORD_MID8_FILE.read_text(encoding="utf-8")
+    with _IsolatedSourceMutation(_COORD_MID8_FILE, snippet, _audit_mod) as mutation:
+        source = mutation.tmp_target.read_text(encoding="utf-8")
         assert not descriptor_still_live(source, rj1, seeded_key), (
             "Same-qualname-sibling battery FALSE-GREEN: RJ#1 kept resolving "
             "(exactly-one) even with a colliding sibling planted in a second "
@@ -808,37 +1003,17 @@ def test_raw_join_same_qualname_sibling_bites() -> None:
 # ``discover_selection_callsites()`` catches it by name.
 # ===========================================================================
 
-# A read CLI that the WP02/WP03 migration routed onto the seam.  We mutate THIS
-# file (a real read path) to prove both the selection ratchet (T017/T019a) and
-# the SLUG_NAMES re-injection guard (T021) actually bite on a real source file.
+# A read CLI that the WP02/WP03 migration routed onto the seam.  We mutate an
+# ISOLATED tmp copy of THIS file (``_IsolatedSourceMutation``, WP06 / #2678)
+# to prove both the selection ratchet (T017/T019a) and the SLUG_NAMES
+# re-injection guard (T021) actually bite on a real source file's content,
+# without ever writing the real file on disk.
 _READ_CLI_FOR_MUTATION = (
     _SRC_SPECIFY_CLI / "cli" / "commands" / "agent" / "context.py"
 )
 
 # The guarded read-side seam source (T018 gate-presence assertion).
 _SEAM_SOURCE = _SRC_SPECIFY_CLI / "missions" / "_read_path_resolver.py"
-
-
-class _SourceMutation:
-    """Context manager: append a snippet to a real source file, then restore.
-
-    Used for live mutation proofs (inject -> assert guard FAILS -> revert ->
-    assert guard PASSES).  The original bytes are restored on exit even if the
-    body raises, so a failing assertion never leaves the tree dirty.
-    """
-
-    def __init__(self, path: Path, snippet: str) -> None:
-        self._path = path
-        self._snippet = snippet
-        self._original: str = ""
-
-    def __enter__(self) -> Path:
-        self._original = self._path.read_text(encoding="utf-8")
-        self._path.write_text(self._original + self._snippet, encoding="utf-8")
-        return self._path
-
-    def __exit__(self, *exc: object) -> None:
-        self._path.write_text(self._original, encoding="utf-8")
 
 
 def _external_selection_bypasses() -> list[str]:
@@ -897,7 +1072,7 @@ def test_selection_discriminator_is_independent_of_raw_join_scanner() -> None:
         "    )\n"
         "    return resolve_mission_read_path(repo_root, slug, mid8)\n"
     )
-    with _SourceMutation(_READ_CLI_FOR_MUTATION, snippet):
+    with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
         selection_keys = {s.key() for s in discover_selection_callsites()}
         raw_join_keys = {
             r.key() for r in discover_rows() if r.call_name == "raw-path-join"
@@ -1029,7 +1204,7 @@ def test_selection_ratchet_bites_on_injected_direct_call() -> None:
         "    from specify_cli.lanes.branch_naming import mid8_from_slug\n"
         "    return resolve_mission_read_path(repo_root, slug, mid8_from_slug(slug))\n"
     )
-    with _SourceMutation(_READ_CLI_FOR_MUTATION, snippet):
+    with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
         during = _external_selection_bypasses()
         assert any(
             k.startswith("specify_cli/cli/commands/agent/context.py:") for k in during
@@ -1040,10 +1215,11 @@ def test_selection_ratchet_bites_on_injected_direct_call() -> None:
             f"  external bypasses during mutation: {during}"
         )
 
-    # Post-revert: clean again.
+    # Post-revert: clean again (proves __exit__ restored the patched audit-module
+    # roots, so discover_selection_callsites() is back to scanning the real tree).
     assert not _external_selection_bypasses(), (
-        "Selection ratchet still reports a bypass after the mutation was "
-        "reverted — the _SourceMutation restore failed."
+        "Selection ratchet still reports a bypass after the isolated mutation "
+        "context exited — the _IsolatedSourceMutation root restore failed."
     )
 
 
@@ -1084,7 +1260,7 @@ def test_ratchet_would_have_failed_on_pre_mission_tree() -> None:
         "    primary_dir = repo_root / KITTY_SPECS_DIR / raw_handle\n"
         "    return primary_dir\n"
     )
-    with _SourceMutation(_READ_CLI_FOR_MUTATION, snippet):
+    with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
         during = {
             r.key()
             for r in discover_rows()
@@ -1097,14 +1273,15 @@ def test_ratchet_would_have_failed_on_pre_mission_tree() -> None:
             "discriminated against the pre-mission tree (tautology risk)."
         )
 
-    # Revert restored the clean tree.
+    # Post-exit: the audit-module roots are restored, so discover_rows() is
+    # back to scanning the real (never-mutated) tree.
     post = {
         r.key()
         for r in discover_rows()
         if r.call_name == "raw-path-join"
         and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
     }
-    assert not post, "Pre-mission-shape mutation was not reverted cleanly."
+    assert not post, "Isolated pre-mission-shape mutation window did not restore cleanly."
 
 
 # ---------------------------------------------------------------------------
@@ -1290,7 +1467,7 @@ def test_raw_handle_reinjection_is_caught() -> None:
         "    from specify_cli.core.paths import KITTY_SPECS_DIR\n"
         "    return repo_root / KITTY_SPECS_DIR / raw_handle\n"
     )
-    with _SourceMutation(_READ_CLI_FOR_MUTATION, snippet):
+    with _IsolatedSourceMutation(_READ_CLI_FOR_MUTATION, snippet, _audit_mod):
         during = [
             r.key()
             for r in discover_rows()

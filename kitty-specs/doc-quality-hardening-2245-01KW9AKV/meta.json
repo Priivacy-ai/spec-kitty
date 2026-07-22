@@ -26,6 +26,7 @@
   "purpose_context": "The Common Docs restructure (#2165) relocated hundreds of files; today nothing stops a contributor from shipping a doc whose inline links silently dangle, and several such breakages already slipped through. This mission installs a standing CI gate that fails on any broken in-doc link, repairs the residual broken links left by the move (including inside immutable decision records, under a sanctioned waiver), automates the changelog synchronization that is currently hand-maintained, and corrects stale post-move prose — so the documentation stays trustworthy and navigable for both humans and AI agents without manual vigilance.",
   "purpose_tldr": "Make broken documentation links and post-move doc drift fail CI instead of shipping silently.",
   "slug": "doc-quality-hardening-2245-01KW9AKV",
+  "status_phase": "1",
   "target_branch": "design/doc-quality-hardening-2245",
   "topology": "coord",
   "vcs": "git",

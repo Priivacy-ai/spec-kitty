@@ -1,16 +1,28 @@
-"""Hash-unification pin across the real freshness surfaces (WP04 / FR-008b, C2-d).
+"""Hash-unification pin across the real freshness surfaces (WP04 / FR-008b,
+C2-d; re-pointed at ``charter.yaml`` by consolidate-charter-bundle WP06 /
+Landmine 2).
 
-C2-d already landed: ``sync``, ``charter status``, and the freshness computer
-all route content hashing through the one ``charter.hasher.hash_content`` path.
-This pin guards against a surface *stopping* routing through it (e.g. a
-reintroduced local ``hashlib.sha256``).
+C2-d already landed: ``sync`` and ``charter status`` still route
+``charter.md`` content hashing through the one ``charter.hasher.hash_content``
+path (unchanged by this mission — ``charter.md`` is a curated, never-resolving
+companion, not touched by this WP). This pin guards against those two
+surfaces *stopping* routing through it (e.g. a reintroduced local
+``hashlib.sha256``).
+
+Landmine 2 retires the freshness computer's own ``charter.md``-hash producer
+(``_charter_hash_of``) outright — there is no longer a THIRD hashed-surface
+for this pin to compare against on ``charter.md``. Instead, this file also
+pins the freshness computer's ``charter_source`` sub-state against a real
+``charter.yaml`` — proving it reads the file the mission relocated freshness
+onto, independently of the (unrelated, still-live) ``charter.md``/sync
+hash-unification pin.
 
 Anti-tautology (F1): the test invokes the ACTUAL surface functions — the
-``charter status`` collector (``_collect_charter_sync_status`` → ``is_stale``),
-the ``sync`` staleness primitive (``is_stale`` as ``sync`` calls it on content),
-and ``computer._charter_hash_of`` — and asserts they agree on the SAME content.
-It does NOT call ``hash_content`` N times (that would be ``assert x == x``).
-The mutate-and-diverge negative guard proves all three read the same content
+``charter status`` collector (``_collect_charter_sync_status`` → ``is_stale``)
+and the ``sync`` staleness primitive (``is_stale`` as ``sync`` calls it on
+content) — and asserts they agree on the SAME content. It does NOT call
+``hash_content`` N times (that would be ``assert x == x``). The
+mutate-and-diverge negative guard proves both surfaces read the same content
 through the same normalization.
 """
 
@@ -23,7 +35,6 @@ import pytest
 
 from charter.hasher import is_stale
 from specify_cli.charter_runtime.freshness import compute_freshness
-from specify_cli.charter_runtime.freshness import computer as freshness_computer
 from specify_cli.cli.commands.charter._status_collectors import (
     _collect_charter_sync_status,
 )
@@ -32,12 +43,31 @@ pytestmark = [pytest.mark.integration]
 
 _CHARTER_BODY = "# Spec Kitty Charter\n\nGovernance body with real-shaped content.\n"
 
+_CHARTER_YAML_BODY = (
+    "schema_version: '2.0.0'\n"
+    "governance: {}\n"
+    "directives:\n"
+    "  directives: []\n"
+    "catalog:\n"
+    "  mission: test-mission\n"
+    "  template_set: default\n"
+    "  languages: []\n"
+    "  references: []\n"
+    "metadata:\n"
+    "  generated_at: '2026-01-01T00:00:00+00:00'\n"
+    "  bundle_schema_version: 2\n"
+)
+
 
 def _seed_bundle(repo: Path, *, body: str = _CHARTER_BODY) -> tuple[Path, Path]:
-    """Materialise a real charter bundle: charter.md + metadata.yaml.
+    """Materialise a real charter.md/metadata.yaml pair (the ``charter
+    status``/``sync`` hash-unification surfaces — unrelated to this
+    mission's ``charter.yaml`` relocation) plus a ``charter.yaml`` (the
+    freshness-resolving source).
 
-    The stored ``charter_hash`` is the canonical ``hash_content`` of the body so
-    the bundle is in a fresh (non-stale) state.
+    The stored ``charter_hash`` is the canonical ``hash_content`` of the body
+    so the ``charter status``/``sync`` bundle reads as fresh/synced (its own,
+    unrelated, still-live mechanism).
     """
     from charter.hasher import hash_content  # noqa: PLC0415
 
@@ -56,11 +86,14 @@ def _seed_bundle(repo: Path, *, body: str = _CHARTER_BODY) -> tuple[Path, Path]:
         ),
         encoding="utf-8",
     )
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML_BODY, encoding="utf-8")
     return charter_path, metadata_path
 
 
 def _surface_hashes(repo: Path, charter_path: Path, metadata_path: Path) -> dict[str, str]:
-    """Collect the *current-content* hash each real surface computes."""
+    """Collect the *current-content* hash each real ``charter.md``-hashing
+    surface computes (``charter status`` and ``sync`` — unrelated to this
+    mission's ``charter.yaml`` freshness relocation)."""
     # Surface 1 — ``charter status`` collector (routes through is_stale).
     status = _collect_charter_sync_status(repo)
     assert status["available"] is True
@@ -71,19 +104,14 @@ def _surface_hashes(repo: Path, charter_path: Path, metadata_path: Path) -> dict
     content = charter_path.read_text(encoding="utf-8")
     _stale, sync_hash, _stored = is_stale(None, metadata_path, content=content)
 
-    # Surface 3 — the freshness computer's charter hash.
-    computer_hash = freshness_computer._charter_hash_of(charter_path)
-    assert computer_hash is not None
-
     return {
         "status": status_hash,
         "sync": str(sync_hash),
-        "computer": computer_hash,
     }
 
 
 def test_real_surfaces_agree_on_charter_hash(tmp_path: Path) -> None:
-    """status / sync / computer agree on the current-content hash (sha256: prefix)."""
+    """status / sync agree on the current-content hash (sha256: prefix)."""
     charter_path, metadata_path = _seed_bundle(tmp_path)
 
     hashes = _surface_hashes(tmp_path, charter_path, metadata_path)
@@ -93,18 +121,14 @@ def test_real_surfaces_agree_on_charter_hash(tmp_path: Path) -> None:
     assert hashes["status"].startswith("sha256:")
     assert hashes["sync"].startswith("sha256:")
 
-    # The computer strips the prefix (it compares against a normalized stored
-    # hash); after normalization it is the SAME digest as the prefixed surfaces.
-    assert hashes["status"] == f"sha256:{hashes['computer']}"
-
     # The bundle is fresh: stored hash equals current → status reports synced.
     status = _collect_charter_sync_status(tmp_path)
     assert status["status"] == "synced"
     assert status["current_hash"] == status["stored_hash"]
 
 
-def test_mutation_diverges_all_surfaces_identically(tmp_path: Path) -> None:
-    """Negative guard: mutating the body shifts all three surfaces in lockstep.
+def test_mutation_diverges_both_surfaces_identically(tmp_path: Path) -> None:
+    """Negative guard: mutating the body shifts both surfaces in lockstep.
 
     Proves the surfaces read the same content through the same normalization —
     if one surface stopped routing through ``hash_content`` (e.g. a local
@@ -119,18 +143,39 @@ def test_mutation_diverges_all_surfaces_identically(tmp_path: Path) -> None:
     after = _surface_hashes(tmp_path, charter_path, metadata_path)
 
     # Every surface's hash changed.
-    for surface in ("status", "sync", "computer"):
+    for surface in ("status", "sync"):
         assert after[surface] != before[surface], surface
 
     # And after mutation the surfaces STILL agree with each other (same content,
     # same normalization) — the divergence is from the content, not the surface.
     assert after["status"] == after["sync"]
-    assert after["status"] == f"sha256:{after['computer']}"
 
     # The status collector now reports stale (current != stored).
     status = _collect_charter_sync_status(tmp_path)
     assert status["status"] == "stale"
     assert status["current_hash"] != status["stored_hash"]
+
+
+def test_freshness_charter_source_reads_real_charter_yaml(tmp_path: Path) -> None:
+    """Landmine 2: the freshness computer's ``charter_source`` reads
+    ``charter.yaml`` — independent of, and unaffected by, the ``charter.md``/
+    ``metadata.yaml`` hash pair the two surfaces above pin. Seeding only the
+    ``charter.md`` pair (no ``charter.yaml``) must NOT make ``charter_source``
+    fresh; seeding ``charter.yaml`` must."""
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    charter_path = charter_dir / "charter.md"
+    metadata_path = charter_dir / "metadata.yaml"
+    charter_path.write_text(_CHARTER_BODY, encoding="utf-8")
+    metadata_path.write_text("charter_hash: sha256:" + "0" * 64 + "\n", encoding="utf-8")
+
+    # charter.md + metadata.yaml alone, no charter.yaml -> charter_source
+    # is "missing", never derived from the retired charter.md-hash mechanism.
+    assert compute_freshness(tmp_path).charter_source.state == "missing"
+
+    (charter_dir / "charter.yaml").write_text(_CHARTER_YAML_BODY, encoding="utf-8")
+
+    assert compute_freshness(tmp_path).charter_source.state == "fresh"
 
 
 # ---------------------------------------------------------------------------
@@ -149,18 +194,21 @@ def test_mutation_diverges_all_surfaces_identically(tmp_path: Path) -> None:
 def test_c2e_no_noop_despite_stale_for_crlf_or_bom(
     tmp_path: Path, label: str, raw_bytes: bytes
 ) -> None:
-    """C2-e live-reproduced drift: ``sync`` noop while status/freshness stale.
+    """C2-e live-reproduced drift: ``sync`` noop while ``charter status``
+    stale — this is the ``charter.md``/``metadata.yaml`` surface pair, still
+    unrelated to (and unaffected by) this mission's ``charter.yaml``
+    freshness relocation.
 
     Root cause: ``charter sync`` reads via the encoding chokepoint
-    (``read_bytes().decode()`` — strips BOM, preserves CRLF) while ``status`` /
-    the freshness computer read via ``read_text`` (keeps BOM, collapses CRLF).
-    Pre-fix the two hashed different content, so a charter that a prior sync
-    wrote stored a chokepoint-shaped hash that the ``read_text`` surfaces did
-    not match → status/freshness "stale" while sync "noop".
+    (``read_bytes().decode()`` — strips BOM, preserves CRLF) while ``status``
+    reads via ``read_text`` (keeps BOM, collapses CRLF). Pre-fix the two
+    hashed different content, so a charter that a prior sync wrote stored a
+    chokepoint-shaped hash that the ``read_text`` surface did not match →
+    status "stale" while sync "noop".
 
     The ``hash_content`` normalization (drop leading BOM + canonicalise line
-    endings) makes every surface agree. This pins that all three surfaces
-    report the SAME staleness on a CRLF/BOM charter — no noop-despite-stale.
+    endings) makes both surfaces agree. This pins that both surfaces report
+    the SAME staleness on a CRLF/BOM charter — no noop-despite-stale.
     """
     from charter._io import load_charter_file  # noqa: PLC0415
     from charter.hasher import hash_content  # noqa: PLC0415
@@ -169,8 +217,6 @@ def test_c2e_no_noop_despite_stale_for_crlf_or_bom(
     charter_dir.mkdir(parents=True, exist_ok=True)
     charter_path = charter_dir / "charter.md"
     metadata_path = charter_dir / "metadata.yaml"
-    for name in ("governance.yaml", "directives.yaml", "references.yaml"):
-        (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
     charter_path.write_bytes(raw_bytes)
 
     # Store the hash of the chokepoint-decoded text — exactly what a successful
@@ -186,12 +232,9 @@ def test_c2e_no_noop_despite_stale_for_crlf_or_bom(
     sync_stale, _, _ = is_stale(None, metadata_path, content=choke_text)
     # status's staleness primitive (on charter_path via read_text).
     status = _collect_charter_sync_status(tmp_path)
-    # freshness computer's independent view.
-    fresh_state = compute_freshness(tmp_path).charter_source.state
 
-    # All three AGREE the bundle is fresh (the stored hash matches), so there is
-    # no "sync noop while status/freshness stale" drift, regardless of label.
+    # Both AGREE the bundle is fresh (the stored hash matches), so there is
+    # no "sync noop while status stale" drift, regardless of label.
     assert sync_stale is False, label
     assert status["status"] == "synced", label
-    assert fresh_state == "fresh", label
     assert status["current_hash"] == status["stored_hash"], label

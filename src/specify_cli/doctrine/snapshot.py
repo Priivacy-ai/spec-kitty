@@ -59,6 +59,8 @@ _ARTIFACT_BUCKETS: dict[str, str] = {
     "procedure.yaml": "procedures",
     "agent.yaml": "agent_profiles",
     "contract.yaml": "mission_step_contracts",
+    # Matches both the ``graph.yaml`` monolith and post-shard ``*.graph.yaml``
+    # fragments (mission #2680, WP05) under ``endswith`` semantics.
     "graph.yaml": "drg_fragments",
 }
 
@@ -199,6 +201,14 @@ def _count_artifacts(snapshot_dir: Path) -> dict[str, int]:
             continue
         bucket = entry.name if entry.name != "drg" else "drg_fragments"
         counts[bucket] = sum(1 for _ in entry.rglob("*.yaml"))
+    # FR-014: the sharded built-in layout (mission #2680, WP05) ships DRG
+    # fragments as top-level ``*.graph.yaml`` files rather than under a ``drg/``
+    # directory. Fold them into the same ``drg_fragments`` bucket so a sharded
+    # doctrine tree categorises identically to the monolith / ``drg/``-dir
+    # layouts. Additive: no current snapshot ships top-level fragments.
+    fragment_count = sum(1 for _ in snapshot_dir.glob("*.graph.yaml"))
+    if fragment_count:
+        counts["drg_fragments"] = counts.get("drg_fragments", 0) + fragment_count
     return counts
 
 

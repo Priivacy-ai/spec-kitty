@@ -7,13 +7,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.drg.loader import load_graph, merge_layers
-from doctrine.drg.models import Relation
+from doctrine.drg.models import DRGGraph, Relation
 from doctrine.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
-
-SHIPPED_GRAPH = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
 
 
 def _write_yaml(path: Path, data: dict) -> None:
@@ -363,9 +360,9 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
     assert service.agent_profiles.get("python-pedro") is not None
 
 
-def test_service_exposes_specification_by_example_artifacts() -> None:
+def test_service_exposes_specification_by_example_artifacts(built_in_graph: DRGGraph) -> None:
     service = DoctrineService()
-    graph = merge_layers(load_graph(SHIPPED_GRAPH), None)
+    graph = built_in_graph
 
     paradigm = service.paradigms.get("specification-by-example")
     assert paradigm is not None

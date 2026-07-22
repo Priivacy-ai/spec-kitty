@@ -38,6 +38,7 @@ __all__ = [
     "_resolve_pack_version",
     "_count_pack_artifacts",
     "_collect_profile_health",
+    "_run_cross_grain_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_doctrine_collisions",
@@ -201,6 +202,56 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     return DoctrineHealthReport(packs=packs, org_drg=org_drg)
 
 
+def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
+    """Fold the FR-013 built-in cross-grain scan into *report* in place (#2666).
+
+    Runs :func:`charter.action_grain.scan_builtin_cross_grain_duplicates` — the
+    single IC-11 dup-scan authority (C-002) — against the shipped built-in
+    missions tree. Scope is deliberately built-in only (the scan's own scope
+    cap): no project/org multi-root engine is built here.
+
+    On :class:`~charter.mission_type_profiles.CrossGrainDoubleDeclarationError`
+    this mutates ``report.org_drg`` in place, mirroring the fail-loud pattern
+    :func:`_collect_profile_health` already uses for a collector crash:
+
+    * appends a human-readable message to ``org_drg["errors"]`` — the honest
+      ``DoctrineHealthReport.healthy`` flag reads this list, so a collision
+      forces the report unhealthy (RC=1) without a parallel health field.
+    * adds a structured ``org_drg["cross_grain_collisions"]`` finding
+      (``kind`` / ``artifact``) so both the ``--json`` payload and the human
+      renderer (:func:`._profile_health_render._render_cross_grain_findings`)
+      can surface *what* collided, not just *that* something collided.
+
+    On success (every shipped mission type disjoint) this is a no-op —
+    ``report`` is left untouched and the exit code is unaffected.
+
+    Diagnostics are READ-ONLY and must never crash ``doctor doctrine`` on a
+    genuine collision: the exception is caught and folded into the report,
+    not re-raised.
+    """
+    from charter.action_grain import scan_builtin_cross_grain_duplicates
+    from charter.mission_type_profiles import CrossGrainDoubleDeclarationError
+
+    try:
+        scan_builtin_cross_grain_duplicates()
+    except CrossGrainDoubleDeclarationError as exc:
+        org_drg = report.org_drg
+        if not isinstance(org_drg, dict):  # pragma: no cover — defensive; _collect_org_layer_data always returns a dict
+            return
+        message = (
+            f"cross-grain doctrine-integrity violation (FR-013): artifact "
+            f"{exc.artifact!r} ({exc.kind}) is declared in both the type grain "
+            "and the action grain for a shipped mission type."
+        )
+        existing_errors = org_drg.get("errors")
+        errors = list(existing_errors) if isinstance(existing_errors, list) else []
+        errors.append(message)
+        org_drg["errors"] = errors
+        org_drg["cross_grain_collisions"] = [
+            {"kind": exc.kind, "artifact": exc.artifact}
+        ]
+
+
 def _attach_pack_health(
     pack_entries: list[dict[str, object]], report: DoctrineHealthReport
 ) -> None:
@@ -324,11 +375,10 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     from charter.drg import (  # noqa: PLC0415
         OrgDRGConflictError,
         OrgPackMissingError,
+        load_built_in_graph,
         load_org_drg,
         merge_three_layers,
     )
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
-    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
 
     result: dict[str, object] = {
         "configured_packs": [],
@@ -364,7 +414,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         return result
 
     try:
-        built_in = load_graph_or_dir(resolve_doctrine_root())
+        built_in = load_built_in_graph()
         # WP08 (FR-010): reuse the SAME merge the org-layer section already runs
         # (C-006 — no new DRG plumbing). The merged graph is now captured, not
         # discarded, so the promoted predicates can adjudicate built-in overrides.
@@ -494,21 +544,24 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
     """Read project-charter ``selected_<kind>`` lists (best-effort, FR-018).
 
     We intentionally bypass ``charter.sync.load_governance_config`` here: that
-    loader runs the charter auto-sync pipeline (and requires a git repository).
-    The Selections section is a diagnostic — it MUST work in any working tree,
-    including freshly-bootstrapped tmp fixtures and non-git operator
-    workspaces.  Reading the YAML directly preserves accuracy while keeping the
-    diagnostic side-effect-free.  Missing/malformed YAML degrades to empty lists.
+    loader resolves the canonical (main-checkout) repo root, which requires a
+    git repository. The Selections section is a diagnostic — it MUST work in
+    any working tree, including freshly-bootstrapped tmp fixtures and non-git
+    operator workspaces. Reading ``charter.yaml``'s ``governance:`` section
+    directly (IC-04 / WP04 — re-pointed from the retired ``governance.yaml``)
+    preserves accuracy while keeping the diagnostic side-effect-free and
+    git-independent. Missing/malformed YAML degrades to empty lists.
     """
     selections: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
-    governance_yaml = repo_root / ".kittify" / "charter" / "governance.yaml"
-    if not governance_yaml.exists():
+    charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+    if not charter_yaml.exists():
         return selections
     try:
-        from ruamel.yaml import YAML as _YAML
+        from charter.charter_yaml_io import load_charter_yaml
 
-        data = _YAML(typ="safe").load(governance_yaml.read_text(encoding="utf-8"))
-        doctrine_block = (data or {}).get("doctrine") or {}
+        data = load_charter_yaml(charter_yaml)
+        governance_block = (data or {}).get("governance") or {}
+        doctrine_block = governance_block.get("doctrine") or {}
         for kind in _SELECTION_KIND_PLURALS:
             value = doctrine_block.get(f"selected_{kind}")
             if isinstance(value, list):

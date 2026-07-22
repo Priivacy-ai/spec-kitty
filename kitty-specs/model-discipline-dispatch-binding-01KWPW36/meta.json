@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances model discipline dispatch binding on design/model-discipline-dispatch-2364 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "model discipline dispatch binding",
   "slug": "model-discipline-dispatch-binding-01KWPW36",
+  "status_phase": "1",
   "target_branch": "design/model-discipline-dispatch-2364",
   "topology": "single_branch",
   "vcs": "git",

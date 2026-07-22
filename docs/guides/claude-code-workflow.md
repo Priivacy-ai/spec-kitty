@@ -2,7 +2,7 @@
 title: Claude Code Workflow
 description: End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard.
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-07-21'
 ---
 # Claude Code Workflow
 
@@ -22,27 +22,21 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 | Research | Summarize evidence and data model findings | `/spec-kitty.research` |
 | Planning | Generate architecture briefs via Claude | `/spec-kitty.plan` |
 | Tasks | Produce work packages and prompts that Claude can execute | `/spec-kitty.tasks` |
+| Analysis | Ask Claude to sanity-check cross-artifact consistency before coding | `/spec-kitty.analyze` |
 | Implementation | Run Claude on specific prompt files | `/spec-kitty.implement` |
 | Review & Merge | Review, accept readiness, then land the branch | `/spec-kitty.review`, `/spec-kitty.accept`, `/spec-kitty.merge` |
 
 ## Setup Checklist
 
-1. **Select Claude during project creation**
-   ```bash
-   spec-kitty init my-project --ai claude
-   ```
-   This copies Claude-specific commands into `.claude/commands/` and activates the automation scripts under `.kittify/scripts/`.
-
-2. **Refresh Claude’s long-term context after planning**
-   ```bash
-   cd <main checkout or execution workspace>
-   spec-kitty agent context update-context --agent-type claude
-   ```
-   This injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
+**Select Claude during project creation:**
+```bash
+spec-kitty init my-project --ai claude
+```
+This copies Claude-specific commands into `.claude/commands/` and registers `claude` as an active agent in `.kittify/config.yaml`.
 
 ## Running Claude Against Prompts
 
-Prompt files live under `kitty-specs/<feature>/tasks/WPxx-slug.md` (flat directory, no lane subdirectories). Lane state is tracked via the `lane:` field in each file's YAML frontmatter. Each file contains:
+Prompt files live under `kitty-specs/<mission-slug>/tasks/WPxx-slug.md` (flat directory, no lane subdirectories). Lane state is tracked in the append-only `status.events.jsonl` event log, not in file frontmatter — see [Status Model](../status-model.md). Each file contains:
 
 - Mission-aligned context.
 - Checklist of subtasks.
@@ -52,7 +46,19 @@ Launch Claude against a prompt:
 
 ```bash
 cd .worktrees/001-systematic-recognizer-enhancement-lane-a
-claude prompt kitty-specs/001-systematic-recognizer-enhancement/tasks/WP02-synthetic-benchmark.md
+spec-kitty agent action implement WP02 --agent claude
+```
+
+That prints the WP02 prompt and moves it to `in_progress`. Now start Claude Code in that workspace and, in the interactive chat, run the matching slash command:
+
+```text
+/spec-kitty.implement
+```
+
+For a non-interactive or scripted run, `claude` accepts a prompt directly via `-p`/`--print` (confirmed in `claude --help`):
+
+```bash
+claude -p "$(cat kitty-specs/001-systematic-recognizer-enhancement/tasks/WP02-synthetic-benchmark.md)"
 ```
 
 Claude will use the template metadata to understand scope, file boundaries, and Definition of Done.
@@ -60,7 +66,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 ## Dashboard Integration
 
 - Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `in_review`, `approved`, `done`, `blocked`, and `canceled`; `approved` means review passed and merge pending, while `done` means merged/integrated.
-- Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
+- Each lane move records `agent` and `shell_pid` as event metadata in `status.events.jsonl`—Claude should still add an ISO 8601 entry to the prompt file's **Activity Log** summarizing what changed.
 - When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
   ```bash
   spec-kitty agent action review WP02
@@ -68,10 +74,10 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 ## Recommended Automation
 
-1. **Claude session bootstrapper:** Script that reads `meta.json` for the friendly feature name and injects it into Claude’s context.
+1. **Claude session bootstrapper:** Script that reads `meta.json` for the friendly mission name and injects it into Claude’s context.
 2. **Claude completion validator:** Automatically checks that Claude’s output modifies only the allowed files referenced in the prompt.
 3. **Claude dashboard notifier:** Sends Claude’s status updates to a team Slack channel whenever a work package changes lanes.
-4. **Checklist watcher:** Parse `kitty-specs/<feature>/checklists/` and block Claude from moving prompts to `done` when acceptance criteria are unchecked.
+4. **Checklist watcher:** Parse `kitty-specs/<mission-slug>/checklists/` and block Claude from moving prompts to `done` when acceptance criteria are unchecked.
 
 ## Troubleshooting Claude Sessions
 
@@ -84,7 +90,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 ## Merge and Cleanup
 
-Once Claude (and any partner agents) finish the feature:
+Once Claude (and any partner agents) finish the mission:
 
 1. Ensure all WPs are `approved` or `done` and all review feedback is resolved.
 2. Run the guided merge:
@@ -102,7 +108,7 @@ Once Claude (and any partner agents) finish the feature:
 ## Beyond Claude
 
 - Mix Claude with Cursor or Gemini by generating commands for multiple agents during `spec-kitty init`.
-- Keep the multi-agent orchestration playbook handy: [`Multi-Agent Orchestration`](../architecture/multi-agent-orchestration.md).
+- Keep the multi-agent playbook handy: [Multi-Agent Parallel Development](multi-agent-workflow.md).
 - Review the dashboard monitoring workflow in [`Use the Dashboard`](use-dashboard.md).
 
 ## Related How-To Guides
@@ -119,6 +125,6 @@ Once Claude (and any partner agents) finish the feature:
 
 ## Learn More
 
-- [Spec-Driven Development](../architecture/spec-driven-development.md)
-- [Mission System](../architecture/mission-system.md)
-- [Kanban Workflow](../architecture/kanban-workflow.md)
+- [Your First Mission](your-first-mission.md) — the full specify-to-merge lifecycle narrative
+- [Understanding Spec Kitty Missions](missions-overview.md)
+- [Doctrine documentation](../doctrine/index.md)

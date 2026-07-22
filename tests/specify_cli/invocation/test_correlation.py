@@ -124,7 +124,7 @@ def test_append_correlation_link_raises_on_missing_invocation(tmp_path: Path) ->
 
     writer = InvocationWriter(tmp_path)
     with pytest.raises(InvocationError, match="not found"):
-        writer.append_correlation_link("NONEXISTENT0000000000000000", ref="foo.txt")
+        writer.append_correlation_link("01ABCDEFGHJKMNPQRSTVWXYZ12", ref="foo.txt")
 
 
 def test_append_correlation_link_raises_on_both_ref_and_sha(tmp_path: Path) -> None:

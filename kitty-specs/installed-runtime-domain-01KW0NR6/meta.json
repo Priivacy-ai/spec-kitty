@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances Centralize installed CLI runtime + remediation planning on feat/installed-runtime-domain so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "One installer/runtime domain model (InstalledCliRuntime + RemediationCommand) + a uv-receipt adapter + a remediation planner, consumed by review/upgrade-UX/upgrade-hints; collapses 3 duplicate receipt parsers and 5 remediation-construction sites.",
   "slug": "installed-runtime-domain-01KW0NR6",
+  "status_phase": "1",
   "target_branch": "feat/installed-runtime-domain",
   "topology": "coord",
   "vcs": "git",

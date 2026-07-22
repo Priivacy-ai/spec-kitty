@@ -5,7 +5,7 @@ Every step in a packaged ``mission-runtime.yaml`` declares a ``prompt_template``
 ways:
 
 1. **Composition-driven** -- the step's action is dispatched through
-   ``StepContractExecutor`` composition (via ``charter.resolve_action_sequence``).
+   ``StepContractExecutor`` composition (via ``charter.resolve_mission_type_context``).
    These steps never read a file from ``command-templates/``; the built-in step
    contracts under ``src/doctrine/missions/built_in_step_contracts/`` are
    authoritative, and prompt templates live under

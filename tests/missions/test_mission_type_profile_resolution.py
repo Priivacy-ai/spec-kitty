@@ -71,8 +71,8 @@ def test_mission_type_ships_governance_profile_yaml(mission_type: str) -> None:
 
 
 @pytest.mark.parametrize("mission_type", _REQUIRED_MISSION_TYPES)
-def test_load_profile_returns_mission_type_profile(mission_type: str) -> None:
-    """``charter.mission_type_profiles.load_profile(mission_type)`` MUST
+def test_load_mission_type_profile_returns_mission_type_profile(mission_type: str) -> None:
+    """``charter.mission_type_profiles._load_mission_type_profile(mission_type)`` MUST
     return the profile for that mission type — not None, not a fallback.
 
     Fails today on ImportError. Mission B WP06 introduces the loader at
@@ -80,18 +80,26 @@ def test_load_profile_returns_mission_type_profile(mission_type: str) -> None:
     update this test (and the WP06 spec) to match.
     """
     try:
-        from charter.mission_type_profiles import load_profile  # type: ignore[import-not-found]
+        # WP03 subsumed the public loader into the resolver; the loader survives
+        # as the module-internal ``_load_mission_type_profile`` — NOT called by
+        # ``resolve_mission_type_context`` itself (which reads the repository
+        # directly), but still live as the backing helper for
+        # ``charter.action_grain.scan_builtin_cross_grain_duplicates`` (the
+        # IC-11 built-in dup-scan).
+        from charter.mission_type_profiles import (
+            _load_mission_type_profile,
+        )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.load_profile`. "
-            "Mission B WP06 must introduce the profile loader at this "
-            "canonical import path. See mission-b-proposed-scope.md → WP06.\n"
+            "Could not import `charter.mission_type_profiles._load_mission_type_profile`. "
+            "WP03 keeps the profile loader as the module-internal helper backing "
+            "`resolve_mission_type_context`.\n"
             f"Underlying ImportError: {exc!r}"
         )
 
-    profile = load_profile(mission_type)
+    profile = _load_mission_type_profile(mission_type)
     assert profile is not None, (
-        f"load_profile({mission_type!r}) returned None. The loader MUST "
+        f"_load_mission_type_profile({mission_type!r}) returned None. The loader MUST "
         f"return the shipped profile for `{mission_type}`. A None return "
         "would silently fall back to software-dev-default content, which "
         "is the documentation-vs-software-dev leak the spec forbids."
@@ -106,7 +114,7 @@ def test_load_profile_returns_mission_type_profile(mission_type: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — resolve_mission_type_governance honours meta.json mission_type
+# Test 3 — resolve_mission_type_context honours meta.json mission_type
 # ---------------------------------------------------------------------------
 
 
@@ -157,13 +165,13 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     Fails today on ImportError or because no documentation profile exists.
     """
     try:
-        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
-            resolve_mission_type_governance,
+        from charter.mission_type_profiles import (
+            resolve_mission_type_context,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_mission_type_governance`. "
-            "Mission B WP06 must introduce the resolver that reads meta.json's "
+            "Could not import `charter.mission_type_profiles.resolve_mission_type_context`. "
+            "WP03 introduces the unified resolver that reads meta.json's "
             "mission_type and dispatches to the matching profile.\n"
             f"Underlying ImportError: {exc!r}"
         )
@@ -179,8 +187,8 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
         encoding="utf-8",
     )
 
-    payload = resolve_mission_type_governance(repo_root, feature_dir)
-    payload_text = getattr(payload, "text", str(payload))
+    payload = resolve_mission_type_context(repo_root, feature_dir=feature_dir)
+    payload_text = payload.governance_text
 
     assert "software-dev-default" not in payload_text.lower(), (
         "Governance payload for a documentation mission MUST NOT include "
@@ -190,7 +198,7 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
 
     declared_mission_type = getattr(payload, "mission_type", None)
     assert declared_mission_type == "documentation", (
-        f"resolve_mission_type_governance returned payload with mission_type="
+        f"resolve_mission_type_context returned bundle with mission_type="
         f"{declared_mission_type!r}; expected `documentation` (read from "
         "meta.json). If this fails the resolver is not honouring meta.json's "
         "mission_type at all — see WP06 spec."
@@ -211,13 +219,13 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     message naming the unknown mission_type.
     """
     try:
-        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
-            resolve_mission_type_governance,
+        from charter.mission_type_profiles import (
+            resolve_mission_type_context,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_mission_type_governance`. "
-            "Mission B WP06 must introduce the resolver.\n"
+            "Could not import `charter.mission_type_profiles.resolve_mission_type_context`. "
+            "WP03 introduces the unified resolver.\n"
             f"Underlying ImportError: {exc!r}"
         )
 
@@ -235,7 +243,7 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     )
 
     with pytest.raises(Exception) as excinfo:  # noqa: PT011 — accept any clear error class
-        resolve_mission_type_governance(repo_root, feature_dir)
+        resolve_mission_type_context(repo_root, feature_dir=feature_dir)
 
     assert "totally-made-up-mission-type" in str(excinfo.value), (
         "Hard-fail message MUST name the unknown mission_type so operators "

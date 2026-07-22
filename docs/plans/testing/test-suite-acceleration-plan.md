@@ -4,7 +4,7 @@ description: Final remediation plan for accelerating the test suite, including t
 doc_status: draft
 updated: '2026-07-12'
 related:
-- docs/guides/testing-parallel.md
+- docs/development/testing-parallel.md
 - docs/plans/testing/ci-job-timings.md
 - docs/plans/testing/ci-coverage-union-audit.md
 ---
@@ -17,7 +17,7 @@ the 69.2-min headline offender that later mission's spec is grounded in —
 nor `slow-tests`, `fast-tests-core-misc`'s rebalance, the Sonar
 coverage-denominator fix, or the UI-e2e coverage feed; those are that
 mission's own scope, recorded in
-[`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s "CI
+[`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s "CI
 shard topology" section and
 [`ci-job-timings.md`](ci-job-timings.md)/[`ci-coverage-union-audit.md`](ci-coverage-union-audit.md)).
 This mission's WP09 reconciles this document's own currency instead of
@@ -25,10 +25,10 @@ leaving it silently stale, per FR-009:
 
 **Verified shipped** (direct evidence checked, not assumed from the plan's own age):
 - **A2/PP-05 — per-worker HOME/XDG isolation** (Wave 2): live — see
-  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  [`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s
   "Per-worker HOME isolation" section and `tests/conftest.py`.
 - **R4/PP-06(a) — ULID volume env-gate** (Wave 1): live — see
-  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  [`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s
   "Volume env gates" section (`SPEC_KITTY_ULID_VOLUME_FULL`).
 - **R5/A4/PP-02 — charter `elapsed<0.1` → `@pytest.mark.timeout`** (Wave 1):
   live — `tests/charter/test_integration.py` lines 405 and 427 both carry
@@ -43,7 +43,7 @@ leaving it silently stale, per FR-009:
   `fast-tests-status`'s re-route all carry `-n auto --dist loadfile`), but
   **not yet 3×-green-ratchet-confirmed** — each still carries a
   `PENDING-CI` comment in the workflow file. See
-  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  [`docs/development/testing-parallel.md`](../../development/testing-parallel.md)'s
   "Status: local default vs CI shard flips" section. **This is a distinct,
   still-open item — `ci-test-topology-performance-01KXBJRT` does not close
   it.**
@@ -82,7 +82,7 @@ Always `--dist loadfile` (never bare `--dist load`) — the status/charter conft
 **The 3–5 highest-leverage moves and realistic wall-clock win:**
 
 | Move | Mechanism | CI critical-path win | Local win |
-|------|-----------|---------------------|-----------|
+| ------ | ----------- | --------------------- | ----------- |
 | **A2/PP-05 — per-worker HOME isolation** | Pin `Path.home()`+`HOME/USERPROFILE/LOCALAPPDATA` to a per-xdist-worker tmp dir | $0 direct; **unblocks everything below** | gates the 2–4x local win |
 | **A1/PP-01/R6 — flip fast-* shards to `-n auto --dist loadfile`** | charter 9.1m→~5m (2-core) / ~2–3m (4-core); cli 3.8m→~1.5m; core-misc 3.8m→~1.5m | **collapses the #1 critical path (charter) + its downstream chain (agent)** | n/a (CI) |
 | **R5/A4/PP-02 — convert charter timing asserts to `@pytest.mark.timeout`** | removes flaky `elapsed<0.1` floors | **precondition** that unblocks charter flip | removes flakes locally |
@@ -96,7 +96,7 @@ Always `--dist loadfile` (never bare `--dist load`) — the status/charter conft
 ## 2. Ranked Action Table (by speedup ÷ effort)
 
 | Rank | Action | Owner-persona | Est. speedup | Effort | Risk | Required safeguards | Safe now? |
-|------|--------|---------------|-------------|--------|------|---------------------|-----------|
+| ------ | -------- | --------------- | ------------- | -------- | ------ | --------------------- | ----------- |
 | 1 | **R4/PP-06(a)** ULID n=100→25, env-gate n=100 (`SPEC_KITTY_ULID_VOLUME_FULL`) | Randy/Paula | ~36s/push + ~36s local | S | low | Keep both asserts (uniqueness + pairwise order); keep `@slow`; wire env-gated n=100 into nightly | **YES** (with env-gate shipped same change) |
 | 2 | **R5/A4/PP-02** charter `elapsed<0.1` → `@pytest.mark.timeout(2)` | Randy/Architect/Paula | precondition (unblocks #4) | S | low | Keep `isinstance`+`len==2` asserts; convert (don't delete); sweep **all ~16** wall-clock floors in `tests/charter` before flip | **YES** (the assert conversion itself) |
 | 3 | **R2/PP-07** stop double-running the migration perf `@slow` test | Randy/Paula | ~28s/push | S | low | Use `and not slow` on **specify-cli-heavy** shard ONLY (line 1305 region scoped to that step); **never** `--ignore=tests/specify_cli` on slow-tests (orphans 3 NFR guards); collection-count gate before/after | **YES** |
@@ -118,6 +118,7 @@ Always `--dist loadfile` (never bare `--dist load`) — the status/charter conft
 ## 3. "SAFE NOW" vs "FOLLOW-UP ISSUE"
 
 ### SAFE NOW (ship in the first PR wave — no parallelization dependency, coverage-neutral)
+
 - **R4/PP-06(a)** — ULID n=100→25 with `SPEC_KITTY_ULID_VOLUME_FULL` env-gate shipped in the same change. Biggest flat win (~36s push + ~36s local).
 - **R5/A4/PP-02 (assert conversion only)** — convert the 2 charter `elapsed<0.1` floors to `@pytest.mark.timeout(2)`. (The *charter flip* that this unblocks is a follow-up.)
 - **R2/PP-07** — narrow `and not slow` dedup on the specify-cli-heavy shard.
@@ -170,7 +171,7 @@ No accepted item deletes a genuine assertion path or weakens a real regression g
 ## 5. Rejected Ideas
 
 | Rejected idea | Why rejected (verifier finding) |
-|---------------|--------------------------------|
+| --------------- | -------------------------------- |
 | `--ignore=tests/specify_cli` on slow-tests job (R2 Option B) | Orphans 3 NFR/negative-path guards that run in NO other job → genuine coverage deletion |
 | Add `not slow` to the shared core-misc marker expr (R2 Option A) | Line 1305 is shared by all 6 core-misc shards; strips slow+git_repo tests from cross_cutting (which slow-tests `--ignore`s) → orphan risk |
 | Include the 2 migration counter tests in the shared fixture (R3) | Different inputs (2 features / 2 WPs); `==N` asserts would fail or be silently rewritten |

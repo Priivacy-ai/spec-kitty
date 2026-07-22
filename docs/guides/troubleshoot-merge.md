@@ -3,6 +3,7 @@ title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.'
 doc_status: active
 updated: '2026-06-14'
+type: how-to
 related:
 - docs/guides/accept-and-merge.md
 - docs/guides/handle-dependencies.md
@@ -41,7 +42,7 @@ Merging lane-b (kitty/mission-017-my-feature-lane-b)...
 ✓ lane-b merged
 ```
 
-### Understanding Merge State
+### Understanding merge state
 
 Merge progress is saved in `.kittify/merge-state.json`:
 
@@ -94,7 +95,7 @@ spec-kitty merge --abort
 Example output:
 
 ```
-✓ Merge state cleared for 017-my-feature
+✓ merge state cleared for 017-my-feature
   Progress was: 2/5 WPs complete
 ✓ Git merge aborted
 ```
@@ -107,7 +108,7 @@ spec-kitty merge --mission 017-my-feature
 
 ### What --abort Clears
 
-1. **Merge state file** (`.kittify/merge-state.json`) - Removed
+1. **merge state file** (`.kittify/merge-state.json`) - Removed
 2. **Git merge state** - If git is mid-merge, runs `git merge --abort`
 
 What it does **not** do:
@@ -242,10 +243,10 @@ Pre-flight failed. Fix these issues before merging:
 spec-kitty agent action implement WP03
 ```
 
-### Target Branch Not Synchronized With Origin
+### target branch Not Synchronized With Origin
 
 ```
-Error: Target branch is not synchronized with its tracking branch.
+Error: target branch is not synchronized with its tracking branch.
   diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
   branch_or_work_package: main
   violated_invariant: local_target_branch_must_match_tracking_branch
@@ -298,10 +299,10 @@ spec-kitty implement WP02
 | `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
 | `Uncommitted changes in <worktree-name>` | Worktree has uncommitted changes (pre-flight) | Commit or stash changes in that worktree |
 | `Error: Working directory has uncommitted changes.` | Legacy merge run from a dirty worktree | Commit or stash changes, then retry merge |
-| `Target repository at <path> has uncommitted changes.` | Repository root checkout has uncommitted work | Commit or stash in the repository root checkout |
+| `Target repository at <path> has uncommitted changes.` | repository root checkout has uncommitted work | Commit or stash in the repository root checkout |
 | `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
-| `TARGET_BRANCH_NOT_SYNCHRONIZED` | Target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
+| `TARGET_BRANCH_NOT_SYNCHRONIZED` | target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Legacy target branch staleness diagnostic | Review remote-only commits, then update the local target branch |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
 | `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred in a multi-workspace mission | Resolve conflicts, then `spec-kitty merge --resume` |
@@ -334,4 +335,4 @@ spec-kitty implement WP02
 
 ## Getting Started
 
-- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Your First Mission](your-first-mission.md) - Complete workflow walkthrough

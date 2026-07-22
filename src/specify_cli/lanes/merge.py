@@ -19,6 +19,8 @@ from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import os
 import subprocess
 import sys
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -31,8 +33,50 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
 from specify_cli.merge.config import MergeStrategy
 
-_EVENT_LOG_DRIVER_NAME = "Spec Kitty event log union merge"
-_EVENT_LOG_DRIVER_COMMAND = "spec-kitty merge-driver-event-log %O %A %B"
+
+@dataclass(frozen=True)
+class _MergeDriverSpec:
+    """One custom git merge driver: config identity + ``.gitattributes`` mapping.
+
+    ``config_key`` is the ``merge.<key>.*`` git-config namespace; ``pattern`` /
+    ``target`` compose the ``<pattern> merge=<config_key>`` attributes line that
+    routes matching paths to this driver (C-006).
+    """
+
+    config_key: str
+    name: str
+    command: str
+    pattern: str
+
+    @property
+    def attributes_line(self) -> str:
+        return f"{self.pattern} merge={self.config_key}"
+
+
+# C-006: the canonical merge-driver registry. Every both-sides-divergent
+# ``kitty-specs/**`` bookkeeping artifact that must reconcile (not clobber) under
+# ``git merge --squash -X theirs`` carries a driver here. Generalized from the
+# single event-log driver (DIRECTIVE_044 — parametrized, not cloned).
+_MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
+    _MergeDriverSpec(
+        config_key="spec-kitty-event-log",
+        name="Spec Kitty event log union merge",
+        command="spec-kitty merge-driver-event-log %O %A %B",
+        pattern="kitty-specs/**/status.events.jsonl",
+    ),
+    _MergeDriverSpec(
+        config_key="spec-kitty-meta",
+        name="Spec Kitty mission meta field merge",
+        command="spec-kitty merge-driver-meta %O %A %B",
+        pattern="kitty-specs/**/meta.json",
+    ),
+    _MergeDriverSpec(
+        config_key="spec-kitty-traces",
+        name="Spec Kitty mission traces union merge",
+        command="spec-kitty merge-driver-traces %O %A %B",
+        pattern="kitty-specs/**/traces/*.md",
+    ),
+)
 
 
 @dataclass
@@ -101,13 +145,20 @@ def _try_auto_rebase_if_stale(
     return stale
 
 
-def merge_lane_to_mission(
+def consolidate_lane_into_mission(
     repo_root: Path,
     mission_slug: str,
     lane_id: str,
     lanes_manifest: LanesManifest | None = None,
 ) -> LaneMergeResult:
-    """Merge a lane branch into the mission integration branch.
+    """Consolidate a lane branch into the mission integration branch.
+
+    This is the *lane-consolidation* merge (one of a mission's several lane
+    branches folded into the single mission branch) -- distinct from
+    :func:`integrate_mission_into_target`, which performs the later
+    *branch-integration* merge of the whole mission branch into the target
+    (Primary) branch. Naming these two merge steps apart removes the
+    overloaded bare "merge" ambiguity (FR-003/FR-008).
 
     Performs stale-lane check before merging. If the lane is stale
     (overlapping files changed in mission), the merge is blocked.
@@ -178,7 +229,7 @@ def merge_lane_to_mission(
     )
 
 
-def merge_mission_to_target(
+def integrate_mission_into_target(
     repo_root: Path,
     mission_slug: str,
     lanes_manifest: LanesManifest | None = None,
@@ -186,9 +237,17 @@ def merge_mission_to_target(
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     allow_already_applied: bool = False,
 ) -> MissionMergeResult:
-    """Merge the mission integration branch into the target branch (e.g., main).
+    """Integrate the mission branch into the target (Primary) branch.
 
-    This is the final step: only the mission branch may merge to main.
+    This is the *branch-integration* merge -- the final step of a mission,
+    folding the single mission integration branch into the repository's
+    target/Primary branch (e.g. ``main``). It is distinct from
+    :func:`consolidate_lane_into_mission`, the earlier *lane-consolidation*
+    merge that folds individual lane branches into the mission branch; keeping
+    the two named apart removes the overloaded bare "merge" ambiguity
+    (FR-003/FR-008).
+
+    Only the mission branch may integrate into the target branch.
 
     Args:
         repo_root: Repository root.
@@ -275,35 +334,170 @@ def _git_config_get(repo_root: Path, key: str) -> str | None:
     return result.stdout.strip()
 
 
-def _ensure_event_log_merge_driver_config(repo_root: Path) -> None:
-    """Ensure the local semantic merge driver is configured before git merges.
+def _git_common_dir(repo_root: Path) -> Path | None:
+    """Return the repository's shared git common dir (worktree-safe)."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        env=_make_merge_env(),
+    )
+    if result.returncode != 0:
+        return None
+    raw = Path(result.stdout.strip())
+    return raw if raw.is_absolute() else (repo_root / raw)
 
-    ``spec-kitty init`` may run before the project becomes a git repository, so
-    the upgrade migration cannot always install the local merge-driver config at
-    init time. The merge path self-heals that gap here so status.events.jsonl
-    merges stay semantic for freshly initialized repos too.
+
+def _set_local_git_config(repo_root: Path, key: str, value: str) -> None:
+    """Set a local git-config *key* to *value* when it is not already current."""
+    if _git_config_get(repo_root, key) == value:
+        return
+    subprocess.run(
+        ["git", "config", "--local", key, value],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=True,
+        env=_make_merge_env(),
+    )
+
+
+def _ensure_info_attributes(repo_root: Path) -> list[str]:
+    """Map the driver patterns in the shared ``.git/info/attributes``.
+
+    The ephemeral merge worktree (``_merge_branch_into``) checks out the target
+    branch tip, which need not carry a committed ``.gitattributes`` (fresh repos,
+    test fixtures). ``$GIT_COMMON_DIR/info/attributes`` applies to every linked
+    worktree, so seeding the driver patterns there makes the custom drivers fire
+    under ``git merge --squash -X theirs`` regardless of what a branch committed.
+    Additive and idempotent: operator lines are preserved; missing lines appended.
+
+    Returns the attribute lines it newly appended (``[]`` when everything was
+    already present), so the caller can tear down *exactly* its own seeding —
+    see :func:`_remove_info_attributes` / :func:`_ephemeral_merge_driver_activation`.
+    """
+    common_dir = _git_common_dir(repo_root)
+    if common_dir is None:
+        return []
+    info_dir = common_dir / "info"
+    attributes_path = info_dir / "attributes"
+    existing = (
+        attributes_path.read_text(encoding="utf-8").splitlines()
+        if attributes_path.exists()
+        else []
+    )
+    missing = [
+        spec.attributes_line
+        for spec in _MERGE_DRIVERS
+        if spec.attributes_line not in existing
+    ]
+    if not missing:
+        return []
+    info_dir.mkdir(parents=True, exist_ok=True)
+    attributes_path.write_text(
+        "\n".join([*existing, *missing]).rstrip("\n") + "\n", encoding="utf-8"
+    )
+    return missing
+
+
+def _remove_info_attributes(repo_root: Path, added_lines: list[str]) -> None:
+    """Tear down the driver attribute lines :func:`_ensure_info_attributes` seeded.
+
+    Removes *only* ``added_lines`` from ``$GIT_COMMON_DIR/info/attributes``,
+    leaving any pre-existing operator lines untouched. If the file is left empty
+    (we seeded it into an otherwise-absent file), it is unlinked so the repo is
+    restored to its prior state. Idempotent: an empty ``added_lines`` or a
+    missing file is a no-op.
+
+    This is the load-bearing half of the #2709/#2711 split: the git-config driver
+    *definitions* persist (intended, inert without an attribute mapping), but the
+    ``info/attributes`` *activation* is repo-global across worktrees and MUST NOT
+    outlive the ephemeral squash merge — otherwise a later ``auto_rebase`` in the
+    same repo finds the git driver pre-activated and resolves
+    ``status.events.jsonl`` via ``spec-kitty merge-driver-event-log`` on PATH
+    before its in-process ``R-STATUS-EVENTS-JSONL-UNION`` classifier can run.
+    """
+    if not added_lines:
+        return
+    common_dir = _git_common_dir(repo_root)
+    if common_dir is None:
+        return
+    attributes_path = common_dir / "info" / "attributes"
+    if not attributes_path.exists():
+        return
+    remaining = [
+        line
+        for line in attributes_path.read_text(encoding="utf-8").splitlines()
+        if line not in added_lines
+    ]
+    if remaining:
+        attributes_path.write_text(
+            "\n".join(remaining).rstrip("\n") + "\n", encoding="utf-8"
+        )
+    else:
+        attributes_path.unlink()
+
+
+def _ensure_merge_driver_git_config(repo_root: Path) -> None:
+    """Ensure every custom merge driver's git-*config* is present (no attributes).
+
+    Sets the ``merge.<key>.name`` / ``merge.<key>.driver`` git-config for the
+    whole :data:`_MERGE_DRIVERS` registry (event-log union, ``meta.json`` field
+    merge, ``traces/*.md`` union) so the drivers are *defined*. ``spec-kitty
+    init`` may run before the project becomes a git repository, so the upgrade
+    migration cannot always install the local merge-driver config at init time;
+    the merge path self-heals that gap here (C-006 / DIRECTIVE_044).
+
+    It deliberately does **not** seed ``.git/info/attributes``: defining a driver
+    is inert until an attribute maps a path to it. This is the entry point the
+    stale-lane auto-rebase pipeline uses. Auto-rebase owns its own in-process
+    event-log union classifier (``R-STATUS-EVENTS-JSONL-UNION``) as the fallback
+    for repos that have not committed a ``.gitattributes`` mapping; pre-seeding
+    ``.git/info/attributes`` here would pre-activate the git driver and silently
+    pre-empt that fallback (the #2709/#2711 regression), coupling auto-rebase to
+    the external ``spec-kitty merge-driver-*`` subcommands being on PATH.
     """
     if not (repo_root / ".git").exists():
         return
 
-    if _git_config_get(repo_root, "merge.spec-kitty-event-log.name") != _EVENT_LOG_DRIVER_NAME:
-        subprocess.run(
-            ["git", "config", "--local", "merge.spec-kitty-event-log.name", _EVENT_LOG_DRIVER_NAME],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True,
-            env=_make_merge_env(),
-        )
-    if _git_config_get(repo_root, "merge.spec-kitty-event-log.driver") != _EVENT_LOG_DRIVER_COMMAND:
-        subprocess.run(
-            ["git", "config", "--local", "merge.spec-kitty-event-log.driver", _EVENT_LOG_DRIVER_COMMAND],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True,
-            env=_make_merge_env(),
-        )
+    for spec in _MERGE_DRIVERS:
+        _set_local_git_config(repo_root, f"merge.{spec.config_key}.name", spec.name)
+        _set_local_git_config(repo_root, f"merge.{spec.config_key}.driver", spec.command)
+
+
+@contextmanager
+def _ephemeral_merge_driver_activation(repo_root: Path) -> Iterator[None]:
+    """Activate the custom drivers for ONE ephemeral merge, then tear the seeding down.
+
+    Used by the squash mission→target merge (``_merge_branch_into``): its
+    ephemeral merge worktree checks out the target-branch tip, which need not
+    carry a committed ``.gitattributes`` (fresh repos, test fixtures), so the
+    driver patterns must be seeded into ``$GIT_COMMON_DIR/info/attributes`` for
+    the custom drivers to fire under ``git merge --squash -X theirs`` (C-006 /
+    DIRECTIVE_044).
+
+    Seeding happens *before* the merge (so the drivers fire during it) and is
+    torn down *after* (so it does not persist). Only the ``info/attributes``
+    activation is ephemeral — the git-config driver *definitions*
+    (:func:`_ensure_merge_driver_git_config`) and the committed ``.gitattributes``
+    remain, since they are the intended persistent surface and are inert without
+    an active attribute mapping. Distinct from :func:`_ensure_merge_driver_git_config`,
+    which only *defines* the drivers without activating them — see that docstring
+    for why auto-rebase must not seed attributes, and :func:`_remove_info_attributes`
+    for why leaving this seeding in place re-couples auto-rebase to the external
+    ``spec-kitty merge-driver-*`` subcommands (the #2709/#2711 regression).
+    """
+    if not (repo_root / ".git").exists():
+        yield
+        return
+
+    _ensure_merge_driver_git_config(repo_root)
+    added = _ensure_info_attributes(repo_root)
+    try:
+        yield
+    finally:
+        _remove_info_attributes(repo_root, added)
 
 
 def _make_merge_env() -> dict[str, str]:
@@ -364,8 +558,19 @@ def _merge_branch_into(
     # Single environment authority for the lane-merge pipeline (AC-F1).
     _env = _make_merge_env()
 
-    try:
-        _ensure_event_log_merge_driver_config(repo_root)
+    # Seed the custom-driver ``info/attributes`` activation for the duration of
+    # this ephemeral merge only, and remove the merge worktree on exit. The
+    # activation is torn down when the ``with`` block closes (LIFO: worktree
+    # removed first, then ``info/attributes`` restored) so it never persists into
+    # a later ``auto_rebase`` (#2709/#2711 — see _ephemeral_merge_driver_activation).
+    with ExitStack() as _stack:
+        _stack.enter_context(_ephemeral_merge_driver_activation(repo_root))
+        _stack.callback(
+            lambda: subprocess.run(
+                ["git", "worktree", "remove", str(tmp_path), "--force"],
+                cwd=str(repo_root), capture_output=True, env=_env,
+            )
+        )
 
         # Create detached worktree at target branch tip.
         result = subprocess.run(
@@ -510,8 +715,3 @@ def _merge_branch_into(
             coord_owned_filenames=COORD_OWNED_STATUS_FILES,
         )
         return True
-    finally:
-        subprocess.run(
-            ["git", "worktree", "remove", str(tmp_path), "--force"],
-            cwd=str(repo_root), capture_output=True, env=_env,
-        )

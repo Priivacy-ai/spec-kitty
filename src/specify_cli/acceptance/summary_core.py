@@ -15,6 +15,7 @@ evaluation, and the final recommendation ordering to the functions below.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -48,41 +49,44 @@ class WorkPackageState:
 def build_work_package_state(
     wp: WorkPackage,
     wp_id: str,
-    canonical_lane: str | None,
+    wp_snapshot: Mapping[str, Any] | None,
     *,
     repo_root: Path,
     strict_metadata: bool,
 ) -> tuple[WorkPackageState, list[str]]:
     """Pure: build one WP's summary state + its metadata-gate issues.
 
-    ``wp`` and ``canonical_lane`` are already-resolved inputs (``canonical_lane``
-    comes from the status-event snapshot, looked up by the caller); this
-    function does no I/O of its own. Mirrors the exact bucketing/metadata-issue
-    logic ``collect_feature_summary`` used to run inline in its WP loop.
+    ``wp`` supplies authored presentation fields only; ``wp_snapshot`` supplies
+    every runtime field. Both are already-resolved inputs, so this function
+    performs no filesystem or event-log I/O of its own.
     """
     title = (wp.title or "").strip('"')
+    snapshot = wp_snapshot or {}
+    lane_value = snapshot.get("lane")
+    canonical_lane = str(lane_value) if lane_value is not None else None
     bucket_lane = canonical_lane if canonical_lane is not None else "planned"
     metadata: dict[str, str | None] = {
         "lane": canonical_lane,
-        "agent": wp.agent,
-        "assignee": wp.assignee,
-        "shell_pid": wp.shell_pid,
+        "agent": str(snapshot["agent"]) if snapshot.get("agent") is not None else None,
+        "assignee": str(snapshot["assignee"]) if snapshot.get("assignee") is not None else None,
+        "shell_pid": str(snapshot["shell_pid"]) if snapshot.get("shell_pid") is not None else None,
     }
 
     metadata_issues: list[str] = []
     if strict_metadata:
-        if not wp.agent:
-            metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
+        if not metadata["agent"]:
+            metadata_issues.append(f"{wp_id}: missing agent in canonical runtime state")
         # ``shell_pid`` identifies the live interactive shell that claimed a WP
         # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
         # the orchestrator executor never stamps. Require it (and ``assignee``)
         # only for active lanes: a terminal (done/approved) WP has no live
         # shell, so demanding it there is a false positive that blocks every
         # orchestrator-completed mission from passing accept (#2369).
-        if canonical_lane in _ACTIVE_METADATA_LANES and not wp.assignee:
-            metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
-        if canonical_lane in _ACTIVE_METADATA_LANES and not wp.shell_pid:
-            metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
+        if canonical_lane in _ACTIVE_METADATA_LANES:
+            if not metadata["assignee"]:
+                metadata_issues.append(f"{wp_id}: missing assignee in canonical runtime state")
+            if not metadata["shell_pid"]:
+                metadata_issues.append(f"{wp_id}: missing shell_pid in canonical runtime state")
 
     state = WorkPackageState(
         work_package_id=wp_id,
@@ -99,7 +103,8 @@ def build_work_package_state(
 def _path_prefix_for_mission(mission: Any, feature_dir: Path) -> str | None:
     if getattr(mission, "domain", None) != "research":
         return None
-    return get_deliverables_path(feature_dir, mission_slug=feature_dir.name)
+    path = get_deliverables_path(feature_dir, mission_slug=feature_dir.name)
+    return str(path) if path is not None else None
 
 
 def evaluate_path_conventions(

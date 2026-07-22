@@ -30,6 +30,7 @@ from specify_cli.cli.commands.charter._synthesis import (
     _materialize_fresh_doctrine,
     _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
+    _raise_if_bundle_incomplete,
 )
 
 # NOTE: ``find_repo_root`` and the patchable synthesis helpers are intentionally
@@ -152,22 +153,28 @@ def charter_synthesize(  # noqa: C901
         # has written YAMLs under .kittify/charter/generated/), the production
         # adapter has nothing to load and would raise GeneratedArtifactMissingError.
         # The intercept below takes the bounded fresh-project path: it requires
-        # charter.md to exist (the upstream chain produced it) AND no
-        # agent-authored YAMLs to be present. When both signals fire, we
-        # materialize the minimal .kittify/doctrine/ artifact set documented in
-        # T031 so the runtime can advance via the built-in doctrine fallback.
+        # the authoritative charter.yaml to exist (the upstream `charter
+        # generate` produced it) AND no agent-authored doctrine YAMLs to be
+        # present. When both signals fire, we materialize the minimal
+        # .kittify/doctrine/ artifact set documented in T031 so the runtime can
+        # advance via the built-in doctrine fallback.
         #
-        # When charter.md is absent we fall through to the existing pipeline so
-        # callers that mock charter.synthesizer.synthesize (legacy unit tests)
-        # keep their established behaviour. Real operators always reach this
-        # path AFTER `charter generate`, so charter.md is reliably present in
-        # the realistic fresh-project flow.
-        charter_md = repo_root / ".kittify" / "charter" / "charter.md"
+        # Gating signal re-pointed from charter.md to charter.yaml for the
+        # consolidate-charter-bundle inversion (#2773): post-inversion
+        # charter.yaml is the authoritative charter the compiler writes, while
+        # charter.md is a display-only companion (INV-3 — never a resolving
+        # signal). Pre-#2773 this keyed on charter.md, which never fired on a
+        # real fresh project once generate stopped emitting charter.md, so
+        # synthesize fell through to the production adapter and crashed.
+        # charter.yaml is the canonical fresh-project signal; when it is absent
+        # we fall through to the existing pipeline so callers that mock
+        # charter.synthesizer.synthesize keep their established behaviour.
+        charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
         is_fresh_project_synthesize = (
             adapter == "generated"
             and not _has_generated_artifacts(repo_root)
             and not dry_run_evidence
-            and charter_md.is_file()
+            and charter_yaml.is_file()
         )
 
         if is_fresh_project_synthesize:
@@ -377,6 +384,12 @@ def charter_synthesize(  # noqa: C901
             for f in staged_files:
                 console.print(f"  [dim]staged:[/dim] {f}")
             return
+
+        # #2758: fail closed BEFORE the real-run write path can persist an
+        # un-healable None bundle-content hash into the synthesis manifest
+        # (see _raise_if_bundle_incomplete docstring). Dry-run never reaches
+        # write_pipeline.promote(), so it is intentionally not gated here.
+        _raise_if_bundle_incomplete(repo_root)
 
         from charter.synthesizer import synthesize
 

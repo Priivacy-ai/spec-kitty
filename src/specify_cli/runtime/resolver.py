@@ -19,7 +19,7 @@ import sys
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -32,19 +32,75 @@ from typing import Protocol
 # runtime.test_resolver_unit ran in the same session. The charter facade
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
+from charter.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
+from specify_cli.core.paths import assert_safe_path_segment
 
 __all__ = [
     "ResolutionResult",
     "ResolutionTier",
+    "TemplateConfigurationError",
+    "TemplateURNError",
     "resolve_command",
+    "resolve_configured_template",
     "resolve_mission",
     "resolve_template",
+    "resolve_template_by_urn",
 ]
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
 logger = logging.getLogger(__name__)
+
+_WINDOWS_RESERVED_TEMPLATE_BASENAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CLOCK$"}
+    | {f"COM{index}" for index in range(1, 10)}
+    | {f"LPT{index}" for index in range(1, 10)}
+)
+
+
+class TemplateConfigurationError(ValueError):
+    """Raised when activated mission configuration cannot select a template.
+
+    Attributes:
+        mission_type: Activated mission-type ID, exact invalid candidate, or
+            ``"<typeless>"`` for a neutral context.
+        artifact_kind: Semantic template key requested by the caller.
+        mapped_filename: Configured filename, when selection reached that far.
+    """
+
+    def __init__(
+        self,
+        *,
+        mission_type: str | None,
+        artifact_kind: str,
+        reason: str,
+        mapped_filename: str | None = None,
+    ) -> None:
+        self.mission_type = "<typeless>" if mission_type is None else mission_type
+        self.artifact_kind = artifact_kind
+        self.mapped_filename = mapped_filename
+        super().__init__(
+            f"Template configuration for mission type {self.mission_type!r} "
+            f"and artifact kind {artifact_kind!r} {reason}."
+        )
+
+
+class TemplateURNError(ValueError):
+    """Raised when a mission-qualified template URN cannot be resolved.
+
+    Covers both malformed URNs (absent, blank, missing the ``template:``
+    prefix, or not of the ``<mission>/<name>`` shape after the prefix) and
+    well-formed URNs that no tier resolves. Fail-closed per C-001: the
+    mission segment is never inferred or defaulted when absent.
+
+    Attributes:
+        urn: The exact URN string that failed to resolve.
+    """
+
+    def __init__(self, *, urn: str, reason: str) -> None:
+        self.urn = urn
+        super().__init__(f"Template URN {urn!r} {reason}.")
 
 
 class _CharterTemplateResolver(Protocol):
@@ -61,6 +117,22 @@ class _CharterTemplateResolver(Protocol):
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _assert_portable_template_filename(filename: str) -> None:
+    """Reject single-segment filenames that alias Windows device paths."""
+    if filename.endswith((".", " ")):
+        raise ValueError(
+            f"Template filename {filename!r} is not portable to Windows: "
+            "filenames must not end with a dot or space"
+        )
+
+    basename = filename.split(".", maxsplit=1)[0].upper()
+    if basename in _WINDOWS_RESERVED_TEMPLATE_BASENAMES:
+        raise ValueError(
+            f"Template filename {filename!r} is not portable to Windows: "
+            f"{basename!r} is a reserved device basename"
+        )
 
 
 def _is_global_runtime_configured() -> bool:
@@ -152,7 +224,10 @@ def _charter_template_resolver_for(missions_root: str) -> _CharterTemplateResolv
     """
     from charter.template_resolver import CharterTemplateResolver  # noqa: PLC0415
 
-    return CharterTemplateResolver.from_missions_root(Path(missions_root))
+    return cast(
+        _CharterTemplateResolver,
+        CharterTemplateResolver.from_missions_root(Path(missions_root)),
+    )
 
 
 def _package_default_path(
@@ -285,6 +360,183 @@ def resolve_template(
         FileNotFoundError: If the template is not found at any tier.
     """
     return _resolve_asset(name, "templates", project_dir, mission)
+
+
+def resolve_configured_template(
+    artifact_kind: str,
+    project_dir: Path,
+    resolved_mission_type: ResolvedMissionType,
+) -> ResolutionResult:
+    """Resolve a content template selected by activated mission configuration.
+
+    This first-stage mapping seam reads ``artifact_kind`` from an explicit
+    activated mission context, then delegates the configured filename to
+    :func:`resolve_template`. The existing five-tier filesystem precedence
+    remains wholly owned by that second-stage resolver.
+
+    This seam has no repository or activation-registry input, so it cannot
+    revalidate whether a syntactically safe mission type was activated. That
+    authenticity remains the producing charter resolver's responsibility. It
+    does validate the ID as a safe path segment before reading the lazy mapping,
+    preventing a forged context from escaping mission-scoped resolution roots.
+
+    Args:
+        artifact_kind: Semantic mapping key, such as ``"spec"`` or ``"plan"``.
+        project_dir: Project root containing ``.kittify/``.
+        resolved_mission_type: Explicit activated mission context. A neutral
+            context is rejected rather than inferred as software development.
+
+    Returns:
+        ResolutionResult from the unchanged five-tier resolver.
+
+    Raises:
+        TemplateConfigurationError: If the context is typeless, its mapping is
+            null, the key is absent or blank, or the configured file cannot be
+            resolved at any permitted tier.
+    """
+    mission_type = resolved_mission_type.mission_type
+    if mission_type is None:
+        raise TemplateConfigurationError(
+            mission_type=None,
+            artifact_kind=artifact_kind,
+            reason="requires an activated, non-typeless mission context",
+        )
+
+    try:
+        assert_safe_path_segment(mission_type)
+    except ValueError as exc:
+        raise TemplateConfigurationError(
+            mission_type=mission_type,
+            artifact_kind=artifact_kind,
+            reason=f"has unsafe mission type {mission_type!r} ({exc})",
+        ) from exc
+
+    template_set = resolved_mission_type.template_set
+    if template_set is None:
+        raise TemplateConfigurationError(
+            mission_type=mission_type,
+            artifact_kind=artifact_kind,
+            reason="has no configured template mapping",
+        )
+
+    mapped_filename = template_set.get(artifact_kind)
+    if mapped_filename is None:
+        raise TemplateConfigurationError(
+            mission_type=mission_type,
+            artifact_kind=artifact_kind,
+            reason="is missing the requested mapping key",
+        )
+    if not mapped_filename.strip():
+        raise TemplateConfigurationError(
+            mission_type=mission_type,
+            artifact_kind=artifact_kind,
+            mapped_filename=mapped_filename,
+            reason="maps to a blank filename",
+        )
+
+    try:
+        assert_safe_path_segment(mapped_filename)
+        _assert_portable_template_filename(mapped_filename)
+    except ValueError as exc:
+        raise TemplateConfigurationError(
+            mission_type=mission_type,
+            artifact_kind=artifact_kind,
+            mapped_filename=mapped_filename,
+            reason=f"maps to unsafe filename {mapped_filename!r} ({exc})",
+        ) from exc
+
+    try:
+        return resolve_template(mapped_filename, project_dir, mission=mission_type)
+    except FileNotFoundError as exc:
+        raise TemplateConfigurationError(
+            mission_type=mission_type,
+            artifact_kind=artifact_kind,
+            mapped_filename=mapped_filename,
+            reason=f"maps to unresolved filename {mapped_filename!r}",
+        ) from exc
+
+
+#: URN prefix identifying a template node's DRG identity, mirroring
+#: ``doctrine.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
+_TEMPLATE_URN_PREFIX = "template:"
+
+#: ``resolve_template_by_id`` only consults ``TierRoot.project_dir`` for the
+#: override/legacy tiers (verified against ``doctrine.template_catalog``);
+#: ``missions_root`` matters solely to the discovery surface
+#: (``discover_templates``), which this URN lane never calls. A fixed,
+#: non-existent sentinel keeps that fact explicit instead of silently
+#: reusing an unrelated path.
+_URN_LANE_MISSIONS_ROOT_SENTINEL = Path("/nonexistent-template-urn-missions-root")
+
+
+def resolve_template_by_urn(
+    urn: str,
+    project_dir: Path,
+) -> ResolutionResult:
+    """Resolve a mission-qualified ``template:<mission>/<name>`` URN.
+
+    This is Lane 2 of the name↔URN resolution contract (C-004,
+    ``contracts/name-urn-resolution.md``): a graph-addressed resolution path
+    added *alongside* :func:`resolve_configured_template` (Lane 1, the
+    name-based creation path). Neither lane re-wires the other --
+    :func:`resolve_configured_template`'s signature is unchanged.
+
+    The URN is split into its mission-qualified ``<mission>/<name>`` template
+    ID and handed to
+    :func:`doctrine.template_catalog.resolve_template_by_id`, which performs
+    that split itself and delegates to the same Stage-2 five-tier precedence
+    (override > legacy > global-mission > global > package) that
+    :func:`resolve_template` implements -- so an override at
+    ``.kittify/overrides/templates/<file>`` wins on this lane exactly as it
+    does on the name-based lane (US3.3).
+
+    Args:
+        urn: Mission-qualified template URN, e.g.
+            ``"template:software-dev/spec-template.md"``.
+        project_dir: Project root containing ``.kittify/`` (participates in
+            the override/legacy tiers).
+
+    Returns:
+        ResolutionResult from the unchanged five-tier resolver.
+
+    Raises:
+        TemplateURNError: If the URN is absent/blank, missing the
+            ``"template:"`` prefix, malformed (not ``"<mission>/<name>"``
+            after the prefix), or unresolvable at any tier. The mission
+            segment is never inferred or defaulted (C-001, no #2660
+            inference reintroduction) -- an unqualified URN fails closed
+            rather than defaulting to ``"software-dev"``.
+    """
+    if not urn or not urn.strip():
+        raise TemplateURNError(urn=urn, reason="is absent or blank")
+
+    if not urn.startswith(_TEMPLATE_URN_PREFIX):
+        raise TemplateURNError(
+            urn=urn,
+            reason=f"does not start with the required {_TEMPLATE_URN_PREFIX!r} prefix",
+        )
+
+    template_id = urn[len(_TEMPLATE_URN_PREFIX) :]
+
+    from doctrine.template_catalog import TierRoot, resolve_template_by_id  # noqa: PLC0415
+
+    tier_roots = [
+        TierRoot(
+            tier=ResolutionTier.PACKAGE_DEFAULT,
+            missions_root=_URN_LANE_MISSIONS_ROOT_SENTINEL,
+            project_dir=project_dir,
+        )
+    ]
+
+    try:
+        return resolve_template_by_id(template_id, tier_roots=tier_roots)
+    except ValueError as exc:
+        raise TemplateURNError(urn=urn, reason=f"is malformed ({exc})") from exc
+    except FileNotFoundError as exc:
+        raise TemplateURNError(
+            urn=urn,
+            reason=f"could not be resolved at any tier ({exc})",
+        ) from exc
 
 
 def resolve_command(

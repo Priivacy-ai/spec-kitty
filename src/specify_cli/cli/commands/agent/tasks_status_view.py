@@ -59,6 +59,7 @@ from specify_cli.core.dependency_graph import (
     dependency_readiness_for_wp,
 )
 from specify_cli.status import (
+    NON_DISPLAY_LANES,
     Lane,
     StatusSnapshot,
     compute_done_percentage,
@@ -154,13 +155,14 @@ def _kanban_rollup(
 ) -> dict[Lane | str, list[StatusRow]]:
     """Group rows into the display board (verbatim parity with the live loop).
 
-    Seeds every non-``GENESIS`` :class:`Lane` with an empty bucket, appends each
+    Seeds every display :class:`Lane` (excludes ``NON_DISPLAY_LANES`` —
+    ``GENESIS`` and ``UNINITIALIZED``) with an empty bucket, appends each
     row to its lane bucket, and routes any row whose lane is off the board to the
     ``"other"`` overflow bucket — preserving the same key set, insertion order,
     and row-object identity the inline ``by_lane`` grouping produced.
     """
     lanes: dict[Lane | str, list[StatusRow]] = {
-        lane: [] for lane in Lane if lane is not Lane.GENESIS
+        lane: [] for lane in Lane if lane not in NON_DISPLAY_LANES
     }
     for row in work_packages:
         lane = row["lane"]

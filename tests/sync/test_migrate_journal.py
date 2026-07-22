@@ -29,9 +29,12 @@ from specify_cli.sync.migrate_journal import (
     MigrationAudit,
     MigrationResult,
     SourceDb,
+    cleanup_migrated_sources,
+    converge_legacy_runtime,
     discover_source_dbs,
     migrate_queues_to_journal,
     migration_target_token,
+    resolve_conflicts_keep_journal,
 )
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.target_authority import (
@@ -476,3 +479,265 @@ def test_non_json_payload_migrates_as_raw_bytes(tmp_path: Path) -> None:
     raw = journal.read_by_id("e_raw")
     assert raw is not None
     assert raw.payload == b"not-json{"
+
+
+# ----------------------------------------------------------------------
+# #2665 — post-migration source cleanup converges the legacy-row boundary
+# ----------------------------------------------------------------------
+
+
+def test_cleanup_deletes_migrated_rows_and_leaves_journal_intact(tmp_path: Path) -> None:
+    """A clean migration + cleanup drains every source but keeps the journal."""
+    home = tmp_path / "home"
+    legacy = _seed_queue(home / "queue.db", [_event("e1"), _event("e2")])
+    scoped = _seed_queue(_scoped_path(home, _digest("s")), [_event("e3")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert result.cleanup_blocked is False
+    # import is read-only: sources are still full after the migration proper
+    assert legacy.size() == 2
+    assert scoped.size() == 1
+
+    cleanup = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+
+    assert cleanup.ran is True
+    assert cleanup.total_deleted == 3
+    assert cleanup.had_errors is False
+    # sources drained (boundary converges)
+    assert OfflineQueue(db_path=home / "queue.db").size() == 0
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("s"))).size() == 0
+    # journal keeps every migrated payload
+    stored = {event.event_id for event in journal.read_all()}
+    assert {"e1", "e2", "e3"} <= stored
+
+
+def test_cleanup_is_noop_when_blocked_by_conflict(tmp_path: Path) -> None:
+    """A divergent-duplicate conflict blocks cleanup entirely — nothing is dropped."""
+    home = tmp_path / "home"
+    a = _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    b = _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert result.cleanup_blocked is True
+
+    cleanup = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+
+    assert cleanup.ran is False
+    assert cleanup.total_deleted == 0
+    # both sources left fully intact while the conflict is unresolved
+    assert a.size() == 1
+    assert b.size() == 1
+
+
+def test_cleanup_is_idempotent(tmp_path: Path) -> None:
+    """Re-running cleanup after the sources are drained deletes nothing more."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("s")), [_event("e1")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+
+    first = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+    assert first.total_deleted == 1
+
+    second = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+    assert second.ran is True
+    assert second.total_deleted == 0
+
+
+def test_cleanup_reports_error_without_crashing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A locked/corrupt source at cleanup time is reported, not fatal."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("s")), [_event("e1")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+
+    import specify_cli.sync.migrate_journal as mj
+
+    def _boom(*_args: Any, **_kwargs: Any) -> int:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(mj, "_delete_migrated_rows", _boom)
+
+    cleanup = mj.cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+
+    assert cleanup.ran is True
+    assert cleanup.total_deleted == 0
+    assert cleanup.had_errors is True
+
+
+def test_remove_events_deletes_only_named_ids(tmp_path: Path) -> None:
+    """OfflineQueue.remove_events deletes exactly the named ids, by id."""
+    queue = _seed_queue(tmp_path / "queue.db", [_event("e1"), _event("e2"), _event("e3")])
+    removed = queue.remove_events(["e1", "e3", "absent"])
+    assert removed == 2
+    assert queue.size() == 1
+
+
+# ----------------------------------------------------------------------
+# #2665 — keep-journal conflict resolution (explicit operator recovery)
+# ----------------------------------------------------------------------
+
+
+def test_resolve_conflicts_keep_journal_archives_and_removes_source(tmp_path: Path) -> None:
+    """A divergent duplicate is archived, its source row removed, conflict cleared."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert result.cleanup_blocked is True
+    assert len(result.conflicts) == 1
+
+    resolution = resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    assert resolution.resolved_count == 1
+    assert audit.quarantined_count() == 1  # divergent payload preserved, not lost
+    assert audit.has_conflicts() is False  # boundary can converge now
+    # the conflicting source is drained; the canonical source keeps its row
+    sizes = sorted(
+        [
+            OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size(),
+            OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size(),
+        ]
+    )
+    assert sizes == [0, 1]
+    # journal payload is untouched — the event is still present
+    assert journal.read_by_id("dup") is not None
+
+
+def test_resolve_quarantine_is_durable_before_source_delete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The divergent payload is committed to the audit store BEFORE the source
+    row is destroyed — a crash at the delete boundary must never lose it.
+
+    Regression for the write-ahead ordering: the source delete commits queue.db
+    immediately, so the quarantine archive has to be durable first. We inject a
+    failure at the delete boundary and assert the archive is already on disk
+    (visible to a fresh audit connection), i.e. the superseded copy is
+    recoverable exactly as the contract promises.
+    """
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit_path = home / "migration_audit.db"
+    audit = MigrationAudit(audit_path)
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert len(result.conflicts) == 1
+
+    import specify_cli.sync.migrate_journal as mj
+
+    def _boom(*_args: Any, **_kwargs: Any) -> int:
+        raise sqlite3.OperationalError("crash at the delete boundary")
+
+    monkeypatch.setattr(mj, "_delete_migrated_rows", _boom)
+    with pytest.raises(sqlite3.OperationalError):
+        resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    # A FRESH audit connection sees the archive → it was committed before the
+    # (failed) delete, so the divergent payload survives the crash window.
+    assert MigrationAudit(audit_path).quarantined_count() == 1
+
+
+def test_resolve_conflicts_skips_when_source_gone(tmp_path: Path) -> None:
+    """A conflict whose source DB has vanished is left intact (never fabricated away)."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert len(result.conflicts) == 1
+    # delete the conflicting source DB so resolution can't find it
+    _scoped_path(home, result.conflicts[0].source_digest).unlink()
+
+    resolution = resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    assert resolution.resolved_count == 0
+    assert resolution.skipped == ["dup"]  # the vanished-source conflict, left intact
+    assert audit.quarantined_count() == 0
+
+
+def test_resolve_then_remigrate_and_cleanup_converges(tmp_path: Path) -> None:
+    """End-to-end: resolve conflicts, re-migrate clean, cleanup drains every source."""
+    home = tmp_path / "home"
+    _seed_queue(
+        _scoped_path(home, _digest("a")),
+        [_event("dup", payload={"v": 1}), _event("clean1")],
+    )
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    first = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert first.cleanup_blocked is True  # conflict blocks
+
+    resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    second = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert second.cleanup_blocked is False  # conflicts resolved → clean
+
+    cleanup = cleanup_migrated_sources(home, journal=journal, audit=audit, result=second)
+    assert cleanup.ran is True
+    # every source drained → boundary converges
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size() == 0
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size() == 0
+
+
+# ----------------------------------------------------------------------
+# #2665 — converge_legacy_runtime (the one-shot migration engine)
+# ----------------------------------------------------------------------
+
+
+def test_converge_legacy_runtime_converges_and_is_idempotent(tmp_path: Path) -> None:
+    """One converge pass drains a conflicted runtime; a second pass is a no-op."""
+    home = tmp_path / "home"
+    _seed_queue(
+        _scoped_path(home, _digest("a")),
+        [_event("dup", payload={"v": 1}), _event("clean1")],
+    )
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    converge = converge_legacy_runtime(
+        home, journal=journal, audit=audit, resolve_conflicts=True, cleanup=True
+    )
+
+    assert converge.converged is True
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size() == 0
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size() == 0
+
+    again = converge_legacy_runtime(
+        home, journal=journal, audit=audit, resolve_conflicts=True, cleanup=True
+    )
+    assert again.converged is True
+    assert again.migration.imported_event_ids == []  # nothing new — idempotent no-op
+
+
+def test_converge_without_resolve_leaves_conflicts_blocked(tmp_path: Path) -> None:
+    """Without resolve_conflicts a divergent duplicate blocks convergence."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    converge = converge_legacy_runtime(
+        home, journal=journal, audit=audit, resolve_conflicts=False, cleanup=True
+    )
+
+    assert converge.converged is False
+    assert converge.blocked_conflicts == 1
+    assert converge.cleanup is None  # cleanup gated off while the conflict blocks

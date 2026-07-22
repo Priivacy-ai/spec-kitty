@@ -84,9 +84,11 @@ def _configure_common_patches(monkeypatch, worktree_path: Path) -> None:
     """Set up shared dependency stubs."""
     _install_manifest_stubs(monkeypatch, worktree_path)
 
-    # Create fake acceptance module for the corrected import path
+    # Create fake acceptance module for the corrected import path. Only
+    # AcceptanceError is imported by diagnostics.py -- the retired
+    # detect_mission_slug shim (deleted as dead code, #2816 landing fix) is
+    # deliberately NOT stubbed here anymore.
     fake_acceptance = types.ModuleType("specify_cli.acceptance")
-    fake_acceptance.detect_mission_slug = lambda repo_root, cwd: "004-modular-code-refactoring"  # type: ignore[attr-defined]
     fake_acceptance.AcceptanceError = _DummyAcceptanceError  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "specify_cli.acceptance", fake_acceptance)
 

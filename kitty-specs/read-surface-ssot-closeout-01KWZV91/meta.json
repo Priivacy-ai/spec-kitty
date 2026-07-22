@@ -12,6 +12,7 @@
   "purpose_context": "The write-side placement strangle (PR #2462) locked WHERE artifacts are written; this mission does the READ counterpart. Route the remaining kind-blind resolve_feature_dir_for_mission reads onto the placement seam and the remaining inline meta.json reads onto the canonical load_meta authority; flip ACCEPTANCE_MATRIX/ANALYSIS_REPORT to the primary surface (fixing the stale-coord accept read, #2404); and make the ownership-overlap validator dependency/lane-aware so it stops rejecting legitimate same-lane sequential WPs. Together these close the last two open children of epic #1716 (#2088, #2100).",
   "purpose_tldr": "Finish the read side: route remaining feature_dir + meta.json reads onto their canonical authorities, flip the accept-matrix to its correct surface, and make the ownership validator lane-aware — closing epic #1716.",
   "slug": "read-surface-ssot-closeout-01KWZV91",
+  "status_phase": "1",
   "target_branch": "design/read-surface-ssot-closeout",
   "topology": "coord",
   "vcs": "git",

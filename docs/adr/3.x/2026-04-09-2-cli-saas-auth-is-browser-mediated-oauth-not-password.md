@@ -25,7 +25,7 @@ This is the wrong architectural seam for human users.
 
 Spec Kitty already has browser-based authentication on `spec-kitty-saas`. Human
 CLI authentication should reuse that existing SaaS identity surface, not bypass
-it with a second password ceremony. The CLI should open the browser onto the
+it with a second password step. The CLI should open the browser onto the
 SaaS, let the user authenticate using normal SaaS login methods, and then store
 renewable session credentials locally in a host-owned store.
 

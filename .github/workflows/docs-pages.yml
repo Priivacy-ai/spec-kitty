@@ -9,6 +9,7 @@ on:
       - '.kittify/glossaries/**'
       - 'scripts/docs/generate_kitty_specs_docs.py'
       - 'scripts/docs/seo_postprocess.py'
+      - 'scripts/docs/glossary_linker.py'
       - 'scripts/docs/redirect_stub_generator.py'
       - 'scripts/docs/redirect_map.yaml'
       - 'scripts/docs/redirect_baseline_urls.json'
@@ -55,6 +56,15 @@ jobs:
           docfx docfx.json
           cd ..
           python3 scripts/docs/seo_postprocess.py
+
+      # Auto-link the first mention of every glossary term on each rendered
+      # page to its anchor on the glossary page (FR-011, NFR-004). Pure HTML
+      # post-processing on the DocFX render output, so it must run after
+      # `docfx docfx.json` — placed alongside seo_postprocess.py and before
+      # redirect-stub generation so stub pages never get glossary links
+      # injected. See scripts/docs/glossary_linker.py's module docstring.
+      - name: Auto-link glossary terms (FR-011)
+        run: python3 scripts/docs/glossary_linker.py --site-dir docs/_site
 
       # DocFX/GitHub Pages has no native redirect (FR-006). Inject a
       # <meta http-equiv="refresh"> stub at every moved old URL into the built

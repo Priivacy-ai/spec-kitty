@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.git_repo]
 
 runner = CliRunner()
 
@@ -122,7 +122,7 @@ def test_move_task_refuses_protected_branch_before_mutation(
     assert _status(repo) == ""
 
 
-def test_mark_status_refuses_protected_branch_before_mutation(
+def test_mark_status_on_protected_branch_is_event_only_and_commit_free(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -133,6 +133,8 @@ def test_mark_status_refuses_protected_branch_before_mutation(
     _seed_mission(repo)
     _commit_seed(repo)
     monkeypatch.chdir(repo)
+    head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    tasks_before = (repo / "kitty-specs" / "issue1386-protected" / "tasks.md").read_bytes()
 
     result = runner.invoke(
         tasks_app,
@@ -147,10 +149,9 @@ def test_mark_status_refuses_protected_branch_before_mutation(
         ],
     )
 
-    assert result.exit_code == 1
-    assert "Refusing to run `spec-kitty agent tasks mark-status`" in result.output
-    assert "protected branch 'main'" in result.output
-    assert _status(repo) == ""
+    assert result.exit_code == 0, result.output
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == head_before
+    assert (repo / "kitty-specs" / "issue1386-protected" / "tasks.md").read_bytes() == tasks_before
 
 
 def test_map_requirements_refuses_protected_branch_before_mutation(

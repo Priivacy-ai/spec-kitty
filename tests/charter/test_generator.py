@@ -5,92 +5,22 @@ from pathlib import Path
 
 import pytest
 
-from charter.catalog import load_doctrine_catalog
 from charter.compiler import CompiledCharter, write_compiled_charter
-from charter.generator import build_charter_draft, write_charter
 
 pytestmark = pytest.mark.fast
 
 
-def test_build_charter_draft_defaults() -> None:
-    """WP03 re-pin (T028): draft built with NO project config (no
-    ``repo_root``/``pack_context`` passed to ``build_charter_draft``) uses
-    the documented absent-config default -- every built-in directive/
-    paradigm active, not an empty "neutral" selection.
-
-    Before WP02 (FR-001/FR-002), "no config" meant "no interview
-    selections", which defaulted to empty lists, so this test's original
-    assertion (``selected_directives == []``) pinned that answers-sourced
-    default. Activation is now config-sourced; ``PackContext``'s documented
-    three-state absent-key default is "every built-in kind active" (see
-    ``charter.pack_context.PackContext`` field docstrings and
-    ``tests/charter/test_config_sourced_derivation.py::test_no_pack_context_and_no_repo_root_defaults_to_all_builtins_active``),
-    so the "neutral" default flips from empty to all-active. This still
-    exercises a genuine, distinct invariant -- that the ``build_charter_draft``
-    thin wrapper forwards ``compile_charter``'s selections/markdown
-    correctly -- so it is re-pinned, not deleted.
+@pytest.mark.requires_symlinks
+def test_write_compiled_charter_ignores_stale_symlinked_charter_md(tmp_path: Path) -> None:
+    """WP03 (T014b) re-pin: the retired force-clobber-rejects-symlink
+    contract guarded ``charter.md`` specifically, which ``write_compiled_charter``
+    no longer writes at all (data-model.md Landmine 3 -- the clobber is
+    removed, not merely force-gated). A symlinked ``charter.md`` left over
+    in the output dir is therefore inert to this call: the write only ever
+    touches ``charter.yaml``, so the stale symlink is neither followed nor
+    disturbed. (The output-*directory*-level symlink guard is still
+    enforced -- see ``test_write_compiled_charter_rejects_symlinked_output_dir``.)
     """
-    # Act
-    draft = build_charter_draft(mission="software-dev")
-
-    # Assert
-    catalog = load_doctrine_catalog()
-    assert draft.template_set == "software-dev-default"
-    assert sorted(draft.selected_directives) == sorted(catalog.directives)
-    assert sorted(draft.selected_paradigms) == sorted(catalog.paradigms)
-    assert "selected_directives" in draft.markdown
-
-
-def test_build_charter_draft_invalid_template_set_raises() -> None:
-    """Requesting an unknown template set raises ValueError."""
-    # Arrange
-    # (no precondition)
-
-    # Assumption check
-    # (no precondition)
-
-    # Act / Assert
-    with pytest.raises(ValueError):
-        build_charter_draft(mission="software-dev", template_set="not-real")
-
-
-def test_write_charter_respects_force(tmp_path: Path) -> None:
-    """write_charter raises FileExistsError when force=False and file exists."""
-    # Arrange
-    path = tmp_path / "charter.md"
-    write_charter(path, "# One", force=False)
-
-    # Assumption check
-    assert path.exists(), "first write must have created the file"
-
-    # Act / Assert
-    with pytest.raises(FileExistsError):
-        write_charter(path, "# Two", force=False)
-
-    write_charter(path, "# Two", force=True)
-
-    # Assert
-    assert path.read_text(encoding="utf-8") == "# Two"
-
-
-@pytest.mark.requires_symlinks
-def test_write_charter_rejects_symlink_even_with_force(tmp_path: Path) -> None:
-    target = tmp_path / "outside.md"
-    target.write_text("# Outside\n", encoding="utf-8")
-    path = tmp_path / "charter.md"
-    try:
-        os.symlink(target, path)
-    except (OSError, NotImplementedError):
-        pytest.skip("symlinks not supported on this platform")
-
-    with pytest.raises(FileExistsError, match="is a symlink"):
-        write_charter(path, "# Two", force=True)
-
-    assert target.read_text(encoding="utf-8") == "# Outside\n"
-
-
-@pytest.mark.requires_symlinks
-def test_write_compiled_charter_rejects_symlink_even_with_force(tmp_path: Path) -> None:
     target = tmp_path / "outside.md"
     target.write_text("# Outside\n", encoding="utf-8")
     output_dir = tmp_path / ".kittify" / "charter"
@@ -109,10 +39,11 @@ def test_write_compiled_charter_rejects_symlink_even_with_force(tmp_path: Path) 
         references=[],
     )
 
-    with pytest.raises(FileExistsError, match="is a symlink"):
-        write_compiled_charter(output_dir, compiled, force=True)
+    result = write_compiled_charter(output_dir, compiled, force=True)
 
+    assert result.files_written == ["charter.yaml"]
     assert target.read_text(encoding="utf-8") == "# Outside\n"
+    assert (output_dir / "charter.md").is_symlink(), "the stale symlink itself is left untouched"
 
 
 @pytest.mark.requires_symlinks

@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -70,12 +70,7 @@ def _get_cli_version(cli_status: _CliStatusLike | None = None) -> str:
     ``specify_cli.__version__``.
     """
     if cli_status is not None:
-        # ``specify_cli.*`` cross-module imports resolve as ``Any`` under this
-        # project's ``follow_imports = "skip"`` mypy override (pyproject.toml),
-        # so the Protocol's own ``-> str`` annotation is lost at the call site
-        # even though it is genuinely ``str`` by contract. ``cast`` documents
-        # that, matching the established idiom (e.g. ``status/emit.py``).
-        return cast(str, cli_status.installed_version)
+        return cli_status.installed_version
     try:
         from importlib.metadata import version
 

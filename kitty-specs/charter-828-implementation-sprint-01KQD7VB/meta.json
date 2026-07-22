@@ -22,5 +22,6 @@
   "purpose_context": "Mission charter-end-user-docs-828-01KQCSYD has 10 fully-planned work packages covering gap analysis, navigation architecture, 14 new documentation pages, 5 updated pages, a validation pass, and a release handoff. This sprint mission runs those WPs in order via spec-kitty next, enforces pre-flight checks, and produces a single verified docs PR to Priivacy-ai/spec-kitty:main.",
   "purpose_tldr": "Execute the planned WP01–WP10 implementation sprint for Charter end-user docs parity and ship a merged docs PR to main.",
   "slug": "charter-828-implementation-sprint-01KQD7VB",
+  "status_phase": "1",
   "target_branch": "docs/charter-end-user-docs-828"
 }

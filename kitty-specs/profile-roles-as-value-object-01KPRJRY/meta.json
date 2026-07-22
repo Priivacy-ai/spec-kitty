@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "profile-roles-as-value-object-01KPRJRY",
   "source_description": "Replace AgentProfile.role (scalar StrEnum) with roles: list[Role] where Role is a half-open value object. Backward-compatible scalar coercion with DeprecationWarning. Full migration of shipped profiles.",
+  "status_phase": "1",
   "target_branch": "doctrine/profile_reinforcement",
   "vcs": "git"
 }

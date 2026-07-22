@@ -2,10 +2,11 @@
 title: 'Context: Identity'
 description: 'Glossary context for identity: who performs work and who owns semantic decisions, defining the agent and related workflow-coordination roles.'
 doc_status: active
-updated: '2026-06-14'
+updated: '2026-07-20'
 related:
 - docs/context/execution.md
 - docs/context/practices-principles.md
+- docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
 ---
 ## Context: Identity
 
@@ -31,6 +32,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
+| **Related terms** | [Agent](#agent), [Agent Profile](#agent-profile), [Authored Intent](#authored-intent), [Resolved Binding](#resolved-binding) |
 
 ---
 
@@ -45,7 +47,39 @@ Terms describing who performs work and who owns semantic decisions.
 | **Examples** | `architect-alphonso`, `researcher-robbie`, `implementer-ivan`, `reviewer-renata` |
 | **Use when** | Describing who the collaborator is, what role boundaries it follows, and how it should be selected or handed off to. |
 | **Do NOT use when** | Describing the generated file or host configuration that exposes the profile to Claude Code, Codex, Copilot, Cursor, Windsurf, or another tool; use [Tool Surface](./execution.md#tool-surface) instead. |
-| **Related terms** | [Agent](#agent), [Role](#role), [Tool](./execution.md#tool) |
+| **Related terms** | [Agent](#agent), [Role](#role), [Tool](./execution.md#tool), [Authored Intent](#authored-intent), [Resolved Binding](#resolved-binding) |
+
+---
+
+### Authored Intent
+
+| | |
+|---|---|
+| **Definition** | Who or what a work package was *designed* to be run by — the authored/recommended `role`, `agent_profile`, and `model`. Authored once at tasks-finalize; **frontmatter-canonical** and static for the life of the WP; never mirrored into events. |
+| **Context** | Identity |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Use when** | Describing the *recommended* assignment a WP was planned with — the design-intent for who should run it. |
+| **Do NOT use when** | Describing who or what *actually* resolved and ran the WP; that is the [Resolved Binding](#resolved-binding), which is event-sourced. Never treat authored intent as "what ran". |
+| **Canonical authority** | Exactly one source per datum — **static → frontmatter**. (Umbrella rule shared with [Resolved Binding](#resolved-binding).) |
+| **Related terms** | [Resolved Binding](#resolved-binding), [Agent Profile](#agent-profile), [Role](#role), [Field-authority ADR](../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
+
+---
+
+### Resolved Binding
+
+| | |
+|---|---|
+| **Definition** | Who or what **actually** resolved and ran a work package at a given lifecycle transition — the resolved `role`, `agent_profile` (+`agent_profile_version`), `model`, and `provider`. **Event-log / snapshot-authoritative**, folded latest-wins; it **shifts** across the lifecycle (implementer→reviewer, model swap). Produced by `resolve_profile` / `resolved_agent()` / the dispatch resolution — **never** a re-read of the frontmatter string. |
+| **Context** | Identity |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Use when** | Describing who or what is *actually* running a WP at a lifecycle transition, or the latest-wins reduced value across pick-up/claim/reassign. |
+| **Do NOT use when** | Describing the planned/recommended assignment; that is the [Authored Intent](#authored-intent), which is frontmatter-canonical. A WP with no resolved-binding events has an *empty* resolved binding — never the authored value masquerading as resolved. |
+| **Canonical authority** | Exactly one source per datum — **dynamic → event log** (reduced snapshot). (Umbrella rule shared with [Authored Intent](#authored-intent).) |
+| **Related terms** | [Authored Intent](#authored-intent), [Agent Profile](#agent-profile), [Role](#role), [Field-authority ADR](../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
+
+See the [Agent Profiles reference](../reference/agent_profiles/index.md) for the full built-in roster.
 
 ---
 

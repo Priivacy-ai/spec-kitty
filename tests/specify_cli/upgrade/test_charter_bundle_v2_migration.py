@@ -42,6 +42,28 @@ def _load_yaml(path: Path) -> dict:
     return _yaml.load(path)  # type: ignore[return-value]
 
 
+def _write_minimal_charter_yaml(
+    charter_dir: Path, bundle_schema_version: int | None = None
+) -> None:
+    """Write a minimal charter.yaml, optionally stamping ``metadata.bundle_schema_version``.
+
+    consolidate-charter-bundle (WP07 / T030): ``doctrine.versioning.
+    get_bundle_schema_version`` now reads this file's ``metadata:`` section
+    instead of the retired ``<charter_dir>/metadata.yaml`` top-level key —
+    these Phase-7-provenance fixtures need a real ``charter.yaml`` on disk
+    for the version oracle to see anything other than ``None``.
+    ``bundle_schema_version=None`` omits the ``metadata:`` key entirely
+    (the "predates this field" / v1 state).
+    """
+    document: dict = {
+        "schema_version": "2.0.0",
+        "catalog": {"mission": "", "template_set": "", "languages": [], "references": []},
+    }
+    if bundle_schema_version is not None:
+        document["metadata"] = {"bundle_schema_version": bundle_schema_version}
+    _write_yaml(charter_dir / "charter.yaml", document)
+
+
 def _create_v1_bundle(project_path: Path) -> None:
     """Create a minimal v1 charter bundle under project_path/.kittify/charter/."""
     charter_dir = project_path / ".kittify" / "charter"
@@ -54,6 +76,10 @@ def _create_v1_bundle(project_path: Path) -> None:
             "extracted_at": "2026-01-01T00:00:00Z",
         },
     )
+    # charter.yaml WITHOUT a metadata.bundle_schema_version key — the
+    # version oracle (get_bundle_schema_version) reads None, same v1 signal
+    # the retired metadata.yaml-without-the-field used to give.
+    _write_minimal_charter_yaml(charter_dir)
 
     # provenance sidecar — schema_version "1", missing v2 fields
     _write_yaml(
@@ -98,6 +124,7 @@ def _create_v2_bundle(project_path: Path) -> None:
         charter_dir / "metadata.yaml",
         {"bundle_schema_version": 2, "timestamp_utc": "2026-01-01T00:00:00Z"},
     )
+    _write_minimal_charter_yaml(charter_dir, bundle_schema_version=2)
 
     _write_yaml(
         charter_dir / "provenance" / "directive-use-prs.yaml",
@@ -185,6 +212,7 @@ def _create_bundle_with_metadata_version(project_path: Path, version: int) -> No
             "timestamp_utc": "2026-01-01T00:00:00Z",
         },
     )
+    _write_minimal_charter_yaml(charter_dir, bundle_schema_version=version)
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@
   "purpose_context": "Durable cross-cutting architectural boundary (#2441), filed during M5/Phase-3. DESIGN-FIRST: architect-led design phase before any code, given high blast radius. Do NOT bundle with the small landing-hygiene fixes. Cross-fork draft closing #2441.",
   "purpose_tldr": "Introduce a modeled, owned artifact for shared contracts (public signatures, fallback/compat names, retired literals a caller depended on) with a declared consumer set, so a contract's existence + retirement is verified against its consumers — unifying the slices that #2438 (dynamic review-time gate) and sibling mechanisms each catch from a different angle",
   "slug": "contract-ownership-boundary-01KWYRE5",
+  "status_phase": "1",
   "target_branch": "feat/contract-ownership-boundary",
   "topology": "coord",
   "vcs": "git",

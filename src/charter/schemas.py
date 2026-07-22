@@ -9,14 +9,18 @@ Defines the output schema for:
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from ruamel.yaml import YAML
 
 from charter.activations import ActivationEntry
 
 __all__ = [
     "BranchStrategyConfig",
+    "CharterCatalog",
+    "CharterCatalogReference",
     "CharterTestingConfig",
+    "CharterYaml",
+    "CharterYamlMetadata",
     "CommitConfig",
     "Directive",
     "DirectivesConfig",
@@ -187,6 +191,114 @@ class ExtractionMetadata(BaseModel):
     extraction_mode: str = "deterministic"  # "deterministic" | "hybrid" | "ai_only"
     sections_parsed: SectionsParsed = Field(default_factory=SectionsParsed)
     bundle_schema_version: int | None = None
+
+
+# ---------------------------------------------------------------------------
+# consolidate-charter-bundle (WP01 / T001): structured charter.yaml (v2.0.0)
+# ---------------------------------------------------------------------------
+#
+# Contract: kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/
+# charter-yaml-schema.md. Data model: ../data-model.md (Landmine 1/2/3,
+# INV-1..9). ``CharterYaml`` nests the EXISTING ``GovernanceConfig`` /
+# ``DirectivesConfig`` above verbatim (validation inherited, not re-authored)
+# — it does not replace ``ExtractionMetadata``/the legacy governance.yaml /
+# directives.yaml / metadata.yaml emitters, which remain in place until the
+# WPs that retire them land.
+
+
+class CharterCatalogReference(BaseModel):
+    """One reference item inside the charter.yaml ``catalog`` projection.
+
+    Mirrors the retired ``references.yaml`` reference-item shape (charter
+    contract G2): ``catalog`` is byte-equivalent in content to that file's
+    body, so parity/resolving consumers (``consistency_check.py``) see
+    identical data.
+    """
+
+    id: str
+    kind: str
+    title: str
+    summary: str
+    source_path: str
+    local_path: str
+
+
+class CharterCatalog(BaseModel):
+    """The DERIVED-but-committed ``catalog`` projection (charter contract G2).
+
+    Mirrors the retired ``references.yaml`` body verbatim: ``mission``,
+    ``template_set``, ``languages``, ``references``. Kept honest by the
+    catalog<->activation parity check (``consistency_check.py``) plus
+    freshness (data-model.md Landmine 2 extension).
+    """
+
+    mission: str
+    template_set: str
+    languages: list[str] = Field(default_factory=list)
+    references: list[CharterCatalogReference] = Field(default_factory=list)
+
+
+class CharterYamlMetadata(BaseModel):
+    """``charter.yaml``'s ``metadata`` block (charter contract G4).
+
+    Deliberately narrower than :class:`ExtractionMetadata`: Landmine 2
+    (data-model.md) retires the self-referential ``charter_hash`` (a hash of
+    ``charter.yaml`` cannot live *inside* ``charter.yaml`` — chicken-egg)
+    along with ``extraction_mode``/``sections_parsed``, which have no
+    meaning once ``governance``/``directives``/activation are hand-authored
+    rather than extracted. ``bundle_schema_version`` is KEPT — read by
+    ``versioning.py``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    generated_at: str = ""
+    bundle_schema_version: int = 2
+
+
+class CharterYaml(BaseModel):
+    """The structured shape of the git-tracked, authorable ``charter.yaml``.
+
+    Contract: ``kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/
+    charter-yaml-schema.md``.
+
+    ⚠ Activation is FLAT AT THE ROOT (paula BLOCKER-1) — the ten
+    ``activated_*`` / ``mission_type_activations`` fields below are NOT
+    nested under an ``activation:`` key, matching
+    ``src/charter/packs/default.yaml:5-38``, so
+    ``pack_context._read_activated_*`` / ``_read_list_key`` and
+    ``activation_engine.commit_plan`` read/write them unchanged.
+    ``model_config`` forbids extra fields, which doubles as the structural
+    guard against a stray nested ``activation:`` mapping creeping back in
+    (a nested mapping is not a declared field on this model, so
+    ``extra="forbid"`` rejects it).
+
+    Each ``activated_*`` field is three-state (charter contract G3):
+    ``None`` == absent key == default-pack fallback/seed
+    (``load_default_pack_activation_ids``); ``[]`` == explicit fail-closed
+    empty; a non-empty list == the activated set.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: str = Field(default="2.0.0", pattern=r"^\d+\.\d+\.\d+$")
+    governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
+    directives: DirectivesConfig = Field(default_factory=DirectivesConfig)
+    catalog: CharterCatalog
+
+    activated_kinds: list[str] | None = None
+    mission_type_activations: list[str] | None = None
+    activated_directives: list[str] | None = None
+    activated_tactics: list[str] | None = None
+    activated_styleguides: list[str] | None = None
+    activated_toolguides: list[str] | None = None
+    activated_paradigms: list[str] | None = None
+    activated_procedures: list[str] | None = None
+    activated_agent_profiles: list[str] | None = None
+    activated_mission_step_contracts: list[str] | None = None
+
+    overrides: dict[str, Any] = Field(default_factory=dict)
+    metadata: CharterYamlMetadata = Field(default_factory=CharterYamlMetadata)
 
 
 # WP02: keys that are NEW additions in this mission and MUST be omitted

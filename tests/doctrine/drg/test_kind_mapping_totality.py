@@ -70,6 +70,12 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # hand-mapped project directory name.
         "charter.kind_vocabulary::_PROJECT_KIND_DIRS",
         "charter.pack_manager::_PROJECT_KIND_DIRS",
+        # WP01 (doctrine-tension-edges-01KY1WPC) added ArtifactKind.ANTI_PATTERN.
+        # The sole read site (`executor.py`'s step-contract kind resolution)
+        # reads via `_ARTIFACT_TO_NODE_KIND.get(kind)` and treats a miss as
+        # "no delegatable node kind" -- correct here, since an anti-pattern
+        # node is never a mission-step-contract delegation target (D2).
+        "specify_cli.mission_step_contracts.executor::_ARTIFACT_TO_NODE_KIND",
     }
 )
 

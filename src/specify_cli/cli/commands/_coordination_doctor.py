@@ -74,6 +74,54 @@ _COORD_BRANCH_ABSENT_HINT = (
     "`spec-kitty migrate backfill-topology` to re-derive and persist the topology."
 )
 
+#: Stable error code for a coord strand that survives a rollback (#2786 / #2367-B,
+#: FR-007). Emitted only when the committed coordination ref *still* reduces a
+#: this-merge ``done`` WP to ``DONE`` — a marker whose ref re-derives coherent is
+#: stale and yields NO finding (US2-S5 negative AC). Downstream tooling keys off
+#: this constant, so it must stay stable.
+_STRANDED_COORD_REVERT_CODE = "COORDINATION_STRANDED_COORD_REVERT"
+
+#: Recovery hint for a live strand — points at the ``--fix`` repair path.
+_STRANDED_COORD_REVERT_HINT = (
+    "Run `spec-kitty doctor coordination --fix` to revert the stranded coordination "
+    "`done` commit(s) and clear the reconcile marker."
+)
+
+#: STUCK variant (FR-007): a live strand whose recorded coordination worktree no
+#: longer exists. It is STILL a committed-ref split-brain, so it stays an
+#: ``error`` (exit 1 — the coord branch carries a wrong ``done``; the doctor must
+#: NOT report the mission healthy). ``--fix`` cannot revert it (nothing to run the
+#: revert in), so it carries a distinct code + a *manual-recovery* ``next_step``
+#: instead of looping the user back to ``--fix`` (debugger-debbie HIGH: a
+#: ``warning`` here would exit 0 and hide the split-brain).
+_STRANDED_COORD_REVERT_STUCK_CODE = "COORDINATION_STRANDED_COORD_REVERT_STUCK"
+_STRANDED_COORD_REVERT_STUCK_HINT = (
+    "The coordination worktree recorded for this strand no longer exists, so "
+    "`--fix` cannot revert it. Recreate the coordination worktree (see the "
+    "worktree hints from `spec-kitty doctor coordination`) then re-run `--fix`, or "
+    "clear the stale `pending_coord_reconcile` marker after manually reconciling "
+    "the coordination ref."
+)
+
+#: An enumerated ``pending_coord_reconcile`` marker that cannot be parsed into
+#: repair inputs (missing ref/sha/worktree or an empty strand). A safety-net
+#: checker must NOT silently drop it — surface a ``warning`` (reviewer-renata LOW).
+_MARKER_UNPARSEABLE_CODE = "COORDINATION_RECONCILE_MARKER_UNPARSEABLE"
+_MARKER_UNPARSEABLE_HINT = (
+    "A `pending_coord_reconcile` marker could not be parsed into repair inputs "
+    "(missing coord_ref/captured_sha/coord_worktree or an empty strand). Inspect "
+    "`.kittify/runtime/merge/<mission_id>/state.json` and clear or repair the marker."
+)
+
+#: A marker whose mission slug cannot be resolved to a planning directory
+#: (unsafe/ambiguous handle). Surface a ``warning`` rather than a silent skip.
+_MARKER_UNRESOLVABLE_MISSION_CODE = "COORDINATION_RECONCILE_MISSION_UNRESOLVABLE"
+_MARKER_UNRESOLVABLE_MISSION_HINT = (
+    "A `pending_coord_reconcile` marker names a mission that could not be resolved "
+    "to a planning directory (unsafe or ambiguous handle). Run "
+    "`spec-kitty doctor identity --json` and disambiguate before re-running `--fix`."
+)
+
 
 def _detect_git_version() -> tuple[int, int] | None:
     """Return ``(major, minor)`` of the local git binary, or ``None`` on failure."""
@@ -528,6 +576,8 @@ def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
     findings.extend(_check_git_version())
     # FR-035 (#1772 Bug 0): repo-level tracked-.worktrees/ hygiene check.
     findings.extend(_check_tracked_worktrees_content(repo_root))
+    # FR-007 (#2786 / #2367-B): repo-level stranded-coord-revert re-verification.
+    findings.extend(_check_stranded_coord_revert(repo_root))
 
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
@@ -584,6 +634,344 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
     return fixed
 
 
+def _parse_reconcile_marker(
+    marker: dict[str, object] | None,
+) -> tuple[str, str, str, list[str]] | None:
+    """Validate a ``pending_coord_reconcile`` marker into repair inputs.
+
+    Returns ``(coord_ref, captured_sha, coord_worktree, stranded_wp_ids)`` or
+    ``None`` when the marker is malformed (missing ref/sha/worktree or an empty
+    strand — an empty strand is not a strand, per the data-model derivation
+    contract). ``coord_worktree`` stays a ``str`` so the finding's ``extra`` dict
+    remains JSON-serializable; the fixer rehydrates it to a ``Path``.
+    """
+    if not marker:
+        return None
+    coord_ref = marker.get("coord_ref")
+    captured_sha = marker.get("captured_sha")
+    coord_worktree = marker.get("coord_worktree")
+    stranded = marker.get("stranded_wp_ids")
+    if not (isinstance(coord_ref, str) and coord_ref):
+        return None
+    if not (isinstance(captured_sha, str) and captured_sha):
+        return None
+    if not (isinstance(coord_worktree, str) and coord_worktree):
+        return None
+    if not (isinstance(stranded, list) and stranded):
+        return None
+    return coord_ref, captured_sha, coord_worktree, [str(w) for w in stranded]
+
+
+def _marker_extra(state: object, coord_ref: str, captured_sha: str,
+                  coord_worktree: str, candidate_wps: list[str],
+                  remaining: list[str]) -> dict[str, object]:
+    """Assemble the stable ``extra`` payload shared by the strand findings."""
+    return {
+        "mission_id": getattr(state, "mission_id", None),
+        "mission_slug": getattr(state, "mission_slug", None),
+        "coord_ref": coord_ref,
+        "captured_sha": captured_sha,
+        "coord_worktree": coord_worktree,
+        "candidate_wps": candidate_wps,
+        "stranded_wp_ids": remaining,
+    }
+
+
+def _finding_for_reconcile_marker(
+    state: object, repo_root: Path
+) -> DoctorFinding | None:
+    """Re-verify one ``pending_coord_reconcile`` marker → a single finding (or None).
+
+    Returns ``None`` only for a genuinely-stale marker (the committed ref
+    re-derives coherent, US2-S5). Every other terminal path yields a finding — a
+    safety-net checker must never silently drop a marker (reviewer-renata LOW):
+
+    * un-parseable marker → ``warning`` (:data:`_MARKER_UNPARSEABLE_CODE`);
+    * unresolvable/ambiguous mission slug → ``warning``
+      (:data:`_MARKER_UNRESOLVABLE_MISSION_CODE`);
+    * live strand whose coord worktree is pruned → ``warning`` STUCK
+      (:data:`_STRANDED_COORD_REVERT_STUCK_CODE`) — ``--fix`` cannot revert it;
+    * live strand with an intact worktree → ``error``
+      (:data:`_STRANDED_COORD_REVERT_CODE`), healable by ``--fix``.
+    """
+    from mission_runtime import MissionArtifactKind
+
+    from specify_cli.coordination.coherence import coord_incoherent_done_wps
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        resolve_planning_read_dir,
+    )
+
+    mission_slug = getattr(state, "mission_slug", None)
+    mission_id = getattr(state, "mission_id", None)
+    base_extra: dict[str, object] = {"mission_id": mission_id, "mission_slug": mission_slug}
+
+    parsed = _parse_reconcile_marker(getattr(state, "pending_coord_reconcile", None))
+    if parsed is None:
+        return DoctorFinding(
+            severity="warning",
+            message=(
+                f"Mission {mission_slug!r} carries a `pending_coord_reconcile` marker "
+                "that could not be parsed into repair inputs."
+            ),
+            next_step=_MARKER_UNPARSEABLE_HINT,
+            error_code=_MARKER_UNPARSEABLE_CODE,
+            extra=base_extra,
+        )
+    coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
+    try:
+        # Same canonicalizing WORK_PACKAGE_TASK read seam the executor's mark/heal
+        # use (folds a bare handle → `<slug>-<mid8>`), so all three strand sites
+        # resolve the identical feature_dir — a raw resolver here would read a
+        # divergent path on a non-canonical slug and silently miss the strand.
+        feature_dir = resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        )
+    except (ValueError, MissionSelectorAmbiguous):
+        # Unsafe/ambiguous mission_slug — surface a warning rather than silently drop.
+        return DoctorFinding(
+            severity="warning",
+            message=(
+                f"Mission {mission_slug!r} on a `pending_coord_reconcile` marker "
+                "could not be resolved to a planning directory."
+            ),
+            next_step=_MARKER_UNRESOLVABLE_MISSION_HINT,
+            error_code=_MARKER_UNRESOLVABLE_MISSION_CODE,
+            extra=base_extra,
+        )
+    remaining = coord_incoherent_done_wps(
+        coord_ref, candidate_wps, repo_root=repo_root, feature_dir=feature_dir,
+    )
+    if not remaining:
+        # Stale marker: the committed ref re-derives coherent (US2-S5). No finding.
+        return None
+    extra = _marker_extra(state, coord_ref, captured_sha, coord_worktree, candidate_wps, remaining)
+    if not Path(coord_worktree).exists():
+        # Live strand, but the coord worktree is pruned — `--fix` cannot revert it.
+        # It is STILL a committed-ref split-brain, so it stays an `error` (exit 1):
+        # the coord branch carries a wrong `done` and the mission is NOT healthy.
+        # Only the `next_step` changes — a manual-recovery hint instead of looping
+        # the user back to `--fix` (debugger-debbie HIGH: a `warning` here exits 0
+        # and hides the split-brain).
+        return DoctorFinding(
+            severity="error",
+            message=(
+                f"Coordination ref {coord_ref!r} for mission {mission_slug!r} still "
+                f"strands WP(s) {remaining} at `done`, but its coordination worktree "
+                f"{coord_worktree!r} no longer exists — `--fix` cannot revert it."
+            ),
+            next_step=_STRANDED_COORD_REVERT_STUCK_HINT,
+            error_code=_STRANDED_COORD_REVERT_STUCK_CODE,
+            extra=extra,
+        )
+    return DoctorFinding(
+        severity="error",
+        message=(
+            f"Coordination ref {coord_ref!r} for mission "
+            f"{mission_slug!r} still reduces WP(s) {remaining} to "
+            "`done` after a merge rollback (expected `approved`)."
+        ),
+        next_step=_STRANDED_COORD_REVERT_HINT,
+        error_code=_STRANDED_COORD_REVERT_CODE,
+        extra=extra,
+    )
+
+
+def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
+    """FR-007: re-verify each reconcile marker against the **committed** coord ref.
+
+    Enumerate ``pending_coord_reconcile`` markers via WP02's
+    :func:`~specify_cli.merge.state.iter_pending_coord_reconcile_markers` — NOT
+    ``load_state(mission_id=None)`` (it *raises* ``MergeAmbiguousStateError`` on
+    >=2 markers) and NOT a re-implemented runtime-path scan (a second path
+    authority / DIR-044 breach). Each marker is re-verified by
+    :func:`_finding_for_reconcile_marker`, which re-derives the strand **from the
+    committed ref** (never from marker-presence) and returns exactly one finding —
+    ``error`` for a healable live strand, ``warning`` for a pruned-worktree STUCK
+    strand or an un-parseable/unresolvable marker, and ``None`` only for a
+    genuinely-stale marker (US2-S5, the load-bearing negative AC).
+    """
+    from specify_cli.merge.state import iter_pending_coord_reconcile_markers
+
+    findings: list[DoctorFinding] = []
+    for state in iter_pending_coord_reconcile_markers(repo_root):
+        finding = _finding_for_reconcile_marker(state, repo_root)
+        if finding is not None:
+            findings.append(finding)
+    return findings
+
+
+def _clear_pending_marker(repo_root: Path, mission_id: str) -> None:
+    """Atomically clear a mission's ``pending_coord_reconcile`` marker after a heal."""
+    from specify_cli.merge.state import load_state, save_state
+
+    state = load_state(repo_root, mission_id=mission_id)
+    if state is None:
+        return
+    state.pending_coord_reconcile = None
+    save_state(state, repo_root)
+
+
+def _heal_one_strand(
+    f: DoctorFinding, repo_root: Path
+) -> tuple[str | None, DoctorFinding | None]:
+    """Attempt to heal one live-strand finding.
+
+    Returns ``(healed_slug, warning)``: at most one is non-``None``. A genuine heal
+    yields ``(slug, None)`` (and clears the marker); an un-parseable marker, an
+    unresolvable mission, or a repair that reports a pruned worktree yields
+    ``(None, warning)`` — a safety-net fixer must never silently drop a marker.
+    ``head_advanced`` / revert-error outcomes yield ``(None, None)``: the strand is
+    intentionally left for the next pass and the check's persistent ``error``
+    finding still surfaces it.
+    """
+    from mission_runtime import MissionArtifactKind
+
+    from specify_cli.coordination.coherence import repair_coord_strand
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        resolve_planning_read_dir,
+    )
+
+    parsed = _parse_reconcile_marker(f.extra)
+    mission_id = f.extra.get("mission_id")
+    mission_slug = f.extra.get("mission_slug")
+    if parsed is None or not isinstance(mission_id, str) or not isinstance(mission_slug, str):
+        return None, DoctorFinding(
+            severity="warning",
+            message="A live-strand finding carried an unparseable reconcile marker.",
+            next_step=_MARKER_UNPARSEABLE_HINT,
+            error_code=_MARKER_UNPARSEABLE_CODE,
+            extra={"mission_id": mission_id, "mission_slug": mission_slug},
+        )
+    coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
+    try:
+        # Mirror the check + the executor: the canonicalizing WORK_PACKAGE_TASK
+        # read seam (one feature_dir authority across all three strand sites).
+        feature_dir = resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        )
+    except (ValueError, MissionSelectorAmbiguous):
+        return None, DoctorFinding(
+            severity="warning",
+            message=(
+                f"Mission {mission_slug!r} on a live-strand finding could not be "
+                "resolved to a planning directory; skipping its heal."
+            ),
+            next_step=_MARKER_UNRESOLVABLE_MISSION_HINT,
+            error_code=_MARKER_UNRESOLVABLE_MISSION_CODE,
+            extra={"mission_id": mission_id, "mission_slug": mission_slug},
+        )
+    outcome = repair_coord_strand(
+        coord_ref=coord_ref,
+        captured_sha=captured_sha,
+        coord_worktree=Path(coord_worktree),
+        candidate_wps=candidate_wps,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+    )
+    if outcome.healed:
+        _clear_pending_marker(repo_root, mission_id)
+        return mission_slug, None
+    if outcome.worktree_missing:
+        # Still a committed-ref split-brain `--fix` couldn't heal — stays `error`
+        # (exit 1) with a manual-recovery hint; a `warning` would exit 0 and hide it.
+        return None, DoctorFinding(
+            severity="error",
+            message=(
+                f"Coordination worktree {coord_worktree!r} for mission "
+                f"{mission_slug!r} no longer exists — `--fix` cannot revert its strand."
+            ),
+            next_step=_STRANDED_COORD_REVERT_STUCK_HINT,
+            error_code=_STRANDED_COORD_REVERT_STUCK_CODE,
+            extra={"mission_id": mission_id, "mission_slug": mission_slug},
+        )
+    return None, None
+
+
+def _fix_stranded_reverts(
+    findings: list[DoctorFinding], repo_root: Path
+) -> tuple[list[str], list[DoctorFinding]]:
+    """Heal every live-strand finding via WP02's shared repair primitive.
+
+    Delegates to
+    :func:`~specify_cli.coordination.coherence.repair_coord_strand` (strand-gated +
+    self-sufficient: it re-derives the strand from the committed ref, HEAD-freshness
+    guards the concurrency TOCTOU, and it performs the scoped clean-to-HEAD so the
+    forward revert applies over the byte-restored dirty tree) and clears the marker
+    only on a genuine heal — so ``--fix`` run twice is byte-stable and the marker is
+    cleared exactly once. Never re-implements the revert.
+
+    Returns ``(healed_slugs, warnings)``: the mission slugs healed on this call, and
+    ``warning``-severity findings for markers that could not be healed and would
+    otherwise be silently dropped (unparseable marker, unresolvable mission, pruned
+    coord worktree).
+    """
+    healed: list[str] = []
+    warnings: list[DoctorFinding] = []
+    for f in findings:
+        if f.error_code != _STRANDED_COORD_REVERT_CODE:
+            continue
+        slug, warning = _heal_one_strand(f, repo_root)
+        if slug is not None:
+            healed.append(slug)
+        if warning is not None:
+            warnings.append(warning)
+    return healed, warnings
+
+
+def _apply_never_created_fix(findings: list[DoctorFinding], repo_root: Path) -> None:
+    """Flatten missions with a stale ``coordination_branch`` key, then re-backfill topology."""
+    fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+    if not fixable:
+        return
+    fixed_slugs = _fix_never_created_branches(fixable)
+    for slug in fixed_slugs:
+        console.print(
+            f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"
+        )
+    if fixed_slugs:
+        from specify_cli.migration.backfill_topology import backfill_topology_repo
+        backfill_topology_repo(repo_root)
+        console.print(
+            "[green]Topology backfilled.[/green] "
+            "Run `spec-kitty doctor coordination` to verify."
+        )
+
+
+def _apply_stranded_revert_fix(
+    findings: list[DoctorFinding], repo_root: Path
+) -> list[DoctorFinding]:
+    """Heal live coord strands (FR-007) via the shared repair primitive.
+
+    Returns the ``warning`` findings for strands that could not be healed (pruned
+    worktree / unparseable / unresolvable) so the caller can fold them into the
+    post-fix findings — a safety-net fixer never silently drops a marker.
+    """
+    healed, warnings = _fix_stranded_reverts(findings, repo_root)
+    for slug in healed:
+        console.print(
+            f"[green]Healed:[/green] reverted the stranded coordination `done` and "
+            f"cleared the reconcile marker for {slug}."
+        )
+    return warnings
+
+
+def _apply_coordination_fixes(
+    findings: list[DoctorFinding], repo_root: Path
+) -> list[DoctorFinding]:
+    """Run every registered ``--fix`` handler over the collected findings.
+
+    Extracted so adding a fixer keeps the caller (:func:`run_coordination_health`)
+    and this dispatch each well under the CC-15 ceiling. Each handler is
+    error-code-scoped and idempotent, so the order is irrelevant. Returns any
+    ``warning`` findings the fixers raised (e.g. a strand whose coord worktree is
+    pruned) so the entrypoint surfaces them in the post-fix output.
+    """
+    _apply_never_created_fix(findings, repo_root)
+    return _apply_stranded_revert_fix(findings, repo_root)
+
+
 def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool) -> None:
     """Render coordination findings as JSON or coloured human output."""
     if json_output:
@@ -628,22 +1016,13 @@ def run_coordination_health(json_output: bool, fix: bool = False) -> None:
     findings = _collect_coordination_findings(repo_root)
 
     if fix:
-        fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
-        if fixable:
-            fixed_slugs = _fix_never_created_branches(fixable)
-            for slug in fixed_slugs:
-                console.print(
-                    f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"
-                )
-            if fixed_slugs:
-                from specify_cli.migration.backfill_topology import backfill_topology_repo
-                backfill_topology_repo(repo_root)
-                console.print(
-                    "[green]Topology backfilled.[/green] "
-                    "Run `spec-kitty doctor coordination` to verify."
-                )
-            # Re-collect findings after fix so the exit code reflects the new state.
-            findings = _collect_coordination_findings(repo_root)
+        fix_warnings = _apply_coordination_fixes(findings, repo_root)
+        # Re-collect findings after fix so the exit code reflects the new state,
+        # then fold in any warnings the fixers raised for markers they could not
+        # heal (pruned worktree / unparseable / unresolvable) — these must not be
+        # silently dropped by the re-collect.
+        findings = _collect_coordination_findings(repo_root)
+        findings.extend(fix_warnings)
 
     _emit_coordination_findings(findings, json_output)
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)

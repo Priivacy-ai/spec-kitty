@@ -180,8 +180,7 @@ def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | 
         return None
     if not isinstance(raw, list):
         raise ValueError(
-            f".kittify/config.yaml key {yaml_key!r} must be a list, "
-            f"got {type(raw).__name__}."
+            f"Activation key {yaml_key!r} must be a list, got {type(raw).__name__}."
         )
     return [str(item) for item in raw]
 

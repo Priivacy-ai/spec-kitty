@@ -1,6 +1,8 @@
 """Performance envelope tests (T031) — CI-tolerant timing assertions.
 
 NFR-002: full synthesis on ≤10-answer interview < 30 s (fixture adapter).
+NFR-002 (mission `synthesized-drg-stale-refresh-01KXN8KZ`, #2681):
+    ``compute_freshness`` (content-identity DRG freshness check) < 2 s.
 NFR-003: bounded resynthesize --topic (single target) < 15 s.
 NFR-004: fail-closed from validation failure to return < 5 s.
 SC-008:  TopicSelectorUnresolvedError return on cold cache < 2 s.
@@ -17,6 +19,7 @@ from typing import Any
 
 import pytest
 
+from charter.bundle import compute_bundle_content_hash
 from charter.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
@@ -26,6 +29,7 @@ from charter.synthesizer import (
 from charter.synthesizer.errors import TopicSelectorUnresolvedError
 from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 from charter.synthesizer.topic_resolver import resolve as resolve_topic
+from specify_cli.charter_runtime.freshness import compute_freshness
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +158,91 @@ class TestNfr002FullSynthesis:
         result = synthesize(base_request, adapter=adapter, repo_root=tmp_path)
         assert result is not None
         assert result.target_kind in {"directive", "tactic", "styleguide"}
+
+
+# ---------------------------------------------------------------------------
+# NFR-002 (mission `synthesized-drg-stale-refresh-01KXN8KZ`, #2681):
+# compute_freshness < 2 s wall-clock
+# ---------------------------------------------------------------------------
+
+
+def _seed_charter_freshness_repo(repo: Path) -> None:
+    """Seed a representative ``.kittify/charter/`` + ``.kittify/doctrine/``
+    tree: the single ``BUNDLE_CONTENT_HASH_FILES`` entry (``charter.yaml``,
+    contracts/manifest-v2.md M1/M3 — consolidate-charter-bundle WP06
+    narrowed this from the four legacy bundle files), a ``graph.yaml``, and
+    a ``synthesis-manifest.yaml`` carrying a REAL ``bundle_content_hash``
+    computed via the canonical helper — so ``compute_freshness`` exercises
+    the full content-identity comparison path rather than an early
+    ``missing``/``stale`` short-circuit. Mirrors the seeding pattern in
+    ``tests/specify_cli/charter_freshness/test_computer.py`` (duplicated,
+    not imported — that module is a sibling WP06-owned suite)."""
+    charter_dir = repo / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n"
+        "governance: {}\n"
+        "directives:\n"
+        "  directives: []\n"
+        "catalog:\n"
+        "  mission: perf-envelope-seed\n"
+        "  template_set: default\n"
+        "  languages: []\n"
+        "  references: []\n"
+        "metadata:\n"
+        "  generated_at: '2026-01-01T00:00:00+00:00'\n"
+        "  bundle_schema_version: 2\n",
+        encoding="utf-8",
+    )
+
+    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
+
+    real_hash = compute_bundle_content_hash(repo)
+    assert real_hash is not None
+    manifest_path = charter_dir / "synthesis-manifest.yaml"
+    manifest_path.write_text(
+        "schema_version: '3'\n"
+        "mission_id: null\n"
+        "created_at: '2026-01-01T00:00:00+00:00'\n"
+        "run_id: 01JPERFENVELOPE0000000001X\n"
+        "adapter_id: test\n"
+        "adapter_version: '0.0.0'\n"
+        "synthesizer_version: '0.0.0'\n"
+        f"manifest_hash: {'a' * 64}\n"
+        "artifacts: []\n"
+        "built_in_only: false\n"
+        f"bundle_content_hash: {real_hash}\n",
+        encoding="utf-8",
+    )
+
+
+class TestNfr002FreshnessComputeUnder2Seconds:
+    """NFR-002 (`synthesized-drg-stale-refresh-01KXN8KZ`, #2681):
+    ``compute_freshness`` completes in well under 2 s wall-clock. This is a
+    PERMANENT regression ratchet, not a one-off measurement — it catches an
+    accidental eager import (breaking the LD-3 lazy-import contract in
+    ``computer.py``) or an O(n²) helper (e.g. a naive concat-then-hash
+    reintroduced into ``compute_bundle_content_hash``)."""
+
+    @pytest.mark.timeout(2)
+    def test_compute_freshness_under_2_seconds(self, tmp_path: Path) -> None:
+        _seed_charter_freshness_repo(tmp_path)
+
+        start = time.monotonic()
+        result = compute_freshness(tmp_path)
+        elapsed = time.monotonic() - start
+
+        # Observed ~2-4ms locally on 2026-07-16 — the 2.0s budget carries
+        # ~500x headroom (NFR-002's CLI interactive-response ceiling).
+        assert elapsed < 2.0, (
+            f"NFR-002 violated: compute_freshness took {elapsed:.3f}s (limit: 2.0s)"
+        )
+        # Sanity: the seeded repo is genuinely fresh (content-identity match)
+        # so the timing measurement exercises the real comparison branch,
+        # not an early missing/stale short-circuit.
+        assert result.synthesized_drg.state == "fresh"
 
 
 # ---------------------------------------------------------------------------

@@ -34,7 +34,6 @@ Public API
 
 from __future__ import annotations
 
-import functools
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -266,42 +265,19 @@ def _yaml() -> YAML:
 
 
 # ---------------------------------------------------------------------------
-# T014 — org-required union into ``config.activated_<kind>``
+# T014 — org-required union into the project's activation source
 #
 # ``promote_activations`` (charter.activation_engine, WP06) is the single
 # append-only write path used below. It never re-derives the built-in id
 # universe itself (C-008: default ids arrive as caller-supplied data), so
 # this module loads the shipped default pack directly.
+#
+# consolidate-charter-bundle WP02: the write target itself (``config.yaml``
+# vs the migrated ``charter.yaml``) is resolved by
+# :func:`charter.pack_manager.resolve_activation_write_target` — the single
+# shared pointer-resolution implementation on the write side (INV-2/INV-5),
+# so this module no longer maintains its own config-loading duplicate.
 # ---------------------------------------------------------------------------
-
-
-def _load_config_yaml(config_path: Path) -> tuple[dict[str, Any], YAML]:
-    """Round-trip load ``.kittify/config.yaml`` (comments/formatting kept).
-
-    Mirrors ``charter.pack_manager._load_config``. Duplicated locally rather
-    than imported: this module's WP04 ownership boundary is ``org_charter.py``
-    only, and ``pack_manager``'s loader is a private (leading-underscore)
-    module symbol not meant for cross-module reuse.
-    """
-    yaml = YAML()
-    yaml.preserve_quotes = True
-    if config_path.exists():
-        with config_path.open("r", encoding="utf-8") as fh:
-            data = yaml.load(fh)
-    else:
-        data = {}
-    if data is None:
-        data = {}
-    if not isinstance(data, dict):
-        raise ValueError(f"{config_path} root must be a mapping.")
-    return data, yaml
-
-
-def _save_config_yaml(config_path: Path, data: dict[str, Any], *, yaml: YAML) -> None:
-    """Single-write ``save`` callable for :func:`charter.activation_engine.commit_plan`."""
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    with config_path.open("w", encoding="utf-8") as fh:
-        yaml.dump(data, fh)
 
 
 def _resolve_required_id_to_stem(
@@ -405,6 +381,7 @@ def _promote_org_required_to_config(
 
     from charter.activation_engine import promote_activations
     from charter.catalog import resolve_doctrine_root
+    from charter.pack_manager import resolve_activation_write_target
 
     try:
         doctrine_root: Path | None = resolve_doctrine_root()
@@ -418,15 +395,14 @@ def _promote_org_required_to_config(
         for kind, raw_ids in required_by_kind.items()
     }
 
-    config_path = repo_root / ".kittify" / "config.yaml"
-    config_data, yaml = _load_config_yaml(config_path)
+    target_path, config_data, save = resolve_activation_write_target(repo_root)
     default_ids = load_default_pack_activation_ids()
 
     plans = promote_activations(
         promotions,
-        config_path=config_path,
+        config_path=target_path,
         config_data=config_data,
-        save=functools.partial(_save_config_yaml, yaml=yaml),
+        save=save,
         default_ids=default_ids,
     )
 

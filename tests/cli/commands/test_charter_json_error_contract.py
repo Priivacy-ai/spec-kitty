@@ -126,15 +126,19 @@ def test_sync_json_error_result_is_parseable_and_nonzero(tmp_path: Path) -> None
 
 def test_sync_json_filesystem_failure_does_not_log_to_stderr(tmp_path: Path) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
-    (charter_dir / "governance.yaml").mkdir(parents=True)
-    (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+    # consolidate-charter-bundle (#2773) retired the compiled ``governance.yaml``
+    # scrape; ``charter sync`` no longer reads or writes it (governance/directives
+    # are hand-authored inside ``charter.yaml`` now). The file ``sync`` actually
+    # reads is ``charter.md`` — make THAT a directory so the read raises and the
+    # command must surface a parseable JSON error on stdout (not stderr).
+    (charter_dir / "charter.md").mkdir(parents=True)
 
     with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
         result = runner.invoke(charter_app, ["sync", "--json"])
 
     assert result.exit_code == 1, result.output
     payload = _assert_json_error(result.stdout)
-    assert "governance.yaml" in str(payload["error"])
+    assert "charter.md" in str(payload["error"])
     assert result.stderr == ""
 
 

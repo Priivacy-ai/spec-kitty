@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ __all__ = [
     "load_state",
     "clear_state",
     "has_active_merge",
+    "iter_pending_coord_reconcile_markers",
     "get_state_path",
     "acquire_merge_lock",
     "release_merge_lock",
@@ -72,6 +74,10 @@ class MergeState:
     mission_slug: str  # Display alias for the feature
     target_branch: str
     wp_order: list[str]
+    # #2711 FR-007: ADVISORY HINT ONLY. The authority for resume progress is the
+    # durable event log (the committed coordination ref); this list is confirmed
+    # against it in ``done_bookkeeping._reconcile_completed_wps_for_resume`` and a
+    # stale entry (no durable ``done``) is dropped so the resume re-emits.
     completed_wps: list[str] = field(default_factory=list)
     current_wp: str | None = None
     has_pending_conflicts: bool = False
@@ -81,6 +87,13 @@ class MergeState:
     updated_at: str = field(default_factory=now_utc_iso)
     mission_number_baked: bool = False  # WP04 — set True once mission_number is committed
     push_requested: bool = False  # WP02 — True when --push was passed at merge start
+    # #2786 / #2367-B FR-004: durable coord-strand reconcile marker. A plain dict
+    # (NOT a nested dataclass) because ``from_dict`` rehydrates JSON objects as
+    # dicts and drops unknown keys — so pre-existing state files that predate this
+    # field simply rehydrate to ``None`` with no migration. Keys (see data-model):
+    # ``coord_ref``, ``captured_sha``, ``coord_worktree``, ``stranded_wp_ids``,
+    # ``revert_error``, ``detected_at``.
+    pending_coord_reconcile: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -256,6 +269,37 @@ def has_active_merge(repo_root: Path, mission_id: str | None = None) -> bool:
     if state is None:
         return False
     return len(state.remaining_wps) > 0
+
+
+def iter_pending_coord_reconcile_markers(repo_root: Path) -> Iterable[MergeState]:
+    """Yield every persisted merge state that carries a ``pending_coord_reconcile`` marker.
+
+    The coordination doctor (#2786 / #2367-B WP04) must enumerate stranded-coord
+    markers across ALL active missions, but :func:`load_state` with
+    ``mission_id=None`` **raises** :class:`MergeAmbiguousStateError` as soon as two
+    or more active states exist — so it cannot be used to enumerate. This iterator
+    is the enumeration seam: ``state.py`` owns the runtime-path shape
+    (``.kittify/runtime/merge/*/state.json``), so the doctor consumes this rather
+    than re-implementing the scan (which would be a second path authority /
+    DIR-044 breach).
+
+    States whose ``pending_coord_reconcile`` is ``None`` (the common, coherent
+    case) and unparseable state files are skipped. Yields in deterministic
+    ``mission_id``-directory sort order.
+
+    Args:
+        repo_root: Repository root path.
+
+    Yields:
+        Each :class:`MergeState` carrying a non-``None`` ``pending_coord_reconcile``.
+    """
+    runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
+    if not runtime_merge_dir.exists():
+        return
+    for candidate in sorted(runtime_merge_dir.iterdir()):
+        state = _load_state_file(candidate / _STATE_FILE)
+        if state is not None and state.pending_coord_reconcile is not None:
+            yield state
 
 
 # ---------------------------------------------------------------------------

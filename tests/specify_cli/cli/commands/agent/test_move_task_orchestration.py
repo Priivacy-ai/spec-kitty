@@ -30,20 +30,18 @@ import pytest
 
 from mission_runtime import MissionArtifactKind
 
-from specify_cli.cli.commands.agent.tasks import _do_move_task, seam_coord_router
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs, seam_coord_router
 from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     MissionHandle,
     TasksPorts,
 )
-from specify_cli.core.subtask_rows import count_wp_section_subtask_rows
 from specify_cli.missions._read_path_resolver import (
     resolve_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
-from specify_cli.task_utils import extract_scalar, split_frontmatter
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
@@ -70,6 +68,7 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
         f"title: Test {wp_id}\n"
         f"execution_mode: code_change\n"
         f"agent: testbot\n"
+        f"subtasks: [T001, T002, T003]\n"
         f"owned_files:\n  - src/{wp_id.lower()}/**\n"
         f"authoritative_surface: src/{wp_id.lower()}/\n"
         f"---\n\n# {wp_id}\n\n## Activity Log\n",
@@ -137,25 +136,27 @@ def _run_move(
         },
     ):
         _do_move_task(
-            task_id="WP01",
-            to=to,
-            mission=_MISSION,
-            agent=None,
-            assignee=None,
-            shell_pid=None,
-            note=None,
-            review_feedback_file=review_feedback_file,
-            approval_ref=None,
-            reviewer=None,
-            self_review_fallback=False,
-            intended_reviewer=None,
-            reviewer_failure_reason=None,
-            done_override_reason=None,
-            force=False,
-            tracker_ref=None,
-            skip_review_artifact_check=False,
-            auto_commit=auto_commit,
-            json_output=json_output,
+            _MoveTaskArgs(
+                task_id="WP01",
+                to=to,
+                mission=_MISSION,
+                agent=None,
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=review_feedback_file,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=auto_commit,
+                json_output=json_output,
+            ),
             ports=ports,
         )
 
@@ -176,29 +177,30 @@ def test_no_auto_commit_move_uses_commit_status_only(tmp_path: Path) -> None:
     assert coord.artifact_calls == []
 
 
-def test_auto_commit_move_routes_primary_write_via_commit_artifact(
+def test_auto_commit_move_is_event_only_no_primary_wp_file_commit(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """An auto-commit move emits the hop via ``commit_status`` AND routes the
-    ``WORK_PACKAGE_TASK`` primary commit (WP file in the bundle) via
-    ``commit_artifact``, writing the WP file to disk."""
+    """Post-cutover (#2816/IC-04, event-only): an auto-commit move emits the hop
+    via ``commit_status`` but routes NO ``WORK_PACKAGE_TASK`` primary commit — the
+    WP file carries no runtime state (byte-stable) so there is nothing to commit.
+    The runtime-state god-write (WP04/WP05, FR-006/FR-007) was deleted, so
+    auto-commit no longer resurrects a WP-file write; the activity-log note is
+    event-sourced, never written into the file."""
     feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, "WP01")
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     ports, coord = _fake_ports(feature_dir)
+    wp_bytes_before = wp_file.read_bytes()
 
     _run_move(tmp_path, to="for_review", ports=ports, auto_commit=True)
 
     # Lane hop still on the status seam.
     assert len(coord.status_calls) == 1
-    # Primary WP-file commit routed through the artifact seam, keyed WORK_PACKAGE_TASK.
-    assert len(coord.artifact_calls) == 1
-    slug, paths, message, kind = coord.artifact_calls[0]
-    assert slug == _MISSION
-    assert kind == MissionArtifactKind.WORK_PACKAGE_TASK
-    assert wp_file.resolve() in paths
-    assert message.startswith(f"chore: Move WP01 to for_review on spec {_MISSION.split('-')[0]}")
-    # The WP file's activity log was updated on disk before the commit.
-    assert "Moved to for_review" in wp_file.read_text(encoding="utf-8")
+    assert coord.status_calls[0][0] == _MISSION
+    # No primary WP-file commit: the event log is the sole authority (event-only).
+    assert coord.artifact_calls == []
+    # The WP file is byte-stable across the move (no god-write, no activity-log write).
+    assert wp_file.read_bytes() == wp_bytes_before
+    assert "Moved to for_review" not in wp_file.read_text(encoding="utf-8")
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["result"] == "success"
@@ -283,34 +285,67 @@ _TASKS_MD_WITH_CHECKED_WP01 = """\
 
 
 def test_wp06_t028_rollback_to_planned_is_fully_reimplementable(tmp_path: Path) -> None:
-    """T027/T028 (FR-010, SC-006): the production ``move-task --to planned`` path
-    leaves a rolled-back WP fully re-implementable — no ``[x]`` rows remain in its
-    ``tasks.md`` section and the ``agent``/``shell_pid`` claim markers are cleared.
+    """T027/T028 (FR-010, SC-006), re-pointed for the god-write cut (WP10
+    closeout): a WP rolled back to ``planned`` is fully re-implementable — its
+    subtask completion is RESET so the review gate re-blocks on the next
+    ``for_review``.
 
-    Drives the SAME ``_do_move_task`` entry point the CLI invokes (not
-    ``_mt_uncheck_rollback_subtasks``/``_mt_clear_rollback_claim_markers`` in
-    isolation), proving the consolidated ``_mt_reset_for_planned_rollback`` seam
-    fires both resets end to end.
+    With subtask completion event-sourced (WP04, FR-003) the reset is an
+    ``InnerStateChanged`` ``subtasks`` delta folded into the reduced snapshot,
+    NOT a ``tasks.md`` checkbox rewrite. Driven at ``status_phase: 1`` (flag ON,
+    the shipped event-sourced write path) it is proven two ways: the gate-source
+    snapshot roster flips fully back to ``planned`` (re-blockable), AND the WP
+    file + ``tasks.md`` stay byte-stable (AC-5, event-only). Drives the SAME
+    ``_do_move_task`` entry point the CLI invokes.
+
+    NB: at flag OFF the gate still reads the ``tasks.md`` checkboxes (which stay
+    ``[x]`` — event-only), so the reimplementable property holds only once the
+    reader is cut over (flag ON) — hence the flag-ON frame. The #2512 claim
+    release on rollback is covered by ``test_move_task_rollback_clears_claim``.
     """
-    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, "WP01")
-    # Overwrite with a WP carrying a live claim (agent/shell_pid), mirroring the
-    # #2512 field repro (killed process leaves stale claim markers).
-    front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
-    from specify_cli.task_utils import build_document, set_scalar
+    from charter.hasher import hash_content
+    from specify_cli.status import materialize
+    from specify_cli.status.emit import emit_inner_state_changed
+    from specify_cli.status.models import WPInnerStateDelta
+    from tests.lane_test_utils import write_mission_meta
 
-    front = set_scalar(front, "agent", "claude-code")
-    front = set_scalar(front, "shell_pid", "41417")
-    wp_file.write_text(build_document(front, body, padding), encoding="utf-8")
-    (feature_dir / "tasks.md").write_text(
-        _TASKS_MD_WITH_CHECKED_WP01, encoding="utf-8"
-    )
+    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, "WP01")
+    # Flag ON: event-only writes; the reset rides the snapshot, not the file.
+    write_mission_meta(feature_dir)
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["status_phase"] = "1"
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    (feature_dir / "tasks.md").write_text(_TASKS_MD_WITH_CHECKED_WP01, encoding="utf-8")
     _seed_wp_event(feature_dir, "WP01", "in_review")
+
+    # Positive control: drive WP01's roster fully DONE on the snapshot first, so a
+    # naive (no-reset) rollback would leave the gate satisfied on stale progress.
+    emit_inner_state_changed(
+        feature_dir,
+        "WP01",
+        WPInnerStateDelta(
+            subtasks={"T001": Lane.DONE, "T002": Lane.DONE, "T003": Lane.DONE}
+        ),
+        actor="test",
+        mission_slug=_MISSION,
+        at="2026-01-01T00:00:05+00:00",
+    )
+    before = materialize(feature_dir).work_packages.get("WP01", {}).get("subtasks") or {}
+    assert before and all(str(s) == str(Lane.DONE) for s in before.values()), (
+        f"positive control: roster must be fully done before the rollback; got {before!r}"
+    )
+
+    tasks_md = feature_dir / "tasks.md"
+    tasks_hash_before = hash_content(tasks_md.read_text(encoding="utf-8"))
+    wp_hash_before = hash_content(wp_file.read_text(encoding="utf-8"))
 
     coord = FakeCoordCommitRouter(
         write_dir=feature_dir, status_result=CommitStatusResult(event=None, skipped=False)
     )
     # planning_read_dir must resolve the real on-disk feature_dir so the
-    # subtask-uncheck reset can find tasks.md (mirrors production wiring).
+    # subtask-reset roster read can find tasks.md (mirrors production wiring).
     ports = TasksPorts(
         fs=FakeFsReader(default_planning_dir=feature_dir),
         coord=coord,
@@ -325,20 +360,24 @@ def test_wp06_t028_rollback_to_planned_is_fully_reimplementable(tmp_path: Path) 
         tmp_path,
         to="planned",
         ports=ports,
-        auto_commit=True,
+        auto_commit=False,
         review_feedback_file=feedback_file,
     )
 
-    # No [x] rows remain in WP01's tasks.md section — fully re-implementable.
-    done, total = count_wp_section_subtask_rows(
-        (feature_dir / "tasks.md").read_text(encoding="utf-8"), "WP01"
+    # The gate-source snapshot roster is RESET to planned -> re-blockable.
+    after = materialize(feature_dir).work_packages.get("WP01", {}).get("subtasks") or {}
+    assert after, "rollback did not emit a subtasks reset"
+    assert set(after) == {"T001", "T002", "T003"}, f"reset roster mismatch: {after!r}"
+    assert all(str(s) == str(Lane.PLANNED) for s in after.values()), (
+        f"rollback must reset every WP01 subtask to planned; got {after!r}"
     )
-    assert done == 0
-    assert total == 3
-    # WP02's rows are untouched (rollback is scoped to WP01 only).
-    assert "- [x] T004" in (feature_dir / "tasks.md").read_text(encoding="utf-8")
-
-    # The claim markers are cleared on the WP file that was actually rewritten.
-    updated_front, _, _ = split_frontmatter(wp_file.read_text(encoding="utf-8"))
-    assert extract_scalar(updated_front, "agent") is None
-    assert extract_scalar(updated_front, "shell_pid") is None
+    # Event-only (AC-5): the reset rewrote NEITHER the WP file NOR tasks.md.
+    assert hash_content(tasks_md.read_text(encoding="utf-8")) == tasks_hash_before, (
+        "rollback rewrote tasks.md bytes (must be event-only at flag ON)"
+    )
+    assert hash_content(wp_file.read_text(encoding="utf-8")) == wp_hash_before, (
+        "rollback rewrote tasks/WP01.md bytes (must be event-only at flag ON)"
+    )
+    # The tasks.md checkboxes are intentionally still [x] (byte-stable) — the
+    # reset lives in the snapshot, not the file.
+    assert "- [x] T001" in tasks_md.read_text(encoding="utf-8")

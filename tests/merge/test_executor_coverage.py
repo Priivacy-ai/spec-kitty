@@ -158,7 +158,7 @@ def test_phase_merge_lanes_skips_already_integrated(tmp_path: Path) -> None:
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_lane_already_integrated", return_value=True),
-        patch("specify_cli.lanes.merge.merge_lane_to_mission") as merge_mock,
+        patch("specify_cli.lanes.merge.consolidate_lane_into_mission") as merge_mock,
     ):
         ex._phase_merge_lanes(run)
     merge_mock.assert_not_called()
@@ -172,7 +172,7 @@ def test_phase_merge_lanes_success_marks_unintegrated(tmp_path: Path) -> None:
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_lane_already_integrated", return_value=False),
-        patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=result),
+        patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=result),
     ):
         ex._phase_merge_lanes(run)
     assert run.any_lane_had_unintegrated_code is True
@@ -185,7 +185,7 @@ def test_phase_merge_lanes_resume_tolerates_already_merged(tmp_path: Path) -> No
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_lane_already_integrated", return_value=False),
-        patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=result),
+        patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=result),
     ):
         # No Exit raised because resume + "already" error is tolerated.
         ex._phase_merge_lanes(run)
@@ -198,7 +198,7 @@ def test_phase_merge_lanes_hard_failure_exits(tmp_path: Path) -> None:
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_lane_already_integrated", return_value=False),
-        patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=result),
+        patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=result),
         pytest.raises(typer.Exit) as exc,
     ):
         ex._phase_merge_lanes(run)
@@ -209,7 +209,7 @@ def test_phase_merge_lanes_planning_lane_already_on_target(tmp_path: Path) -> No
     run = _make_run(tmp_path, planning_artifact_only=True)
     with (
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=True),
-        patch("specify_cli.lanes.merge.merge_lane_to_mission") as merge_mock,
+        patch("specify_cli.lanes.merge.consolidate_lane_into_mission") as merge_mock,
     ):
         ex._phase_merge_lanes(run)
     merge_mock.assert_not_called()
@@ -293,7 +293,7 @@ def test_phase_bake_pre_target_done_success_records(tmp_path: Path) -> None:
 
 def test_phase_mission_to_target_planning_only_returns(tmp_path: Path) -> None:
     run = _make_run(tmp_path, planning_artifact_only=True)
-    with patch("specify_cli.lanes.merge.merge_mission_to_target") as merge_mock:
+    with patch("specify_cli.lanes.merge.integrate_mission_into_target") as merge_mock:
         ex._phase_mission_to_target(run)
     merge_mock.assert_not_called()
 
@@ -303,7 +303,7 @@ def test_phase_mission_to_target_restores_on_exception(tmp_path: Path) -> None:
     restored: list[object] = []
     with (
         patch.object(ex, "_branch_trees_equal", return_value=False),
-        patch("specify_cli.lanes.merge.merge_mission_to_target", side_effect=RuntimeError("merge died")),
+        patch("specify_cli.lanes.merge.integrate_mission_into_target", side_effect=RuntimeError("merge died")),
         patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=lambda r: restored.append(r)),
         pytest.raises(RuntimeError, match="merge died"),
     ):
@@ -316,7 +316,7 @@ def test_phase_mission_to_target_success(tmp_path: Path) -> None:
     result = SimpleNamespace(success=True, errors=[], commit="abcdef1234", already_applied=False)
     with (
         patch.object(ex, "_branch_trees_equal", return_value=False),
-        patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=result),
+        patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=result),
     ):
         ex._phase_mission_to_target(run)
     assert run.mission_already_applied is False

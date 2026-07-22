@@ -7,11 +7,11 @@ The ``@app.command`` Typer wrapper (``mark_status``) stays in ``tasks.py`` and
 delegates to :func:`_do_mark_status` (the byte-frozen ``--help`` surface is the
 registration shim's).
 
-**Orchestration shape** (unchanged): the phase helpers run in the SAME order as
-the original single body — validate → resolve → apply → history → dossier →
-output — so the ``tasks.md`` write still precedes the auto-commit and the
-feature status lock still spans the read → resolve → write → commit span
-(NFR-002). ``mark_status`` is CORELESS (FR-007): it carries NO transition
+**Orchestration shape**: the phase helpers run validate → resolve → identify →
+emit canonical subtask state → history → dossier → output. Since #2816,
+``tasks.md`` is a read-only task-roster/index surface for this command; no
+checkbox or pipe-table status cell is written or committed. ``mark_status`` is
+CORELESS (FR-007): it carries NO transition
 decision core and does NOT route through ``move_task``'s ``decide_transition``
 (the deferred #2300 unification, guarded structurally by the coreless
 non-import gate).
@@ -58,7 +58,6 @@ import typer
 from mission_runtime import MissionArtifactKind
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_materialization import (
-    _persist_inline_subtask_status,
     _resolve_checkbox,
     _resolve_pipe_table,
 )
@@ -98,6 +97,7 @@ class _MarkStatusState:
     mission_slug: str = ""
     resolved_auto_commit: bool = False
     feature_dir: Path = field(default_factory=Path)
+    status_dir: Path = field(default_factory=Path)
     tasks_md: Path = field(default_factory=Path)
     # --- phase C: apply results ---
     results: list[TaskIdResult] = field(default_factory=list)
@@ -138,12 +138,12 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
 
 
 def _ms_resolve_context(st: _MarkStatusState) -> None:
-    """Phase B(i): repo/branch/auto-commit + the protected-branch refuse-exit-1 gate.
+    """Phase B(i): resolve the repository, mission, and stored topology.
 
-    The protected-branch guard fires unconditionally under ``auto_commit`` — it does
-    NOT consult ``_skip_target_branch_commit``, so on a coord + protected-primary
-    tree ``mark_status`` REFUSES (exit 1) where ``move_task`` SKIPS (exit 0). That
-    divergence is deliberate (T005 / deferred #2300) and preserved here.
+    ``--auto-commit`` is retained as a compatibility input, but ``mark-status``
+    no longer mutates or commits ``tasks.md``. Canonical completion is appended
+    through the status event writer, so the former protected-primary artifact
+    commit refusal does not apply.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     repo_root = _tasks.locate_project_root()
@@ -162,15 +162,6 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
     st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
         repo_root, st.mission_slug, st.json_output
     )
-    if st.resolved_auto_commit:
-        protected_error = _tasks._protected_branch_status_commit_error(
-            st.target_branch,
-            st.main_repo_root,
-            "spec-kitty agent tasks mark-status",
-        )
-        if protected_error is not None:
-            _tasks._output_error(st.json_output, protected_error)
-            raise typer.Exit(1)
 
 
 def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -186,6 +177,9 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
     st.feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    from specify_cli.coordination import resolve_status_surface
+
+    st.status_dir = resolve_status_surface(st.main_repo_root, st.mission_slug).parent
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
     try:
         check_pre30_layout(st.feature_dir)
@@ -243,12 +237,21 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
 
 
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
-    """Phase C: resolve each task ID to a durable row, write tasks.md, auto-commit.
+    """Phase C: resolve task IDs without mutating the authored tasks index.
 
     Holds the feature status lock across the read → resolve → write → commit span,
     exactly as the pre-rewire single body did.
+
+    WP04/T015 (FR-003/FR-008/C-001): the canonical subtask-completion surface
+    (``CHECKBOX`` / ``INLINE_SUBTASKS``) is re-sourced from an
+    ``InnerStateChanged`` emit (``_ms_emit_subtask_state``, called by
+    ``_do_mark_status`` after this phase) — the reduced snapshot is the sole
+    completion authority. Both legacy mutating resolvers therefore run against
+    throwaway copies. Checkbox bytes and pipe-table status cells are authored
+    reference material only; neither is persisted by ``mark-status``.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+    del ports  # Stable phase signature; event-only apply has no commit port.
     with _tasks.feature_status_lock(st.main_repo_root, st.mission_slug):
         if not st.tasks_md.exists():
             _tasks._output_error(st.json_output, f"tasks.md not found: {st.tasks_md}")
@@ -257,14 +260,16 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
         content = st.tasks_md.read_text(encoding="utf-8")
         lines = content.split("\n")
         results: list[TaskIdResult] = []
-        artifact_mutated = False
-
         # Update all requested tasks in a single pass.
         for task_id in st.task_ids:
             before_content = "\n".join(lines)
+            # Both legacy resolvers mutate their input as part of recognition.
+            # Probe throwaway copies so only the event emit records completion.
+            checkbox_lines = list(lines)
+            pipe_table_lines = list(lines)
             result = (
-                _resolve_checkbox(task_id, lines, st.status)
-                or _resolve_pipe_table(task_id, lines, st.status)
+                _resolve_checkbox(task_id, checkbox_lines, st.status)
+                or _resolve_pipe_table(task_id, pipe_table_lines, st.status)
                 or _tasks._resolve_inline_subtasks(task_id, before_content, st.status, st.feature_dir)
                 or _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir)
                 or TaskIdResult(
@@ -275,35 +280,65 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                 )
             )
             results.append(result)
-            if result.format in {
-                TaskIdResolutionFormat.CHECKBOX,
-                TaskIdResolutionFormat.PIPE_TABLE,
-            } and result.outcome == TaskIdResolutionOutcome.UPDATED:
-                artifact_mutated = True
-            if (
-                result.format == TaskIdResolutionFormat.INLINE_SUBTASKS
-                and result.outcome == TaskIdResolutionOutcome.UPDATED
-            ):
-                artifact_mutated = True
-                lines = st.tasks_md.read_text(encoding="utf-8").split("\n")
 
         st.results = results
         st.updated_tasks = [r.id for r in results if r.outcome == TaskIdResolutionOutcome.UPDATED]
         st.not_found_tasks = [r.id for r in results if r.outcome == TaskIdResolutionOutcome.NOT_FOUND]
         st.resolved_tasks = [r.id for r in results if r.outcome != TaskIdResolutionOutcome.NOT_FOUND]
-        st.artifact_mutated = artifact_mutated
+        st.artifact_mutated = False
 
         # Fail if no tasks were resolved.
         if not st.resolved_tasks:
             _ms_report_none_resolved(st)
 
-        # Write updated content (single write for all changes).
-        if artifact_mutated:
-            st.tasks_md.write_text("\n".join(lines), encoding="utf-8")
+        # The event append is the canonical mutation after #2816, so it belongs
+        # inside the same feature lock as task-id resolution. Releasing the
+        # lock between read/resolve and append would reintroduce a TOCTOU race.
+        _ms_emit_subtask_state(st)
 
-        # Auto-commit to TARGET branch (detects from feature meta.json).
-        if st.resolved_auto_commit and artifact_mutated:
-            _ms_commit(st, ports)
+def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
+    """Emit the ``InnerStateChanged`` subtask-completion delta (T015, FR-003).
+
+    This is the durable completion record the review gate re-sources from
+    (``tasks_shared._check_unchecked_subtasks``, T016) — it replaces the
+    ``tasks.md`` checkbox byte as the canonical subtask-completion authority.
+    Grouped by owning WP (reusing the ``resolved_tasks_by_wp`` pattern
+    ``_ms_emit_history`` already uses) so a batch mark of several task ids
+    emits ONE delta per WP, never one event per task id (FR-003 "single or
+    batch"). A resolved task id with no identifiable owning WP is a hard error:
+    success without a canonical event would violate the sole-authority contract.
+    The emit target is ``st.status_dir``, resolved from stored topology during
+    ``_ms_resolve_read_dir`` — never the primary planning directory or
+    ``Path.cwd()`` (C-003/#2647).
+    """
+    from specify_cli.status import Lane, Status, WPInnerStateDelta, emit_inner_state_changed
+
+    if not st.updated_tasks:
+        return
+
+    target_status: Status = Lane.DONE if st.status == "done" else Lane.PLANNED
+    tasks_content = st.tasks_md.read_text(encoding="utf-8")
+    resolved_tasks_by_wp: dict[str, list[str]] = {}
+    unresolved_tasks: list[str] = []
+    for task_id in st.updated_tasks:
+        history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
+        if history_wp_id is None:
+            unresolved_tasks.append(task_id)
+        else:
+            resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
+    if unresolved_tasks:
+        joined = ", ".join(unresolved_tasks)
+        raise ValueError(f"Could not resolve owning work package for subtask event: {joined}")
+
+    for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
+        emit_inner_state_changed(
+            st.status_dir,
+            wp_id,
+            WPInnerStateDelta(subtasks=dict.fromkeys(task_ids_for_wp, target_status)),
+            actor="user",
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+        )
 
 
 def _ms_emit_history(st: _MarkStatusState) -> None:
@@ -380,7 +415,7 @@ def _do_mark_status(
     """Orchestrate ``mark-status`` over the WP02 ports (C-005 seam), CORELESS.
 
     ``mark_status`` carries NO transition decision core (FR-007): it resolves task
-    IDs to durable rows and writes/commits ``tasks.md``. It does NOT route through
+    IDs against ``tasks.md`` and writes completion only to the event log. It does NOT route through
     ``move_task``'s ``decide_transition`` core — that is the deferred #2300
     unification, guarded structurally by the T036 non-import gate. ``ports=None``
     builds the production bundle (coord router bound to this module's patchable
@@ -442,30 +477,23 @@ def _resolve_inline_subtasks(
     """
     Search tasks_content for 'Subtasks: T001, T002' lines containing task_id.
 
-    Inline references are discovery hints only; this resolver reports updated
-    only after materializing a durable checkbox row in tasks.md.
+    WP04/T015 (FR-003/FR-008): inline references are discovery hints used to
+    map ``task_id`` to its owning WP context — completion is no longer
+    persisted as a materialized ``tasks.md`` checkbox row. The durable record
+    is the ``InnerStateChanged`` ``subtasks`` delta ``_ms_emit_subtask_state``
+    emits from the ``UPDATED``/``INLINE_SUBTASKS`` result this resolver now
+    returns unconditionally on a match. ``feature_dir`` is accepted for call-site
+    compatibility but no longer used to persist a row.
     """
+    del feature_dir
     normalized_task_id = task_id.upper()
     for match in _INLINE_SUBTASKS_RE.finditer(tasks_content):
         ids = [value.strip().upper() for value in match.group("ids").split(",")]
         if normalized_task_id in ids:
-            persisted = _persist_inline_subtask_status(task_id, status, feature_dir, tasks_content)
-            if persisted:
-                return TaskIdResult(
-                    id=task_id,
-                    outcome=TaskIdResolutionOutcome.UPDATED,
-                    format=TaskIdResolutionFormat.INLINE_SUBTASKS,
-                    message=f"Persisted status for inline Subtasks reference {task_id} as {status}.",
-                )
             return TaskIdResult(
                 id=task_id,
-                outcome=TaskIdResolutionOutcome.NOT_FOUND,
+                outcome=TaskIdResolutionOutcome.UPDATED,
                 format=TaskIdResolutionFormat.INLINE_SUBTASKS,
-                message=(
-                    f"{task_id} appears only in an inline Subtasks reference. "
-                    "Inline references are not durable status storage; materialize "
-                    "a checkbox row or append a canonical status event before "
-                    "reporting updated."
-                ),
+                message=f"Recorded inline Subtasks reference {task_id} as {status} (event-sourced).",
             )
     return None

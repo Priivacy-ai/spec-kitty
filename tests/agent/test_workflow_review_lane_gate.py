@@ -221,11 +221,14 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
 
     # Assert
     assert result.exit_code == 0, result.stdout
-    # The implement command claims the WP by writing the agent name to frontmatter.
-    # Lane is event-log-only and not updated by implement (no emit_status_transition call).
-    # Verify the agent name was written to frontmatter as evidence of successful claim.
-    frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "agent") == "test-agent"
+    from specify_cli.status import read_event_stream, reduce
+
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce(stream.transitions, stream.annotations)
+    assert snapshot.work_packages["WP01"]["agent"] == "test-agent"
+    assert extract_scalar(
+        split_frontmatter(wp_path.read_text(encoding="utf-8"))[0], "agent"
+    ) == ""
 
 
 def test_workflow_implement_reads_canonical_status_from_main_when_run_in_sparse_lane(
@@ -266,8 +269,14 @@ def test_workflow_implement_reads_canonical_status_from_main_when_run_in_sparse_
     )
 
     assert result.exit_code == 0, result.stdout
-    frontmatter, _, _ = split_frontmatter(main_wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "agent") == "test-agent"
+    from specify_cli.status import read_event_stream, reduce
+
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce(stream.transitions, stream.annotations)
+    assert snapshot.work_packages["WP01"]["agent"] == "test-agent"
+    assert extract_scalar(
+        split_frontmatter(main_wp_path.read_text(encoding="utf-8"))[0], "agent"
+    ) == ""
 
 
 def test_workflow_implement_uses_main_current_lane_for_rework_from_sparse_lane(
@@ -527,7 +536,7 @@ def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
 
 
 def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None:
-    """Review command should write the reviewer agent name into WP frontmatter.
+    """Review command records the reviewer in canonical runtime state.
 
     Extracted from tests/legacy/specify_cli/test_workflow_auto_moves.py.
     """
@@ -556,8 +565,13 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
 
     # Assert
     assert result.exit_code == 0, result.stdout
+    from specify_cli.status import read_event_stream, reduce
+
+    stream = read_event_stream(feature_dir)
+    snapshot = reduce(stream.transitions, stream.annotations)
+    assert snapshot.work_packages["WP01"]["agent"] == "claude"
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "agent") == "claude"
+    assert extract_scalar(frontmatter, "agent") == ""
 
 
 def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path) -> None:

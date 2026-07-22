@@ -1,0 +1,70 @@
+{
+  "event_count": 54,
+  "last_event_id": "01KXK4G65NAPZ28XY2746KEQSE",
+  "materialized_at": "2026-07-15T14:57:08.789566+00:00",
+  "mission_number": "179",
+  "mission_slug": "implement-loop-commit-hardening-01KXJ1ZX",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXK4G1SR21QTRCCKRET024FX",
+      "last_transition_at": "2026-07-15T14:57:04.312766+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXK4G2M6J11P78DTSEE54EQ4",
+      "last_transition_at": "2026-07-15T14:57:05.158667+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXK4G3AWCN064M00J17PCYPH",
+      "last_transition_at": "2026-07-15T14:57:05.884973+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXK4G41KSH8ED4DZDYSFSKGS",
+      "last_transition_at": "2026-07-15T14:57:06.611828+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXK4G4RE5Y0HY43J9G143E1D",
+      "last_transition_at": "2026-07-15T14:57:07.342543+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KXK4G5F24PH1QX4Z23W5FJHE",
+      "last_transition_at": "2026-07-15T14:57:08.066206+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXK4G65NAPZ28XY2746KEQSE",
+      "last_transition_at": "2026-07-15T14:57:08.789566+00:00"
+    }
+  }
+}

@@ -30,8 +30,8 @@ from specify_cli.acceptance import (
     perform_acceptance,
 )
 from specify_cli.task_utils import LANES
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import StoreError, append_event
+from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
+from specify_cli.status.store import StoreError, append_annotations_atomic_verified, append_event
 from specify_cli.cli.commands import accept as accept_module
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
@@ -205,6 +205,7 @@ def _create_test_feature(
         'assignee: "test-agent"\n'
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
+        "subtasks: []\n"
         "---\n"
         "# WP01\nDone.\n"
     )
@@ -233,6 +234,18 @@ def _create_test_feature(
             reason="Test setup: skip to done",
         )
         append_event(feature_dir, event)
+        append_annotations_atomic_verified(
+            feature_dir,
+            [
+                InnerStateChanged(
+                    event_id=str(ULID()),
+                    wp_id="WP01",
+                    at=now,
+                    actor="test-agent",
+                    delta=WPInnerStateDelta(agent="test-agent"),
+                )
+            ],
+        )
 
         # Pre-materialize so status.json is part of the committed state.
         # In real usage, status.json would already exist from prior operations.

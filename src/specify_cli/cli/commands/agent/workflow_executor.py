@@ -39,7 +39,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import typer
 
@@ -62,13 +62,13 @@ from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     primary_feature_dir_for_mission,
 )
-from specify_cli.frontmatter import write_shell_pid_claim
 from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
-from specify_cli.task_utils import append_activity_log, build_document, extract_scalar, set_scalar
+from specify_cli.task_utils import extract_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
 
 if TYPE_CHECKING:
     from specify_cli.status import AgentAssignment
+    from specify_cli.status.resolved_binding import ResolvedBinding
     from specify_cli.status.wp_metadata import WPMetadata
     from specify_cli.task_utils import WorkPackage
 
@@ -88,6 +88,48 @@ def _wf() -> ModuleType:
 
     module: ModuleType = _workflow_module
     return module
+
+
+def _claim_policy_metadata(shell_pid: int, agent: str) -> dict[str, Any]:
+    """Best-effort ``policy_metadata`` triple for a claim transition (WP07/T026-T027).
+
+    Routes the ``(shell_pid, shell_pid_created_at, agent)`` triple onto the
+    claim transition's ``policy_metadata`` sidecar (FR-004) using WP01's
+    :func:`~specify_cli.status.emit.build_claim_policy_metadata` builder --
+    the exact key names WP01's reducer fold (``planned -> claimed``) reads.
+
+    ``shell_pid_created_at`` capture is best-effort (C-007): when
+    :func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`
+    cannot capture a baseline, the key is OMITTED (never fails the claim,
+    D3a legacy-claim semantics) rather than calling the builder with a
+    fabricated value.
+    """
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+    from specify_cli.status import build_claim_policy_metadata
+
+    baseline = capture_creation_time_baseline(shell_pid)
+    if baseline is None:
+        return {"shell_pid": shell_pid, "agent": agent}
+    # Explicit local annotation re-narrows the import from ``Any`` back to
+    # ``dict[str, Any]`` -- the project's ``follow_imports = "skip"`` mypy
+    # config for ``specify_cli.*`` means a cross-module late import is
+    # otherwise seen as ``Any`` (same pattern as :func:`_wf` above).
+    metadata: dict[str, Any] = build_claim_policy_metadata(shell_pid=shell_pid, shell_pid_created_at=baseline, agent=agent)
+    return metadata
+
+
+def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:
+    """Typed accessor for ``workflow.locate_work_package`` (#2675 T054).
+
+    ``_wf()`` returns ``ModuleType``, so ``.locate_work_package(...)`` leaks
+    ``Any`` through every call site. This is the ONE sanctioned ``cast`` in
+    this module -- every ``locate_work_package`` call site (erroring or not)
+    routes through here instead of scattering casts at each read site.
+    """
+    return cast(
+        "WorkPackage",
+        _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +467,7 @@ def implement_sparse_checkout_preflight(
 def implement_locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:
     """Find the WP file, translating the canonical-status-missing case."""
     try:
-        return _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        return _locate_wp(repo_root, mission_slug, normalized_wp_id)
     except RuntimeError as e:
         if is_missing_canonical_status_error(e):
             print(f"Error: {missing_canonical_status_message(normalized_wp_id, mission_slug)}")
@@ -590,6 +632,7 @@ def _implement_start_claim(
     current_lane: Lane,
     status_execution_mode: str,
     workspace_path: Path,
+    resolved_binding: ResolvedBinding | None,
 ) -> str:
     """Emit the claim status event, guarded by the runtime operational-context
     precondition. Returns ``shell_pid``. Raises ``typer.Exit(1)`` on
@@ -598,10 +641,15 @@ def _implement_start_claim(
     import os
 
     from runtime.next.runtime_bridge import build_operational_context_for_claim
-    from specify_cli.status import start_implementation_status
+    from specify_cli.status import build_resolved_actor, start_implementation_status
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
+    transition_actor = build_resolved_actor(
+        role=_IMPLEMENT_CLAIM_ROLE,
+        tool=agent or wp_agent_assignment.tool,
+        binding=resolved_binding,
+    )
 
     # FR-017 / NFR-004: build and validate the runtime OperationalContext
     # via the shared claim builder BEFORE emitting the claim status event
@@ -615,10 +663,18 @@ def _implement_start_claim(
         mission_slug=mission_slug,
         wp_id=normalized_wp_id,
         actor=actor,
-        active_model=agent or wp_agent_assignment.model,
+        active_model=(
+            resolved_binding.model
+            if resolved_binding is not None and resolved_binding.model is not None
+            else wp_agent_assignment.model
+        ),
         active_role=wp_agent_assignment.role or actor,
         current_activity="implement",
-        active_profile=wp_agent_assignment.profile_id,
+        active_profile=(
+            resolved_binding.agent_profile
+            if resolved_binding is not None
+            else None
+        ),
     )
     operational_context.require_active_role()
 
@@ -627,11 +683,21 @@ def _implement_start_claim(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=normalized_wp_id,
-            actor=actor,
+            actor=transition_actor,
             workspace_context=f"{status_execution_mode}:{workspace_path}",
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
             allow_rework=current_lane in {Lane.FOR_REVIEW, Lane.APPROVED, Lane.IN_REVIEW},
+            # WP07/T026 (FR-004/FR-014): the claim triple rides the
+            # planned -> claimed transition's policy_metadata sidecar
+            # instead of a separate WP-file write -- WP01's reducer folds
+            # these exact keys into the reduced snapshot.
+            policy_metadata=_claim_policy_metadata(int(shell_pid), actor),
+            annotation_delta=(
+                resolved_binding.to_delta(role=_IMPLEMENT_CLAIM_ROLE)
+                if resolved_binding is not None
+                else None
+            ),
         )
     except WorkPackageClaimConflict as exc:
         print(f"Error: {exc}")
@@ -647,8 +713,6 @@ def _implement_write_claim_and_commit(
     *,
     wp: WorkPackage,
     agent: str | None,
-    shell_pid: str,
-    current_lane: Lane,
     main_repo_root: Path,
     feature_dir: Path,
     mission_slug: str,
@@ -657,30 +721,28 @@ def _implement_write_claim_and_commit(
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
 ) -> None:
-    """Write the WP frontmatter/history update and auto-commit it (enables
-    instant status sync). Reload is the caller's responsibility."""
-    from datetime import UTC, datetime
-
+    """Auto-commit the claim's event-log/status artifacts (enables instant
+    status sync). The WP file is not mutated for the claim (byte-stable, SC-004);
+    reload is the caller's responsibility."""
     w = _wf()
 
-    # Update operational metadata in frontmatter (NO lane — event log is sole authority)
-    updated_front = wp.frontmatter
-    updated_front = set_scalar(updated_front, "agent", agent)
-    updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
+    # ``agent`` is guaranteed truthy here (#2675 T054): the caller only
+    # reaches this helper inside the ``if current_lane != Lane.IN_PROGRESS or
+    # needs_agent_assignment or agent:`` branch, and only after the
+    # `--agent required` guard (`if not agent and not (current_lane ==
+    # Lane.IN_PROGRESS and not needs_agent_assignment): raise`) has passed.
+    # The only way to satisfy both is ``agent`` truthy -- the falsy-agent
+    # disjunct of that guard (``current_lane == IN_PROGRESS and not
+    # needs_agent_assignment``) is exactly the case the outer ``if`` already
+    # excludes. Narrow explicitly rather than widen ``set_scalar``'s
+    # parameter type.
+    assert agent, "agent must be non-empty; caller validates this before calling _implement_write_claim_and_commit"
 
-    # Build history entry (no lane= segment; event log is sole lane authority)
-    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    if current_lane != Lane.IN_PROGRESS:
-        history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
-    else:
-        history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via action command"
-
-    # Add history entry to body
-    updated_body = append_activity_log(wp.body, history_entry)
-
-    # Build and write updated document
-    updated_doc = build_document(updated_front, updated_body, wp.padding)
-    wp.path.write_text(updated_doc, encoding="utf-8")
+    # WP04/T015 (FR-004/NFR-003/SC-004): the claim triple rides the
+    # transition's policy_metadata sidecar (see _implement_start_claim) -- the
+    # WP file is NOT mutated for the claim. The former frontmatter dual-write
+    # mirror (agent/shell_pid/activity-log) was removed in the #2816 unconditional
+    # cutover, so this function writes 0 runtime bytes to the WP file.
 
     # Auto-commit to target branch (enables instant status sync)
     actual_wp_path = wp.path.resolve()
@@ -727,6 +789,59 @@ def _implement_trigger_dossier_sync(repo_root: Path, mission_slug: str) -> None:
         )
 
 
+def _implement_emit_resume_refresh(
+    *,
+    feature_dir: Path,
+    wp_id: str,
+    mission_slug: str,
+    actor: str,
+    repo_root: Path,
+    resolved_binding: ResolvedBinding | None = None,
+) -> None:
+    """WP07/T029a (FR-004/US3): refresh ``shell_pid`` on resume/re-claim of an
+    already ``in_progress`` WP via an off-axis ``InnerStateChanged``
+    annotation.  When the resume came through a dispatch invocation, the
+    resolved binding rides the same annotation so liveness and provenance
+    cannot be durably split by a crash.
+
+    Resume is NOT a ``planned -> claimed`` transition, so this never routes
+    through ``policy_metadata`` (that sidecar is reserved for the real claim
+    transition, T026/T027). Historically this path wrote nothing at all (a
+    true no-op) -- it still writes nothing to the WP file here (no
+    frontmatter mutation, no dual-write bridge needed: SC-001/SC-005
+    byte-stability holds unconditionally across a resume). Persistence is
+    authoritative: append failures propagate and abort the resume.
+    """
+    import os
+
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
+
+    shell_pid = os.getppid()
+    baseline = capture_creation_time_baseline(shell_pid)
+    delta_values: dict[str, Any] = {
+        "shell_pid": shell_pid,
+        "shell_pid_created_at": baseline,
+    }
+    if resolved_binding is not None:
+        delta_values.update(resolved_binding.to_delta(role=_IMPLEMENT_CLAIM_ROLE).to_dict())
+    emit_inner_state_changed(
+        feature_dir,
+        wp_id,
+        WPInnerStateDelta.from_dict(delta_values),
+        actor=actor,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+    )
+
+
+#: The *actual* role that ran at each claim seam — the resolved-binding ``role``
+#: is the role that executed, NOT the authored frontmatter recommendation (INV-6).
+_IMPLEMENT_CLAIM_ROLE = "implementer"
+_REVIEW_CLAIM_ROLE = "reviewer"
+
+
 def implement_claim_transition(
     *,
     repo_root: Path,
@@ -740,6 +855,7 @@ def implement_claim_transition(
     target_branch: str,
     workspace_path: Path,
     status_execution_mode: str,
+    resolved_binding: ResolvedBinding | None = None,
 ) -> ImplementClaimResult:
     """Move a WP to ``in_progress`` (claiming it) if not already there.
 
@@ -776,6 +892,13 @@ def implement_claim_transition(
     wp_slug = wp.path.stem
     fix_mode_active = has_prior_rejection(feature_dir, wp_slug, normalized_wp_id)
 
+    events_path_pre = wf_feature_dir / w._STATUS_EVENTS_FILENAME
+    status_path_pre = wf_feature_dir / w._STATUS_FILENAME
+    # Capture before every status mutation, including the bare-resume path, so
+    # commit failure can restore both authoritative artifacts byte-for-byte.
+    pre_emit_event_size = events_path_pre.stat().st_size if events_path_pre.exists() else 0
+    pre_emit_status_bytes = status_path_pre.read_bytes() if status_path_pre.exists() else None
+
     if current_lane != Lane.IN_PROGRESS or needs_agent_assignment or agent:
         # Require --agent parameter to track who is working
         if not agent and not (current_lane == Lane.IN_PROGRESS and not needs_agent_assignment):
@@ -787,16 +910,6 @@ def implement_claim_transition(
             print("This tracks WHO is working on the WP (prevents abandoned tasks).")
             raise typer.Exit(1)
 
-        events_path_pre = wf_feature_dir / w._STATUS_EVENTS_FILENAME
-        status_path_pre = wf_feature_dir / w._STATUS_FILENAME
-        # WP06 T027: capture the pre-emit size of status.events.jsonl
-        # so we can surgically truncate on commit failure. This is
-        # the byte-for-byte rollback that closes #1348 for the
-        # legacy path; the modern path (coord branch) gets the same
-        # contract via BookkeepingTransaction.
-        pre_emit_event_size = events_path_pre.stat().st_size if events_path_pre.exists() else 0
-        pre_emit_status_bytes = status_path_pre.read_bytes() if status_path_pre.exists() else None
-
         shell_pid = _implement_start_claim(
             main_repo_root=main_repo_root,
             feature_dir=wf_feature_dir,
@@ -807,13 +920,21 @@ def implement_claim_transition(
             current_lane=current_lane,
             status_execution_mode=status_execution_mode,
             workspace_path=workspace_path,
+            resolved_binding=resolved_binding,
         )
 
+        if current_lane == Lane.IN_PROGRESS:
+            _implement_emit_resume_refresh(
+                feature_dir=wf_feature_dir,
+                wp_id=normalized_wp_id,
+                mission_slug=mission_slug,
+                actor=agent or wp_agent_assignment.tool or "unknown",
+                resolved_binding=resolved_binding,
+                repo_root=main_repo_root,
+            )
         _implement_write_claim_and_commit(
             wp=wp,
             agent=agent,
-            shell_pid=shell_pid,
-            current_lane=current_lane,
             main_repo_root=main_repo_root,
             feature_dir=wf_feature_dir,
             mission_slug=mission_slug,
@@ -828,9 +949,31 @@ def implement_claim_transition(
         _implement_trigger_dossier_sync(repo_root, mission_slug)
 
         # Reload to get updated content
-        wp = _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     else:
         print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to in_progress.")
+        _implement_emit_resume_refresh(
+            feature_dir=wf_feature_dir,
+            wp_id=normalized_wp_id,
+            mission_slug=mission_slug,
+            actor=agent or wp_agent_assignment.tool or "unknown",
+            repo_root=main_repo_root,
+            resolved_binding=resolved_binding,
+        )
+        status_artifacts = [path.resolve() for path in w._collect_status_artifacts(wf_feature_dir)]
+        w._commit_workflow_change(
+            repo_root=main_repo_root,
+            feature_dir=wf_feature_dir,
+            mission_slug=mission_slug,
+            target_branch=target_branch,
+            paths=[wp.path.resolve(), *status_artifacts],
+            message=f"chore: Refresh {normalized_wp_id} implementation liveness",
+            operation=f"refresh implementation liveness for {normalized_wp_id}",
+            wp_id=normalized_wp_id,
+            pre_emit_event_size=pre_emit_event_size,
+            pre_emit_status_bytes=pre_emit_status_bytes,
+            auto_rebase_lane_after_commit=True,
+        )
 
     return ImplementClaimResult(
         wp=wp,
@@ -867,6 +1010,13 @@ def implement_try_render_fix_mode_prompt(
         from specify_cli.review.fix_prompt import generate_fix_prompt
 
         sub_artifact_dir = feature_dir / "tasks" / wp_slug
+        # Declared up front (#2675 T054): ``.from_file(...)`` returns a
+        # non-Optional ``ReviewCycleArtifact`` while ``.latest(...)`` returns
+        # ``ReviewCycleArtifact | None`` -- without this explicit annotation
+        # mypy infers ``latest_artifact``'s type from the first (non-Optional)
+        # branch and flags the second assignment as an incompatible
+        # redefinition.
+        latest_artifact: ReviewCycleArtifact | None
         if review_feedback_ref and review_feedback_ref.startswith("review-cycle://") and review_feedback_file is not None:
             latest_artifact = ReviewCycleArtifact.from_file(review_feedback_file)
         else:
@@ -1191,7 +1341,7 @@ def review_resolve_wp_and_lane_gate(
     w = _wf()
 
     try:
-        wp = _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     except RuntimeError as e:
         if is_missing_canonical_status_error(e):
             raise RuntimeError(missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
@@ -1277,13 +1427,12 @@ def review_claim_transition(
     target_branch: str,
     status_execution_mode: str,
     repo_root: Path,
+    resolved_binding: ResolvedBinding | None = None,
 ) -> WorkPackage:
     """Claim a WP for review (``for_review`` -> ``in_review``) if applicable."""
-    from datetime import UTC, datetime
-
-    from specify_cli.core.utils import write_text_within_directory
-    from specify_cli.status import start_review_status
-    from specify_cli.task_utils import split_frontmatter
+    from specify_cli.status import build_resolved_actor, start_review_status
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
 
     w = _wf()
 
@@ -1304,6 +1453,20 @@ def review_claim_transition(
     import os
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
+    claim_policy_metadata = _claim_policy_metadata(int(shell_pid), agent)
+    claim_delta_values: dict[str, Any] = {
+        "shell_pid": int(shell_pid),
+        "shell_pid_created_at": claim_policy_metadata.get("shell_pid_created_at"),
+        "agent": agent,
+    }
+    if resolved_binding is not None:
+        claim_delta_values.update(resolved_binding.to_delta(role=_REVIEW_CLAIM_ROLE).to_dict())
+    claim_delta = WPInnerStateDelta.from_dict(claim_delta_values)
+    transition_actor = build_resolved_actor(
+        role=_REVIEW_CLAIM_ROLE,
+        tool=agent,
+        binding=resolved_binding,
+    )
 
     with w.feature_status_lock(main_repo_root, mission_slug):
         # WP06 T027: capture pre-emit event-log size for
@@ -1317,11 +1480,20 @@ def review_claim_transition(
                 feature_dir=feature_dir,
                 mission_slug=mission_slug,
                 wp_id=normalized_wp_id,
-                actor=agent,
+                actor=transition_actor,
                 review_ref="action-review-claim",
                 workspace_context=f"action-review:{main_repo_root}",
                 execution_mode=status_execution_mode,
                 repo_root=main_repo_root,
+                # WP07/T027 (FR-004/FR-014): mirror T026 -- carry the claim
+                # triple on the for_review -> in_review transition's
+                # policy_metadata sidecar too (provenance on the event even
+                # though WP01's reducer only special-cases the
+                # planned -> claimed fold; see the emit_inner_state_changed
+                # annotation below for the snapshot-slot write this
+                # transition alone does not perform).
+                policy_metadata=claim_policy_metadata,
+                annotation_delta=claim_delta,
             )
         except WorkPackageClaimConflict as exc:
             print(f"Error: {exc}")
@@ -1330,22 +1502,22 @@ def review_claim_transition(
             print(f"Error: {exc}")
             raise typer.Exit(1) from exc
 
-        # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
-        wp_content = wp.path.read_text(encoding="utf-8-sig")
-        updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-        updated_front = set_scalar(updated_front, "agent", agent)
-        updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
+        if current_lane == Lane.IN_REVIEW:
+            emit_inner_state_changed(
+                feature_dir,
+                normalized_wp_id,
+                claim_delta,
+                actor=agent,
+                mission_slug=mission_slug,
+                repo_root=main_repo_root,
+            )
 
-        # Build history entry (no lane= segment; event log is sole lane authority)
-        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
-
-        # Add history entry to body
-        updated_body = append_activity_log(updated_body, history_entry)
-
-        # Build and write updated document
-        updated_doc = build_document(updated_front, updated_body, updated_padding)
-        write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+        # WP04/T015 (FR-004/NFR-003/SC-004): the review claim's shell_pid/agent
+        # reach the reduced snapshot via the transaction-carried annotation (or
+        # the single no-op re-claim annotation above).
+        # The former frontmatter dual-write mirror was removed in the #2816
+        # unconditional cutover, so this claim writes 0 runtime bytes to the WP
+        # file (byte-stable across the claim).
 
         # Atomic commit: WP file + all status artifacts (#211, #212)
         actual_wp_path = wp.path.resolve()
@@ -1369,7 +1541,7 @@ def review_claim_transition(
     print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
     # Reload to get updated content
-    return _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+    return _locate_wp(repo_root, mission_slug, normalized_wp_id)
 
 
 def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> list[str]:

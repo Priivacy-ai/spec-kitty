@@ -59,6 +59,7 @@ from specify_cli.invocation.record import (
     parse_op_event,
     promote_to_evidence,
     tier_eligible,
+    validate_invocation_id,
 )
 from specify_cli.invocation.writer import InvocationWriter
 
@@ -142,6 +143,7 @@ __all__ = [
     "promote_to_evidence",
     "read_lifecycle_records",
     "tier_eligible",
+    "validate_invocation_id",
     "write_paired_completion",
     "write_started",
 ]

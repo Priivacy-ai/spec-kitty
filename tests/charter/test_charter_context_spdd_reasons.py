@@ -34,20 +34,50 @@ ACTIONS = ("specify", "plan", "tasks", "implement", "review")
 # ---------------------------------------------------------------------------
 
 
-def _write_governance(tmp_path: Path, body: str) -> Path:
+def _charter_yaml_path(tmp_path: Path) -> Path:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    governance = charter_dir / "governance.yaml"
-    governance.write_text(body, encoding="utf-8")
-    return governance
+    return charter_dir / "charter.yaml"
+
+
+def _write_governance(tmp_path: Path, body: str) -> Path:
+    """Merge a governance YAML body into charter.yaml's ``governance:`` section.
+
+    consolidate-charter-bundle (IC-04 / WP04, T028c):
+    ``is_spdd_reasons_active`` reads ``charter.yaml``'s ``governance:`` /
+    ``directives:`` sections now, not the retired ``governance.yaml`` /
+    ``directives.yaml`` files. *body* is the same bare-YAML fixture shape
+    these tests always used; it is parsed and nested under ``governance:``
+    rather than written as its own top-level file.
+    """
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    governance_data = yaml.load(body)
+    path = _charter_yaml_path(tmp_path)
+    document = yaml.load(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not isinstance(document, dict):
+        document = {}
+    document["governance"] = governance_data
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(document, fh)
+    return path
 
 
 def _write_directives(tmp_path: Path, body: str) -> Path:
-    charter_dir = tmp_path / ".kittify" / "charter"
-    charter_dir.mkdir(parents=True, exist_ok=True)
-    directives = charter_dir / "directives.yaml"
-    directives.write_text(body, encoding="utf-8")
-    return directives
+    """Merge a directives YAML body into charter.yaml's ``directives:`` section."""
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    directives_data = yaml.load(body)
+    path = _charter_yaml_path(tmp_path)
+    document = yaml.load(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not isinstance(document, dict):
+        document = {}
+    document["directives"] = directives_data
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(document, fh)
+    return path
 
 
 def _empty_governance() -> str:
@@ -157,7 +187,11 @@ class TestActivation:
 
     # Case 7
     def test_malformed_governance_raises(self, tmp_path: Path) -> None:
-        _write_governance(tmp_path, "doctrine: [this: is: not: valid")
+        # A structurally-invalid charter.yaml (not just a malformed governance
+        # sub-block, which _write_governance's own YAML.load would refuse to
+        # persist) -- the loader exception propagates unchanged (FR-007).
+        path = _charter_yaml_path(tmp_path)
+        path.write_text("governance:\n  doctrine: [this: is: not: valid\n", encoding="utf-8")
         with pytest.raises(YAMLError):
             is_spdd_reasons_active(tmp_path)
 
@@ -328,21 +362,21 @@ class TestParadigmRoundTrip:
         clear_activation_cache()
 
     def test_paradigm_in_governance_activates_pack(self, tmp_path: Path) -> None:
+        from charter.charter_yaml_io import save_charter_yaml
         from charter.schemas import DoctrineSelectionConfig, GovernanceConfig
-        from ruamel.yaml import YAML
 
         # Build a minimal GovernanceConfig with the paradigm selected, then
-        # serialise the same way charter sync would.
+        # write it into charter.yaml's governance: section the way the
+        # hand-authored charter would carry it.
         gov = GovernanceConfig(
             doctrine=DoctrineSelectionConfig(
                 selected_paradigms=["structured-prompt-driven-development"],
             )
         )
-        charter_dir = tmp_path / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True, exist_ok=True)
-        yaml = YAML()
-        with (charter_dir / "governance.yaml").open("w", encoding="utf-8") as fh:
-            yaml.dump(gov.model_dump(mode="json"), fh)
+        charter_yaml_path = _charter_yaml_path(tmp_path)
+        save_charter_yaml(
+            charter_yaml_path, {"governance": gov.model_dump(mode="json")}
+        )
 
         assert is_spdd_reasons_active(tmp_path) is True
 
@@ -378,11 +412,11 @@ class TestSelectedTacticsRoundTrip:
     def test_tactic_only_selection_round_trips_to_governance_and_activates(
         self, tmp_path: Path
     ) -> None:
+        from charter.charter_yaml_io import save_charter_yaml
         from charter.compiler import compile_charter
-        from charter.extractor import Extractor
         from charter.interview import default_interview
         from charter.pack_context import PackContext
-        from charter.schemas import emit_yaml
+        from charter.schemas import DoctrineSelectionConfig, GovernanceConfig
 
         # 1. Build a PackContext that activates ONLY the canvas-fill tactic
         #    (every other kind explicitly narrowed to empty so nothing else
@@ -420,17 +454,31 @@ class TestSelectedTacticsRoundTrip:
         assert "reasons-canvas-fill" in compiled.selected_tactics
         assert "selected_tactics: [reasons-canvas-fill]" in compiled.markdown
 
-        # 3. Round-trip: re-extract the charter back into a GovernanceConfig
-        #    and confirm selected_tactics survived the markdown -> YAML hop.
-        extractor = Extractor()
-        result = extractor.extract(compiled.markdown)
-        assert "reasons-canvas-fill" in result.governance.doctrine.selected_tactics
+        # 3. WP02 (charter-deadcode-noop-campsite): charter.extractor is
+        #    retired, so the round-trip is reconstructed directly from the
+        #    already-available ``compiled`` selection fields instead of
+        #    re-parsing ``compiled.markdown`` via ``Extractor().extract()``
+        #    -- this is the same data the extractor used to scrape back out
+        #    of the rendered markdown.
+        governance = GovernanceConfig(
+            doctrine=DoctrineSelectionConfig(
+                selected_paradigms=compiled.selected_paradigms,
+                selected_directives=compiled.selected_directives,
+                selected_tactics=compiled.selected_tactics,
+                available_tools=compiled.available_tools,
+                template_set=compiled.template_set,
+            )
+        )
+        assert "reasons-canvas-fill" in governance.doctrine.selected_tactics
 
-        # 4. Write governance.yaml as the charter sync pipeline would, then
-        #    let the activation helper read it back from disk.
-        charter_dir = tmp_path / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True, exist_ok=True)
-        emit_yaml(result.governance, charter_dir / "governance.yaml")
+        # 4. Write charter.yaml's governance: section the way the
+        #    hand-authored charter would carry it, then let the activation
+        #    helper read it back from disk.
+        charter_yaml_path = _charter_yaml_path(tmp_path)
+        save_charter_yaml(
+            charter_yaml_path,
+            {"governance": governance.model_dump(mode="json")},
+        )
 
         clear_activation_cache()
         assert is_spdd_reasons_active(tmp_path) is True

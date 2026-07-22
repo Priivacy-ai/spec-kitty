@@ -851,7 +851,7 @@ class TestReviewFeedbackAndRejectionResumePaths:
         assert result[1] == pointer
         assert result[3] == "canonical"
 
-    def test_sentinel_review_ref_is_skipped_falls_through_to_frontmatter(self, tmp_path: Path) -> None:
+    def test_sentinel_review_ref_is_skipped_without_frontmatter_fallback(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "trio-mission"
         feature_dir.mkdir(parents=True)
         _write_events(
@@ -870,9 +870,7 @@ class TestReviewFeedbackAndRejectionResumePaths:
 
         result = _resolve_review_feedback_context(feature_dir, "WP01", frontmatter)
 
-        assert result[0] is True
-        assert result[1] == "legacy-ref"
-        assert result[3] == "frontmatter"
+        assert result == (False, None, None, None)
 
     def test_has_prior_rejection_false_when_no_subtask_dir(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "trio-mission"
@@ -1001,9 +999,9 @@ class TestCollectFeatureSummaryWiring:
 
         summary = collect_feature_summary(tmp_path, "trio-mission", strict_metadata=True, mutate_matrix=False)
 
-        assert "WP01: missing agent in frontmatter" in summary.metadata_issues
-        assert "WP01: missing assignee in frontmatter" in summary.metadata_issues
-        assert "WP01: missing shell_pid in frontmatter" in summary.metadata_issues
+        assert "WP01: missing agent in canonical runtime state" in summary.metadata_issues
+        assert "WP01: missing assignee in canonical runtime state" in summary.metadata_issues
+        assert "WP01: missing shell_pid in canonical runtime state" in summary.metadata_issues
 
     def test_strict_metadata_false_suppresses_metadata_issues(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1032,7 +1030,7 @@ class TestCollectFeatureSummaryWiring:
             tmp_path,
             strict_metadata=True,
             wps=[],
-            snapshot_wps={"WP01": {"lane": "done"}},
+            snapshot_wps={"WP01": {"lane": "done", "agent": "claude"}},
         )
         wp = _wp("WP01", path=feature_dir / "tasks" / "WP01.md", agent="claude", assignee=None, shell_pid=None)
         monkeypatch.setattr(acceptance_module, "_iter_work_packages", lambda *_a, **_k: iter([wp]))

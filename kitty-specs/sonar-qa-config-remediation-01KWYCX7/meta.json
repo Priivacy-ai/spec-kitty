@@ -12,6 +12,7 @@
   "purpose_context": "Sonar/QA hand-off from maintainer Stijn Dejongh. Reuses his prep on stijn-dejongh/spec-kitty branch design/pr-landing-followups-and-sonar-remediation, mission ci-hygiene-and-sonar-debt-remediation-01KWV531 (his Concern-B FR-006/FR-007/FR-012 + research.md decisions). Scoped to the 3-part sonar-config slice ONLY — EXCLUDES the ~900-issue backlog slicing (epic #1928) and the already-landed census/contract work (#2416/#2419/#2420). Cross-fork draft closing #2421 #2422.",
   "purpose_tldr": "Wire sonar.projectVersion from pyproject.toml into the sonarcloud CI job so the new-code baseline resets per dev cycle (#2421); determine + document whether SonarCloud's whole-repo coverage measures a different file-set than the internal diff-coverage gate (#2422); promote the gitignored sonarcloud_branch_review.sh into scripts/ci/ as a tracked, read-only QA-enabler tool with a smoke test",
   "slug": "sonar-qa-config-remediation-01KWYCX7",
+  "status_phase": "1",
   "target_branch": "feat/sonar-qa-config-remediation",
   "topology": "coord",
   "vcs": "git",

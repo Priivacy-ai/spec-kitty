@@ -12,6 +12,7 @@
   "purpose_context": "Catfooding and review surfaced a cluster of small but real reliability defects: a dirty-tree gate that blocks on unrelated kitty-ops debris, coordination tooling that misclassifies a never-created branch and recommends recovery that cannot run, and identity/branch resolvers that silently fall back to a slug or the default branch instead of failing closed. Individually minor, together they erode operator trust in the workflow. The mission fixes them in two cohesive lanes — operator coord/gate papercuts and identity/surface-resolution residuals — each with standing regression tests, while preserving the canonical-surface invariants the stranglers established.",
   "purpose_tldr": "Fix six operator-facing reliability papercuts — silent failures and misleading recovery guidance — across the mission, coordination, and decision surfaces.",
   "slug": "reliability-papercut-sweep-01KWD0V5",
+  "status_phase": "1",
   "target_branch": "fix/reliability-papercut-sweep",
   "topology": "coord",
   "vcs": "git",

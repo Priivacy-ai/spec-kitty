@@ -1,23 +1,23 @@
 ---
 title: 'Migration: --feature to --mission'
-description: 'Migration from the --feature flag to --mission, deprecated in mission 077 and partially removed in 3.2.x (#1060-A): the timeline and the required call-site changes.'
+description: 'Migration from the --feature flag to --mission, deprecated in mission 077 and fully removed as of 3.2.3 (#1060): the timeline and the required call-site changes.'
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-07-20'
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migration: `--feature` to `--mission`
 
 **Status**: Deprecated as of Mission `077-mission-terminology-cleanup`.
-**Partial removal (3.2.x, #1060-A)**: the alias has been **removed from the
-internal/agent command cluster** (`agent status/tasks/action/context/mission`,
-`charter lint`, `materialize`, `validate-encoding`, `validate-tasks`,
-`verify`/`verify-setup`). On those commands `--feature` is no longer accepted —
-the parser rejects it with "No such option". It remains a hidden alias only on
-the deferred user-facing top-level commands (`implement`, `merge`, `next`,
-`research`, `context`, `accept`, `lifecycle`, `mission-type`) pending full
-removal (gated by #1059).
-**Full removal**: Gated on named conditions. No calendar date is set.
+**Full removal (3.2.3, #1060)**: the alias has been **hard-removed from every
+user-facing and internal/agent command**, including the eight commands that
+previously kept it during the deprecation window (`implement`, `merge`,
+`next`, `research`, `context`, `accept`, `lifecycle plan`/`lifecycle tasks`,
+`mission-type current`) and the internal/agent command cluster (`agent
+status/tasks/action/context/mission`, `charter lint`, `materialize`,
+`validate-encoding`, `validate-tasks`, `verify`/`verify-setup`) removed
+earlier in 3.2.x (#1060-A). `--feature` is no longer accepted anywhere —
+passing it exits with code 2 and "No such option: --feature".
 
 ## Why This Change
 
@@ -29,10 +29,9 @@ canonical terminology boundary:
 - **Mission** = concrete tracked item under `kitty-specs/<mission-slug>/`
 - **Mission Run** = runtime/session execution instance only
 
-`--feature` remains available only as a hidden deprecated alias **on the deferred
-user-facing top-level commands** during the migration window so older scripts can
-keep running while first-party surfaces finish moving to `--mission`. On the
-internal/agent command cluster it has already been removed (3.2.x, #1060-A).
+`--feature` is no longer available anywhere, including the top-level commands
+that kept it as a hidden deprecated alias during the migration window. All
+first-party surfaces have moved to `--mission`.
 
 ## What Changed
 
@@ -42,20 +41,14 @@ internal/agent command cluster it has already been removed (3.2.x, #1060-A).
 | `spec-kitty next --feature 077-foo` | `spec-kitty next --mission 077-foo` |
 | `spec-kitty agent tasks status --feature 077-foo` | `spec-kitty agent tasks status --mission 077-foo` (the `--feature` form is now **removed** — it errors) |
 
-On the deferred user-facing commands the alias still resolves but emits a
-deprecation warning on stderr. On the internal/agent cluster (3.2.x, #1060-A) the
-alias is gone and `--feature` is rejected with "No such option".
+`--feature` is rejected everywhere with "No such option: --feature" — there is
+no remaining command where it resolves, warns, or is merely hidden from
+`--help`.
 
 ## Behavioral Changes
 
-On the internal/agent command cluster, any `--feature` occurrence is now a
-parser error. The command exits before selector resolution.
-
-On the deferred user-facing commands that still carry the hidden alias:
-
-1. Passing both `--mission` and `--feature` with different values fails fast with a deterministic conflict error.
-2. Passing both flags with the same value succeeds, but still emits the deprecation warning once.
-3. `--feature` is hidden from `--help` output. New examples and docs must use `--mission`.
+Any `--feature` occurrence, on any command, is now a parser error. The
+command exits before selector resolution with exit code 2.
 
 ## How to Migrate Scripts
 
@@ -78,26 +71,24 @@ find . -name "*.sh" -o -name "*.bash" | xargs sed -i '' 's/--feature /--mission 
 Review the diff before committing. A blind replacement can catch unrelated tools
 or documentation.
 
-## Suppressing the Warning During Cutover
+## Suppressing the Warning During Cutover (historical)
 
-If CI or an automation wrapper cannot tolerate stderr noise while you migrate,
-set:
+`SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` was used to silence the deprecation
+warning during the alias window. Now that `--feature` is fully removed
+(3.2.3, #1060), the variable is **inert** — it is accepted but has no effect, since
+there is no warning left to suppress. See
+[Environment Variables](../api/environment-variables.md) for the current
+state.
 
-```bash
-export SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION=1
-```
+## Removal (complete)
 
-This suppresses the warning only. It does not disable conflict detection.
-
-## Removal Criteria
-
-The `--feature` alias can be removed only when all of the following are true:
+`--feature` was removed everywhere in 3.2.3 (#1060). This section previously
+listed forward-looking removal criteria; they are retained here only for
+historical record of what gated the removal:
 
 1. First-party doctrine skills, examples, and user-facing docs teach `--mission` only.
-2. First-party machine-facing surfaces have completed Scope B alignment.
-3. A documented audit window shows zero first-party legacy `--feature` usage in active CI and shipped scripts.
-
-Removal is a separate change. There is no date-based removal promise.
+2. First-party machine-facing surfaces completed Scope B alignment.
+3. A documented audit window showed zero first-party legacy `--feature` usage in active CI and shipped scripts.
 
 ## References
 

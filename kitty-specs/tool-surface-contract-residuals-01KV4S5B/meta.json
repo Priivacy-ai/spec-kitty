@@ -24,6 +24,7 @@
   "purpose_context": "Epic #1945 (ToolSurfaceContract) was closed when PR #1948 merged, but a verification panel found four child issues whose acceptance criteria are not met by the shipped code. This mission finishes those four residuals -- missing native-profile-projection diagnostics and manifest provenance, registry-backed agent-config sets, an actually-enforced docs-contract lint CI gate, and the user-facing migration guide plus a flaky doctor-skills test fix -- so the reopened epic can close honestly.",
   "purpose_tldr": "Close the verified spec-to-code gaps PR #1948 left in epic #1945 so the ToolSurfaceContract epic can close on substance.",
   "slug": "tool-surface-contract-residuals-01KV4S5B",
+  "status_phase": "1",
   "target_branch": "feat/tool-surface-contract-residuals",
   "vcs": "git",
   "vcs_locked_at": "2026-06-15T05:53:07.149421+00:00"

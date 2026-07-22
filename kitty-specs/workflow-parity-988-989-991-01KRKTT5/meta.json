@@ -8,5 +8,6 @@
   "purpose_context": "Three Spec Kitty 3.2.1 workflow surfaces drift from their canonical counterparts: next --json under-reports claimable WPs, lightweight review hides missing dead-code scans as green, and merge --dry-run skips the review-artifact consistency gate. Operators and agents lose trust in the readiness signals these surfaces emit. This mission restores parity so dry-runs, lightweight reviews, and next-step JSON match the real merge/implement/scan paths.",
   "purpose_tldr": "Make next --json, lightweight review, and merge --dry-run faithfully reflect what real commands do.",
   "slug": "workflow-parity-988-989-991-01KRKTT5",
+  "status_phase": "1",
   "target_branch": "fix/workflow-parity-988-989-991"
 }

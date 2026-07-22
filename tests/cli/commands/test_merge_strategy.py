@@ -10,7 +10,7 @@ Covers:
 - test_push_rejection_fails_open_for_unknown (FR-009)
 - test_protected_linear_history_succeeds_default (NFR-003)
 
-Note on patching: merge_lane_to_mission/merge_mission_to_target are imported locally inside
+Note on patching: consolidate_lane_into_mission/integrate_mission_into_target are imported locally inside
 _run_lane_based_merge, so they must be patched at the source module level
 (specify_cli.lanes.merge.*) not at specify_cli.cli.commands.merge.*.
 Similarly, evaluate_merge_gates and load_policy_config are patched at their source paths.
@@ -191,10 +191,10 @@ def _patched_lane_based_merge_dependencies(
         stack.enter_context(patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)))
         stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
         mock_lane_merge = stack.enter_context(
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result)
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result)
         )
         mock_mission_merge = stack.enter_context(
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result)
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result)
         )
         stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
         stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
@@ -228,8 +228,8 @@ def _patched_lane_based_merge_dependencies(
 class TestStrategyFlagFlowsThrough:
     """FR-005: --strategy squash reaches _run_lane_based_merge and is honored."""
 
-    def test_strategy_squash_passed_to_merge_mission_to_target(self, tmp_path: Path) -> None:
-        """FR-005: strategy parameter is passed down to merge_mission_to_target."""
+    def test_strategy_squash_passed_to_integrate_mission_into_target(self, tmp_path: Path) -> None:
+        """FR-005: strategy parameter is passed down to integrate_mission_into_target."""
         mission_slug = "068-test"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
@@ -258,7 +258,7 @@ class TestStrategyFlagFlowsThrough:
                 strategy=MergeStrategy.SQUASH,
             )
 
-            # Verify strategy was passed to merge_mission_to_target
+            # Verify strategy was passed to integrate_mission_into_target
             mock_mission_merge.assert_called_once()
             call_kwargs = mock_mission_merge.call_args.kwargs
             assert call_kwargs.get("strategy") == MergeStrategy.SQUASH
@@ -307,7 +307,7 @@ class TestLaneToMissionUsesMergeCommit:
     """FR-007: lane→mission keeps merge-commit semantics regardless of strategy."""
 
     def test_lane_to_mission_does_not_receive_strategy(self, tmp_path: Path) -> None:
-        """Verify merge_lane_to_mission is called WITHOUT a strategy parameter."""
+        """Verify consolidate_lane_into_mission is called WITHOUT a strategy parameter."""
         mission_slug = "068-test3"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
@@ -337,7 +337,7 @@ class TestLaneToMissionUsesMergeCommit:
                 strategy=MergeStrategy.SQUASH,
             )
 
-            # merge_lane_to_mission must NOT receive a strategy parameter
+            # consolidate_lane_into_mission must NOT receive a strategy parameter
             for call in mock_lane_merge.call_args_list:
                 assert "strategy" not in call.kwargs, (
                     "lane→mission merge must not receive a strategy parameter "

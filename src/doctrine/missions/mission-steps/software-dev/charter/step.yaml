@@ -6,3 +6,5 @@ agent_profile: null
 guidance: null
 delegates_to: []
 depends_on: []
+sequence_index: null
+in_action_sequence: false

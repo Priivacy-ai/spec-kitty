@@ -34,6 +34,7 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -237,8 +238,10 @@ def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(
     from runtime.next import runtime_bridge as rb
 
     monkeypatch.setattr(
-        "charter.mission_type_profiles.resolve_action_sequence",
-        lambda mission, repo_root: ["patched-action"],
+        "charter.mission_type_profiles.resolve_mission_type_context",
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
+            action_sequence=["patched-action"]
+        ),
     )
     calls: list[str] = []
 
@@ -478,8 +481,10 @@ def test_composition_dispatch_inputs_short_circuits_when_action_in_charter_seque
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(
-        "charter.mission_type_profiles.resolve_action_sequence",
-        lambda mission, repo_root: ["specify", "plan", "tasks", "implement", "review"],
+        "charter.mission_type_profiles.resolve_mission_type_context",
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
+            action_sequence=["specify", "plan", "tasks", "implement", "review"]
+        ),
     )
     profile, contract = composition._composition_dispatch_inputs(
         repo_root=tmp_path, run_dir=tmp_path, mission="software-dev", step_id="specify", action="specify"
@@ -497,12 +502,16 @@ def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
     monkeypatch on ``runtime_bridge.<name>``."""
     from runtime.next import runtime_bridge as rb
 
-    def _raise_unknown(mission: str, repo_root: Path) -> list[str]:
+    def _raise_unknown(
+        repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
+    ) -> SimpleNamespace:
         from charter.mission_type_profiles import UnknownMissionTypeError
 
-        raise UnknownMissionTypeError(mission)
+        raise UnknownMissionTypeError(mission_type)
 
-    monkeypatch.setattr("charter.mission_type_profiles.resolve_action_sequence", _raise_unknown)
+    monkeypatch.setattr(
+        "charter.mission_type_profiles.resolve_mission_type_context", _raise_unknown
+    )
 
     calls: list[str] = []
 

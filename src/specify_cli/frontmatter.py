@@ -10,7 +10,6 @@ LLMs and scripts should NEVER manually edit YAML frontmatter.
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,9 +19,9 @@ from ruamel.yaml.comments import CommentedMap
 # The additive PID-reuse identity baseline (C-007) co-written alongside
 # ``shell_pid`` at every claim-write site (D3b). Declared once here — the
 # single shared constant mirrors the ``"shell_pid"`` field-name pattern in
-# ``WP_FIELD_ORDER`` below — and read by :func:`write_shell_pid_claim` (this
-# module) and ``core.stale_detection`` (the claim-liveness consumer) so the
-# field name cannot drift into a re-duplicated literal (Sonar S1192).
+# ``WP_FIELD_ORDER`` below — and read by ``core.stale_detection`` (the
+# claim-liveness consumer) so the field name cannot drift into a re-duplicated
+# literal (Sonar S1192).
 SHELL_PID_BASELINE_FIELD = "shell_pid_created_at"
 
 
@@ -51,7 +50,14 @@ class FrontmatterManager:
         "title",
         "dependencies",  # List of WP IDs this WP depends on (e.g., ['WP01', 'WP02'])
         "requirement_refs",  # Requirement IDs mapped to this WP (e.g., ['FR-001', 'NFR-002'])
-        "tracker_refs",  # External tracker issue references (e.g., ['#1298', 'JIRA-123']) per DIR-012
+        # "tracker_refs" is intentionally NOT listed here (WP07/T029, FR-006/FR-013):
+        # it is event-sourced (emitted by WP08's map-requirements + WP06's
+        # move-task as an InnerStateChanged delta) and read from the reduced
+        # snapshot. Keeping it in this static authored schema would dual-home
+        # it (dynamic-in-events AND static-in-frontmatter) -- the #2093
+        # violation FR-013's arch test (WP10) catches. A legacy WP file that
+        # still carries an authored ``tracker_refs:`` line is read tolerantly
+        # into the ``remaining`` (sorted trailing) bucket, never an error.
         "planning_base_branch",  # Planning branch active when the WP prompt was generated
         "merge_target_branch",  # Final branch where completed WP changes must land
         "branch_strategy",  # Human-readable branch contract to prevent landing on wrong stream
@@ -172,43 +178,6 @@ class FrontmatterManager:
         """
         frontmatter, _ = self.read(file_path)
         return frontmatter.get(field, default)
-
-    def add_history_entry(
-        self, file_path: Path, action: str, agent: str | None = None, note: str | None = None
-    ) -> None:
-        """Add an entry to the history field.
-
-        Args:
-            file_path: Path to markdown file
-            action: Action description (e.g., "moved to for_review")
-            agent: Agent name (optional)
-            note: Additional note (optional)
-        """
-        frontmatter, body = self.read(file_path)
-
-        # Get or create history list
-        history = frontmatter.get("history", [])
-        if not isinstance(history, list):
-            history = []
-
-        # Create entry — quote action if it contains colons (prevents YAML parse breakage)
-        safe_action = action
-        if ":" in action:
-            # Ensure ruamel.yaml will quote this value
-            safe_action = str(action)
-        entry = {
-            "timestamp": datetime.now().isoformat(),
-            "action": safe_action,
-        }
-        if agent:
-            entry["agent"] = agent
-        if note:
-            entry["note"] = note
-
-        history.append(entry)
-        frontmatter["history"] = history
-
-        self.write(file_path, frontmatter, body)
 
     def _normalize_frontmatter(self, frontmatter: dict[str, Any]) -> CommentedMap:
         """Normalize frontmatter for consistent output.
@@ -344,68 +313,9 @@ def get_field(file_path: Path, field: str, default: Any = None) -> Any:
     return _manager.get_field(file_path, field, default)
 
 
-def add_history_entry(file_path: Path, action: str, agent: str | None = None, note: str | None = None) -> None:
-    """Add an entry to the history field."""
-    _manager.add_history_entry(file_path, action, agent, note)
-
-
 def validate_frontmatter(file_path: Path) -> list[str]:
     """Validate frontmatter consistency."""
     return _manager.validate(file_path)
-
-
-def write_shell_pid_claim(frontmatter_text: str, pid: int) -> str:
-    """Co-write ``shell_pid`` and its PID-reuse identity baseline (D3b).
-
-    The ONE claim-write helper (close-by-construction): every ``shell_pid``
-    write site routes through this function so a ``shell_pid`` can never be
-    written without an attempt to pair it with a baseline. Uses a single write
-    mechanism — ``set_scalar`` string mutation — so callers with a raw
-    frontmatter string (``workflow_executor``'s in-memory claim sites) and
-    callers with a WP file on disk (:func:`write_shell_pid_claim_to_file`,
-    used by ``spec-kitty implement``) share identical mutation semantics; no
-    per-caller branch on write-API shape.
-
-    The baseline (:func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`)
-    is best-effort: a claim still succeeds when it cannot be captured (C-007) —
-    the write simply omits the baseline field, which ``stale_detection``
-    treats as a legacy claim (D3a, zero regression).
-
-    Args:
-        frontmatter_text: Raw frontmatter text (no ``---`` fences).
-        pid: The claiming process's PID.
-
-    Returns:
-        The updated frontmatter text with ``shell_pid`` set to ``pid`` and,
-        when capturable, :data:`SHELL_PID_BASELINE_FIELD` set to its
-        creation-time baseline.
-    """
-    from specify_cli.core.process_liveness import capture_creation_time_baseline
-    from specify_cli.task_utils.support import set_scalar
-
-    updated = set_scalar(frontmatter_text, "shell_pid", str(pid))
-    baseline = capture_creation_time_baseline(pid)
-    if baseline is not None:
-        updated = set_scalar(updated, SHELL_PID_BASELINE_FIELD, baseline)
-    return updated
-
-
-def write_shell_pid_claim_to_file(file_path: Path, pid: int) -> None:
-    """File-based wrapper around :func:`write_shell_pid_claim` (D3b).
-
-    Reads *file_path*'s raw frontmatter text, applies the single claim-write
-    helper, and writes the result back — so the file-based caller
-    (``spec-kitty implement``, which historically wrote via the dict-based
-    :meth:`FrontmatterManager.update_fields`) round-trips through the exact
-    same ``set_scalar`` mutation as the in-memory ``workflow_executor`` claim
-    sites (one write mechanism, no per-caller API branch).
-    """
-    from specify_cli.task_utils.support import build_document, split_frontmatter
-
-    text = file_path.read_text(encoding="utf-8-sig")
-    front, body, padding = split_frontmatter(text)
-    updated_front = write_shell_pid_claim(front, pid)
-    file_path.write_text(build_document(updated_front, body, padding), encoding="utf-8")
 
 
 def normalize_file(file_path: Path) -> bool:
@@ -442,9 +352,6 @@ __all__ = [
     "write_frontmatter",
     "update_fields",
     "get_field",
-    "add_history_entry",
     "validate_frontmatter",
     "normalize_file",
-    "write_shell_pid_claim",
-    "write_shell_pid_claim_to_file",
 ]

@@ -8,8 +8,7 @@ from typing import Any
 import yaml
 import pytest
 
-from doctrine.drg.loader import load_graph, merge_layers
-from doctrine.drg.models import NodeKind, Relation
+from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from doctrine.drg.query import resolve_transitive_refs
 from doctrine.drg.validator import assert_valid
 from doctrine.missions import MissionTemplateRepository
@@ -47,8 +46,8 @@ def test_curated_doctrine_artifacts_exist_with_expected_kinds() -> None:
     assert _load_yaml(DOCTRINE_ROOT / expected_paths[6])["id"] == "deployable-skill-authoring"
 
 
-def test_shipped_graph_links_curated_artifacts_and_templates() -> None:
-    graph = merge_layers(load_graph(DOCTRINE_ROOT / "graph.yaml"), None)
+def test_shipped_graph_links_curated_artifacts_and_templates(built_in_graph: DRGGraph) -> None:
+    graph = built_in_graph
     assert_valid(graph)
 
     expected_nodes = {

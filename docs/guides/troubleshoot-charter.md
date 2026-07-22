@@ -2,46 +2,63 @@
 title: Troubleshooting Charter Failures
 description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-20'
+type: how-to
 related:
 - docs/context/charter-overview.md
+- docs/guides/setup-governance.md
 ---
 # Troubleshooting Charter Failures
 
 This guide covers the most common Charter failure modes and how to fix them.
 
-For background, see [How Charter Works](../context/charter-overview.md).
+For background, see [How Charter Works](../context/charter-overview.md). If you haven't set up a
+charter yet, or want the full interview-to-generation flow rather than a specific failure fix,
+start at [How to Set Up Project Governance](setup-governance.md) instead.
 
 ---
 
 ## 1. Stale bundle
 
-**Symptoms**:
-- `uv run spec-kitty charter status` reports drift between `charter.md` and the bundle
-- `spec-kitty next` injects outdated governance context into agent prompts
-- Agent behavior does not reflect recent changes you made to `charter.md`
+> **Model change**: this failure mode used to be described as `charter.md` drifting from a
+> derived bundle, with `charter sync` as the fix. That model is retired. `.kittify/charter/charter.yaml`
+> is the authoritative, resolving source; `charter.md` is a non-authoritative prose companion the
+> runtime never parses, so it cannot cause drift. `charter sync` is now a confirmed no-op — it
+> always reports `synced: False` and writes nothing. If you have this page bookmarked from an
+> older run, use the symptoms and fix below instead. See [How Charter Works](../context/charter-overview.md)
+> for the full authoritative-source model.
 
-**What is happening**: `charter.md` was edited after the last synthesis run, so the derived
-bundle files no longer match the authoritative source.
+**Symptoms**:
+- `uv run spec-kitty charter status --json` reports `synthesized_drg.state` as `"stale"`
+- `spec-kitty next` injects governance context that does not reflect recent edits to
+  `charter.yaml`'s `governance:` or `directives:` sections
+- Agent behavior does not reflect recent changes you made to `charter.yaml`
+
+**What is happening**: `charter.yaml` (the authoritative source) was edited after the last
+`charter synthesize` run, so the synthesis manifest's stored content hash no longer matches a
+freshly computed hash of `charter.yaml`. The synthesized doctrine graph (DRG) under
+`.kittify/doctrine/` is stale relative to the charter that produced it. This is expected any time
+you hand-edit `governance`, `directives`, or activation in `charter.yaml` — it self-heals on the
+next successful synthesis run, which recomputes and re-stamps the hash.
 
 **Fix**:
 
 ```bash
-# 1. Re-sync charter.md to YAML config files
-uv run spec-kitty charter sync
-
-# 2. Check for graph-native decay
+# 1. Check for graph-native decay
 uv run spec-kitty charter lint
 
-# 3. Re-run synthesis
+# 2. Re-run synthesis (recomputes and re-stamps the content hash)
 uv run spec-kitty charter synthesize
 
-# 4. Re-validate the bundle
+# 3. Re-validate the bundle
 uv run spec-kitty charter bundle validate
 
-# 5. Confirm no drift
+# 4. Confirm no drift
 uv run spec-kitty charter status
 ```
+
+There is no separate re-sync step: `charter sync` no longer extracts anything from `charter.md`,
+so it is not part of this fix.
 
 ---
 
@@ -68,10 +85,17 @@ uv run spec-kitty charter bundle validate
 uv run spec-kitty charter status
 ```
 
-If `charter synthesize` fails because `charter.md` does not exist:
+> **Model change**: this failure used to be framed as "`charter synthesize` fails because
+> `charter.md` does not exist." That framing is stale. No failure branch in `charter synthesize`
+> checks for `charter.md` — the actual gate is `.kittify/charter/charter.yaml` (the authoritative,
+> resolving source), plus the interview answers it is compiled from. `charter.md` is a
+> non-authoritative prose companion. See [How Charter Works](../context/charter-overview.md).
+
+If `charter synthesize` fails because `charter.yaml` does not exist yet (or the interview
+answers it is compiled from are missing):
 
 ```bash
-# Run the interview and generate a charter.md first
+# Run the interview and generate charter.yaml first
 uv run spec-kitty charter interview --profile minimal --defaults
 uv run spec-kitty charter generate --from-interview
 
@@ -97,8 +121,10 @@ This is a known limitation (see issue #787 in the project issue tracker; check t
 current resolution status).
 
 **Workarounds**:
-- Reduce the scope of `charter.md` by removing directives that are not relevant to the current
-  project phase or that overlap significantly with other directives.
+- Reduce the scope of `charter.yaml`'s `directives:` section by removing directives that are not
+  relevant to the current project phase or that overlap significantly with other directives.
+  (`charter.md` is a non-authoritative prose companion the runtime never parses — editing it has
+  no effect on the DRG context payload.)
 - Break a very large project governance layer into smaller, focused governance domains, each with
   its own charter.
 - Use `charter resynthesize --topic <selector>` to regenerate only the high-priority directives
@@ -171,7 +197,6 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug
 uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --proposal-id P1 --apply
 
 # 4. If you changed charter-derived state manually, re-run synthesis/validation as needed
-uv run spec-kitty charter sync
 uv run spec-kitty charter synthesize
 uv run spec-kitty charter bundle validate
 
@@ -195,6 +220,7 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --propos
 
 ## See Also
 
+- [How to Set Up Project Governance](setup-governance.md) — the complete interview-to-generation flow
 - [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md)
 - [How to Use the Retrospective Learning Loop](use-retrospective-learning.md)
 - [Retrospective Schema Reference](../api/retrospective-schema.md)

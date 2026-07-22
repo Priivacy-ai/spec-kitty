@@ -140,62 +140,77 @@
     "approved": [],
     "doing": [
       {
-        "agent": "codex",
+        "agent": "",
         "agent_profile": "",
+        "agent_profile_version": "",
         "assignee": "",
+        "authored_agent_profile": "",
+        "authored_model": "",
+        "authored_role": "",
         "id": "WP02",
         "lane": "in_progress",
         "model": "",
         "phase": "",
         "prompt_markdown": "# Work Package Prompt: WP02\n\nBody for WP02.",
         "prompt_path": "kitty-specs/001-demo-feature/tasks/WP02-demo.md",
+        "provider": "",
         "role": "",
         "subtasks": [
           "T1"
         ],
         "subtasks_done": 0,
-        "subtasks_total": 0,
+        "subtasks_total": 1,
         "title": "WP02"
       }
     ],
     "done": [],
     "for_review": [
       {
-        "agent": "codex",
+        "agent": "",
         "agent_profile": "",
+        "agent_profile_version": "",
         "assignee": "",
+        "authored_agent_profile": "",
+        "authored_model": "",
+        "authored_role": "",
         "id": "WP03",
         "lane": "for_review",
         "model": "",
         "phase": "",
         "prompt_markdown": "# Work Package Prompt: WP03\n\nBody for WP03.",
         "prompt_path": "kitty-specs/001-demo-feature/tasks/WP03-demo.md",
+        "provider": "",
         "role": "",
         "subtasks": [
           "T1"
         ],
         "subtasks_done": 0,
-        "subtasks_total": 0,
+        "subtasks_total": 1,
         "title": "WP03"
       }
     ],
     "planned": [
       {
-        "agent": "codex",
+        "agent": "",
         "agent_profile": "",
+        "agent_profile_version": "",
         "assignee": "",
+        "authored_agent_profile": "",
+        "authored_model": "",
+        "authored_role": "",
         "id": "WP01",
         "lane": "planned",
         "model": "",
         "phase": "",
         "prompt_markdown": "# Work Package Prompt: WP01\n\nBody for WP01.",
         "prompt_path": "kitty-specs/001-demo-feature/tasks/WP01-demo.md",
+        "provider": "",
         "role": "",
         "subtasks": [
           "T1"
         ],
         "subtasks_done": 0,
-        "subtasks_total": 0,
+        "subtasks_total": 1,
         "title": "WP01"
       }
     ]

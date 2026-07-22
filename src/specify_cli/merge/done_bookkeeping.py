@@ -28,11 +28,10 @@ from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.merge.git_probes import path_is_under_worktrees
 from specify_cli.merge.state import MergeState, save_state
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-from mission_runtime import MissionArtifactKind
-from specify_cli.status import WPMetadata, read_wp_frontmatter
+from mission_runtime import MissionArtifactKind, resolve_placement_only
 
 if TYPE_CHECKING:
-    from specify_cli.status import DoneEvidence, Lane
+    from specify_cli.status import DoneEvidence, EventStream, Lane
 
 # Lanes treated as "pre-approved" for the approved-replay emission.
 _PRE_APPROVED_LANE_VALUES = frozenset({"planned", "claimed", "in_progress", "for_review"})
@@ -92,25 +91,36 @@ def _has_transition_to(
     )
 
 
-def _extract_done_evidence(meta: WPMetadata, wp: str) -> DoneEvidence | None:
-    """Build DoneEvidence from approved review frontmatter, else None.
+def _resolve_snapshot_done_evidence(
+    event_stream: EventStream,
+    wp_id: str,
+) -> DoneEvidence | None:
+    """Build DoneEvidence from the reduced-snapshot ``review`` slot, else None.
 
-    Inlined from the migration-only ``status.history_parser`` module (T031):
-    merge is the sole production consumer, so the public ``status`` facade
-    (DoneEvidence/ReviewApproval) is used directly instead of a deep import.
+    IC-04 / FR-006 / D-05: the event-sourced replacement for the deleted
+    frontmatter done-evidence synthesis. The reviewer identity comes from the
+    reduced snapshot's ``review.actor`` (the backfill seeds the historical
+    approval there) — never the frontmatter reviewer field. Consumes the shared
+    review-slot reader (``status.resolve_snapshot_review``) so the merge gate and
+    the CLI interpret the slot identically (D-14). A WP with no ``review`` slot —
+    or a slot carrying an empty ``actor`` — yields ``None`` (treated as absent),
+    so the caller falls through to the lane-approved evidence.
     """
-    from specify_cli.status import DoneEvidence, ReviewApproval
+    from specify_cli.status import DoneEvidence, ReviewApproval, resolve_event_stream_review
 
-    reviewed_by = meta.reviewed_by
-    if meta.review_status == "approved" and reviewed_by and str(reviewed_by).strip():
-        return DoneEvidence(
-            review=ReviewApproval(
-                reviewer=str(reviewed_by).strip(),
-                verdict="approved",
-                reference=f"frontmatter-migration:{wp}",
-            )
+    override = resolve_event_stream_review(event_stream, wp_id)
+    if override is None:
+        return None
+    reviewer = override.actor.strip()
+    if not reviewer:
+        return None
+    return DoneEvidence(
+        review=ReviewApproval(
+            reviewer=reviewer,
+            verdict="approved",
+            reference=f"snapshot-review:{wp_id}",
         )
-    return None
+    )
 
 
 def _resolve_wp_path(primary_feature_dir: Path, wp_id: str) -> Path | None:
@@ -148,16 +158,24 @@ def _resolve_lane_with_planned_fallback(
     try:
         primary_raw = _lane_reader.get_wp_lane(primary_feature_dir, wp_id)
     except CanonicalStatusNotFoundError:
-        primary_raw = "uninitialized"
-    try:
-        lane = _Lane(_resolve_lane_alias(str(primary_raw)))
-        # The coord has no events for this WP; force the done transition so
-        # the state machine doesn't reject it as an invalid jump from PLANNED.
-        return lane, True
-    except ValueError:
-        # Unknown sentinels such as "uninitialized" mean the primary surface
-        # has no usable lifecycle state for this WP either.
+        primary_raw = _Lane.UNINITIALIZED
+
+    # #2675/WP05: ``get_wp_lane`` always returns a real ``Lane`` member (never a
+    # bare, unparseable string) — the absent-log fallback above now assigns
+    # ``Lane.UNINITIALIZED`` instead of the pre-WP05 raw ``"uninitialized"``
+    # string. ``Lane(resolve_lane_alias(...))`` therefore can no longer raise
+    # ``ValueError`` for this input; the pre-WP05 ``except ValueError`` fallback
+    # is expressed explicitly below instead of relying on a now-dead branch.
+    lane = _Lane(_resolve_lane_alias(str(primary_raw)))
+    if lane == _Lane.UNINITIALIZED:
+        # The primary surface has no usable lifecycle state for this WP either
+        # (unseeded sentinel) — preserve the exact pre-WP05 contract: do NOT
+        # force the done jump.
         return coord_lane, False
+
+    # The coord has no events for this WP; force the done transition so
+    # the state machine doesn't reject it as an invalid jump from PLANNED.
+    return lane, True
 
 
 def _emit_approved_replay_if_needed(
@@ -249,19 +267,35 @@ def _mark_wp_merged_done(
         console.print(f"[yellow]Warning:[/yellow] Could not locate WP file for {wp_id}; skipping merge-complete status update.")
         return
 
-    metadata, _body = read_wp_frontmatter(wp_path)
-    # Validate the authoritative status surface once (FR-002 / NFR-003).
-    # Transactional status helpers must receive the primary meta-bearing feature
+    # Transactional status helpers receive the primary meta-bearing feature
     # dir so they can resolve/commit to the coordination branch. Passing the
     # coord worktree dir loses meta in status-only coord worktrees and degrades
-    # writes into local, non-durable file edits.
-    resolve_status_surface(repo_root, mission_slug)
+    # writes into local, non-durable file edits. The annotation-aware
+    # transactional read below performs the authoritative status validation
+    # without requiring a coordination worktree to be materialized.
     feature_dir = primary_feature_dir
     from specify_cli.coordination.status_transition import (
         emit_status_transition_transactional,
+        read_event_stream_transactional,
         read_current_wp_state_transactional,
     )
-    from specify_cli.status import DoneEvidence, ReviewApproval, TransitionError, TransitionRequest
+    from specify_cli.status import (
+        DoneEvidence,
+        ReviewApproval,
+        TransitionError,
+        TransitionRequest,
+        reduce,
+    )
+
+    event_stream = read_event_stream_transactional(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+    )
+    wp_snapshot = reduce(
+        event_stream.transitions,
+        event_stream.annotations,
+    ).work_packages.get(wp_id, {})
 
     lane, _actor = read_current_wp_state_transactional(
         feature_dir=feature_dir,
@@ -284,12 +318,18 @@ def _mark_wp_merged_done(
         wp_id=wp_id,
     )
 
-    evidence = _extract_done_evidence(metadata, wp_id)
+    # IC-04 / FR-006 / C-001 / D-05: the snapshot ``review`` slot is the
+    # event-sourced done-evidence source (the frontmatter synthesis is deleted).
+    # A WP with no review slot falls through to the lane-derived fallback below —
+    # which also uses the resolved event-stream agent, never frontmatter.
+    evidence = _resolve_snapshot_done_evidence(event_stream, wp_id)
     if evidence is None:
         if lane == _Lane.APPROVED:
+            runtime_agent = wp_snapshot.get("agent")
+            reviewer = runtime_agent.strip() if isinstance(runtime_agent, str) else "unknown"
             evidence = DoneEvidence(
                 review=ReviewApproval(
-                    reviewer=(metadata.agent or "unknown").strip() or "unknown",
+                    reviewer=reviewer or "unknown",
                     verdict="approved",
                     reference=f"lane-approved:{wp_id}",
                 )
@@ -371,12 +411,14 @@ def _assert_merged_wps_reached_done(
         incomplete: list[str] = []
         for wp_id in wp_ids:
             raw = get_wp_lane(feature_dir, wp_id)
-            try:
-                lane = Lane(resolve_lane_alias(raw))
-            except ValueError:
-                # Unrecognized sentinel (e.g. "uninitialized") — treat as not done
-                incomplete.append(f"{wp_id}={raw}")
-                continue
+            # #2675/WP05: ``get_wp_lane`` always returns a real ``Lane`` member,
+            # so ``Lane(resolve_lane_alias(raw))`` can no longer raise
+            # ``ValueError`` here (the pre-WP05 unrecognized-sentinel fallback
+            # is now genuinely unreachable and has been removed rather than
+            # left as a dead handler). ``Lane.UNINITIALIZED`` (unseeded
+            # sentinel) still compares unequal to ``Lane.DONE`` below, so the
+            # not-done treatment is preserved via the explicit equality check.
+            lane = Lane(resolve_lane_alias(raw))
             if lane != Lane.DONE:
                 incomplete.append(f"{wp_id}={lane.value}")
     except CanonicalStatusNotFoundError as exc:
@@ -497,6 +539,63 @@ def _assert_merged_wps_done_on_target(
         raise typer.Exit(1)
 
 
+def _durable_done_wps_on_coordination_ref(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    candidate_wps: list[str],
+) -> set[str]:
+    """WPs among *candidate_wps* reduced to ``done`` on the COMMITTED coord ref.
+
+    FR-007: resume progress is derived from the durable event log — the
+    committed coordination-branch ref — never the roll-backable worktree bytes.
+    Consumes ``read_event_log(EventLogReadContract.coordination_branch_ref(...))``
+    + ``wp_lane_actor_from_events`` (no new reducer). Returns an empty set (the
+    caller re-derives via the transactional on-disk check) when the coordination
+    ref cannot be resolved — a non-coord topology or a legacy mission.
+    """
+    from specify_cli.coordination.status_service import (
+        EventLogReadContract,
+        read_event_log,
+        wp_lane_actor_from_events,
+    )
+    from specify_cli.status import Lane
+
+    try:
+        coord_ref = resolve_placement_only(
+            repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        ).ref
+    except Exception:  # noqa: BLE001 — unresolvable placement: fall back to on-disk check
+        return set()
+
+    # The committed events live at ``kitty-specs/<slug>/status.events.jsonl`` on
+    # the coordination ref; the primary feature dir (name == slug, meta-bearing)
+    # is the correct ref-path anchor AND legacy-parse dir. Route through the
+    # canonical PRIMARY-partition resolver (FR-004): a WORK_PACKAGE_TASK read folds
+    # onto the topology-blind ``primary_feature_dir_for_mission`` (name == slug),
+    # so no raw ``KITTY_SPECS_DIR/<slug>`` bypass — and a stale ``-coord`` husk can
+    # never shadow the anchor.
+    read_feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    events = read_event_log(
+        EventLogReadContract.coordination_branch_ref(
+            repo_root=repo_root,
+            destination_ref=coord_ref,
+            feature_dir=read_feature_dir,
+            parser_feature_dir=read_feature_dir,
+        )
+    )
+    if not events:
+        return set()
+    done: set[str] = set()
+    for wp_id in candidate_wps:
+        lane, _actor = wp_lane_actor_from_events(events, wp_id)
+        if lane == Lane.DONE:
+            done.add(wp_id)
+    return done
+
+
 def _reconcile_completed_wps_for_resume(
     *,
     feature_dir: Path,
@@ -504,21 +603,31 @@ def _reconcile_completed_wps_for_resume(
     merge_state: MergeState,
     repo_root: Path,
 ) -> set[str]:
-    """Return completed WPs that still have canonical done evidence on disk.
+    """Return completed WPs that still carry durable ``done`` evidence.
 
-    A retry can happen after the target ref advanced but before the final
-    status-event housekeeping commit. If the operator repairs the checkout
-    back to HEAD, state.json may still list a WP as completed even though its
-    uncommitted done event is gone. Drop those stale completions so the retry
-    re-emits done evidence instead of skipping the WP and failing validation.
+    FR-007: ``MergeState.completed_wps`` is an advisory hint only. The authority
+    for resume progress is the durable event log — the committed coordination
+    ref (:func:`_durable_done_wps_on_coordination_ref`), with the transactional
+    on-disk check as the topology-blind fallback. A retry can happen after the
+    target ref advanced but before the final status-event housekeeping commit;
+    if the operator repairs the checkout back to HEAD, state.json may still list
+    a WP as completed even though its ``done`` evidence is gone. Drop those stale
+    completions so the retry re-emits done evidence instead of skipping the WP
+    and failing validation.
     """
     if not merge_state.completed_wps:
         return set()
 
+    durable_done = _durable_done_wps_on_coordination_ref(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        candidate_wps=merge_state.completed_wps,
+    )
     confirmed = [
         wp_id
         for wp_id in merge_state.completed_wps
-        if _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root)
+        if wp_id in durable_done
+        or _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root)
     ]
     if len(confirmed) != len(merge_state.completed_wps):
         dropped = sorted(set(merge_state.completed_wps) - set(confirmed))

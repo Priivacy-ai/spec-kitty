@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "hybrid-prompt-and-shim-agent-surface",
   "source_description": "Complete the 057 thin-shim architecture: full prompts for planning commands, thin shims for execution commands.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

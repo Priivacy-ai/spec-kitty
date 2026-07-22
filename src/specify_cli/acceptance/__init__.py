@@ -9,15 +9,14 @@ from specify_cli.missions._read_path_resolver import (
 )
 import logging
 import os
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import read_target_branch_from_meta
-from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.mission import MissionError, get_mission_for_feature
@@ -28,13 +27,13 @@ from specify_cli.status import EVENTS_FILENAME, StoreError
 
 from specify_cli.task_utils import (
     LANES,
-    TaskCliError,
     WorkPackage,
     get_lane_from_frontmatter,
     git_status_lines,
     run_git,
     split_frontmatter,
 )
+from specify_cli.task_utils.support import TaskCliError
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
@@ -68,6 +67,24 @@ from .summary_core import (
 logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
+
+# FR-004 (#2709): canonical acceptance/VCS provenance field shapes reconciled by
+# the ``meta.json`` squash merge driver. These are the target-authoritative scalar
+# keys ``record_acceptance``/``set_vcs_lock`` (``mission_metadata``) stamp; the
+# squash driver overlays the target-branch (accepted-newer) value for each, while
+# ``ACCEPTANCE_HISTORY_FIELD`` is unioned (append-only) across both sides. Kept here
+# as the single canonical field-shape source (DIRECTIVE_044) so the driver never
+# re-hardcodes the key list.
+ACCEPTANCE_HISTORY_FIELD = "acceptance_history"
+ACCEPTANCE_PROVENANCE_FIELDS: tuple[str, ...] = (
+    "accepted_at",
+    "accepted_by",
+    "accepted_from_commit",
+    "acceptance_mode",
+    "accept_commit",
+    "vcs",
+    "vcs_locked_at",
+)
 
 SPEC_FILE = "spec.md"
 PLAN_FILE = "plan.md"
@@ -435,36 +452,6 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
         )
 
 
-def detect_mission_slug(
-    repo_root: Path,
-    *,
-    explicit_feature: str | None = None,
-    env: Mapping[str, str] | None = None,
-    cwd: Path | None = None,
-    announce_fallback: bool = True,
-) -> str:
-    """Require an explicit mission slug; no auto-detection.
-
-    Args:
-        repo_root: Repository root path (unused — kept for signature compatibility)
-        explicit_feature: Mission slug to use (required).
-        env: Unused; kept for backward-compatible call sites.
-        cwd: Unused; kept for backward-compatible call sites.
-        announce_fallback: Unused; kept for backward-compatible call sites.
-
-    Returns:
-        Mission slug (e.g., "020-my-feature")
-
-    Raises:
-        AcceptanceError: If no explicit feature slug is provided.
-    """
-    _ = (repo_root, env, cwd, announce_fallback)
-    try:
-        return _require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
-    except ValueError as e:
-        raise AcceptanceError(str(e)) from e
-
-
 def _read_text_strict(path: Path) -> str:
     """Read a file as UTF-8, raising ArtifactEncodingError on decode failure."""
     try:
@@ -673,14 +660,15 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
         return {}
     try:
         from specify_cli.status import reduce
-        from specify_cli.status import read_events
+        from specify_cli.status import read_event_stream
 
-        snapshot = reduce(read_events(feature_dir))
+        event_stream = read_event_stream(feature_dir)
+        snapshot = reduce(event_stream.transitions, event_stream.annotations)
     except StoreError as exc:
         raise AcceptanceError(f"Status event log is corrupted for feature '{feature}': {exc}") from exc
     if not snapshot.work_packages:
         activity_issues.append(_missing_msg)
-    return snapshot.work_packages
+    return cast(dict[str, dict[str, Any]], snapshot.work_packages)
 
 
 def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -> Path:
@@ -946,8 +934,13 @@ def collect_feature_summary(
         expected_wp_ids.append(wp_id)
 
         wp_snapshot = snapshot_wps.get(wp_id)
-        canonical_lane = wp_snapshot.get("lane") if wp_snapshot else None
-        state, wp_metadata_issues = build_work_package_state(wp, wp_id, canonical_lane, repo_root=repo_root, strict_metadata=strict_metadata)
+        state, wp_metadata_issues = build_work_package_state(
+            wp,
+            wp_id,
+            wp_snapshot,
+            repo_root=repo_root,
+            strict_metadata=strict_metadata,
+        )
         bucket_lane = state.lane
         if bucket_lane in lanes:
             lanes[bucket_lane].append(wp_id)
@@ -1328,6 +1321,8 @@ def perform_acceptance(
 
 
 __all__ = [
+    "ACCEPTANCE_HISTORY_FIELD",
+    "ACCEPTANCE_PROVENANCE_FIELDS",
     "AcceptanceError",
     "AcceptanceMode",
     "AcceptanceResult",
@@ -1337,7 +1332,6 @@ __all__ = [
     "WorkPackageState",
     "choose_mode",
     "collect_feature_summary",
-    "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
     "resolve_acceptance_actor",

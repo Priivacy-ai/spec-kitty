@@ -405,7 +405,7 @@ for `docs/architecture/`. Editorial reordering (e.g. moving the four
   href: create-plan.md
 - name: Generate Tasks
   href: generate-tasks.md
-- name: Implement a Work Package
+- name: Implement a work package
   href: implement-work-package.md
 - name: Review Work Packages
   href: review-work-package.md
@@ -677,7 +677,7 @@ linkable from leakage-check failures).
 - name: Getting Started
   href: getting-started.md
 - name: Your First Feature
-  href: your-first-feature.md
+  href: your-first-mission.md
 - name: Multi-Agent Workflow
   href: multi-agent-workflow.md
 - name: Missions Overview
@@ -697,7 +697,7 @@ Same 7 entries. Inventory matches the TOC exactly.
 **Diff:** (no changes)
 
 **Rationale.** Inventory carries 7 `current`-tagged tutorials; all 7 are
-already in the TOC. WP07 may rename `your-first-feature.md` to a
+already in the TOC. WP07 may rename `your-first-mission.md` to a
 mission-canonical phrasing per Charter Terminology Canon, but that is a
 **page-content** change, not a nav change, and is out of scope for WP03.
 
@@ -706,7 +706,7 @@ mission-canonical phrasing per Charter Terminology Canon, but that is a
 ## T007 coverage summary
 
 | TOC file | Inventory pages in scope | Entries before | Entries after | Change kind |
-|---|---:|---:|---:|---|
+| --- | ---: | ---: | ---: | --- |
 | `docs/toc.yml` | n/a (parent) | 9 | 9 (regrouped) | structural |
 | `docs/1x/toc.yml` | 5 | 5 | 5 | no changes |
 | `docs/2x/toc.yml` | 8 | 6 | 8 | additive + rename |
@@ -888,6 +888,7 @@ No other TOC file changes under the flip.
 ---
 
 ## Reviewer cross-check (from `tasks/WP03-navigation-update-plan.md`
+
 "Reviewer Guidance")
 
 - [x] Every TOC file appears at least once. **9 of 9 covered.**

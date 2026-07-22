@@ -19,13 +19,17 @@ from ruamel.yaml import YAML
 from doctrine.drg.migration.calibrator import measure_surface
 from doctrine.drg.migration.extractor import (
     _SKIP_REF_TYPES,
+    _partition_by_kind,
     extract_action_edges,
     extract_artifact_edges,
+    extract_mission_type_edges,
     generate_graph,
 )
-from doctrine.drg.models import NodeKind, Relation
+from doctrine.drg.migration.hand_authored_overlay import write_reference_graph_with_overlay
+from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import resolve_context
 from doctrine.drg.validator import validate_graph
+from doctrine.missions.mission_type_repository import MissionTypeRepository
 
 # Path to the shipped doctrine root inside the repo.
 
@@ -54,9 +58,6 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             for ref in data.get("references", []) or []:
                 if ref.get("type", "") not in _SKIP_REF_TYPES:
                     total += 1
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
-                    total += 1
 
     # Tactics
     tactics_dir = doctrine_root / "tactics" / "built-in"
@@ -84,9 +85,6 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             total += len(data.get("directive_refs", []) or [])
             for ref in data.get("references", []) or []:
                 if ref.get("type", "") not in _SKIP_REF_TYPES:
-                    total += 1
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
                     total += 1
 
     # Procedures
@@ -174,19 +172,15 @@ class TestExtractArtifactEdges:
     # excise-doctrine-curation-and-inline-references-01KP54J6 mission;
     # it exercised the pre-WP02 inline-reference path that no longer has
     # shipped input data. The migration extractor itself remains covered
-    # by test_directive_opposed_by_produces_replaces and the other
-    # TestExtractArtifactEdges cases.
-
-    def test_directive_opposed_by_produces_replaces(self) -> None:
-        """Directive opposed_by should produce 'replaces' edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        d024_replaces = [
-            e for e in edges
-            if e.source == "directive:DIRECTIVE_024"
-            and e.relation == Relation.REPLACES
-        ]
-        assert {e.target for e in d024_replaces} == {"directive:DIRECTIVE_025"}
-        assert d024_replaces[0].target == "directive:DIRECTIVE_025"
+    # by the other TestExtractArtifactEdges cases.
+    #
+    # The directive-tension "produces replaces" regression test was removed
+    # in WP03 of doctrine-tension-edges-01KY1WPC: the extractor no longer
+    # mints ``replaces`` edges from the retired contradiction-declaration
+    # field. The 024<->025 tension it exercised is now a hand-authored
+    # ``in_tension_with`` edge -- covered by
+    # ``tests/doctrine/drg/test_graph_sharding_equality.py`` and the
+    # freshness-canary tests in this module, not duplicated here.
 
     def test_paradigm_directive_refs_normalised(self) -> None:
         """Paradigm directive_refs (DIRECTIVE_NNN format) should be normalised."""
@@ -440,7 +434,11 @@ class TestGenerateGraph:
     def test_graph_file_exists(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
         generate_graph(DOCTRINE_ROOT, output)
-        assert output.exists()
+        # Sharded layout (mission #2680 WP05): the generator writes per-kind
+        # ``*.graph.yaml`` fragments into ``output``'s directory and retires any
+        # ``graph.yaml`` monolith in the same write (DD-7).
+        assert sorted(tmp_path.glob("*.graph.yaml"))
+        assert not output.exists()
 
     def test_schema_version(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
@@ -465,29 +463,55 @@ class TestGenerateGraph:
         assert len(triples) == len(set(triples))
 
     def test_idempotent(self, tmp_path: Path) -> None:
-        """Running generate_graph twice must produce identical output."""
-        out1 = tmp_path / "graph1.yaml"
-        out2 = tmp_path / "graph2.yaml"
-        generate_graph(DOCTRINE_ROOT, out1)
-        generate_graph(DOCTRINE_ROOT, out2)
-        h1 = hashlib.sha256(out1.read_bytes()).hexdigest()  # noqa: TID251 — DRG-output file-integrity idempotency check, not charter freshness hashing
-        h2 = hashlib.sha256(out2.read_bytes()).hexdigest()  # noqa: TID251 — DRG-output file-integrity idempotency check, not charter freshness hashing
-        assert h1 == h2, "generate_graph is not idempotent"
+        """Running generate_graph twice must produce identical fragments (DD-11)."""
+        dir1 = tmp_path / "run1"
+        dir2 = tmp_path / "run2"
+        dir1.mkdir()
+        dir2.mkdir()
+        generate_graph(DOCTRINE_ROOT, dir1 / "graph.yaml")
+        generate_graph(DOCTRINE_ROOT, dir2 / "graph.yaml")
+
+        def _fragment_hashes(directory: Path) -> dict[str, str]:
+            return {
+                p.name: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: TID251 — DRG-output file-integrity idempotency check, not charter freshness hashing
+                for p in sorted(directory.glob("*.graph.yaml"))
+            }
+
+        first = _fragment_hashes(dir1)
+        second = _fragment_hashes(dir2)
+        assert first, "generate_graph produced no fragments"
+        assert first == second, "generate_graph is not idempotent (per-fragment drift)"
 
     @pytest.mark.fast
     def test_shipped_graph_yaml_is_fresh(self, tmp_path: Path) -> None:
-        """Committed shipped DRG must match generator output byte-for-byte."""
-        generated = tmp_path / "graph.yaml"
-        committed = DOCTRINE_ROOT / "graph.yaml"
+        """Committed shipped DRG fragments must match generator output byte-for-byte.
 
-        generate_graph(DOCTRINE_ROOT, generated)
+        Sharded per mission #2680 (WP05): compare the per-kind ``*.graph.yaml``
+        fragment set rather than a single monolith (DD-11 per-file byte-identity).
 
-        assert generated.read_text(encoding="utf-8") == committed.read_text(
-            encoding="utf-8"
-        ), (
-            "src/doctrine/graph.yaml is stale. Regenerate the shipped DRG with "
-            "doctrine.drg.migration.extractor.generate_graph(Path('src/doctrine'), "
-            "Path('src/doctrine/graph.yaml')) and commit the result."
+        Post-WP03 (doctrine-tension-edges-01KY1WPC): the reference is "pure
+        extraction + the enumerable hand-authored overlay"
+        (``doctrine.drg.migration.hand_authored_overlay``), not a bare
+        extractor regeneration — the extractor has no frontmatter mechanism
+        that could ever mint the hand-authored tension/reconciliation/rejection
+        edges or anti-pattern nodes, so a bare regeneration would never match
+        even when nothing is actually stale.
+        """
+        write_reference_graph_with_overlay(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+
+        def _fragments(directory: Path) -> dict[str, str]:
+            return {
+                p.name: p.read_text(encoding="utf-8")
+                for p in sorted(directory.glob("*.graph.yaml"))
+            }
+
+        regenerated = _fragments(tmp_path)
+        committed = _fragments(DOCTRINE_ROOT)
+        assert regenerated, "generate_graph produced no fragments"
+        assert regenerated == committed, (
+            "src/doctrine/*.graph.yaml fragments are stale. Regenerate the "
+            "shipped DRG with `spec-kitty doctrine regenerate-graph` and commit "
+            "the result."
         )
 
     def test_surface_inequalities(self, tmp_path: Path) -> None:
@@ -595,9 +619,6 @@ class TestEdgeCountCompleteness:
             for ref in data.get("references", []) or []:
                 if ref.get("type", "") not in _SKIP_REF_TYPES:
                     expected_count += 1
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
-                    expected_count += 1
 
             assert len(src_edges) >= expected_count, (
                 f"{path.name}: expected >= {expected_count} edges from "
@@ -620,9 +641,6 @@ class TestEdgeCountCompleteness:
                 len(data.get("tactic_refs", []) or [])
                 + len(data.get("directive_refs", []) or [])
             )
-            for opp in data.get("opposed_by", []) or []:
-                if opp.get("type", "") not in _SKIP_REF_TYPES:
-                    expected_count += 1
 
             assert len(src_edges) >= expected_count, (
                 f"{path.name}: expected >= {expected_count} edges from "
@@ -658,3 +676,289 @@ class TestEdgeCountCompleteness:
                 f"{action_name}: expected {expected_count} edges, "
                 f"found {len(action_edges)}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Mission-type edge emission (mission-type-drg-edges mission, SC-001)
+# ---------------------------------------------------------------------------
+
+MISSION_TYPES_DIR = DOCTRINE_ROOT / "missions" / "mission_types"
+
+
+def _shipped_action_sequences() -> dict[str, list[str]]:
+    """Resolved ``action_sequence`` per shipped mission type via the WP02 seam.
+
+    Re-pointed (WP04, T013) from a raw ``data.get("action_sequence")`` YAML
+    read to :class:`MissionTypeRepository`'s resolved value -- the same
+    projection-or-fallback seam :func:`extract_mission_type_edges` now reads.
+    A raw-YAML read would go red at the WP07 cutover once ``action_sequence``
+    is no longer authored in the shipped YAML; reading through the repository
+    turns this into a referential-integrity check that survives the cutover
+    unchanged.
+    """
+    repo = MissionTypeRepository(MISSION_TYPES_DIR)
+    return {
+        mission_type.id: list(mission_type.action_sequence or [])
+        for mission_type in repo.load_all()
+    }
+
+
+@pytest.mark.doctrine
+class TestMissionTypeEdges:
+    """Green-pinning for the ``mission_type --requires--> action`` edges.
+
+    WP01 landed the emission (and demonstrated red-first inside its own loop);
+    these tests pin the full behaviour comprehensively against the shipped
+    generator entry points.
+    """
+
+    def test_plan_emits_exactly_its_four_requires_edges(self) -> None:
+        """``mission_type:plan`` emits exactly 4 requires edges to its actions."""
+        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        plan_edges = [
+            e for e in edges if e.source == "mission_type:plan"
+        ]
+
+        assert all(e.relation is Relation.REQUIRES for e in plan_edges)
+        assert {e.target for e in plan_edges} == {
+            "action:plan/specify",
+            "action:plan/research",
+            "action:plan/plan",
+            "action:plan/review",
+        }
+        assert len(plan_edges) == 4  # golden-count: cardinality-is-contract
+
+    def test_documentation_emits_full_seven_edge_sequence(self) -> None:
+        """A non-plan type emits its full 7-step sequence (FR-001 breadth)."""
+        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        doc_edges = [
+            e for e in edges if e.source == "mission_type:documentation"
+        ]
+
+        assert all(e.relation is Relation.REQUIRES for e in doc_edges)
+        assert {e.target for e in doc_edges} == {
+            "action:documentation/discover",
+            "action:documentation/audit",
+            "action:documentation/design",
+            "action:documentation/generate",
+            "action:documentation/validate",
+            "action:documentation/publish",
+            "action:documentation/accept",
+        }
+        assert len(doc_edges) == 7  # golden-count: cardinality-is-contract
+
+    def test_every_mission_type_edge_matches_its_action_sequence(self) -> None:
+        """Each shipped type emits one requires edge per action_sequence step."""
+        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        sequences = _shipped_action_sequences()
+
+        for mission_id, steps in sequences.items():
+            source_urn = f"mission_type:{mission_id}"
+            emitted = {
+                e.target
+                for e in edges
+                if e.source == source_urn and e.relation is Relation.REQUIRES
+            }
+            assert emitted == {
+                f"action:{mission_id}/{step}" for step in steps
+            }, f"{source_urn} edges do not match its action_sequence"
+
+    def test_total_mission_type_edge_count_is_twenty_one(self) -> None:
+        """SC-001: the four shipped types emit 21 requires edges in total.
+
+        4 (plan) + 7 (documentation) + 5 (research) + 5 (software-dev) = 21.
+        This is a deliberate cardinality contract over the built-in mission
+        types, not incidental golden-count debt.
+        """
+        edges = extract_mission_type_edges(DOCTRINE_ROOT)
+        requires_edges = [
+            e
+            for e in edges
+            if e.source.startswith("mission_type:")
+            and e.relation is Relation.REQUIRES
+        ]
+        assert len(requires_edges) == 21  # golden-count: cardinality-is-contract
+
+    def test_no_mission_type_or_sequence_action_node_is_orphan(
+        self, tmp_path: Path
+    ) -> None:
+        """No mission_type node -- and no action node named in a sequence --
+        remains an orphan in the fully generated graph (SC-001)."""
+        output = tmp_path / "graph.yaml"
+        graph = generate_graph(DOCTRINE_ROOT, output)
+
+        incident: set[str] = set()
+        for edge in graph.edges:
+            incident.add(edge.source)
+            incident.add(edge.target)
+
+        mission_type_urns = {
+            n.urn for n in graph.nodes if n.kind == NodeKind.MISSION_TYPE
+        }
+        assert mission_type_urns, "expected shipped mission_type nodes"
+        orphan_mission_types = mission_type_urns - incident
+        assert not orphan_mission_types, (
+            f"mission_type nodes are orphaned: {orphan_mission_types}"
+        )
+
+        sequence_action_urns = {
+            f"action:{mission_id}/{step}"
+            for mission_id, steps in _shipped_action_sequences().items()
+            for step in steps
+        }
+        orphan_sequence_actions = sequence_action_urns - incident
+        assert not orphan_sequence_actions, (
+            f"sequence action nodes are orphaned: {orphan_sequence_actions}"
+        )
+
+
+def _hand_partition_graph() -> DRGGraph:
+    """A small, deliberately-unsorted hand-made graph exercising every
+    ``_partition_by_kind`` invariant (FR-007 source-kind routing + DD-11 order).
+
+    Shape (input order is intentionally NOT canonical so the sort is exercised):
+
+    * three populated kinds -- ``MISSION_TYPE``, ``ACTION`` and a **target-only**
+      ``TEMPLATE`` (owns a node but is never an edge source);
+    * multi-kind edges: ``MISSION_TYPE``-sourced ``requires`` edges to actions
+      AND an ``ACTION``-sourced ``instantiates`` edge to the template -- so a
+      wrong (e.g. target-kind) routing would still reconstitute the same merged
+      graph yet land edges in the wrong fragment.
+    """
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-07-16T00:00:00+00:00",
+        generated_by="test",
+        # Unsorted within each kind: software_dev before research; specify before plan.
+        nodes=[
+            DRGNode(urn="mission_type:software_dev", kind=NodeKind.MISSION_TYPE),
+            DRGNode(urn="action:specify", kind=NodeKind.ACTION),
+            DRGNode(urn="template:spec_tmpl", kind=NodeKind.TEMPLATE),
+            DRGNode(urn="mission_type:research", kind=NodeKind.MISSION_TYPE),
+            DRGNode(urn="action:plan", kind=NodeKind.ACTION),
+        ],
+        # Unsorted: software_dev->specify before software_dev->plan, research last.
+        edges=[
+            DRGEdge(
+                source="mission_type:software_dev",
+                target="action:specify",
+                relation=Relation.REQUIRES,
+            ),
+            DRGEdge(
+                source="mission_type:software_dev",
+                target="action:plan",
+                relation=Relation.REQUIRES,
+            ),
+            DRGEdge(
+                source="mission_type:research",
+                target="action:specify",
+                relation=Relation.REQUIRES,
+            ),
+            DRGEdge(
+                source="action:specify",
+                target="template:spec_tmpl",
+                relation=Relation.INSTANTIATES,
+            ),
+        ],
+    )
+
+
+class TestPartitionByKind:
+    """Focused unit coverage for ``_partition_by_kind`` (DD-8/DD-11, FR-007).
+
+    The end-to-end fragment tests reconstitute the merged graph, so a
+    wrong-source-kind routing (e.g. by target kind) would still round-trip and
+    pass every one of them. These assertions pin the currently-invisible
+    per-fragment placement + ordering contract directly.
+    """
+
+    def test_one_fragment_per_populated_kind_including_target_only(self) -> None:
+        """Totality (DD-8): every populated kind -- including a target-only
+        kind that is never an edge source -- yields exactly one fragment, and
+        the target-only kind's fragment carries an empty edge list."""
+        fragments = _partition_by_kind(_hand_partition_graph())
+
+        assert set(fragments) == {
+            NodeKind.MISSION_TYPE,
+            NodeKind.ACTION,
+            NodeKind.TEMPLATE,
+        }
+        # TEMPLATE owns a node but sources no edge -> present, with no edges.
+        assert [n.urn for n in fragments[NodeKind.TEMPLATE].nodes] == [
+            "template:spec_tmpl"
+        ]
+        assert fragments[NodeKind.TEMPLATE].edges == []
+
+    def test_each_fragment_is_kind_homogeneous(self) -> None:
+        """Homogeneity: every node in a fragment is of that fragment's kind."""
+        fragments = _partition_by_kind(_hand_partition_graph())
+        for kind, fragment in fragments.items():
+            assert all(node.kind == kind for node in fragment.nodes)
+
+    def test_edge_lands_in_its_source_node_kind_fragment(self) -> None:
+        """FR-007 (the invisible clause): each edge is placed in the fragment of
+        its **source** node's kind -- not its target's."""
+        fragments = _partition_by_kind(_hand_partition_graph())
+        kind_by_urn = {
+            n.urn: n.kind
+            for frag in fragments.values()
+            for n in frag.nodes
+        }
+        for kind, fragment in fragments.items():
+            for edge in fragment.edges:
+                assert kind_by_urn[edge.source] == kind
+
+        # Concrete guard against target-kind routing: the ACTION-sourced edge to
+        # the template lands in ACTION (not TEMPLATE), and the mission_type
+        # edges land in MISSION_TYPE (not ACTION).
+        action_edges = fragments[NodeKind.ACTION].edges
+        assert [(e.source, e.target) for e in action_edges] == [
+            ("action:specify", "template:spec_tmpl")
+        ]
+        mt_sources = {e.source for e in fragments[NodeKind.MISSION_TYPE].edges}
+        assert mt_sources == {
+            "mission_type:research",
+            "mission_type:software_dev",
+        }
+
+    def test_intra_fragment_canonical_order(self) -> None:
+        """DD-11: fragment nodes are sorted by URN and edges by
+        ``(source, target, relation)`` regardless of input order."""
+        fragments = _partition_by_kind(_hand_partition_graph())
+
+        assert [n.urn for n in fragments[NodeKind.MISSION_TYPE].nodes] == [
+            "mission_type:research",
+            "mission_type:software_dev",
+        ]
+        assert [n.urn for n in fragments[NodeKind.ACTION].nodes] == [
+            "action:plan",
+            "action:specify",
+        ]
+        assert [
+            (e.source, e.target, e.relation.value)
+            for e in fragments[NodeKind.MISSION_TYPE].edges
+        ] == [
+            ("mission_type:research", "action:specify", "requires"),
+            ("mission_type:software_dev", "action:plan", "requires"),
+            ("mission_type:software_dev", "action:specify", "requires"),
+        ]
+
+    def test_disjoint_union_reconstructs_input_exactly(self) -> None:
+        """Fragments partition the input: their disjoint union reproduces the
+        original node and edge sets with nothing lost or duplicated."""
+        graph = _hand_partition_graph()
+        fragments = _partition_by_kind(graph)
+
+        recomposed_nodes = [n.urn for frag in fragments.values() for n in frag.nodes]
+        recomposed_edges = [
+            (e.source, e.target, e.relation.value)
+            for frag in fragments.values()
+            for e in frag.edges
+        ]
+        # No duplication (disjointness) + exact set equality (completeness).
+        assert len(recomposed_nodes) == len(graph.nodes)
+        assert set(recomposed_nodes) == {n.urn for n in graph.nodes}
+        assert len(recomposed_edges) == len(graph.edges)
+        assert set(recomposed_edges) == {
+            (e.source, e.target, e.relation.value) for e in graph.edges
+        }

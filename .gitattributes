@@ -1,4 +1,6 @@
 kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log
+kitty-specs/**/meta.json merge=spec-kitty-meta
+kitty-specs/**/traces/*.md merge=spec-kitty-traces
 kitty-specs/**/status.json linguist-generated=true
 kitty-specs/**/status.events.jsonl linguist-generated=true
 kitty-specs/**/lanes.json linguist-generated=true

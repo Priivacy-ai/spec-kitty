@@ -25,6 +25,7 @@
   "purpose_context": "This mission advances decompose merge god module on prog/2057-merge so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "decompose merge god module",
   "slug": "decompose-merge-god-module-01KVXHDK",
+  "status_phase": "1",
   "target_branch": "prog/2057-merge",
   "topology": "lanes",
   "vcs": "git",

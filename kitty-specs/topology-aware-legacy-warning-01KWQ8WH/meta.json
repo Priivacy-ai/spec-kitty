@@ -11,6 +11,7 @@
   "purpose_context": "Issue #2351 (bug): _is_legacy_mission() keys on coordination_branch absence, but single_branch/lanes topologies intentionally omit it (per #2218), so new coordination-less missions are misclassified as legacy and shown a migration warning they don't need. Fix: make the warning read the stored MissionTopology (SSOT per the topology-ssot ADR) — warn only when coordination_branch is absent AND topology is null/absent AND not flattened. Write-path routing is unchanged. Coupled runbook update to docs/migrations/legacy-to-coordination.md.",
   "purpose_tldr": "The legacy-topology migration warning stops over-firing on intentional coordination-less (single_branch/lanes) missions.",
   "slug": "topology-aware-legacy-warning-01KWQ8WH",
+  "status_phase": "1",
   "target_branch": "fix/topology-aware-legacy-warning",
   "topology": "coord",
   "vcs": "git",

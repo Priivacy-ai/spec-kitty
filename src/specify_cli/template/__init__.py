@@ -2,7 +2,6 @@
 
 from .manager import (
     copy_package_tree,
-    copy_charter_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     get_local_repo_root,
@@ -21,7 +20,6 @@ from .asset_generator import (
 
 __all__ = [
     "copy_package_tree",
-    "copy_charter_templates",
     "copy_specify_base_from_local",
     "copy_specify_base_from_package",
     "DEFAULT_PATH_PATTERNS",

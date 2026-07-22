@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 import psutil
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.env import first_set_sync_disable_env, is_truthy
 from specify_cli.core.loopback_http import (
     build_loopback_base_url,
     build_loopback_url,
@@ -1035,13 +1036,35 @@ def _kill_and_cleanup(pid: int | None, *, wait_timeout: float = 2.0) -> None:
     _daemon_state_file().unlink(missing_ok=True)
 
 
+#: #2573b: this module honors the canonical sync-disable vocabulary
+#: (``core.env.SYNC_DISABLE_ENV_VARS`` via ``first_set_sync_disable_env``) as a
+#: process-wide "skip the implicit daemon spawn" signal — the SAME source of
+#: truth the pre-review gate reads, so both agree by construction.
+def _daemon_disable_env_skip_reason() -> str | None:
+    """#2573b: the first honored disable env var, or ``None`` if none set."""
+    env_var = first_set_sync_disable_env()
+    return f"{env_var} is set" if env_var else None
+
+
 def _daemon_start_skip_reason(
     intent: DaemonIntent,
     policy: object,
+    *,
+    force_explicit: bool = False,
 ) -> str | None:
     from specify_cli.saas.rollout import is_saas_sync_enabled
     from specify_cli.sync.config import BackgroundDaemonPolicy
 
+    # The disable envs (#2573b) suppress IMPLICIT auto-start — the daemon spawn
+    # that fires as a side effect of move-task / gate / loop ops. An explicit
+    # daemon-management command (``doctor restart-daemon``) is a direct user
+    # request for the daemon, so it bypasses the disable-env skip, matching the
+    # pre-#2573b behavior where restart always respawned. Rollout / intent /
+    # policy gating still applies to explicit restarts (unchanged from base).
+    if not force_explicit:
+        env_skip_reason = _daemon_disable_env_skip_reason()
+        if env_skip_reason is not None:
+            return env_skip_reason
     if not is_saas_sync_enabled():
         return "rollout_disabled"
     if intent == DaemonIntent.LOCAL_ONLY:
@@ -1088,6 +1111,7 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
     intent: DaemonIntent,
     config: SyncConfig | None = None,
     health_wait_seconds: float | None = None,
+    force_explicit: bool = False,
 ) -> DaemonStartOutcome:
     """Ensure the machine-global sync daemon is running.
 
@@ -1095,7 +1119,13 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
     remote sync (``REMOTE_REQUIRED``) or only read local state (``LOCAL_ONLY``).
     The ``intent`` parameter is keyword-only and mandatory.
 
+    ``force_explicit=True`` marks a direct user daemon-management request
+    (``doctor restart-daemon``): it bypasses the #2573b disable-env skip (which
+    only suppresses implicit auto-start), but still honors rollout / intent /
+    policy gating.
+
     Decision matrix (first match wins):
+    0. disable env set AND not force_explicit → skipped_reason="<VAR> is set"
     1. Rollout disabled → skipped_reason="rollout_disabled"
     2. intent == LOCAL_ONLY → skipped_reason="intent_local_only"
     3. policy == MANUAL → skipped_reason="policy_manual"
@@ -1110,7 +1140,7 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
         config = _SyncConfig()
     policy = config.get_background_daemon()
 
-    skip_reason = _daemon_start_skip_reason(intent, policy)
+    skip_reason = _daemon_start_skip_reason(intent, policy, force_explicit=force_explicit)
     if skip_reason is not None:
         return DaemonStartOutcome(started=False, skipped_reason=skip_reason, pid=None)
 

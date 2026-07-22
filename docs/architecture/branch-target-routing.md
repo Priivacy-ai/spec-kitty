@@ -27,8 +27,14 @@ landing zone**:
 
 - Work-package code stays in an isolated lane branch so two lanes never
   touch each other's files.
-- Planning artifacts and status events land on a shared coordination surface so
-  every lane can read them without checking out a different branch.
+- Planning + identity artifacts (spec, plan, tasks, work-package files,
+  `data-model.md`, `lanes.json`, `meta.json`) land on the primary target
+  branch for every topology, so every lane reads them from the same
+  checkout without a coordination round-trip.
+- Coordination-owned artifacts (status events, `acceptance-matrix.json`,
+  `issue-matrix.md`, `analysis-report.md`) land on a shared coordination
+  surface so every lane can read them without checking out a different
+  branch.
 - Shared documentation and the final merge-target stay on the base branch
   so they are accessible from any context.
 
@@ -39,16 +45,24 @@ manually; spec-kitty resolves the right destination for each category of diff.
 
 | Diff type | Where it lands |
 |-----------|----------------|
-| Planning artifacts (spec, plan, tasks) | coordination branch |
-| Status and task events | coordination branch |
-| Lane definitions (`lanes.json`) | coordination branch |
+| Planning artifacts (spec, plan, tasks, work-package files, `data-model.md`, `lanes.json`, `meta.json`) | primary target branch (every topology) |
+| Coordination-owned artifacts (status events, `acceptance-matrix.json`, `issue-matrix.md`, `analysis-report.md`) | coordination branch |
 | Code changes | the lane branch (per-WP worktree) |
 | Shared documentation | base branch |
 | Merge target | base branch |
 
+The destination is decided **per artifact kind**, not per topology: every
+kind in `MissionArtifactKind` (`src/mission_runtime/artifacts.py`) is
+classified as either PRIMARY or COORD once, and that classification is the
+sole authority for both reads and writes across every mission shape. See
+[ADR: Kind- and Topology-Aware Artifact Placement](../adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
+for the read/write-symmetry rationale.
+
 **Coordination branch** — a branch that acts as the shared visibility surface
-for a mission. All lanes read planning artifacts from it; all lanes write status
-events to it. It keeps these mission-wide concerns out of the lane branches.
+for a mission's COORD-kind artifacts. All lanes read status events and the
+acceptance/issue/analysis records from it, keeping those mission-wide
+bookkeeping concerns out of the lane branches. Planning artifacts do not
+route through it — they live on the primary target branch.
 
 **Lane branch** — the branch checked out inside a lane's worktree. Only the
 work packages assigned to that lane write code here. Lane branches are isolated

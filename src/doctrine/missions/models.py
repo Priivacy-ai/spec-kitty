@@ -33,6 +33,7 @@ different mission types are independent entities.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -48,8 +49,10 @@ __all__ = [
     "MissionTransition",
     "MissionOrchestration",
     "MissionStep",
+    "MissionStepTemplateRef",
     "Mission",
     "MissionType",
+    "validate_action_sequence",
 ]
 
 
@@ -84,6 +87,25 @@ class MissionOrchestration(BaseModel):
     required_artifacts: list[str] = Field(min_length=1)
 
 
+class MissionStepTemplateRef(BaseModel):
+    """Reference to the content template a step's authored artifact uses.
+
+    A pure ``(artifact_key, template_file)`` pair — a *reference*, never
+    inlined content (C-004). ``artifact_key`` is the key the
+    ``project_template_set(steps)`` projection (single authority, S-C
+    cutover) keys its dict on (e.g. ``"spec"``), which is **not**
+    necessarily the step id (e.g. step id ``specify`` projects
+    ``template_set["spec"]``). ``template_file`` is the template's
+    filename within the mission type's template directory (e.g.
+    ``"spec-template.md"``).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    artifact_key: str = Field(pattern=IDENTIFIER_PATTERN)
+    template_file: str
+
+
 class MissionStep(BaseModel):
     """Unified mission-step model owned by ``MissionType`` (FR-011).
 
@@ -100,12 +122,29 @@ class MissionStep(BaseModel):
       ``"integration"``.
     * ``prompt_template`` — relative path to the Markdown prompt file
       (within the same resolution layer as this step descriptor).
-    * ``agent_profile`` — optional doctrine agent-profile ID.
+      **Always required** — a step with no authored prompt yet must
+      still point at a real (blank-placeholder) file; the schema does
+      not relax to accommodate missing content (see WP05).
+    * ``agent_profile`` — optional doctrine agent-profile ID. Also
+      serves as the step's advisory recommended-role offer — there is
+      no separate ``recommended_role`` field.
     * ``guidance`` — optional short inline guidance.
     * ``delegates_to`` — optional list of doctrine artifact refs for
       governance concretization (defaults to empty list).
     * ``depends_on`` — optional list of step IDs that must complete
       before this step (defaults to empty list).
+    * ``sequence_index`` — position of this step within the owning
+      mission type's ordered action sequence; ``None`` when the step is
+      not part of the sequence. Relocated from the mission-type-level
+      ``action_sequence`` list (S-B, FR-006).
+    * ``in_action_sequence`` — whether this step is a member of the
+      owning mission type's ordered action sequence (default ``False``).
+    * ``recommended_model_tier`` — optional advisory model-tier offer,
+      read through the charter/runtime override seam (WP08); a
+      charter/runtime override always takes precedence (NFR-003).
+    * ``template`` — optional :class:`MissionStepTemplateRef` pointing
+      at the step's content template; ``None`` for steps with no
+      built-in template.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
@@ -118,6 +157,10 @@ class MissionStep(BaseModel):
     guidance: str | None = None
     delegates_to: list[str] = Field(default_factory=list)
     depends_on: list[str] = Field(default_factory=list)
+    sequence_index: int | None = None
+    in_action_sequence: bool = False
+    recommended_model_tier: str | None = None
+    template: MissionStepTemplateRef | None = None
 
     @property
     def title(self) -> str:
@@ -146,6 +189,34 @@ class Mission(BaseModel):
     steps: list[MissionStep] = Field(default_factory=list)
 
 
+def validate_action_sequence(action_sequence: Sequence[str]) -> None:
+    """Assert the ``action_sequence`` invariant: non-empty, unique step IDs.
+
+    Relocated (S-B, WP01) from a raw-field-only ``MissionType`` validator so
+    the same check can run against **either** value surface:
+
+    * the raw, YAML-authored ``MissionType.action_sequence`` field (still
+      used while the field remains populated during the S-B transition —
+      see :meth:`MissionType._validate_action_sequence`), or
+    * the **projected** value the WP02 seam (``project_action_sequence``)
+      derives from ``MissionStep.in_action_sequence`` /
+      ``sequence_index`` once ``action_sequence`` is no longer authored
+      directly in ``mission_types/*.yaml`` (WP07 cutover).
+
+    This is the WP01→WP02 contract: the invariant itself is never dropped,
+    only the value surface it is asserted against changes.
+
+    Raises
+    ------
+    ValueError
+        If *action_sequence* is empty or contains duplicate step IDs.
+    """
+    if not action_sequence:
+        raise ValueError("action_sequence must be non-empty")
+    if len(action_sequence) != len(set(action_sequence)):
+        raise ValueError("action_sequence must contain unique step IDs")
+
+
 class MissionType(BaseModel):
     """Governed descriptor for a built-in or extension mission type.
 
@@ -164,16 +235,21 @@ class MissionType(BaseModel):
         Human-readable label shown in CLI output.
     extends:
         Optional base mission-type id at the same layer.  When set, the
-        extending type inherits governance refs that are not overridden.
+        extending type inherits fields that are not overridden.
     action_sequence:
-        Ordered list of action step ids.  Must be non-empty and contain
-        no duplicates.
-    governance_refs:
-        Directive / tactic IDs that govern this mission type.
-    template_set:
-        Optional mapping from artifact-type key (e.g. ``"spec"``) to
-        template filename (e.g. ``"spec-template.md"``).  ``None`` means
-        no built-in templates are declared for this type.
+        Ordered list of action step ids.  ``None`` when the mission type
+        is authored entirely through ``MissionStep.in_action_sequence`` /
+        ``sequence_index`` and the projection seam (WP02+) derives the
+        sequence instead (S-B cutover, WP07). While present, it must be
+        non-empty and contain no duplicates (:func:`validate_action_sequence`).
+
+    The former ``template_set`` field (a persisted, YAML-authorable mapping
+    duplicating the step authority) was retired in the S-C atomic cutover
+    (mission-step-creatability-01KXQA6R WP01, FR-001). The template mapping
+    is now sourced exclusively from the step authority at the consumption
+    boundary via :func:`~doctrine.missions.step_projection.project_template_set`;
+    ``extra="forbid"`` below makes any YAML re-authoring a ``template_set:``
+    key fail loudly (SC-002) rather than being silently honored or dropped.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -182,9 +258,7 @@ class MissionType(BaseModel):
     id: str
     display_name: str
     extends: str | None = None
-    action_sequence: list[str]
-    governance_refs: list[str] = Field(default_factory=list)
-    template_set: dict[str, str] | None = None
+    action_sequence: list[str] | None = None
 
     @field_validator("id")
     @classmethod
@@ -198,8 +272,12 @@ class MissionType(BaseModel):
 
     @model_validator(mode="after")
     def _validate_action_sequence(self) -> MissionType:
-        if not self.action_sequence:
-            raise ValueError("action_sequence must be non-empty")
-        if len(self.action_sequence) != len(set(self.action_sequence)):
-            raise ValueError("action_sequence must contain unique step IDs")
+        # Absence-tolerant (S-B, WP01): a mission type authored without a
+        # raw `action_sequence` (post-WP07 cutover) skips this check here —
+        # the invariant is asserted on the *projected* value instead (see
+        # `validate_action_sequence` docstring). While the field is still
+        # populated from YAML during the transition, the same invariant
+        # continues to apply to the raw value.
+        if self.action_sequence is not None:
+            validate_action_sequence(self.action_sequence)
         return self

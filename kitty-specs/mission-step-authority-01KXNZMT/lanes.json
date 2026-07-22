@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "mission_slug": "mission-step-authority-01KXNZMT",
+  "mission_id": "01KXNZMTXZ36XXM3JG0WTJ7BKQ",
+  "mission_branch": "kitty/mission-mission-step-authority-01KXNZMT",
+  "target_branch": "feat/mission-step-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission_step_repository.py",
+        "src/doctrine/missions/models.py",
+        "tests/doctrine/missions/test_step_schema.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/step_projection.py",
+        "tests/doctrine/missions/test_step_projection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/step_offer_seam.py",
+        "src/doctrine/model_task_routing/evaluator.py",
+        "tests/doctrine/model_task_routing/test_override_precedence.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission-steps/software-dev/**",
+        "tests/doctrine/missions/test_softwaredev_roundtrip.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission-steps/documentation/**",
+        "src/doctrine/missions/mission-steps/plan/**",
+        "src/doctrine/missions/mission-steps/research/**",
+        "tests/doctrine/missions/test_prompt_emptiness.py",
+        "tests/doctrine/missions/test_referential_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/migration/extractor.py",
+        "tests/doctrine/drg/migration/test_extractor.py",
+        "tests/doctrine/drg/migration/test_extractor_projection.py",
+        "tests/doctrine/drg/test_mission_type_nodes.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_profiles.py",
+        "src/runtime/next/decision.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "tests/runtime/test_runtime_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission_types/documentation.yaml",
+        "src/doctrine/missions/mission_types/plan.yaml",
+        "src/doctrine/missions/mission_types/research.yaml",
+        "src/doctrine/missions/mission_types/software-dev.yaml",
+        "tests/doctrine/missions/test_softwaredev_parity_scaffold.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-16T18:28:15.037832+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

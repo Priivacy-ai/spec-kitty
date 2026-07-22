@@ -67,7 +67,7 @@ def test_normalize_task_id_input_passthrough(raw: str, expected: str) -> None:
 def test_normalize_task_id_input_non_string() -> None:
     # Non-string falsy/garbage is returned unchanged (defensive guard).
     sentinel: object = 12345
-    assert _normalize_task_id_input(sentinel) is sentinel  # type: ignore[arg-type]
+    assert _normalize_task_id_input(sentinel) is sentinel
 
 
 # ---------------------------------------------------------------------------

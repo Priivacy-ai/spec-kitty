@@ -10,7 +10,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.shared.models import Contradiction
 
 _RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
 
@@ -21,7 +20,7 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
     The ``enhances``/``overrides`` (and agent-profile ``specializes-from``)
     fields were retired in the FR-028 hard cutover. Relationships are now
     authored exclusively as DRG fragment edges in ``drg/`` fragments (merged
-    into ``src/doctrine/graph.yaml``), never as inline artifact fields. With
+    into ``src/doctrine/*.graph.yaml``), never as inline artifact fields. With
     ``extra="forbid"`` these keys already fail validation; this pre-validator
     upgrades the bare ``extra_forbidden`` error into a message that tells the
     author what to do instead.
@@ -82,7 +81,6 @@ class Tactic(BaseModel):
     failure_modes: list[str] = Field(default_factory=list)
     applies_to_languages: list[str] = Field(default_factory=list)
     references: list[TacticReference] = Field(default_factory=list)
-    opposed_by: list[Contradiction] = Field(default_factory=list)
     notes: str | None = None
 
     @model_validator(mode="before")

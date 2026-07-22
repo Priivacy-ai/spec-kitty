@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 
     from mission_runtime import PlacementSeam
     from specify_cli.bulk_edit.gate import DiffCheckResult
+    from specify_cli.invocation.record import OpStartedEvent
 
 from charter.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
@@ -89,6 +90,7 @@ from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_c
 from specify_cli.status import feature_status_lock
 from specify_cli.status import AgentAssignment, Lane
 from specify_cli.status import (
+    ResolvedBinding,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     read_wp_frontmatter,
@@ -582,6 +584,38 @@ def _commit_via_legacy_safe_commit(
     wp_id: str,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
+    # #2684: nothing-to-commit is a benign no-op, not a hard failure. When the
+    # phase-1 snapshot authority is ON, the claim's status transition is emitted
+    # AND committed by the transactional emit path (``start_implementation_status``)
+    # *before* this legacy follow-up commit runs, and the WP-file dual-write is
+    # disabled — so every requested path is already byte-identical to HEAD and
+    # there is genuinely nothing left to stage. Pre-#2684 the redundant ``git
+    # commit`` merely warned; the mission's stricter transactional emit now makes
+    # the empty commit hard-fail (and rolls the event log back), refusing an
+    # already-persisted claim. Detect the no-op and return successfully WITHOUT
+    # rolling back the (correctly-persisted) event log. ``git status --porcelain``
+    # reports both modified AND untracked paths, so a genuine first-time write
+    # (new status.json) still has a non-empty pending set and proceeds to commit.
+    porcelain = subprocess.run(
+        ["git", "status", "--porcelain", "--", *[str(p) for p in paths]],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if porcelain.returncode == 0 and not porcelain.stdout.strip():
+        # State already present at HEAD (persisted by the transactional emit).
+        _record_receipt(
+            target_branch,
+            message,
+            "committed",
+            sha=None,
+            wp_id=wp_id,
+        )
+        return
+
     # Legacy mission-branch workflow commits land on ``target_branch`` (a lane /
     # mission branch), which is normally not protected. STANDARD asserts no
     # protected-branch flow: a protected ``target_branch`` (legacy missions
@@ -832,6 +866,15 @@ def _analysis_report_gate_dir(main_repo_root: Path, mission_slug: str) -> Path:
     )
 
 
+def _mission_id_for_claim(main_repo_root: Path, mission_slug: str) -> str:
+    """Resolve claim identity from the canonical primary planning surface."""
+    primary_dir = primary_feature_dir_for_mission(
+        main_repo_root,
+        _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+    )
+    return resolve_mission_identity(primary_dir).mission_id
+
+
 def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:
     """Block implementation until `/spec-kitty.analyze` is persisted and fresh."""
     from specify_cli.analysis_report import (
@@ -877,6 +920,180 @@ def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission
     raise typer.Exit(1)
 
 
+#: Help text for the dispatch→claim resolved-binding options (FR-014). Shared by
+#: ``implement()`` and ``review()`` so the wording stays canonical in both.
+_MODEL_OPT_HELP = "Dispatch-resolved model asserted against the correlated Op record (requires --invocation-id; never the frontmatter recommendation)"
+_PROFILE_OPT_HELP = "Dispatch-resolved agent profile (registry.resolve / Op record — never the frontmatter agent_profile string)"
+_INVOCATION_ID_OPT_HELP = "Correlated Op record ULID whose mission, WP, action, profile, and model are authoritative"
+
+
+def _read_op_started_event(invocation_id: str, repo_root: Path) -> OpStartedEvent:
+    """Read and validate the durable started event for an invocation assertion.
+
+    The ID is validated before path composition. ``InvocationWriter`` then
+    enforces resolved containment under ``kitty-ops``. The embedded ID must
+    equal the requested ID so a renamed or substituted record cannot supply
+    provenance for another claim.
+    """
+    from specify_cli.invocation.record import (
+        OpStartedEvent,
+        parse_op_event,
+        validate_invocation_id,
+    )
+    from specify_cli.invocation.writer import InvocationWriter
+
+    validate_invocation_id(invocation_id)
+    try:
+        path = InvocationWriter(repo_root).invocation_path(invocation_id)
+        if not path.exists():
+            raise ValueError(f"Op record not found for invocation_id={invocation_id!r}")
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if not lines:
+            raise ValueError(f"Op record is empty for invocation_id={invocation_id!r}")
+        event = parse_op_event(json.loads(lines[0]))
+        if not isinstance(event, OpStartedEvent):
+            raise ValueError(
+                f"First Op record is not a started event for invocation_id={invocation_id!r}"
+            )
+        if event.invocation_id != invocation_id:
+            raise ValueError(
+                "Op record invocation_id "
+                f"{event.invocation_id!r} does not match requested {invocation_id!r}"
+            )
+        return event
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(
+            f"Could not read Op record for invocation_id={invocation_id!r}: {exc}"
+        ) from exc
+
+
+def _validate_op_claim_correlation(
+    *,
+    event: OpStartedEvent,
+    mission_id: str | None,
+    wp_id: str | None,
+    action: str | None,
+) -> None:
+    """Reject durable Op evidence that does not identify this exact claim."""
+    recorded_mission_id = getattr(event, "mission_id", None)
+    recorded_wp_id = getattr(event, "wp_id", None)
+    recorded_action = getattr(event, "action", None)
+    if mission_id is None or recorded_mission_id != mission_id:
+        raise ValueError(
+            "Dispatch Op mission identity does not match claim target: "
+            f"recorded={recorded_mission_id!r}, target={mission_id!r}"
+        )
+    if wp_id is None or recorded_wp_id != wp_id:
+        raise ValueError(
+            "Dispatch Op work package does not match claim target: "
+            f"recorded={recorded_wp_id!r}, target={wp_id!r}"
+        )
+    if action is None or recorded_action != action:
+        raise ValueError(
+            "Dispatch Op action does not match claim target: "
+            f"recorded={recorded_action!r}, target={action!r}"
+        )
+
+
+def _resolved_profile_version(profile_id: str | None, repo_root: Path) -> str | None:
+    """Read the resolved profile schema version from the canonical registry."""
+    if profile_id is None:
+        return None
+    try:
+        from specify_cli.invocation.registry import ProfileRegistry
+
+        return str(ProfileRegistry(repo_root).resolve(profile_id).schema_version)
+    except Exception as exc:
+        raise ValueError(
+            f"Could not resolve dispatched profile {profile_id!r}: {exc}"
+        ) from exc
+
+
+def _resolved_model_provider(model_id: str | None) -> str | None:
+    """Look up a dispatch model's provider in the canonical routing catalog."""
+    if model_id is None:
+        return None
+    try:
+        from doctrine.model_task_routing import loader as routing_loader
+
+        loaded = routing_loader.load()
+        if loaded is None:
+            raise ValueError("the canonical routing catalog is unavailable")
+        model = next(
+            (candidate for candidate in loaded.catalog.models if candidate.id == model_id),
+            None,
+        )
+        if model is None:
+            raise ValueError("model is absent from the canonical routing catalog")
+        return str(model.provider)
+    except Exception as exc:
+        raise ValueError(
+            f"Could not resolve dispatched model {model_id!r}: {exc}"
+        ) from exc
+
+
+def _resolve_dispatch_binding(
+    *,
+    model: str | None,
+    profile: str | None,
+    invocation_id: str | None,
+    repo_root: Path,
+    mission_id: str | None = None,
+    wp_id: str | None = None,
+    action: str | None = None,
+) -> ResolvedBinding:
+    """Build the genuinely dispatch-resolved binding for a claim seam (FR-014, T037).
+
+    Sources the resolved ``model`` + ``agent_profile`` from the invocation/Op
+    path — the ``--model``/``--profile`` values the orchestrator threaded from
+    ``invocation/executor.py``'s winning candidate + ``registry.resolve``, and,
+    when ``--invocation-id`` is supplied, the authoritative ``profile_id`` read
+    back from the Op record. Any supplied value that disagrees with the durable
+    Op evidence is rejected; no caller label silently overrides provenance.
+
+    **NEVER** reads the frontmatter ``agent_profile`` string (C-007 / INV-6) —
+    this function has no access to frontmatter by construction, so a resolved
+    binding can never be a frontmatter copy. When no dispatch context was
+    supplied, returns an explicit-absence binding: the claim seam records the
+    model-absent sentinel rather than fabricating one (SC-011).
+    """
+    resolved_profile = profile
+    resolved_model: str | None = None
+    if invocation_id:
+        event = _read_op_started_event(invocation_id, repo_root)
+        _validate_op_claim_correlation(
+            event=event,
+            mission_id=mission_id,
+            wp_id=wp_id,
+            action=action,
+        )
+        op_profile = event.profile_id
+        op_model = event.model_id
+        if profile is not None and profile != op_profile:
+            raise ValueError(
+                "Dispatch Op profile does not match --profile: "
+                f"recorded={op_profile!r}, supplied={profile!r}"
+            )
+        if model is not None and model != op_model:
+            raise ValueError(
+                "Dispatch Op model does not match --model: "
+                f"recorded={op_model!r}, supplied={model!r}"
+            )
+        resolved_profile = op_profile
+        resolved_model = op_model
+    elif model is not None:
+        raise ValueError(
+            "--model cannot be recorded as resolved actual without correlated "
+            "durable dispatch evidence; pass --invocation-id"
+        )
+    return ResolvedBinding(
+        agent_profile=resolved_profile,
+        agent_profile_version=_resolved_profile_version(resolved_profile, repo_root),
+        model=resolved_model,
+        provider=_resolved_model_provider(resolved_model),
+    )
 
 
 @app.command(name="implement")
@@ -884,6 +1101,9 @@ def implement(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    model: Annotated[str | None, typer.Option("--model", help=_MODEL_OPT_HELP)] = None,
+    profile: Annotated[str | None, typer.Option("--profile", help=_PROFILE_OPT_HELP)] = None,
+    invocation_id: Annotated[str | None, typer.Option("--invocation-id", help=_INVOCATION_ID_OPT_HELP)] = None,
     allow_sparse_checkout: Annotated[
         bool,
         typer.Option(
@@ -1003,6 +1223,20 @@ def implement(
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
 
+        resolved_binding = _resolve_dispatch_binding(
+            model=model,
+            profile=profile,
+            invocation_id=invocation_id,
+            repo_root=main_repo_root,
+            mission_id=(
+                _mission_id_for_claim(main_repo_root, mission_slug)
+                if invocation_id is not None
+                else None
+            ),
+            wp_id=normalized_wp_id,
+            action="implement",
+        )
+
         claim_result = _executor.implement_claim_transition(
             repo_root=repo_root,
             main_repo_root=main_repo_root,
@@ -1015,6 +1249,7 @@ def implement(
             target_branch=target_branch,
             workspace_path=workspace_path,
             status_execution_mode=status_execution_mode,
+            resolved_binding=resolved_binding,
         )
         wp = claim_result.wp
         wp_slug = claim_result.wp_slug
@@ -1334,6 +1569,9 @@ def review(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    model: Annotated[str | None, typer.Option("--model", help=_MODEL_OPT_HELP)] = None,
+    profile: Annotated[str | None, typer.Option("--profile", help=_PROFILE_OPT_HELP)] = None,
+    invocation_id: Annotated[str | None, typer.Option("--invocation-id", help=_INVOCATION_ID_OPT_HELP)] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -1390,6 +1628,20 @@ def review(
             review_workspace=review_workspace,
         )
 
+        resolved_binding = _resolve_dispatch_binding(
+            model=model,
+            profile=profile,
+            invocation_id=invocation_id,
+            repo_root=main_repo_root,
+            mission_id=(
+                _mission_id_for_claim(main_repo_root, mission_slug)
+                if invocation_id is not None
+                else None
+            ),
+            wp_id=normalized_wp_id,
+            action="review",
+        )
+
         wp = _executor.review_claim_transition(
             wp=wp,
             feature_dir=feature_dir,
@@ -1401,6 +1653,7 @@ def review(
             target_branch=target_branch,
             status_execution_mode=status_execution_mode,
             repo_root=repo_root,
+            resolved_binding=resolved_binding,
         )
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)

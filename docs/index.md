@@ -2,7 +2,7 @@
 title: Spec Kitty 3.2 Documentation
 description: Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators.
 doc_status: active
-updated: '2026-07-04'
+updated: '2026-07-21'
 related:
 - docs/changelog/index.md
 - docs/release-goals/index.md
@@ -14,37 +14,40 @@ related:
 <section class="sk-docs-hero" aria-labelledby="sk-docs-title">
   <p class="sk-eyebrow">Spec Kitty</p>
   <h1 id="sk-docs-title">Spec Kitty documentation</h1>
-  <p class="sk-docs-lead">Install the CLI, run missions through your AI harness, and keep specs, plans, work packages, and review evidence aligned.</p>
+  <p class="sk-docs-lead">Spec Kitty is for developers and teams who use AI coding agents (Claude Code, Cursor, Gemini CLI, and others) and want those agents to build the right thing, in the right order, without losing the plot halfway through. It gives your agent a clear spec, a plan, and a checklist to work from — instead of a loose prompt and a hope.</p>
   <nav class="sk-docs-actions" aria-label="Primary documentation paths">
-    <a class="sk-btn sk-btn-primary" href="guides/index.md">Start from zero</a>
+    <a class="sk-btn sk-btn-primary" href="guides/getting-started.md">Get started</a>
     <a class="sk-btn" href="migrations/index.md">Upgrade a project</a>
     <a class="sk-btn" href="api/index.md">Open the API reference</a>
   </nav>
 </section>
 
-Spec Kitty documentation is organized as a single 14-section Common Docs structure (the standard 13 sections plus a published release-goals section) under this one entry point. Use it when you are installing Spec Kitty for the first time, upgrading an existing project, running missions through an AI harness, or checking exact CLI behavior.
+New here? [Get started](guides/getting-started.md) walks you through installing Spec Kitty and running your first mission end to end — about 30 minutes, no prior Spec Kitty knowledge required.
 
-## Answer summary
-
-- Current runtime model: Charter-era missions with governed context injection.
-- Current governance source: `.kittify/charter/charter.md`.
-- Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
-- Upgrade path: start at [Migrations](migrations/index.md), then follow the current guides.
+Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're upgrading, [Guides](guides/index.md) for task-oriented how-tos, or the [API and CLI reference](api/index.md) for exact command behavior.
 
 ## What's new and roadmap
 
 - [Changelog](changelog/index.md) — release history (canonical `CHANGELOG.md`).
 - [Release goals](release-goals/index.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
 
-## Sections
-
-Every section has its own `index.md` landing page. This page is the single entry point (SC-001) that links each one.
+## Browse by topic
 
 <div class="sk-card-grid">
   <a class="sk-doc-card" href="context/index.md">
     <span class="sk-card-kicker">Context</span>
     <strong>Context</strong>
     <span>Glossary narrative, audiences, and the Charter-era governance model.</span>
+  </a>
+  <a class="sk-doc-card" href="core-concepts/index.md">
+    <span class="sk-card-kicker">Core Concepts</span>
+    <strong>Core Concepts</strong>
+    <span>Context, terminology, and the doctrine layer that governs your agent.</span>
+  </a>
+  <a class="sk-doc-card" href="doctrine/index.md">
+    <span class="sk-card-kicker">Doctrine</span>
+    <strong>Doctrine</strong>
+    <span>The layered artifacts — directives, tactics, profiles — that shape agent behavior.</span>
   </a>
   <a class="sk-doc-card" href="architecture/index.md">
     <span class="sk-card-kicker">Architecture</span>
@@ -65,6 +68,11 @@ Every section has its own `index.md` landing page. This page is the single entry
     <span class="sk-card-kicker">API</span>
     <strong>API and CLI reference</strong>
     <span>Exact CLI, file, schema, and environment behavior.</span>
+  </a>
+  <a class="sk-doc-card" href="reference/index.md">
+    <span class="sk-card-kicker">Reference</span>
+    <strong>Reference</strong>
+    <span>API, configuration, integrations, and security — exact behavior, no narrative.</span>
   </a>
   <a class="sk-doc-card" href="configuration/index.md">
     <span class="sk-card-kicker">Configuration</span>
@@ -106,6 +114,11 @@ Every section has its own `index.md` landing page. This page is the single entry
     <strong>Release goals</strong>
     <span>Declared intent of each release line.</span>
   </a>
+  <a class="sk-doc-card" href="updates/index.md">
+    <span class="sk-card-kicker">Project Updates</span>
+    <strong>Project Updates</strong>
+    <span>Changelog, release goals, and mission run history.</span>
+  </a>
 </div>
 
 ## Section index
@@ -113,10 +126,13 @@ Every section has its own `index.md` landing page. This page is the single entry
 | Section | Landing page |
 |---|---|
 | Context | [context/index.md](context/index.md) |
+| Core Concepts | [core-concepts/index.md](core-concepts/index.md) |
+| Doctrine | [doctrine/index.md](doctrine/index.md) |
 | Architecture | [architecture/index.md](architecture/index.md) |
 | ADRs | [adr/index.md](adr/index.md) |
 | Plans | [plans/index.md](plans/index.md) |
 | API | [api/index.md](api/index.md) |
+| Reference | [reference/index.md](reference/index.md) |
 | Configuration | [configuration/index.md](configuration/index.md) |
 | Integrations | [integrations/index.md](integrations/index.md) |
 | Security | [security/index.md](security/index.md) |
@@ -125,6 +141,7 @@ Every section has its own `index.md` landing page. This page is the single entry
 | Migrations | [migrations/index.md](migrations/index.md) |
 | Changelog | [changelog/index.md](changelog/index.md) |
 | Release Goals | [release-goals/index.md](release-goals/index.md) |
+| Project Updates | [updates/index.md](updates/index.md) |
 
 ## Migration and archive
 

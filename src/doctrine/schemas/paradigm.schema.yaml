@@ -10,27 +10,6 @@ required:
 - name
 - summary
 definitions:
-  contradiction:
-    type: object
-    additionalProperties: false
-    required:
-    - type
-    - id
-    - reason
-    properties:
-      type:
-        type: string
-        minLength: 1
-        enum:
-        - directive
-        - tactic
-        - paradigm
-      id:
-        type: string
-        minLength: 1
-      reason:
-        type: string
-        minLength: 1
   reference:
     type: object
     additionalProperties: false
@@ -85,7 +64,3 @@ properties:
     type: array
     items:
       $ref: '#/definitions/reference'
-  opposed_by:
-    type: array
-    items:
-      $ref: '#/definitions/contradiction'

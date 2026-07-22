@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import sync as sync_module
-from specify_cli.delivery.dispatcher import DispatchSummary
+from specify_cli.delivery.dispatcher import DispatchFailure, DispatchSummary
 
 runner = CliRunner()
 pytestmark = pytest.mark.fast
@@ -388,7 +388,11 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     service.drain_body_uploads_only.return_value = None
 
     # A logged-out dispatch: 3 events selected and attempted, none delivered
-    # (the whole batch came back transient — the 401 classification).
+    # (the whole batch came back transient — the 401 classification). A real 401
+    # maps each event to a transient failure carrying http_status=401 (see
+    # ``specify_cli.delivery.receivers.map_batch_response``); the message
+    # classifier keys on that status to report "not authenticated" rather than a
+    # generic transient / oversized message.
     unauthenticated_summary = DispatchSummary(
         target_id="t-1",
         selected=3,
@@ -398,6 +402,15 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
         rejected=0,
         transient=3,
         terminal_failed=0,
+        failures=tuple(
+            DispatchFailure(
+                event_id=f"evt-{i}",
+                outcome="transient",
+                http_status=401,
+                error="not authenticated",
+            )
+            for i in range(3)
+        ),
     )
 
     monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
@@ -423,3 +436,343 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     assert report["selected"] == 3
     assert report["transient"] == 3
     assert report["delivered"] == 0
+
+
+def _oversized_summary(sel: int) -> DispatchSummary:
+    """A batch the server 413'd wholesale: nothing delivered, all transient."""
+    return DispatchSummary(
+        target_id="t",
+        selected=sel,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=sel,
+        terminal_failed=0,
+        failures=tuple(
+            DispatchFailure(
+                event_id=f"e{i}",
+                outcome="transient",
+                http_status=413,
+                error="batch payload too large; retry with a smaller batch",
+            )
+            for i in range(sel)
+        ),
+    )
+
+
+def test_run_dispatch_batches_halves_on_oversized_then_drains(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A byte-oversized batch (HTTP 413) is halved and retried until it fits,
+    honoring the documented "retry with a smaller batch" contract instead of
+    surrendering the whole backlog as transient (the deadlock this fixes).
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 8)
+
+    calls: list[int] = []
+    remaining = {"n": 5}
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        calls.append(limit)
+        if limit >= 4:  # too large: server 413s the whole batch
+            return _oversized_summary(min(limit, remaining["n"]))
+        sel = min(limit, remaining["n"])  # fits: delivers what it selects
+        remaining["n"] -= sel
+        return DispatchSummary(
+            target_id="t",
+            selected=sel,
+            delivered=sel,
+            duplicate=0,
+            pending=0,
+            rejected=0,
+            transient=0,
+            terminal_failed=0,
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    # Shrank 8 -> 4 -> 2 before a batch fit, then drained all five events.
+    assert 8 in calls and 2 in calls
+    assert combined.delivered == 5
+    assert combined.transient == 0
+
+
+def test_run_dispatch_batches_skips_rejected_and_drains_events_behind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A poison chunk (content-rejected, no delivery) must not halt the drain:
+    the loop skips those events for the rest of the pass so deliverable events
+    behind them still drain, and terminates without re-selecting the poison.
+
+    Models the head-of-line block a small (post-oversized) batch limit exposes:
+    without the in-pass skip, the first all-rejected chunk stops the whole drain.
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    # Universe: two poison events up front, then three deliverable ones.
+    poison = ["p0", "p1"]
+    good = ["g0", "g1", "g2"]
+    universe = poison + good
+    delivered: list[str] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        selectable = [eid for eid in universe if eid not in exclude and eid not in delivered]
+        chunk = selectable[:limit]
+        if not chunk:
+            return DispatchSummary.empty()
+        rejected_ids = [eid for eid in chunk if eid in poison]
+        good_ids = [eid for eid in chunk if eid not in poison]
+        delivered.extend(good_ids)
+        return DispatchSummary(
+            target_id="t",
+            selected=len(chunk),
+            delivered=len(good_ids),
+            duplicate=0,
+            pending=0,
+            rejected=len(rejected_ids),
+            transient=0,
+            terminal_failed=0,
+            failures=tuple(
+                DispatchFailure(
+                    event_id=eid,
+                    outcome="rejected",
+                    http_status=400,
+                    error="requires force=True",
+                )
+                for eid in rejected_ids
+            ),
+            retryable_event_ids=tuple(rejected_ids),
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    # All three deliverable events drained despite the poison at the head.
+    assert set(delivered) == set(good)
+    assert combined.delivered == 3
+    assert combined.rejected == 2
+
+
+def test_run_dispatch_batches_grows_limit_back_after_oversized_park(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After a single over-cap event forces limit->1 and is parked, the limit
+    grows back so the healthy tail drains in grown batches, not one-per-POST.
+
+    Without the grow-back the four small events behind the giant would each
+    need their own singleton POST (the throughput cliff). Asserting that a
+    post-park batch delivered >1 tail event catches a regression to that.
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 8)
+
+    giant = "big-0"  # any batch containing it exceeds the server byte cap
+    tail = ["s0", "s1", "s2", "s3"]
+    universe = [giant, *tail]
+    delivered: list[str] = []
+    parked: set[str] = set()
+    calls: list[tuple[str, ...]] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        selectable = [
+            eid
+            for eid in universe
+            if eid not in exclude and eid not in delivered and eid not in parked
+        ]
+        chunk = selectable[:limit]
+        calls.append(tuple(chunk))
+        if not chunk:
+            return DispatchSummary.empty()
+        if giant in chunk and len(chunk) > 1:  # byte-oversized: server 413s it
+            return _oversized_summary(len(chunk))
+        if chunk == [giant]:  # a single over-cap event is terminal-failed
+            parked.add(giant)
+            return DispatchSummary(
+                target_id="t",
+                selected=1,
+                delivered=0,
+                duplicate=0,
+                pending=0,
+                rejected=0,
+                transient=0,
+                terminal_failed=1,
+            )
+        delivered.extend(chunk)
+        return DispatchSummary(
+            target_id="t",
+            selected=len(chunk),
+            delivered=len(chunk),
+            duplicate=0,
+            pending=0,
+            rejected=0,
+            transient=0,
+            terminal_failed=0,
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    assert combined.delivered == len(tail)
+    assert combined.terminal_failed == 1
+    assert set(delivered) == set(tail)
+    # The healthy tail drained in grown batches, not four singleton POSTs:
+    # the limit recovered above 1 after the giant was parked.
+    tail_calls = [c for c in calls if c and all(eid in tail for eid in c)]
+    assert any(len(c) >= 2 for c in tail_calls)
+    assert len(tail_calls) < len(tail)
+
+
+def test_run_dispatch_batches_skips_pending_and_reports_each_event_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pending head must wait for the next command, not block this drain."""
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    pending = {"p0", "p1"}
+    good = {"g0", "g1"}
+    universe = ["p0", "p1", "g0", "g1"]
+    delivered: set[str] = set()
+    attempted: list[tuple[str, ...]] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        selectable = [
+            event_id
+            for event_id in universe
+            if event_id not in exclude and event_id not in delivered
+        ]
+        chunk = selectable[:limit]
+        attempted.append(tuple(chunk))
+        if not chunk:
+            return DispatchSummary.empty()
+        pending_ids = [event_id for event_id in chunk if event_id in pending]
+        delivered_ids = [event_id for event_id in chunk if event_id in good]
+        delivered.update(delivered_ids)
+        return DispatchSummary(
+            target_id="t",
+            selected=len(chunk),
+            delivered=len(delivered_ids),
+            duplicate=0,
+            pending=len(pending_ids),
+            rejected=0,
+            transient=0,
+            terminal_failed=0,
+            retryable_event_ids=tuple(pending_ids),
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    assert attempted == [("p0", "p1"), ("g0", "g1"), ()]
+    assert combined.selected == 4
+    assert combined.pending == 2
+    assert combined.delivered == 2
+
+
+def test_transient_block_message_distinguishes_cause() -> None:
+    """The wholesale-transient message must not blame auth for a 413 or a 5xx.
+
+    This is the mislabel that made a batch-too-large failure read as a
+    logged-out session and sent operators chasing OAuth.
+    """
+    oversized = _oversized_summary(3)
+    assert sync_module._transient_block_message(oversized) == (
+        sync_module._OVERSIZED_SYNC_NOW_MESSAGE
+    )
+
+    unauth = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(DispatchFailure(event_id="e", outcome="transient", http_status=401),),
+    )
+    assert sync_module._transient_block_message(unauth) == (
+        sync_module._UNAUTHENTICATED_SYNC_NOW_MESSAGE
+    )
+
+    server_err = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(DispatchFailure(event_id="e", outcome="transient", http_status=503),),
+    )
+    assert sync_module._transient_block_message(server_err) == (
+        sync_module._TRANSIENT_SYNC_NOW_MESSAGE
+    )
+
+
+def test_oversized_classifier_requires_wholesale_transient_rejection() -> None:
+    """Ordinary content text containing 'too large' must not trigger halving."""
+    content_rejection = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=1,
+        transient=0,
+        terminal_failed=0,
+        failures=(
+            DispatchFailure(
+                event_id="e",
+                outcome="rejected",
+                http_status=200,
+                error="field value too large",
+            ),
+        ),
+    )
+    partial_413 = DispatchSummary(
+        target_id="t",
+        selected=2,
+        delivered=1,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(
+            DispatchFailure(
+                event_id="e",
+                outcome="transient",
+                http_status=413,
+                error="batch payload too large; retry with a smaller batch",
+            ),
+        ),
+    )
+    generic_transient = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(
+            DispatchFailure(
+                event_id="e",
+                outcome="transient",
+                http_status=200,
+                error="field value too large",
+            ),
+        ),
+    )
+
+    assert sync_module._batch_is_oversized(_oversized_summary(2)) is True
+    assert sync_module._batch_is_oversized(content_rejection) is False
+    assert sync_module._batch_is_oversized(partial_413) is False
+    assert sync_module._batch_is_oversized(generic_transient) is False

@@ -43,7 +43,12 @@ def get_kittify_home() -> Path:
 
 def _looks_like_missions_root(path: Path) -> bool:
     """Return True when ``path`` can serve as a mission asset root."""
-    for mission_name in ("software-dev", "documentation", "research", "plan"):
+    # Single-source the built-in mission-type names (#2669). Not circular: the
+    # accessor resolves the INSTALLED doctrine package via importlib.resources,
+    # independent of this candidate-``path`` template probe.
+    from doctrine.missions.mission_type_repository import builtin_mission_type_ids  # noqa: PLC0415
+
+    for mission_name in builtin_mission_type_ids():
         mission_dir = path / mission_name
         has_content_templates = any((mission_dir / "templates").glob("*.md"))
         has_legacy_commands = any((mission_dir / "command-templates").glob("*.md"))

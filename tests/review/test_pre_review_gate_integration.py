@@ -24,8 +24,13 @@ passing/failing pytest tests, diffed and run for real.
 
 from __future__ import annotations
 
+import ctypes
+import contextlib
 import json
+import os
+import signal
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -40,12 +45,14 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
 )
 from specify_cli.cli.commands.agent import tasks_move_task
-from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task
+from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import append_event
+from specify_cli.status.reducer import materialize
+from specify_cli.status.store import read_events
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
@@ -313,25 +320,27 @@ def _run_move(
         },
     ):
         _do_move_task(
-            task_id="WP01",
-            to="for_review",
-            mission=_MISSION,
-            agent=None,
-            assignee=None,
-            shell_pid=None,
-            note=None,
-            review_feedback_file=None,
-            approval_ref=None,
-            reviewer=None,
-            self_review_fallback=False,
-            intended_reviewer=None,
-            reviewer_failure_reason=None,
-            done_override_reason=None,
-            force=force,
-            tracker_ref=None,
-            skip_review_artifact_check=False,
-            auto_commit=False,
-            json_output=json_output,
+            _MoveTaskArgs(
+                task_id="WP01",
+                to="for_review",
+                mission=_MISSION,
+                agent=None,
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=None,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=force,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=False,
+                json_output=json_output,
+            ),
             ports=ports,
         )
 
@@ -505,6 +514,49 @@ def test_empty_cone_composite_is_no_coverage_not_clean(
     metadata = _gate_metadata(router.status_calls[0])
     assert metadata["outcome"] == "no_coverage"
     assert metadata["blocked"] is False
+
+
+# ---------------------------------------------------------------------------
+# #2534 — consumer repo (no live gate-coverage authority) degrades calmly
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
+    tmp_path: Path,
+) -> None:
+    """#2534 (calm-degrade regression guard): in a consumer repo (``spec-kitty
+    init``, NOT the spec-kitty source repo) the WP's fixture repo has no ``tests/architectural/_gate_coverage.py``
+    of its own — exactly like every real consumer checkout. Deliberately does
+    NOT monkeypatch ``_pre_review_gate_filter_groups``/``_pre_review_gate_composite_routing``
+    (unlike every other test in this file) so the REAL
+    ``pre_review_gate.GateAuthoritiesUnavailable`` path fires through the REAL
+    ``move-task --to for_review`` entry point.
+
+    Before the fix, the surfaced reason names the spec-kitty-internal
+    ``tests.architectural._gate_coverage`` module and reads like a failure —
+    alarming and meaningless to an operator in a consumer repo. After the fix
+    it must be a calm, plainly-worded, non-blocking warn.
+    """
+    repo = _build_base_repo(tmp_path, extra_base_files={"src/wp01/foo.py": "VALUE = 1\n"})
+    _write_file(repo, "src/wp01/foo.py", "VALUE = 2\n")
+    _git_commit_all(repo, "wip: touch owned file")
+
+    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+    _seed_baseline(feature_dir, "WP01-test", failed=0)
+    ports, router = _fake_ports(feature_dir)
+
+    _run_move(tmp_path, ports=ports, workspace_resolution=_fixture_workspace(repo))
+
+    assert len(router.status_calls) == 1  # never blocked
+    metadata = _gate_metadata(router.status_calls[0])
+    assert metadata["outcome"] == "no_coverage"
+    assert metadata["blocked"] is False
+    reason = metadata["reason"] or ""
+    assert "tests.architectural._gate_coverage" not in reason
+    assert "src/specify_cli/" not in reason
+    assert reason == tasks_move_task._PRE_REVIEW_CONSUMER_REPO_REASON
 
 
 # ---------------------------------------------------------------------------
@@ -875,4 +927,146 @@ def test_existing_transition_behavior_intact_when_no_workspace_resolvable(
     assert payload["result"] == "success"
     assert payload["new_lane"] == "for_review"
     assert payload["pre_review_gate"]["outcome"] == "no_coverage"
-    assert "Moved to for_review" in wp_file.read_text(encoding="utf-8")
+    # Runtime state is event-only after the #2816 cutover; the authored WP
+    # artifact remains byte-stable instead of receiving an Activity Log row.
+    assert "Moved to for_review" not in wp_file.read_text(encoding="utf-8")
+
+
+@pytest.mark.integration
+def test_scoped_runner_drains_large_output_while_emitting_liveness(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A child exceeding pipe capacity cannot deadlock the polling lifecycle."""
+    noisy_test = tmp_path / "test_noisy.py"
+    noisy_test.write_text(
+        "import sys\n"
+        "import time\n\n"
+        "def test_noisy_failure():\n"
+        "    sys.stdout.write('pipe-diagnostic-' * 70000)\n"
+        "    sys.stdout.flush()\n"
+        "    time.sleep(0.1)\n"
+        "    assert False, 'expected noisy failure'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pre_review_gate, "_HEAD_RUN_HEARTBEAT_INTERVAL", 0.01)
+    heartbeats: list[float] = []
+
+    result = pre_review_gate.run_scoped_tests_at_head(
+        ["test_noisy.py"],
+        repo_root=tmp_path,
+        progress_callback=heartbeats.append,
+    )
+
+    assert result.ran is True
+    assert result.state is pre_review_gate.HeadRunState.COMPLETED
+    assert heartbeats
+    assert "pipe-diagnostic" in result.stdout
+    assert any("test_noisy_failure" in failure.test for failure in result.current_failures)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(sys.platform != "linux", reason="subreaper SIGKILL harness is Linux-only")
+def test_sigkill_recovery_reads_prior_authoritative_lane(tmp_path: Path) -> None:
+    """Kill the exact command inside its real gate, then reconcile authority."""
+    repo = _build_base_repo(tmp_path)
+    fifo_path = tmp_path / "gate-ready.fifo"
+    os.mkfifo(fifo_path)
+    _write_file(
+        repo,
+        "test_gate_block.py",
+        "import os\n"
+        "import time\n\n"
+        "def test_hold_real_gate():\n"
+        "    with open(os.environ['GATE_READY_FIFO'], 'w', encoding='utf-8') as ready:\n"
+        "        ready.write(f'{os.getpid()}\\n')\n"
+        "        ready.flush()\n"
+        "    time.sleep(30)\n",
+    )
+    _git_commit_all(repo, "add synchronized gate target")
+    feature_dir, wp_path = _build_wp_file(
+        tmp_path,
+        _MISSION,
+        "WP01",
+        extra_frontmatter="pre_review_test_scope: test_gate_block.py\n",
+    )
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+    events_before = read_events(feature_dir)
+    wp_before = wp_path.read_bytes()
+    command_script = f"""
+from pathlib import Path
+from unittest.mock import patch
+from typer.testing import CliRunner
+from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.cli.commands.agent import tasks_move_task
+from tests.mocked_env import setup_mocked_env
+from tests.review import test_pre_review_gate_integration as helpers
+
+root = Path({str(tmp_path)!r})
+repo = Path({str(repo)!r})
+feature_dir = root / 'kitty-specs' / helpers._MISSION
+ports, _router = helpers._fake_ports(feature_dir)
+with (
+    setup_mocked_env(
+        root,
+        mission_slug=helpers._MISSION,
+        target_branch='main',
+        workspace_resolution=helpers._fixture_workspace(repo),
+        extra_patches={{
+            '_validate_ready_for_review': (True, []),
+            '_check_unchecked_subtasks': [],
+        }},
+    ),
+    patch.object(tasks_move_task, '_default_move_task_ports', return_value=ports),
+):
+    result = CliRunner().invoke(
+        app,
+        [
+            'move-task', 'WP01', '--to', 'for_review',
+            '--mission', helpers._MISSION, '--no-auto-commit', '--json',
+        ],
+    )
+raise SystemExit(result.exit_code)
+"""
+    env = dict(os.environ)
+    env["GATE_READY_FIFO"] = str(fifo_path)
+    # Become a Linux child subreaper so the runner-owned pytest process is
+    # attributed to and reaped by this harness after SIGKILL takes out the
+    # command process that originally parented it.
+    libc = ctypes.CDLL(None)
+    assert libc.prctl(36, 1, 0, 0, 0) == 0
+    command = subprocess.Popen(
+        [sys.executable, "-c", command_script],
+        cwd=Path.cwd(),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    gate_pid: int | None = None
+    try:
+        with fifo_path.open("r", encoding="utf-8") as ready:
+            gate_pid = int(ready.readline().strip())
+        os.killpg(command.pid, signal.SIGKILL)
+        command.wait(timeout=5)
+        os.killpg(gate_pid, signal.SIGKILL)
+        reaped_pid, _status = os.waitpid(gate_pid, 0)
+        assert reaped_pid == gate_pid
+    finally:
+        if command.poll() is None:
+            command.kill()
+            command.wait(timeout=5)
+        if gate_pid is not None:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(gate_pid, signal.SIGKILL)
+            with contextlib.suppress(ChildProcessError):
+                os.waitpid(gate_pid, 0)
+        assert libc.prctl(36, 0, 0, 0, 0) == 0
+
+    events_after = read_events(feature_dir)
+    snapshot = materialize(feature_dir)
+    assert events_after == events_before
+    assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+    assert snapshot.event_count == len(events_before)
+    assert wp_path.read_bytes() == wp_before

@@ -135,7 +135,7 @@ def test_commit_for_mission_no_op_wrong_surface_uses_the_named_constant(
         commit_router, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH
     )
     monkeypatch.setattr(
-        commit_router, "_resolve_primary_target_branch", lambda _root, _slug: "main"
+        commit_router, "_resolve_mission_target_branch", lambda _root, _slug: "main"
     )
 
     missing_artifact = tmp_path / "kitty-specs" / "001-demo" / "spec.md"
@@ -164,7 +164,7 @@ def test_commit_for_mission_unchanged_uses_the_named_constant(
         commit_router, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH
     )
     monkeypatch.setattr(
-        commit_router, "_resolve_primary_target_branch", lambda _root, _slug: "main"
+        commit_router, "_resolve_mission_target_branch", lambda _root, _slug: "main"
     )
 
     result = commit_router.commit_for_mission(

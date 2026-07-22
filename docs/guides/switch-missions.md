@@ -14,7 +14,7 @@ Missions shape the prompts, artifacts, and workflows Spec Kitty uses for each fe
 ## Understanding Per-Feature Missions
 
 - Missions are scoped per feature folder under `kitty-specs/`.
-- The mission defines the workflow phases, templates, and artifacts created.
+- The mission defines the workflow steps — each with its own templates — and the artifacts created.
 - Switching missions means creating a new feature with a different mission, not mutating an existing feature's mission.
 
 ## Mission Selection
@@ -40,7 +40,7 @@ This shows all missions and highlights the active mission for the current featur
 spec-kitty mission info research
 ```
 
-Use this to review phases, templates, and expected artifacts before you start.
+Use this to review the steps, their templates, and expected artifacts before you start.
 
 ## Working with Different Missions
 

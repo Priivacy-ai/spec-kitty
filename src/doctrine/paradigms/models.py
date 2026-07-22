@@ -1,7 +1,7 @@
 """Paradigm domain model.
 
 Cross-artifact relationships (paradigm → tactic, paradigm → directive) live in
-``src/doctrine/graph.yaml`` as of Phase 1 excision (mission
+``src/doctrine/*.graph.yaml`` as of Phase 1 excision (mission
 ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02). Inline
 ``tactic_refs`` / ``paradigm_refs`` fields have been removed from this model.
 """
@@ -11,7 +11,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.shared.models import Contradiction
 
 _RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
 
@@ -21,7 +20,7 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
 
     The ``enhances``/``overrides`` fields were retired in the FR-028 hard
     cutover. Relationships are now authored exclusively as DRG fragment edges
-    merged into ``src/doctrine/graph.yaml``, never as inline artifact fields.
+    merged into ``src/doctrine/*.graph.yaml``, never as inline artifact fields.
     """
     if not isinstance(data, dict):
         return data
@@ -73,7 +72,6 @@ class Paradigm(BaseModel):
     summary: str
     directive_refs: list[str] = Field(default_factory=list)
     references: list[ParadigmReference] = Field(default_factory=list)
-    opposed_by: list[Contradiction] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod

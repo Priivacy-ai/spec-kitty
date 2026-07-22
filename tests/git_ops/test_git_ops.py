@@ -548,6 +548,50 @@ def test_resolve_primary_branch_current_branch_wins_over_hardcoded_list(tmp_path
 
 
 # ============================================================================
+# resolve_primary_branch: bias / current_branch params (FR-007 fold)
+#
+# WP04 (primary-merge-vocabulary) folds ``_resolve_primary_branch_for_recommendation``
+# into this canonical resolver via a keyword-only ``bias`` flag (and a
+# ``current_branch`` override). ``test_git_ops.py`` is the canonical home for
+# ``resolve_primary_branch`` behavior and is unowned by any other WP, so the new
+# parameters are pinned here alongside the historical feature-bias contract.
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_bias_false_ignores_feature_branch(tmp_path):
+    """FR-007 no-feature-bias: ``bias=False`` must NOT return the checked-out
+    ticket branch; the common-branch ladder (main) wins instead. This is the
+    deliberate divergence the branch-context recommender relies on and that the
+    fold must preserve — contrasted here against the default feature bias."""
+    repo = _init_repo_with_branch(tmp_path, "main")
+    run_command(["git", "branch", "feat/ticket-123"], cwd=repo)
+    run_command(["git", "checkout", "feat/ticket-123"], cwd=repo)
+    # Default (feature bias) returns the ticket branch ...
+    assert resolve_primary_branch(repo) == "feat/ticket-123"
+    # ... but no-feature-bias falls through to the common ladder.
+    assert resolve_primary_branch(repo, bias=False) == "main"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_bias_false_honors_current_when_common(tmp_path):
+    """``bias=False`` still honors the current branch when it is itself a common
+    primary name (main/master/develop)."""
+    repo = _init_repo_with_branch(tmp_path, "develop")
+    assert resolve_primary_branch(repo, current_branch="develop", bias=False) == "develop"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_accepts_explicit_current_branch(tmp_path):
+    """The ``current_branch`` kwarg lets a caller pass the already-known checked-out
+    branch (avoiding a second git call); with the default feature bias it wins
+    exactly like the auto-detected value would."""
+    repo = _init_repo_with_branch(tmp_path, "main")
+    run_command(["git", "branch", "2.x"], cwd=repo)
+    assert resolve_primary_branch(repo, current_branch="2.x") == "2.x"
+
+
+# ============================================================================
 # resolve_target_branch with non-"main" primary branch
 # ============================================================================
 

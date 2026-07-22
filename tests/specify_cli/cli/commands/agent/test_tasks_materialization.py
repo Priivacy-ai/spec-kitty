@@ -268,21 +268,49 @@ class TestCollectStatusArtifacts:
 
 
 # ---------------------------------------------------------------------------
-# _persist_review_artifact_override (frontmatter mutation + write error path)
+# _persist_review_artifact_override (FR-009 / WP09: event-sourced write half)
 # ---------------------------------------------------------------------------
 
 
 def _artifact_with_frontmatter(path: Path, body: str = "review body\n") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "---\nstatus: rejected\n---\n" + body,
         encoding="utf-8",
     )
 
 
+def _review_feature_dir(root: Path, mission_slug: str = "demo-mission") -> Path:
+    """Create a kitty-specs feature_dir named after the mission slug.
+
+    ``_persist_review_artifact_override`` derives the emit target from the
+    artifact path (``<feature_dir>/tasks/<wp-slug>/review-cycle-N.md``), so the
+    directory name MUST equal the mission slug.
+    """
+    import json as _json
+
+    feature_dir = root / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        _json.dumps({"mission_id": "01KXWN13EVICTION00000000000", "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
 class TestPersistReviewArtifactOverride:
-    def test_stamps_override_fields_into_frontmatter(self, tmp_path: Path) -> None:
-        artifact = tmp_path / "artifact.md"
+    """FR-009 (WP09): the override is event-sourced into the ``review`` snapshot
+    slot, NOT stamped onto the artifact frontmatter (and NOT mirrored into a coord
+    copy). The artifact file must be left byte-unchanged."""
+
+    def test_emits_review_override_without_stamping_frontmatter(self, tmp_path: Path) -> None:
+        from specify_cli.status import materialize
+
+        feature_dir = _review_feature_dir(tmp_path)
+        artifact = feature_dir / "tasks" / "WP01-slug" / "review-cycle-1.md"
         _artifact_with_frontmatter(artifact)
+        before = artifact.read_bytes()
+
         _persist_review_artifact_override(
             artifact,
             repo_root=tmp_path,
@@ -290,51 +318,25 @@ class TestPersistReviewArtifactOverride:
             actor="claude",
             reason="superseded by newer approval",
         )
-        text = artifact.read_text(encoding="utf-8")
-        # ``set_scalar`` serializes scalar values with double quotes.
-        assert "review_artifact_override_actor:" in text and "claude" in text
-        assert "review_artifact_override_wp_id:" in text and "WP01" in text
-        assert "superseded by newer approval" in text
-        assert "review_artifact_override_at:" in text
-        # Original body and frontmatter preserved.
-        assert "status: rejected" in text
-        assert "review body" in text
 
-    def test_missing_file_raises(self, tmp_path: Path) -> None:
-        artifact = tmp_path / "does-not-exist.md"
-        with pytest.raises(FileNotFoundError):
-            _persist_review_artifact_override(
-                artifact,
-                repo_root=tmp_path,
-                wp_id="WP01",
-                actor="claude",
-                reason="x",
-            )
+        # The artifact file is byte-unchanged: no frontmatter stamp.
+        assert artifact.read_bytes() == before
+        assert "review_artifact_override" not in artifact.read_text(encoding="utf-8")
 
-    def test_write_outside_root_is_rejected(self, tmp_path: Path) -> None:
-        # Artifact lives in a sibling dir; root points elsewhere -> the safe-write
-        # boundary must refuse to persist (path escapes ``root``).
-        outside = tmp_path / "outside"
-        outside.mkdir()
-        artifact = outside / "artifact.md"
+        # The override is event-sourced into the ``review`` snapshot slot.
+        review = materialize(feature_dir).work_packages["WP01"]["review"]
+        assert review["actor"] == "claude"
+        assert review["wp_id"] == "WP01"
+        assert review["reason"] == "superseded by newer approval"
+        assert review["at"]
+
+    def test_override_reason_round_trips_through_snapshot(self, tmp_path: Path) -> None:
+        from specify_cli.status import materialize
+
+        feature_dir = _review_feature_dir(tmp_path, mission_slug="mission-two")
+        artifact = feature_dir / "tasks" / "WP02-slug" / "review-cycle-1.md"
         _artifact_with_frontmatter(artifact)
 
-        confined_root = tmp_path / "confined"
-        confined_root.mkdir()
-        with pytest.raises(ValueError):
-            _persist_review_artifact_override(
-                artifact,
-                repo_root=confined_root,
-                wp_id="WP01",
-                actor="claude",
-                reason="x",
-            )
-
-    def test_invalid_frontmatter_body_is_treated_as_plain_text(self, tmp_path: Path) -> None:
-        # A file with no frontmatter fence: split_frontmatter yields empty
-        # frontmatter; the override still stamps scalars without raising.
-        artifact = tmp_path / "plain.md"
-        artifact.write_text("just a body, no frontmatter\n", encoding="utf-8")
         _persist_review_artifact_override(
             artifact,
             repo_root=tmp_path,
@@ -342,9 +344,16 @@ class TestPersistReviewArtifactOverride:
             actor="codex",
             reason="manual override",
         )
-        text = artifact.read_text(encoding="utf-8")
-        assert "review_artifact_override_wp_id:" in text and "WP02" in text
-        assert "just a body, no frontmatter" in text
+
+        review = materialize(feature_dir).work_packages["WP02"]["review"]
+        assert review == {
+            "at": review["at"],
+            "actor": "codex",
+            "wp_id": "WP02",
+            "reason": "manual override",
+        }
+        # Artifact frontmatter carries no override evidence.
+        assert "review_artifact_override" not in artifact.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@
   "purpose_context": "Today an organisation's doctrine pack can graph-link its agents, tactics, styleguides and procedures, but its templates and binary/loose assets are invisible to the Doctrine Reference Graph — they can only be pointed at from free-text prose, so they are second-class and un-navigable. This mission makes structured templates first-class, edge-wireable graph nodes and introduces a distinct loose-contract asset kind (identity + mime + addressable path, no schema) with a hard uniqueness rule, so a pack ships a complete, navigable graph of everything it contributes.",
   "purpose_tldr": "Make org-pack doctrine templates first-class DRG nodes (#2495) and add a new loose-contract ASSET doctrine kind (#2469) so packs can ship and graph-link templates and arbitrary addressable assets.",
   "slug": "doctrine-template-asset-kinds-01KX2YQ7",
+  "status_phase": "1",
   "target_branch": "feat/doctrine-template-asset-kinds-2495",
   "topology": "coord"
 }

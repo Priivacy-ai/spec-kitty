@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol
 
-from specify_cli.status.models import Lane
+from specify_cli.status.models import ActorField, InnerStateChanged, Lane, WPInnerStateDelta
 
 # Shared error message constants (single source for parity with the historical
 # ``transitions.py`` implementation these guards were migrated from).
@@ -254,6 +254,43 @@ class GenesisState(WPState):
     def display_category(self) -> str:
         # Non-display lane: group under Planned so no separate board column is
         # ever introduced for the transient genesis state.
+        return "Planned"
+
+
+@dataclass(frozen=True)
+class UninitializedState(WPState):
+    """Read sentinel for a WP with no lane events at all.
+
+    Distinct from ``GenesisState``: genesis means a WP was created and
+    seeded (has a ``WPCreated`` event) but not yet finalized into the lane
+    lifecycle; uninitialized means the lane-reader found NO events for the
+    WP whatsoever (empty event log, or WP absent from the reduced
+    snapshot). ``allowed_targets()`` is deliberately EMPTY — not a copy of
+    ``GenesisState``'s ``{PLANNED, CANCELED}`` — because this state must add
+    zero edges to the transition-matrix projection derived in
+    ``transitions.py`` and must be genuinely non-transitionable (never a
+    valid ``from_lane`` or ``to_lane`` in a real transition). Do not
+    "simplify" this into an alias of ``GenesisState``: that would inject
+    transition edges and make ``UNINITIALIZED`` transitionable, both of
+    which are contract violations (see ``docs/adr/3.x`` lane-uninitialized
+    notes / #2675).
+    """
+
+    @property
+    def lane(self) -> Lane:
+        return Lane.UNINITIALIZED
+
+    def allowed_targets(self) -> frozenset[Lane]:
+        return frozenset()
+
+    def progress_bucket(self) -> str:
+        return "not_started"
+
+    def display_category(self) -> str:
+        # Non-display lane: never a board column. Grouped under Planned for
+        # parity with GenesisState's placeholder, though this value is not
+        # expected to be consulted in practice (uninitialized WPs never
+        # materialize onto the board).
         return "Planned"
 
 
@@ -628,6 +665,7 @@ def _check_review_result_consistency(
 
 _STATE_MAP: dict[str, type[WPState]] = {
     "genesis": GenesisState,
+    "uninitialized": UninitializedState,
     "planned": PlannedState,
     "claimed": ClaimedState,
     "in_progress": InProgressState,
@@ -653,3 +691,61 @@ def wp_state_for(lane: Lane | str) -> WPState:
     if cls is None:
         raise ValueError(f"Unknown lane: {lane_str!r}")
     return cls()
+
+
+# ---------------------------------------------------------------------------
+# Sanctioned non-transition annotation seam (C-004)
+# ---------------------------------------------------------------------------
+
+
+def annotate(
+    wp_id: str,
+    delta: WPInnerStateDelta,
+    *,
+    actor: ActorField,
+    at: str,
+    event_id: str,
+) -> InnerStateChanged:
+    """Construct a validated off-axis :class:`InnerStateChanged` annotation.
+
+    This is the sanctioned NON-transition seam: it assembles the typed event
+    WITHOUT consulting ``validate_transition`` and WITHOUT adding any lane
+    self-edge to the FSM matrix. It is modelled on
+    :meth:`UninitializedState.allowed_targets` (which returns ``frozenset()``
+    — it adds zero edges): the annotation path traverses zero FSM edges.
+
+    Validation here is delta-shape validation, not FSM validation:
+
+    - ``wp_id`` must match the canonical WP-id pattern (``store._WP_ID_PATTERN``).
+    - the delta must not be empty (an empty delta folds to a no-op and is
+      refused at this seam).
+
+    Args:
+        wp_id: Target work-package id (e.g. ``"WP01"``).
+        delta: The typed partial runtime-state payload to record.
+        actor: Identity of the actor causing the change.
+        at: ISO-8601 occurrence timestamp.
+        event_id: ULID event id (minted by the caller / emit seam).
+
+    Returns:
+        A fully-typed :class:`InnerStateChanged` ready to persist.
+
+    Raises:
+        ValueError: for a malformed ``wp_id`` or an empty delta.
+    """
+    # Lazy import keeps the FSM module free of a store-layer import at module
+    # load and reuses the single canonical WP-id pattern. ``store`` never
+    # exposes ``validate_transition``, so the annotate path stays FSM-free.
+    from specify_cli.status.store import _WP_ID_PATTERN  # noqa: PLC0415
+
+    if not _WP_ID_PATTERN.match(wp_id):
+        raise ValueError(f"annotate() refuses wp_id not matching the WP-id pattern: {wp_id!r}")
+    if delta.is_empty():
+        raise ValueError("annotate() refuses an empty delta (it folds to a no-op)")
+    return InnerStateChanged(
+        event_id=event_id,
+        wp_id=wp_id,
+        at=at,
+        actor=actor,
+        delta=delta,
+    )

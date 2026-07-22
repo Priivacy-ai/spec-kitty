@@ -32,7 +32,7 @@ from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import ulid as _ulid_mod
 
@@ -42,7 +42,7 @@ from specify_cli.coordination.policy import (
 )
 from specify_cli.coordination.status_service import (
     EventLogWriteContract,
-    append_event_log,
+    append_event_stream_log,
 )
 from specify_cli.coordination.types import (
     Allowed,
@@ -67,7 +67,7 @@ from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
 )
-from specify_cli.status.models import StatusEvent
+from specify_cli.status.models import InnerStateChanged, StatusEvent
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
     coord target (#1589). The canonical, NNN-stripping ``mission_dir_name`` is NOT
     used here.
     """
-    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
+    return cast(str, _seam_coord_mission_dir_name(mission_slug, mid8=mid8))
 
 
 def _validate_safe_segment(name: str, value: str) -> str:
@@ -172,7 +172,7 @@ def _validate_safe_segment(name: str, value: str) -> str:
     contract (C-001: migrate, don't wrap — no parallel mechanism).
     """
     try:
-        return assert_safe_path_segment(value)
+        return cast(str, assert_safe_path_segment(value))
     except ValueError as exc:
         raise BookkeepingError(f"{name} is not a safe path segment: {exc}") from exc
 
@@ -744,18 +744,57 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # legacy mode) ``destination_ref`` differ.
         legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)
         if legacy_mode:
-            try:
-                worktree_root, lane_branch = _resolve_legacy_lane_destination(
-                    repo_root,
-                )
-            except BookkeepingLegacyResolutionFailed:
-                raise
-            # Override caller-supplied destination_ref with the actual
-            # lane branch so policy + HEAD assertion both see truth.
-            effective_normalized_ref = _normalize_ref(lane_branch)
-            effective_destination_ref = effective_normalized_ref
-            if _warrants_legacy_warning(repo_root, safe_mission_slug, safe_mid8):
+            # #2453: ``_is_legacy_mission`` alone conflates two shapes that
+            # both merely lack ``coordination_branch`` — a genuinely-legacy
+            # (pre-SSOT) mission AND a MODERN coordination-less mission
+            # (``single_branch``/``lanes`` stored topology, or ``flattened``).
+            # ``_warrants_legacy_warning`` already carries the SAME
+            # stored-topology classification the sibling warning-fix (#2351)
+            # introduced (C-005) — reuse it here as the routing split too,
+            # rather than inventing a second classifier.
+            genuinely_legacy = _warrants_legacy_warning(
+                repo_root, safe_mission_slug, safe_mid8,
+            )
+            if genuinely_legacy:
+                # Genuinely-legacy: unchanged pre-#2453 behaviour — resolve
+                # the operator's current lane worktree + its checked-out
+                # branch (there is no other reliable write target for a
+                # mission that predates the coordination-branch topology).
+                try:
+                    worktree_root, lane_branch = _resolve_legacy_lane_destination(
+                        repo_root,
+                    )
+                except BookkeepingLegacyResolutionFailed:
+                    raise
+                # Override caller-supplied destination_ref with the actual
+                # lane branch so policy + HEAD assertion both see truth.
+                effective_normalized_ref = _normalize_ref(lane_branch)
+                effective_destination_ref = effective_normalized_ref
                 _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
+            else:
+                # Modern coordination-less mission (#2453 / #2647): its
+                # coordination-less shape was CHOSEN (stored topology) or is
+                # ``flattened`` — it is not pre-SSOT debt. The write target is
+                # the canonical mission surface: the primary checkout
+                # (``repo_root``) on the caller-supplied ``destination_ref``,
+                # which the caller already resolves CWD-invariantly (mirrors
+                # ``status_transition._resolve_write_target``'s
+                # ``resolve_placement_only(..., kind=STATUS_STATE).ref`` for
+                # the flat/base arm). Do NOT re-derive from ``Path.cwd()`` —
+                # that is the #2647 taint (a lane worktree's operator cwd can
+                # carry a stale local ``status.events.jsonl`` snapshot).
+                #
+                # CALLER CONTRACT (PR #2662 squad, paula LOW-2): correctness of
+                # this arm depends on EVERY caller passing a CWD-invariant
+                # ``destination_ref`` (resolved from the mission's stored
+                # topology / target branch, never from ``Path.cwd()``). This
+                # module cannot inspect a ref's provenance, so a future caller
+                # threading a cwd-derived ref would silently reopen #2647. The
+                # guard is the caller contract + the routing tests
+                # (``test_transaction_legacy_topology_routing`` asserts this arm
+                # lands on ``repo_root`` from a stale lane cwd), NOT a runtime
+                # provenance check here.
+                worktree_root = repo_root
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_change_set = GitChangeSet(
@@ -902,21 +941,39 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
     # ---- public API ----
 
-    def append_event(self, event: StatusEvent) -> PendingEventHandle:
-        """Append ``event`` to ``status.events.jsonl`` + re-materialise.
+    def append_event(
+        self,
+        event: StatusEvent | InnerStateChanged,
+    ) -> PendingEventHandle:
+        """Append one ``event`` to ``status.events.jsonl`` + re-materialise."""
+        return self.append_events([event])[0]
+
+    def append_events(
+        self,
+        events: list[StatusEvent | InnerStateChanged],
+    ) -> list[PendingEventHandle]:
+        """Atomically append a mixed event unit and re-materialise once.
 
         On first call within the transaction, also snapshots the
         pre-emit ``status.json`` bytes so rollback can restore them
         byte-identically.
 
         Raises:
-            BookkeepingDoubleEventId: ``event.event_id`` already
-                appended in this transaction.
+            BookkeepingDoubleEventId: Any event id is duplicated within this
+                unit or was already appended in this transaction.
         """
-        if event.event_id in self._seen_event_ids:
+        if not events:
+            return []
+        unit_ids = [event.event_id for event in events]
+        duplicate_ids = {
+            event_id
+            for event_id in unit_ids
+            if unit_ids.count(event_id) > 1 or event_id in self._seen_event_ids
+        }
+        if duplicate_ids:
+            duplicate = sorted(duplicate_ids)[0]
             raise BookkeepingDoubleEventId(
-                f"event_id {event.event_id!r} appended twice in one "
-                f"transaction"
+                f"event_id {duplicate!r} appended twice in one transaction"
             )
 
         # Capture the pre-emit status.json on first event so rollback
@@ -942,30 +999,22 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             write_contract = EventLogWriteContract.coordination_transaction_append(
                 self.feature_dir
             )
-        append_event_log(
+        append_event_stream_log(
             write_contract,
-            event,
+            events,
         )
         # Re-materialise status.json so an external observer sees
         # consistent state immediately after the event is durable.
-        try:
-            _reducer.materialize(self.feature_dir)
-        except Exception as mat_exc:  # noqa: BLE001
-            logger.warning(
-                "BookkeepingTransaction: materialise failed after "
-                "event %s: %s",
-                event.event_id,
-                mat_exc,
-            )
+        _reducer.materialize(self.feature_dir)
 
-        self._event_ids.append(event.event_id)
-        self._seen_event_ids.add(event.event_id)
+        self._event_ids.extend(unit_ids)
+        self._seen_event_ids.update(unit_ids)
         # Both status files are now part of the changeset that commit()
         # will stage.
         for path in (self._events_path, self._snapshot_path):
             if path not in self._staged_paths:
                 self._staged_paths.append(path)
-        return PendingEventHandle(event_id=event.event_id)
+        return [PendingEventHandle(event_id=event_id) for event_id in unit_ids]
 
     def write_artifact(self, path: Path, content: bytes) -> None:
         """Write ``content`` to ``path`` under snapshot-and-restore tracking.

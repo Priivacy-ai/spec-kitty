@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -369,8 +370,8 @@ class TestCharterActivateCLI:
 
         with (
             patch(
-                "charter.mission_type_profiles.resolve_action_sequence",
-                return_value=["specify", "plan", "review"],
+                "charter.mission_type_profiles.resolve_mission_type_context",
+                return_value=SimpleNamespace(action_sequence=["specify", "plan", "review"]),
             ),
             patch(
                 "doctrine.missions.mission_type_repository.MissionTypeRepository.default",

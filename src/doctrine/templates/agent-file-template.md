@@ -22,9 +22,7 @@ Auto-generated from all feature plans. Last updated: [DATE]
 
 ## PowerShell Syntax
 
-**⚠️ IMPORTANT**: You are in a PowerShell environment. See [.kittify/memory/templates/POWERSHELL_SYNTAX.md](.kittify/memory/templates/POWERSHELL_SYNTAX.md) for correct syntax.
-
-Quick reminders:
+**⚠️ IMPORTANT**: You are in a PowerShell environment. Use PowerShell-native syntax:
 
 - Use `-Json` not `--json`
 - Use `;` not `&&` for command chaining

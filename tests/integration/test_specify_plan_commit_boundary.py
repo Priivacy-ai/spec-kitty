@@ -59,10 +59,7 @@ def _summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so stakeholders can track outcomes "
-            "without parsing the spec text directly."
-        ),
+        "purpose_context": (f"This mission delivers {title} so stakeholders can track outcomes without parsing the spec text directly."),
     }
 
 
@@ -267,9 +264,7 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
     runner = CliRunner()
     feature_dir = repo / "kitty-specs" / mission_handle
 
-    def _fake_show_branch_context(
-        _repo_root: Path, _slug: str, _json: bool
-    ) -> tuple[str, str]:
+    def _fake_show_branch_context(_repo_root: Path, _slug: str, _json: bool) -> tuple[str, str]:
         return ("main", "main")
 
     # These fixtures intentionally exercise setup-plan commits on synthetic
@@ -292,9 +287,7 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch(
-                "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
-            ),
+            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -429,9 +422,7 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
 
     runner = CliRunner()
 
-    def _fake_show_branch_context(
-        _repo_root: Path, _slug: str, _json: bool
-    ) -> tuple[str, str]:
+    def _fake_show_branch_context(_repo_root: Path, _slug: str, _json: bool) -> tuple[str, str]:
         return ("main", "main")
 
     _prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
@@ -448,9 +439,7 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch(
-                "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
-            ),
+            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -496,9 +485,7 @@ def test_setup_plan_resolves_bare_mid8_handle_to_primary_slug(tmp_path: Path) ->
     # so the gate sees the committed substantive spec and the populated plan.
     assert payload.get("result") == "success", payload
     assert payload.get("phase_complete") is True, payload
-    assert not (tmp_path / "kitty-specs" / mid8).exists(), (
-        "setup-plan composed a literal kitty-specs/<mid8> dir (handle-blind primary arm)"
-    )
+    assert not (tmp_path / "kitty-specs" / mid8).exists(), "setup-plan composed a literal kitty-specs/<mid8> dir (handle-blind primary arm)"
 
 
 def test_setup_plan_scaffolds_from_doctrine_package_default(
@@ -518,15 +505,7 @@ def test_setup_plan_scaffolds_from_doctrine_package_default(
 
     payload = _run_setup_plan(tmp_path, handle)
 
-    doctrine_plan = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "doctrine"
-        / "missions"
-        / "software-dev"
-        / "templates"
-        / "plan-template.md"
-    )
+    doctrine_plan = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions" / "software-dev" / "templates" / "plan-template.md"
     plan_file = feature_dir / "plan.md"
 
     # #2566/WP06: a pristine scaffold (plan.md byte-equal to the template, not
@@ -537,6 +516,63 @@ def test_setup_plan_scaffolds_from_doctrine_package_default(
     assert payload.get("phase_complete") is False
     assert plan_file.read_text(encoding="utf-8") == doctrine_plan.read_text(encoding="utf-8")
     assert _file_in_head(tmp_path, str(plan_file.relative_to(tmp_path))) is False
+
+
+def test_setup_plan_scaffolds_and_compares_override_winner(tmp_path: Path) -> None:
+    """The live setup-plan path uses the configured ``plan`` mapping and tier winner."""
+    _init_git_repo(tmp_path)
+    feature_dir = _create_mission(tmp_path, "mission-override-plan")
+    handle = feature_dir.name
+    override = tmp_path / ".kittify" / "overrides" / "templates" / "plan-template.md"
+    override.parent.mkdir(parents=True, exist_ok=True)
+    override_bytes = b"# Override Plan\n\n## Technical Context\n**Language/Version**: [NEEDS CLARIFICATION]\n"
+    override.write_bytes(override_bytes)
+
+    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _commit_file(
+        tmp_path,
+        str((feature_dir / "spec.md").relative_to(tmp_path)),
+        "add substantive spec",
+    )
+
+    payload = _run_setup_plan(tmp_path, handle)
+    plan_file = feature_dir / "plan.md"
+
+    assert payload.get("result") == "success"
+    assert payload.get("scaffold_only") is True
+    assert plan_file.read_bytes() == override_bytes
+    assert _file_in_head(tmp_path, str(plan_file.relative_to(tmp_path))) is False
+
+
+def test_setup_plan_resolves_research_plan_template(tmp_path: Path) -> None:
+    """research is creatable: setup-plan resolves its authored plan mapping (#2689).
+
+    Before the mission-step-creatability slice research carried a null plan
+    mapping and setup-plan failed closed (TEMPLATE_CONFIGURATION_ERROR); it now
+    resolves the per-type authored plan template and scaffolds ``plan.md``. The
+    fail-closed contract for a genuinely unmapped kind is covered by
+    ``tests/runtime/test_resolver_unit.py``.
+    """
+    _init_git_repo(tmp_path)
+    feature_dir = _create_mission(tmp_path, "mission-research-plan-mapping")
+    handle = feature_dir.name
+    meta_file = feature_dir / "meta.json"
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    meta["mission_type"] = "research"
+    meta_file.write_text(json.dumps(meta), encoding="utf-8")
+
+    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _commit_file(
+        tmp_path,
+        str((feature_dir / "spec.md").relative_to(tmp_path)),
+        "add substantive research spec",
+    )
+
+    payload = _run_setup_plan(tmp_path, handle)
+
+    assert payload.get("result") == "success"
+    assert payload.get("error_code") is None
+    assert (feature_dir / "plan.md").exists()
 
 
 # ---------------------------------------------------------------------------

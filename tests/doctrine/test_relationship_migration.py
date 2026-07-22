@@ -26,7 +26,7 @@ from ruamel.yaml import YAML
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-from doctrine.drg.loader import load_graph
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.merge import merge_three_layers
 from doctrine.drg.models import Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
@@ -106,7 +106,7 @@ def _discover_field_authored_relations() -> set[tuple[str, str, Relation]]:
 
 def _merged_relationship_edges() -> set[tuple[str, str, Relation]]:
     """Materialise the shipped DRG and return its relationship edge triples."""
-    built_in = load_graph(_doctrine_root() / "graph.yaml")
+    built_in = load_built_in_graph()
     merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
     relations = set(_FIELD_TO_RELATION.values())
     return {
@@ -156,7 +156,7 @@ class TestZeroLossMigration:
     def test_no_duplicate_relationship_edges_in_merged_graph(self) -> None:
         """Each migrated relationship appears at most once (identity, not count
         inflation). Asserts the merged edge multiset has no duplicate triple."""
-        built_in = load_graph(_doctrine_root() / "graph.yaml")
+        built_in = load_built_in_graph()
         merged = merge_three_layers(
             built_in=built_in, org_fragments=[], project=None
         )
@@ -179,12 +179,12 @@ class TestZeroLossMigration:
 
 class TestShippedGraphLoadsClean:
     def test_graph_yaml_validates(self) -> None:
-        graph = load_graph(_doctrine_root() / "graph.yaml")
+        graph = load_built_in_graph()
         assert graph.nodes, "shipped graph has no nodes"
         assert graph.edges, "shipped graph has no edges"
 
     def test_merge_of_shipped_graph_is_lossless_and_clean(self) -> None:
-        built_in = load_graph(_doctrine_root() / "graph.yaml")
+        built_in = load_built_in_graph()
         merged = merge_three_layers(
             built_in=built_in, org_fragments=[], project=None
         )

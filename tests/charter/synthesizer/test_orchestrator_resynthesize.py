@@ -21,6 +21,7 @@ import pytest
 
 from doctrine.drg.loader import load_graph
 
+from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
 from charter.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
@@ -148,6 +149,22 @@ def _artifact_hashes_from_manifest(
         f"{e.kind}:{e.slug}": e.content_hash
         for e in manifest.artifacts
     }
+
+
+def _seed_bundle_files(repo: Path) -> None:
+    """Seed the four synced bundle files so ``compute_bundle_content_hash``
+    returns a real, non-``None`` value.
+
+    ``synthesize()``/``resynthesize`` do not themselves write
+    ``.kittify/charter/{governance,directives,references,metadata}.yaml`` —
+    those are produced by ``charter sync``/compile (data-model.md fact #20,
+    ``bundle.py`` provenance). Tests that need a real ``bundle_content_hash``
+    must seed them directly.
+    """
+    charter_dir = repo / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    for name in BUNDLE_CONTENT_HASH_FILES:
+        (charter_dir / name).write_text(f"# {name} fixture content\n", encoding="utf-8")
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -639,3 +656,150 @@ class TestManifestContentHashPreservation:
                 f"SC-006: only {ratio:.1%} of unmodified artifacts preserved "
                 f"(need ≥ 95%)"
             )
+
+
+# ---------------------------------------------------------------------------
+# WP02 T011: writer-side bundle_content_hash == helper assertion
+# (reader-independent per-WP red->green gate)
+# ---------------------------------------------------------------------------
+
+
+class TestBundleContentHashWriterWiring:
+    """WP02's reader-independent per-WP red->green gate (T011).
+
+    Asserts on the manifest FIELD value directly -- not on freshness state --
+    so these are RED on WP02's base (writers still emit ``None``) and GREEN
+    once ``promote``/``_rewrite_manifest`` route through ``finalize_manifest``
+    with a real ``compute_bundle_content_hash`` value.
+    """
+
+    def test_synthesize_writes_real_bundle_content_hash(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """promote() computes bundle_content_hash via the WP01 helper."""
+        _seed_bundle_files(tmp_path)
+
+        synthesize(base_request, adapter=adapter, repo_root=tmp_path)
+
+        manifest = load_manifest(tmp_path / MANIFEST_PATH)
+        assert manifest.bundle_content_hash is not None
+        assert manifest.bundle_content_hash == compute_bundle_content_hash(tmp_path)
+
+    def test_resynthesize_writes_real_bundle_content_hash(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """_rewrite_manifest computes bundle_content_hash with repo_root threaded.
+
+        The prior manifest (written by the initial ``synthesize()`` before
+        the bundle files exist) carries ``bundle_content_hash=None`` -- the
+        bundle files are seeded only AFTER that first synthesize, so a
+        non-``None`` value observed after ``resynthesize`` is direct proof
+        that ``_rewrite_manifest`` (not some stale carried-over value)
+        recomputed it via the correctly-threaded ``repo_root``.
+        """
+        synthesize(base_request, adapter=adapter, repo_root=tmp_path)
+        assert load_manifest(tmp_path / MANIFEST_PATH).bundle_content_hash is None
+
+        _seed_bundle_files(tmp_path)
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=tmp_path,
+        )
+
+        assert result.manifest.bundle_content_hash is not None
+        assert result.manifest.bundle_content_hash == compute_bundle_content_hash(tmp_path)
+        disk_manifest = load_manifest(tmp_path / MANIFEST_PATH)
+        assert disk_manifest.bundle_content_hash == compute_bundle_content_hash(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# WP02 T013: writer recompute on genuine content drift (SC-003 writer half)
+# ---------------------------------------------------------------------------
+
+
+def _drift_governance_file(repo: Path) -> None:
+    """Genuinely change the content of the bundle file.
+
+    consolidate-charter-bundle WP06 (T027): ``BUNDLE_CONTENT_HASH_FILES``
+    narrowed from the four legacy bundle files to the single ``charter.yaml``
+    (contracts/manifest-v2.md M1); this helper's name is kept (only the two
+    ``TestBundleContentHashRecomputesOnDrift`` tests below use it) but it now
+    drifts ``charter.yaml`` — the only file ``_seed_bundle_files`` seeds.
+    Appends a distinguishable line that survives ``hash_content``'s
+    BOM-strip/CRLF-normalize/``.strip()`` normalization (a plain trailing
+    text line, not whitespace-only).
+    """
+    charter_yaml_path = repo / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml_path.write_text(
+        charter_yaml_path.read_text(encoding="utf-8") + "# drift-marker: genuinely-changed\n",
+        encoding="utf-8",
+    )
+
+
+class TestBundleContentHashRecomputesOnDrift:
+    """T013: reader-independent writer half of SC-003.
+
+    Proves the WRITER recomputes ``bundle_content_hash`` when the synced
+    bundle content genuinely changes -- asserts on the FIELD, not freshness
+    state. The end-to-end freshness half (stale->remediate->fresh) is WP03's
+    T019.
+    """
+
+    def test_synthesize_recomputes_hash_on_bundle_content_drift(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        _seed_bundle_files(tmp_path)
+        synthesize(base_request, adapter=adapter, repo_root=tmp_path)
+        manifest_1 = load_manifest(tmp_path / MANIFEST_PATH).bundle_content_hash
+
+        _drift_governance_file(tmp_path)
+
+        synthesize(base_request, adapter=adapter, repo_root=tmp_path)
+        manifest_2 = load_manifest(tmp_path / MANIFEST_PATH).bundle_content_hash
+
+        assert manifest_2 is not None
+        assert manifest_2 != manifest_1
+        assert manifest_2 == compute_bundle_content_hash(tmp_path)
+
+    def test_resynthesize_recomputes_hash_on_bundle_content_drift(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        _seed_bundle_files(tmp_path)
+        synthesize(base_request, adapter=adapter, repo_root=tmp_path)
+
+        result_1 = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=tmp_path,
+        )
+        manifest_1 = result_1.manifest.bundle_content_hash
+
+        _drift_governance_file(tmp_path)
+
+        result_2 = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=tmp_path,
+        )
+        manifest_2 = result_2.manifest.bundle_content_hash
+
+        assert manifest_2 is not None
+        assert manifest_2 != manifest_1
+        assert manifest_2 == compute_bundle_content_hash(tmp_path)

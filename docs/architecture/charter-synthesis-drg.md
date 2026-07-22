@@ -2,8 +2,9 @@
 title: 'Understanding Charter: Synthesis, DRG, and Governed Context'
 description: How charter synthesize works, what the DRG is, how governed context flows to agents, and known limitations.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-14'
 related:
+- docs/architecture/mission-type-resolution.md
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
 ---
@@ -84,6 +85,19 @@ specification-phase concerns.
 
 The DRG is not stored as a standalone file that you can inspect directly. It is computed by the
 synthesizer and manifests as the structured content of the bundle artifacts.
+
+### Mission-type governance grains
+
+Per-mission-type governance also resolves *through* the charter layer, keyed off the
+`mission_type` recorded in a mission's `meta.json` — never inferred from
+`template_set` and never defaulted to `software-dev`. It is authored at two grains
+that the resolver unions and de-dupes: an **action-grain** source
+(`missions/<type>/actions/<action>/index.yaml`, which generates the DRG `scope`
+edges described above) and a **type-grain** source
+(`missions/<type>/governance-profile.yaml`), which is also the project-override
+target. A full explanation of that seam — the reserved slots for templates and
+gates, the per-type override, and the leak-closure invariant — lives in
+[Mission-Type Resolution](mission-type-resolution.md).
 
 ---
 

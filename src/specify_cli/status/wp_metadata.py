@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from specify_cli.status.models import AgentAssignment, Lane
+from specify_cli.status.models import NON_DISPLAY_LANES, AgentAssignment, Lane
 
 
 def _resolve_agent_fallback(
@@ -283,7 +283,6 @@ class WPMetadata(BaseModel):
     mission_slug: str | None = None
     status: str | None = None  # legacy status field seen in some mission WPs
     wp_code: str | None = None
-    branch_strategy_override: str | None = None
 
     # ── Legacy aliases (consumed by model validator) ───────────
     work_package_title: str | None = None
@@ -377,15 +376,20 @@ class WPMetadata(BaseModel):
 
         The legacy alias ``"doing"`` is silently normalised to ``"in_progress"``
         so that older WP files written before the Lane enum still parse correctly.
+
+        ``genesis`` and ``uninitialized`` are both non-display read
+        sentinels (see ``NON_DISPLAY_LANES``), never authorable WP lane
+        values — a WP file must not declare ``lane: genesis`` or
+        ``lane: uninitialized`` in frontmatter.
         """
         if v is None or v == "":
             return None
         canonical = cls._LANE_ALIASES.get(str(v), str(v))
         valid = ", ".join(
-            [lane.value for lane in Lane if lane is not Lane.GENESIS]
+            [lane.value for lane in Lane if lane not in NON_DISPLAY_LANES]
             + sorted(cls._LANE_ALIASES)
         )
-        if canonical == Lane.GENESIS.value:
+        if canonical in {lane.value for lane in NON_DISPLAY_LANES}:
             raise ValueError(
                 f"Invalid lane value: {v!r}. Must be one of: {valid}"
             )
@@ -589,6 +593,53 @@ class _Builder:
         return WPMetadata.model_validate(base_data)
 
 
+def _resolve_runtime_fields_from_snapshot(path: Path, metadata: WPMetadata) -> WPMetadata:
+    """Re-point WPMetadata's *runtime* fields to the reduced snapshot (FR-005).
+
+    ``shell_pid``, ``shell_pid_created_at``, ``agent``, and ``assignee`` are
+    *dynamic* (event-log-authoritative) per the field-authority table
+    (data-model.md); every other field -- including ``agent_profile`` (the
+    authored design-intent slot, distinct from the runtime ``agent``
+    reassignment slot) -- stays frontmatter-canonical and is left untouched.
+
+    The reduced snapshot is the unconditional sole source for the four runtime
+    fields above (C-001 -- no partial fallback to frontmatter). An absent
+    snapshot entry for this WP degrades each field to ``None`` (a legitimate
+    "no runtime state yet" result, not a signal to keep the frontmatter value).
+
+    A lazy (function-local) import of ``status.reducer`` avoids a
+    ``status.wp_metadata`` <-> ``status.emit`` circular import -- ``emit.py``
+    already imports :func:`read_wp_frontmatter` from this module at module
+    scope.
+    """
+    feature_dir = path.parent.parent
+
+    from specify_cli.status.reducer import wp_snapshot_state  # noqa: PLC0415
+
+    wp_state = wp_snapshot_state(feature_dir, metadata.work_package_id) or {}
+
+    return metadata.update(
+        shell_pid=wp_state.get("shell_pid"),
+        shell_pid_created_at=wp_state.get("shell_pid_created_at"),
+        agent=wp_state.get("agent"),
+        assignee=wp_state.get("assignee"),
+    )
+
+
+def read_authored_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
+    """Load typed WP frontmatter without consulting mutable runtime state.
+
+    Planning-only consumers use this reader so a stale or corrupt status log
+    cannot affect static metadata such as ownership, dependencies, or execution
+    mode. Runtime consumers should use :func:`read_wp_frontmatter` or the
+    reconstructed WP view as appropriate.
+    """
+    from specify_cli.frontmatter import FrontmatterManager
+
+    frontmatter_dict, body = FrontmatterManager().read(path)
+    return WPMetadata.model_validate(frontmatter_dict, strict=False), body
+
+
 def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     """Load and validate WP frontmatter.
 
@@ -598,17 +649,22 @@ def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     (e.g. ``agent`` stored as a dict in some legacy WP files) are coerced
     rather than causing validation failures.
 
+    FR-005: the runtime fields (``shell_pid``, ``shell_pid_created_at``,
+    ``agent``, ``assignee``) are unconditionally re-pointed to the reduced
+    event-sourced snapshot for this WP's feature directory -- see
+    :func:`_resolve_runtime_fields_from_snapshot`. Frontmatter-authored
+    fields (``agent_profile``, ``title``, ``dependencies``, ...) are always
+    frontmatter-canonical, never re-pointed.
+
     Raises:
         FrontmatterError: On I/O or YAML parse failures.
         ValidationError: If the frontmatter fails ``WPMetadata`` validation.
     """
     from pydantic import ValidationError  # noqa: F401 — re-exported for callers
 
-    from specify_cli.frontmatter import FrontmatterManager
-
-    fm = FrontmatterManager()
-    frontmatter_dict, body = fm.read(path)
-    return WPMetadata.model_validate(frontmatter_dict, strict=False), body
+    metadata, body = read_authored_wp_frontmatter(path)
+    metadata = _resolve_runtime_fields_from_snapshot(path, metadata)
+    return metadata, body
 
 
-__all__ = ["WPMetadata", "read_wp_frontmatter"]
+__all__ = ["WPMetadata", "read_authored_wp_frontmatter", "read_wp_frontmatter"]

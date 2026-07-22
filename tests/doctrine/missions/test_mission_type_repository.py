@@ -9,6 +9,9 @@ Covers:
 - MissionTypeRepository.get("software-dev") returns the correct artifact
 - MissionTypeRepository.get("nonexistent") returns None
 - Repository raises on YAML with id mismatching filename stem
+- Authoring ``template_set:`` (model kwarg or YAML) fails loudly (SC-002,
+  mission-step-creatability-01KXQA6R WP01) -- the retired field's key is
+  now rejected by ``extra="forbid"`` rather than silently honored or dropped.
 """
 
 from __future__ import annotations
@@ -41,8 +44,8 @@ class TestMissionTypeModel:
         assert mt.display_name == "My Type"
         assert mt.action_sequence == ["step-a", "step-b"]
         assert mt.extends is None
-        assert mt.governance_refs == []
-        assert mt.template_set is None
+        assert not hasattr(mt, "governance_refs")
+        assert not hasattr(mt, "template_set")
 
     def test_empty_action_sequence_raises(self) -> None:
         with pytest.raises(ValidationError, match="action_sequence must be non-empty"):
@@ -86,23 +89,32 @@ class TestMissionTypeModel:
                 action_sequence=["step-a"],
             )
 
-    def test_template_set_dict_accepted(self) -> None:
-        mt = MissionType(
-            id="my-type",
-            display_name="My Type",
-            action_sequence=["step-a"],
-            template_set={"spec": "spec-template.md"},
-        )
-        assert mt.template_set == {"spec": "spec-template.md"}
+    def test_template_set_kwarg_raises_validation_error(self) -> None:
+        """SC-002 / FR-001: authoring the retired field now fails loudly.
 
-    def test_template_set_none_accepted(self) -> None:
-        mt = MissionType(
-            id="my-type",
-            display_name="My Type",
-            action_sequence=["step-a"],
-            template_set=None,
-        )
-        assert mt.template_set is None
+        ``extra="forbid"`` rejects the unknown key regardless of value --
+        this is the model-constructor half of the pack-fails-loud proof
+        (T007); ``TestTemplateSetAuthoringFailsLoudly`` below exercises the
+        equivalent through the YAML-loader entry point.
+        """
+        with pytest.raises(ValidationError, match="template_set"):
+            MissionType(
+                id="my-type",
+                display_name="My Type",
+                action_sequence=["step-a"],
+                template_set={"spec": "spec-template.md"},  # type: ignore[call-arg]
+            )
+
+    def test_template_set_none_kwarg_also_raises(self) -> None:
+        """Even an explicit ``None`` for the retired key is rejected -- the key's
+        mere presence is forbidden, not just a non-``None`` value."""
+        with pytest.raises(ValidationError, match="template_set"):
+            MissionType(
+                id="my-type",
+                display_name="My Type",
+                action_sequence=["step-a"],
+                template_set=None,  # type: ignore[call-arg]
+            )
 
 
 # ── MissionTypeRepository with built-in YAMLs ────────────────────────────────
@@ -179,12 +191,81 @@ class TestBuiltinYamlFiles:
         assert [mt.id for mt in all_types] == sorted(mt.id for mt in all_types)
 
     def test_software_dev_template_set(self) -> None:
-        repo = _builtin_repo()
-        mt = repo.get("software-dev")
-        assert mt is not None
-        assert isinstance(mt.template_set, dict)
-        assert "spec" in mt.template_set
-        assert "plan" in mt.template_set
+        """S-C cutover (WP01, C-005): ``template_set`` is no longer a ``MissionType``
+        field -- migrated to the step-authority projection (mirrors
+        ``TestSoftwareDevProjectionParity`` in ``test_softwaredev_roundtrip.py``)."""
+        from doctrine.missions.mission_step_repository import MissionStepRepository
+        from doctrine.missions.step_projection import project_template_set
+
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type("software-dev", pack_context=None)
+            .values()
+        )
+        assert project_template_set(steps) == {
+            "spec": "spec-template.md",
+            "plan": "plan-template.md",
+        }
+
+    def test_research_template_set(self) -> None:
+        """S-C Concern B (WP03, C-003/C-010): ``research`` authors a ``spec`` ref
+        on ``scoping`` and a ``plan`` ref on ``methodology``, with per-type-unique
+        ``template_file`` names (NFR-006) -- mirrors ``test_software_dev_template_set``
+        above."""
+        from doctrine.missions.mission_step_repository import MissionStepRepository
+        from doctrine.missions.step_projection import project_template_set
+
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type("research", pack_context=None)
+            .values()
+        )
+        assert project_template_set(steps) == {
+            "spec": "research-spec-template.md",
+            "plan": "research-plan-template.md",
+        }
+
+    def test_documentation_template_set(self) -> None:
+        """S-C Concern B (mission-step-creatability-01KXQA6R WP02, reconciled by
+        WP05, C-003/C-010): ``documentation`` authors a ``spec`` ref on
+        ``discover`` and a ``plan`` ref on ``design``, with per-type-unique
+        ``template_file`` names (NFR-006) -- mirrors ``test_research_template_set``
+        above. ``documentation`` was removed from the now-deleted
+        ``test_non_software_builtin_template_set_is_explicitly_null``
+        parametrization once WP02 authored these refs."""
+        from doctrine.missions.mission_step_repository import MissionStepRepository
+        from doctrine.missions.step_projection import project_template_set
+
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type("documentation", pack_context=None)
+            .values()
+        )
+        assert project_template_set(steps) == {
+            "spec": "documentation-spec-template.md",
+            "plan": "documentation-plan-template.md",
+        }
+
+    def test_plan_template_set(self) -> None:
+        """S-C Concern B (mission-step-creatability-01KXQA6R WP04, reconciled by
+        WP05, C-003/C-010): ``plan`` authors a ``spec`` ref on ``specify`` and a
+        ``plan`` ref on ``plan``, with per-type-unique ``template_file`` names
+        (NFR-006) -- mirrors ``test_research_template_set`` above. ``plan`` was
+        removed from the now-deleted
+        ``test_non_software_builtin_template_set_is_explicitly_null``
+        parametrization once WP04 authored these refs."""
+        from doctrine.missions.mission_step_repository import MissionStepRepository
+        from doctrine.missions.step_projection import project_template_set
+
+        steps = list(
+            MissionStepRepository.default()
+            .resolve_all_for_mission_type("plan", pack_context=None)
+            .values()
+        )
+        assert project_template_set(steps) == {
+            "spec": "plan-spec-skeleton.md",
+            "plan": "plan-plan-skeleton.md",
+        }
 
 
 # ── MissionTypeRepository lookup behavior ────────────────────────────────────
@@ -285,3 +366,39 @@ class TestMissionTypeRepositoryYamlLoading:
             )
         repo = MissionTypeRepository(tmp_path)
         assert set(repo.ids()) == {"alpha-type", "beta-type"}
+
+
+class TestTemplateSetAuthoringFailsLoudly:
+    """SC-002 / FR-001 (S-C cutover, mission-step-creatability-01KXQA6R WP01).
+
+    A ``mission_types/*.yaml`` that (incorrectly) authors ``template_set:``
+    must fail loudly at load time -- neither silently honored nor silently
+    dropped. This is the YAML-loader-entry-point half of the pack-fails-loud
+    proof (T007); ``TestMissionTypeModel.test_template_set_kwarg_raises_validation_error``
+    covers the equivalent at the bare model-constructor level.
+
+    ``_inject_projected_fields`` no longer overlays a ``template_set`` key
+    (the entire overlay assignment was dropped, FR-001) -- ``payload =
+    dict(raw)`` preserves the authored key verbatim, and ``MissionType``'s
+    ``extra="forbid"`` rejects it during ``MissionType.model_validate``,
+    which ``MissionTypeRepository.__init__`` (eager) surfaces immediately.
+    """
+
+    def _write_yaml(self, directory: Path, filename: str, content: str) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / filename).write_text(content, encoding="utf-8")
+
+    def test_authored_template_set_raises_validation_error(self, tmp_path: Path) -> None:
+        self._write_yaml(
+            tmp_path,
+            "rogue-type.yaml",
+            "schema_version: 1\n"
+            "id: rogue-type\n"
+            "display_name: Rogue\n"
+            "action_sequence:\n"
+            "  - step-one\n"
+            "template_set:\n"
+            "  spec: spec-template.md\n",
+        )
+        with pytest.raises(ValidationError, match="template_set"):
+            MissionTypeRepository(tmp_path)

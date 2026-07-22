@@ -1,11 +1,15 @@
-"""Tests for WP02: FR-008 family + FR-009 wire-shape regression.
+"""Tests for the backward-emit family + FR-009 wire-shape regression.
 
-Covers the auto-promoted backward-emit behavior landed in WP01:
+Re-pointed for FR-015 (force-provenance fix): backward ``-> planned`` emits keep
+their canonical ``reason`` (``"backward rewind: <from> -> planned"``) but the
+persisted ``force`` bit is now honest per edge rather than blanket-``True``:
 
-- FR-008 (a-d): the four review-rejection family members
-  (in_review|approved|for_review|in_progress → planned) auto-promote
-  ``emit_force=True`` with a canonical ``reason`` starting with
-  ``"backward rewind: <from> -> planned"``.
+- ``in_progress -> planned`` / ``approved -> planned``: force-**free** with the
+  ``--review-feedback-file`` evidence threaded (FR-015, WP02's two plan-reachable
+  edges).
+- ``for_review -> planned``: force stays ``True`` (genuine — no FSM backward edge).
+- ``in_review -> planned``: force stays ``True`` in the WP02 window (needs a
+  structured ``review_result`` that only WP06 threads).
 - FR-008 (d): the forward control ``planned → claimed`` does NOT
   auto-promote.
 - FR-008 (e): forward skip-ahead expansion preserved
@@ -27,9 +31,14 @@ mocks of ``emit_status_transition`` or ``validate_transition``.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from typer.testing import CliRunner
+
+if TYPE_CHECKING:
+    from click.testing import Result
+    from spec_kitty_events.conformance import FixtureCase
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
@@ -69,6 +78,7 @@ def _build_feature_in_lane(
         f"title: Test {wp_id}\n"
         f"execution_mode: code_change\n"
         f"agent: testbot\n"
+        f"subtasks: []\n"
         f"owned_files:\n  - src/{wp_id.lower()}/**\n"
         f"authoritative_surface: src/{wp_id.lower()}/\n"
         f"---\n\n# {wp_id}\n\n## Activity Log\n",
@@ -136,7 +146,7 @@ def _invoke_move(
     tmp_path: Path,
     mission_slug: str,
     args: list[str],
-):
+) -> Result:
     """Run move_task end-to-end with the standard mocked env."""
     with setup_mocked_env(
         tmp_path,
@@ -152,24 +162,48 @@ def _invoke_move(
 
 
 class TestReviewRejectionFamily:
-    """Auto-promote ``force=True`` on the four review-rejection family members."""
+    """FR-015 provenance on the backward ``-> planned`` family (re-pointed).
+
+    Only the emit-force expectation is re-pointed here (SC-007, delete-the-
+    assertion-not-the-test): the ``reason``/lane wire-shape assertions are
+    unchanged. Force provenance is now per-edge, decided by the FSM query:
+
+    * ``in_progress -> planned`` / ``approved -> planned`` — WP02's two
+      plan-reachable evidence-gated edges. With the ``--review-feedback-file``
+      evidence threaded (``reason`` / ``review_ref``) the FSM accepts them
+      force-free, so the persisted ``force`` is now ``False``.
+    * ``for_review -> planned`` — genuine force: ``for_review`` has NO backward
+      edge (rejection routes via ``in_review``), so the FSM rejects it force-free
+      and ``force`` stays truthfully ``True`` (positive control).
+    * ``in_review -> planned`` — WP10 closeout re-point: WP06 now threads the
+      structured ``review_result`` on its two owned ``in_review`` edges, so the
+      FSM accepts the evidence-gated rejection force-FREE and the persisted
+      ``force`` flips to ``False`` (the WP02-window truthful-force this row
+      formerly asserted is superseded).
+    """
 
     @pytest.mark.parametrize(
-        "starting_lane, expected_prefix",
+        "starting_lane, expected_prefix, expected_force",
         [
-            ("in_review", "backward rewind: in_review -> planned"),
-            ("approved", "backward rewind: approved -> planned"),
-            ("for_review", "backward rewind: for_review -> planned"),
-            ("in_progress", "backward rewind: in_progress -> planned"),
+            # WP06 threads review_result on in_review -> planned -> force-free.
+            ("in_review", "backward rewind: in_review -> planned", False),
+            # Evidence-gated (review_ref) -> force-free after FR-015.
+            ("approved", "backward rewind: approved -> planned", False),
+            # Genuine force: for_review has no backward edge (structurally illegal).
+            ("for_review", "backward rewind: for_review -> planned", True),
+            # Evidence-gated (reason) -> force-free after FR-015.
+            ("in_progress", "backward rewind: in_progress -> planned", False),
         ],
     )
-    def test_backward_to_planned_auto_promotes_force(
+    def test_backward_to_planned_force_provenance(
         self,
         tmp_path: Path,
         starting_lane: str,
         expected_prefix: str,
+        expected_force: bool,
     ) -> None:
-        """Each review-rejection family member auto-promotes to force=True."""
+        """Persisted ``force`` is honest per edge (force-free where the FSM accepts
+        the supplied evidence; truthfully forced where it does not)."""
         mission_slug = f"test-mission-{starting_lane.replace('_', '-')}"
         wp_id = "WP05"
         feature_dir, _wp_file = _build_feature_in_lane(
@@ -196,14 +230,14 @@ class TestReviewRejectionFamily:
         assert result.exit_code == 0, f"move-task failed:\n{result.output}"
 
         events = _read_latest_events_for_wp(feature_dir, wp_id)
-        # Last event is the auto-promoted backward emit.
         emitted = events[-1]
         assert str(emitted.from_lane) == starting_lane, (
             f"Expected from_lane={starting_lane}, got {emitted.from_lane}"
         )
         assert str(emitted.to_lane) == "planned"
-        assert emitted.force is True, (
-            f"Backward emit must auto-promote force=True; got reason={emitted.reason}"
+        assert emitted.force is expected_force, (
+            f"{starting_lane} -> planned: expected persisted force={expected_force}; "
+            f"got force={emitted.force} reason={emitted.reason!r}"
         )
         assert emitted.reason is not None
         assert emitted.reason.startswith(expected_prefix), (
@@ -392,7 +426,11 @@ class TestBackwardEmitFeedbackRef:
         assert result.exit_code == 0, f"backward emit failed:\n{result.output}"
 
         emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
-        assert emitted.force is True
+        # WP10 closeout re-point: WP06 threads the structured review_result on the
+        # in_review -> planned edge, so the evidence-gated rejection is force-FREE.
+        # The canonical review-cycle URI segment (the assertion this test owns) is
+        # unchanged — only the force provenance flips.
+        assert emitted.force is False
         assert emitted.reason is not None
         # Prefix:
         prefix = "backward rewind: in_review -> planned"
@@ -442,7 +480,8 @@ class TestBackwardEmitFeedbackRef:
         assert result.exit_code == 0, f"backward emit with note failed:\n{result.output}"
 
         emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
-        assert emitted.force is True
+        # FR-015 re-point: approved -> planned is force-free with review_ref evidence.
+        assert emitted.force is False
         assert emitted.reason is not None
         assert emitted.reason.startswith("backward rewind: approved -> planned")
         assert ": review-cycle://" in emitted.reason
@@ -454,7 +493,7 @@ class TestBackwardEmitFeedbackRef:
 # ---------------------------------------------------------------------------
 
 
-def _load_approved_rewind_fixture():
+def _load_approved_rewind_fixture() -> FixtureCase | None:
     """Return Mission 1's ``wp-status-changed-approved-rewind-valid``
     fixture, or ``None`` when the installed events package predates it.
 
@@ -526,7 +565,11 @@ class TestApprovedRewindWireShape:
 
         # CLI emit wire-shape invariants (independent of the upstream fixture).
         expected_prefix = "backward rewind: approved -> planned"
-        assert emitted.force is True
+        # FR-015 re-point: approved -> planned is now force-free with review_ref
+        # evidence. Mission 1's fixture still encodes the pre-fix force=True — that
+        # is the exact false-force provenance this mission corrects, so the force
+        # bit is deliberately NOT cross-checked against the (stale) fixture below.
+        assert emitted.force is False
         assert str(emitted.from_lane) == "approved"
         assert str(emitted.to_lane) == "planned"
         assert emitted.reason is not None
@@ -547,13 +590,13 @@ class TestApprovedRewindWireShape:
         # Pull from common spelling variants (the fixture is normative;
         # consumers tolerate both ``from_lane``/``to_lane`` and the
         # nested ``data`` form).
-        f_force = fp.get("force", fp.get("data", {}).get("force"))
         f_from = fp.get("from_lane", fp.get("data", {}).get("from_lane"))
         f_to = fp.get("to_lane", fp.get("data", {}).get("to_lane"))
         f_reason = fp.get("reason", fp.get("data", {}).get("reason"))
 
-        if f_force is not None:
-            assert emitted.force == f_force == True  # noqa: E712
+        # NB: the fixture's ``force`` bit is intentionally NOT cross-checked — it
+        # still carries the pre-FR-015 force=True value the mission corrects. The
+        # lane/reason wire shape (FR-009) remains normative and IS cross-checked.
         if f_from is not None:
             assert str(emitted.from_lane) == f_from == "approved"
         if f_to is not None:

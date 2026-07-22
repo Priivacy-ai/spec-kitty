@@ -24,6 +24,7 @@
   "purpose_context": "When a mission's coordination worktree and primary checkout diverge, several commands resolve the wrong directory — the read/write desync that repeatedly disrupts operations. This mission strangles the duplicated resolvers down to a single authoritative seam, enforced by an architectural guard and a cross-resolver equivalence test, building on the audit+guard scaffolding from the untrusted-path-containment mission.",
   "purpose_tldr": "Collapse the 4+ parallel coord/primary mission-surface resolvers into one canonical resolver so every command agrees which on-disk surface is authoritative.",
   "slug": "single-mission-surface-resolver-01KVGCE8",
+  "status_phase": "1",
   "target_branch": "feat/single-mission-surface-resolver",
   "vcs": "git",
   "vcs_locked_at": "2026-06-19T17:31:04.127088+00:00"

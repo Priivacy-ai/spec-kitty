@@ -45,4 +45,4 @@ matching `graph.yaml` edges.
 - Component view: `docs/architecture/03_components/README.md` — "Doctrine and Glossary" section
 - Governance ADR: `docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`
 - Glossary: `docs/context/doctrine.md`
-- Naming decision (agent vs tool): `glossary/naming-decision-tool-vs-agent.md`
+- Naming decision (agent vs tool): `docs/context/naming-decision-tool-vs-agent.md`

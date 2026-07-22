@@ -247,8 +247,10 @@ Tactic ──references──→ Tactic          (step consults related procedur
 Tactic ──references──→ Styleguide      (step consults output shape)
 Tactic ──references──→ Toolguide       (step consults tool contract)
 Tactic ──references──→ Directive       (step references governing rule)
-Any ──opposed_by──→ Any                (contradiction / tension documentation)
 ```
+
+Cross-artifact tension/rejection is expressed as first-class DRG edges
+(`src/doctrine/*.graph.yaml`), not an inline artifact field — see below.
 
 **Leaf nodes:** Styleguides and Toolguides are terminal — they are referenced
 *by* tactics but carry no outward references.
@@ -257,10 +259,15 @@ Any ──opposed_by──→ Any                (contradiction / tension docume
 graph. Cycles are detected by `test_tactic_reference_graph_has_no_cycles` in
 `tests/doctrine/test_directive_consistency.py`.
 
-**Contradiction semantics:** `opposed_by` does **not** mean "superseded". Both
-artifacts remain valid. The field documents a known tension so agents can
-surface it when both are simultaneously active (e.g., Directive 024 Locality of
-Change vs. Directive 025 Boy Scout Rule).
+**Tension/rejection semantics:** the DRG relations `in_tension_with` (symmetric,
+non-transitive — e.g. Directive 024 Locality of Change vs. Directive 025 Boy
+Scout Rule), `reconciles_tension` (an active reconciliation artifact bridging
+both sides of a tension), and `rejects` (directional, target a marked
+`anti_pattern` node) do **not** mean "superseded". All artifacts on either side
+of a tension or rejection remain independently valid; the edges document known
+tension/rejection so agents and `charter consistency-check` can surface it when
+co-activated. These replaced the retired inline contradiction-declaration
+field + its shared model (mission doctrine-tension-edges-01KY1WPC).
 
 ### Repository Implementation Pattern
 
@@ -307,9 +314,9 @@ Each artifact type has a corresponding JSON Schema file in
 
 | Schema File | Validates |
 |---|---|
-| `paradigm.schema.yaml` | Paradigm artifacts (includes `tactic_refs`, `opposed_by`, `contradiction` definition) |
-| `directive.schema.yaml` | Directive artifacts (includes `tactic_refs`, `opposed_by`) |
-| `tactic.schema.yaml` | Tactic artifacts (includes `steps`, `references`, `opposed_by`) |
+| `paradigm.schema.yaml` | Paradigm artifacts (includes `tactic_refs`) |
+| `directive.schema.yaml` | Directive artifacts (includes `tactic_refs`) |
+| `tactic.schema.yaml` | Tactic artifacts (includes `steps`, `references`) |
 | `styleguide.schema.yaml` | Styleguide artifacts |
 | `toolguide.schema.yaml` | Toolguide artifacts |
 | `agent-profile.schema.yaml` | Agent Profile artifacts (capabilities, constraints) |
@@ -332,7 +339,7 @@ update and a valid fixture update.
 | JSON Schema validation for all types | ✅ Complete | `src/doctrine/schemas/*.schema.yaml` |
 | Two-source loading (shipped + project override) | ✅ Complete | `repository.py` field-level merge on each type |
 | Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage (40 doctrine tests) |
-| `opposed_by` contradiction modeling | ✅ Complete | Schema + data on paradigm, directive, tactic |
+| Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `src/doctrine/*.graph.yaml`; validated via `assert_valid` |
 | DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
 | Cycle detection at resolution boundary (raises `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/reference_resolver.py` `_Walker`; `tests/doctrine/test_cycle_detection.py` |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/doctrine/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |

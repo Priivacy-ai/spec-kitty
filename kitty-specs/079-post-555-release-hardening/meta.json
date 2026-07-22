@@ -12,6 +12,7 @@
   "owner": "robertdouglass",
   "slug": "079-post-555-release-hardening",
   "source_description": "Single post-#555 release-hardening mission for 3.1.1. Implements the seven core forward-correctness tracks from GitHub meta-issue #566 (init coherence, planning-artifact producer correctness, mission identity Phase 1, tasks/finalize hotfix, auth refresh race fix, top-level implement de-emphasis, repo dogfooding/version coherence). Track H / #401 deferred (CLI-only release). Historical kitty-specs/** archaeology out of scope. Working repo: /tmp/311/spec-kitty.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

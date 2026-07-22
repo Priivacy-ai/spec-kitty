@@ -59,6 +59,11 @@ from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.requirement_mapping import CoverageSummary
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
+#: ``actor`` recorded on the ``tracker_refs`` ``InnerStateChanged`` annotation
+#: (WP08 / T030) -- mirrors the ``<FOO>_COMMAND_NAME`` convention used by the
+#: sibling agent commands (e.g. ``mission.FINALIZE_TASKS_COMMAND_NAME``).
+MAP_REQUIREMENTS_COMMAND_NAME = "spec-kitty agent tasks map-requirements"
+
 
 def _default_map_requirements_ports(target_branch: str | None) -> TasksPorts:
     """Production port bundle for ``map_requirements`` (coord router bound to tasks.py)."""
@@ -395,13 +400,21 @@ def _mr_gate_offenders(st: _MapReqState) -> None:
 
 
 def _mr_write_frontmatter(st: _MapReqState) -> None:
-    """Phase E: apply the core's ``to_write`` (+ tracker refs) to WP frontmatter.
+    """Phase E: apply the core's ``to_write`` to WP frontmatter + emit the
+    ``tracker_refs`` annotation (WP08 / FR-006).
 
     Fires BEFORE the post-write stale gate — partial-write-on-refusal timing is
-    preserved (NFR-001/WP04).
+    preserved (NFR-001/WP04). ``tracker_refs`` is no longer a frontmatter field
+    (evicted to the event log): the merge semantics move onto WP01's reducer —
+    this emits the *new* refs on the default (union) path, or the full
+    replacement set via the dedicated ``tracker_refs_replace`` channel on
+    ``--replace`` (never degraded to a union). No frontmatter read/write is
+    involved in the tracker_refs path any more (C-002 typed delta).
     """
     from specify_cli.frontmatter import write_frontmatter
     from specify_cli.status import read_wp_frontmatter
+    from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import WPInnerStateDelta
 
     assert st.mapping_plan is not None
     for wp_id in st.new_mappings:
@@ -418,18 +431,32 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
         if not st.tracker_only_mode:
             update_kwargs["requirement_refs"] = st.mapping_plan.to_write[wp_id]
 
-        # T040 / FR-011 (F-10): merge tracker_refs (or replace if --replace).
-        if st.tracker_ref_values and st.wp is not None and wp_id == st.wp.upper():
-            if st.replace:
-                merged_trackers = sorted(set(st.tracker_ref_values))
-            else:
-                existing_trackers = list(wp_meta.tracker_refs or [])
-                merged_trackers = sorted(set(existing_trackers) | set(st.tracker_ref_values))
-            update_kwargs["tracker_refs"] = merged_trackers
-
         if update_kwargs:
             updated_meta = wp_meta.update(**update_kwargs)
             write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True), body)
+
+        # T030 / WP08 / FR-006: tracker_refs is event-sourced now. Emit the
+        # delta instead of pre-merging a frontmatter read — the reducer owns
+        # the union. ``--replace`` MUST route through WP01's dedicated
+        # ``tracker_refs_replace`` channel (set-replace); it must never
+        # degrade to a union emit (that would resurrect stale refs).
+        if st.tracker_ref_values and st.wp is not None and wp_id == st.wp.upper():
+            delta = (
+                WPInnerStateDelta(tracker_refs_replace=sorted(set(st.tracker_ref_values)))
+                if st.replace
+                else WPInnerStateDelta(tracker_refs=list(st.tracker_ref_values))
+            )
+            # destination_ref/feature_dir resolves from the map-requirements
+            # feature dir (``_map_requirements_feature_dir``, topology-based),
+            # never Path.cwd() (C-003 / #2647).
+            emit_inner_state_changed(
+                st.feature_dir,
+                wp_id,
+                delta,
+                actor=MAP_REQUIREMENTS_COMMAND_NAME,
+                mission_slug=st.mission_slug,
+                repo_root=st.main_repo_root,
+            )
 
 
 def _mr_stale_gate(st: _MapReqState) -> None:

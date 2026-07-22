@@ -54,7 +54,7 @@ from tests.git.protected_target_fixtures import (  # noqa: F401 — pytest fixtu
     protected_target_repo,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Realistic test constants (NFR-005 / test-data policy)
@@ -243,7 +243,7 @@ class TestSpecCommitE2EOnProtectedPrimary:
             lambda _root, _slug, *, kind: CommitTarget(ref=_COORD_BRANCH),
         )
         monkeypatch.setattr(
-            "specify_cli.coordination.commit_router._resolve_primary_target_branch",
+            "specify_cli.coordination.commit_router._resolve_mission_target_branch",
             lambda _root, _slug: "main",
         )
 

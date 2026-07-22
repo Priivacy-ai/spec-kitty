@@ -21,6 +21,7 @@
   "mission_type": "documentation",
   "slug": "056-documentation-parity-sprint",
   "source_description": "Documentation mission to bring docs.spec-kitty.ai up to parity with v2.1.x capabilities using Divio 4-type system. Distill 8 distributed skills into user-facing guides.",
+  "status_phase": "1",
   "target_branch": "fix/skill-audit-and-expansion",
   "vcs": "git"
 }

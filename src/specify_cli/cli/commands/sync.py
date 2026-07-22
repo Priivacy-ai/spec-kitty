@@ -31,7 +31,13 @@ if TYPE_CHECKING:
     from specify_cli.delivery.retention import RetentionResult
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
-    from specify_cli.sync.migrate_journal import MigrationAudit, MigrationResult
+    from specify_cli.sync.migrate_journal import (
+        CleanupResult,
+        ConflictResolution,
+        ConvergeResult,
+        MigrationAudit,
+        MigrationResult,
+    )
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 from specify_cli.cli.commands._auth_recovery import (
@@ -68,6 +74,19 @@ _STATUS_LAST_SYNC_LABEL = "Last Sync"
 _UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
     "not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
+_OVERSIZED_SYNC_NOW_MESSAGE = (
+    "sync batch exceeded the server size limit; the CLI retried with smaller "
+    "batches. Re-run `spec-kitty sync now` if events remain."
+)
+_TRANSIENT_SYNC_NOW_MESSAGE = (
+    "sync delivery failed transiently; no events were lost. Re-run "
+    "`spec-kitty sync now` (see `--report` for per-event detail)."
+)
+# HTTP 413 is how the SaaS sync ingress (Fly proxy + edge) rejects an
+# over-cap batch; see apps/sync/limits.py (512 KiB decompressed ceiling).
+_HTTP_PAYLOAD_TOO_LARGE = 413
+_OVERSIZED_ERROR_MARKER = "retry with a smaller batch"
+_HTTP_AUTH_STATUSES = frozenset({401, 403})
 _WARNING_HEADER_STYLE = "bold yellow"
 _ABSENT_VALUE = "<absent>"
 _UNSET_VALUE = "<unset>"
@@ -291,7 +310,8 @@ def _enforce_sync_now_exit_from_dispatch(
       "queue non-empty but all-zero result". This is routed through the
       teamspace-aware recovery so the unauthenticated UX (interactive login,
       structured exit 4, legacy exit 1) is preserved regardless of ``--strict``.
-    * Partial progress with a hard terminal failure → exit 1 under ``--strict``.
+    * Partial progress with any rejected, transient, or terminal failure → exit
+      1 under ``--strict``.
 
     A ``None`` summary means dispatch infrastructure was unavailable. Under
     ``--strict`` that is a failure only when retained or legacy work exists.
@@ -313,7 +333,15 @@ def _enforce_sync_now_exit_from_dispatch(
         _handle_sync_now_unauthenticated(strict)
         return
     if selected > 0 and progressed == 0 and summary.transient > 0:
-        console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
+        console.print(f"[yellow]{_transient_block_message(summary)}[/yellow]")
+        if strict:
+            raise typer.Exit(1)
+        return
+    if selected > 0 and progressed == 0 and summary.recorded > 0:
+        # Rejected and terminal-failed rows are concrete delivery outcomes, not
+        # evidence that authentication blocked the attempt. The dispatch
+        # summary already exposes their counts; preserve --strict semantics
+        # without sending the operator through auth recovery.
         if strict:
             raise typer.Exit(1)
         return
@@ -323,7 +351,8 @@ def _enforce_sync_now_exit_from_dispatch(
     if work_present and progressed == 0:
         _handle_sync_now_unauthenticated(strict)
         return
-    if strict and summary is not None and summary.terminal_failed > 0:
+    errors = summary.rejected + summary.transient + summary.terminal_failed
+    if strict and errors > 0:
         raise typer.Exit(1)
 
 
@@ -697,12 +726,56 @@ def _combine_dispatch_summaries(
         transient=left.transient + right.transient,
         terminal_failed=left.terminal_failed + right.terminal_failed,
         failures=(*left.failures, *right.failures),
+        retryable_event_ids=(
+            *left.retryable_event_ids,
+            *right.retryable_event_ids,
+        ),
     )
 
 
-def _batch_left_selection_set(summary: DispatchSummary) -> bool:
-    terminal = summary.delivered + summary.duplicate + summary.terminal_failed
-    return summary.selected > terminal
+def _batch_is_oversized(summary: DispatchSummary) -> bool:
+    """Whether a batch was rejected wholesale for exceeding the server size cap.
+
+    The count-based batch limit cannot see decompressed byte size, so a backlog
+    whose events fit the 1000-event limit can still crowd the SaaS 512 KiB
+    ceiling (apps/sync/limits.py). The edge proxy answers HTTP 413 and the WP06
+    receiver maps that to a batch-wide ``transient`` carrying the oversized
+    error (``_BATCH_OVERSIZED_ERROR`` = "retry with a smaller batch"). This is
+    the signal that we should honor that documented contract and shrink.
+    """
+    failures = summary.failures
+    is_wholesale_transient = (
+        summary.selected > 0
+        and summary.transient == summary.selected
+        and len(failures) == summary.selected
+    )
+    return is_wholesale_transient and all(
+        failure.outcome == "transient"
+        and (
+            failure.http_status == _HTTP_PAYLOAD_TOO_LARGE
+            or (
+                failure.error is not None
+                and _OVERSIZED_ERROR_MARKER in failure.error.lower()
+            )
+        )
+        for failure in failures
+    )
+
+
+def _transient_block_message(summary: DispatchSummary) -> str:
+    """Explain a wholesale-transient drain accurately instead of always blaming auth.
+
+    The legacy heuristic reported every all-transient batch as "not
+    authenticated", which mislabels a 413 (batch too large) or a 5xx as a
+    logged-out session and sends operators chasing auth. Classify by the actual
+    failure status instead.
+    """
+    statuses = {f.http_status for f in summary.failures if f.http_status is not None}
+    if _HTTP_PAYLOAD_TOO_LARGE in statuses:
+        return _OVERSIZED_SYNC_NOW_MESSAGE
+    if statuses & _HTTP_AUTH_STATUSES:
+        return _UNAUTHENTICATED_SYNC_NOW_MESSAGE
+    return _TRANSIENT_SYNC_NOW_MESSAGE
 
 
 def _run_dispatch_batches(
@@ -713,18 +786,49 @@ def _run_dispatch_batches(
     from specify_cli.delivery.dispatcher import DispatchSummary, dispatch
 
     combined = DispatchSummary.empty()
+    limit = _EVENT_SYNC_DISPATCH_BATCH_LIMIT
+    skip: set[str] = set()
     while True:
         batch = dispatch(
             journal=runtime.journal,
             ledger=runtime.ledger,
             receiver=receiver,
             target=delivery_target,
-            limit=_EVENT_SYNC_DISPATCH_BATCH_LIMIT,
+            limit=limit,
+            exclude=frozenset(skip),
         )
+        # Honor the documented "retry with a smaller batch" contract: a
+        # byte-oversized batch (HTTP 413, nothing delivered) is halved and
+        # retried rather than surrendered as transient. dispatch() leaves those
+        # events undelivered, so the smaller re-selection picks the same events
+        # up. A single oversized event is terminal-failed by the receiver (not
+        # transient), so limit==1 can never loop forever.
+        if limit > 1 and batch.delivered == 0 and _batch_is_oversized(batch):
+            limit = max(1, limit // 2)
+            continue
         combined = _combine_dispatch_summaries(combined, batch)
-        if batch.selected < _EVENT_SYNC_DISPATCH_BATCH_LIMIT:
-            break
-        if _batch_left_selection_set(batch):
+        # Advance past retryable events that made no terminal-success this pass
+        # (pending, content rejection, persistent transient). Skipping them for
+        # the REST OF THIS PASS lets deliverable events behind them drain
+        # instead of a poison batch halting the loop; the ledger keeps them
+        # selectable for the next `sync now`, so retryability is preserved.
+        before = len(skip)
+        skip.update(batch.retryable_event_ids)
+        terminal_progress = (
+            batch.delivered + batch.duplicate + batch.terminal_failed
+        ) > 0
+        # Grow a shrunk limit back after terminal progress. A single event over
+        # the server byte cap forces `limit` down to 1 and is parked
+        # (terminal_failed); without recovery the entire *healthy* tail would
+        # then drain one-event-per-POST for the rest of the pass -- correct but
+        # a throughput cliff. Multiplicative increase mirrors the halving and is
+        # capped at the count default, so throughput recovers within a few
+        # batches while the per-batch byte contract is still honored: an
+        # over-grown batch simply 413s and re-halves, which is bounded.
+        if terminal_progress and limit < _EVENT_SYNC_DISPATCH_BATCH_LIMIT:
+            limit = min(_EVENT_SYNC_DISPATCH_BATCH_LIMIT, limit * 2)
+        advanced = terminal_progress or len(skip) > before
+        if batch.selected == 0 or not advanced:
             break
     return combined
 
@@ -834,6 +938,38 @@ def _print_migration_result(result: MigrationResult) -> None:
                 f"[red]Source {source.digest} failed[/red]: {source.error}"
             )
     console.print(f"[dim]{result.note}[/dim]")
+
+
+def _print_cleanup_result(cleanup: CleanupResult) -> None:
+    """Render the post-migration source-queue cleanup (#2665)."""
+    if not cleanup.ran:
+        return
+    console.print(
+        "Source cleanup: "
+        f"[green]deleted {cleanup.total_deleted}[/green] migrated row(s) "
+        f"from {cleanup.sources_cleaned} source queue(s) "
+        "(boundary now converges; sync now / opt-in no longer refuse)."
+    )
+    for outcome in cleanup.outcomes:
+        if outcome.error:
+            console.print(
+                f"[red]Cleanup error on source {outcome.digest}[/red]: {outcome.error}"
+            )
+
+
+def _print_resolution_result(resolution: ConflictResolution) -> None:
+    """Render keep-journal conflict resolution (#2665)."""
+    console.print(
+        "Conflict resolution (keep-journal): "
+        f"[green]resolved {resolution.resolved_count}[/green] (archived to quarantine)  "
+        f"[yellow]skipped {len(resolution.skipped)}[/yellow]  "
+        f"already-absent {len(resolution.already_absent)}"
+    )
+    if resolution.skipped:
+        console.print(
+            "[yellow]Skipped conflicts are not yet canonical in the journal or their "
+            "source is gone — left intact.[/yellow]"
+        )
 
 
 def _run_event_sync_dispatch() -> DispatchSummary | None:
@@ -1348,6 +1484,62 @@ def opt_out(
     )
 
 
+def _auto_converge_legacy_on_enable() -> None:
+    """Converge any legacy queue residue into the journal when enabling sync (#2665).
+
+    Turning sync on for a checkout should make it coherent, not refuse. Runs the
+    clean-path convergence (import + cleanup) so the legacy-row boundary clears.
+    Divergent-duplicate conflicts are deliberately NOT auto-resolved here (that
+    would discard superseded source data, even if quarantined) — they are
+    surfaced with the explicit ``sync migrate --resolve-conflicts keep-journal``
+    recovery, and the coherence gate that follows still refuses until they are
+    resolved. Idempotent and lossless: a no-op on an already-converged runtime.
+    Any failure opening the runtime OR converging is swallowed so the coherence
+    gate that follows handles it, rather than aborting opt-in with a traceback.
+    """
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.migrate_journal import (
+        AUDIT_DB_NAME,
+        MigrationAudit,
+        converge_legacy_runtime,
+    )
+
+    spec_kitty_dir = get_runtime_root().base
+    try:
+        runtime = _open_event_sync_runtime()
+    except Exception:  # runtime unavailable — let the coherence gate report it
+        return
+    audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
+    try:
+        converge = converge_legacy_runtime(
+            spec_kitty_dir,
+            journal=runtime.journal,
+            audit=audit,
+            resolved_target=runtime.target,
+            resolve_conflicts=False,
+            cleanup=True,
+        )
+    except Exception:  # converge failed — let the coherence gate report it
+        return
+    finally:
+        with contextlib.suppress(Exception):
+            audit.close()
+        with contextlib.suppress(Exception):
+            runtime.close()
+
+    deleted = converge.cleanup.total_deleted if converge.cleanup is not None else 0
+    if deleted:
+        console.print(
+            f"[green]✓[/green] Converged {deleted} legacy queue row(s) into the event journal."
+        )
+    if converge.blocked_conflicts:
+        console.print(
+            f"[yellow]{converge.blocked_conflicts} divergent-duplicate conflict(s) remain. "
+            "Run `spec-kitty sync migrate --resolve-conflicts keep-journal` to resolve them, "
+            "then re-run opt-in.[/yellow]"
+        )
+
+
 @app.command(name="opt-in")
 def opt_in(
     checkout_only: bool = typer.Option(
@@ -1359,14 +1551,20 @@ def opt_in(
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
 
-    _require_daemon_owner_coherence("spec-kitty sync opt-in")
-
     if not is_saas_sync_enabled():
         # Non-green + non-zero (#2264 item 3): opt-in cannot take effect while
         # the rollout flag is off, so a dim exit-0 "success" is misleading.
         # Surface the disabled state clearly and exit non-zero.
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
         raise typer.Exit(1)
+
+    # Turning sync on converges any legacy queue residue into the journal so the
+    # boundary is coherent instead of refusing (#2665). Conservative: clean-path
+    # only; divergent-duplicate conflicts are surfaced for an explicit
+    # `sync migrate --resolve-conflicts keep-journal` before opt-in can proceed.
+    _auto_converge_legacy_on_enable()
+
+    _require_daemon_owner_coherence("spec-kitty sync opt-in")
 
     enforce_teamspace_mission_state_ready(
         console=console,
@@ -1973,42 +2171,88 @@ def archive() -> None:
 
 
 @app.command()
-def migrate() -> None:
+def migrate(
+    no_cleanup: bool = typer.Option(
+        False,
+        "--no-cleanup",
+        help=(
+            "Import into the journal but do NOT delete the migrated rows from the "
+            "source queues. Use to inspect the migration before the legacy-row "
+            "boundary is converged; re-run `sync migrate` (without the flag) to clean up."
+        ),
+    ),
+    resolve_conflicts: str = typer.Option(
+        None,
+        "--resolve-conflicts",
+        help=(
+            "Resolve divergent-duplicate conflicts so the boundary can converge. "
+            "Only `keep-journal` is supported: the journal payload is canonical, so "
+            "each conflicting source row is archived (quarantined) then removed. "
+            "Explicit operator recovery; never overwrites the journal."
+        ),
+    ),
+) -> None:
     """Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
     Lifts every currently-queued payload from the legacy ``queue.db`` and each
     scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
     per-source provenance and quarantining divergent-duplicate collisions into
-    the migration-audit store. Source DBs are opened read-only and are never
-    modified. Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
+    the migration-audit store. Import opens source DBs read-only.
+
+    On a clean migration (no conflicts, no source errors) the migrated rows are
+    then deleted from their source queues so the legacy-row boundary converges
+    and ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass
+    ``--no-cleanup`` to skip that step and inspect first.
+
+    Divergent-duplicate conflicts (same ``event_id``, different payload than the
+    journal) block cleanup by default. Pass ``--resolve-conflicts keep-journal``
+    to resolve them journal-wins: each conflicting source payload is archived to
+    the audit quarantine and the source row removed, so the boundary can
+    converge. The journal is never overwritten. Exits non-zero when unresolved
+    conflicts still block cleanup (SC-011).
 
     Examples:
         spec-kitty sync migrate
+        spec-kitty sync migrate --no-cleanup
+        spec-kitty sync migrate --resolve-conflicts keep-journal
     """
     from specify_cli.paths import get_runtime_root
     from specify_cli.sync.migrate_journal import (
         AUDIT_DB_NAME,
         MigrationAudit,
-        migrate_queues_to_journal,
+        converge_legacy_runtime,
     )
+
+    if resolve_conflicts is not None and resolve_conflicts != "keep-journal":
+        console.print(
+            f"[red]Unknown --resolve-conflicts strategy '{resolve_conflicts}'. "
+            "Only 'keep-journal' is supported.[/red]"
+        )
+        raise typer.Exit(2)
 
     spec_kitty_dir = get_runtime_root().base
     runtime = _open_event_sync_runtime()
     audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
     try:
-        result = migrate_queues_to_journal(
+        converge: ConvergeResult = converge_legacy_runtime(
             spec_kitty_dir,
             journal=runtime.journal,
             audit=audit,
             resolved_target=runtime.target,
+            resolve_conflicts=(resolve_conflicts == "keep-journal"),
+            cleanup=not no_cleanup,
         )
     finally:
         with contextlib.suppress(Exception):
             audit.close()
         runtime.close()
-    _print_migration_result(result)
-    if result.exit_code != 0:
-        raise typer.Exit(result.exit_code)
+    _print_migration_result(converge.migration)
+    if converge.resolution is not None:
+        _print_resolution_result(converge.resolution)
+    if converge.cleanup is not None:
+        _print_cleanup_result(converge.cleanup)
+    if converge.migration.exit_code != 0:
+        raise typer.Exit(converge.migration.exit_code)
 
 
 @app.command()

@@ -7,6 +7,7 @@
   "mission_type": "software-dev",
   "slug": "039-cli-2x-readiness",
   "source_description": "Deliver a fully functional local/offline + authenticated CLI workflow for spec → plan → implement → review, with correct global runtime usage and status/event emission. Fix setup-plan blocker (NameError: get_feature_mission_key), converge runtime resolution to ~/.kittify, handle 7-lane canonical status with 4-lane sync fanout, implement offline queue + replay with diagnostics, and produce handoff doc for spec-kitty-saas.",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git"
 }

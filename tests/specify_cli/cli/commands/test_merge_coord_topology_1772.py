@@ -17,8 +17,8 @@ squash-merge while reporting success:
   that is never tracked in a branch tree. Validation must resolve the
   in-branch status path.
 
-These tests drive the REAL lane-skip + ``merge_lane_to_mission`` /
-``merge_mission_to_target`` / ``_merge_branch_into`` functions against a real
+These tests drive the REAL lane-skip + ``consolidate_lane_into_mission`` /
+``integrate_mission_into_target`` / ``_merge_branch_into`` functions against a real
 on-disk git repository. They mock ONLY the side effects that touch state
 outside git (status emit, dossier sync, SaaS emit, stale-assertion check,
 sparse-checkout preflight, merge gates, mission_number bake, post-merge
@@ -128,7 +128,7 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
         version=1,
         mission_slug=MISSION_SLUG,
         # mission_id == slug => legacy lane_branch_name form
-        # ``kitty/mission-<slug>-lane-a`` which merge_lane_to_mission constructs.
+        # ``kitty/mission-<slug>-lane-a`` which consolidate_lane_into_mission constructs.
         mission_id=MISSION_SLUG,
         mission_branch=COORD_BRANCH,
         target_branch="main",
@@ -172,6 +172,7 @@ def _bootstrap_coord_mission(
         "event_id": "01HXYZDONE0000000000000001",
         "execution_mode": "worktree",
         "feature_slug": MISSION_SLUG,
+        "force": False,
         "from_lane": "approved",
         "to_lane": "done",
         "wp_id": "WP01",
@@ -218,7 +219,7 @@ def _bootstrap_coord_mission(
 def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
     """Mock only the side effects that touch state OUTSIDE git.
 
-    The real ``merge_lane_to_mission``, ``merge_mission_to_target``,
+    The real ``consolidate_lane_into_mission``, ``integrate_mission_into_target``,
     ``_merge_branch_into`` and the real lane-skip decision are NOT mocked —
     they execute real ``git merge`` so the #1772 zero-diff squash bug
     reproduces (or is fixed).
@@ -291,7 +292,7 @@ def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) 
     reporting success. It must integrate the real lane diff OR fail loudly.
 
     On current (pre-fix) code the lane-skip gates on ``completed_wps`` (a
-    done-status proxy), skips the only lane, then ``merge_mission_to_target``
+    done-status proxy), skips the only lane, then ``integrate_mission_into_target``
     with ``allow_noop_squash=True`` returns ``already_applied=True`` — a silent
     zero-code success. The lane code never reaches ``main``.
     """

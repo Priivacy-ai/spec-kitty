@@ -24,6 +24,7 @@
   "purpose_context": "Several subsystems re-implement 'resolve the mission identity' and 'is this state fresh' logic divergently, causing wrong-surface reads (coord-only missions resolve to nothing) and blocking false-positives (charter freshness flags recoverable residue as a hard error). This mission binds each surface to its existing canonical authority, extracts one cohesive merge-baseline unit out of an oversized command module, and repairs the architectural test gate that went red the moment a prior mission un-masked it.",
   "purpose_tldr": "Make three governed-state surfaces (mission identity, charter freshness, merge baseline) read from one canonical seam instead of re-deriving by hand, and restore a green architectural CI gate.",
   "slug": "governed-state-surface-coherence-01KVCGQC",
+  "status_phase": "1",
   "target_branch": "feat/governed-state-surface-coherence",
   "vcs": "git",
   "vcs_locked_at": "2026-06-18T05:49:54.639551+00:00"

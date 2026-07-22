@@ -36,7 +36,7 @@ import typer
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.agent_tasks_ports import Render
-from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME, TaskIdResolutionOutcome, TaskIdResult
+from specify_cli.cli.commands.agent.tasks_outline import TaskIdResolutionOutcome, TaskIdResult
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
@@ -51,20 +51,6 @@ from specify_cli.missions._read_path_resolver import (
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
 logger = logging.getLogger(__name__)
-
-
-def resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main, master, etc.).
-
-    Delegates to the centralized implementation in core.git_ops.
-
-    Returns:
-        Detected primary branch name.
-    """
-    from specify_cli.core.git_ops import resolve_primary_branch as _resolve
-
-    branch: str = _resolve(repo_root)
-    return branch
 
 
 def _review_currency_check_branch(
@@ -424,56 +410,65 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
 
 
 def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
-    """Check for unchecked subtasks in tasks.md for a given WP.
+    """Return *wp_id*'s incomplete subtask ids, read from the reduced snapshot.
+
+    The subtask **roster** (which task ids belong to ``wp_id``) is the authored
+    ``subtasks:`` frontmatter list — static design intent (#2062), sourced via
+    :func:`core.subtask_rows.authored_subtask_roster`, NOT ``tasks.md`` checkbox
+    rows. **Completion** is resolved solely from the event-sourced reduced
+    snapshot's ``subtasks`` slot (populated by ``mark-status``'s
+    ``emit_inner_state_changed`` call) via
+    :func:`core.subtask_rows.unchecked_subtask_ids_from_snapshot`.
+
+    This is #2816 IC-10 (FR-016 / SC-010): the markdown checkbox is retired as
+    the subtask-completion proxy — a raw checkbox edit without ``mark-status``
+    no longer moves the gate (the D-13 incoherence is closed). Sourcing the
+    roster from the frontmatter — not from re-parsing ``tasks.md`` — is what
+    makes checkbox removal safe: an emptied ``tasks.md`` can no longer silently
+    empty the roster and disable the guard.
+
+    Fail-closed: a WP with an authored roster but an absent/silent snapshot slot
+    blocks (every roster id reported incomplete), mirroring
+    ``emit._infer_subtasks_complete``'s "unprovable completeness must block"
+    rule. A WP with an empty authored roster is "nothing to block on" -> ``[]``.
 
     Args:
         repo_root: Repository root path
-        mission_slug: Feature slug (e.g., "010-lane-only-runtime")
+        mission_slug: Mission slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
-        force: If True, only warn; if False, fail on unchecked tasks
+        _force: Unused here — the caller decides warn-vs-raise on a non-empty
+            result; this reader always just reports the incomplete ids.
 
     Returns:
-        List of unchecked task IDs (empty if all checked or not found)
-
-    Raises:
-        typer.Exit: If unchecked tasks found and force=False
+        List of incomplete task IDs (empty if all done or no authored roster).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = _tasks.get_main_repo_root(repo_root)
-    # WP04 / FR-006: ``tasks.md`` is a TASKS_INDEX (primary-partition) artifact —
-    # read it from PRIMARY (INV-5) so a coord-topology mission's stale ``-coord``
-    # husk cannot shadow the real primary ``tasks.md`` (#2062 read-side close).
+    # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
+    # on the primary partition. Dynamic completion is STATUS_STATE and follows
+    # the topology-routed status surface instead.
     from mission_runtime import MissionArtifactKind
 
     feature_dir = resolve_planning_read_dir(
         main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
     )
-    tasks_md = feature_dir / TASKS_MD_FILENAME
+    if not (feature_dir / "tasks").is_dir():
+        return []
+    from specify_cli.core.subtask_rows import (
+        authored_subtask_roster,
+        unchecked_subtask_ids_from_snapshot,
+    )
 
-    if not tasks_md.exists():
-        return []  # No tasks.md, can't check
+    roster = authored_subtask_roster(feature_dir, wp_id)
+    if not roster:
+        return []
+    from specify_cli.coordination import resolve_status_surface
 
-    content = tasks_md.read_text(encoding="utf-8")
-
-    # Find canonical subtasks for this WP. Only unchecked rows of the form
-    # ``- [ ] T### <desc>`` count as blocking. Validation/procedure/checklist
-    # command rows (e.g. ``- [ ] swift test``, ``- [ ] git status --short``),
-    # prose, and anything inside fenced code blocks are intentionally ignored —
-    # they are not work-package subtasks and must not block a lane transition.
-    #
-    # Section walking + row patterns are the single shared definition in
-    # ``core.subtask_rows`` (also consumed by the dashboard's progress counts,
-    # #2504) — including the #2346/#2324 first-WPxx-token heading rule.
-    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
-
-    return [
-        task_id
-        for task_id, checked in iter_wp_section_subtask_rows(content, wp_id)
-        if not checked
-    ]
+    status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
+    return unchecked_subtask_ids_from_snapshot(status_dir, wp_id, roster)
 
 
 def _validate_ready_for_review(

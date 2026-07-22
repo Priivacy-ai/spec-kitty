@@ -9,6 +9,17 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 
+class ActionIndexError(ValueError):
+    """A present action-index file is not a well-formed ActionIndex.
+
+    Raised by :func:`load_action_index` when the index file exists but its
+    content violates the contract: the root is not a YAML mapping, an
+    artifact-kind field's value is not a list, or the file cannot be parsed
+    or read. A genuinely-missing index file is NOT an error — it resolves to
+    an empty :class:`ActionIndex` (present ⇒ well-formed; absent ⇒ empty).
+    """
+
+
 @dataclass(frozen=True)
 class ActionIndex:
     """Index of doctrine artifacts relevant to a specific mission action."""
@@ -26,7 +37,13 @@ class ActionIndex:
 def load_action_index(missions_root: Path, mission: str, action: str) -> ActionIndex:
     """Load action index from missions_root/<mission>/actions/<action>/index.yaml.
 
-    Returns ActionIndex(action=action) as fallback when missing or corrupt.
+    Contract (present ⇒ well-formed; absent ⇒ empty, operator DD-4 / #2667):
+    a genuinely-missing index file silently resolves to an empty
+    ``ActionIndex(action=action)``. A *present* index file must be
+    well-formed — a present-but-malformed index raises
+    :class:`ActionIndexError` rather than silently degrading to an empty
+    grain, so callers (e.g. the FR-013 cross-grain union) never pass falsely
+    over dropped doctrine.
 
     Args:
         missions_root: Root directory containing mission subdirectories.
@@ -34,35 +51,64 @@ def load_action_index(missions_root: Path, mission: str, action: str) -> ActionI
         action: Action name (e.g. "implement").
 
     Returns:
-        ActionIndex with the loaded data, or a minimal fallback on error.
+        ActionIndex with the loaded data, or the missing-file fallback.
+
+    Raises:
+        ActionIndexError: The index file is present but not well-formed:
+            the root is not a YAML mapping, an artifact-kind field's value
+            is not a list, or the file cannot be parsed or read.
     """
     index_path = missions_root / mission / "actions" / action / "index.yaml"
-    fallback = ActionIndex(action=action)
 
     if not index_path.exists():
-        return fallback
+        return ActionIndex(action=action)
 
+    data = _read_index_yaml(index_path)
+
+    if not isinstance(data, dict):
+        raise ActionIndexError(
+            f"Expected a YAML mapping at <root> in {index_path}; "
+            f"got {type(data).__name__}"
+        )
+
+    return ActionIndex(
+        action=str(data.get("action", action)),
+        directives=_require_list(data, "directives", index_path),
+        tactics=_require_list(data, "tactics", index_path),
+        paradigms=_require_list(data, "paradigms", index_path),
+        styleguides=_require_list(data, "styleguides", index_path),
+        toolguides=_require_list(data, "toolguides", index_path),
+        procedures=_require_list(data, "procedures", index_path),
+        agent_profiles=_require_list(data, "agent_profiles", index_path),
+    )
+
+
+def _read_index_yaml(index_path: Path) -> object:
+    """Read and parse *index_path* as YAML, wrapping I/O and parse errors.
+
+    Raises:
+        ActionIndexError: The file could not be read or parsed. A present
+            file that fails here is present-but-invalid, not missing.
+    """
     try:
         yaml = YAML(typ="safe")
-        data = yaml.load(index_path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return fallback
+        return yaml.load(index_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, YAMLError) as exc:
+        raise ActionIndexError(
+            f"Could not read or parse action index at {index_path}: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
 
-        def _str_list(key: str) -> list[str]:
-            raw = data.get(key, [])
-            if not isinstance(raw, list):
-                return []
-            return [str(item) for item in raw if item is not None]
 
-        return ActionIndex(
-            action=str(data.get("action", action)),
-            directives=_str_list("directives"),
-            tactics=_str_list("tactics"),
-            paradigms=_str_list("paradigms"),
-            styleguides=_str_list("styleguides"),
-            toolguides=_str_list("toolguides"),
-            procedures=_str_list("procedures"),
-            agent_profiles=_str_list("agent_profiles"),
+def _require_list(data: dict[object, object], key: str, index_path: Path) -> list[str]:
+    """Extract *key* from *data* as a list of strings, or raise.
+
+    Raises:
+        ActionIndexError: The field's value is present but not a list.
+    """
+    raw = data.get(key, [])
+    if not isinstance(raw, list):
+        raise ActionIndexError(
+            f"Expected a list for {key!r} in {index_path}; got {type(raw).__name__}"
         )
-    except (OSError, UnicodeDecodeError, YAMLError):
-        return fallback
+    return [str(item) for item in raw if item is not None]

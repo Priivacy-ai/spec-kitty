@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
+from charter.synthesizer.manifest import SynthesisManifest, finalize_manifest
 from charter.synthesizer.synthesize_pipeline import canonical_yaml
 
 pytestmark = [pytest.mark.integration]
@@ -31,36 +32,72 @@ pytestmark = [pytest.mark.integration]
 # ---------------------------------------------------------------------------
 
 
-def _seed_manifest(repo: Path, *, built_in_only: bool) -> Path:
+def _seed_manifest(
+    repo: Path,
+    *,
+    built_in_only: bool,
+    bundle_content_hash: str | None = None,
+) -> Path:
+    """Seed a synthesis manifest on disk.
+
+    ``bundle_content_hash`` defaults to ``None`` -- backward-compatible: no
+    ``bundle_content_hash`` key is written at all (a pre-fix v2-shaped
+    manifest). When a real value IS supplied, the manifest is built as a
+    genuine ``SynthesisManifest`` instance and routed through
+    ``finalize_manifest`` so ``manifest_hash`` is internally consistent
+    (``verify_manifest_hash`` passes on the SEED itself, per T012).
+    """
     manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_data = {
-        "schema_version": "2",
-        "mission_id": None,
-        "created_at": "2099-01-01T00:00:00+00:00",
-        "run_id": "01JTESTRUNIDXXXXXXXXXXXXXX",
-        "adapter_id": "test",
-        "adapter_version": "0.0.0",
-        "synthesizer_version": "0.0.0",
-        "artifacts": [],
-        "built_in_only": built_in_only,
-    }
-    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data)).hexdigest()  # noqa: TID251 — charter synthesizer manifest self-hash, not charter.hasher.hash_content() freshness
+
+    if bundle_content_hash is None:
+        manifest_data = {
+            "schema_version": "2",
+            "mission_id": None,
+            "created_at": "2099-01-01T00:00:00+00:00",
+            "run_id": "01JTESTRUNIDXXXXXXXXXXXXXX",
+            "adapter_id": "test",
+            "adapter_version": "0.0.0",
+            "synthesizer_version": "0.0.0",
+            "artifacts": [],
+            "built_in_only": built_in_only,
+        }
+        manifest_hash = hashlib.sha256(canonical_yaml(manifest_data)).hexdigest()  # noqa: TID251 — charter synthesizer manifest self-hash, not charter.hasher.hash_content() freshness
+        manifest_path.write_text(
+            dedent(
+                f"""\
+                schema_version: '2'
+                mission_id: null
+                created_at: '2099-01-01T00:00:00+00:00'
+                run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
+                adapter_id: test
+                adapter_version: '0.0.0'
+                synthesizer_version: '0.0.0'
+                manifest_hash: {manifest_hash}
+                artifacts: []
+                built_in_only: {str(built_in_only).lower()}
+                """
+            ),
+            encoding="utf-8",
+        )
+        return manifest_path
+
+    seeded = finalize_manifest(
+        SynthesisManifest(
+            mission_id=None,
+            created_at="2099-01-01T00:00:00+00:00",
+            run_id="01JTESTRUNIDXXXXXXXXXXXXXX",
+            adapter_id="test",
+            adapter_version="0.0.0",
+            synthesizer_version="0.0.0",
+            manifest_hash="0" * 64,
+            artifacts=[],
+            built_in_only=built_in_only,
+            bundle_content_hash=bundle_content_hash,
+        )
+    )
     manifest_path.write_text(
-        dedent(
-            f"""\
-            schema_version: '2'
-            mission_id: null
-            created_at: '2099-01-01T00:00:00+00:00'
-            run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
-            adapter_id: test
-            adapter_version: '0.0.0'
-            synthesizer_version: '0.0.0'
-            manifest_hash: {manifest_hash}
-            artifacts: []
-            built_in_only: {str(built_in_only).lower()}
-            """
-        ),
+        canonical_yaml(seeded.model_dump(mode="python")).decode("utf-8"),
         encoding="utf-8",
     )
     return manifest_path
@@ -203,3 +240,42 @@ def test_post_condition_no_op_when_manifest_missing(tmp_path: Path) -> None:
     apply_post_condition(tmp_path, has_project_graph=False)
 
     assert not (tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml").exists()
+
+
+def test_post_condition_preserves_bundle_content_hash_through_mutation_branch(
+    tmp_path: Path,
+) -> None:
+    """WP02 T012 -- BLOCKER-1 non-vacuous pin.
+
+    The synthesize-driven post-condition tests above are NOT sufficient to
+    catch BLOCKER-1: ``apply_post_condition`` takes a fast-path early-return
+    on a normal non-built-in synthesize (``built_in_only`` already matches
+    the desired value), so a normal synthesize flow NEVER reaches the
+    mutation branch where the field was silently dropped. This test seeds
+    the EXACT precondition that drives the mutation branch directly: a REAL
+    non-``None`` ``bundle_content_hash`` + ``built_in_only=False`` + a
+    project graph present, then calls ``apply_post_condition(has_project_
+    graph=False)`` -- ``desired_built_in_only`` becomes ``True`` != the
+    seeded ``False``, bypassing the fast path (``project_drg.py:307-310``).
+
+    Pre-fix (explicit-kwarg ``SynthesisManifest(...)`` reconstruction that
+    omits ``bundle_content_hash``), the field reverts to ``None`` and
+    ``verify_manifest_hash`` raises (the stored self-hash was computed over
+    the real value). Post-fix (``model_copy`` + ``finalize_manifest``), the
+    field survives the flip and the self-hash still verifies.
+    """
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.synthesizer.project_drg import apply_post_condition
+
+    seeded_hash = "sha256:" + "c" * 64
+    _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=seeded_hash)
+    _seed_graph(tmp_path)
+
+    apply_post_condition(tmp_path, has_project_graph=False)
+
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    reloaded = load_yaml(manifest_path)
+    assert reloaded.bundle_content_hash == seeded_hash, (
+        "BLOCKER-1: bundle_content_hash did not survive the built_in_only flip"
+    )
+    verify_manifest_hash(reloaded)

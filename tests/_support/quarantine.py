@@ -11,7 +11,7 @@ The actual deselection happens in ``tests/conftest.py``'s
 ``pytest_collection_modifyitems`` — this module holds the pure, unit-testable
 decision so the policy can be verified without driving a full pytest session.
 
-See ``docs/guides/testing-flakiness.md``.
+See ``docs/development/testing-flakiness.md``.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ QUARANTINE_MARKER = "quarantine"
 _SKIP_REASON = (
     "quarantine: environmental flake under tracking — held out of normal runs. "
     f"Set {RUN_QUARANTINE_ENV_VAR}=1 to run it. "
-    "See docs/guides/testing-flakiness.md"
+    "See docs/development/testing-flakiness.md"
 )
 
 

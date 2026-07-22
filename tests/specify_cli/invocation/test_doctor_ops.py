@@ -372,7 +372,7 @@ def test_sweep_enumeration_perf_1k_files(
 ) -> None:
     """Default-suite smoke that the 1k-file sweep has no order-of-magnitude regression.
 
-    Tier-1 budget gate (docs/guides/testing-flakiness.md): tune, never retry.
+    Tier-1 budget gate (docs/development/testing-flakiness.md): tune, never retry.
     The original 0.5 s budget was a tight single-machine extrapolation that
     tripped on shared CI runners with no code regression (observed 1.67 s on
     GitHub Actions, 2.96 s historically). Widened to 5.0 s so runner variance is

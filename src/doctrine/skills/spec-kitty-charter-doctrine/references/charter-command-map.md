@@ -65,12 +65,13 @@ spec-kitty charter generate [--mission-type TEXT] [--force] [--from-interview] [
 
 **Output files:**
 
-- `.kittify/charter/charter.md` -- The charter document
-- `.kittify/charter/governance.yaml` -- Extracted governance config
-- `.kittify/charter/directives.yaml` -- Extracted directives
-- `.kittify/charter/metadata.yaml` -- Extraction provenance
-- `.kittify/charter/references.yaml` -- Reference doc manifest
-- `.kittify/charter/library/*.md` -- Referenced doctrine documents
+- `.kittify/charter/charter.yaml` -- `catalog`/`metadata` sections refreshed
+  deterministically; `governance`/`directives`/activation/`overrides` are
+  preserved byte-for-byte (bootstrapped from a legacy triad only on first
+  creation of the file)
+- `.kittify/charter/charter.md` -- **Never written by this command**, at
+  bootstrap or on any later run. It is a curated companion authored by hand
+  or by an agent (for example during `/spec-kitty.charter`'s chat flow).
 
 **JSON output fields:**
 
@@ -90,9 +91,12 @@ spec-kitty charter generate [--mission-type TEXT] [--force] [--from-interview] [
 
 **Notes:**
 
-- Generation automatically triggers sync, so extracted YAML is always current.
+- `governance`/`directives`/activation/`overrides` are never touched by this
+  command after `charter.yaml` exists — only `catalog`/`metadata` refresh.
 - If `--from-interview` is true (default) but no interview file exists, generation fails closed. Use `--no-from-interview` only when you explicitly want defaults for the specified mission and profile.
-- Use `--force` when re-generating over an existing charter.
+- `--force` no longer gates a destructive overwrite — there is none left to
+  gate (that was the point of retiring the `charter.md` clobber). It is
+  accepted for CLI/back-compat call-site stability only.
 
 ---
 
@@ -135,7 +139,11 @@ spec-kitty charter context --action specify|plan|implement|review [--json]
 
 ## sync
 
-Sync charter.md to structured YAML config files.
+Retained for canonical-root resolution and back-compat call sites (the
+dashboard, the bundle-migration upgrader, `charter context`). Performs no
+extraction any more — `governance`/`directives` are hand-authored sections
+directly inside `charter.yaml`, not derived from `charter.md`. Every
+invocation is a no-op.
 
 ```bash
 spec-kitty charter sync [--force] [--json]
@@ -148,25 +156,23 @@ spec-kitty charter sync [--force] [--json]
 | `--force` | FLAG | off | Force sync even if charter is not stale |
 | `--json` | FLAG | off | Output JSON |
 
-**Output files (written to `.kittify/charter/`):**
-
-| File | Content |
-|------|---------|
-| `governance.yaml` | Testing, quality, commit, performance, branch strategy config |
-| `directives.yaml` | Numbered rules with severity and scope |
-| `metadata.yaml` | Extraction provenance (hash, timestamp, extraction mode) |
+**Output files:** none. `sync` writes nothing — `governance`/`directives` are
+hand-authored sections directly inside `charter.yaml`, read live by every
+consumer; there is nothing left to derive.
 
 **JSON output fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `success` | bool | True if sync ran (false if skipped or errored) |
-| `stale_before` | bool | True if charter was stale before sync |
-| `files_written` | list | YAML file names written |
-| `extraction_mode` | string | `deterministic` or `hybrid` |
-| `error` | string or null | Error message if sync failed |
+| `success` | bool | Always `false` (`result.synced` is always `False`) |
+| `stale_before` | bool | Legacy field, retained for shape stability |
+| `files_written` | list | Always `[]` |
+| `extraction_mode` | string | Legacy field, retained for shape stability |
+| `error` | string or null | Error message if the (now-inert) call still failed |
 
-**Staleness detection:** Sync compares the SHA-256 hash of `charter.md` against the hash stored in `metadata.yaml`. If they match and `--force` is not set, sync is skipped.
+**Regardless of `--force`:** every invocation is a no-op. There is no
+staleness detection to bypass any more — `charter.yaml` is read live, not
+derived from a hashed `charter.md` snapshot.
 
 ---
 
@@ -217,10 +223,11 @@ spec-kitty charter interview --mission-type software-dev --profile comprehensive
 spec-kitty charter generate --from-interview
 ```
 
-**Update after manual charter edits:**
+**After manual `charter.yaml` edits:** nothing required — the next
+`charter context` call reads the file live. `sync`/`status` remain available
+for legacy staleness reporting but do not gate correctness:
 
 ```bash
-spec-kitty charter sync --json
 spec-kitty charter status --json
 ```
 

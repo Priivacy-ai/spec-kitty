@@ -88,6 +88,23 @@ def _write_minimal_interview(repo: Path) -> None:
     )
 
 
+def _write_curated_charter_md(repo: Path) -> None:
+    """Seed a hand-authored ``charter.md`` (consolidate-charter-bundle WP03).
+
+    ``charter.md`` is a curated companion that ``charter generate`` never
+    writes (data-model.md Landmine 3 -- the #2772 clobber, one level down,
+    on a tracked file). ``bundle validate`` requires it present+tracked
+    (``CharterBundleManifest.tracked_files``), so tests that exercise the
+    full generate -> validate contract must seed it first, mirroring a
+    project where governance has already been curated.
+    """
+    charter_dir = repo / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.md").write_text(
+        "# Curated Charter\n\nHand-authored governance prose.\n", encoding="utf-8"
+    )
+
+
 def _ls_files_stage(repo: Path) -> list[str]:
     """Return repo-relative paths reported by ``git ls-files --stage``."""
     result = subprocess.run(
@@ -112,9 +129,16 @@ def test_generate_then_bundle_validate_succeeds_in_fresh_git_repo(
 ) -> None:
     """After ``charter generate`` in a fresh git repo, ``bundle validate``
     accepts the bundle without any intervening ``git add``.
+
+    ``bundle validate`` requires ``charter.md`` present+tracked
+    (``CharterBundleManifest.tracked_files``), and ``generate`` never
+    writes it (WP03 Landmine 3 fix) -- a curated ``charter.md`` must
+    already exist, same as a real project that has authored its
+    governance prose.
     """
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)
+    _write_curated_charter_md(tmp_path)
 
     old_cwd = os.getcwd()
     try:
@@ -184,9 +208,15 @@ def test_generate_in_non_git_dir_fails_fast(tmp_path: Path) -> None:
 def test_generate_stages_produced_files(tmp_path: Path) -> None:
     """After ``charter generate`` succeeds, ``git ls-files --stage`` MUST
     include the generated charter commit inputs.
+
+    ``charter.yaml`` is the sole file ``write_compiled_charter`` produces
+    (WP03: ``charter.md``/``references.yaml`` are never written by
+    generate); a pre-existing curated ``charter.md`` is auto-staged too
+    because it is a manifest ``tracked_files`` entry.
     """
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)
+    _write_curated_charter_md(tmp_path)
 
     old_cwd = os.getcwd()
     try:
@@ -203,13 +233,15 @@ def test_generate_stages_produced_files(tmp_path: Path) -> None:
         os.chdir(old_cwd)
 
     expected = {
-        ".gitignore",
         ".kittify/charter/charter.md",
-        ".kittify/charter/references.yaml",
+        ".kittify/charter/charter.yaml",
     }
     assert expected.issubset(set(staged)), (
         f"generated charter commit inputs must be auto-staged after generate; "
         f"expected={expected!r}, got staged paths: {staged!r}"
+    )
+    assert ".kittify/charter/references.yaml" not in staged, (
+        "references.yaml is retired (WP03/T012) and must never be staged"
     )
 
 
@@ -286,6 +318,7 @@ def _assert_generate_refuses_symlinked_charter_before_side_effects(tmp_path: Pat
     assert public_charter.read_text(encoding="utf-8") == "# Public Constitution\n"
 
     assert not (tmp_path / ".kittify" / "encoding-provenance").exists()
+    assert not (charter_dir / "charter.yaml").exists()
     assert not (charter_dir / "references.yaml").exists()
     assert not (charter_dir / "governance.yaml").exists()
     assert not (charter_dir / "directives.yaml").exists()
@@ -384,7 +417,7 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
     assert "README.md" in staged, (
         f"pre-staged README.md must remain staged; got {staged!r}"
     )
-    assert ".kittify/charter/charter.md" in staged
+    assert ".kittify/charter/charter.yaml" in staged
 
 
 def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> None:
@@ -414,9 +447,7 @@ def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> 
                 "chore: generate project charter",
                 "--json",
                 ".kittify/charter/interview/answers.yaml",
-                ".kittify/charter/charter.md",
-                ".kittify/charter/references.yaml",
-                ".gitignore",
+                ".kittify/charter/charter.yaml",
             ],
             catch_exceptions=False,
         )

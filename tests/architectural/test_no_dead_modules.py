@@ -192,6 +192,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_fix_prompt_file_workaround",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_bundle_v2",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
+        "specify_cli.upgrade.migrations.m_unify_charter_activation_finalize",
         "specify_cli.upgrade.migrations.m_3_2_0rc43_retire_profile_context_command",
         # NOTE: WP01 (charter-pack-activation-layer-01KSYE4V) was expected to
         # add the three entries below.  They are added here as a WP01 gap fix
@@ -257,6 +258,14 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code. Same sibling shape as the two backfills above.
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
+        "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
+        # runtime-state-corpus-cutover-01KXZ0AX WP02 (FR-010, #2816): auto-discovered
+        # corpus cutover migration for existing deployments. Auto-discovered via
+        # pkgutil.iter_modules + @MigrationRegistry.register; never statically
+        # imported by runtime code. Named m_zz_* (not a numeric-prefix name) so it
+        # sorts alphabetically AFTER the m_unify_charter_activation* folds at the
+        # same tied target_version="3.2.6" (see the module docstring).
+        "specify_cli.upgrade.migrations.m_zz_runtime_state_backfill",
     }
 )
 
@@ -333,6 +342,12 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         #
         # doctrine.missions.mission_step_repository: live caller landed in
         # charter.mission_steps (charter-pack-activation-layer-01KSYE4V WP09)
+        #
+        # charter.extractor removed: the prose->triad scraper (SECTION_MAPPING,
+        # write_extraction_result, extract_with_ai, and the retirement husk
+        # left behind, Extractor/_detect_catalog_references) is fully deleted
+        # by charter-deadcode-noop-campsite WP02 -- module removed, test-only
+        # references retired/reconstructed. Category fully drained (1->0).
     }
 )
 

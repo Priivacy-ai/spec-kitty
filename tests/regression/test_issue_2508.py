@@ -58,6 +58,7 @@ from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
 from tests.specify_cli.charter_preflight._fixtures import (
     seed_bundle_files,
     seed_charter,
+    seed_charter_yaml,
     seed_graph,
     seed_manifest,
     write_metadata,
@@ -106,6 +107,11 @@ def _build_coord_mission_with_drifted_husk(
     charter_path, metadata_path = seed_charter(repo_root)
     write_metadata(metadata_path, charter_path)
     seed_bundle_files(repo_root)
+    # consolidate-charter-bundle WP06 re-pointed charter_runtime freshness at
+    # ``charter.yaml`` (the sole resolving source); seed it BEFORE the manifest
+    # so ``seed_manifest``'s auto-compute stamps a matching bundle_content_hash
+    # and all three freshness sub-states read ``fresh``.
+    seed_charter_yaml(repo_root)
     seed_manifest(repo_root, built_in_only=False)
     seed_graph(repo_root)
 

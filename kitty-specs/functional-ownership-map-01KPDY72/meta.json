@@ -6,6 +6,7 @@
   "mission_slug": "functional-ownership-map-01KPDY72",
   "mission_type": "software-dev",
   "slug": "functional-ownership-map-01KPDY72",
+  "status_phase": "1",
   "target_branch": "feature/module_ownership",
   "vcs": "git",
   "vcs_locked_at": "2026-04-18T05:15:19.491400+00:00"

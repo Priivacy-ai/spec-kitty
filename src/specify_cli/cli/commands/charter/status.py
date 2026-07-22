@@ -17,7 +17,7 @@ from rich.table import Table
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
-    METADATA_FILENAME,
+    CHARTER_YAML_FILENAME,
     charter_app,
     console,
 )
@@ -50,7 +50,10 @@ def status(  # noqa: C901
     try:
         repo_root = _charter_pkg.find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
-        if (charter_dir / METADATA_FILENAME).exists():
+        # consolidate-charter-bundle (#2773): gate on the authoritative
+        # charter.yaml, not the retired metadata.yaml (which the fold migration
+        # deletes) — else the bundle-compat check silently no-ops on v2 bundles.
+        if (charter_dir / CHARTER_YAML_FILENAME).exists():
             _charter_pkg._assert_bundle_compatible(charter_dir)
         from specify_cli.charter_runtime.freshness import compute_freshness
 

@@ -42,6 +42,7 @@ def _setup_feature(tmp_path: Path, mission_slug: str = "099-test") -> Path:
             f"title: Test {wp_id}\n"
             f"lane: planned\n"
             f"dependencies: []\n"
+            f"subtasks: []\n"
             f"---\n"
             f"\n# {wp_id}\n",
             encoding="utf-8",
@@ -88,15 +89,12 @@ class TestE2EFullPipeline:
             wp_id="WP01", to_lane="in_progress", actor="agent-1",
             repo_root=repo_root,
         ))
-        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
-        # blocks; this fixture never writes a tasks.md (only per-WP task
-        # files), and this test exercises the emit -> materialize -> validate
-        # pipeline, not the subtasks-completeness gate itself.
+        # This fixture authors an explicit empty roster, so there are no
+        # subtasks to block the transition.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="for_review", actor="agent-1",
             repo_root=repo_root,
-            subtasks_complete=True,
         ))
 
         # Emit a transition for WP02

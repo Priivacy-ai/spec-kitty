@@ -1,0 +1,59 @@
+# Two-zone hierarchical navigation (FR-003, FR-015, NFR-003, C-005).
+#
+# Exactly 2 top-level zone entries. Each zone has <=6 unexpanded top-level
+# (immediate-child) entries, nested via DocFX's native `items:` syntax
+# (precedent: the "Historical Archive" group below, unchanged from before
+# this rebuild). See docs-audit.md's "WP02 — T006 design rationale" section
+# for the full mapping from the prior 16-entry flat list to this tree.
+- name: Using Spec Kitty
+  items:
+    - name: Home
+      href: index.md
+    - name: Guides
+      href: guides/index.md
+    - name: Core Concepts
+      items:
+        - name: Context & Terminology
+          href: context/index.md
+        - name: Doctrine
+          href: doctrine/index.md
+    - name: Reference
+      items:
+        - name: API
+          href: api/index.md
+        - name: Configuration
+          href: configuration/index.md
+        - name: Integrations
+          href: integrations/index.md
+        - name: Security
+          href: security/index.md
+    - name: Migrations
+      href: migrations/index.md
+    - name: Project Updates
+      items:
+        - name: Changelog
+          href: changelog/index.md
+        - name: Release Goals
+          href: release-goals/index.md
+        - name: Mission Runs
+          href: kitty-specs/index.html
+        - name: Historical Archive
+          items:
+            - name: Archive Overview
+              href: archive/
+            - name: Archive (2.x)
+              href: archive/2x/
+            - name: Archive (1.x)
+              href: archive/1x/
+- name: Contributing
+  items:
+    - name: Architecture
+      href: architecture/index.md
+    - name: ADRs
+      href: adr/index.md
+    - name: Plans
+      href: plans/index.md
+    - name: Operations
+      href: operations/index.md
+    - name: Development
+      href: development/index.md

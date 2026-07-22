@@ -11,27 +11,6 @@ required:
 - intent
 - enforcement
 definitions:
-  contradiction:
-    type: object
-    additionalProperties: false
-    required:
-    - type
-    - id
-    - reason
-    properties:
-      type:
-        type: string
-        minLength: 1
-        enum:
-        - directive
-        - tactic
-        - paradigm
-      id:
-        type: string
-        minLength: 1
-      reason:
-        type: string
-        minLength: 1
   directive_reference:
     type: object
     additionalProperties: false
@@ -98,10 +77,6 @@ properties:
     type: array
     items:
       $ref: '#/definitions/directive_reference'
-  opposed_by:
-    type: array
-    items:
-      $ref: '#/definitions/contradiction'
 allOf:
 - if:
     properties:

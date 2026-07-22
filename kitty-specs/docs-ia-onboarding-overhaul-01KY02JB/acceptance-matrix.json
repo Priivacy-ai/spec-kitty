@@ -1,0 +1,176 @@
+{
+  "mission_slug": "docs-ia-onboarding-overhaul-01KY02JB",
+  "mission_number": "",
+  "mission_type": "documentation",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Homepage above-the-fold states who Spec Kitty is for and what it does before any governance/architecture term.",
+      "proof_type": "manual_review",
+      "evidence": "WP03 (caf3f5697): docs/index.md opening rewritten to a plain-language value statement; reviewer cold-read the first screen and confirmed audience+problem are stated before any governance term appears.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP03 cycle 1)",
+      "verified_at": "2026-07-20T18:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Single unambiguous Get Started entry point links from homepage through install to first mission, zero dead links.",
+      "proof_type": "manual_review",
+      "evidence": "WP03 (caf3f5697): homepage -> getting-started.md -> your-first-mission.md chain traced by reviewer; 0 dead links via relative_link_fixer.py --check.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP03 cycle 1)",
+      "verified_at": "2026-07-20T18:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Site navigation strictly segregates end-user documentation from contributor/maintainer documentation into two zones.",
+      "proof_type": "manual_review",
+      "evidence": "WP01 (docs-audit.md disposition table, 13 contributor-only files relocated to docs/development/) + WP02 (docs/toc.yml rebuilt into 'Using Spec Kitty'/'Contributing' zones). Reviewer independently walked the full end-user subtree (14 leaves plus 3 child TOCs) and confirmed zero hrefs resolve into docs/development/**.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP01, WP02 cycle 1)",
+      "verified_at": "2026-07-20T18:15:00+00:00",
+      "notes": "C-005 invariant re-verified again during WP10's final sweep with no regression."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "One explanation page describes Ops (dispatch) vs. Missions (full lifecycle) with a concrete decision rule.",
+      "proof_type": "manual_review",
+      "evidence": "WP04 (0345455d7, corrected 612c00d2b cycle 2): docs/context/ops-vs-missions.md. Reviewer traced the dispatch/executor/lifecycle code paths directly; cycle 1 caught and cycle 2 fixed one factual inaccuracy about kitty-ops/*.jsonl record types.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP04 cycle 2)",
+      "verified_at": "2026-07-20T18:50:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "One page enumerates and compares all real mission types (software-dev, research, documentation, plan).",
+      "proof_type": "manual_review",
+      "evidence": "WP04 (0345455d7): docs/context/mission-types.md checked line-by-line against all 4 real mission.yaml files by the reviewer; exact match, no invented/omitted type.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP04 cycle 1)",
+      "verified_at": "2026-07-20T18:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Charter-creation guidance consolidated into one authoritative interview-to-generation how-to.",
+      "proof_type": "manual_review",
+      "evidence": "WP05 (8d4508829, corrected 775c63f51/89d13331f across cycles 2-3): docs/guides/setup-governance.md is the consolidated home; the other 3 pages link in. Took 3 review cycles to fully eliminate a retired charter.md-as-authoritative model from all 4 pages; reviewer independently re-verified against src/charter/sync.py and the synthesize command on each cycle.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP05 cycle 3)",
+      "verified_at": "2026-07-20T19:05:00+00:00",
+      "notes": "3 rejection cycles, no arbiter override needed \u2014 each rejection was a genuine, narrow, source-verified finding."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "One explanation page enumerates every doctrine artifact kind with purpose and example.",
+      "proof_type": "manual_review",
+      "evidence": "WP06 (1c9bcb797): docs/doctrine/doctrine-kinds.md covers 8 kinds. Reviewer independently re-derived the correct kind vocabulary from src/charter/kind_vocabulary.py, src/doctrine/artifact_kinds.py, and live `spec-kitty charter list --all` output, confirming 'procedure' (not 'template', which CLAUDE.md's table incorrectly listed) is the true 8th charter-activatable kind.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP06 cycle 1)",
+      "verified_at": "2026-07-20T18:40:00+00:00",
+      "notes": "Correction propagated to spec.md/data-model.md/research.md; follow-up issue #2823 filed for CLAUDE.md's stale table."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "One how-to walks through creating a new doctrine artifact end to end with concrete, working steps.",
+      "proof_type": "manual_review",
+      "evidence": "WP06 (1c9bcb797): docs/doctrine/create-a-doctrine-artifact.md. Reviewer verified every cited CLI command/flag against live --help output and the worked-example tactic YAML against tactic.schema.yaml with jsonschema.validate().",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP06 cycle 1)",
+      "verified_at": "2026-07-20T18:40:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Existing documentation re-audited and consolidated; docs-audit.md records a disposition for every page.",
+      "proof_type": "manual_review",
+      "evidence": "WP01 (docs-audit.md, 80 rows covering docs/guides/ and docs/development/) plus WP07's appended reference-section findings. Reviewer spot-checked disposition accuracy and confirmed full coverage.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP01 cycle 1)",
+      "verified_at": "2026-07-20T18:15:00+00:00",
+      "notes": "FR-009's acceptance text originally cited the wrong filename (gap-analysis.md instead of docs-audit.md) \u2014 corrected in spec.md during /spec-kitty.analyze remediation, commit d1f9973f7."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Reference-heavy sections audited for accuracy; confirmed inaccuracies fixed, no wholesale rewrites.",
+      "proof_type": "manual_review",
+      "evidence": "WP07 (d229dd7ff): 8 confirmed inaccuracies fixed across docs/api, docs/adr, docs/migrations, docs/operations (missing --check-residual flag, stale --topology default, mission-type undercount, 6 missing charter subcommands, stale --feature removal framing, 29 missing ADR index rows, dead harness-doc links, orphaned operations pages). Reviewer independently re-ran every fix against live CLI/CHANGELOG/source and confirmed all 8.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP07 cycle 1)",
+      "verified_at": "2026-07-20T18:35:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "First mention of each glossary term on a page links to its entry with a hover tooltip.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (a706e5d3e): scripts/docs/glossary_linker.py, 15 tests in tests/docs/test_glossary_linker.py, all passing. Reviewer independently ran mypy --strict (0 new errors \u2014 5 pre-existing unrelated errors confirmed identical on the base branch) and pytest tests/docs/test_glossary_linker.py -v (15 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP08 cycle 1)",
+      "verified_at": "2026-07-20T17:40:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Each glossary entry is individually addressable via a stable per-term anchor.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (a706e5d3e): assign_anchor_ids() added to glossary_page(); anchor stability/uniqueness proven against the real 104-term seed plus a synthetic collision test, in tests/docs/test_glossary_linker.py.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP08 cycle 1)",
+      "verified_at": "2026-07-20T17:40:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "A repeatable check flags any documentation page using a glossary term in non-canonical spelling/casing.",
+      "proof_type": "automated_test",
+      "evidence": "WP09 (96ed501a2): tests/architectural/test_glossary_canonical_terms.py, sourced from the live 104-term glossary seed, reusing test_no_legacy_terminology.py's exact marker triple and scan conventions. Reviewer independently confirmed marker registration, ran the test (6 unit tests pass in isolation from live docs state), and spot-checked a real flagged occurrence.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP09 cycle 1)",
+      "verified_at": "2026-07-20T17:45:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "All authored/reviewed documentation content complies with the Terminology Canon (Mission, not Feature).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 renamed your-first-feature.md -> your-first-mission.md with repo-wide reference fixes. WP10 (9fe5eb6d9, cycle 2) ran both terminology checks across the full mission diff: test_no_legacy_terminology.py 3/3 pass; test_glossary_canonical_terms.py fixed 74 violations across 21 mission-touched files, with 0 overlap remaining between mission-touched files and the 200 pre-existing (out-of-mission-scope) violations, confirmed via comm -12 cross-reference by both implementer and reviewer independently.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP03 cycle 1, WP10 cycle 2)",
+      "verified_at": "2026-07-20T19:20:00+00:00",
+      "notes": "200 pre-existing violations outside this mission's diff are explicitly out of scope per DIR-013; tracked separately, not this mission's responsibility."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Top-level navigation uses hierarchical grouping (nested submenus) instead of a flat list.",
+      "proof_type": "manual_review",
+      "evidence": "WP02 (8dd4519f3): docs/toc.yml rebuilt with DocFX native nested items: syntax (proven mechanism, precedent: existing Historical Archive entry). Reviewer independently parsed the YAML and counted exactly 2 top-level zones with 6 immediate children each.",
+      "pass_fail": "pass",
+      "verified_by": "claude:sonnet-5:curator-carla:reviewer (WP02 cycle 1)",
+      "verified_at": "2026-07-20T18:25:00+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "C-001",
+      "description": "The GitHub Pages deploy workflow must remain untouched (docs/docfx.json's build-glob addition is a documented, in-scope exception per WP01, not covered by this check).",
+      "verification_method": "custom_command",
+      "verification_command": "git diff --quiet main -- .github/workflows/docs-pages.yml",
+      "result": "confirmed_absent",
+      "evidence": "git diff --quiet against main's committed version of docs-pages.yml exits 0 \u2014 the deploy workflow file is byte-identical to main."
+    },
+    {
+      "invariant_id": "C-005",
+      "description": "No end-user-zone page may link into contributor-only content.",
+      "verification_method": "custom_command",
+      "verification_command": "python3 -c \"import subprocess,sys,yaml; c=subprocess.run(['git','show','kitty/mission-docs-ia-onboarding-overhaul-01KY02JB-lane-b:docs/toc.yml'],capture_output=True,text=True,check=True).stdout; d=yaml.safe_load(c); z=next(e for e in d if e.get('name')=='Using Spec Kitty'); f=lambda n:[h for i in n.get('items',[]) for h in (([i['href']] if 'href' in i else [])+f(i))]; hrefs=f(z); leaks=[h for h in hrefs if h.startswith('development/')]; print('hrefs:',len(hrefs),'leaks:',leaks); sys.exit(1 if leaks else 0)\"",
+      "result": "confirmed_absent",
+      "evidence": "Verified directly: WP02's lane branch (kitty/mission-docs-ia-onboarding-overhaul-01KY02JB-lane-b) docs/toc.yml has 14 hrefs under the 'Using Spec Kitty' end-user zone; zero start with 'development/' (the contributor-zone relocation target). Also independently confirmed twice during WP review (WP02's own reviewer, then WP10's final sweep)."
+    }
+  ]
+}

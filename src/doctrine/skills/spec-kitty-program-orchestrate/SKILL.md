@@ -124,7 +124,7 @@ description + cross-repo contracts yourself.
 
 ---
 
-## Step 2: Drive Each Repo Through the Ceremony
+## Step 2: Drive Each Repo Through the Workflow
 
 For each repo, in dependency order:
 

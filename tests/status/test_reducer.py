@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
+from specify_cli.status.models import NON_DISPLAY_LANES, Lane, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import (
     SNAPSHOT_FILENAME,
     materialize,
@@ -60,8 +60,8 @@ class TestReduceEmpty:
         assert snapshot.event_count == 0
         assert snapshot.last_event_id is None
         assert snapshot.work_packages == {}
-        # genesis is excluded from the summary (non-display invariant)
-        assert snapshot.summary == {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
+        # NON_DISPLAY_LANES (genesis, uninitialized) are excluded from the summary
+        assert snapshot.summary == {lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES}
 
 
 class TestReduceSingleEvent:
@@ -365,8 +365,8 @@ class TestSummaryCounts:
         ]
         snapshot = reduce(events)
 
-        # Count lanes from WP states manually (genesis excluded — non-display invariant)
-        lane_counts: dict[str, int] = {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
+        # Count lanes from WP states manually (NON_DISPLAY_LANES excluded)
+        lane_counts: dict[str, int] = {lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES}
         for wp_state in snapshot.work_packages.values():
             lane_counts[wp_state["lane"]] += 1
 
