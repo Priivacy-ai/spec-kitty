@@ -50,7 +50,12 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from mission_runtime import MissionArtifactKind, MissionTopology
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
+from specify_cli.acceptance.gates_core import (
+    AcceptanceCheckDiagnostic,
+    _acceptance_matrix_read_dir,
+    _evaluate_acceptance_matrix,
+)
 from specify_cli.acceptance.matrix import (
     AcceptanceMatrix,
     NegativeInvariant,
@@ -445,6 +450,144 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
         "fixed seam: accept's read seam must not find the regressed write "
         "sitting on the coord surface"
     )
+
+
+# ===========================================================================
+# Accept-gate READ-PARTITION regression (folded into coord-commit-integrity):
+# ``gates_core._evaluate_acceptance_matrix`` must read the acceptance-matrix
+# from the COORD surface (where write_acceptance_matrix lands it under coord
+# topology), not the PRIMARY feature_dir threaded through the gate pipeline
+# (the ``PRIMARY_METADATA`` read dir). Reading the PRIMARY dir mis-reports a
+# false "acceptance-matrix.json ... was not found" and blocks accept on a
+# mission whose matrix is correctly on coord.
+# ===========================================================================
+
+
+def test_acceptance_matrix_read_dir_resolves_coord_surface(tmp_path: Path) -> None:
+    """``_acceptance_matrix_read_dir`` resolves the COORD dir under coord topology.
+
+    The matrix is written ONLY to the coord ``feature_dir`` (mirroring the three
+    real write paths) and NOT to the primary dir; the read-dir resolver must
+    hand back that coord surface — pinned against the same canonical
+    ``placement_seam(...).read_dir(ACCEPTANCE_MATRIX)`` the write side lands on,
+    never a hand-rolled ``-coord`` husk (NFR-001 / Directive-044).
+    """
+    result, _coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
+    slug = result.mission_slug
+
+    # The real write paths (spec-commit / finalize / accept-residual) materialise
+    # this subdir via the commit router; write directly for a focused test.
+    coord_feature_dir.mkdir(parents=True, exist_ok=True)
+    write_acceptance_matrix(coord_feature_dir, _matrix_with_marker(slug, "COORD_ONLY"))
+    assert coord_feature_dir.exists()
+    assert not (result.feature_dir / "acceptance-matrix.json").exists(), (
+        "fixture invariant: matrix must be COORD-only to exercise the "
+        "read-partition bug (a stray primary copy would mask it)"
+    )
+
+    resolved = _acceptance_matrix_read_dir(tmp_path, result.feature_dir)
+    assert resolved == coord_feature_dir, (
+        "coord-topology acceptance-matrix read must resolve the coord surface "
+        f"({coord_feature_dir}), got {resolved}"
+    )
+    assert read_acceptance_matrix(resolved) is not None
+
+
+def test_coord_matrix_gate_reads_from_coord_not_primary(tmp_path: Path) -> None:
+    """RED-first: the accept gate must NOT report a coord-only matrix as missing.
+
+    Drives ``_evaluate_acceptance_matrix`` with EXACTLY the ``feature_dir``
+    production threads into ``_check_lane_gates`` — the ``PRIMARY_METADATA``
+    read dir (``collect_feature_summary``). Pre-fix the gate read that PRIMARY
+    dir, found no matrix, and appended an ``acceptance_matrix`` blocked check
+    ("... was not found"); post-fix it resolves the coord surface and passes.
+    This test references NO new symbol, so it fails RED cleanly (an assertion,
+    not an ImportError) against the pre-fix gate.
+    """
+    result, _coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
+    slug = result.mission_slug
+
+    # Matrix lands ONLY on the coord surface (verdict computes to "pass").
+    coord_feature_dir.mkdir(parents=True, exist_ok=True)
+    write_acceptance_matrix(coord_feature_dir, _matrix_with_marker(slug, "COORD_ONLY"))
+    assert not (result.feature_dir / "acceptance-matrix.json").exists()
+
+    # The exact feature_dir collect_feature_summary passes to _check_lane_gates.
+    read_feature_dir = placement_seam(tmp_path, slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+
+    activity_issues: list[str] = []
+    skipped_checks: list[AcceptanceCheckDiagnostic] = []
+    blocked_checks: list[AcceptanceCheckDiagnostic] = []
+    _evaluate_acceptance_matrix(
+        tmp_path,
+        read_feature_dir,
+        activity_issues,
+        skipped_checks,
+        blocked_checks,
+        mutate_matrix=False,
+    )
+
+    assert not any(c.check == "acceptance_matrix" for c in blocked_checks), (
+        "false 'acceptance-matrix not found' on a coord-only matrix — the gate "
+        f"read the PRIMARY dir instead of coord: {[c.to_dict() for c in blocked_checks]}"
+    )
+    assert not any("was not found" in issue for issue in activity_issues), activity_issues
+    # overall_verdict == "pass" → no fail/pending verdict issue appended.
+    assert not any("verdict is" in issue for issue in activity_issues), activity_issues
+
+
+def test_flat_mission_matrix_read_dir_stays_primary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fallback preserved: a non-coord mission reads the matrix from PRIMARY.
+
+    ``routes_through_coordination`` is False for ``SINGLE_BRANCH``, so the
+    resolver must return the raw ``feature_dir`` unchanged — flat / lane
+    missions read exactly where they do today (regression guard for the
+    non-coord path the folded fix must not disturb).
+
+    Approach (a) — pin the guard DIRECTLY (renata MEDIUM): a bare
+    ``resolved == feature_dir`` assertion cannot distinguish guarded from
+    unguarded, because for a SINGLE_BRANCH mission
+    ``placement_seam(...).read_dir(ACCEPTANCE_MATRIX)`` collapses to the SAME
+    primary ``feature_dir`` — the test would pass even if the
+    ``routes_through_coordination`` short-circuit were deleted. Instead spy on
+    ``mission_runtime.placement_seam`` (the helper resolves it via
+    ``from mission_runtime import placement_seam`` at call time, so patching the
+    package attribute is visible) and assert it is NEVER consulted: the guard
+    must return before the seam. Drop the ``if not routes_through_coordination``
+    line and this test reds on ``seam_calls == []``.
+    """
+    import mission_runtime
+
+    _init_git_repo(tmp_path, branch=_WORK_BRANCH)
+    result = _create_mission(tmp_path, "flat-accept-matrix", MissionTopology.SINGLE_BRANCH)
+    slug = result.mission_slug
+
+    write_acceptance_matrix(result.feature_dir, _matrix_with_marker(slug, "PRIMARY"))
+
+    seam_calls: list[str] = []
+    real_seam = mission_runtime.placement_seam
+
+    def _spy_seam(repo_root: Path, mission_slug: str) -> mission_runtime.PlacementSeam:
+        seam_calls.append(mission_slug)
+        return real_seam(repo_root, mission_slug)
+
+    monkeypatch.setattr(mission_runtime, "placement_seam", _spy_seam)
+
+    resolved = _acceptance_matrix_read_dir(tmp_path, result.feature_dir)
+
+    assert seam_calls == [], (
+        "non-coord mission must short-circuit on routes_through_coordination "
+        f"BEFORE consulting placement_seam (guard pin); seam was called: {seam_calls}"
+    )
+    assert resolved == result.feature_dir, (
+        "non-coord mission must read the matrix from the primary feature_dir "
+        f"({result.feature_dir}), got {resolved}"
+    )
+    assert read_acceptance_matrix(resolved) is not None
 
 
 # ---------------------------------------------------------------------------
