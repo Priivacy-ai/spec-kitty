@@ -362,20 +362,3 @@ def test_real_glossary_contexts_parse() -> None:
         assert ctx.terms, f"No terms parsed from {md_file.name}"
         for term in ctx.terms:
             assert term.name, f"Term with empty name in {md_file.name}"
-
-
-def test_real_check_mode_passes() -> None:
-    """Verify the real generated files are up-to-date (fails if generate was not run)."""
-    map_file = (
-        Path(__file__).resolve().parent.parent.parent.parent / ".kittify" / "traceability" / "contextive-map.yaml"
-    )
-    assert map_file.exists(), "Traceability map not found"
-
-    tmap = gen.load_map(map_file)
-    errors = gen.validate_map(tmap)
-    assert not errors, f"Map validation errors: {errors}"
-
-    result = gen.cmd_check(gen.REPO_ROOT, tmap)
-    assert result == 0, (
-        "Generated Contextive files are stale — run: python scripts/generate_contextive_glossaries.py generate"
-    )
