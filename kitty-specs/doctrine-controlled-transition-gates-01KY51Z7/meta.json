@@ -1,0 +1,33 @@
+{
+  "accept_commit": "865482eab4e2e4dc30d49cc63ce97a0e2aacf54c",
+  "acceptance_history": [
+    {
+      "accept_commit": "865482eab4e2e4dc30d49cc63ce97a0e2aacf54c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-22T21:24:20.414619+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "9b424495b23498f667ba0af83203af3d78900c0c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-22T21:24:20.414619+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "9b424495b23498f667ba0af83203af3d78900c0c",
+  "baseline_merge_commit": "5f82c1f6f1dbab8d9bdfaabcc3d5c7225930f25b",
+  "coordination_branch": "kitty/mission-doctrine-controlled-transition-gates-01KY51Z7",
+  "created_at": "2026-07-22T13:59:15.967982+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine-Controlled Transition Gates",
+  "mission_id": "01KY51Z7QZ4YEKZFBX77TT8196",
+  "mission_number": null,
+  "mission_slug": "doctrine-controlled-transition-gates-01KY51Z7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today Spec Kitty's transition gates (e.g. the pre-review regression check) assume the repo has pytest and Spec Kitty's own source layout, which papercuts non-pytest consumer projects and leaks an internal test-tree module path into their checkouts. This mission (half A of epic #2535) makes gates resolve through the repo's active doctrine so each project runs only the gates it activates, closing two long-standing consumer-repo defects (#2534, #2330) by construction while preserving today's behaviour on Spec Kitty itself. Executable third-party gate assets are explicitly deferred to a later mission.",
+  "purpose_tldr": "Make status-transition gates declared by the repo's active doctrine instead of hardcoded to Spec Kitty's own layout, so consumer projects aren't papercut.",
+  "slug": "doctrine-controlled-transition-gates-01KY51Z7",
+  "target_branch": "feat/doctrine-controlled-transition-gates",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T16:13:53.701165+00:00"
+}
