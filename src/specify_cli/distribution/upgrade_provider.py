@@ -15,6 +15,8 @@ raises):
 
 from __future__ import annotations
 
+import logging
+
 import os
 from importlib.metadata import EntryPoint, entry_points
 from typing import cast
@@ -32,6 +34,9 @@ UPGRADE_PROVIDER_GROUP = "spec_kitty.upgrade_provider"
 PROVIDER_SELECT_ENV_VAR = "SPEC_KITTY_UPGRADE_PROVIDER"
 
 _cached_provider: LatestVersionProvider | None = None
+
+
+_log = logging.getLogger(__name__)
 
 
 def clear_upgrade_provider_cache() -> None:
@@ -83,9 +88,18 @@ def _resolve_upgrade_provider_uncached() -> LatestVersionProvider:
         loaded = selected.load()
         provider = loaded() if callable(loaded) else loaded
     except Exception:
+        _log.debug(
+            "spec_kitty.upgrade_provider entry point %r failed to load; using default provider",
+            selected.name,
+            exc_info=True,
+        )
         return _default_provider()
 
     if not hasattr(provider, "get_latest"):
+        _log.debug(
+            "spec_kitty.upgrade_provider %r has no get_latest(); using default provider",
+            selected.name,
+        )
         return _default_provider()
 
     return cast(LatestVersionProvider, provider)
