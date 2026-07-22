@@ -189,7 +189,7 @@ def test_no_legacy_feature_casing_in_new_terms(glossary_terms: dict, orchestrati
         section = content[heading_idx:end_idx]
         # Look for forbidden Feature term (allow in code blocks)
         lines = section.split("\n")
-        for i, line in enumerate(lines):
+        for line in lines:
             if not line.strip().startswith("`"):  # Skip code lines
                 assert not re.search(r'\bFeature\b', line), \
                     f"Orchestration.md section for '{term}' contains forbidden 'Feature' (use 'Mission')"
