@@ -34,7 +34,7 @@ _LOG = logging.getLogger(__name__)
 
 _MAX_FILE_BYTES: int = 65_536  # 64 KiB defensive bound
 _CACHE_FILE_NAME: str = "upgrade-nag.json"
-_VALID_LATEST_SOURCES: frozenset[str] = frozenset({"pypi", "none"})
+_VALID_LATEST_SOURCES: frozenset[str] = frozenset({"pypi", "simple_index", "none"})
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,8 @@ class NagCacheRecord:
         latest_version: The latest version string returned by the provider,
             or ``None`` when the provider could not determine one.
         latest_source: Where ``latest_version`` came from.  ``"pypi"`` for a
-            successful network lookup; ``"none"`` otherwise.
+            successful public-PyPI lookup; ``"simple_index"`` for a successful
+            PEP 503 simple-index lookup; ``"none"`` otherwise.
         fetched_at: UTC datetime when the latest-version lookup completed.
         last_shown_at: UTC datetime when the nag was last displayed to the
             user, or ``None`` if it has never been shown.
@@ -88,7 +89,7 @@ class NagCacheRecord:
 
     cli_version_key: str
     latest_version: str | None
-    latest_source: Literal["pypi", "none"]
+    latest_source: Literal["pypi", "simple_index", "none"]
     fetched_at: datetime
     last_shown_at: datetime | None
     remote_version_seen: str | None = None
@@ -132,8 +133,11 @@ class NagCacheRecord:
         latest_version = _optional_str(data, "latest_version")
         latest_source_raw = _require_str(data, "latest_source")
         if latest_source_raw not in _VALID_LATEST_SOURCES:
-            raise ValueError(f"latest_source must be 'pypi' or 'none', got {latest_source_raw!r}")
-        latest_source: Literal["pypi", "none"] = "pypi" if latest_source_raw == "pypi" else "none"
+            raise ValueError(
+                f"latest_source must be 'pypi', 'simple_index', or 'none', "
+                f"got {latest_source_raw!r}"
+            )
+        latest_source = _coerce_latest_source(latest_source_raw)
         fetched_at = _iso_to_dt(_require_str(data, "fetched_at"))
         last_shown_at_raw = _optional_str(data, "last_shown_at")
         last_shown_at = _iso_to_dt(last_shown_at_raw) if last_shown_at_raw is not None else None
@@ -167,6 +171,15 @@ def _optional_str(data: dict[str, object], key: str) -> str | None:
     if isinstance(raw_value, str):
         return raw_value
     raise ValueError(f"{key} must be str or null, got {type(raw_value)}")
+
+
+def _coerce_latest_source(raw: str) -> Literal["pypi", "simple_index", "none"]:
+    """Map a validated source token to the Literal type."""
+    if raw == "pypi":
+        return "pypi"
+    if raw == "simple_index":
+        return "simple_index"
+    return "none"
 
 
 def _parse_snooze_step(raw_value: object) -> SnoozeStep | None:

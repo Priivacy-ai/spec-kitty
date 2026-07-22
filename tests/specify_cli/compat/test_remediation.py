@@ -422,7 +422,11 @@ class TestBuildUpgradeHintParity:
             "specify_cli.compat._detect.runtime.detect_runtime",
             return_value=controlled,
         ):
-            hint = build_upgrade_hint(InstallMethod.UV_TOOL, target_version="3.2.2")
+            hint = build_upgrade_hint(
+                InstallMethod.UV_TOOL,
+                package="spec-kitty-cli",
+                target_version="3.2.2",
+            )
 
         assert hint.command == "uv tool install --force spec-kitty-cli==3.2.2"
 
@@ -433,7 +437,11 @@ class TestBuildUpgradeHintParity:
             "specify_cli.compat._detect.runtime.detect_runtime",
             return_value=controlled,
         ):
-            hint = build_upgrade_hint(InstallMethod.UV_TOOL, target_version="3.2.2;rm")
+            hint = build_upgrade_hint(
+                InstallMethod.UV_TOOL,
+                package="spec-kitty-cli",
+                target_version="3.2.2;rm",
+            )
 
         assert hint.command == "uv tool install --force spec-kitty-cli"
 
@@ -627,8 +635,10 @@ class TestChk028:
             cmd.render("posix")
 
     def test_too_long_command_raises_chk028(self) -> None:
-        """Composed string > 128 chars → CHK028 violation."""
-        long_pkg = "a" * 120
+        """Composed string > COMMAND_ALLOWLIST_MAX_LEN chars → CHK028 violation."""
+        from specify_cli.compat.remediation import COMMAND_ALLOWLIST_MAX_LEN
+
+        long_pkg = "a" * COMMAND_ALLOWLIST_MAX_LEN
         cmd = RemediationCommand(
             intent=RemediationIntent.UPGRADE,
             argv=("pip", "install", long_pkg),

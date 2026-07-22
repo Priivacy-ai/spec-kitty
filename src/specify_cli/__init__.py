@@ -83,9 +83,10 @@ def version_callback(value: bool) -> None:
     if value:
         from specify_cli.cli.console import console
         from specify_cli.cli.helpers import show_banner
+        from specify_cli.distribution.package_name import resolve_cli_package_name
 
         show_banner(force=True)
-        console.print(f"spec-kitty-cli version {__version__}")
+        console.print(f"{resolve_cli_package_name()} version {__version__}")
         raise typer.Exit()
 
 def main_callback(

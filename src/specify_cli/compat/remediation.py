@@ -9,8 +9,8 @@ plan_remediation     -- Pure function: build a RemediationCommand from runtime +
 Security properties enforced here
 -----------------------------------
 CHK028  ``render()`` validates the composed command string against
-        ``^[A-Za-z0-9 .\\-+_/=:]{1,128}$`` (identical character class
-        to the one in ``compat/upgrade_hint.py``).
+        ``^[A-Za-z0-9 .\\-+_/=:]{1,COMMAND_ALLOWLIST_MAX_LEN}$``
+        (identical character class to ``compat/upgrade_hint.py``).
 """
 
 from __future__ import annotations
@@ -25,10 +25,13 @@ if TYPE_CHECKING:
     from specify_cli.compat._detect.runtime import InstalledCliRuntime, UvRequirement
 
 # ---------------------------------------------------------------------------
-# CHK028 validation regex (identical to upgrade_hint.py line 29)
+# CHK028 validation (shared with upgrade_hint.py)
 # ---------------------------------------------------------------------------
 
-_COMMAND_RE = re.compile(r"^[A-Za-z0-9 .\-+_/=:]{1,128}$")  # CHK028
+COMMAND_ALLOWLIST_MAX_LEN = 512
+_COMMAND_RE = re.compile(
+    rf"^[A-Za-z0-9 .\-+_/=:]{{1,{COMMAND_ALLOWLIST_MAX_LEN}}}$"
+)  # CHK028 — character class unchanged; length raised for index URLs
 
 # Version specifier validation — same pattern as upgrade_hint.py _VERSION_RE
 _VERSION_RE = re.compile(r"^[A-Za-z0-9.\-+]{1,64}$")
@@ -103,7 +106,7 @@ class RemediationCommand:
             ValueError: if ``self.intent`` is ``MANUAL_GUIDANCE``.
             ValueError: if ``self.argv`` is ``None``.
             ValueError: if the composed string does not match CHK028
-                        (``^[A-Za-z0-9 .\\-+_/=:]{1,128}$``).
+                        (``^[A-Za-z0-9 .\\-+_/=:]{1,512}$``).
 
         The returned string is safe for copy-paste display.  The same
         ``argv`` and ``env`` fields can be passed directly to
@@ -158,11 +161,17 @@ def plan_remediation(
     runtime: InstalledCliRuntime,
     intent: RemediationIntent,
     target_version: str | None,
+    *,
+    package_name: str = _PACKAGE_NAME,
+    package_aliases: tuple[str, ...] = (),
+    index_url: str | None = None,
+    extra_index_url: str | None = None,
 ) -> RemediationCommand:
     """Return a :class:`RemediationCommand` for *runtime* and *intent*.
 
     NFR-004: Pure function — no I/O, no side effects.  Deterministic for
-    the same inputs.
+    the same inputs.  Callers that resolve a :class:`DistributionProfile`
+    (e.g. ``build_upgrade_hint``) pass package/index knobs explicitly.
 
     Args:
         runtime: Immutable snapshot of the running installation.
@@ -170,6 +179,10 @@ def plan_remediation(
         target_version: Optional version specifier for the upgrade.  Only
             applied to UV_TOOL UPGRADE when the value matches
             ``^[A-Za-z0-9.\\-+]{1,64}$``.  Ignored for other methods.
+        package_name: Distribution name for argv composition.
+        package_aliases: Alternate names when matching uv receipt entries.
+        index_url: Optional ``--index-url`` for pip/pipx/uv remediation.
+        extra_index_url: Optional ``--extra-index-url`` for pip/pipx/uv.
 
     Returns:
         A :class:`RemediationCommand`.  For install methods that do not
@@ -178,18 +191,24 @@ def plan_remediation(
     """
     from specify_cli.compat._detect.install_method import InstallMethod  # deferred
 
+    packaging = _RemediationPackaging(
+        package_name=package_name,
+        package_aliases=package_aliases,
+        index_url=index_url,
+        extra_index_url=extra_index_url,
+    )
     install_method = runtime.install_method
 
     if install_method == InstallMethod.UV_TOOL:
-        return _plan_uv_tool(runtime, intent, target_version)
+        return _plan_uv_tool(runtime, intent, target_version, packaging)
     if install_method == InstallMethod.PIPX:
-        return _plan_pipx(intent)
+        return _plan_pipx(intent, packaging)
     if install_method == InstallMethod.BREW:
-        return _plan_brew(intent)
+        return _plan_brew(intent, packaging)
     if install_method == InstallMethod.PIP_USER:
-        return _plan_pip_user(intent)
+        return _plan_pip_user(intent, packaging)
     if install_method == InstallMethod.PIP_SYSTEM:
-        return _plan_pip_system(intent)
+        return _plan_pip_system(intent, packaging)
 
     # SOURCE, UNKNOWN, SYSTEM_PACKAGE — no automated path
     note = _manual_note(str(install_method), intent)
@@ -201,6 +220,39 @@ def plan_remediation(
     )
 
 
+@dataclass(frozen=True)
+class _RemediationPackaging:
+    """Pure packaging knobs for remediation argv composition."""
+
+    package_name: str = _PACKAGE_NAME
+    package_aliases: tuple[str, ...] = ()
+    index_url: str | None = None
+    extra_index_url: str | None = None
+
+
+def _index_argv_flags(packaging: _RemediationPackaging) -> tuple[str, ...]:
+    """Return ``--index-url`` / ``--extra-index-url`` flags when set."""
+    flags: list[str] = []
+    if packaging.index_url:
+        flags.extend(["--index-url", packaging.index_url])
+    if packaging.extra_index_url:
+        flags.extend(["--extra-index-url", packaging.extra_index_url])
+    return tuple(flags)
+
+
+def _with_index_before_package(
+    argv: tuple[str, ...],
+    packaging: _RemediationPackaging,
+) -> tuple[str, ...]:
+    """Insert index URL flags immediately before the final package token."""
+    flags = _index_argv_flags(packaging)
+    if not flags:
+        return argv
+    if not argv:
+        return flags
+    return argv[:-1] + flags + argv[-1:]
+
+
 # ---------------------------------------------------------------------------
 # Per-method planning helpers
 # ---------------------------------------------------------------------------
@@ -210,37 +262,39 @@ def _plan_uv_tool(
     runtime: InstalledCliRuntime,
     intent: RemediationIntent,
     target_version: str | None,
+    packaging: _RemediationPackaging,
 ) -> RemediationCommand:
     """Build a RemediationCommand for UV_TOOL installs."""
     if intent == RemediationIntent.REINSTALL_WITH_TEST:
-        return _plan_uv_tool_reinstall(runtime, target_version)
-    return _plan_uv_tool_upgrade(runtime, target_version)
+        return _plan_uv_tool_reinstall(runtime, target_version, packaging)
+    return _plan_uv_tool_upgrade(runtime, target_version, packaging)
 
 
-def _pypi_package_arg(target_version: str | None) -> str:
-    """``spec-kitty-cli``, version-pinned when *target_version* is valid (CHK)."""
+def _pypi_package_arg(
+    target_version: str | None,
+    package_name: str,
+) -> str:
+    """``package_name``, version-pinned when *target_version* is valid (CHK)."""
     return (
-        f"{_PACKAGE_NAME}=={target_version}"
+        f"{package_name}=={target_version}"
         if target_version is not None and _VERSION_RE.match(target_version)
-        else _PACKAGE_NAME
+        else package_name
     )
 
 
 def _plan_uv_tool_upgrade(
     runtime: InstalledCliRuntime,
     target_version: str | None,
+    packaging: _RemediationPackaging,
 ) -> RemediationCommand:
-    """UPGRADE intent: pin to the PyPI release (provenance not preserved by design).
-
-    Upgrading deliberately targets the published release; the reinstall path
-    (REINSTALL_WITH_TEST) is the one that must preserve the user's source.
-    """
-    pkg = _pypi_package_arg(target_version)
+    """UPGRADE intent: pin to the published release (provenance not preserved)."""
+    pkg = _pypi_package_arg(target_version, packaging.package_name)
 
     base: tuple[str, ...] = ("uv", "tool", "install", "--force")
     if runtime.python is not None:
         base = base + ("--python", runtime.python)
     base = base + (pkg,)
+    base = _with_index_before_package(base, packaging)
 
     return RemediationCommand(
         intent=RemediationIntent.UPGRADE, argv=base, env=_uv_tool_env(runtime), note=None
@@ -250,26 +304,15 @@ def _plan_uv_tool_upgrade(
 def _plan_uv_tool_reinstall(
     runtime: InstalledCliRuntime,
     target_version: str | None,
+    packaging: _RemediationPackaging,
 ) -> RemediationCommand:
-    """REINSTALL_WITH_TEST: rebuild the install with pytest, preserving provenance.
-
-    FR-019 / SC-003 / issue #1358: a uv-tool install from a directory, editable
-    checkout, path, git, or url source MUST be reinstalled from that same source
-    — never silently re-pinned to the PyPI release (which clobbers the user's
-    real install). Injected deps are carried through as ``--with`` args. When the
-    receipt carries an unsupported/unknown shape we refuse and return
-    MANUAL_GUIDANCE rather than risk a clobber (conservative — nothing discarded).
-    """
+    """REINSTALL_WITH_TEST: rebuild the install with pytest, preserving provenance."""
     env = _uv_tool_env(runtime)
 
-    main_req = _find_main_requirement(runtime.requirements)
+    main_req = _find_main_requirement(runtime.requirements, packaging)
     if main_req is None:
         if runtime.receipt_path is None:
-            # No receipt at all — the source is unknown, so a PyPI reinstall
-            # (pinned to the running version when known) is the only option.
-            return _uv_tool_reinstall_pypi_fallback(env, target_version)
-        # Receipt present but no spec-kitty-cli entry — refuse to guess a PyPI
-        # pin that could clobber the real (unmapped) source. Be conservative.
+            return _uv_tool_reinstall_pypi_fallback(env, target_version, packaging)
         return RemediationCommand(
             intent=RemediationIntent.MANUAL_GUIDANCE,
             argv=None,
@@ -277,10 +320,9 @@ def _plan_uv_tool_reinstall(
             note=_UV_PROVENANCE_FALLBACK_NOTE,
         )
 
-    package_args = _uv_main_package_args(main_req)
-    with_args = _uv_with_args(runtime.requirements)
+    package_args = _uv_main_package_args(main_req, packaging.package_name)
+    with_args = _uv_with_args(runtime.requirements, packaging)
     if package_args is None or with_args is None:
-        # Unsupported receipt shape — refuse to guess; preserve the source.
         return RemediationCommand(
             intent=RemediationIntent.MANUAL_GUIDANCE,
             argv=None,
@@ -292,9 +334,8 @@ def _plan_uv_tool_reinstall(
     if runtime.python is not None:
         argv = argv + ("--python", runtime.python)
     argv = argv + tuple(with_args) + tuple(package_args)
+    argv = _with_index_before_package(argv, packaging)
 
-    # ``note`` is the safe fallback the display consumer uses if render() trips
-    # CHK028 on a path containing characters outside the safe display class.
     return RemediationCommand(
         intent=RemediationIntent.REINSTALL_WITH_TEST,
         argv=argv,
@@ -306,10 +347,12 @@ def _plan_uv_tool_reinstall(
 def _uv_tool_reinstall_pypi_fallback(
     env: dict[str, str],
     target_version: str | None,
+    packaging: _RemediationPackaging,
 ) -> RemediationCommand:
     """Reinstall command when no source provenance is available (receipt absent)."""
-    pkg = _pypi_package_arg(target_version)
+    pkg = _pypi_package_arg(target_version, packaging.package_name)
     argv = ("uv", "tool", "install", "--force", "--with", _PYTEST_NAME, pkg)
+    argv = _with_index_before_package(argv, packaging)
     return RemediationCommand(
         intent=RemediationIntent.REINSTALL_WITH_TEST,
         argv=argv,
@@ -334,15 +377,17 @@ def _uv_tool_env(runtime: InstalledCliRuntime) -> dict[str, str]:
 
 def _find_main_requirement(
     requirements: tuple[UvRequirement, ...],
+    packaging: _RemediationPackaging,
 ) -> UvRequirement | None:
-    """Return the spec-kitty-cli requirement entry, or None if absent."""
+    """Return the main package requirement entry, or None if absent."""
+    names = {packaging.package_name, *packaging.package_aliases}
     for req in requirements:
-        if req.name == _PACKAGE_NAME:
+        if req.name in names:
             return req
     return None
 
 
-def _uv_main_package_args(req: UvRequirement) -> list[str] | None:
+def _uv_main_package_args(req: UvRequirement, package_name: str) -> list[str] | None:
     """Package args preserving the main package's source provenance.
 
     Returns None when the entry's shape is unsupported (the caller then
@@ -357,23 +402,27 @@ def _uv_main_package_args(req: UvRequirement) -> list[str] | None:
     if req.path is not None:
         return [req.path]
     if req.git is not None:
-        return [_PACKAGE_NAME, "--from", _uv_git_source(req.git)]
+        return [package_name, "--from", _uv_git_source(req.git)]
     if req.url is not None:
         return [req.url]
     if req.specifier is not None:
-        return [f"{_PACKAGE_NAME}{req.specifier}"]
-    return [_PACKAGE_NAME]
+        return [f"{package_name}{req.specifier}"]
+    return [package_name]
 
 
-def _uv_with_args(requirements: tuple[UvRequirement, ...]) -> list[str] | None:
+def _uv_with_args(
+    requirements: tuple[UvRequirement, ...],
+    packaging: _RemediationPackaging,
+) -> list[str] | None:
     """`--with`/`--with-editable` args for injected deps, ensuring pytest is present.
 
     Returns None when any injected dep has an unsupported shape (conservative).
     """
+    names = {packaging.package_name, *packaging.package_aliases}
     args: list[str] = []
     has_pytest = False
     for req in requirements:
-        if req.name == _PACKAGE_NAME:
+        if req.name in names:
             continue
         if req.name == _PYTEST_NAME:
             has_pytest = True
@@ -416,25 +465,31 @@ def _uv_git_source(git: str) -> str:
     return git if git.startswith("git+") else f"git+{git}"
 
 
-def _plan_pipx(intent: RemediationIntent) -> RemediationCommand:
+def _plan_pipx(
+    intent: RemediationIntent,
+    packaging: _RemediationPackaging,
+) -> RemediationCommand:
     """Build a RemediationCommand for PIPX installs."""
     if intent == RemediationIntent.UPGRADE:
-        argv: tuple[str, ...] = ("pipx", "upgrade", _PACKAGE_NAME)
+        argv: tuple[str, ...] = ("pipx", "upgrade", packaging.package_name)
     else:
-        argv = ("pipx", "install", "--include-deps", f"{_PACKAGE_NAME}[test]")
+        argv = ("pipx", "install", "--include-deps", f"{packaging.package_name}[test]")
+    argv = _with_index_before_package(argv, packaging)
     return RemediationCommand(intent=intent, argv=argv, env={}, note=None)
 
 
-def _plan_brew(intent: RemediationIntent) -> RemediationCommand:
-    """Build a RemediationCommand for BREW installs."""
+def _plan_brew(
+    intent: RemediationIntent,
+    packaging: _RemediationPackaging,
+) -> RemediationCommand:
+    """Build a RemediationCommand for BREW installs (no index URL flags)."""
     if intent == RemediationIntent.UPGRADE:
         return RemediationCommand(
             intent=intent,
-            argv=("brew", "upgrade", _PACKAGE_NAME),
+            argv=("brew", "upgrade", packaging.package_name),
             env={},
             note=None,
         )
-    # REINSTALL_WITH_TEST — no standard brew test-extra path
     return RemediationCommand(
         intent=RemediationIntent.MANUAL_GUIDANCE,
         argv=None,
@@ -443,12 +498,17 @@ def _plan_brew(intent: RemediationIntent) -> RemediationCommand:
     )
 
 
-def _plan_pip_user(intent: RemediationIntent) -> RemediationCommand:
+def _plan_pip_user(
+    intent: RemediationIntent,
+    packaging: _RemediationPackaging,
+) -> RemediationCommand:
     """Build a RemediationCommand for PIP_USER installs."""
     if intent == RemediationIntent.UPGRADE:
+        argv = ("pip", "install", "--user", "--upgrade", packaging.package_name)
+        argv = _with_index_before_package(argv, packaging)
         return RemediationCommand(
             intent=intent,
-            argv=("pip", "install", "--user", "--upgrade", _PACKAGE_NAME),
+            argv=argv,
             env={},
             note=None,
         )
@@ -460,12 +520,17 @@ def _plan_pip_user(intent: RemediationIntent) -> RemediationCommand:
     )
 
 
-def _plan_pip_system(intent: RemediationIntent) -> RemediationCommand:
+def _plan_pip_system(
+    intent: RemediationIntent,
+    packaging: _RemediationPackaging,
+) -> RemediationCommand:
     """Build a RemediationCommand for PIP_SYSTEM installs."""
     if intent == RemediationIntent.UPGRADE:
+        argv = ("pip", "install", "--upgrade", packaging.package_name)
+        argv = _with_index_before_package(argv, packaging)
         return RemediationCommand(
             intent=intent,
-            argv=("pip", "install", "--upgrade", _PACKAGE_NAME),
+            argv=argv,
             env={},
             note=None,
         )

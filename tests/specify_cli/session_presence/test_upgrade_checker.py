@@ -134,7 +134,7 @@ class TestCheckInBackground:
             result = checker.check_in_background()
         assert result is None
 
-    def test_background_probe_uses_pypi_json_not_uv_pip_index(self, patched_cache: Path) -> None:
+    def test_background_probe_spawns_refresh_cache_once(self, patched_cache: Path) -> None:
         calls: list[list[str]] = []
 
         with patch("subprocess.Popen", side_effect=lambda argv, **_: calls.append(argv)):
@@ -142,7 +142,8 @@ class TestCheckInBackground:
 
         assert calls
         script = calls[0][2]
-        assert "https://pypi.org/pypi/spec-kitty-cli/json" in script
+        assert "refresh_cache_once" in script
+        assert "specify_cli.session_presence.upgrade_check" in script
         assert "uv pip index" not in script
 
     def test_mkdir_failure_does_not_raise(
@@ -152,3 +153,77 @@ class TestCheckInBackground:
         with patch("subprocess.Popen", side_effect=PermissionError("no access")):
             checker = UpgradeChecker()
             checker.check_in_background()  # Must not raise
+
+
+class TestRefreshCacheOnce:
+    def test_uses_resolved_provider_and_package_name(
+        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
+
+        calls: list[str] = []
+
+        class RecordingProvider:
+            def get_latest(self, package: str) -> LatestVersionResult:
+                calls.append(package)
+                return FakeLatestVersionProvider(version="8.8.8").get_latest(package)
+
+        monkeypatch.setattr(
+            "specify_cli.distribution.package_name.resolve_cli_package_name",
+            lambda: "acme-spec-kitty-cli",
+        )
+        monkeypatch.setattr(
+            "specify_cli.distribution.upgrade_provider.resolve_upgrade_provider",
+            lambda: RecordingProvider(),
+        )
+        from specify_cli.distribution.package_name import clear_cli_package_name_cache
+        from specify_cli.distribution.upgrade_provider import clear_upgrade_provider_cache
+
+        clear_cli_package_name_cache()
+        clear_upgrade_provider_cache()
+
+        upgrade_check_module.refresh_cache_once()
+        assert calls == ["acme-spec-kitty-cli"]
+        data = json.loads(patched_cache.read_text(encoding="utf-8"))
+        assert data["latest_version"] == "8.8.8"
+
+    def test_stock_path_queries_default_package_via_provider(
+        self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
+        from specify_cli.distribution.package_name import (
+            DEFAULT_CLI_PACKAGE_NAME,
+            clear_cli_package_name_cache,
+        )
+        from specify_cli.distribution.upgrade_provider import clear_upgrade_provider_cache
+
+        clear_cli_package_name_cache()
+        clear_upgrade_provider_cache()
+
+        seen: list[str] = []
+
+        class StockProvider:
+            def get_latest(self, package: str) -> LatestVersionResult:
+                seen.append(package)
+                return FakeLatestVersionProvider(version="1.2.3").get_latest(package)
+
+        monkeypatch.setattr(
+            "specify_cli.distribution.package_name.entry_points",
+            lambda group: [],
+        )
+        monkeypatch.setattr(
+            "specify_cli.distribution.package_name.packages_distributions",
+            lambda: {},
+        )
+        monkeypatch.setattr(
+            "specify_cli.distribution.upgrade_provider.entry_points",
+            lambda group: [],
+        )
+        # Force provider path without network: replace resolve_upgrade_provider
+        monkeypatch.setattr(
+            "specify_cli.distribution.upgrade_provider.resolve_upgrade_provider",
+            lambda: StockProvider(),
+        )
+        clear_cli_package_name_cache()
+        upgrade_check_module.refresh_cache_once()
+        assert seen == [DEFAULT_CLI_PACKAGE_NAME]

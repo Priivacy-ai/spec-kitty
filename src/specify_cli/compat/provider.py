@@ -64,7 +64,8 @@ class LatestVersionResult:
     Attributes:
         version: The sanitised version string returned by PyPI, or ``None`` when
             no version could be retrieved.
-        source: Where the result came from.  ``"pypi"`` for a successful network
+        source: Where the result came from.  ``"pypi"`` for a successful public
+            PyPI lookup; ``"simple_index"`` for a successful PEP 503 simple-index
             lookup; ``"none"`` for offline / error paths.
         error: A fixed-vocabulary token describing the failure, or ``None`` on
             success.  Tokens: ``"timeout"``, ``"http_error"``, ``"parse_error"``,
@@ -72,7 +73,7 @@ class LatestVersionResult:
     """
 
     version: str | None
-    source: Literal["pypi", "none"]
+    source: Literal["pypi", "simple_index", "none"]
     error: str | None
 
 
@@ -244,3 +245,13 @@ class FakeLatestVersionProvider:
         if self._version is not None:
             return LatestVersionResult(version=self._version, source="pypi", error=None)
         return LatestVersionResult(version=None, source="none", error=None)
+
+
+def __getattr__(name: str) -> object:
+    """Lazy re-export for discoverability without import cycles."""
+    if name == "SimpleIndexProvider":
+        from specify_cli.distribution.simple_index import SimpleIndexProvider
+
+        return SimpleIndexProvider
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+

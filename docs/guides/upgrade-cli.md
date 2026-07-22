@@ -7,6 +7,7 @@ type: how-to
 related:
 - docs/guides/install-and-upgrade.md
 - docs/guides/upgrade-project.md
+- docs/guides/fork-packaging-hooks.md
 audience: end-users
 ---
 # Upgrade the Spec Kitty CLI
@@ -14,6 +15,8 @@ audience: end-users
 Upgrade the `spec-kitty` binary to a newer release. This page covers the CLI itself only; for upgrading an existing project's `.kittify/` scaffold to match, see [Upgrade a project](upgrade-project.md).
 
 > Spec Kitty distinguishes **CLI upgrades** (installing a new `spec-kitty-cli` wheel) from **project upgrades** (running migrations inside a project). They are separate steps.
+
+> **Packagers / forks:** If you publish Spec Kitty under a different distribution name or private index, do not overlay core sources — register entry-point hooks instead. See [Fork packaging hooks](fork-packaging-hooks.md).
 
 ## Quick reference
 
@@ -111,3 +114,4 @@ When a newer CLI version is available on PyPI, spec-kitty prints a single banner
 - [Upgrade an existing project](upgrade-project.md)
 - [Upgrade lifecycle reference](../api/upgrade-lifecycle.md)
 - [Install and upgrade overview](install-and-upgrade.md)
+- [Fork packaging hooks](fork-packaging-hooks.md) (renamed / private-index distributors)
