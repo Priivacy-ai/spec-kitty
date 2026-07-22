@@ -26,7 +26,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from importlib.metadata import version as _pkg_version
 from typing import Literal, Protocol
 
 import httpx
@@ -41,15 +40,42 @@ _VERSION_RE = re.compile(r"^[A-Za-z0-9.\-+]{1,64}$")
 
 
 def _get_installed_version() -> str:
-    """Return the installed spec-kitty-cli version string.
+    """Return the installed CLI version string for the active distribution.
 
-    Falls back to ``"unknown"`` if the package is not installed (e.g., editable
-    dev installs without the metadata in the path).
+    Resolves through the ``DistributionProfile`` (package name + aliases) so a
+    renamed / private-index fork reports its own installed version rather than
+    the upstream ``spec-kitty-cli`` metadata (#2857). Falls back to ``"unknown"``
+    when no matching distribution metadata is installed (e.g. editable dev
+    installs without metadata in the path).
     """
     try:
-        return _pkg_version("spec-kitty-cli")
+        from specify_cli.distribution import resolve_distribution_profile
+        from specify_cli.distribution.installed_version import (
+            resolve_installed_distribution_version,
+        )
+
+        profile = resolve_distribution_profile()
+        return resolve_installed_distribution_version(
+            profile.package_name, profile.package_aliases, default="unknown"
+        )
     except Exception:  # noqa: BLE001
         return "unknown"
+
+
+def _compat_user_agent() -> str:
+    """Build the outbound User-Agent, self-identifying as the active distribution.
+
+    A fork registers its own name via ``spec_kitty.cli_package`` /
+    ``DistributionProfile`` so its private index sees the fork's identity, not
+    the upstream ``spec-kitty-cli`` literal (#2857).
+    """
+    try:
+        from specify_cli.distribution import resolve_cli_package_name
+
+        name = resolve_cli_package_name()
+    except Exception:  # noqa: BLE001
+        name = "spec-kitty-cli"
+    return f"{name}/{_get_installed_version()} compat-planner"
 
 
 # ---------------------------------------------------------------------------
@@ -144,8 +170,7 @@ class PyPIProvider:
         Returns:
             A :class:`LatestVersionResult` describing the outcome.  Never raises.
         """
-        installed_version = _get_installed_version()
-        user_agent = f"spec-kitty-cli/{installed_version} compat-planner"
+        user_agent = _compat_user_agent()
         url = _PYPI_URL_TEMPLATE.format(package=package)
 
         try:

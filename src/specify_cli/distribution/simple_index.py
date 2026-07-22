@@ -29,7 +29,7 @@ from packaging.version import InvalidVersion, Version
 
 from specify_cli.compat.provider import (
     LatestVersionResult,
-    _get_installed_version,
+    _compat_user_agent,
     _MAX_RESPONSE_BYTES,
     _VERSION_RE,
 )
@@ -124,8 +124,7 @@ class SimpleIndexProvider:
         Never raises. Failures return ``version=None, source="none"`` with a
         fixed-vocabulary error token.
         """
-        installed_version = _get_installed_version()
-        user_agent = f"spec-kitty-cli/{installed_version} compat-planner"
+        user_agent = _compat_user_agent()
         url = _project_page_url(self._index_url, package)
 
         try:
