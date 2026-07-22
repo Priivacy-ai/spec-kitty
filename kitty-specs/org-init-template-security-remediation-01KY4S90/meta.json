@@ -17,7 +17,7 @@
   "flattened": false,
   "friendly_name": "Org Init Template Security Remediation",
   "mission_id": "01KY4S90DHE3Q7XHXC08K228SW",
-  "mission_number": null,
+  "mission_number": 186,
   "mission_slug": "org-init-template-security-remediation-01KY4S90",
   "mission_type": "software-dev",
   "pr_bound": true,
