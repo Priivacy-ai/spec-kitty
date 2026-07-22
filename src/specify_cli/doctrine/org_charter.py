@@ -91,6 +91,7 @@ REQUIRED_KIND_FIELDS: tuple[str, ...] = (
     "procedures",
     "agent_profiles",
     "mission_step_contracts",
+    "glossary_packs",
 )
 
 
@@ -161,6 +162,7 @@ class OrgCharterPolicy(BaseModel):
     required_procedures: list[str] = Field(default_factory=list)
     required_agent_profiles: list[str] = Field(default_factory=list)
     required_mission_step_contracts: list[str] = Field(default_factory=list)
+    required_glossary_packs: list[str] = Field(default_factory=list)
     governance_policies: list[GovernancePolicy] = Field(default_factory=list)
     activations: list[ActivationEntry] = Field(default_factory=list)
     """Org-pack-level activation registry (FR-008 / WP06 T028).  Each pack
@@ -601,6 +603,7 @@ def _fold_policies(
         required_procedures=merged_required["procedures"],
         required_agent_profiles=merged_required["agent_profiles"],
         required_mission_step_contracts=merged_required["mission_step_contracts"],
+        required_glossary_packs=merged_required["glossary_packs"],
         governance_policies=_dedupe_governance(merged_governance),
         activations=list(activation_dedup.values()),
     )

@@ -12,6 +12,15 @@ Covers:
 * T017 — mission-type universe expansion (FR-032, decision locked); lockstep
   drift guard against ``charter.activations._ALLOWED_KINDS``.
 * T018 — topology field-merge semantics for step contracts / mission types.
+
+Note: the T-numbers above are from the ``org-doctrine-profile-integrity-
+activation-closure`` mission that authored this file. Mission
+``glossary-pack-doctrine-kind-01KY30SW`` WP04/T022 later extended
+``test_lockstep_drift_guard_against_allowed_kinds`` to a genuine three-way
+equality (adding ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` as the
+third mirror) and added the sibling
+``test_glossary_packs_ship_active_by_default`` positive default-on
+assertion — see those tests' own docstrings for the RED-first rationale.
 """
 
 from __future__ import annotations
@@ -410,14 +419,26 @@ def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None
 
 
 def test_lockstep_drift_guard_against_allowed_kinds() -> None:
-    """FR-032 lockstep: the org-pack universe == ``_ALLOWED_KINDS`` ∪ mission-type.
+    """FR-032 / glossary-pack-doctrine-kind WP04 (T022) three-way lockstep:
 
-    This is the contract-test sweep the spec requires: neither
-    ``charter.activations._ALLOWED_KINDS`` nor the loader universe may drift
-    silently, and mission types must never be dropped. The org-pack universe
-    additionally retains the ``mission_step_contracts`` backward-compat alias.
+        org-pack universe == ``charter.activations._ALLOWED_KINDS`` ∪ mission-type
+                           == ``charter.pack_context._BUILTIN_ARTIFACT_KINDS``
+
+    This is the contract-test sweep the spec requires: none of the three
+    mirrors (org-pack DRG universe, the activation-allowed set, and the
+    default-on built-in set) may drift silently, and mission types must
+    never be dropped. The org-pack universe additionally retains the
+    ``mission_step_contracts`` backward-compat alias.
+
+    Prior to WP04 this guard bound only ``_ALLOWED_KINDS`` and
+    ``_ORG_DRG_CANONICAL_KINDS`` — ``_BUILTIN_ARTIFACT_KINDS`` (the list that
+    actually delivers default-on) was UNBOUND, so a new kind could be added
+    to the other two lists, the suite would stay green, and the kind would
+    still ship inactive-by-default. This test closes that hole by making the
+    equality genuinely three-way.
     """
     from charter.activations import _ALLOWED_KINDS
+    from charter.pack_context import _BUILTIN_ARTIFACT_KINDS
 
     # Canonical forms only (drop the loader's backward-compat alias for the
     # comparison): the org-pack universe must equal the activation allowed set
@@ -432,6 +453,44 @@ def test_lockstep_drift_guard_against_allowed_kinds() -> None:
     }
     assert canonical_universe == normalised_allowed | _MISSION_TYPE_UNIVERSE_EXTENSION
     assert frozenset({"mission_types"}) == _MISSION_TYPE_UNIVERSE_EXTENSION
+
+    # Third leg of the lockstep: the default-on built-in set uses the SAME
+    # plural vocabulary as ``_ALLOWED_KINDS`` (no mission-step rename needed
+    # here) so a bare equality is the correct — and strictest — guard.
+    assert _BUILTIN_ARTIFACT_KINDS == _ALLOWED_KINDS, (
+        "charter.pack_context._BUILTIN_ARTIFACT_KINDS has drifted from "
+        "charter.activations._ALLOWED_KINDS. A kind present in one but not "
+        "the other means either an activatable kind can never be the "
+        "default-on set, or a kind ships default-on without being a "
+        "documented activatable kind.\n"
+        f"  _ALLOWED_KINDS only: {sorted(_ALLOWED_KINDS - _BUILTIN_ARTIFACT_KINDS)}\n"
+        f"  _BUILTIN_ARTIFACT_KINDS only: {sorted(_BUILTIN_ARTIFACT_KINDS - _ALLOWED_KINDS)}"
+    )
+
+
+def test_glossary_packs_ship_active_by_default() -> None:
+    """Positive default-on assertion (T022, squad F3 RED-first anchor).
+
+    ``"glossary_packs"`` must be a member of
+    ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` — the list consulted
+    when a project's ``.kittify/config.yaml`` (or ``charter.yaml``) has no
+    explicit ``activated_kinds`` key. Without this membership, the built-in
+    ``spec-kitty-core`` glossary pack would resolve as a DRG node (WP03) but
+    never surface through the charter-mediated activation filter — silently
+    inactive on every project that has not explicitly opted in, which is
+    the exact default-on regression this mission exists to prevent.
+
+    This assertion is authored RED-first: it fails until WP04's T019 adds
+    ``"glossary_packs"`` to ``_BUILTIN_ARTIFACT_KINDS``. Unlike the
+    three-way equality above (which could be green-on-arrival if authored
+    after all the kind-lists are already consistent), this single-membership
+    check is unambiguously RED before T019 lands and unambiguously GREEN
+    after — the demonstrable RED-before-wiring-commit evidence the DoD
+    requires.
+    """
+    from charter.pack_context import _BUILTIN_ARTIFACT_KINDS
+
+    assert "glossary_packs" in _BUILTIN_ARTIFACT_KINDS
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ Canonical charter kind universe (R-009)
 The charter command surfaces (``activate`` / ``deactivate`` / ``list`` /
 ``context --include``) operate over the *charter kind universe*, which is::
 
-    the 8 artifact ``ArtifactKind`` kinds  +  ``mission-type``
+    the 9 activatable ``ArtifactKind`` kinds  +  ``mission-type``
 
 ``mission-type`` is **not** an :class:`ArtifactKind` member — it is a mission-tier
 concept handled separately (see FR-032 / WP04). Callers route a mission-type
@@ -18,13 +18,13 @@ mapping it to an artifact kind (R-009 / CL-1: no silent fallback).
 
 ``template`` *is* an :class:`ArtifactKind` member but is resolved specially
 (mission-tier, empty glob — see :attr:`ArtifactKind.glob_pattern`); it is not one
-of the 8 non-template artifact tokens enumerated in :data:`CHARTER_KIND_TOKENS`.
+of the 9 non-template artifact tokens enumerated in :data:`CHARTER_KIND_TOKENS`.
 
 ``anti_pattern`` *is* an :class:`ArtifactKind` member (mission
 ``doctrine-tension-edges-01KY1WPC``, D2) but is also excluded from the charter
 kind universe via :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`: an anti-pattern
 node is never activated as a live rule and is never hand-authored as a
-standalone artifact file, so it is not one of the 8 charter-activatable
+standalone artifact file, so it is not one of the 9 charter-activatable
 artifact tokens either.
 
 Consumers must route every operator kind string through
@@ -58,6 +58,7 @@ _PLURALS: dict[str, str] = {
     "mission_step_contract": "mission_step_contracts",
     "template": "templates",
     "asset": "assets",
+    "glossary_pack": "glossary_packs",
     "anti_pattern": "anti_patterns",
 }
 
@@ -72,6 +73,7 @@ _PATTERNS: dict[str, str] = {
     "mission_step_contract": "*.step-contract.yaml",
     "template": "",
     "asset": "*.asset.yaml",
+    "glossary_pack": "*.glossary-pack.yaml",
     # anti_pattern nodes are hand-authored inside existing graph fragments
     # (re-kinded/tagged paradigm/tactic nodes, D2) -- there is no dedicated
     # `*.anti_pattern.yaml` artifact file convention. The pattern is declared
@@ -104,6 +106,7 @@ class ArtifactKind(StrEnum):
     MISSION_STEP_CONTRACT = "mission_step_contract"
     TEMPLATE = "template"
     ASSET = "asset"
+    GLOSSARY_PACK = "glossary_pack"
     ANTI_PATTERN = "anti_pattern"
 
     @property

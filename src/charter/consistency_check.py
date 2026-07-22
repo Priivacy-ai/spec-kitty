@@ -95,6 +95,7 @@ _CLI_KIND_TO_DRG_SINGULAR: dict[str, str] = {
     "procedure": "procedure",
     "agent-profile": "agent_profile",
     "mission-step-contract": "mission_step_contract",
+    "glossary-pack": "glossary_pack",
     # "mission-type" has no DRG singular; omitted intentionally.
 }
 

@@ -266,7 +266,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa"),  # specify_cli.dashboard.templates::get_dashboard_html
         SymbolKey("GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c"),  # specify_cli.doctrine.org_charter::GovernancePolicy
         # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
-        SymbolKey("REQUIRED_KIND_FIELDS", "397c356bcfe733fc65cf9fc10e2bb9dba924ba18e4a958da96419ca739f396f3"),
+        # Hash refreshed for the WP04 glossary-pack tuple extension (added the
+        # ``glossary_packs`` member); still grandfathered-dead (no external src/
+        # importer -- only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy
+        # in ``src/charter/context.py``). Body-sensitive key => extending the
+        # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
+        SymbolKey("REQUIRED_KIND_FIELDS", "5e079a10875db742f2fffd782afc057ba2898db8cfb2ded5847e77081edff122"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey("apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b"),
         SymbolKey("AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0"),  # specify_cli.doctrine.pack_assembler::AssemblyResult

@@ -302,6 +302,39 @@ def _merge_edge_metadata(existing: DRGEdge, incoming: DRGEdge) -> DRGEdge:
 
 
 # ---------------------------------------------------------------------------
+# WP03 (glossary-pack-doctrine-kind-01KY30SW): glossary-pack source-node emission
+# ---------------------------------------------------------------------------
+
+
+def _emit_glossary_pack_nodes(
+    doctrine_root: Path, nodes_by_urn: dict[str, DRGNode]
+) -> None:
+    """Register a ``glossary_pack:<id>`` source node for each built-in pack.
+
+    Mirrors the shape of the per-kind blocks in :func:`extract_artifact_edges`
+    (directives, tactics, ...), but is factored into its own helper because
+    that function is already at the ``# noqa: C901`` complexity ceiling
+    (NFR-004) -- adding this loop inline would raise it further.
+
+    Glossary packs carry no outbound DRG references in Mission A (the
+    enforcement fields are inert until Mission B), so only the pack's own
+    node is emitted here -- there are no edges to extract.
+    """
+    packs_dir = doctrine_root / "glossary_packs" / "built-in"
+    if not packs_dir.is_dir():
+        return
+    for path in sorted(packs_dir.glob("*.glossary-pack.yaml")):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        pack_id: str = data.get("id", "")
+        if not pack_id:
+            continue
+        src_urn = artifact_to_urn("glossary_pack", pack_id)
+        _ensure_node(nodes_by_urn, src_urn, NodeKind.GLOSSARY_PACK)
+
+
+# ---------------------------------------------------------------------------
 # T012: Artifact walker (directives, tactics, paradigms, procedures)
 # ---------------------------------------------------------------------------
 
@@ -618,6 +651,9 @@ def extract_artifact_edges(  # noqa: C901
                         relation=Relation.SUGGESTS,
                     )
                 )
+
+    # --- Glossary packs (source-node emission only, WP03) ---
+    _emit_glossary_pack_nodes(doctrine_root, nodes_by_urn)
 
     for source, target, relation in _CURATED_ARTIFACT_EDGES:
         source_kind = source.split(":", 1)[0]

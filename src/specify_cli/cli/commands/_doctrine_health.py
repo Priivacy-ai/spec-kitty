@@ -28,7 +28,13 @@ from dataclasses import dataclass, field
 
 from charter.profiles import SkippedProfile
 
-__all__ = ["PackHealth", "DoctrineHealthReport", "build_pack_health_by_layer"]
+__all__ = [
+    "PackHealth",
+    "DoctrineHealthReport",
+    "build_pack_health_by_layer",
+    "GlossaryPackHealth",
+    "SkippedGlossaryPack",
+]
 
 #: Operator-facing reading order for doctrine layers.
 _LAYER_ORDER: tuple[str, ...] = ("builtin", "org", "project")
@@ -93,6 +99,87 @@ class PackHealth:
 
 
 @dataclass(frozen=True)
+class SkippedGlossaryPack:
+    """A single glossary-pack YAML file skipped during repository load (FR-012).
+
+    ``GlossaryPackRepository`` is a plain ``BaseDoctrineRepository`` and does
+    not carry a WP05-style ``SkippedProfile`` diagnostics list — an
+    unloadable pack file (bad YAML, a missing required field, a duplicate
+    term surface) is only ever surfaced today as a ``UserWarning`` emitted
+    during ``_load()``. This dataclass turns that warning into the same
+    surfaced-not-swallowed shape the agent-profile dimension already uses
+    (see :class:`PackHealth`/``SkippedProfile``), so an invalid glossary pack
+    is never silently absent from the report.
+
+    Attributes:
+        layer: The doctrine layer the file belongs to — one of ``"built-in"``,
+            ``"org"``, or ``"project"``, or ``"unknown"`` if it could not be
+            determined.
+        path: The skipped file's name (or ``"unknown"``).
+        error_summary: Human-readable reason the file was skipped.
+    """
+
+    layer: str
+    path: str
+    error_summary: str
+
+
+@dataclass(frozen=True)
+class GlossaryPackHealth:
+    """Health of the glossary-pack surface (FR-012, SC-001).
+
+    Mirrors :class:`PackHealth`'s counts + health shape but for the
+    glossary-pack dimension: ``pack_count``/``term_count`` describe what
+    loaded successfully; ``invalid_packs`` carries every skipped pack file.
+    An invalid member pack degrades ``healthy`` — a glossary-pack surface
+    with even one broken pack file is never reported healthy just because
+    other packs loaded fine (the exact anti-pattern SC-001 forbids).
+
+    Attributes:
+        pack_count: Number of glossary packs that loaded successfully.
+        term_count: Total term count across all successfully-loaded packs.
+        invalid_packs: Skipped pack files (verbatim passthrough, never
+            regex-scraped from a rendered warning by the caller).
+    """
+
+    pack_count: int
+    term_count: int
+    invalid_packs: list[SkippedGlossaryPack] = field(default_factory=list)
+
+    @property
+    def healthy(self) -> bool:
+        """Healthy iff no pack file was skipped during load (SC-001)."""
+        return not self.invalid_packs
+
+    def to_dict(self) -> dict[str, object]:
+        """JSON-able view; ``healthy`` is emitted explicitly for callers."""
+        return {
+            "pack_count": self.pack_count,
+            "term_count": self.term_count,
+            "healthy": self.healthy,
+            "invalid_packs": [
+                {
+                    "layer": pack.layer,
+                    "path": pack.path,
+                    "error_summary": pack.error_summary,
+                }
+                for pack in self.invalid_packs
+            ],
+        }
+
+
+def _default_glossary_pack_health() -> GlossaryPackHealth:
+    """Default glossary-pack health for a report built with no such data.
+
+    Zero packs discovered is treated as healthy (never invented as an
+    error) — the empty-report anti-pattern I-H1 guards against is specific
+    to the agent-profile dimension (see ``DoctrineHealthReport.healthy``),
+    which always expects at least one discovered profile layer.
+    """
+    return GlossaryPackHealth(pack_count=0, term_count=0)
+
+
+@dataclass(frozen=True)
 class DoctrineHealthReport:
     """Aggregate doctrine health consumed by both human and JSON surfaces.
 
@@ -101,16 +188,23 @@ class DoctrineHealthReport:
         org_drg: Structured org-layer DRG state (configured packs, node/edge
             counts, collision warnings, errors) — produced once by the report
             builder so the human and JSON surfaces share a single org-DRG load.
+        glossary_packs: Glossary-pack health (FR-012, SC-001) — nested here
+            (rather than as a sibling top-level JSON key) so
+            ``_emit_doctrine_json`` stays an unmodified passthrough of
+            :meth:`to_dict`.
     """
 
     packs: list[PackHealth] = field(default_factory=list)
     org_drg: dict[str, object] = field(default_factory=dict)
+    glossary_packs: GlossaryPackHealth = field(
+        default_factory=_default_glossary_pack_health
+    )
 
     @property
     def healthy(self) -> bool:
         """The whole doctrine surface is healthy iff it is *honestly* green.
 
-        Three conditions, all required (WP01 fail-to-green hardening):
+        Four conditions, all required (WP01 fail-to-green hardening):
 
         * ``bool(self.packs)`` — an empty pack list is **not** vacuously healthy.
           ``all([]) == True`` previously reported green-when-broken whenever the
@@ -119,6 +213,8 @@ class DoctrineHealthReport:
         * every pack/layer is individually healthy.
         * ``not self.org_drg.get("errors")`` — a non-empty org-DRG error list is
           no longer a blind spot; an org-DRG load failure forces unhealthy.
+        * ``self.glossary_packs.healthy`` — an invalid glossary-pack file
+          degrades the aggregate too (FR-012, SC-001).
         """
         org_errors = (
             self.org_drg.get("errors") if isinstance(self.org_drg, dict) else None
@@ -127,6 +223,7 @@ class DoctrineHealthReport:
             bool(self.packs)
             and all(pack.healthy for pack in self.packs)
             and not org_errors
+            and self.glossary_packs.healthy
         )
 
     @property
@@ -143,6 +240,7 @@ class DoctrineHealthReport:
             "healthy": self.healthy,
             "packs": [pack.to_dict() for pack in self.packs],
             "org_drg": self.org_drg,
+            "glossary_packs": self.glossary_packs.to_dict(),
         }
 
 

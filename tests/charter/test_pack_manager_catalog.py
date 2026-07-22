@@ -85,6 +85,7 @@ _LEGACY_YAML_KEY_MAP: dict[str, str] = {
     "procedure": "activated_procedures",
     "agent-profile": "activated_agent_profiles",
     "mission-step-contract": "activated_mission_step_contracts",
+    "glossary-pack": "activated_glossary_packs",
 }
 
 

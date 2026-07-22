@@ -110,6 +110,10 @@ class DoctrineSelectionConfig(BaseModel):
     """Charter-active mission-step-contract IDs (mirrors
     ``DoctrineService.mission_step_contracts``). Default empty preserves
     backwards compatibility (NFR-005)."""
+    selected_glossary_packs: list[str] = Field(default_factory=list)
+    """Charter-active glossary-pack IDs (mirrors
+    ``DoctrineService.glossary_packs``). Default empty preserves backwards
+    compatibility (NFR-005)."""
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
     authority_paths: list[str] = Field(default_factory=list)
@@ -319,6 +323,10 @@ _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
     "selected_procedures",
     "selected_agent_profiles",
     "selected_mission_step_contracts",
+    # WP04 (glossary-pack-doctrine-kind): same additive-optional treatment for
+    # the glossary-pack selection field so a fresh project doesn't start
+    # emitting `selected_glossary_packs: []` into every charter (NFR-005).
+    "selected_glossary_packs",
     # WP01 T008 (charter-mediated-doctrine-selection): activation registry
     # block on GovernanceConfig — empty list ⇒ omit from emitted YAML so
     # the default-config fixture remains byte-stable (NFR-005).

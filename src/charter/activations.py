@@ -162,6 +162,7 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(
         "mission_step_contracts",
         "templates",
         "assets",
+        "glossary_packs",
     }
 )
 
@@ -183,6 +184,7 @@ _SINGULAR_TO_PLURAL_KIND: dict[str, str] = {
     "procedure": "procedures",
     "agent_profile": "agent_profiles",
     "mission_step_contract": "mission_step_contracts",
+    "glossary_pack": "glossary_packs",
     "anti_pattern": "anti_patterns",
 }
 

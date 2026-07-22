@@ -72,6 +72,7 @@ _BUILTIN_ARTIFACT_KINDS: frozenset[str] = frozenset(
         "mission_step_contracts",
         "templates",
         "assets",
+        "glossary_packs",
     }
 )
 
@@ -153,6 +154,9 @@ class PackContext:
     activated_mission_step_contracts: frozenset[str] | None = None
     """Mission step contract IDs activated for this project (three-state)."""
 
+    activated_glossary_packs: frozenset[str] | None = None
+    """Glossary pack IDs activated for this project (three-state)."""
+
     activated_anti_patterns: frozenset[str] | None = None
     """Anti-pattern node IDs activated for this project (three-state)."""
 
@@ -217,6 +221,7 @@ class PackContext:
             activated_procedures=_read_activated_procedures(activation),
             activated_agent_profiles=_read_activated_agent_profiles(activation),
             activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
+            activated_glossary_packs=_read_activated_glossary_packs(activation),
             activated_anti_patterns=_read_activated_anti_patterns(activation),
         )
 
@@ -401,9 +406,15 @@ def _read_activated_mission_step_contracts(
     return _read_list_key(data, "activated_mission_step_contracts")
 
 
+def _read_activated_glossary_packs(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_glossary_packs`` from parsed config data (three-state)."""
+    return _read_list_key(data, "activated_glossary_packs")
+
+
 def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_anti_patterns`` from parsed config data (three-state)."""
     return _read_list_key(data, "activated_anti_patterns")
+
 
 
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:
