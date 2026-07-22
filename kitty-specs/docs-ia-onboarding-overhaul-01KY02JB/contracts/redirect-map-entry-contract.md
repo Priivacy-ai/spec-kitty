@@ -13,6 +13,7 @@ entry added to `redirect_map.yaml` before that move is considered complete.
 ## Entry shape (existing schema, unchanged)
 
 ```yaml
+# round-trip: skip: redirect_map.yaml entry-shape illustration reusing the existing (unchanged) schema — this mission is a consumer, not the owner, so there is no new Pydantic payload to round-trip
 - old_path: guides/pr-landing.html
   new_path: development/pr-landing.html
 ```
