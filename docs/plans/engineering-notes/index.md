@@ -53,6 +53,12 @@ resume without re-running the squad:
 
 - [DRG completeness (#2843 / #2847) — pre-spec research squad findings](drg-completeness-2843-research.md) — convergent 4-lens findings on the #2833 residue: relation-description parity, the activation-gate latent bug, and the anti-pattern corpus promotion split.
 
+## Design notes
+
+Durable design investigations that inform a convention or a future mission:
+
+- [Agent knowledge: canonical homes](agent-knowledge-canonical-homes.md) — where rules (charter), practices (doctrine), reference (Common Docs), and learned facts (`.kittify/memory/`) belong; how to stop a per-agent memory duplicating the repo.
+
 ## See also
 
 - [Documentation home](../index.md)
