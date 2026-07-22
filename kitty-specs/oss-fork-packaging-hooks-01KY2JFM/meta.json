@@ -1,0 +1,31 @@
+{
+  "accept_commit": "49b5512e8d6a91bc545533c7969b8a2db3ac484e",
+  "acceptance_history": [
+    {
+      "accept_commit": "49b5512e8d6a91bc545533c7969b8a2db3ac484e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-21T16:43:55.385169+00:00",
+      "accepted_by": "cursor",
+      "accepted_from_commit": "65e3a43949f3becb9e58e6365259040faa467f34"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-21T16:43:55.385169+00:00",
+  "accepted_by": "cursor",
+  "accepted_from_commit": "65e3a43949f3becb9e58e6365259040faa467f34",
+  "baseline_merge_commit": "7b864b1dcbf233c3b68202c8ad8bdcf54d01aa20",
+  "coordination_branch": "kitty/mission-oss-fork-packaging-hooks-01KY2JFM",
+  "created_at": "2026-07-21T14:50:07.609441+00:00",
+  "flattened": false,
+  "friendly_name": "OSS Fork Packaging Hooks",
+  "mission_id": "01KY2JFMVQFA4Z4PHR5RDMMVCW",
+  "mission_number": 185,
+  "mission_slug": "oss-fork-packaging-hooks-01KY2JFM",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Fork packagers who publish Spec Kitty under a different distribution name or private PyPI-compatible index currently overlay core files before build. This mission adds packager hooks (entry points and a distribution profile) so upgrade channel, package identity, remediation commands, and version banner follow the fork without modifying stock specify_cli sources at publish time. Stock public-PyPI installs keep current behaviour when no hooks are registered.",
+  "purpose_tldr": "Let renamed and private-index forks customize upgrade checks and package identity via entry points instead of rewriting core source at publish time.",
+  "slug": "oss-fork-packaging-hooks-01KY2JFM",
+  "target_branch": "feat/oss-fork-packaging-hooks",
+  "topology": "coord"
+}

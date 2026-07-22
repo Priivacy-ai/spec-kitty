@@ -1,0 +1,56 @@
+{
+  "event_count": 38,
+  "last_event_id": "01KY2RPWQF2449DY5R4JA72WMM",
+  "materialized_at": "2026-07-21T16:38:56.495157+00:00",
+  "mission_number": "185",
+  "mission_slug": "oss-fork-packaging-hooks-01KY2JFM",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2RPS281D4TACH65J7G0AWQ",
+      "last_transition_at": "2026-07-21T16:38:52.744468+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2RPT55YEG50Q538NBM62ZY",
+      "last_transition_at": "2026-07-21T16:38:53.861071+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY2RPV07CNZFHKYKHW5C41RN",
+      "last_transition_at": "2026-07-21T16:38:54.727159+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2RPVVVC4HDKK2AA0WQHHKB",
+      "last_transition_at": "2026-07-21T16:38:55.611340+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY2RPWQF2449DY5R4JA72WMM",
+      "last_transition_at": "2026-07-21T16:38:56.495157+00:00"
+    }
+  }
+}
