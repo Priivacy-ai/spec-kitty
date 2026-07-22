@@ -249,10 +249,17 @@ def _version_from_wheel(filename: str, package_prefix: str | None) -> str | None
 
 
 def _parse_version_stem(stem: str) -> str | None:
-    """Return the longest leading hyphen-joined segment that is a valid version."""
+    """Return the version segment of a ``<name>-<version>`` filename stem.
+
+    sdist/zip names put the version *last* (``acme_spec_kitty_cli-1.1.0``), so —
+    unlike the wheel path — scan trailing hyphen groups. Shortest trailing group
+    first (the bare version is the common case); this also handles an already
+    prefix-stripped stem that *is* the version. Returns ``None`` if no trailing
+    group is a valid version.
+    """
     parts = stem.split("-")
-    for length in range(len(parts), 0, -1):
-        candidate = "-".join(parts[:length])
+    for length in range(1, len(parts) + 1):
+        candidate = "-".join(parts[-length:])
         if not _VERSION_RE.match(candidate):
             continue
         try:
