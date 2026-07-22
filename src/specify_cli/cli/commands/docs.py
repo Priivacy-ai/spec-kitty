@@ -46,7 +46,17 @@ console = CliConsole(width=120)
 # also coerces against, so the CLI and the emitted index cannot drift.
 _VALID_DIVIO_TYPES: tuple[str, ...] = tuple(t.value for t in DivioType)
 
-_GENERATOR_HINT = "run `python scripts/docs/docs_index.py --write` to generate it"
+# `docs query` reads a pre-generated index. That index is an opt-in artifact of
+# a project's own Common Docs tooling -- it is NOT deployed into consumer repos
+# (the generator lives in the unshipped `scripts/` tree). So the hint is
+# consumer-neutral: it explains the feature is opt-in and names the Spec Kitty
+# self-host command only as a parenthetical, not as something every consumer can
+# run.
+_GENERATOR_HINT = (
+    "`docs query` requires a committed Common Docs retrieval index, which this "
+    "project does not have (it is an opt-in artifact; in the Spec Kitty "
+    "repository itself, `python scripts/docs/docs_index.py --write` generates it)"
+)
 
 
 def _load_store() -> DocsIndexStore:
@@ -66,8 +76,8 @@ def _load_store() -> DocsIndexStore:
             )
         else:
             err_console.print(
-                f"[red]Error: docs retrieval index not found at "
-                f"{index_path}[/red] -- {_GENERATOR_HINT}."
+                f"[red]Error: no Common Docs retrieval index at "
+                f"{index_path}.[/red] {_GENERATOR_HINT}."
             )
         raise typer.Exit(1)
     try:
