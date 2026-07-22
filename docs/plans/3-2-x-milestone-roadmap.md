@@ -77,6 +77,7 @@ The dependency spine above is the **G2/G3** program — strangling the core doma
 
 #2314 docsite (P2) + doctrine-docs #2053 / #2302 (codify docs-as-doctrine) / #2352
 Glossary-as-doctrine: #1629 + #1418 (P1, now 3.2.x) — first-order glossary artifact / packs
+   └─ Glossary Doctrine Overhaul program (2026-07-21): #1418 → #2599 → #2822/#2830/#2823 → #2727
 ```
 
 **Reading order within the arc:**
@@ -86,6 +87,7 @@ Glossary-as-doctrine: #1629 + #1418 (P1, now 3.2.x) — first-order glossary art
 3. **Governance semantics.** #2216 (component-type immutability + AUTHORITATIVE charters) rides on the pack tiers from #2467 — the edge exists at keystone-child granularity (#2216 blocked_by #2467), not a coarse parent edge.
 4. **Authoring robustness.** #2519 runs its own #2526→#2522→#2521→#2520 sequence (foundation shipped); it is a sibling root, not gated by #2466.
 5. **Trust / distribution (#2539) is 3.3.x** — the verified-pack story builds on this cycle's pack model but ships next milestone.
+6. **Glossary-as-doctrine is now a sequenced four-mission program** (operator-decided 2026-07-21; ADR [2026-07-21-1](../adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md), plan [glossary-doctrine-overhaul-program.md](glossary-doctrine-overhaul-program.md)). Keystone **#1418** builds the first-order `GLOSSARY_PACK` kind; then **#2599** lands the executable ASSET gate (phased trust model — built-in provenance only for now); then enforcement + terminology cleanup (**#2822/#2830/#2823**) ships adherence *as* a built-in ASSET gate; then the dead runtime `src/glossary/` is retired (**#2727**). Research resolved the #1418↔#2727 seed-into-runtime contradiction (do not seed into the dying package; migrate the 104 terms + repoint the casing gate, then delete).
 
 **Exit-criteria implication:** the milestone's G1 goal is not satisfied merely because the spine closes. At minimum the arc's **keystone #2467** and the extensibility kinds it unblocks (#2468 and #2535's declarative-gate half) must land for G1 to have "deepened Doctrine/Charter/DRG impact on runtime execution" as declared. The governance-tier tail (#2216) and trust/distribution (#2539) may legitimately carry into 3.3.x — but as an **explicit re-milestone decision, not silent drift** (the same standing counter-measure as the milestone-drift watch item below).
 

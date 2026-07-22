@@ -21,6 +21,11 @@ durable architecture/reference docs it is retired.
   cross-mission sequencing intent (which missions run first and why), distinct from the
   per-mission/per-refactor implementation plans elsewhere in this section; stress-tested by
   a two-round dialectic squad and synthesised into an actionable, fact-checked plan.
+- [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) —
+  four-mission program promoting the glossary to a first-order doctrine artefact (new
+  `GLOSSARY_PACK` kind), retiring the runtime glossary, wiring data-driven terminology
+  enforcement, and building the executable ASSET-kind gate; sequences
+  #1418/#2727/#2822/#2830/#2823/#2599.
 
 ## Current milestone roadmap
 
