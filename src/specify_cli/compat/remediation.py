@@ -351,7 +351,7 @@ def _uv_tool_reinstall_pypi_fallback(
 ) -> RemediationCommand:
     """Reinstall command when no source provenance is available (receipt absent)."""
     pkg = _pypi_package_arg(target_version, packaging.package_name)
-    argv = ("uv", "tool", "install", "--force", "--with", _PYTEST_NAME, pkg)
+    argv: tuple[str, ...] = ("uv", "tool", "install", "--force", "--with", _PYTEST_NAME, pkg)
     argv = _with_index_before_package(argv, packaging)
     return RemediationCommand(
         intent=RemediationIntent.REINSTALL_WITH_TEST,
@@ -473,7 +473,7 @@ def _plan_pipx(
     if intent == RemediationIntent.UPGRADE:
         argv: tuple[str, ...] = ("pipx", "upgrade", packaging.package_name)
     else:
-        argv = ("pipx", "install", "--include-deps", f"{packaging.package_name}[test]")
+        argv: tuple[str, ...] = ("pipx", "install", "--include-deps", f"{packaging.package_name}[test]")
     argv = _with_index_before_package(argv, packaging)
     return RemediationCommand(intent=intent, argv=argv, env={}, note=None)
 
@@ -504,7 +504,7 @@ def _plan_pip_user(
 ) -> RemediationCommand:
     """Build a RemediationCommand for PIP_USER installs."""
     if intent == RemediationIntent.UPGRADE:
-        argv = ("pip", "install", "--user", "--upgrade", packaging.package_name)
+        argv: tuple[str, ...] = ("pip", "install", "--user", "--upgrade", packaging.package_name)
         argv = _with_index_before_package(argv, packaging)
         return RemediationCommand(
             intent=intent,
@@ -526,7 +526,7 @@ def _plan_pip_system(
 ) -> RemediationCommand:
     """Build a RemediationCommand for PIP_SYSTEM installs."""
     if intent == RemediationIntent.UPGRADE:
-        argv = ("pip", "install", "--upgrade", packaging.package_name)
+        argv: tuple[str, ...] = ("pip", "install", "--upgrade", packaging.package_name)
         argv = _with_index_before_package(argv, packaging)
         return RemediationCommand(
             intent=intent,
