@@ -20,6 +20,25 @@ write capabilities) is faked, via the SAME Fake-port pattern
 ``test_move_task_orchestration.py`` already established for this exact
 command. The WP's "code" side is a genuine git repository with genuine
 passing/failing pytest tests, diffed and run for real.
+
+**Split note (mission doctrine-controlled-transition-gates-01KY51Z7 WP03,
+T014).** Every test in this file drives the HOOK end-to-end
+(``_do_move_task`` -> ``tasks_move_task._mt_run_pre_review_gate`` ->
+``pre_review_gate.evaluate_pre_review_gate``), so it exercises the
+``tasks_move_task.py``-facing "hook-binding" surface — WP03 does not own
+that file and does not invert it; the thin-alias/erroneous-activation
+closure for it is WP09 T040/T045/T046. WP03's owned change here is
+STRUCTURAL, not behavioural: the engine now accepts an optional injected
+``scope_source`` (default ``None`` preserves this file's exact prior
+behaviour byte-for-byte — every test below still passes unmodified,
+confirming the port refactor is behaviour-preserving for this surface,
+NFR-001). The genuinely NEW port-driven paths this WP adds (the injected-
+``ScopeSource`` seam, the #2330 ``DeclaredCommandScopeSource`` closure, and
+the ``pre_existing_not_blocked`` baseline-relative guard) are ENGINE-level
+concerns and live in ``tests/review/test_pre_review_gate_engine.py``
+instead — the WP prompt explicitly sanctions that file (or a sibling under
+``tests/review/``) as T015's home, keeping this file's scope to the
+runner/hook it already covers.
 """
 
 from __future__ import annotations
@@ -525,18 +544,25 @@ def test_empty_cone_composite_is_no_coverage_not_clean(
 def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
     tmp_path: Path,
 ) -> None:
-    """#2534 (calm-degrade regression guard): in a consumer repo (``spec-kitty
-    init``, NOT the spec-kitty source repo) the WP's fixture repo has no ``tests/architectural/_gate_coverage.py``
-    of its own — exactly like every real consumer checkout. Deliberately does
-    NOT monkeypatch ``_pre_review_gate_filter_groups``/``_pre_review_gate_composite_routing``
+    """Authority-load failure degrades to a non-blocking ``no_coverage`` warn.
+
+    Deliberately does NOT monkeypatch
+    ``_pre_review_gate_filter_groups``/``_pre_review_gate_composite_routing``
     (unlike every other test in this file) so the REAL
     ``pre_review_gate.GateAuthoritiesUnavailable`` path fires through the REAL
-    ``move-task --to for_review`` entry point.
+    ``move-task --to for_review`` entry point when the gate-coverage authority
+    cannot be loaded for the fixture repo.
 
-    Before the fix, the surfaced reason names the spec-kitty-internal
-    ``tests.architectural._gate_coverage`` module and reads like a failure —
-    alarming and meaningless to an operator in a consumer repo. After the fix
-    it must be a calm, plainly-worded, non-blocking warn.
+    MIGRATED (T042 / #2534, mission ``doctrine-controlled-transition-gates-01KY51Z7``
+    WP09): the pre-inversion ``is_consumer_repo`` split — a bespoke, calmly-worded
+    ``_PRE_REVIEW_CONSUMER_REPO_REASON`` that scrubbed the internal
+    ``tests.architectural._gate_coverage`` module name — is RETIRED. Under the
+    inverted, doctrine-resolved gate, activation is the SOLE impl selector, so a
+    consumer repo simply never activates the Spec-Kitty handler; every remaining
+    authority-load failure now folds into the SAME generic per-handler fail-open
+    warn (``tasks_move_task._mt_dispatch_one_gate``). The invariant this test
+    still guards — a non-blocking ``no_coverage`` warn, never a crash or a block —
+    is unchanged; only the bespoke consumer-facing wording is gone.
     """
     repo = _build_base_repo(tmp_path, extra_base_files={"src/wp01/foo.py": "VALUE = 1\n"})
     _write_file(repo, "src/wp01/foo.py", "VALUE = 2\n")
@@ -554,9 +580,7 @@ def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
     assert metadata["outcome"] == "no_coverage"
     assert metadata["blocked"] is False
     reason = metadata["reason"] or ""
-    assert "tests.architectural._gate_coverage" not in reason
-    assert "src/specify_cli/" not in reason
-    assert reason == tasks_move_task._PRE_REVIEW_CONSUMER_REPO_REASON
+    assert reason.startswith("gate authorities unavailable — unverified:")
 
 
 # ---------------------------------------------------------------------------

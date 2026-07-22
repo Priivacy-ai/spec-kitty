@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import contextlib
 import fnmatch
-import importlib
 import os
 import signal
 import subprocess
@@ -51,8 +50,6 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from types import ModuleType
-from typing import cast
 
 from kernel.paths import to_posix
 from specify_cli.paths import get_runtime_root
@@ -61,8 +58,15 @@ from specify_cli.review.baseline import (
     CAPTURE_BASELINE_TIMEOUT_SECONDS,
     BaselineFailure,
     BaselineTestResult,
+    _extract_junit_output_path,
     _parse_junit_xml,
     diff_baseline,
+)
+from specify_cli.review.scope_source import (
+    GateCoverageScopeSource,
+    RawRunResult,
+    ScopeBreakdownSource,
+    ScopeSource,
 )
 
 # ---------------------------------------------------------------------------
@@ -104,14 +108,10 @@ def resolve_excluded_catchall_groups(filter_groups: Mapping[str, tuple[str, ...]
 
 _SRC_PACKAGE_PREFIX = "src/specify_cli/"
 _TESTS_PREFIX = "tests/"
-_GATE_COVERAGE_MODULE_NAME = "tests.architectural._gate_coverage"
 
 # Mirrors _gate_coverage._CompositeRoute: (target_group, target_shard, cone_roots).
 _CompositeRoute = tuple[str | None, str | None, tuple[str, ...]]
 _EMPTY_COMPOSITE_ROUTE: _CompositeRoute = (None, None, ())
-
-_LoadWorkflowModels = Callable[[], dict[str, object]]
-_AggregateFilterGroups = Callable[[dict[str, object]], dict[str, tuple[str, ...]]]
 
 _DEFAULT_HEAD_RUN_TIMEOUT = CAPTURE_BASELINE_TIMEOUT_SECONDS  # shared with baseline.py's capture_baseline.
 _HEAD_RUN_HEARTBEAT_INTERVAL = 30.0
@@ -121,14 +121,15 @@ _HEAD_RUN_TERMINATE_GRACE = 5.0
 class GateAuthoritiesUnavailable(RuntimeError):
     """The live CI-topology authorities module could not be loaded for a repo.
 
-    Raised by :func:`_load_gate_coverage_module` when
-    ``tests/architectural/_gate_coverage.py`` is missing, fails to import, or
-    resolves to a module living outside the requested ``repo_root`` (a stale
-    cross-repo ``sys.modules`` cache hit). Callers treat this as an
-    "unverified scope" signal (folded into a ``no_coverage`` warn by
-    :func:`derive_test_scope`'s caller), never as a hard failure — an
-    inability to compute coverage must be surfaced, not silently swallowed
-    or escalated to a crash.
+    Raised by :class:`~specify_cli.review.scope_source.GateCoverageScopeSource`
+    (the SOLE reachable importer of ``tests/architectural/_gate_coverage.py``
+    as of mission ``doctrine-controlled-transition-gates-01KY51Z7`` WP03,
+    FR-009) when that module is missing, fails to import, or resolves to a
+    module living outside the requested ``repo_root`` (a stale cross-repo
+    ``sys.modules`` cache hit). Callers treat this as an "unverified scope"
+    signal (folded into a ``no_coverage`` warn by :func:`derive_test_scope`'s
+    caller), never as a hard failure — an inability to compute coverage must
+    be surfaced, not silently swallowed or escalated to a crash.
 
     ``is_consumer_repo`` (#2534) distinguishes WHY the authority is missing:
     ``True`` when ``repo_root`` itself never carried
@@ -139,6 +140,12 @@ class GateAuthoritiesUnavailable(RuntimeError):
     internal-audience message. Callers (the ``move-task --to for_review``
     CLI hook) use this flag to pick a calm consumer-facing message instead of
     naming this internal module to an operator who has never heard of it.
+
+    This class stays here (not relocated to ``scope_source.py``) because
+    WP09's ``tasks_move_task.py`` reader still depends on the
+    ``is_consumer_repo`` field until that WP's hook-inversion lands — the
+    field's cross-file retirement is a tracked fast-follow, not this WP's
+    concern (post-task squad finding B3).
     """
 
     def __init__(self, message: str, *, is_consumer_repo: bool) -> None:
@@ -147,74 +154,41 @@ class GateAuthoritiesUnavailable(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# Live-authority loading (FR-002/FR-006)
+# Live-authority loading (FR-002/FR-006/FR-009)
 # ---------------------------------------------------------------------------
+#
+# Mission doctrine-controlled-transition-gates-01KY51Z7 WP03: the engine no
+# longer owns a private copy of the live ``tests.architectural._gate_coverage``
+# import — that import is reachable ONLY inside
+# ``scope_source.GateCoverageScopeSource`` (FR-009). ``derive_test_scope``'s
+# no-override default is sourced through that SAME port implementation
+# instead of duplicating the import here, so existing callers that never
+# supply an explicit ``filter_groups``/``composite_routing`` override (e.g.
+# ``tasks_move_task.py``, unmigrated until WP09) keep their exact prior
+# behaviour — including surfacing ``GateAuthoritiesUnavailable`` — without
+# this module re-deriving the live authorities itself.
 
 
-def _is_spec_kitty_source_repo(repo_root: Path) -> bool:
-    """True iff ``repo_root`` is the spec-kitty SOURCE repo, not a consumer checkout.
+def _live_filter_groups(repo_root: Path) -> Mapping[str, tuple[str, ...]]:
+    """The live ``group -> globs`` map, sourced via ``GateCoverageScopeSource``.
 
-    The single robust signal is direct filesystem presence of
-    ``tests/architectural/_gate_coverage.py`` under ``repo_root`` — that file
-    IS the authority :func:`_load_gate_coverage_module` is about to import,
-    so checking for it directly (rather than a proxy such as a
-    ``src/specify_cli/`` package, which a consumer project could coincidentally
-    also carry, e.g. while developing spec-kitty itself as a dependency)
-    means the discriminator can never diverge from the thing it discriminates.
+    Explicit annotation (not a bare return): this repo's mypy config skips
+    ``specify_cli.*`` imports when a narrow single-file path is checked
+    (``[[tool.mypy.overrides]] module = ["specify_cli.*"]`` ->
+    ``follow_imports = "skip"``), which otherwise resolves
+    ``GateCoverageScopeSource``'s cached-property return as ``Any`` and
+    trips ``--warn-return-any`` under ``mypy --strict`` on this file alone
+    (mirrors ``scope_source.GateCoverageScopeSource.test_command``'s own
+    identical annotation for the same reason).
     """
-    return (repo_root / "tests" / "architectural" / "_gate_coverage.py").is_file()
+    groups: Mapping[str, tuple[str, ...]] = GateCoverageScopeSource(repo_root=repo_root)._filter_groups
+    return groups
 
 
-def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
-    """Import the live CI-topology model for ``repo_root``.
-
-    ``tests/architectural/_gate_coverage.py`` is the single-source authority
-    for both group shapes this module derives scope from:
-    ``aggregate_filter_groups()`` (per-shard ``tests/**`` globs) and
-    ``_COMPOSITE_ROUTING`` (composite cone_roots). It is test-tree code,
-    imported lazily here (never at this module's own import time) so a
-    consumer repo without a spec-kitty-shaped ``tests/`` tree degrades to
-    :class:`GateAuthoritiesUnavailable` instead of breaking unrelated CLI
-    imports.
-    """
-    resolved_root = repo_root.resolve()
-    repo_str = str(resolved_root)
-    if repo_str not in sys.path:
-        sys.path.insert(0, repo_str)
-    is_consumer_repo = not _is_spec_kitty_source_repo(resolved_root)
-    try:
-        module = importlib.import_module(_GATE_COVERAGE_MODULE_NAME)
-    except ImportError as exc:
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME} is not importable under {resolved_root}: {exc}",
-            is_consumer_repo=is_consumer_repo,
-        ) from exc
-    module_file = getattr(module, "__file__", None)
-    if module_file is None or resolved_root not in Path(module_file).resolve().parents:
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME} resolved to {module_file!r}, outside "
-            f"{resolved_root} — refusing a cross-repo authorities import.",
-            is_consumer_repo=is_consumer_repo,
-        )
-    return module
-
-
-def _default_filter_groups(repo_root: Path) -> dict[str, tuple[str, ...]]:
-    """Live ``group -> globs`` map, straight from ``aggregate_filter_groups()``."""
-    module = _load_gate_coverage_module(repo_root)
-    load_workflow_models = cast("_LoadWorkflowModels", module.load_workflow_models)
-    aggregate_filter_groups = cast("_AggregateFilterGroups", module.aggregate_filter_groups)
-    return aggregate_filter_groups(load_workflow_models())
-
-
-def _default_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]:
-    """Live composite-dir -> ``(target_group, target_shard, cone_roots)`` routing plan.
-
-    Reads ``_gate_coverage``'s own committed routing table directly (rather
-    than mirroring a copy here) so this stays the single FR-006 authority.
-    """
-    module = _load_gate_coverage_module(repo_root)
-    return cast("Mapping[str, _CompositeRoute]", module._COMPOSITE_ROUTING)
+def _live_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]:
+    """The live composite-dir routing map, sourced via ``GateCoverageScopeSource``."""
+    routing: Mapping[str, _CompositeRoute] = GateCoverageScopeSource(repo_root=repo_root)._composite_routing
+    return routing
 
 
 # ---------------------------------------------------------------------------
@@ -334,8 +308,8 @@ def derive_test_scope(
     to pick a single "best" group for an ambiguous file); this never
     re-admits the excluded catch-alls.
     """
-    groups = filter_groups if filter_groups is not None else _default_filter_groups(repo_root)
-    routing = composite_routing if composite_routing is not None else _default_composite_routing(repo_root)
+    groups = filter_groups if filter_groups is not None else _live_filter_groups(repo_root)
+    routing = composite_routing if composite_routing is not None else _live_composite_routing(repo_root)
     excluded_groups = resolve_excluded_catchall_groups(groups)
 
     test_targets: set[str] = set()
@@ -763,6 +737,148 @@ class GateVerdict:
     run_state: HeadRunState = HeadRunState.COMPLETED
 
 
+def _classify_current_failures(
+    current_failures: tuple[BaselineFailure, ...],
+    *,
+    scope: ScopeResult,
+    baseline: BaselineTestResult | None,
+) -> GateVerdict:
+    """The shared baseline-diff tail: classify a completed run's failures.
+
+    Extracted (WP03, mission ``doctrine-controlled-transition-gates-01KY51Z7``)
+    so BOTH the legacy ``run_scoped_tests_at_head`` path and the NEW
+    injected-``ScopeSource`` path (:func:`_evaluate_via_scope_source`) share
+    ONE tested verdict-classification body instead of duplicating the
+    ``diff_baseline`` call and its outcome mapping.
+    """
+    if baseline is None or baseline.failed == -1:
+        return GateVerdict(
+            outcome=GateOutcome.UNVERIFIED_BASELINE,
+            scope=scope,
+            reason="baseline uncomputable — surfacing all current failures as unverified",
+            new_failures=current_failures,
+        )
+
+    pre_existing, new_failures, _fixed = diff_baseline(baseline, list(current_failures))
+    if new_failures:
+        return GateVerdict(
+            outcome=GateOutcome.NEW_FAILURES,
+            scope=scope,
+            new_failures=tuple(new_failures),
+            pre_existing_failures=tuple(pre_existing),
+        )
+    return GateVerdict(
+        outcome=GateOutcome.NO_NEW_FAILURES,
+        scope=scope,
+        pre_existing_failures=tuple(pre_existing),
+    )
+
+
+def _run_raw_command(
+    command: Sequence[str],
+    *,
+    repo_root: Path,
+    timeout: int,
+    progress_callback: _ProgressCallback | None,
+    monotonic: Callable[[], float],
+    wait: _ProcessWait,
+) -> tuple[HeadRunState, RawRunResult | None, str | None]:
+    """Run ``command`` under the SAME process-lifecycle machinery
+    :func:`run_scoped_tests_at_head` uses (launch/observe/lock/reap), but
+    without baking in a pytest/JUnit-specific command shape — the
+    injected-``ScopeSource`` counterpart (T011/FR-010). Returns the run
+    state, an unparsed :class:`RawRunResult` (``None`` on a non-completion),
+    and an error string (``None`` on success).
+    """
+    env = dict(os.environ)
+    env["PWHEADLESS"] = "1"  # never pop a browser window during an automated gate run
+    try:
+        with _scoped_run_lock():
+            process = _launch_scoped_process(list(command), repo_root=repo_root, env=env)
+            state, stdout, stderr = _observe_process(
+                process,
+                timeout=timeout,
+                progress_callback=progress_callback,
+                monotonic=monotonic,
+                wait=wait,
+            )
+    except OSError as exc:
+        return HeadRunState.LAUNCH_FAILED, None, f"scoped test run failed to launch: {exc}"
+
+    if state is HeadRunState.TIMED_OUT:
+        return state, None, f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-500:]}"
+    if state is HeadRunState.CANCELLED:
+        return state, None, f"scoped test run cancelled; stderr tail: {stderr[-500:]}"
+
+    artifact_path = _extract_junit_output_path(command)
+    raw = RawRunResult(returncode=process.returncode, stdout=stdout, stderr=stderr, output_artifact_path=artifact_path)
+    return state, raw, None
+
+
+_NO_TEST_COMMAND_REASON = "no test command configured for the injected ScopeSource — review proceeds without it"
+
+
+def _evaluate_via_scope_source(
+    scope: ScopeResult,
+    *,
+    repo_root: Path,
+    baseline: BaselineTestResult | None,
+    timeout: int,
+    progress_callback: _ProgressCallback | None,
+    monotonic: Callable[[], float],
+    wait: _ProcessWait,
+    scope_source: ScopeSource,
+) -> GateVerdict:
+    """T011/FR-010/FR-011/FR-012: drive the head run + parse through the
+    injected port instead of the hardcoded pytest/JUnit path
+    (:func:`run_scoped_tests_at_head` / :func:`_parse_junit_xml`).
+
+    Empty-scope handling is impl-shape-dependent (NFR-001):
+
+    - A census-*narrowing* source (``GateCoverageScopeSource``, satisfying
+      :class:`~specify_cli.review.scope_source.ScopeBreakdownSource`) treats an
+      empty derived scope as a coverage gap — a ``no_coverage`` warn carrying the
+      incumbent :meth:`ScopeResult.describe_empty_reason` wording — exactly as
+      ``derive_test_scope`` + the legacy branch of :func:`evaluate_with_scope`
+      did. Restoring this keeps the empty-cone / all-excluded cases from silently
+      running the whole suite through the inverted hook.
+    - A non-narrowing implementation (``DeclaredCommandScopeSource``)
+      legitimately reports an empty per-file scope while still running its whole
+      declared suite (FR-003/FR-010) — that is not a no-coverage signal. For it,
+      the ONLY no-coverage trigger here is ``test_command() -> None`` (FR-012),
+      the port's own explicit no-config signal.
+    """
+    if isinstance(scope_source, ScopeBreakdownSource) and scope.is_empty:
+        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
+
+    command = scope_source.test_command()
+    if command is None:
+        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=_NO_TEST_COMMAND_REASON)
+
+    state, raw, error = _run_raw_command(
+        [*command, *scope.test_targets],
+        repo_root=repo_root,
+        timeout=timeout,
+        progress_callback=progress_callback,
+        monotonic=monotonic,
+        wait=wait,
+    )
+    if state is HeadRunState.TIMED_OUT:
+        return GateVerdict(outcome=GateOutcome.TIMED_OUT, scope=scope, reason=error, run_state=state)
+    if state is HeadRunState.CANCELLED:
+        return GateVerdict(outcome=GateOutcome.CANCELLED, scope=scope, reason=error, run_state=state)
+    if raw is None:
+        return GateVerdict(
+            outcome=GateOutcome.NO_COVERAGE,
+            scope=scope,
+            reason=f"scoped test run did not complete: {error}",
+            run_state=state,
+        )
+
+    failures = scope_source.parse_results(raw)
+    return _classify_current_failures(failures, scope=scope, baseline=baseline)
+
+
 def evaluate_with_scope(
     scope: ScopeResult,
     *,
@@ -772,6 +888,7 @@ def evaluate_with_scope(
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
+    scope_source: ScopeSource | None = None,
 ) -> GateVerdict:
     """The shared verdict tail: run ``scope`` at head, diff vs. ``baseline``.
 
@@ -794,60 +911,121 @@ def evaluate_with_scope(
     ``describe_empty_reason()``'s catch-all/composite-dir phrasing would be
     misleading there) should check ``scope.is_empty`` itself and skip this
     function entirely for that branch, exactly as the override tier does.
-    """
-    if scope.is_empty:
-        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
 
-    run_result = run_scoped_tests_at_head(
-        scope.test_targets,
+    ``scope_source`` (T011, mission ``doctrine-controlled-transition-gates-01KY51Z7``
+    WP03): when injected, the head run + parse route through the port
+    (:func:`_evaluate_via_scope_source`) instead of the legacy hardcoded
+    pytest/JUnit path — see that function's docstring for why its
+    empty-scope handling differs. ``None`` (the default) preserves this
+    function's exact prior behaviour for existing, unmigrated callers.
+    """
+    if scope_source is None:
+        if scope.is_empty:
+            return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
+
+        run_result = run_scoped_tests_at_head(
+            scope.test_targets,
+            repo_root=repo_root,
+            timeout=timeout,
+            progress_callback=progress_callback,
+            monotonic=monotonic,
+            wait=wait,
+        )
+        if run_result.state is HeadRunState.TIMED_OUT:
+            return GateVerdict(
+                outcome=GateOutcome.TIMED_OUT,
+                scope=scope,
+                reason=run_result.error,
+                run_state=run_result.state,
+            )
+        if run_result.state is HeadRunState.CANCELLED:
+            return GateVerdict(
+                outcome=GateOutcome.CANCELLED,
+                scope=scope,
+                reason=run_result.error,
+                run_state=run_result.state,
+            )
+        if not run_result.ran:
+            return GateVerdict(
+                outcome=GateOutcome.NO_COVERAGE,
+                scope=scope,
+                reason=f"scoped test run did not complete: {run_result.error}",
+                run_state=run_result.state,
+            )
+        return _classify_current_failures(run_result.current_failures, scope=scope, baseline=baseline)
+
+    return _evaluate_via_scope_source(
+        scope,
         repo_root=repo_root,
+        baseline=baseline,
         timeout=timeout,
         progress_callback=progress_callback,
         monotonic=monotonic,
         wait=wait,
+        scope_source=scope_source,
     )
-    if run_result.state is HeadRunState.TIMED_OUT:
-        return GateVerdict(
-            outcome=GateOutcome.TIMED_OUT,
-            scope=scope,
-            reason=run_result.error,
-            run_state=run_result.state,
-        )
-    if run_result.state is HeadRunState.CANCELLED:
-        return GateVerdict(
-            outcome=GateOutcome.CANCELLED,
-            scope=scope,
-            reason=run_result.error,
-            run_state=run_result.state,
-        )
-    if not run_result.ran:
-        return GateVerdict(
-            outcome=GateOutcome.NO_COVERAGE,
-            scope=scope,
-            reason=f"scoped test run did not complete: {run_result.error}",
-            run_state=run_result.state,
-        )
 
-    if baseline is None or baseline.failed == -1:
-        return GateVerdict(
-            outcome=GateOutcome.UNVERIFIED_BASELINE,
-            scope=scope,
-            reason="baseline uncomputable — surfacing all current failures as unverified",
-            new_failures=run_result.current_failures,
-        )
 
-    pre_existing, new_failures, _fixed = diff_baseline(baseline, list(run_result.current_failures))
-    if new_failures:
-        return GateVerdict(
-            outcome=GateOutcome.NEW_FAILURES,
-            scope=scope,
-            new_failures=tuple(new_failures),
-            pre_existing_failures=tuple(pre_existing),
-        )
-    return GateVerdict(
-        outcome=GateOutcome.NO_NEW_FAILURES,
-        scope=scope,
-        pre_existing_failures=tuple(pre_existing),
+def _scope_result_from_source(scope_source: ScopeSource, changed_files: Sequence[str]) -> ScopeResult:
+    """Build a :class:`ScopeResult` from the injected port's per-file scoping.
+
+    A census-*narrowing* source (``GateCoverageScopeSource``, which satisfies the
+    :class:`~specify_cli.review.scope_source.ScopeBreakdownSource` refinement)
+    reconstructs the FULL breakdown — ``matched_shard_groups`` /
+    ``matched_composite_dirs`` / ``empty_cone_composite_dirs`` /
+    ``excluded_scope_files`` — so the inverted hook's transition metadata is
+    byte-identical to the incumbent ``derive_test_scope`` (NFR-001).
+
+    A non-narrowing source (``DeclaredCommandScopeSource`` or an arbitrary
+    injected stub) has no shard groups by construction — the injected-port path
+    only needs the flat union of ``file_to_scope`` targets, exactly as before.
+    """
+    if isinstance(scope_source, ScopeBreakdownSource):
+        return _scope_result_from_breakdown(scope_source, changed_files)
+    targets: set[str] = set()
+    for changed_file in changed_files:
+        targets.update(scope_source.file_to_scope(changed_file))
+    return ScopeResult(
+        test_targets=tuple(sorted(targets)),
+        matched_shard_groups=(),
+        matched_composite_dirs=(),
+        empty_cone_composite_dirs=(),
+        excluded_scope_files=(),
+    )
+
+
+def _scope_result_from_breakdown(
+    scope_source: ScopeBreakdownSource, changed_files: Sequence[str]
+) -> ScopeResult:
+    """Aggregate a narrowing source's per-file
+    :class:`~specify_cli.review.scope_source.FileScopeBreakdown` contributions
+    into a full :class:`ScopeResult`.
+
+    Mirrors ``derive_test_scope``'s own union/aggregation (recall > precision
+    across focused groups; a file contributing no focused group lands in
+    ``excluded_scope_files``) so the port-driven and census-derived paths emit
+    an identical ``ScopeResult`` for the same changed set (NFR-001).
+    """
+    targets: set[str] = set()
+    shard_groups: set[str] = set()
+    composite_dirs: set[str] = set()
+    empty_cone_dirs: set[str] = set()
+    excluded_scope_files: list[str] = []
+    for raw_file in changed_files:
+        changed_file = raw_file.replace("\\", "/")
+        breakdown = scope_source.scope_breakdown(changed_file)
+        targets.update(breakdown.test_targets)
+        shard_groups.update(breakdown.matched_shard_groups)
+        composite_dirs.update(breakdown.matched_composite_dirs)
+        empty_cone_dirs.update(breakdown.empty_cone_composite_dirs)
+        if not breakdown.contributes_scope:
+            excluded_scope_files.append(changed_file)
+    return ScopeResult(
+        test_targets=tuple(sorted(targets)),
+        matched_shard_groups=tuple(sorted(shard_groups)),
+        matched_composite_dirs=tuple(sorted(composite_dirs)),
+        empty_cone_composite_dirs=tuple(sorted(empty_cone_dirs)),
+        excluded_scope_files=tuple(sorted(set(excluded_scope_files))),
     )
 
 
@@ -862,6 +1040,7 @@ def evaluate_pre_review_gate(
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
+    scope_source: ScopeSource | None = None,
 ) -> GateVerdict:
     """Compose scope derivation + the shared head-run/verdict tail.
 
@@ -869,7 +1048,29 @@ def evaluate_pre_review_gate(
     never escalated to a hard failure here — the warn-default/opt-in-block/
     ``--force`` policy is layered on top of this verdict by WP02's
     ``for_review`` hook, not this function's concern.
+
+    ``scope_source`` (T011/T013, mission
+    ``doctrine-controlled-transition-gates-01KY51Z7`` WP03): an injected
+    seam so impl *selection* is activation-driven (the final selection lands
+    in WP09's hook) rather than decided by repo shape here. When provided,
+    scope/command/parse are sourced ENTIRELY from the port — the census
+    ``filter_groups``/``composite_routing`` parameters are ignored for this
+    call (they belong to the legacy ``derive_test_scope`` tier only).
+    ``None`` (the default) preserves this function's exact prior behaviour.
     """
+    if scope_source is not None:
+        scope = _scope_result_from_source(scope_source, changed_files)
+        return evaluate_with_scope(
+            scope,
+            repo_root=repo_root,
+            baseline=baseline,
+            timeout=timeout,
+            progress_callback=progress_callback,
+            monotonic=monotonic,
+            wait=wait,
+            scope_source=scope_source,
+        )
+
     scope = derive_test_scope(
         changed_files,
         repo_root=repo_root,

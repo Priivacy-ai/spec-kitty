@@ -17,6 +17,14 @@ shared ``uv run`` executor in ``src/`` today — ``compat/`` only carries
 ``uv tool install`` provenance, a distinct concern (installing spec-kitty
 itself via uv, not invoking pytest) — so this module is the single new
 canonical seam a later consumer should import rather than re-deriving.
+
+**Consumer relocation (mission ``doctrine-controlled-transition-gates-01KY51Z7``
+WP02, T007).** The sole production consumer is now
+``specify_cli.review.scope_source.GateCoverageScopeSource.test_command()``,
+which injects ``--junitxml``/``-q`` and calls this resolver instead of the
+old direct call from ``review.pre_review_gate.run_scoped_tests_at_head``
+(``pre_review_gate.py`` itself is untouched here — WP03 repoints its call
+site). This resolver's own behaviour is unchanged; only its consumer moved.
 """
 
 from __future__ import annotations
