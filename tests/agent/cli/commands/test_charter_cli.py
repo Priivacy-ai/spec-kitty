@@ -48,17 +48,55 @@ def mock_repo(tmp_path: Path) -> Path:
     return repo_root
 
 
+def _write_charter_yaml_bundle(charter_dir: Path) -> None:
+    """Materialize a minimal, schema-compatible consolidated ``charter.yaml``.
+
+    IC-04 (#2773): the standalone derived triad (``governance.yaml`` /
+    ``directives.yaml`` / ``metadata.yaml``) is retired -- ``governance`` and
+    ``directives`` now live as hand-authored sections directly inside
+    ``charter.yaml`` (``charter.schemas.CharterYaml``). ``charter status``
+    reports ``SYNCED`` off the presence of this file (see
+    ``_collect_charter_sync_status`` in
+    ``specify_cli.cli.commands.charter._status_collectors``), not off a
+    ``metadata.yaml`` hash comparison, which is why this seed is needed for
+    the "synced" status tests below. ``metadata.bundle_schema_version: 2``
+    satisfies the bundle-compatibility gate (``_assert_bundle_compatible``).
+    """
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n"
+        "governance: {}\n"
+        "directives:\n"
+        "  directives: []\n"
+        "catalog:\n"
+        "  mission: software-dev\n"
+        "  template_set: software-dev-default\n"
+        "  languages: []\n"
+        "  references: []\n"
+        "overrides: {}\n"
+        "metadata:\n"
+        "  generated_at: ''\n"
+        "  bundle_schema_version: 2\n",
+        encoding="utf-8",
+    )
+
+
 def test_sync_command_success(mock_repo: Path) -> None:
+    """IC-04 (#2773): ``charter.sync.sync`` extraction is retired -- it is a
+    pure staleness reporter now (``SyncResult.synced`` is hardcoded
+    ``False``; there is no derived triad left to write). ``charter sync``
+    therefore always renders the noop branch, even on a "fresh" charter that
+    has never been synced before -- pin that current, intentional contract
+    (see the module docstring in ``charter.sync``) rather than the retired
+    extraction-success message."""
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
         result = runner.invoke(app, ["sync"])
 
         assert result.exit_code == 0
-        assert "Charter synced successfully" in result.stdout
-        assert "governance.yaml" in result.stdout
-        assert "directives.yaml" in result.stdout
-        assert "metadata.yaml" in result.stdout
+        assert "Charter already in sync" in result.stdout
+        for retired_file in ("governance.yaml", "directives.yaml", "metadata.yaml"):
+            assert not (mock_repo / ".kittify" / "charter" / retired_file).exists()
 
 
 def test_sync_command_already_synced(mock_repo: Path) -> None:
@@ -74,6 +112,11 @@ def test_sync_command_already_synced(mock_repo: Path) -> None:
 
 
 def test_sync_command_json_output(mock_repo: Path) -> None:
+    """IC-04 (#2773): mirrors ``test_sync_command_success`` -- ``sync``'s
+    JSON payload reports the noop contract (``result: "noop"``,
+    ``success: False``, empty ``files_written``) because extraction is
+    retired; ``stale_before`` stays ``True`` since ``metadata.yaml`` (the
+    staleness marker ``sync()`` still checks) never gets created."""
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
@@ -81,8 +124,10 @@ def test_sync_command_json_output(mock_repo: Path) -> None:
 
         assert result.exit_code == 0
         data = json.loads(result.stdout)
-        assert data["success"] is True
-        assert len(data["files_written"]) == 3
+        assert data["result"] == "noop"
+        assert data["success"] is False
+        assert data["stale_before"] is True
+        assert data["files_written"] == []
 
 
 def test_sync_command_missing_charter(tmp_path: Path) -> None:
@@ -99,6 +144,14 @@ def test_sync_command_missing_charter(tmp_path: Path) -> None:
 
 
 def test_status_command_synced(mock_repo: Path) -> None:
+    """IC-04 (#2773): ``charter status`` reports ``SYNCED`` off the presence
+    of the consolidated ``charter.yaml`` (not a ``metadata.yaml`` hash match
+    against the retired triad); the "Extracted files" table now lists
+    ``charter.yaml``/``charter.md``, not ``governance.yaml``/
+    ``directives.yaml`` (see ``_collect_charter_sync_status``)."""
+    charter_dir = mock_repo / ".kittify" / "charter"
+    _write_charter_yaml_bundle(charter_dir)
+
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
@@ -107,11 +160,17 @@ def test_status_command_synced(mock_repo: Path) -> None:
 
         assert result.exit_code == 0
         assert "SYNCED" in result.stdout
-        assert "governance.yaml" in result.stdout
-        assert "directives.yaml" in result.stdout
+        assert "charter.yaml" in result.stdout
+        assert "charter.md" in result.stdout
 
 
 def test_status_command_json_output(mock_repo: Path) -> None:
+    """IC-04 (#2773): the "Extracted files" JSON array now enumerates the
+    consolidated bundle files (``charter.yaml``, ``charter.md``) -- 2
+    entries, not the retired 4-file triad + charter.md set."""
+    charter_dir = mock_repo / ".kittify" / "charter"
+    _write_charter_yaml_bundle(charter_dir)
+
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
@@ -121,7 +180,7 @@ def test_status_command_json_output(mock_repo: Path) -> None:
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert data["charter_sync"]["status"] == "synced"
-        assert len(data["charter_sync"]["files"]) == 4
+        assert len(data["charter_sync"]["files"]) == 2
 
 
 def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
@@ -352,6 +411,16 @@ def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
 
 
 def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: Path) -> None:
+    """IC-04 (#2773): the derived triad this test used to exercise
+    (``governance.yaml`` / ``directives.yaml`` / ``metadata.yaml``, deleted
+    then expected to auto-resync via ``ensure_charter_bundle_fresh``) is
+    retired. ``charter.bundle.CANONICAL_MANIFEST.derived_files`` is now an
+    empty list, so there is nothing left for the auto-sync chokepoint to
+    (re)materialize -- ``governance``/``directives`` live inline in the
+    hand-authored ``charter.yaml`` (``charter.schemas.CharterYaml``) instead.
+    This test now pins that the bootstrap -> compact transition still
+    completes cleanly across repeated ``context`` calls with no derived
+    triad ever appearing on disk."""
     import subprocess as _subprocess
 
     repo_root = tmp_path / "repo"
@@ -377,17 +446,16 @@ def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: P
         first_payload = json.loads(first.stdout)
         assert first_payload["mode"] == "bootstrap"
 
-        for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
-            (charter_dir / name).unlink()
+        for retired_file in ("governance.yaml", "directives.yaml", "metadata.yaml"):
+            assert not (charter_dir / retired_file).exists()
 
         second = runner.invoke(app, ["context", "--action", "plan", "--json"])
         assert second.exit_code == 0
         second_payload = json.loads(second.stdout)
         assert second_payload["mode"] == "compact"
         assert second_payload["first_load"] is False
-        assert (charter_dir / "governance.yaml").exists()
-        assert (charter_dir / "directives.yaml").exists()
-        assert (charter_dir / "metadata.yaml").exists()
+        for retired_file in ("governance.yaml", "directives.yaml", "metadata.yaml"):
+            assert not (charter_dir / retired_file).exists()
         assert "Run 'spec-kitty charter sync'" not in second.stdout
 
 
