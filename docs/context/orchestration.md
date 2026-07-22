@@ -402,6 +402,30 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
+### gate binding
+
+| | |
+|---|---|
+| **Definition** | A versioned doctrine declaration attaching a named gate handler to a status-transition edge (`{on_transition, handler, handler_kind, schema_version, fail_open, provenance}`), authored on the review `MissionStepContract`. A binding is a field/relationship, not a standalone artefact. Do NOT confuse with the five pre-existing `*gate*` senses (branch strategy gate / diff compliance gate / dependency gate / merge dependency gate / sonar quality gate) — those are unrelated one-off guards, not doctrine-resolved lane-edge checks. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [gate handler](#gate-handler), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate), [diff compliance gate](#diff-compliance-gate) |
+
+---
+
+### gate handler
+
+| | |
+|---|---|
+| **Definition** | A named, dispatchable check registered in `GATE_REGISTRY`; the Spec-Kitty pre-review engine is the first handler, keyed to the `for_review` edge. Registry membership is the callable source; activation decides whether it runs. Do NOT confuse with the five pre-existing `*gate*` senses (branch strategy gate / diff compliance gate / dependency gate / merge dependency gate / sonar quality gate) — those are unrelated one-off guards, not doctrine-resolved dispatch callables. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [gate binding](#gate-binding), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate), [dependency gate](#dependency-gate) |
+
+---
+
 ### Merge target branch
 
 | | |
@@ -472,6 +496,18 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
 | **Related terms** | [base branch](#base-branch), [Planning base branch](#planning-base-branch), [Merge target branch](#merge-target-branch), [current branch](#current-branch), [Mission](#mission) |
+
+---
+
+### transition gate
+
+| | |
+|---|---|
+| **Definition** | A check that must pass before a work-package status-transition edge (e.g. `in_progress->for_review`) is allowed. Resolved from the repo's active doctrine and dispatched through the inverted move-task hook (`_mt_run_transition_gates`); the flagship handler is the scoped pre-review regression check. Do NOT confuse with the five pre-existing `*gate*` senses (branch strategy gate / diff compliance gate / dependency gate / merge dependency gate / sonar quality gate) — those are unrelated one-off guards, not doctrine-resolved lane-edge checks. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [gate handler](#gate-handler), [gate binding](#gate-binding), [branch strategy gate](#branch-strategy-gate), [dependency gate](#dependency-gate) |
 
 ---
 
