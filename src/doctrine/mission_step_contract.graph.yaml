@@ -1,17 +1,6 @@
 schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
-# WP09 (mission doctrine-controlled-transition-gates-01KY51Z7, epic #2535 half A):
-# the built-in DRG shipped per-kind ``*.graph.yaml`` fragments for every kind
-# EXCEPT ``mission_step_contract``. Without a node for
-# ``mission_step_contract:software-dev/review`` the activation ⋈ binding join
-# (``review/gate_bindings.py``) resolves NOT_ACTIVATED, the transition gate never
-# fires, and behaviour-parity with the incumbent hook breaks. This fragment
-# declares one node per built-in step contract (mission + action read from
-# ``missions/built_in_step_contracts/*.step-contract.yaml``) so the MSC nodes are
-# part of the built-in graph and default-activated (their owning mission type is
-# active by default), which is exactly what makes the reference cut
-# (``software-dev/review`` → ``in_progress->for_review``) fire.
 nodes:
 - urn: mission_step_contract:documentation/accept
   kind: mission_step_contract

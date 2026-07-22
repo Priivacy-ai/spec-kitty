@@ -77,17 +77,23 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #: 284/755/12 + 1/0/1 = 285/755/13 (verified by regenerating the DRG against
 #: the current base -- see the base-divergence reconciliation).
 #:
-#: Move 2 of the agent-knowledge-canonical-homes finding
-#: (docs/plans/engineering-notes/agent-knowledge-canonical-homes.md) adds the
-#: new built-in ``git-worktree-pr-workflow`` toolguide, whose two ``suggests``
-#: references (to the existing ``clean-linear-commit-history`` and
-#: ``pr-agent-worktree-isolation`` tactics) are ordinary outbound edges --
-#: the new node itself is non-orphan and both targets already had other
-#: edges, so this is +1 node / +2 edges / +0 orphans:
-#: 285/755/13 + 1/2/0 = 286/757/13.
-_EXPECTED_NODE_COUNT = 286
+#: Two independent changes compose over the same 285/755/13 base:
+#: (1) upstream's ``git-worktree-pr-workflow`` toolguide (agent-knowledge-
+#:     canonical-homes) adds +1 node / +2 edges / +0 orphans -- its two
+#:     ``suggests`` refs (``clean-linear-commit-history``,
+#:     ``pr-agent-worktree-isolation``) are ordinary outbound edges and both
+#:     targets already had edges: 285/755/13 + 1/2/0 = 286/757/13.
+#: (2) Mission doctrine-controlled-transition-gates (epic #2535 half A, WP09)
+#:     teaches the extractor to mint one ``mission_step_contract:<mission>/<action>``
+#:     node per built-in step contract (``missions/built_in_step_contracts/
+#:     *.step-contract.yaml``) so the pre-review activation join resolves ACTIVE.
+#:     17 shipped contracts (documentation x7 + research x5 + software-dev x5),
+#:     each edge-less (the MSC fragment ships ``edges: []``): +17 nodes / +0 edges
+#:     / +17 orphans.
+#: Composed: 285/755/13 + 1/2/0 + 17/0/17 = 303/757/30.
+_EXPECTED_NODE_COUNT = 303
 _EXPECTED_EDGE_COUNT = 757
-_EXPECTED_ORPHAN_COUNT = 13
+_EXPECTED_ORPHAN_COUNT = 30
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).

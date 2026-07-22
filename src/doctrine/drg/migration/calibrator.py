@@ -10,7 +10,7 @@ The calibrator only **adds** ``scope`` edges; it never removes them.
 
 from __future__ import annotations
 
-from doctrine.drg.models import DRGEdge, DRGNode, Relation
+from doctrine.drg.models import DRGEdge, DRGNode, NodeKind, Relation
 
 
 def measure_surface(action_urn: str, edges: list[DRGEdge]) -> int:
@@ -46,10 +46,17 @@ def calibrate_surfaces(
 
     The function is additive-only -- it never removes edges.
     """
-    # Discover the action URN prefix used (always "action:software-dev/...")
+    # Discover the action URN prefix used (always "action:software-dev/...").
+    # Restrict the match to ACTION-kind nodes: other kinds now mint URNs that
+    # share the ``/implement`` and ``/review`` suffixes (e.g.
+    # ``mission_step_contract:software-dev/review``), and a bare suffix match
+    # would let one hijack ``review_urn``/``implement_urn`` and misattribute the
+    # calibrated scope edges to a non-action node.
     implement_urn: str | None = None
     review_urn: str | None = None
     for node in nodes:
+        if node.kind is not NodeKind.ACTION:
+            continue
         if node.urn.endswith("/implement"):
             implement_urn = node.urn
         elif node.urn.endswith("/review"):
