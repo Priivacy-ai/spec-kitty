@@ -122,7 +122,7 @@ class TestCommandSanitisation:
             "cmd; other",  # semicolon (shell separator)
             "cmd && other",  # && (shell AND) — & not in allowed set
             "cmd | cat",  # pipe — | not in allowed set
-            "a" * 129,  # too long (>128 chars)
+            "a" * 513,  # too long (>COMMAND_ALLOWLIST_MAX_LEN = 512 chars)
             "",  # empty string
             "cmd\nnewline",  # embedded newline
             "cmd\ttab",  # embedded tab
