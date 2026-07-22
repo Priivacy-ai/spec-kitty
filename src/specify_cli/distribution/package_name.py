@@ -11,7 +11,10 @@ Precedence (never controlled by a runtime env var for the distribution name):
 
 from __future__ import annotations
 
+import logging
 from importlib.metadata import EntryPoint, entry_points, packages_distributions
+
+_log = logging.getLogger(__name__)
 
 __all__ = [
     "CLI_PACKAGE_GROUP",
@@ -78,6 +81,11 @@ def _name_from_entry_point(entry: EntryPoint) -> str | None:
     try:
         loaded = entry.load()
     except Exception:
+        _log.debug(
+            "spec_kitty.cli_package entry point %r failed to load; using stock name",
+            entry.name,
+            exc_info=True,
+        )
         return None
 
     try:

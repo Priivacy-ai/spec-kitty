@@ -14,6 +14,7 @@ alphabetically (same deterministic rule as the upgrade-provider resolver).
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from importlib.metadata import EntryPoint, entry_points
 
@@ -35,6 +36,9 @@ __all__ = [
 DISTRIBUTION_PROFILE_GROUP = "spec_kitty.distribution_profile"
 
 _cached_profile: DistributionProfile | None = None
+
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -146,6 +150,11 @@ def _profile_from_entry_point(entry: EntryPoint) -> DistributionProfile | None:
     try:
         loaded = entry.load()
     except Exception:
+        _log.debug(
+            "spec_kitty.distribution_profile entry point %r failed to load; using stock profile",
+            entry.name,
+            exc_info=True,
+        )
         return None
 
     try:
