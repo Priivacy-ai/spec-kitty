@@ -99,6 +99,17 @@ _Mission action commands that display prompts and instructions for agents_
 │ --mission                          TEXT  Mission slug                        │
 │ --agent                            TEXT  Agent name (required for auto-move  │
 │                                          to in_progress)                     │
+│ --model                            TEXT  Dispatch-resolved model asserted    │
+│                                          against the correlated Op record    │
+│                                          (requires --invocation-id; never    │
+│                                          the frontmatter recommendation)     │
+│ --profile                          TEXT  Dispatch-resolved agent profile     │
+│                                          (registry.resolve / Op record —     │
+│                                          never the frontmatter agent_profile │
+│                                          string)                             │
+│ --invocation-id                    TEXT  Correlated Op record ULID whose     │
+│                                          mission, WP, action, profile, and   │
+│                                          model are authoritative             │
 │ --allow-sparse-checkout                  Proceed even if legacy              │
 │                                          sparse-checkout state is detected.  │
 │                                          Use of this override is logged.     │
@@ -136,9 +147,18 @@ _Mission action commands that display prompts and instructions for agents_
 │                       for_review if omitted                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug                                          │
-│ --agent          TEXT  Agent name (required for auto-move to in_progress)    │
-│ --help                 Show this message and exit.                           │
+│ --mission              TEXT  Mission slug                                    │
+│ --agent                TEXT  Agent name (required for auto-move to           │
+│                              in_progress)                                    │
+│ --model                TEXT  Dispatch-resolved model asserted against the    │
+│                              correlated Op record (requires --invocation-id; │
+│                              never the frontmatter recommendation)           │
+│ --profile              TEXT  Dispatch-resolved agent profile                 │
+│                              (registry.resolve / Op record — never the       │
+│                              frontmatter agent_profile string)               │
+│ --invocation-id        TEXT  Correlated Op record ULID whose mission, WP,    │
+│                              action, profile, and model are authoritative    │
+│ --help                       Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -629,8 +649,19 @@ _Mission lifecycle commands for AI agents_
 │                                                           branch-flat shapes │
 │                                                           (single_branch,    │
 │                                                           lanes) do not.     │
-│                                                           Default: coord.    │
-│                                                           [default: coord]   │
+│                                                           Default:           │
+│                                                           context-derived    │
+│                                                           (#2581) — coord on │
+│                                                           the primary        │
+│                                                           branch, with       │
+│                                                           --pr-bound, or     │
+│                                                           when explicitly    │
+│                                                           requested;         │
+│                                                           single_branch on a │
+│                                                           non-primary        │
+│                                                           feature/fork       │
+│                                                           branch without     │
+│                                                           --pr-bound.        │
 │ --branch-strategy                      TEXT               Branch-strategy    │
 │                                                           gate control       │
 │                                                           (e.g.,             │
@@ -742,13 +773,17 @@ _Mission lifecycle commands for AI agents_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                             TEXT  Mission slug (required in        │
 │                                             multi-mission repos)             │
-│ --target                              TEXT  Target branch to merge into      │
-│                                             (required in multi-feature       │
+│ --target                              TEXT  Target branch for the            │
+│                                             branch-integration step          │
+│                                             (required in multi-mission       │
 │                                             repos)                           │
-│ --strategy                            TEXT  Merge strategy: merge, squash,   │
-│                                             rebase                           │
+│ --strategy                            TEXT  Strategy for the                 │
+│                                             branch-integration step: merge,  │
+│                                             squash, rebase                   │
 │                                             [default: merge]                 │
-│ --push                                      Push to origin after merging     │
+│ --push                                      Publish to origin after the      │
+│                                             local merge (the operator        │
+│                                             publish step)                    │
 │ --dry-run                                   Show actions without executing   │
 │ --keep-branch                               Keep mission branch after merge  │
 │                                             (default: delete)                │
@@ -1472,6 +1507,12 @@ _Task workflow commands for AI agents_
 │                                                       [required]             │
 │    --mission                                    TEXT  Mission slug           │
 │    --agent                                      TEXT  Agent name             │
+│    --model                                      TEXT  Dispatch-resolved      │
+│                                                       model actual           │
+│    --profile                                    TEXT  Dispatch-resolved      │
+│                                                       agent profile actual   │
+│    --invocation-id                              TEXT  Authoritative dispatch │
+│                                                       Op record id           │
 │    --assignee                                   TEXT  Assignee name (sets    │
 │                                                       assignee when moving   │
 │                                                       to doing)              │
@@ -1529,6 +1570,16 @@ _Task workflow commands for AI agents_
 │                                                       (default: from project │
 │                                                       config)                │
 │    --json                                             Output JSON format     │
+│    --skip-pre-review-ga…                              Skip the pre-review    │
+│                                                       regression gate on a   │
+│                                                       --to for_review move   │
+│                                                       (also honored via the  │
+│                                                       SPEC_KITTY_SYNC_DISAB… │
+│                                                       /                      │
+│                                                       SPEC_KITTY_SYNC_MINIM… │
+│                                                       env vars). The gate    │
+│                                                       still runs and         │
+│                                                       enforces by default.   │
 │    --help                                             Show this message and  │
 │                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯

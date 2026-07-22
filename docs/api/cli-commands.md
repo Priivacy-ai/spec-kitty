@@ -235,11 +235,27 @@ _Charter management commands_
 │   artifact_id      [ARTIFACT_ID]  Artifact ID to activate.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --cascade        TEXT  Cascade activation scope: 'all' for every referenced  │
-│                        kind, or a comma-separated kind list (e.g.            │
-│                        'agent-profile,tactic'). Omit to skip cascade         │
-│                        (referenced artifacts are reported as a warning).     │
-│ --help                 Show this message and exit.                           │
+│ --cascade                              TEXT  Cascade activation scope: 'all' │
+│                                              for every referenced kind, or a │
+│                                              comma-separated kind list (e.g. │
+│                                              'agent-profile,tactic'). Omit   │
+│                                              to skip cascade (referenced     │
+│                                              artifacts are reported as a     │
+│                                              warning).                       │
+│ --resynthesize    --no-resynthesize          Eagerly refresh the derived     │
+│                                              bundle/DRG after this           │
+│                                              activation via the EXISTING     │
+│                                              synthesize pipeline (the same   │
+│                                              one `charter generate` +        │
+│                                              `charter synthesize` use) --    │
+│                                              reconciles the freshness signal │
+│                                              to fresh immediately. Default:  │
+│                                              off -- activation stays a fast  │
+│                                              config-only write and the       │
+│                                              signal reports stale until a    │
+│                                              later reconcile (NFR-001).      │
+│                                              [default: no-resynthesize]      │
+│ --help                                       Show this message and exit.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -282,21 +298,30 @@ _Charter bundle validation commands._
  Render charter context for a specific workflow action.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --action                             TEXT  Workflow action                   │
-│                                            (specify|plan|implement|review)   │
-│ --include                            TEXT  Fetch selector, e.g.              │
-│                                            agent-profile:<id>,               │
-│                                            template:<mission>/<name>,        │
-│                                            directive:<id>, section:<slug>.   │
-│ --mark-loaded    --no-mark-loaded          Persist first-load state          │
-│                                            [default: mark-loaded]            │
-│ --json                                     Output JSON. `directives` is      │
-│                                            action-scoped; `all_directives`   │
-│                                            and `project_charter` describe    │
-│                                            the project-local charter, while  │
-│                                            `org_charter` describes imported  │
-│                                            org packs.                        │
-│ --help                                     Show this message and exit.       │
+│ --action                              TEXT  Workflow action                  │
+│                                             (specify|plan|implement|review)  │
+│ --include                             TEXT  Fetch selector, e.g.             │
+│                                             agent-profile:<id>,              │
+│                                             template:<mission>/<name>,       │
+│                                             directive:<id>, section:<slug>.  │
+│ --mark-loaded     --no-mark-loaded          Persist first-load state         │
+│                                             [default: mark-loaded]           │
+│ --mission-type                        TEXT  Canonical mission type (e.g.     │
+│                                             documentation|research|plan|sof… │
+│                                             for the action doctrine grain.   │
+│                                             Required when rendering action   │
+│                                             context from the repo root —     │
+│                                             without it, and without a        │
+│                                             mission's meta.json, the action  │
+│                                             grain is typeless and never      │
+│                                             inherits software-dev (#883).    │
+│ --json                                      Output JSON. `directives` is     │
+│                                             action-scoped; `all_directives`  │
+│                                             and `project_charter` describe   │
+│                                             the project-local charter, while │
+│                                             `org_charter` describes imported │
+│                                             org packs.                       │
+│ --help                                      Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -313,11 +338,27 @@ _Charter bundle validation commands._
 │   artifact_id      [ARTIFACT_ID]  Artifact ID to deactivate.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --cascade        TEXT  Cascade deactivation scope: 'all' for every           │
-│                        exclusively-referenced kind, or a comma-separated     │
-│                        kind list. Shared artifacts are never removed. Omit   │
-│                        to deactivate only the named artifact.                │
-│ --help                 Show this message and exit.                           │
+│ --cascade                              TEXT  Cascade deactivation scope:     │
+│                                              'all' for every                 │
+│                                              exclusively-referenced kind, or │
+│                                              a comma-separated kind list.    │
+│                                              Shared artifacts are never      │
+│                                              removed. Omit to deactivate     │
+│                                              only the named artifact.        │
+│ --resynthesize    --no-resynthesize          Eagerly refresh the derived     │
+│                                              bundle/DRG after this           │
+│                                              activation via the EXISTING     │
+│                                              synthesize pipeline (the same   │
+│                                              one `charter generate` +        │
+│                                              `charter synthesize` use) --    │
+│                                              reconciles the freshness signal │
+│                                              to fresh immediately. Default:  │
+│                                              off -- activation stays a fast  │
+│                                              config-only write and the       │
+│                                              signal reports stale until a    │
+│                                              later reconcile (NFR-001).      │
+│                                              [default: no-resynthesize]      │
+│ --help                                       Show this message and exit.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -384,7 +425,7 @@ _Charter bundle validation commands._
 │ --selected-directives        TEXT  Comma-separated directive IDs override    │
 │ --available-tools            TEXT  Comma-separated tool IDs override         │
 │ --json                             Output JSON                               │
-│ --mission-slug               TEXT  Mission slug for decision moment paper    │
+│ --mission-slug               TEXT  Mission slug for Decision Moment paper    │
 │                                    trail (optional)                          │
 │ --help                             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -793,7 +834,7 @@ _Query workspace context information_
  --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp             TEXT  work package code (e.g., WP01) [required]          │
+│ *  --wp             TEXT  Work package code (e.g., WP01) [required]          │
 │    --mission        TEXT  Mission slug (e.g., 057-mission-name)              │
 │    --agent          TEXT  Agent name (default: 'unknown')                    │
 │    --json                 Output full JSON context (default: token only)     │
@@ -861,6 +902,46 @@ _Dispatch a request to a governed Op (canonical surface)._
 │                        the request is ambiguous.                             │
 │ --json                 Output JSON payload                                   │
 │ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty docs
+
+_Common Docs retrieval commands_
+
+```
+ Usage: spec-kitty docs [OPTIONS] COMMAND [ARGS]...
+
+ Common Docs retrieval commands
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ query  Query the Common Docs retrieval index for pages matching TERM.        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty docs query
+
+```
+ Usage: spec-kitty docs query [OPTIONS] TERM
+
+ Query the Common Docs retrieval index for pages matching TERM.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    term      TEXT  Case-insensitive substring matched against title,       │
+│                      anchor text/slug, and abstract.                         │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                    Emit machine-readable JSON via plain print (no     │
+│                           Rich markup).                                      │
+│ --divio-type        TEXT  Restrict to pages of this Divio type               │
+│                           (tutorial|how-to|reference|explanation|none).      │
+│ --section           TEXT  Restrict to pages containing an anchor with this   │
+│                           slug.                                              │
+│ --help                    Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -976,7 +1057,20 @@ _Project health diagnostics_
  Exits with code 1 if any ``error`` finding is emitted; ``warning``
  findings exit 0 but are still printed.
 
+ With ``--fix``, automatically flattens missions that have a stale
+ ``coordination_branch`` key (branch never created or already deleted)
+ and re-derives topology. Safe to run on 100%-done missions before
+ ``spec-kitty next`` or ``spec-kitty merge``.
+
+ Examples:
+     spec-kitty doctor coordination
+     spec-kitty doctor coordination --fix
+     spec-kitty doctor coordination --json
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --fix           Remove stale coordination_branch keys from meta.json for     │
+│                 missions whose coord branch was never created, then          │
+│                 re-derive topology via `migrate backfill-topology`.          │
 │ --json          Machine-readable JSON output                                 │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1351,8 +1445,8 @@ _Manage org-layer doctrine packs_
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ fetch             Fetch org doctrine pack(s) from their configured remote    │
 │                   sources.                                                   │
-│ regenerate-graph  Regenerate the shipped DRG ``graph.yaml``                  │
-│                   deterministically (FR-009).                                │
+│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
+│                   (FR-009).                                                  │
 │ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
 │ validate          Validate project-layer doctrine artifacts against their    │
 │                   schemas (FR-017).                                          │
@@ -1581,18 +1675,31 @@ _Validate or assemble doctrine packs._
 ```
  Usage: spec-kitty doctrine regenerate-graph [OPTIONS]
 
- Regenerate the shipped DRG ``graph.yaml`` deterministically (FR-009).
+ Regenerate the shipped DRG graph source deterministically (FR-009).
 
- Composes the DRG extractor + calibrator into ``src/doctrine/graph.yaml``.
- Running twice on unchanged inputs yields byte-identical output. With
- ``--check`` the command never writes: it regenerates into a temp file and
- compares against the committed graph, exiting non-zero when stale — the
- operator-facing twin of the ``test_shipped_graph_yaml_is_fresh`` gate.
+ Composes the DRG extractor + calibrator into per-populated-node-kind
+ ``src/doctrine/*.graph.yaml`` fragments (sharded per mission #2680 WP05),
+ retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
+ on unchanged inputs yields byte-identical fragments. With ``--check`` the
+ command never writes: it regenerates into a temp directory and compares the
+ fragment set against the committed source, exiting non-zero when stale — the
+ operator-facing twin of the freshness gate.
+
+ Both the write path and ``--check`` merge in the enumerable hand-authored
+ overlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the
+ ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
+ ``anti_pattern`` nodes hand-authored directly in the graph fragments
+ (mission doctrine-tension-edges-01KY1WPC). The extractor has no
+ frontmatter mechanism that could ever mint these, so a bare pure
+ regeneration would (a) silently drop them from the committed source on
+ write, and (b) always report "stale" under ``--check`` even when nothing
+ is actually stale.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check          Do not write; regenerate into a temp file and compare       │
-│                  against the committed graph.yaml. Exit 1 when stale         │
-│                  (operator-runnable freshness gate). Exit 0 when fresh.      │
+│ --check          Do not write; regenerate into a temp directory and compare  │
+│                  the per-kind graph fragments against the committed          │
+│                  src/doctrine source. Exit 1 when stale (operator-runnable   │
+│                  freshness gate). Exit 0 when fresh.                         │
 │ --json           Emit machine-readable JSON instead of rich text.            │
 │ --help           Show this message and exit.                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1750,7 +1857,7 @@ _Glossary management commands_
  See FR-503 and D-4 in the 3.1.1 spec.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  work package ID (for example, WP01) [required]         │
+│ *    wp_id      TEXT  Work package ID (for example, WP01) [required]         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                                      TEXT  Mission slug (for       │
@@ -1996,15 +2103,17 @@ _Search tracker issues via the hosted read path_
 ```
  Usage: spec-kitty merge [OPTIONS]
 
- Merge a lane-based feature into its target branch.
+ Merge a lane-based mission into its target branch.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --strategy                                [merge|squash|r  Merge strategy    │
-│                                           ebase]           for               │
-│                                                            mission→target    │
-│                                                            step: merge |     │
-│                                                            squash | rebase.  │
-│                                                            Default: squash.  │
+│ --strategy                                [merge|squash|r  Strategy for the  │
+│                                           ebase]           branch-integrati… │
+│                                                            step (git merge   │
+│                                                            of                │
+│                                                            mission→target):  │
+│                                                            merge | squash |  │
+│                                                            rebase. Default:  │
+│                                                            squash.           │
 │ --delete-branch        --keep-branch                       Delete lane       │
 │                                                            branches after    │
 │                                                            merge             │
@@ -2015,10 +2124,17 @@ _Search tracker issues via the hosted read path_
 │                                                            merge             │
 │                                                            [default:         │
 │                                                            remove-worktree]  │
-│ --push                                                     Push to origin    │
-│                                                            after merge       │
-│ --target                                  TEXT             target branch to  │
-│                                                            merge into        │
+│ --push                                                     Publish to origin │
+│                                                            after the local   │
+│                                                            merge (the        │
+│                                                            operator publish  │
+│                                                            step; distinct    │
+│                                                            from local lane   │
+│                                                            consolidation)    │
+│ --target                                  TEXT             Target branch for │
+│                                                            the               │
+│                                                            branch-integrati… │
+│                                                            step              │
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
 │                                                            be done without   │
@@ -2081,14 +2197,18 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --help               Show this message and exit.                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ backfill-identity    Write a ULID mission_id into any meta.json that lacks   │
-│                      one.                                                    │
-│ backfill-topology    Persist each legacy mission's MissionTopology into its  │
-│                      meta.json.                                              │
-│ charter-encoding     Scan charter content for non-UTF-8 encodings;           │
-│                      normalize-or-fail-loud.                                 │
-│ normalize-lifecycle  Normalize legacy ``kitty-specs`` missions for the MVP   │
-│                      lifecycle model.                                        │
+│ backfill-identity       Write a ULID mission_id into any meta.json that      │
+│                         lacks one.                                           │
+│ backfill-topology       Persist each legacy mission's MissionTopology into   │
+│                         its meta.json.                                       │
+│ charter-encoding        Scan charter content for non-UTF-8 encodings;        │
+│                         normalize-or-fail-loud.                              │
+│ normalize-lifecycle     Normalize legacy ``kitty-specs`` missions for the    │
+│                         MVP lifecycle model.                                 │
+│ rewrite-opposed-by      Rewrite a pack's legacy ``opposed_by`` entries into  │
+│                         DRG edges.                                           │
+│ backfill-runtime-state  Seed legacy runtime state as events, verify          │
+│                         fail-closed, and flip status_phase.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2584,7 +2704,7 @@ _Inspect mission types for this project._
  Show the fully resolved MissionType definition for this project (FR-017).
 
  Displays all fields of the activated mission type:
- id, display_name, action_sequence, governance_refs, template_set,
+ id, display_name, action_sequence, template_set,
  source_layer, extends.
 
  Exits with code 1 and lists registered IDs when ``mission_type_id``
@@ -2853,7 +2973,7 @@ _Inspect mission types for this project._
  Show the fully resolved MissionType definition for this project (FR-017).
 
  Displays all fields of the activated mission type:
- id, display_name, action_sequence, governance_refs, template_set,
+ id, display_name, action_sequence, template_set,
  source_layer, extends.
 
  Exits with code 1 and lists registered IDs when ``mission_type_id``
@@ -3013,7 +3133,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ start-review          Transition a WP from for_review to in_review (reviewer │
 │                       claims review).                                        │
 │ transition            Emit a single lane transition for a WP.                │
-│ append-history        Append a history entry to a WP prompt file.            │
+│ append-history        Append a history entry via an ``InnerStateChanged``    │
+│                       ``note`` annotation.                                   │
 │ accept-mission        Accept a mission after all WPs are approved or done.   │
 │ merge-mission         Merge a lane-based mission into target.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -3038,11 +3159,20 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ```
  Usage: spec-kitty orchestrator-api append-history [OPTIONS]
 
- Append a history entry to a WP prompt file.
+ Append a history entry via an ``InnerStateChanged`` ``note`` annotation.
+
+ WP08 / FR-007 / T031: this cross-package (ACL-boundary) writer no longer
+ mutates the WP prompt file's ``## Activity Log`` section directly -- it
+ emits a ``note``-append delta through WP01's ``emit_inner_state_changed``.
+ The write target is the coord-aware STATUS-partition mission directory
+ (:func:`_resolve_mission_dir_or_fail` -- the SAME seam every other STATUS
+ read/write in this module uses, e.g. ``accept_mission``'s
+ ``materialize(mission_dir)``), never a ``Path.cwd()``-derived join
+ (C-003 / #2647 -- see the SC-008 test).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  work package ID [required]                         │
+│ *  --wp             TEXT  Work package ID [required]                         │
 │ *  --actor          TEXT  Actor identity [required]                          │
 │ *  --note           TEXT  History note to append [required]                  │
 │    --help                 Show this message and exit.                        │
@@ -3088,7 +3218,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission         TEXT  Mission slug [required]                           │
-│    --target          TEXT  target branch to merge into (auto-detected from   │
+│    --target          TEXT  Target branch to merge into (auto-detected from   │
 │                            meta.json)                                        │
 │    --strategy        TEXT  Merge strategy: merge, squash, or rebase          │
 │                            [default: merge]                                  │
@@ -3125,7 +3255,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  work package ID [required]                         │
+│ *  --wp             TEXT  Work package ID [required]                         │
 │    --help                 Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3139,7 +3269,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission        TEXT  Mission slug [required]                            │
-│ *  --wp             TEXT  work package ID [required]                         │
+│ *  --wp             TEXT  Work package ID [required]                         │
 │ *  --actor          TEXT  Actor identity [required]                          │
 │    --policy         TEXT  Policy metadata JSON (required)                    │
 │    --help                 Show this message and exit.                        │
@@ -3155,7 +3285,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission           TEXT  Mission slug [required]                         │
-│ *  --wp                TEXT  work package ID [required]                      │
+│ *  --wp                TEXT  Work package ID [required]                      │
 │ *  --actor             TEXT  Actor identity [required]                       │
 │    --policy            TEXT  Policy metadata JSON (required)                 │
 │    --review-ref        TEXT  Review feedback reference (optional, not        │
@@ -3173,7 +3303,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission                            TEXT  Mission slug [required]        │
-│ *  --wp                                 TEXT  work package ID [required]     │
+│ *  --wp                                 TEXT  Work package ID [required]     │
 │ *  --to                                 TEXT  Target lane [required]         │
 │ *  --actor                              TEXT  Actor identity [required]      │
 │    --note                               TEXT  Reason/note for the transition │
@@ -3181,6 +3311,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │                                               for run-affecting lanes)       │
 │    --force                                    Force the transition           │
 │    --review-ref                         TEXT  Review reference               │
+│    --review-result-json                 TEXT  JSON structured review outcome │
+│                                               for transitions from in_review │
 │    --evidence-json                      TEXT  JSON string with done evidence │
 │    --subtasks-complete                        Whether required subtasks are  │
 │                                               complete for                   │
@@ -3760,14 +3892,40 @@ _Synchronization commands_
  Lifts every currently-queued payload from the legacy ``queue.db`` and each
  scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
  per-source provenance and quarantining divergent-duplicate collisions into
- the migration-audit store. Source DBs are opened read-only and are never
- modified. Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
+ the migration-audit store. Import opens source DBs read-only.
+
+ On a clean migration (no conflicts, no source errors) the migrated rows are
+ then deleted from their source queues so the legacy-row boundary converges
+ and ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass
+ ``--no-cleanup`` to skip that step and inspect first.
+
+ Divergent-duplicate conflicts (same ``event_id``, different payload than the
+ journal) block cleanup by default. Pass ``--resolve-conflicts keep-journal``
+ to resolve them journal-wins: each conflicting source payload is archived to
+ the audit quarantine and the source row removed, so the boundary can
+ converge. The journal is never overwritten. Exits non-zero when unresolved
+ conflicts still block cleanup (SC-011).
 
  Examples:
      spec-kitty sync migrate
+     spec-kitty sync migrate --no-cleanup
+     spec-kitty sync migrate --resolve-conflicts keep-journal
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --no-cleanup                     Import into the journal but do NOT delete   │
+│                                  the migrated rows from the source queues.   │
+│                                  Use to inspect the migration before the     │
+│                                  legacy-row boundary is converged; re-run    │
+│                                  `sync migrate` (without the flag) to clean  │
+│                                  up.                                         │
+│ --resolve-conflicts        TEXT  Resolve divergent-duplicate conflicts so    │
+│                                  the boundary can converge. Only             │
+│                                  `keep-journal` is supported: the journal    │
+│                                  payload is canonical, so each conflicting   │
+│                                  source row is archived (quarantined) then   │
+│                                  removed. Explicit operator recovery; never  │
+│                                  overwrites the journal.                     │
+│ --help                           Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3878,13 +4036,13 @@ _Synchronization commands_
  Show or set sync server URL.
 
  Examples:
-spec-kitty sync server
-spec-kitty sync server https://spec-kitty-dev.fly.dev
-spec-kitty sync server http://localhost:8000
+ spec-kitty sync server
+ spec-kitty sync server https://spec-kitty-dev.fly.dev
+ spec-kitty sync server http://localhost:8000
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   url      [URL]  Sync server URL to set (HTTPS, or loopback HTTP for local  │
-│                   development)                                              │
+│                   development)                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
@@ -4136,7 +4294,7 @@ _Work-package mapping commands_
  mappings in the Spec Kitty dashboard instead.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp-id               TEXT  work package ID (e.g., WP01) [required]       │
+│ *  --wp-id               TEXT  Work package ID (e.g., WP01) [required]       │
 │ *  --external-id         TEXT  External issue ID [required]                  │
 │    --external-key        TEXT  External issue key                            │
 │    --external-url        TEXT  External issue URL                            │

@@ -50,6 +50,7 @@ from typing import Final, Literal  # noqa: E402
 
 __all__ = [
     "DEFAULT_AGENT_REFERENCE_PATH",
+    "DEFAULT_DOCS_INDEX_PATH",
     "DEFAULT_DOCS_ROOT",
     "DEFAULT_INVENTORY_PATH",
     "DEFAULT_REFERENCE_PATH",
@@ -64,6 +65,10 @@ __all__ = [
 
 DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/3-2-page-inventory.yaml"
 DEFAULT_DOCS_ROOT: Final[str] = "docs/"
+# WP01's committed retrieval index (sibling artifact to the page inventory,
+# C-001: never conflated with it). Lives under DEFAULT_DOCS_ROOT itself, but
+# as a ``.yaml`` file it is never picked up by the ``*.md`` generation walk.
+DEFAULT_DOCS_INDEX_PATH: Final[str] = "docs/development/3-2-docs-retrieval-index.yaml"
 # The CLI reference lives under docs/api/ after the Common Docs structural move
 # (Mission B WP16 retired docs/reference/). Pointing the default at the old
 # docs/reference/ path short-circuits the whole freshness gate with INPUT-MISSING.
@@ -150,6 +155,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             f"Agent CLI reference path (default: {DEFAULT_AGENT_REFERENCE_PATH})."
         ),
+    )
+    parser.add_argument(
+        "--docs-index",
+        type=Path,
+        default=Path(DEFAULT_DOCS_INDEX_PATH),
+        help=f"Committed docs-retrieval-index YAML (default: {DEFAULT_DOCS_INDEX_PATH}).",
     )
     parser.add_argument(
         "--link-check",
@@ -290,6 +301,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         strict_mode=args.strict_mode,
         saas_sync_enabled=True,
         random_seed=args.random_seed,
+        docs_index=args.docs_index,
     )
 
     _emit_report(report, ci=args.ci, report_path=args.report)
@@ -306,6 +318,7 @@ def run_orchestrator(
     strict_mode: bool,
     saas_sync_enabled: bool,
     random_seed: int | None = None,
+    docs_index: Path | None = None,
 ) -> FreshnessReport:
     """Run every sub-check and assemble a :class:`FreshnessReport`.
 
@@ -318,12 +331,19 @@ def run_orchestrator(
     default-on**: drift is ``error``-severity (so it flips the aggregate exit
     code) and the check runs unconditionally — there is no longer an opt-in
     guard, since a guarded check the CI workflow never enables is dead code.
+
+    WP02 (FR-005) adds a sibling inverted ruler for the docs retrieval index
+    (WP01, C-001: a separate artifact from the page inventory): drift against
+    the committed ``docs_index`` surfaces as ``DOCS-INDEX-DRIFT`` findings,
+    also ``error``-severity and default-on. ``docs_index`` defaults to
+    :data:`DEFAULT_DOCS_INDEX_PATH` when not supplied.
     """
     started_at = _now_iso()
     findings: list[FreshnessFinding] = []
     inventory_rows_count = 0
     reference_entries_count = 0
     visible_paths_count = 0
+    docs_index_path = docs_index if docs_index is not None else Path(DEFAULT_DOCS_INDEX_PATH)
 
     # --- Sub-check 1: version leakage --------------------------------------
     leak_report = _tempfile_path()
@@ -431,6 +451,11 @@ def run_orchestrator(
     # used to gate it behind ``--inventory-lockfile``, which the CI workflow
     # never passed, making the severity escalation below dead code in CI.
     findings.extend(_check_inventory_lockfile_drift(inventory, docs_root))
+
+    # --- Sub-check 6: docs-index drift (blocking, default-on) --------------
+    # WP02 (FR-005): sibling inverted ruler for the docs retrieval index
+    # (WP01). Appended alongside sub-check 5, never replacing it (C-001).
+    findings.extend(_check_docs_index_drift(docs_index_path, docs_root))
 
     visible_paths_count = sum(
         1 for f in findings if f.rule_id.startswith("REF-")
@@ -730,6 +755,78 @@ def _lockfile_finding(location: str, message: str) -> FreshnessFinding:
         suggested_action=(
             "regenerate the lockfile with scripts/docs/inventory_lockfile.py "
             "--write docs/development/3-2-page-inventory.yaml, then commit it"
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Docs-index drift (inverted ruler — sibling of the inventory lockfile)
+# ---------------------------------------------------------------------------
+
+
+def _check_docs_index_drift(
+    index_path: Path, docs_root: Path
+) -> list[FreshnessFinding]:
+    """Regenerate the docs retrieval index and report drift as errors.
+
+    Mirrors :func:`_check_inventory_lockfile_drift` exactly (WP02 / FR-005):
+    the committed docs-index (WP01's ``docs/development/3-2-docs-retrieval-index.yaml``,
+    a sibling artifact to the page inventory per C-001, never conflated with
+    it) must equal a fresh regeneration of ``docs/**/*.md`` frontmatter +
+    headings via :func:`scripts.docs.docs_index.run_generate_and_compare` —
+    the generation logic is consumed, not re-implemented (C-004).
+
+    Skips (returns ``[]``) when ``docs_root`` or the committed ``index_path``
+    is absent, mirroring the graceful-degradation convention every other
+    checker in this module uses for a missing prerequisite (e.g.
+    :func:`_check_page_inventory_completeness`): a workspace that was never
+    wired up with a docs-index fixture is "not applicable", not "100% drift".
+    """
+    from scripts.docs.docs_index import run_generate_and_compare
+
+    if not docs_root.exists() or not docs_root.is_dir():
+        return []
+    if not index_path.exists():
+        return []
+
+    report = run_generate_and_compare(
+        docs_root=docs_root,
+        index_path=index_path,
+        write=False,
+        strict=True,
+    )
+    findings: list[FreshnessFinding] = []
+    for path in report.drift.added:
+        findings.append(
+            _docs_index_finding(path, "present in docs/ tree, absent from committed index")
+        )
+    for path in report.drift.removed:
+        findings.append(
+            _docs_index_finding(path, "present in committed index, absent from docs/ tree")
+        )
+    for path in report.drift.changed:
+        findings.append(
+            _docs_index_finding(
+                path, "index row (title/abstract/anchors) disagrees with regenerated page"
+            )
+        )
+    return findings
+
+
+def _docs_index_finding(location: str, message: str) -> FreshnessFinding:
+    """Build a blocking ``DOCS-INDEX-DRIFT`` error (WP02 / FR-005).
+
+    Mirrors :func:`_lockfile_finding`: severity ``error`` so the aggregate
+    exit code reds on any docs-index drift.
+    """
+    return FreshnessFinding(
+        rule_id="DOCS-INDEX-DRIFT",
+        severity="error",
+        location=location,
+        message=message,
+        suggested_action=(
+            "regenerate the docs index with PYTHONPATH=. uv run python "
+            "scripts/docs/docs_index.py --write, then commit it"
         ),
     )
 
