@@ -115,6 +115,24 @@ anti_patterns:
           users = [User(email="a@b.com"), User(email=None)]
           assert has_valid_email(users) is True   # any = True, all = False
 
+  - name: Substring/Case-Insensitive Message Assertion
+    description: >
+      Asserting an error or log message with a substring or case-insensitive check
+      lets every case-change, prefix, or suffix mutation of that string survive.
+      Assert the exact string; define it as a module-level constant when reused.
+    bad_example: |
+      def test_guard_rejects_missing_actor():
+          ok, error = validate_transition("planned", "claimed", actor=None)
+          assert ok is False
+          assert "actor" in error.lower()   # survives "Actor" -> "actor" mutation
+    good_example: |
+      ACTOR_REQUIRED_MSG = "Transition planned -> claimed requires actor identity"
+
+      def test_guard_rejects_missing_actor():
+          ok, error = validate_transition("planned", "claimed", actor=None)
+          assert ok is False
+          assert error == ACTOR_REQUIRED_MSG   # kills all case/prefix/suffix mutations
+
 tooling:
   python: "mutmut>=3.5.0 — run: uv run mutmut run"
   typescript: "stryker — run: npx stryker run --incremental"

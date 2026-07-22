@@ -93,7 +93,7 @@ existing flows.
 - `spec-kitty auth login` -- the underlying login flow invoked by `L`.
 - `spec-kitty sync doctor` -- the most informative diagnostic when sync
   appears broken; will offer the recovery prompt when applicable.
-- [Internal Hosted-Readiness (Pre-Launch)](../development/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness (Pre-Launch)](internal-hosted-readiness.md)
   -- the operator how-to for dogfooding the hidden hosted-readiness
   mode that surfaces this recovery path.
 - Issue: [Priivacy-ai/spec-kitty#829](https://github.com/Priivacy-ai/spec-kitty/issues/829).

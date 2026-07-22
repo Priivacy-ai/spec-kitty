@@ -24,6 +24,7 @@ maintainers rather than end-user documentation.
 - [Architectural review](architectural-review/README.md) — design reviews and findings.
 - [Findings](finding/README.md) — recorded engineering findings.
 - [Reflections](reflections/README.md) — retrospective engineering reflections.
+- [Test-suite parallelization — CI shard topology status](testing-parallel-ci-topology-status.md) — point-in-time mission-status snapshot of the CI shard-topology re-flip, carved out of the durable `testing-parallel.md` how-to.
 
 Additional clusters cover infra/logic separation (`2173-infra-logic-separation/`),
 surface-resolution work (`3-2-3-surface-resolution-cluster/`), naming/identity SSOT
@@ -37,6 +38,20 @@ Maintainer-facing narratives of a full run under the doctrine — process, opera
 and where the charter/ADRs/guides changed the outcome:
 
 - [Doctrine-driven P0 remediation, end to end (2026-07-18)](2026-07-18-doctrine-driven-p0-remediation-field-report.md) — remediating the merge-core P0 pair #2709/#2711 and fast-follow #2786; what the adversarial-squad cadence and the red-main / tracker-hygiene / seam docs actually bought.
+
+## Closing reports
+
+One-time mission closeout records — final checks, disposition tables, and follow-up issue filings
+for a completed mission:
+
+- [Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report](terminology-sweep-report.md) — WP10's closing record for mission `docs-ia-onboarding-overhaul-01KY02JB`: the mission-wide terminology/glossary sweep, NFR-005 Divio frontmatter coverage check, and follow-up issue filing.
+
+## Pre-spec research
+
+Durable records of profile-loaded pre-spec research squads, captured so a parked mission can
+resume without re-running the squad:
+
+- [DRG completeness (#2843 / #2847) — pre-spec research squad findings](drg-completeness-2843-research.md) — convergent 4-lens findings on the #2833 residue: relation-description parity, the activation-gate latent bug, and the anti-pattern corpus promotion split.
 
 ## See also
 

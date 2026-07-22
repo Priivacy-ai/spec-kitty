@@ -8,10 +8,10 @@ wiring never calls is the gate-silent-death failure mode (WP14 DoD).
 
 The non-uniform flip:
 
-* **R1 anti-sprawl ratchet** and **R2 related-validator** flip via their wired
-  ``--strict`` flag (the workflow now passes it). Each detector class reds on its
-  own seeded violation, one class per test so a single always-RED gate cannot
-  mask the others.
+* **R2 related-validator** flips via its wired ``--strict`` flag (the workflow
+  passes it) and reds on its own seeded dangling-edge violation. (The R1
+  anti-sprawl structure ratchet was retired — #2851 follow-up — so its
+  per-class RED proofs are gone; the structure policy is now curated in bulk.)
 * **R3 lockfile drift** flips via *code*: the ``INVENTORY-LOCKFILE-DRIFT`` finding
   is now ``error`` severity (was ``warning``) and the check runs default-on, so a
   drifted inventory reds ``check_docs_freshness`` — the aggregate exit keys off
@@ -37,7 +37,6 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.docs import anti_sprawl_ratchet as ratchet  # noqa: E402
 from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
 from scripts.docs import description_length_check as desc_gate  # noqa: E402
 from scripts.docs import related_validator  # noqa: E402
@@ -55,46 +54,6 @@ _GOOD_DESC: Final[str] = "x" * 100
 def _write(path: Path, text: str = "# stub\n") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
-
-
-def _build_clean_tree(root: Path) -> Path:
-    """A single-root 13-section Common Docs tree with zero ruler violations."""
-    docs = root / "docs"
-    _write(docs / "index.md")
-    for section in ratchet.CANONICAL_SECTIONS:
-        if section == "index":
-            continue
-        _write(docs / section / "index.md")
-    _write(docs / "adr" / "3.x" / "2026-06-27-1-example.md", _GOOD_ADR)
-    return root
-
-
-# --------------------------------------------------------------------------- #
-# R1 — anti-sprawl ratchet: each detector class reds independently under --strict
-# --------------------------------------------------------------------------- #
-
-
-def test_r1_clean_tree_is_green_under_strict(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    assert ratchet.main(["--root", str(root), "--strict"]) == 0
-
-
-def test_r1_second_doc_root_reds(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    _write(root / "handbook" / "index.md")  # a competing docs root marker
-    assert ratchet.main(["--root", str(root), "--strict"]) == 1
-
-
-def test_r1_missing_section_index_reds(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    (root / "docs" / "orphaned").mkdir()  # section dir without index.md
-    assert ratchet.main(["--root", str(root), "--strict"]) == 1
-
-
-def test_r1_unfrontmattered_adr_reds(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    _write(root / "docs" / "adr" / "3.x" / "bad.md", "# ADR without frontmatter\n")
-    assert ratchet.main(["--root", str(root), "--strict"]) == 1
 
 
 # --------------------------------------------------------------------------- #

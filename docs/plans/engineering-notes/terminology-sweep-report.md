@@ -15,7 +15,7 @@ This is WP10's closing record for mission `docs-ia-onboarding-overhaul-01KY02JB`
 work package, run only after WP01–WP09 were all approved. It covers T040–T044: the mission-wide
 terminology/glossary sweep (FR-014), the NFR-005 Divio frontmatter coverage check, and the C-003
 follow-up issue filing. See also
-[`docs-audit.md`](../../kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md) for the
+[`docs-audit.md`](../../../kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md) for the
 per-WP disposition tables and findings this report summarizes.
 
 ## Mission diff scope
@@ -30,7 +30,7 @@ against its merge-base with `main` touches **86 files total**, of which **76 are
 
 ## Pages moved / merged / removed / created
 
-Pulled from [`docs-audit.md`](../../kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md)
+Pulled from [`docs-audit.md`](../../../kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md)
 and confirmed against `git diff --name-status -M` for the full mission diff:
 
 | Action | Count | Detail |

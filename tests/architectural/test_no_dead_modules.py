@@ -286,12 +286,6 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
         # dispatch seam, and both import this module -- it has a live src/ caller as of WP03's
         # _compute_recommendation() wiring, so it no longer belongs in this build-script-only
         # allowlist.
-        # constant module consumed by scripts/docs/anti_sprawl_ratchet.py
-        # (wired from scripts/, not src/) — same pattern as
-        # scripts/generate_schemas.py. COMMON_DOCS_DIRECTIVE_ID is the
-        # single source of truth for the Common Docs directive id, imported
-        # by the anti-sprawl structure ratchet and its self-test.
-        "doctrine.directives.common_docs",
     }
 )
 

@@ -24,13 +24,7 @@
   href: red-main-and-release-readiness.md
 - name: UI End-to-End Tests (Playwright)
   href: ui-e2e.md
-- name: Sync Daemon Orphan Cleanup
-  href: sync-daemon-orphan-cleanup.md
 - name: Quality & Tech-Debt Standing Orders
   href: quality-and-tech-debt-standing-orders.md
 - name: Terminology Guard Exemption Policy
   href: terminology-exemptions.md
-- name: Internal Hosted-Readiness (Pre-Launch)
-  href: internal-hosted-readiness.md
-- name: Docs IA & Onboarding Overhaul — Terminology Sweep Report
-  href: terminology-sweep-report.md

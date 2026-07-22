@@ -18,12 +18,10 @@ jobs:
       - name: Install project
         run: uv sync
       # --- Blocking docs rulers (Mission B / WP14, FR-011) -------------------
-      # Mission A landed these report-only; WP14 flips them to blocking on the
-      # cleaned tree. Each runs --strict so a re-introduced violation reds CI.
-      - name: Anti-sprawl structure ratchet (R1, --strict)
-        env:
-          PYTHONPATH: .
-        run: uv run python scripts/docs/anti_sprawl_ratchet.py --strict
+      # Each runs --strict so a re-introduced violation reds CI. (The R1
+      # anti-sprawl structure ratchet was retired per #2851 follow-up: the
+      # single-root/13-section policy of DIRECTIVE_042 is now maintained by
+      # periodic bulk curation rather than a per-PR blocking gate.)
       - name: Related-edge validator (R2, --strict)
         env:
           PYTHONPATH: .

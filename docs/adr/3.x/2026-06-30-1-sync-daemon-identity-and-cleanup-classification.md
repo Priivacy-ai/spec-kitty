@@ -214,7 +214,7 @@ This decision is confirmed when:
   `src/specify_cli/sync/orphan_sweep.py` (`enumerate_identity_records`, `reset_orphans`),
   `src/specify_cli/sync/daemon.py` (`DAEMON_SCOPE_ARG_PREFIX`, `_daemon_scope_root`)
 - **Operator runbook:**
-  [`docs/development/sync-daemon-orphan-cleanup.md`](../../development/sync-daemon-orphan-cleanup.md)
+  [`docs/operations/sync-daemon-orphan-cleanup.md`](../../operations/sync-daemon-orphan-cleanup.md)
 - **Regression test:** `tests/sync/test_issue_1071_singleton_reconfirmation.py`
 - **Related issues:**
   [#2261](https://github.com/Priivacy-ai/spec-kitty/issues/2261) (primary: 18-orphan report),
