@@ -311,6 +311,25 @@ class GateCoverageScopeSource:
             return self.composite_routing_override
         return _default_composite_routing(self.repo_root)
 
+    @property
+    def filter_groups(self) -> Mapping[str, tuple[str, ...]]:
+        """Public read-only view of the resolved live ``group -> globs`` map.
+
+        The census authority ``derive_test_scope`` needs when it runs without
+        an explicit override — exposed so callers read it through the port
+        instead of reaching into the private ``_filter_groups`` cache.
+        """
+        return self._filter_groups
+
+    @property
+    def composite_routing(self) -> Mapping[str, _CompositeRoute]:
+        """Public read-only view of the resolved composite-dir routing plan.
+
+        Companion to :attr:`filter_groups` — the second live authority
+        ``derive_test_scope`` consumes, exposed as a public accessor.
+        """
+        return self._composite_routing
+
     def test_command(self) -> list[str] | None:
         """The incumbent pytest argv, injecting ``--junitxml``/``-q`` here.
 

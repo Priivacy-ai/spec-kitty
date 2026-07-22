@@ -19,7 +19,8 @@ import logging
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, UTC
 from pathlib import Path
@@ -192,6 +193,73 @@ def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[Bas
     return total, passed, failed, skipped, failures
 
 
+def _resolve_base_commit(repo_root: Path, base_branch: str) -> str | None:
+    """``git rev-parse base_branch`` -> commit SHA, or ``None`` on any failure.
+
+    Shared by both baseline-capture paths (config-driven and
+    ``ScopeSource``-driven): a failure (rev-parse raised or exited non-zero) is
+    logged and reported as ``None`` so the caller emits its sentinel result.
+    """
+    try:
+        rev_result = subprocess.run(
+            ["git", "rev-parse", base_branch],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        logger.warning("git rev-parse failed: %s", exc)
+        return None
+    if rev_result.returncode != 0:
+        logger.warning("Could not resolve base branch %s: %s", base_branch, rev_result.stderr)
+        return None
+    return rev_result.stdout.strip()
+
+
+@contextmanager
+def _baseline_worktree(repo_root: Path, base_branch: str) -> Iterator[Path | None]:
+    """Own a detached baseline worktree on ``base_branch`` for the block's lifetime.
+
+    Adds ``.../baseline-worktree`` under a private ``TemporaryDirectory`` on
+    ``base_branch`` (detached), yields its path, and ALWAYS removes it on exit
+    (``git worktree remove --force``). On an add failure the sentinel value
+    ``None`` is yielded instead of raising, so the caller emits its own
+    sentinel result — the shared scaffolding both capture paths hand-rolled.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_worktree = Path(tmp_dir) / "baseline-worktree"
+        try:
+            wt_result = subprocess.run(
+                ["git", "worktree", "add", str(tmp_worktree), base_branch, "--detach"],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as exc:
+            logger.warning("git worktree add failed: %s", exc)
+            yield None
+            return
+        if wt_result.returncode != 0:
+            logger.warning("Could not create baseline worktree for %s: %s", base_branch, wt_result.stderr)
+            yield None
+            return
+        try:
+            yield tmp_worktree
+        finally:
+            try:
+                subprocess.run(
+                    ["git", "worktree", "remove", str(tmp_worktree), "--force"],
+                    cwd=str(repo_root),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            except OSError as exc:
+                logger.warning("Could not remove temporary worktree: %s", exc)
+
+
 def capture_baseline(
     worktree_path: Path,
     base_branch: str,
@@ -299,90 +367,47 @@ def _capture_baseline_via_config(
         return None
 
     # Resolve base commit hash
-    try:
-        rev_result = subprocess.run(
-            ["git", "rev-parse", base_branch],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if rev_result.returncode != 0:
-            logger.warning("Could not resolve base branch %s: %s", base_branch, rev_result.stderr)
-            return _make_sentinel(wp_id, base_branch, "")
-        base_commit = rev_result.stdout.strip()
-    except Exception as exc:
-        logger.warning("git rev-parse failed: %s", exc)
+    base_commit = _resolve_base_commit(repo_root, base_branch)
+    if base_commit is None:
         return _make_sentinel(wp_id, base_branch, "")
 
-    # Create temp dir for the worktree and JUnit output
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_worktree = Path(tmp_dir) / "baseline-worktree"
-        junit_xml_path = Path(tmp_dir) / "junit.xml"
+    with _baseline_worktree(repo_root, base_branch) as tmp_worktree:
+        if tmp_worktree is None:
+            return _make_sentinel(wp_id, base_branch, base_commit)
+        # JUnit output lives beside the worktree (same private temp dir).
+        junit_xml_path = tmp_worktree.parent / "junit.xml"
 
-        # Add temporary worktree on base branch
         try:
-            wt_result = subprocess.run(
-                ["git", "worktree", "add", str(tmp_worktree), base_branch, "--detach"],
-                cwd=str(repo_root),
+            run_result = run_configured_command_template(
+                test_command,
+                {"output_file": junit_xml_path},
+                cwd=str(tmp_worktree),
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
             )
-            if wt_result.returncode != 0:
-                logger.warning(
-                    "Could not create baseline worktree for %s: %s", base_branch, wt_result.stderr
-                )
-                return _make_sentinel(wp_id, base_branch, base_commit)
+        except ConfiguredCommandUnsupported as exc:
+            logger.warning("Test command is not supported on this platform: %s", exc)
+            return _make_sentinel(wp_id, base_branch, base_commit)
         except Exception as exc:
-            logger.warning("git worktree add failed: %s", exc)
+            logger.warning("Test command failed to execute: %s", exc)
+            return _make_sentinel(wp_id, base_branch, base_commit)
+
+        # Parse JUnit XML (test runners often exit non-zero when tests fail — that's OK)
+        if not junit_xml_path.exists():
+            logger.warning(
+                "JUnit XML not produced by baseline test run (exit=%d). stderr: %s",
+                run_result.returncode,
+                run_result.stderr[:500],
+            )
             return _make_sentinel(wp_id, base_branch, base_commit)
 
         try:
-            try:
-                run_result = run_configured_command_template(
-                    test_command,
-                    {"output_file": junit_xml_path},
-                    cwd=str(tmp_worktree),
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                    timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
-                )
-            except ConfiguredCommandUnsupported as exc:
-                logger.warning("Test command is not supported on this platform: %s", exc)
-                return _make_sentinel(wp_id, base_branch, base_commit)
-            except Exception as exc:
-                logger.warning("Test command failed to execute: %s", exc)
-                return _make_sentinel(wp_id, base_branch, base_commit)
-
-            # Parse JUnit XML (test runners often exit non-zero when tests fail — that's OK)
-            if not junit_xml_path.exists():
-                logger.warning(
-                    "JUnit XML not produced by baseline test run (exit=%d). stderr: %s",
-                    run_result.returncode,
-                    run_result.stderr[:500],
-                )
-                return _make_sentinel(wp_id, base_branch, base_commit)
-
-            try:
-                total, passed, failed, skipped, failures = _parse_junit_xml(junit_xml_path)
-            except Exception as exc:
-                logger.warning("Failed to parse JUnit XML: %s", exc)
-                return _make_sentinel(wp_id, base_branch, base_commit)
-
-        finally:
-            # Always remove the temporary worktree
-            try:
-                subprocess.run(
-                    ["git", "worktree", "remove", str(tmp_worktree), "--force"],
-                    cwd=str(repo_root),
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-            except Exception as exc:
-                logger.warning("Could not remove temporary worktree: %s", exc)
+            total, passed, failed, skipped, failures = _parse_junit_xml(junit_xml_path)
+        except Exception as exc:
+            logger.warning("Failed to parse JUnit XML: %s", exc)
+            return _make_sentinel(wp_id, base_branch, base_commit)
 
     # Build result
     result = BaselineTestResult(
@@ -485,42 +510,14 @@ def _capture_baseline_via_scope_source(
         )
         return None
 
-    try:
-        rev_result = subprocess.run(
-            ["git", "rev-parse", base_branch], cwd=str(repo_root), capture_output=True, text=True, check=False,
-        )
-    except OSError as exc:
-        logger.warning("git rev-parse failed: %s", exc)
+    base_commit = _resolve_base_commit(repo_root, base_branch)
+    if base_commit is None:
         return _make_sentinel(wp_id, base_branch, "")
-    if rev_result.returncode != 0:
-        logger.warning("Could not resolve base branch %s: %s", base_branch, rev_result.stderr)
-        return _make_sentinel(wp_id, base_branch, "")
-    base_commit = rev_result.stdout.strip()
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_worktree = Path(tmp_dir) / "baseline-worktree"
-        try:
-            wt_result = subprocess.run(
-                ["git", "worktree", "add", str(tmp_worktree), base_branch, "--detach"],
-                cwd=str(repo_root), capture_output=True, text=True, check=False,
-            )
-        except OSError as exc:
-            logger.warning("git worktree add failed: %s", exc)
+    with _baseline_worktree(repo_root, base_branch) as tmp_worktree:
+        if tmp_worktree is None:
             return _make_sentinel(wp_id, base_branch, base_commit)
-        if wt_result.returncode != 0:
-            logger.warning("Could not create baseline worktree for %s: %s", base_branch, wt_result.stderr)
-            return _make_sentinel(wp_id, base_branch, base_commit)
-
-        try:
-            raw = _run_command_for_baseline(command, cwd=tmp_worktree)
-        finally:
-            try:
-                subprocess.run(
-                    ["git", "worktree", "remove", str(tmp_worktree), "--force"],
-                    cwd=str(repo_root), capture_output=True, text=True, check=False,
-                )
-            except OSError as exc:
-                logger.warning("Could not remove temporary worktree: %s", exc)
+        raw = _run_command_for_baseline(command, cwd=tmp_worktree)
 
     failures = tuple(scope_source.parse_results(raw))
     result = BaselineTestResult(
