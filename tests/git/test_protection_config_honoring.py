@@ -219,11 +219,12 @@ class TestProtectedBranchesConfigHonoring:
         """US2: ``protection.protected_branches: [main]`` → routes to coord worktree.
 
         The complement of the empty-list test: when main IS declared protected,
-        a COORDINATION-partition artifact (analysis report) must materialise the
+        a COORDINATION-partition artifact (acceptance matrix) must materialise the
         coord worktree. (Planning artifacts no longer transit coord under the
         write-surface-coherence contract — they refuse on a protected primary
         and direct the operator to a feature branch — so the coord-routing
-        mechanism is now exercised with a coord kind, ``ANALYSIS_REPORT``.)
+        mechanism is now exercised with a coord kind, ``ACCEPTANCE_MATRIX``.
+        Exemplar swapped from ``ANALYSIS_REPORT``, re-homed PRIMARY by FR-003.)
         """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
@@ -237,13 +238,13 @@ class TestProtectedBranchesConfigHonoring:
         mid8 = _MID8
         coord_branch = f"kitty/mission-{slug}-{mid8}"
         feature_dir, _spec = _seed_mission(repo.repo_root, slug, mid8, coord_branch)
-        report = feature_dir / "analysis-report.md"
-        report.write_text("# Analysis Report\n\nSeed.\n", encoding="utf-8")
+        report = feature_dir / "acceptance-matrix.json"
+        report.write_text('{"seed": true}\n', encoding="utf-8")
         _git(repo.repo_root, "add", "-A")
         _git(repo.repo_root, "commit", "-m", "seed mission")
         # Create coord branch so CoordinationWorkspace.resolve can materialise a worktree.
         _git(repo.repo_root, "branch", coord_branch)
-        report.write_text("# Analysis Report\n\nUpdated via coord.\n", encoding="utf-8")
+        report.write_text('{"updated": "via coord"}\n', encoding="utf-8")
 
         policy = ProtectionPolicy.resolve(repo.repo_root)
         assert policy.is_protected("main"), (
@@ -263,9 +264,9 @@ class TestProtectedBranchesConfigHonoring:
                 repo_root=repo.repo_root,
                 mission_slug=slug,
                 files=(report,),
-                message="analysis-report: via coord",
+                message="acceptance-matrix: via coord",
                 policy=policy,
-                kind=MissionArtifactKind.ANALYSIS_REPORT,
+                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
             )
 
         coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"
@@ -350,10 +351,11 @@ class TestFR006HatchEndToEnd:
     ) -> None:
         """Baseline: without hatch, the normal protect→coord routing applies.
 
-        Exercised with a COORDINATION-partition kind (``ANALYSIS_REPORT``): under
+        Exercised with a COORDINATION-partition kind (``ACCEPTANCE_MATRIX``): under
         the write-surface-coherence contract only coordination-owned artifacts
         transit the coord worktree, so the protect→coord materialisation baseline
-        is now proved with an analysis-report write.
+        is now proved with an acceptance-matrix write. (Exemplar swapped from
+        ``ANALYSIS_REPORT``, re-homed PRIMARY by FR-003.)
         """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
@@ -362,13 +364,13 @@ class TestFR006HatchEndToEnd:
         mid8 = _MID8
         coord_branch = f"kitty/mission-{slug}-{mid8}"
         feature_dir, _spec = _seed_mission(repo.repo_root, slug, mid8, coord_branch)
-        report = feature_dir / "analysis-report.md"
-        report.write_text("# Analysis Report\n\nSeed.\n", encoding="utf-8")
+        report = feature_dir / "acceptance-matrix.json"
+        report.write_text('{"seed": true}\n', encoding="utf-8")
         _git(repo.repo_root, "add", "-A")
         _git(repo.repo_root, "commit", "-m", "seed")
         # Create coord branch so CoordinationWorkspace.resolve can materialise.
         _git(repo.repo_root, "branch", coord_branch)
-        report.write_text("# Analysis Report\n\nNo hatch.\n", encoding="utf-8")
+        report.write_text('{"updated": "no hatch"}\n', encoding="utf-8")
 
         policy = ProtectionPolicy.resolve(repo.repo_root)
         assert not policy.operator_hatch_active, "Baseline: hatch must be OFF."
@@ -387,9 +389,9 @@ class TestFR006HatchEndToEnd:
                 repo_root=repo.repo_root,
                 mission_slug=slug,
                 files=(report,),
-                message="analysis-report: no hatch",
+                message="acceptance-matrix: no hatch",
                 policy=policy,
-                kind=MissionArtifactKind.ANALYSIS_REPORT,
+                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
             )
 
         coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"

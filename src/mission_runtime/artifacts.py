@@ -123,22 +123,43 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # FR-002: the post-merge retrospective is a terminal PRIMARY-partition
         # artifact — it resolves to the durable mission home for every topology.
         MissionArtifactKind.RETROSPECTIVE,
+        # FR-003 (coord-commit-integrity): ANALYSIS_REPORT re-homed COORD→PRIMARY.
+        # ``write_analysis_report`` requires spec/plan/tasks as freshness-hash
+        # siblings, which are PRIMARY-only — the coord worktree lacks them, so a
+        # "write-in-home" on COORD is structurally impossible. The writer + freshness
+        # gate already resolve PRIMARY; only the SSOT said COORD. Re-homing makes
+        # writer+gate+SSOT agree — a mis-classification correction, NOT a contract
+        # redesign. This is the ONE frozenset membership move; the ~9 residue
+        # delegators + ``is_primary_artifact_kind`` flip atomically from it. The
+        # ``_COORD_RESIDUE_FILENAMES["analysis-report.md"]`` classifier entry is KEPT
+        # (it is the file→kind map, not a residue-only list — deleting it would make
+        # ``kind_for_mission_file("analysis-report.md") → None`` and mis-route it).
+        MissionArtifactKind.ANALYSIS_REPORT,
     }
 )
 
 # FR-004: the COORD partition — coordination-owned artifacts that route to the
 # coordination branch under coordination topology and whose stale primary copies
 # are coordination residue. ACCEPTANCE_MATRIX (accept-time verification) and
-# ANALYSIS_REPORT (record-analysis) stay COORD per data-model.md.
+# ISSUE_MATRIX (authored verdicts) stay COORD per data-model.md. ANALYSIS_REPORT
+# was re-homed to the PRIMARY partition (FR-003, coord-commit-integrity) — see
+# ``_PRIMARY_ARTIFACT_KINDS`` above.
 _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
     {
         MissionArtifactKind.ACCEPTANCE_MATRIX,
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.STATUS_STATE,
-        MissionArtifactKind.ANALYSIS_REPORT,
     }
 )
 
+# The file→kind CLASSIFIER (despite the historical ``_COORD_RESIDUE`` name): the
+# ONE map :func:`kind_for_mission_file` consults to classify a bare mission-file
+# basename to its :class:`MissionArtifactKind`. It is NOT a residue-only list —
+# it holds PRIMARY-partition kinds (``spec.md``, ``analysis-report.md``, …) too.
+# The residue/partition question is answered SEPARATELY by the kind's frozenset
+# membership, so an entry here says only "this basename maps to this kind", never
+# "this kind is coord residue". KEEP every entry: dropping one makes the classifier
+# return ``None`` for that path → it mis-routes via the unrecognized-path fallback.
 _COORD_RESIDUE_FILENAMES: dict[str, MissionArtifactKind] = {
     "plan.md": MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
     "tasks.md": MissionArtifactKind.TASKS_INDEX,
@@ -147,6 +168,11 @@ _COORD_RESIDUE_FILENAMES: dict[str, MissionArtifactKind] = {
     "issue-matrix.md": MissionArtifactKind.ISSUE_MATRIX,
     "status.events.jsonl": MissionArtifactKind.STATUS_STATE,
     "status.json": MissionArtifactKind.STATUS_STATE,
+    # KEPT after the COORD→PRIMARY re-home (FR-003): this is the file→kind
+    # classifier entry, not a residue flag. ``ANALYSIS_REPORT`` is now a
+    # PRIMARY-partition kind (see ``_PRIMARY_ARTIFACT_KINDS``), so its residue
+    # predicates flip via the frozenset — this entry must stay so the basename
+    # still classifies to ``ANALYSIS_REPORT`` instead of degrading to ``None``.
     "analysis-report.md": MissionArtifactKind.ANALYSIS_REPORT,
     "spec.md": MissionArtifactKind.SPEC,
     "data-model.md": MissionArtifactKind.DATA_MODEL,
@@ -273,14 +299,15 @@ def is_coordination_artifact_residue_path(
 
     The predicate is path-specific and partition-aware (write-surface-coherence
     WP01-04): only COORD-partition artifacts (the append-only status log/snapshot,
-    ``acceptance-matrix.json`` / ``issue-matrix.md`` / ``analysis-report.md``) are
-    committed to the coordination branch under coordination topology, so ONLY
-    their stale primary copies are ignored. Planning SOURCE + finalized + identity
-    docs (``spec.md`` / ``plan.md`` / ``tasks.md`` / ``tasks/WP*.md`` /
-    ``data-model.md`` / ``research.md`` / ``checklists/`` / ``lanes.json``) are now
-    PRIMARY-partition kinds that live on ``target_branch`` — their stale primary
-    copies are REAL dirt, NOT residue. Unknown mission files and another mission's
-    artifacts still block dirty-tree gates.
+    ``acceptance-matrix.json`` / ``issue-matrix.md``) are committed to the
+    coordination branch under coordination topology, so ONLY their stale primary
+    copies are ignored. Planning SOURCE + finalized + identity docs (``spec.md`` /
+    ``plan.md`` / ``tasks.md`` / ``tasks/WP*.md`` / ``data-model.md`` /
+    ``research.md`` / ``checklists/`` / ``lanes.json``) — and, after the FR-003
+    re-home, ``analysis-report.md`` — are PRIMARY-partition kinds that live on
+    ``target_branch``; their stale primary copies are REAL dirt, NOT residue.
+    Unknown mission files and another mission's artifacts still block dirty-tree
+    gates.
     """
     artifact_kind = _artifact_kind_for_path(path, mission_slug=mission_slug)
     if artifact_kind is None:

@@ -289,7 +289,7 @@ def _seed_conflict_repo(repo: Path, conflict_rel: str) -> tuple[str, Path]:
 
 @pytest.mark.parametrize(
     "artifact_name",
-    ["issue-matrix.md", "analysis-report.md"],
+    ["issue-matrix.md", "acceptance-matrix.json"],
 )
 def test_take_theirs_recognizes_previously_omitted_residue_member(
     tmp_path: Path, artifact_name: str
@@ -303,8 +303,11 @@ def test_take_theirs_recognizes_previously_omitted_residue_member(
     PRIMARY-partition artifacts that live on ``target_branch``, so they are NO
     LONGER coordination residue and the take-theirs arm must not swallow them
     (asserted by ``test_take_theirs_does_not_swallow_primary_planning_conflict``).
-    Only genuinely COORD-partition members (``issue-matrix.md`` →
-    ``ISSUE_MATRIX``, ``analysis-report.md`` → ``ANALYSIS_REPORT``) remain here."""
+    FR-003 (coord-commit-integrity) likewise re-homed ``analysis-report.md``
+    (``ANALYSIS_REPORT``) to PRIMARY, so the exemplar here was swapped to
+    ``acceptance-matrix.json``. Only genuinely COORD-partition members
+    (``issue-matrix.md`` → ``ISSUE_MATRIX``, ``acceptance-matrix.json`` →
+    ``ACCEPTANCE_MATRIX``) remain here."""
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     conflict_rel = f"kitty-specs/{MISSION_SLUG}/{artifact_name}"

@@ -10,10 +10,10 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import subprocess
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -44,7 +44,9 @@ from specify_cli.status.models import (
     actor_identity_str,
 )
 from specify_cli.status.reducer import reduce as _reduce_events
+from specify_cli.status.store import EVENTS_FILENAME as _EVENTS_FILENAME
 from specify_cli.status.store import read_events as _read_raw_events
+from specify_cli.status.views import DERIVED_STATUS_FILENAME as _DERIVED_STATUS_FILENAME
 from specify_cli.status.transitions import is_terminal, resolve_lane_alias, validate_transition
 from specify_cli.status.wp_state import annotate as _annotate
 from specify_cli.workspace import canonicalize_feature_dir, delete_context
@@ -145,6 +147,212 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
     return _branch_exists(
         identity.repo_root,
         CoordinationWorkspace.branch_name(mission_slug, identity.mid8),
+    )
+
+
+_NonTxnEmitResult = TypeVar("_NonTxnEmitResult")
+
+
+def _fallback_coord_branch(identity: _TransactionIdentity, mission_slug: str) -> str | None:
+    """The coordination branch for a coord-topology mission, or ``None`` when coord-less.
+
+    Uses the SAME authority ``_transaction_topology_available`` consults: the
+    declared ``coordination_branch`` when meta carries one, else a coord branch
+    that already exists on disk under the canonical ``CoordinationWorkspace``
+    grammar. A mission with neither is coord-less (``SINGLE_BRANCH``/``LANES``/flat).
+    """
+    if identity.coordination_branch is not None:
+        return identity.coordination_branch
+    if not identity.mid8:
+        return None
+    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
+
+    candidate = CoordinationWorkspace.branch_name(mission_slug, identity.mid8)
+    return candidate if _branch_exists(identity.repo_root, candidate) else None
+
+
+def _resolve_fallback_coord_worktree(
+    identity: _TransactionIdentity, mission_slug: str
+) -> Path | None:
+    """Resolve the coord worktree for the non-transactional coord fallback, or
+    ``None`` for a coord-less topology (or a coord mission whose worktree cannot
+    be materialized — e.g. the repo root is not a work tree, so
+    ``CoordinationWorkspace.resolve`` cannot ``git worktree add``).
+
+    FR-004 (row 7): a coord-topology status write in the ``_transaction_topology_
+    available`` False arm must still land on the coord worktree. Reuses the ONE
+    ``CoordinationWorkspace.resolve`` authority (never a forked resolver).
+    """
+    if _fallback_coord_branch(identity, mission_slug) is None or not identity.mid8:
+        return None
+    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
+
+    try:
+        # Local annotation re-narrows the cross-module (``Any``) resolve result.
+        coord_worktree: Path = CoordinationWorkspace.resolve(
+            identity.repo_root, mission_slug, identity.mid8
+        )
+    except Exception:  # noqa: BLE001 — unresolvable coord worktree → primary fallback (no error)
+        return None
+    return coord_worktree
+
+
+def _emit_via_non_transactional_fallback(
+    identity: _TransactionIdentity,
+    mission_slug: str,
+    *,
+    primary_emit: Callable[[], _NonTxnEmitResult],
+    coord_emit: Callable[[Path], _NonTxnEmitResult],
+) -> _NonTxnEmitResult:
+    """The ``_transaction_topology_available`` False-arm write (FR-004, rows 7-8).
+
+    The ONE place the False arm decides coord-vs-primary — both the single and the
+    batch site route through here, so neither branches in place.
+
+    * **Coord topology** (a coordination branch whose worktree resolves):
+      materialize/target the coord worktree via ``CoordinationWorkspace.resolve``
+      and commit the event THERE (via *coord_emit*), so a reader of the coord
+      event log never sees a stale primary-only-uncommitted write (contract row 7).
+    * **Coord-less topology** (``SINGLE_BRANCH``/``LANES``/flat, or a coord mission
+      whose worktree cannot be materialized): PRESERVE the primary-uncommitted
+      write path (via *primary_emit*, contract row 8). No coord path is forced and
+      no error is raised — a blanket delete of this arm would regress flat missions.
+    """
+    coord_worktree = _resolve_fallback_coord_worktree(identity, mission_slug)
+    if coord_worktree is not None:
+        return coord_emit(coord_worktree)
+    return primary_emit()
+
+
+def _commit_status_artifacts_to_coord(
+    *, repo_root: Path, mission_slug: str, coord_worktree: Path, coord_feature_dir: Path
+) -> None:
+    """Commit the just-emitted status artifacts to the coord branch (FR-004 row 7).
+
+    Composes canonical primitives only: ``CoordinationWorkspace.resolve`` already
+    chose the destination worktree; the write target is resolved through the
+    single placement seam (``resolve_placement_only`` for the ``STATUS_STATE``
+    kind — the SAME seam ``_resolve_write_target`` uses), never a checkout-derived
+    ref; ``safe_commit`` is the single low-level commit primitive (the one
+    ``BookkeepingTransaction`` uses) whose HEAD==destination guard keeps the write
+    representable on the coord branch.
+    """
+    from mission_runtime import MissionArtifactKind, resolve_placement_only  # noqa: PLC0415
+    from specify_cli.git.commit_helpers import safe_commit  # noqa: PLC0415
+
+    paths = tuple(
+        candidate
+        for candidate in (
+            coord_feature_dir / _EVENTS_FILENAME,
+            coord_feature_dir / _DERIVED_STATUS_FILENAME,
+        )
+        if candidate.exists()
+    )
+    if not paths:
+        return
+    write_target = resolve_placement_only(
+        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
+    safe_commit(
+        repo_root=repo_root,
+        worktree_root=coord_worktree,
+        target=write_target,
+        message=f"chore(spec-kitty): status transition {coord_feature_dir.name}",
+        paths=paths,
+        capability=GuardCapability.STANDARD,
+    )
+
+
+def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Path:
+    """The coord worktree's on-disk feature dir for this mission (single grammar)."""
+    # Explicit local annotation re-narrows the cross-module ``KITTY_SPECS_DIR``
+    # (``Any`` under ``follow_imports = "skip"``) back to ``Path``.
+    feature_dir: Path = coord_worktree / KITTY_SPECS_DIR / _transaction_dir_name(mission_slug, mid8)
+    return feature_dir
+
+
+def _fallback_emit_single(
+    identity: _TransactionIdentity,
+    request: TransitionRequest,
+    mission_slug: str,
+    *,
+    ensure_sync_daemon: bool,
+    sync_dossier: bool,
+) -> StatusEvent:
+    """Single-event non-transactional fallback (FR-004 rows 7-8)."""
+
+    def _primary() -> StatusEvent:
+        event = _emit.emit_status_transition(
+            request, ensure_sync_daemon=ensure_sync_daemon, sync_dossier=sync_dossier
+        )
+        _tombstone_lane_workspace_context_on_cancel(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            read_feature_dir=identity.feature_dir,
+            event=event,
+        )
+        return event
+
+    def _coord(coord_worktree: Path) -> StatusEvent:
+        coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
+        event = _emit.emit_status_transition(
+            replace(request, feature_dir=coord_fd, mission_dir=None),
+            ensure_sync_daemon=ensure_sync_daemon,
+            sync_dossier=sync_dossier,
+        )
+        _commit_status_artifacts_to_coord(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            coord_worktree=coord_worktree,
+            coord_feature_dir=coord_fd,
+        )
+        _tombstone_lane_workspace_context_on_cancel(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            read_feature_dir=coord_fd,
+            event=event,
+        )
+        return event
+
+    return _emit_via_non_transactional_fallback(
+        identity, mission_slug, primary_emit=_primary, coord_emit=_coord
+    )
+
+
+def _fallback_emit_batch(
+    identity: _TransactionIdentity,
+    requests: list[TransitionRequest],
+    mission_slug: str,
+    *,
+    ensure_sync_daemon: bool,
+    sync_dossier: bool,
+) -> list[StatusEvent]:
+    """Same-WP batch non-transactional fallback (FR-004 rows 7-8)."""
+
+    def _primary() -> list[StatusEvent]:
+        # Local annotation re-narrows the cross-module (``Any``) emit result.
+        events: list[StatusEvent] = _emit.emit_status_transition_batch(
+            requests, ensure_sync_daemon=ensure_sync_daemon, sync_dossier=sync_dossier
+        )
+        return events
+
+    def _coord(coord_worktree: Path) -> list[StatusEvent]:
+        coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
+        events: list[StatusEvent] = _emit.emit_status_transition_batch(
+            [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
+            ensure_sync_daemon=ensure_sync_daemon,
+            sync_dossier=sync_dossier,
+        )
+        _commit_status_artifacts_to_coord(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            coord_worktree=coord_worktree,
+            coord_feature_dir=coord_fd,
+        )
+        return events
+
+    return _emit_via_non_transactional_fallback(
+        identity, mission_slug, primary_emit=_primary, coord_emit=_coord
     )
 
 
@@ -576,7 +784,11 @@ def _read_events_from_transaction_target(
     mission_slug: str,
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
-    return read_event_log(_read_contract_from_transaction_target(identity, mission_slug))
+    # Local annotation re-narrows the cross-module (``Any``) read result.
+    events: list[StatusEvent] = read_event_log(
+        _read_contract_from_transaction_target(identity, mission_slug)
+    )
+    return events
 
 
 def _read_event_stream_from_transaction_target(
@@ -641,7 +853,9 @@ def read_current_wp_state_transactional(
             # GENESIS, per FR-008d/R7.
             return Lane.GENESIS, None
         return resolved_lane, None
-    return wp_lane_actor_from_events(events, wp_id)
+    # Local annotation re-narrows the cross-module (``Any``) helper result.
+    lane_actor: tuple[Lane, str | None] = wp_lane_actor_from_events(events, wp_id)
+    return lane_actor
 
 
 def _read_contract_routes_through_coordination(
@@ -919,18 +1133,16 @@ def emit_status_transition_transactional(
     # assignment as an incompatible redefinition (T055, #2675).
     event: StatusEvent | None
     if not _transaction_topology_available(identity, mission_slug):
-        event = _emit.emit_status_transition(
+        # WP04/FR-004 (rows 7-8): coord topology commits to the coord worktree;
+        # coord-less topologies keep the primary-uncommitted write path. The
+        # coord-vs-primary decision lives in _emit_via_non_transactional_fallback.
+        return _fallback_emit_single(
+            identity,
             request,
+            mission_slug,
             ensure_sync_daemon=ensure_sync_daemon,
             sync_dossier=sync_dossier,
         )
-        _tombstone_lane_workspace_context_on_cancel(
-            repo_root=identity.repo_root,
-            mission_slug=mission_slug,
-            read_feature_dir=identity.feature_dir,
-            event=event,
-        )
-        return event
 
     # WP04/FR-004: BookkeepingTransaction.acquire requires str for its lock/path
     # management. For legacy missions (identity.mission_id is None), use the
@@ -1023,8 +1235,13 @@ def emit_status_transition_batch_transactional(
 
     identity = _identity_for_request(first)
     if not _transaction_topology_available(identity, mission_slug):
-        return _emit.emit_status_transition_batch(
+        # WP04/FR-004 (rows 7-8): same coord-vs-primary decision as the single
+        # site, routed through the ONE _emit_via_non_transactional_fallback so
+        # this batch function never branches coord-vs-primary in place.
+        return _fallback_emit_batch(
+            identity,
             requests,
+            mission_slug,
             ensure_sync_daemon=ensure_sync_daemon,
             sync_dossier=sync_dossier,
         )

@@ -52,6 +52,7 @@ import typer
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
+from specify_cli.cli.commands._coordination_doctor import check_and_warn_coord_staleness
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     FrontmatterUpdatePlan,
     compute_wp_frontmatter_updates,
@@ -339,6 +340,15 @@ def _do_finalize_tasks(
     st = _FinalizeState(mission=mission, json_output=json_output, validate_only=validate_only)
     try:
         _ft_resolve_context(st, ports)
+        # WP06 (coord-commit-integrity-01KY5JS8, FR-008, DIRECTIVE_024 declared
+        # out-of-map one-liner): this module is outside WP06's owned_files, but
+        # FR-008 requires a non-blocking coord-vs-target staleness WARN woven
+        # into finalize-tasks. `_coordination_doctor` (Cluster K) owns the
+        # detector; `check_and_warn_coord_staleness` never raises on its own,
+        # and `contextlib.suppress` is belt-and-braces so this can NEVER block
+        # finalize-tasks.
+        with contextlib.suppress(Exception):
+            check_and_warn_coord_staleness(st.primary_feature_dir, st.main_repo_root)
         _ft_validate(st)
         _ft_apply_writes(st)
         _ft_output(st)

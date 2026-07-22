@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -169,38 +168,26 @@ def test_implement_prompt_uses_feedback_pointer(workflow_repo: tuple[Path, str, 
     assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in prompt_content
 
 
-@pytest.mark.parametrize(
-    "error",
-    [
-        subprocess.CalledProcessError(1, ["git", "rev-parse", "--git-common-dir"]),
-        FileNotFoundError("git"),
-    ],
-)
-def test_resolve_git_common_dir_returns_none_on_subprocess_errors(error: Exception):
-    with patch("specify_cli.cli.commands.agent.workflow.subprocess.run", side_effect=error):
-        assert workflow._resolve_git_common_dir(Path("/nonexistent/repo")) is None
-
-
-def test_resolve_git_common_dir_returns_none_for_blank_output():
-    completed = subprocess.CompletedProcess(args=["git"], returncode=0, stdout="\n", stderr="")
-    with patch("specify_cli.cli.commands.agent.workflow.subprocess.run", return_value=completed):
-        assert workflow._resolve_git_common_dir(Path("/nonexistent/repo")) is None
-
-
 def test_resolve_feedback_pointer_handles_blank_and_legacy_missing(tmp_path: Path):
+    # coord-commit-integrity WP01/T002: the dead triplicate
+    # ``workflow._resolve_git_common_dir`` (zero production callers — the real
+    # helper lives in ``tasks_shared.py`` with its own tests) was deleted with
+    # its two subprocess-error tests. ``_resolve_review_feedback_pointer`` never
+    # called it, so the former ``patch.object(workflow, "_resolve_git_common_dir")``
+    # was decorative; the feedback:// case still resolves to None on a repo
+    # without the artifact.
     repo = tmp_path / "repo"
     repo.mkdir()
 
     assert workflow._resolve_review_feedback_pointer(repo, "   ") is None
 
-    with patch.object(workflow, "_resolve_git_common_dir", return_value=None):
-        assert (
-            workflow._resolve_review_feedback_pointer(
-                repo,
-                "feedback://001-test-feature/WP01/file.md",
-            )
-            is None
+    assert (
+        workflow._resolve_review_feedback_pointer(
+            repo,
+            "feedback://001-test-feature/WP01/file.md",
         )
+        is None
+    )
 
     assert workflow._resolve_review_feedback_pointer(repo, "relative/path/that/does-not-exist.md") is None
 

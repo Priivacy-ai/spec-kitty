@@ -8,8 +8,9 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import re
 import subprocess
 from dataclasses import dataclass
@@ -24,6 +25,31 @@ UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 
 _REVIEW_CYCLE_FILE_RE = re.compile(r"^review-cycle-(?P<cycle>[1-9][0-9]*)\.md$")
+
+
+def _review_cycle_wp_dir(repo_root: Path, mission_slug: str, wp_slug: str) -> Path:
+    """Return the PRIMARY-home ``tasks/<wp>`` dir for a review-cycle artifact.
+
+    FR-001 (coord-commit-integrity): ``review-cycle-N.md`` is a
+    ``WORK_PACKAGE_TASK`` artifact — a PRIMARY-partition kind (data-model.md) — so
+    it lives with its WP on the primary ``target_branch`` under ``tasks/<wp>/``,
+    NEVER the coordination husk. This is the ONE resolver the READ seam
+    (:func:`resolve_review_cycle_pointer`) and the WRITE seam
+    (:func:`create_rejected_review_cycle`) share, so both converge on the same
+    PRIMARY home. It routes through the kind-aware
+    :func:`resolve_planning_read_dir` (keyed on the WORK_PACKAGE_TASK partition),
+    retiring the kind-blind ``candidate_feature_dir_for_mission`` fold that
+    resolved the coord worktree for a coord-topology mission (the #2646/#2697/#2275
+    misplacement). ``MissionSelectorAmbiguous`` propagates unchanged (no silent
+    pick — C-009).
+    """
+    # ``resolve_planning_read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+    # bind explicitly so the join's return narrows back to ``Path``.
+    mission_dir: Path = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    return mission_dir / "tasks" / wp_slug
 
 
 class ReviewCycleError(ValueError):
@@ -79,7 +105,11 @@ def _validate_segment(name: str, value: str) -> str:
     contract (C-001: migrate, don't wrap — no parallel mechanism).
     """
     try:
-        return assert_safe_path_segment(value)
+        # ``assert_safe_path_segment`` is typed ``-> str`` but mypy widens it to
+        # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+        # bind explicitly so the declared ``str`` return narrows back.
+        safe_segment: str = assert_safe_path_segment(value)
+        return safe_segment
     except ValueError as exc:
         raise ReviewCycleError(f"{name} is not a safe path segment: {exc}") from exc
 
@@ -180,19 +210,17 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
 
     if value.startswith("review-cycle://"):
         parts = validate_review_cycle_pointer(value)
-        # #2136/#2164: resolve the mission dir through the SAME topology-aware fold
-        # the WRITE seam uses (``create_rejected_review_cycle`` →
-        # ``candidate_feature_dir_for_mission``) rather than a raw
-        # ``kitty-specs/<mission_slug>`` join. The pointer's mission_slug
-        # is whatever handle the emitting writer was given; a bare ``mid8`` / human
-        # slug names the on-disk ``<slug>-<mid8>`` dir only after canonicalization,
-        # so the raw join would compose a DIVERGENT path from where the artifact was
-        # written. The shared resolver converges every handle form on the one dir and
-        # propagates ``MissionSelectorAmbiguous`` (no silent pick — C-009).
+        # #2136/#2164 + FR-001: resolve the mission dir through the SAME shared
+        # resolver the WRITE seam uses (``create_rejected_review_cycle`` →
+        # ``_review_cycle_wp_dir``) rather than a raw ``kitty-specs/<mission_slug>``
+        # join. ``review-cycle-N.md`` is a WORK_PACKAGE_TASK (PRIMARY) artifact, so
+        # the resolver lands on the PRIMARY ``tasks/<wp>/`` home for every handle
+        # form (a bare ``mid8`` / human slug names the on-disk ``<slug>-<mid8>`` dir
+        # only after canonicalization, so a raw join would compose a DIVERGENT
+        # path). Read seam and write seam thus converge on the same PRIMARY home;
+        # ``MissionSelectorAmbiguous`` propagates (no silent pick — C-009).
         candidate = (
-            candidate_feature_dir_for_mission(repo_root, parts.mission_slug)
-            / "tasks"
-            / parts.wp_slug
+            _review_cycle_wp_dir(repo_root, parts.mission_slug, parts.wp_slug)
             / parts.filename
         ).resolve()
         if not candidate.exists() or not candidate.is_file():
@@ -269,7 +297,12 @@ def create_rejected_review_cycle(
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
     safe_wp_id = _validate_segment("wp_id", wp_id)
-    sub_artifact_dir = candidate_feature_dir_for_mission(main_repo_root, safe_mission_slug) / "tasks" / safe_wp_slug
+    # FR-001 write-in-home: land the review-cycle artifact in its PRIMARY
+    # ``tasks/<wp>/`` home (WORK_PACKAGE_TASK partition) via the shared resolver —
+    # NOT the kind-blind coord husk. This fixes both this direct site AND the
+    # move-task ``--review-feedback-file`` caller (which passes no pre-resolved
+    # dir), from this one edit.
+    sub_artifact_dir = _review_cycle_wp_dir(main_repo_root, safe_mission_slug, safe_wp_slug)
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
     filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)

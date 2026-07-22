@@ -4,6 +4,37 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: coord-commit-integrity-01KY5JS8
 mission_id: 01KY5JS83S0413RQJT172RZR8T
+generated_at: '2026-07-22T22:06:57.427325+00:00'
+analyzer_agent: claude:opus:reviewer-renata:analyzer
+input_artifacts:
+  spec.md:
+    path: /home/stijn/Documents/_code/SDD/fork/coord-trust-2841/kitty-specs/coord-commit-integrity-01KY5JS8/spec.md
+    sha256: b6955f6ac6d323884adf8f7cbc61e35aa9a4442769f132f0c1efdba90c05956b
+  plan.md:
+    path: /home/stijn/Documents/_code/SDD/fork/coord-trust-2841/kitty-specs/coord-commit-integrity-01KY5JS8/plan.md
+    sha256: 823db71e6794c64fe40f0bb8f3930913aff3c6053bbbf11551d8fa6694a42867
+  tasks.md:
+    path: /home/stijn/Documents/_code/SDD/fork/coord-trust-2841/kitty-specs/coord-commit-integrity-01KY5JS8/tasks.md
+    sha256: 9468ee9a0b7de7d08f621a187765ee49e0fe63e7b6fb63fcb4454130687344e3
+  charter:
+    path: /home/stijn/Documents/_code/SDD/fork/coord-trust-2841/.kittify/charter/charter.md
+    sha256: cb2dc6cd12aade3d5464997467b7ecdbd3849ea3581207b58c207c3d16fff9b8
+verdict: unknown
+issue_counts:
+  critical:
+  high:
+  low:
+  info:
+  medium:
+findings: []
+---
+
+---
+schema_version: 1
+artifact_type: spec-kitty.analysis-report
+command: /spec-kitty.analyze
+mission_slug: coord-commit-integrity-01KY5JS8
+mission_id: 01KY5JS83S0413RQJT172RZR8T
 generated_at: '2026-07-22T20:03:20.893997+00:00'
 analyzer_agent: unknown
 input_artifacts:

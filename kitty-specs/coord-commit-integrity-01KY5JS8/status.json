@@ -1,20 +1,166 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
-  "mission_number": "",
-  "mission_slug": "",
+  "event_count": 43,
+  "last_event_id": "01KY62WVN06WAFFVG89Z6QKVN2",
+  "materialized_at": "2026-07-22T23:34:41.056766+00:00",
+  "mission_number": "186",
+  "mission_slug": "coord-commit-integrity-01KY5JS8",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 6,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY62VTH8VYTJQFV2E3YNGBEK",
+      "last_transition_at": "2026-07-22T23:34:07.144753+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 complete. CAUSATION VERDICT (T001, live via coord_repo_for_review): the #2861 block is FR-002 (coord-commit path), NOT FR-006 (actor). The compact actor claude:opus:reviewer-renata:reviewer is ACCEPTED (rides the [refused] receipt verbatim, no fatal 'invalid value'); the refusal is on the MODERN _commit_via_coordination_transaction path (Failed to record for_review->in_review via BookkeepingTransaction). Precise sub-mode = EMPTY SECOND COMMIT ('nothing to commit, working tree clean' -> safe_commit git commit failed): the transactional emit already committed the transition to the coord worktree, so the follow-up workflow commit finds nothing to stage. It is NOT SafeCommitHeadMismatch (that is the misroute sub-mode, proven directly in the e2e). NOTE for WP03: the empty-second-commit mode is FR-004/WP03 territory (single write-authority); WP01 leaves the modern path unchanged and closes the misroute hazard, so T001 asserts current exit=1 and WP03 must flip it. Delivered: T002 campsite (_handle_commit_failure extracted from both except-arms byte-identical; dead workflow.py _resolve_git_common_dir triplicate + its 2 stale subprocess tests retired); T003 FR-002(a) fail-loud misroute guard (coord_branch present + incomplete triple never reaches legacy repo_root leaf); T004 FR-002(b) _resolve_legacy_porcelain_root reuses CoordinationWorkspace.resolve so gitignored .worktrees coord files read dirty (no phantom already-committed); T005 real-repo e2e (real git+worktree, git show assertions, SafeCommitHeadMismatch negative, status->coord/absent-on-target modern-path regression, NO stubs). Gates: pytest 8/8 owned + 46 existing regression green; ruff+C901 exit 0; mypy 0 errors in owned src (only pre-existing schema.py baseline). Directives applied: 010 spec-fidelity, 024 locality, 025 boy-scout, 030 gate, 034/041 test-first/scaffold-not-friction (asserted LIVE verdict not the hypothesis), 043 close-defect-by-construction (fail-loud guard + porcelain-root), 044 canonical-sources (reused CoordinationWorkspace.resolve + sanctioned fixtures), 045 read-intent. Tactic delete-the-assertion-not-the-test (retired dead-helper assertions, kept the file). Scope note: stale test edit outside owned_files is the T002-mandated retirement (sanctioned, no overlap).",
+        "Opus/reviewer-renata review (3.2.6 claim-bug workaround)",
+        "APPROVE (opus/reviewer-renata): causation FR-002 empty-second-commit (WP04/T015 owns the flip); misroute+porcelain fixed, modern path untouched, un-stubbed e2e"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3733342,
+      "shell_pid_created_at": "1784750697.46",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY62WMW9V75XSV9HQVTJFG6W",
+      "last_transition_at": "2026-07-22T23:34:34.121579+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: actor boundary-normalize + dict validators; AC-3 NOT satisfied by this WP (WP01/WP04 owned #2861 block)",
+        "Review passed (reviewer-renata/opus): no synthetic defaults / no minted ResolvedBinding (C-002/C-007 hold); thin parse_agent_boundary_string at all 3 seams (compact string never in actor.tool); _is_actor_field deviation VERIFIED as improvement (literal wording would defeat FR-006); dict-accept still rejects empties; AC-3 honestly NOT claimed (FR-002 causation unchanged, green); ruff/mypy clean, ≤15, 54 tests. NIT (non-blocking): add seam-level compact-string-no-leak e2e."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 4094955,
+      "shell_pid_created_at": "1784758027.76",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KY62W18D7JHYPQRM6DYTKT4W",
+      "last_transition_at": "2026-07-22T23:34:14.029908+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: ANALYSIS_REPORT re-homed COORD->PRIMARY (one _PLACEMENT->_PRIMARY frozenset move); KEPT _COORD_RESIDUE_FILENAMES['analysis-report.md'] classifier entry; INVERTED (not reversed) the #2463 flip-test to assert PRIMARY + swapped coord-exemplars to ACCEPTANCE_MATRIX/ISSUE_MATRIX (coord coverage preserved); arch-gate PARTITION_RATIONALE flipped; review-cycle write-in-home via shared _review_cycle_wp_dir (read+write seams) + merge-gate reader resolves PRIMARY; committed-ref git-show proof green; copy2-drop narrow to analysis-report only; gates green (pytest 74 passed, ruff 0, mypy 0); no xfail.",
+        "Cycle 2: added coord-fixture git-show review-cycle placement proof (test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord); real create_rejected_review_cycle write + commit_for_mission(WORK_PACKAGE_TASK); red-direction verified; production code UNCHANGED",
+        "Review passed cycle 2 (reviewer-renata/opus): T009/DoD-141 committed-ref e2e added; red-direction self-reproduced (RED under pre-fix coord-husk, GREEN with fix); real seams no-stub, no xfail; cycle-1 code approvals stand (3 landmines handled, one frozenset move, narrow copy-drop).",
+        "Re-record canonical agent identity (prior reject/approve transitions recorded actor=user; WP03 implemented+reviewed by python-pedro/renata)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1784753953.09",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY62WVN06WAFFVG89Z6QKVN2",
+      "last_transition_at": "2026-07-22T23:34:41.056766+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T015 (headline #2861 proof): BookkeepingTransaction.commit_idempotent() no-ops the empty second commit; is_noop receipt skips _revert_coordination_commit. Causation test test_2861_causation_repro.py FLIPPED exit 1 -> exit 0 (manual coord review now SUCCEEDS) — CONFIRMED passing. Campsite: _git_stdout tolerates absent lane-worktree cwd (no more [Errno 2]). T012 (FR-004 rows 7-8): ONE _emit_via_non_transactional_fallback; both single+batch False arms route through it; coord topology commits to coord worktree via CoordinationWorkspace.resolve + placement-seam write target; coord-less preserves primary. Gates green: pytest (owned+causation+e2e+3020 broad), ruff, ruff C901, mypy all clean. Applied directives 010/024/025/030/041/044/045.",
+        "Review passed (reviewer-renata/opus): #2861 fix EMPIRICALLY proven — reverting commit_idempotent→commit reds the causation test with exact empty-second-commit signature. No-op scoped to staged==HEAD, fails open on git error, strict commit() untouched; is_noop revert-skip guard load-bearing; topology-conditional fallback two-sided; one resolver (D-001); ruff/mypy/C901 clean; 5+99 tests green. LOW follow-up: direct _fallback_emit_batch test."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3826352,
+      "shell_pid_created_at": "1784753953.09",
+      "subtasks": {
+        "T012": "done",
+        "T015": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY62W7PDVE9WCWXEXVM408S6",
+      "last_transition_at": "2026-07-22T23:34:20.621771+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-007 own-feature_dir named allowlist exemption implemented. Applied python-pedro directives: 010 (spec fidelity), 024 (locality), 025 (boy scout - extracted _glob_match dup + reordered comment numbering), 030 (test/typecheck gate), 041 (contract-pinned tests not scaffold), 043 (close defect class: exemption anchored to feature_dir_rel string prefix match, not substring, to close the sibling-dir-prefix false-positive class), 044 (canonical sources - test file placed at tests/specify_cli/bulk_edit/ matching existing sibling tests test_diff_check.py/test_gate.py; WP05 owned_files/gate cmd stated tests/bulk_edit/ which does not exist as a pytest testpath -- filed as a prompt/doc discrepancy, not a code gap). Extracted _glob_match (diff_check.py, dedupes _path_matches/_exception_for fnmatch logic), _is_bulk_edit_mission + _feature_dir_rel (gate.py, dedupes gate.py:54/:216 guard). New pure helpers _runtime_state_exemption/_under_feature_dir/_is_runtime_state_basename in diff_check.py, exemption branch fires before path-heuristic (step 3 of assess_file), anchored to feature_dir_rel computed once in check_review_diff_compliance. Gates green: pytest tests/specify_cli/bulk_edit -q = 130 passed; ruff check clean; mypy src/specify_cli/bulk_edit/ clean (narrow 2-file mypy invocation shows a pre-existing follow_imports=skip artifact unrelated to this change, confirmed via git-stash diff on the base commit and via the package-scoped mypy run).",
+        "Opus/reviewer-renata review",
+        "Review passed (reviewer-renata/opus): C-004 own-feature_dir anchor + exact-boundary check; named allowlist; exemption before classifier; extractions tested; clean gates."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3826352,
+      "shell_pid_created_at": "1784753953.09",
+      "subtasks": {
+        "T013": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KY62WE6BQYEJMKP9R8CBCTXY",
+      "last_transition_at": "2026-07-22T23:34:27.275350+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-008/FR-009 (Gap-1) implemented: _coord_branch_stale_vs_target_finding + doctor --check-staleness + non-blocking finalize-tasks WARN + minimized --fix fast-forward (fails loud w/ unified diff on divergence/dirty, zero mutation). Campsite: _fast_forward_finding/_is_ff_candidate/_rev_parse/_resolve_coord_short extracted; 7x local subprocess import hoisted. Directives: DIR-030/034/024/025/043/045 (python-pedro). Gates green: pytest tests/coordination/test_coord_staleness.py (24 passed), ruff+mypy clean on all touched files, tests/coordination/ full suite (66 passed), tests/architectural/test_no_dead_symbols.py + test_no_legacy_terminology.py green. Two declared out-of-map touches (doctor.py CLI flag registration; agent/tasks_finalize.py one-liner WARN hook) - rationale-backed, non-overlapping with any other WP's owned_files.",
+        "Review passed (reviewer-renata/opus): --fix fails loud byte-identical on divergence+dirty (tests b/c), FF only strict-ancestor AND clean (a), minimized C-003, coord-vs-target distinct check, finalize WARN non-blocking (d); ruff/mypy clean; 24/24 tests; out-of-map touches declared+non-overlapping."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3826352,
+      "shell_pid_created_at": "1784753953.09",
+      "subtasks": {
+        "T014": "done"
+      }
+    }
+  }
 }

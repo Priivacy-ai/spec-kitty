@@ -1079,6 +1079,8 @@ def build_resolved_actor(
     role: str,
     tool: str | None,
     binding: ResolvedBinding | None,
+    self_profile: str | None = None,
+    self_model: str | None = None,
 ) -> dict[str, str | None]:
     """Structured ``{role, profile, tool, model}`` actor for the IC-09 fan-out.
 
@@ -1087,10 +1089,12 @@ def build_resolved_actor(
     shape. The dict form lets the SaaS fan-out ride the transition's *resolved*
     identity rather than the bare ``--agent`` tool string.
 
-    The ``model`` is the genuine dispatch-resolved model or ``None`` when a
-    pick-up resolved none (the ``RESOLVED_MODEL_ABSENT`` delta sentinel is a
-    reduced-slot concern, not an actor concern — the actor carries a plain
-    ``None`` for "no model").
+    The ``model``/``profile`` prefer the genuine dispatch-resolved binding; when
+    no binding is present (or the binding leaves a segment unresolved),
+    ``self_model``/``self_profile`` (FR-005) carry a **self-asserted** value
+    parsed from the ``--agent`` boundary string — never a synthetic default. An
+    absent value on both sides stays a plain ``None`` (the ``RESOLVED_MODEL_ABSENT``
+    delta sentinel is a reduced-slot concern, not an actor concern).
 
     .. note:: WP12 (FR-015) landed the plumbing this seam waited on. The
        ``emit_status_transition`` / ``build_status_event`` / ``StatusEvent.actor``
@@ -1105,14 +1109,42 @@ def build_resolved_actor(
     """
     return {
         "role": role,
-        "profile": binding.agent_profile if binding is not None else None,
+        "profile": (binding.agent_profile if binding is not None else None) or self_profile,
         "tool": tool,
-        "model": binding.model if binding is not None else None,
+        "model": (binding.model if binding is not None else None) or self_model,
     }
 
 
 # Compatibility alias for the WP10 test/import surface.
 _build_resolved_actor = build_resolved_actor
+
+
+def parse_agent_boundary_string(
+    raw: str,
+) -> tuple[str, str | None, str | None, str | None]:
+    """Parse the compact ``--agent`` CLI value into ``(tool, model, profile, role)``.
+
+    THIN, non-synthesizing boundary parser for FR-005. Unlike
+    :func:`specify_cli.status.wp_metadata._resolve_agent_from_colon_string` (the
+    **persisted-frontmatter** parser, which fills an absent segment with a
+    tool-derived synthetic default such as ``"unknown-model"`` or
+    ``"{tool}-default"``), this parser leaves an absent segment as ``None`` —
+    a self-asserted live-claim actor must never fabricate identity it was never
+    given (C-002/C-007).
+
+    Accepts both the bare ``tool`` form (``"claude"``) and the full compact
+    ``tool:model:profile:role`` form; missing trailing segments and empty
+    interior segments (``"claude::reviewer-renata:"``) both normalize to
+    ``None``. Raises :class:`ValueError` for an empty ``tool`` segment — a
+    tool is required to identify the agent at all.
+    """
+    segments = raw.split(":")
+    while len(segments) < 4:
+        segments.append("")
+    tool, model_seg, profile_seg, role_seg = segments[:4]
+    if not tool:
+        raise ValueError(f"Empty agent tool in --agent value: {raw!r}")
+    return tool, (model_seg or None), (profile_seg or None), (role_seg or None)
 
 
 @dataclass(frozen=True)

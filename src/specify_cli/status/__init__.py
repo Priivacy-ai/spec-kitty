@@ -84,6 +84,7 @@ from .emit import (
     emit_inner_state_changed,
     emit_resolved_binding,
     emit_status_transition,
+    parse_agent_boundary_string,
 )
 from .resolved_binding import (
     ResolvedBinding,
@@ -254,6 +255,7 @@ __all__ = [
     "append_annotations_atomic_verified",
     "build_claim_policy_metadata",
     "build_resolved_actor",
+    "parse_agent_boundary_string",
     "emit_inner_state_changed",
     "emit_resolved_binding",
     "ResolvedBinding",

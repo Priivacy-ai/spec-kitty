@@ -418,12 +418,14 @@ class TestCreateWindowCommitBoundaryNFR001:
 
         # Stub the kind-aware resolver to return COORDINATION so commit_for_mission
         # actually tries to materialise (the coord path on a protected primary). A
-        # COORD kind (ANALYSIS_REPORT) is used because write-surface-coherence WP02
+        # COORD kind (ACCEPTANCE_MATRIX) is used because write-surface-coherence WP02
         # routes primary kinds straight to the primary surface (no materialisation);
         # the materialisation-at-commit-boundary invariant lives on the coord path.
+        # (Exemplar swapped from ANALYSIS_REPORT, re-homed PRIMARY by FR-003 — it
+        # would now trip the DECISION-8 coord-staging guard — to a still-COORD kind.)
         _coord_branch = f"kitty/mission-{_MISSION_DIR}"
-        report_path = primary_dir / "analysis-report.md"
-        report_path.write_text("# Analysis\n\nFirst write.\n", encoding="utf-8")
+        report_path = primary_dir / "acceptance-matrix.json"
+        report_path.write_text("{}\n", encoding="utf-8")
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
@@ -441,9 +443,9 @@ class TestCreateWindowCommitBoundaryNFR001:
                 repo_root=tmp_path,
                 mission_slug=_BARE_SLUG,
                 files=(report_path,),
-                message="analysis: first write",
+                message="acceptance-matrix: first write",
                 policy=policy,
-                kind=MissionArtifactKind.ANALYSIS_REPORT,
+                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
             )
 
         calls_after_commit = len(materialise_calls)

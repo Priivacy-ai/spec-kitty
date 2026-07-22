@@ -81,6 +81,11 @@ logger = logging.getLogger(__name__)
 # literal is domain vocabulary, not incidental formatting, so it earns a name.
 _STATUS_COMMITTED: Final = "committed"
 _STATUS_UNCHANGED: Final = "unchanged"
+
+# FR-003 (coord-commit-integrity): the re-homed PRIMARY analysis-report basename.
+# Named once so the coord-staging skip (mirroring COORD_OWNED_STATUS_FILES) does
+# not restate the raw literal.
+_ANALYSIS_REPORT_FILENAME: Final = "analysis-report.md"
 _STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
 _STATUS_ERROR: Final = "error"
 
@@ -686,6 +691,14 @@ def _stage_artifacts_in_coord_worktree(
 
     for src in files:
         if src.name in COORD_OWNED_STATUS_FILES:
+            continue
+        # FR-003 (coord-commit-integrity): ``analysis-report.md`` was re-homed
+        # COORD→PRIMARY — it lands on the primary ``target_branch`` and is NEVER
+        # a second copy on the coordination worktree. Skip its copy2 staging path
+        # (mirroring the COORD_OWNED_STATUS_FILES skip above) so a coord commit that
+        # happens to sweep it makes no coord residue. ``acceptance-matrix.json`` /
+        # ``issue-matrix.md`` STAY COORD and continue to be staged below.
+        if src.name == _ANALYSIS_REPORT_FILENAME:
             continue
         rel = src.relative_to(repo_root)
         if is_under_worktrees_segment(rel):

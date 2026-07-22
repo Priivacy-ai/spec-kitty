@@ -93,19 +93,21 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
     """A COORD-partition kind under coord topology routes through the coord-worktree branch.
 
     write-surface-coherence WP03 / T014: the helper is partition-aware. A
-    coordination-partition kind (e.g. ``ANALYSIS_REPORT``) under coord topology
+    coordination-partition kind (e.g. ``ACCEPTANCE_MATRIX``) under coord topology
     falls past the kind short-circuit and reaches the
     ``routes_through_coordination`` branch. With no resolvable mid8 the helper
     degrades to the main checkout (C-004 safety), but the coord branch MUST be
     taken — proven by spying that ``_safe_load_meta`` (only reached past the
-    predicate) is consulted.
+    predicate) is consulted. (Exemplar swapped from ``ANALYSIS_REPORT``, which
+    FR-003 re-homed to PRIMARY, to a still-COORD kind so this coord-routing
+    coverage survives the re-home.)
     """
     from mission_runtime import MissionArtifactKind
 
     _patch_topology(monkeypatch, coord=True)
-    artifact = tmp_path / "kitty-specs" / "001-demo" / "analysis-report.md"
+    artifact = tmp_path / "kitty-specs" / "001-demo" / "acceptance-matrix.json"
     artifact.parent.mkdir(parents=True)
-    artifact.write_text("# Analysis\n", encoding="utf-8")
+    artifact.write_text("{}\n", encoding="utf-8")
 
     consulted: list[str] = []
 
@@ -116,7 +118,7 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
     monkeypatch.setattr(commit_router_mod, "_resolve_mid8", _spy_resolve_mid8)
 
     worktree, paths = commit_router_mod._planning_commit_worktree(
-        tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ANALYSIS_REPORT
+        tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ACCEPTANCE_MATRIX
     )
     # mid8 unresolvable → degrades to main checkout, but the coord branch WAS taken.
     assert consulted == ["001-demo"], (

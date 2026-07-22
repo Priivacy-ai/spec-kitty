@@ -1840,6 +1840,23 @@ def _mt_hop_policy_metadata(
     return None
 
 
+def _binding_role_for_lane(lane: Lane) -> str | None:
+    """Map a target lane to its resolved-binding role.
+
+    Shared by :func:`_mt_emit_transitions` (the live transition-emit path,
+    which needs the ``None`` case to skip binding-role annotation for any
+    lane that is neither a claim nor a review-claim) and
+    :func:`_mt_reassignment_binding_fields` (the off-transition reassignment
+    path, which always wants a role and falls back to ``"implementer"`` at
+    its own call site — collapses the previously duplicated role map).
+    """
+    if lane == Lane.CLAIMED:
+        return "implementer"
+    if lane == Lane.IN_REVIEW:
+        return "reviewer"
+    return None
+
+
 def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit each lane hop through the coord WRITE ``commit_status`` capability."""
     assert st.emit_plan is not None
@@ -1856,20 +1873,28 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
             st, event, current_event_lane, target, hop_actor
         )
         hop_policy_metadata = _mt_hop_policy_metadata(st, target)
-        binding_role = (
-            "implementer"
-            if target == Lane.CLAIMED
-            else "reviewer" if target == Lane.IN_REVIEW else None
-        )
+        binding_role = _binding_role_for_lane(target)
         transition_actor: str | dict[str, str | None] = hop_actor
         annotation_delta = None
         if binding_role is not None and st.resolved_binding is not None:
-            from specify_cli.status import build_resolved_actor
+            from specify_cli.status import build_resolved_actor, parse_agent_boundary_string
 
+            # FR-005: parse the compact ``--agent`` boundary string into a bare
+            # tool + self-asserted profile/model — the whole compact string
+            # must never land in actor.tool, and an absent segment stays None.
+            parsed_tool: str | None = None
+            self_profile: str | None = None
+            self_model: str | None = None
+            if st.agent:
+                parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(
+                    st.agent
+                )
             transition_actor = build_resolved_actor(
                 role=binding_role,
-                tool=st.agent or hop_actor,
+                tool=parsed_tool or hop_actor,
                 binding=st.resolved_binding,
+                self_profile=self_profile,
+                self_model=self_model,
             )
             annotation_delta = st.resolved_binding.to_delta(role=binding_role)
         if target == Lane.CLAIMED and st.shell_pid:
@@ -1947,7 +1972,7 @@ def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
     """Resolved actual for an off-transition agent reassignment."""
     if not st.agent or st.resolved_binding is None:
         return {}
-    role = "reviewer" if st.target_lane == Lane.IN_REVIEW else "implementer"
+    role = _binding_role_for_lane(st.target_lane) or "implementer"
     delta = st.resolved_binding.to_delta(role=role)
     binding_fields: dict[str, Any] = delta.to_dict()
     return binding_fields

@@ -5,10 +5,12 @@ REAL coordination-topology fixture, across EVERY converged write path. The bifur
 
 * PRIMARY-partition kinds (``SPEC`` / ``DATA_MODEL`` / ``RESEARCH`` / ``CHECKLIST`` /
   ``FINALIZED_EXECUTION_PLAN`` / ``TASKS_INDEX`` / ``WORK_PACKAGE_TASK`` /
-  ``LANE_STATE`` / ``PRIMARY_METADATA``) resolve to the primary ``target_branch``
-  for EVERY topology and NEVER transit coordination.
-* COORD-partition kinds (``STATUS_STATE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX`` /
-  ``ANALYSIS_REPORT``) keep the topology-routed coordination ref under coord topology.
+  ``LANE_STATE`` / ``PRIMARY_METADATA`` / ``RETROSPECTIVE`` / ``ANALYSIS_REPORT``)
+  resolve to the primary ``target_branch`` for EVERY topology and NEVER transit
+  coordination. (``ANALYSIS_REPORT`` was re-homed COORD→PRIMARY by FR-003 /
+  coord-commit-integrity.)
+* COORD-partition kinds (``STATUS_STATE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``)
+  keep the topology-routed coordination ref under coord topology.
 
 Non-vacuity (research D-7 / NFR-002):
 
@@ -327,12 +329,13 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.PRIMARY_METADATA,
         MissionArtifactKind.RETROSPECTIVE,
+        # FR-003 (coord-commit-integrity): ANALYSIS_REPORT re-homed COORD→PRIMARY.
+        MissionArtifactKind.ANALYSIS_REPORT,
     }
     coord_kinds = {
         MissionArtifactKind.STATUS_STATE,
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
-        MissionArtifactKind.ANALYSIS_REPORT,
     }
     # Sanity: the two sets partition the whole enum exactly once.
     assert primary_kinds | coord_kinds == set(MissionArtifactKind)
@@ -510,9 +513,13 @@ PARTITION_RATIONALE: dict[MissionArtifactKind, tuple[_Partition, str, str]] = {
         "status reducer / dashboard (coord worktree)",
     ),
     MissionArtifactKind.ANALYSIS_REPORT: (
-        "COORD",
-        "record-analysis output (analysis-report.md) stays COORD per data-model.md.",
-        "record-analysis writer",
+        "PRIMARY",
+        "FR-003 (coord-commit-integrity) re-home COORD→PRIMARY: record-analysis "
+        "output (analysis-report.md) shares the spec/plan/tasks freshness-hash "
+        "siblings, which are PRIMARY-only — a coord write is structurally impossible. "
+        "The writer + freshness gate + SSOT now agree on the primary target_branch; a "
+        "stale primary copy is REAL dirt, never coord residue.",
+        "record-analysis writer + freshness-hash gate (needs PRIMARY spec/plan/tasks)",
     ),
 }
 
