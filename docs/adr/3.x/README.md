@@ -114,3 +114,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-19 | [Evict runtime-mutable WP state into the event log via a single generic InnerStateChanged annotation event](2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
 | 2026-07-21 | [in_tension_with and reconciles_tension DRG edges (retiring opposed_by)](2026-07-21-1-in-tension-with-drg-edge.md) |
 | 2026-07-21 | [promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, and deliver terminology enforcement as an executable ASSET gate](2026-07-21-1-glossary-first-order-doctrine-artefact.md) |
+| 2026-07-22 | [gate bindings reuse `mission_step_contract` — the content-vs-relationship principle](2026-07-22-1-gate-binding-content-vs-relationship.md) |
