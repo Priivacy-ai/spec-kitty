@@ -165,3 +165,54 @@ def test_base_init_requires_index_url() -> None:
 
 def test_reexported_from_compat_provider() -> None:
     assert provider_module.SimpleIndexProvider is SimpleIndexProvider
+
+
+# --- #2836 review fold: stable-only + yanked-skipping selection ---
+
+_HTML_WITH_PRERELEASE = """
+<html><body>
+<a href="acme_spec_kitty_cli-1.9.0-py3-none-any.whl">1.9.0</a>
+<a href="acme_spec_kitty_cli-2.0.0rc1-py3-none-any.whl">2.0.0rc1</a>
+</body></html>
+"""
+
+_HTML_ALL_PRERELEASE = """
+<html><body>
+<a href="acme_spec_kitty_cli-2.0.0rc1-py3-none-any.whl">2.0.0rc1</a>
+<a href="acme_spec_kitty_cli-2.0.0rc2-py3-none-any.whl">2.0.0rc2</a>
+</body></html>
+"""
+
+_HTML_WITH_YANKED = """
+<html><body>
+<a href="acme_spec_kitty_cli-1.9.0-py3-none-any.whl">1.9.0</a>
+<a href="acme_spec_kitty_cli-2.5.0-py3-none-any.whl" data-yanked="broken build">2.5.0</a>
+</body></html>
+"""
+
+
+def _latest_for(monkeypatch: pytest.MonkeyPatch, html: str) -> str | None:
+    client = _FakeClient(_FakeResponse(html.encode("utf-8")))
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: client)
+    return (
+        SimpleIndexProvider(
+            "https://example.invalid/simple/",
+            package_prefix="acme_spec_kitty_cli",
+        )
+        .get_latest("acme-spec-kitty-cli")
+        .version
+    )
+
+
+def test_prerelease_is_not_selected_over_stable(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2.0.0rc1 > 1.9.0 numerically, but a stable release must win.
+    assert _latest_for(monkeypatch, _HTML_WITH_PRERELEASE) == "1.9.0"
+
+
+def test_falls_back_to_prerelease_when_no_stable(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _latest_for(monkeypatch, _HTML_ALL_PRERELEASE) == "2.0.0rc2"
+
+
+def test_yanked_release_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2.5.0 is the numeric max but is yanked (PEP 592) → 1.9.0 wins.
+    assert _latest_for(monkeypatch, _HTML_WITH_YANKED) == "1.9.0"

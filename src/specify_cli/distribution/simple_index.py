@@ -39,18 +39,30 @@ _PEP503_NORMALIZE_RE = re.compile(r"[-_.]+")
 
 
 class _AnchorCollector(HTMLParser):
-    """Collect ``href`` attribute values from ``<a>`` tags."""
+    """Collect ``(href, is_yanked)`` from ``<a>`` tags.
+
+    PEP 592: an anchor carrying a ``data-yanked`` attribute (with any value,
+    including empty) marks that file as yanked and it must be excluded from
+    normal version selection.
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.hrefs: list[str] = []
+        self.entries: list[tuple[str, bool]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag.lower() != "a":
             return
+        href: str | None = None
+        is_yanked = False
         for name, value in attrs:
-            if name.lower() == "href" and value:
-                self.hrefs.append(value)
+            lowered = name.lower()
+            if lowered == "href" and value:
+                href = value
+            elif lowered == "data-yanked":
+                is_yanked = True  # presence alone = yanked (PEP 592)
+        if href:
+            self.entries.append((href, is_yanked))
 
 
 class SimpleIndexProvider:
@@ -134,11 +146,17 @@ def _versions_from_html(html: str, package_prefix: str | None) -> list[str]:
         collector.feed(html)
         collector.close()
     except Exception:
-        # Fall back to a tolerant regex scan if the HTML parser chokes.
-        collector.hrefs = re.findall(r"""href=["']([^"']+)["']""", html, flags=re.I)
+        # Fall back to a tolerant regex scan if the HTML parser chokes. The
+        # regex cannot see ``data-yanked``, so treat these as not-yanked.
+        collector.entries = [
+            (href, False)
+            for href in re.findall(r"""href=["']([^"']+)["']""", html, flags=re.I)
+        ]
 
     versions: list[str] = []
-    for href in collector.hrefs:
+    for href, is_yanked in collector.entries:
+        if is_yanked:
+            continue  # PEP 592: never select a yanked release
         version = _version_from_href(href, package_prefix)
         if version is not None:
             versions.append(version)
@@ -219,9 +237,18 @@ def _parse_version_stem(stem: str) -> str | None:
 
 
 def _highest_version(versions: list[str]) -> str | None:
-    """Return the highest sanitised version string, or ``None`` if none parse."""
-    best_str: str | None = None
-    best_ver: Version | None = None
+    """Return the highest **stable** sanitised version string.
+
+    Mirrors ``PyPIProvider`` (which reads PyPI's maintainer-designated stable
+    ``info.version``): pre-releases are excluded so a private index publishing
+    ``2.0.0rc1`` alongside ``1.9.0`` does not nag users onto a release
+    candidate. Falls back to the highest pre-release only when **no** stable
+    version exists on the index. Returns ``None`` if nothing parses.
+    """
+    best_stable_str: str | None = None
+    best_stable_ver: Version | None = None
+    best_any_str: str | None = None
+    best_any_ver: Version | None = None
     for raw in versions:
         if not _VERSION_RE.match(raw):
             continue
@@ -229,7 +256,10 @@ def _highest_version(versions: list[str]) -> str | None:
             parsed = Version(raw)
         except InvalidVersion:
             continue
-        if best_ver is None or parsed > best_ver:
-            best_ver = parsed
-            best_str = raw
-    return best_str
+        if best_any_ver is None or parsed > best_any_ver:
+            best_any_ver = parsed
+            best_any_str = raw
+        if not parsed.is_prerelease and (best_stable_ver is None or parsed > best_stable_ver):
+            best_stable_ver = parsed
+            best_stable_str = raw
+    return best_stable_str if best_stable_str is not None else best_any_str
