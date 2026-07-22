@@ -102,6 +102,12 @@ class GateBinding(BaseModel):
     until a future half-B asset executor lands (#2599). This keeps the
     frozen, ``extra="forbid"`` schema forward-compatible without forcing a
     breaking ``schema_version`` bump when that executor arrives.
+
+    ``fail_open`` is likewise inert in half A (see the field comment below):
+    ``_mt_dispatch_one_gate`` wraps every handler unconditionally fail-open
+    per C-003 (the two-hard-stops invariant), so ``fail_open: false`` must
+    NEVER enable fail-closed behaviour today. It is reserved, byte-stable
+    forward-compat for a future per-binding policy — not a live knob.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -110,6 +116,9 @@ class GateBinding(BaseModel):
     handler: str
     handler_kind: Literal["mission_step_contract", "asset"] = "mission_step_contract"
     schema_version: str
+    # Inert in half A — every handler is unconditionally fail-open per C-003
+    # (two-hard-stops invariant); reserved for a future per-binding policy,
+    # tracked. Never read as a live fail-closed toggle.
     fail_open: bool = True
     provenance: str | None = None
 

@@ -63,6 +63,7 @@ from specify_cli.review.baseline import (
     diff_baseline,
 )
 from specify_cli.review.scope_source import (
+    _JUNIT_ARTIFACT_FILENAME,
     GateCoverageScopeSource,
     RawRunResult,
     ScopeBreakdownSource,
@@ -116,6 +117,37 @@ _EMPTY_COMPOSITE_ROUTE: _CompositeRoute = (None, None, ())
 _DEFAULT_HEAD_RUN_TIMEOUT = CAPTURE_BASELINE_TIMEOUT_SECONDS  # shared with baseline.py's capture_baseline.
 _HEAD_RUN_HEARTBEAT_INTERVAL = 30.0
 _HEAD_RUN_TERMINATE_GRACE = 5.0
+
+# How many trailing stderr chars a run-error message carries (bounded tail).
+_STDERR_TAIL_CHARS = 500
+
+
+def _gate_run_env() -> dict[str, str]:
+    """Environment for an automated gate subprocess: inherit + force headless.
+
+    Shared by the pytest/JUnit runner (:func:`run_scoped_tests_at_head`) and
+    the raw-command runner (:func:`_run_raw_command`) so the ``PWHEADLESS``
+    guard — never pop a browser window during an automated gate run — is set
+    in ONE place rather than copied per call site.
+    """
+    env = dict(os.environ)
+    env["PWHEADLESS"] = "1"
+    return env
+
+
+def _launch_failed_error(exc: OSError) -> str:
+    """Shared ``OSError`` launch-failure message for the head-run subprocess."""
+    return f"scoped test run failed to launch: {exc}"
+
+
+def _timed_out_error(timeout: int, stderr: str) -> str:
+    """Shared timeout message carrying a bounded stderr tail."""
+    return f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
+
+
+def _cancelled_error(stderr: str) -> str:
+    """Shared cancellation message carrying a bounded stderr tail."""
+    return f"scoped test run cancelled; stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
 
 
 class GateAuthoritiesUnavailable(RuntimeError):
@@ -181,13 +213,13 @@ def _live_filter_groups(repo_root: Path) -> Mapping[str, tuple[str, ...]]:
     (mirrors ``scope_source.GateCoverageScopeSource.test_command``'s own
     identical annotation for the same reason).
     """
-    groups: Mapping[str, tuple[str, ...]] = GateCoverageScopeSource(repo_root=repo_root)._filter_groups
+    groups: Mapping[str, tuple[str, ...]] = GateCoverageScopeSource(repo_root=repo_root).filter_groups
     return groups
 
 
 def _live_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]:
     """The live composite-dir routing map, sourced via ``GateCoverageScopeSource``."""
-    routing: Mapping[str, _CompositeRoute] = GateCoverageScopeSource(repo_root=repo_root)._composite_routing
+    routing: Mapping[str, _CompositeRoute] = GateCoverageScopeSource(repo_root=repo_root).composite_routing
     return routing
 
 
@@ -623,11 +655,10 @@ def run_scoped_tests_at_head(
             state=HeadRunState.INCOMPLETE_OUTPUT,
         )
 
-    env = dict(os.environ)
-    env["PWHEADLESS"] = "1"  # never pop a browser window during an automated gate run
+    env = _gate_run_env()
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        junit_path = Path(tmp_dir) / "pre-review-junit.xml"
+        junit_path = Path(tmp_dir) / _JUNIT_ARTIFACT_FILENAME
         command = resolve_pytest_command(
             [*test_targets, f"--junitxml={junit_path}", "-q"],
             repo_root=repo_root,
@@ -649,7 +680,7 @@ def run_scoped_tests_at_head(
         except OSError as exc:
             return HeadRunResult(
                 ran=False,
-                error=f"scoped test run failed to launch: {exc}",
+                error=_launch_failed_error(exc),
                 state=HeadRunState.LAUNCH_FAILED,
             )
 
@@ -657,7 +688,7 @@ def run_scoped_tests_at_head(
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-500:]}",
+                error=_timed_out_error(timeout, stderr),
                 state=state,
                 stdout=stdout,
                 stderr=stderr,
@@ -666,7 +697,7 @@ def run_scoped_tests_at_head(
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=f"scoped test run cancelled; stderr tail: {stderr[-500:]}",
+                error=_cancelled_error(stderr),
                 state=state,
                 stdout=stdout,
                 stderr=stderr,
@@ -678,7 +709,7 @@ def run_scoped_tests_at_head(
                 returncode=process.returncode,
                 error=(
                     f"no JUnit XML produced by the scoped run (exit={process.returncode}); "
-                    f"stderr tail: {stderr[-500:]}"
+                    f"stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
                 ),
                 state=HeadRunState.INCOMPLETE_OUTPUT,
                 stdout=stdout,
@@ -790,8 +821,7 @@ def _run_raw_command(
     state, an unparsed :class:`RawRunResult` (``None`` on a non-completion),
     and an error string (``None`` on success).
     """
-    env = dict(os.environ)
-    env["PWHEADLESS"] = "1"  # never pop a browser window during an automated gate run
+    env = _gate_run_env()
     try:
         with _scoped_run_lock():
             process = _launch_scoped_process(list(command), repo_root=repo_root, env=env)
@@ -803,12 +833,12 @@ def _run_raw_command(
                 wait=wait,
             )
     except OSError as exc:
-        return HeadRunState.LAUNCH_FAILED, None, f"scoped test run failed to launch: {exc}"
+        return HeadRunState.LAUNCH_FAILED, None, _launch_failed_error(exc)
 
     if state is HeadRunState.TIMED_OUT:
-        return state, None, f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-500:]}"
+        return state, None, _timed_out_error(timeout, stderr)
     if state is HeadRunState.CANCELLED:
-        return state, None, f"scoped test run cancelled; stderr tail: {stderr[-500:]}"
+        return state, None, _cancelled_error(stderr)
 
     artifact_path = _extract_junit_output_path(command)
     raw = RawRunResult(returncode=process.returncode, stdout=stdout, stderr=stderr, output_artifact_path=artifact_path)
