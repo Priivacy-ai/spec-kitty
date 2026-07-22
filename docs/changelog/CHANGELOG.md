@@ -27,6 +27,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `spec_kitty.distribution_profile` — without overlaying `src/specify_cli/**`.
   Stock public-PyPI / `spec-kitty-cli` installs with no hooks are unchanged.
   Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/fork-packaging-hooks.md).
+- **Doctrine-controlled transition gates — the `for_review` pre-review gate is now
+  declared by the repo's active doctrine, not hardcoded to Spec Kitty's own repo
+  shape (#2595, #2596, #2598; epic #2535 half A).** Scope resolution moves behind a
+  layout-agnostic `ScopeSource` port (`GateCoverageScopeSource` preserves the
+  incumbent pytest/JUnit path byte-identically; `DeclaredCommandScopeSource` runs a
+  consumer's declared `review.test_command` with baseline-relative verdicts). A
+  named `GATE_REGISTRY` registers the pre-review engine as the first handler; a
+  versioned `gates` binding on the `mission_step_contract` review contract (with an
+  inert `handler_kind` seam for future executable-asset gates) is resolved through
+  charter activation and dispatched by the inverted `_mt_run_transition_gates`
+  hook with deterministic aggregation and per-handler fail-open (two hard-stops
+  preserved). A new built-in `mission_step_contract.graph.yaml` DRG fragment makes
+  the gate fire on the source repo. Behaviour parity is enforced by a golden
+  captured from the pre-refactor base. **Closes the pre-review facet of #2534** (the
+  always-on `tests.architectural._gate_coverage` consumer-repo import is removed —
+  a consumer never reaches it, even under erroneous activation) **and #2330** (the
+  pytest-layout papercut). Half B (executable gate assets, #2599) is out of scope.
 
 - **WP runtime-state evicted into the append-only event log (#2684, #2093).**
   Runtime-mutable work-package state — `shell_pid`, subtask completion,
