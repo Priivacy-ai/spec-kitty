@@ -19,6 +19,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Fork packaging hooks (entry-point plugins + `DistributionProfile`).**
+  Renamed / private-index forks can customize CLI package identity, upgrade
+  providers (including built-in PEP 503 `SimpleIndexProvider`), remediation
+  index URLs, data-freshness TTL, and the public-PyPI notifier via
+  `spec_kitty.cli_package`, `spec_kitty.upgrade_provider`, and
+  `spec_kitty.distribution_profile` — without overlaying `src/specify_cli/**`.
+  Stock public-PyPI / `spec-kitty-cli` installs with no hooks are unchanged.
+  Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/fork-packaging-hooks.md).
+
 - **WP runtime-state evicted into the append-only event log (#2684, #2093).**
   Runtime-mutable work-package state — `shell_pid`, subtask completion,
   `## Activity Log` notes, `tracker_refs`, `agent`/`assignee`, and review-cycle
@@ -359,8 +368,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   prose instead of freezing an escape hatch. The gate skips fenced code blocks and inline-code
   spans (captured CLI `--help` output and emitted-string literals keep their real casing) and
   exempts the historical `docs/adr/` and `docs/changelog/` trees. Also refreshes the `AGENTS.md`
-  Canonical Kind Vocabulary table (`template` → `procedure`, adds the `glossary-pack` row) and
-  retires the Contextive generated-file staleness test.
+  Canonical Kind Vocabulary table: charter-activatable tokens now list `procedure` (not
+  `template`) and add `glossary-pack`; `template`, `asset`, and `anti_pattern` remain
+  `ArtifactKind` members but are **not** charter-activatable (excluded via
+  `_NON_AUGMENTATION_ELIGIBLE_KINDS` — this is a governance clarification, not a kind
+  rename). Retires the Contextive generated-file staleness test.
 - **The docs anti-sprawl structure ratchet (R1) is retired (#2851 follow-up).** The per-PR
   blocking `anti_sprawl_ratchet.py --strict` step is removed from `docs-freshness.yml`, and
   the script plus its orphaned `doctrine.directives.common_docs` constant (its only consumer)
