@@ -1,0 +1,46 @@
+{
+  "base_commit": "e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f",
+  "block_enabled": false,
+  "expected": {
+    "blocked": false,
+    "console": "[red]Pre-review regression gate: cancelled \u2014 scoped test run cancelled[/red]",
+    "exit_code": 1,
+    "force_bypassed": false,
+    "metadata": {
+      "affected_shard_count": 0,
+      "block_enabled": false,
+      "blocked": false,
+      "force_bypassed": false,
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [],
+      "new_checkout_paths": [],
+      "new_failure_count": 0,
+      "new_failure_nodeids": [],
+      "outcome": "cancelled",
+      "pre_existing_failure_count": 0,
+      "reason": "scoped test run cancelled",
+      "run_state": "cancelled",
+      "test_targets": [],
+      "transition_applied": false
+    },
+    "outcome": "cancelled",
+    "terminal": true,
+    "transition_applied": false
+  },
+  "force": false,
+  "oracle_provenance": "captured from base commit e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f against the incumbent _mt_run_pre_review_gate (never regenerated from HEAD)",
+  "verdict": {
+    "new_failures": [],
+    "outcome": "cancelled",
+    "pre_existing_failures": [],
+    "reason": "scoped test run cancelled",
+    "run_state": "cancelled",
+    "scope": {
+      "empty_cone_composite_dirs": [],
+      "excluded_scope_files": [],
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [],
+      "test_targets": []
+    }
+  }
+}

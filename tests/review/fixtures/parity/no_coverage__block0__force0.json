@@ -1,0 +1,45 @@
+{
+  "base_commit": "e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f",
+  "block_enabled": false,
+  "expected": {
+    "blocked": false,
+    "console": "[dim]Pre-review regression gate: no_coverage \u2014 excluded scope \u2014 unverified: every changed file landed only in a catch-all group (core_misc/e2e/any_src) or matched no dorny group at all[/dim]",
+    "exit_code": null,
+    "force_bypassed": false,
+    "metadata": {
+      "affected_shard_count": 0,
+      "block_enabled": false,
+      "blocked": false,
+      "force_bypassed": false,
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [],
+      "new_checkout_paths": [],
+      "new_failure_count": 0,
+      "new_failure_nodeids": [],
+      "outcome": "no_coverage",
+      "pre_existing_failure_count": 0,
+      "reason": "excluded scope \u2014 unverified: every changed file landed only in a catch-all group (core_misc/e2e/any_src) or matched no dorny group at all",
+      "run_state": "completed",
+      "test_targets": []
+    },
+    "outcome": "no_coverage",
+    "terminal": false,
+    "transition_applied": true
+  },
+  "force": false,
+  "oracle_provenance": "captured from base commit e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f against the incumbent _mt_run_pre_review_gate (never regenerated from HEAD)",
+  "verdict": {
+    "new_failures": [],
+    "outcome": "no_coverage",
+    "pre_existing_failures": [],
+    "reason": "excluded scope \u2014 unverified: every changed file landed only in a catch-all group (core_misc/e2e/any_src) or matched no dorny group at all",
+    "run_state": "completed",
+    "scope": {
+      "empty_cone_composite_dirs": [],
+      "excluded_scope_files": [],
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [],
+      "test_targets": []
+    }
+  }
+}
