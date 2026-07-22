@@ -1,0 +1,33 @@
+{
+  "accept_commit": "d720ef1cda6daa1d2aa423793c13748a1247c513",
+  "acceptance_history": [
+    {
+      "accept_commit": "d720ef1cda6daa1d2aa423793c13748a1247c513",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-22T15:55:24.374661+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6787b6886daf7a747fecc4f0fe8ae7567876b175"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-22T15:55:24.374661+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6787b6886daf7a747fecc4f0fe8ae7567876b175",
+  "baseline_merge_commit": "284f48a24014d3fd80f65af0835e6c36439602cb",
+  "coordination_branch": "kitty/mission-common-docs-query-01KY541A",
+  "created_at": "2026-07-22T14:35:21.238011+00:00",
+  "flattened": false,
+  "friendly_name": "Common Docs query — CLI retrieval index",
+  "mission_id": "01KY541A8N75AV1MG0ZM2VQV5Y",
+  "mission_number": null,
+  "mission_slug": "common-docs-query-01KY541A",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Charter, doctrine, and glossary already expose --json retrieval; Common Docs is the last canonical knowledge home with no query API. This mission adds a generated, freshness-gated docs index + a glossary-shaped query CLI, reusing the existing inventory_lockfile generator/gate + the glossary query pattern rather than new infra. Move 3 of docs/plans/engineering-notes/agent-knowledge-canonical-homes.md.",
+  "purpose_tldr": "Give agents and harnesses a first-class 'spec-kitty docs query --json' retrieval surface over Common Docs (title + heading-anchor + abstract index), closing the one canonical-knowledge gap that still requires ad-hoc file globbing.",
+  "slug": "common-docs-query-01KY541A",
+  "target_branch": "feat/agent-knowledge-canonical-homes",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T15:11:03.132024+00:00"
+}
