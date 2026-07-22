@@ -27,14 +27,15 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
+import kernel.paths as kernel_paths
+from kernel.paths import posix_tree_path, repo_tree_path
 from specify_cli.missions._substantive import (
     _git_commit_check_context,
     _head_carries_path,
-    _tree_path,
     is_committed,
 )
 
@@ -129,30 +130,70 @@ def test_file_outside_repo_returns_false(tmp_path: Path) -> None:
 # Tree paths must be POSIX-normalized (#2836) — git's ``HEAD:<path>`` object
 # syntax and ``ls-files`` pathspec require forward slashes. Rendering with
 # ``str(Path)`` used ``os.sep`` (a backslash on Windows), making committed specs
-# misreport as uncommitted. CI runs on POSIX, so the ``_git_commit_check_context``
-# assertions below cannot go red on the old ``str(Path)`` form (``os.sep`` is
-# already ``/``). The witnessing red-first test is ``test_tree_path_*`` on the
-# ``_tree_path`` seam: it feeds Windows-style components and proves the output is
-# forward-slashed regardless of host OS — a guard that DOES fail against the
-# retired ``str(Path(*parts))`` rendering.
+# misreport as uncommitted.
+#
+# Red-first honesty: the bug is a POSIX/Windows *rendering* difference, so it
+# CANNOT be witnessed by a black-box input test on POSIX CI — there
+# ``str(Path("a","b"))`` already yields ``"a/b"``, identical to the fix. The two
+# ``_in_worktree`` / ``_in_primary`` tests below are call-site *contract pins*
+# (they lock the worktree-strip slice and forward-slash output), NOT bug
+# witnesses. The one test that genuinely discriminates buggy from fixed on POSIX
+# is ``test_tree_path_witnesses_windows_backslash_regression``: it substitutes
+# ``PureWindowsPath`` for the module ``Path`` symbol so a reverted
+# ``str(Path(*parts))`` form re-emits backslashes and fails, while the
+# ``PurePosixPath``-based fix stays green.
 # ---------------------------------------------------------------------------
 
 
-def test_tree_path_seam_is_posix_for_windows_style_parts() -> None:
-    """Red-first witness: ``_tree_path`` forward-slashes even Windows-style parts.
+def test_tree_path_contract_is_forward_slashed(tmp_path: Path) -> None:
+    """Contract pin: ``posix_tree_path`` joins parts with forward slashes.
 
-    The bug (#2836) was ``str(Path(*parts))`` rendering with ``os.sep``. On POSIX
-    that is already ``/``, so the integration assertions cannot witness it. This
-    seam test feeds multi-component parts and asserts a backslash-free, correctly
-    joined result — the exact contract the retired ``str(Path)`` form violated on
-    Windows. It stays platform-independent because ``_tree_path`` builds the string
-    from the separator-agnostic ``parts`` tuple, never re-parsing through a
-    host-native ``Path``.
+    This locks the output contract but does NOT witness the #2836 bug on POSIX
+    (see ``test_tree_path_witnesses_windows_backslash_regression`` for that).
     """
-    assert _tree_path(("kitty-specs", "my-slug", "spec.md")) == "kitty-specs/my-slug/spec.md"
-    assert "\\" not in _tree_path(("a", "b", "c", "spec.md"))
-    assert _tree_path(("spec.md",)) == "spec.md"
-    assert _tree_path(()) == ""
+    assert posix_tree_path(("kitty-specs", "my-slug", "spec.md")) == "kitty-specs/my-slug/spec.md"
+    assert "\\" not in posix_tree_path(("a", "b", "c", "spec.md"))
+    assert posix_tree_path(("spec.md",)) == "spec.md"
+    assert posix_tree_path(()) == ""
+
+
+def test_tree_path_witnesses_windows_backslash_regression(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Real red-first witness for #2836, runnable on POSIX CI.
+
+    The defect only manifests when the join renders with ``os.sep`` — i.e. when
+    the module resolves a *host-native* ``Path`` on Windows. Substituting
+    ``PureWindowsPath`` for ``kernel.paths``' module-level ``Path`` symbol
+    reproduces that rendering on any host: a reverted ``str(Path(*parts))`` body
+    would then emit ``kitty-specs\\my-slug\\spec.md`` and fail these asserts,
+    whereas the shipped ``PurePosixPath(*parts).as_posix()`` form is immune to the
+    substitution and stays forward-slashed. This is the guard that actually
+    discriminates buggy from fixed on the platform CI runs (proven: red against
+    ``str(Path(*parts))``, green against the fix).
+    """
+    monkeypatch.setattr(kernel_paths, "Path", PureWindowsPath)
+    assert posix_tree_path(("kitty-specs", "my-slug", "spec.md")) == "kitty-specs/my-slug/spec.md"
+    assert "\\" not in posix_tree_path(("a", "b", "spec.md"))
+
+
+def test_repo_tree_path_and_finalize_share_one_seam(tmp_path: Path) -> None:
+    """SSOT: finalize's branch-path helper and the committedness check agree.
+
+    ``mission_finalize._branch_tree_relative_path`` and
+    ``_git_commit_check_context`` both route through ``repo_tree_path`` (#2836
+    dedup), so a worktree spec resolves to the same forward-slashed tree path
+    from either entry point — the property that stops the two copies drifting.
+    """
+    from specify_cli.cli.commands.agent.mission_finalize import _branch_tree_relative_path
+
+    spec = tmp_path / ".worktrees" / "my-wt" / "kitty-specs" / "my-slug" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("x", encoding="utf-8")
+
+    _, ctx_tree_path = repo_tree_path(spec, tmp_path)
+    assert ctx_tree_path == "kitty-specs/my-slug/spec.md"
+    assert _branch_tree_relative_path(spec, tmp_path) == ctx_tree_path
 
 
 def test_tree_path_is_posix_in_worktree(tmp_path: Path) -> None:
