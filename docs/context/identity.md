@@ -79,7 +79,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Canonical authority** | Exactly one source per datum — **dynamic → event log** (reduced snapshot). (Umbrella rule shared with [Authored Intent](#authored-intent).) |
 | **Related terms** | [Authored Intent](#authored-intent), [Agent Profile](#agent-profile), [Role](#role), [Field-authority ADR](../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
 
-See the [Agent Profiles reference](../reference/agent-profiles/index.md) for the full built-in roster.
+See the [Agent Profiles reference](../reference/agent_profiles/index.md) for the full built-in roster.
 
 ---
 
