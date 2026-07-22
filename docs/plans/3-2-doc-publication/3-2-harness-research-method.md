@@ -94,7 +94,7 @@ done
 
 **Notes:**
 - `spec-kitty-standalone.md` is the lane-bootstrap surface; the full `/spec-kitty.*` command set lives at the source under `src/specify_cli/missions/*/command-templates/` and is materialized by `spec-kitty agent config sync` (see `CLAUDE.md` §"Adding/Removing Agents").
-- `.agents/skills/spec-kitty/` is the agent skills package directory (not the SKILL.md file) shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §"agent skills Agents"). <!-- tool-surface: ignore -->
+- `.agents/skills/spec-kitty/` is the agent skills package directory (not the SKILL.md file) shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §`Agent Skills Agents`). <!-- tool-surface: ignore -->
 - Current Codex CLI support uses the shared agent skills packages under `.agents/skills/spec-kitty.<command>/SKILL.md`. Legacy `.codex/` roots were not observed in this lane; they may still exist on hosts initialized by older CLI versions and are documented as legacy-only (see `docs/api/environment-variables.md` §CODEX_HOME).
 - Google Antigravity (`.agent/workflows/`) is present in the current CLI agent registry and is included in the matrix.
 

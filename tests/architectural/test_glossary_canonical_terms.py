@@ -49,10 +49,14 @@ _SCAN_GLOB: str = ":(glob)docs/**/*.md"
 # Mirrors test_no_legacy_terminology.py's _EXCLUDED_PATH_FRAGMENTS: kitty-specs/ and
 # docs/adr/ are historical/immutable snapshots (NFR-001/C-002 rationale in that file
 # applies identically here — quoted legacy casing inside an ADR body is quoted history,
-# not active prose); worktrees/vendor dirs are operational state.
+# not active prose); worktrees/vendor dirs are operational state. docs/changelog/ is the
+# append-only Keep-a-Changelog record: past entries name shipped features as proper nouns
+# (e.g. "Decision Moment Ledger (V1)") and must not be retro-edited to prose casing — same
+# historical-record rationale as docs/adr/.
 _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     "kitty-specs/",
     "docs/adr/",
+    "docs/changelog/",
     ".worktrees/",
     ".venv/",
     "node_modules/",
@@ -233,14 +237,19 @@ def test_glossary_terms_use_canonical_casing() -> None:
 
 
 def test_docs_adr_exemption_is_narrow() -> None:
-    """docs/adr/ is exempt as historical snapshots, but the rest of docs/ is not.
+    """Historical docs trees are exempt as snapshots, but the rest of docs/ is not.
 
     Mirrors test_no_legacy_terminology.py's identically-named test: pins the
-    exemption as narrow (only docs/adr/, not a blanket docs/ carve-out) so a real
-    casing regression elsewhere in docs/ is still caught.
+    exemption as narrow (only the historical docs/adr/ and docs/changelog/ trees,
+    not a blanket docs/ carve-out) so a real casing regression elsewhere in docs/
+    is still caught.
     """
-    hit = "docs/adr/3.x/2026-04-17-1-some-decision.md:103:Uses Action Context here."
-    assert _line_is_excluded(hit), "docs/adr/ hits must be exempt (immutable snapshots)."
+    excluded = (
+        "docs/adr/3.x/2026-04-17-1-some-decision.md:103:Uses Action Context here.",
+        "docs/changelog/CHANGELOG.md:42:Shipped the Decision Moment Ledger (V1).",
+    )
+    for hit in excluded:
+        assert _line_is_excluded(hit), f"historical-record hit must be exempt: {hit!r}"
 
     still_scanned = (
         "docs/guides/onboarding.md:7:Uses Action Context here.",
@@ -248,7 +257,7 @@ def test_docs_adr_exemption_is_narrow() -> None:
     )
     for other_hit in still_scanned:
         assert not _line_is_excluded(other_hit), (
-            f"Non-ADR docs path must still be scanned: {other_hit!r}. The docs/adr/ exemption must not blanket-exempt all of docs/."
+            f"Non-historical docs path must still be scanned: {other_hit!r}. The exemption must not blanket-exempt all of docs/."
         )
 
 

@@ -50,7 +50,7 @@ Each feature has a `meta.json` file in its directory that stores metadata about 
 
 ---
 
-## work package Frontmatter
+## work package frontmatter
 
 Each work package file (`tasks/WP##-*.md`) contains YAML frontmatter that tracks its status.
 

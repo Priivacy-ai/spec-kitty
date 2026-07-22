@@ -1,5 +1,5 @@
 ---
-title: How to Implement a work package
+title: How to implement a work package
 description: 'How to implement a work package with Spec Kitty 3.2: Use this guide to implement a single work package (WP) in its execution workspace.'
 doc_status: active
 updated: '2026-06-14'
@@ -10,7 +10,7 @@ related:
 - docs/guides/review-work-package.md
 - docs/guides/worktrees-with-mcp-agents.md
 ---
-# How to Implement a work package
+# How to implement a work package
 
 Use this guide to implement a single work package (WP) in its execution workspace.
 
