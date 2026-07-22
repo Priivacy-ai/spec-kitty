@@ -225,6 +225,50 @@ def _evaluate_branch_gate(
     return True
 
 
+def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
+    """Resolve the dir the acceptance-matrix must be READ from for this mission.
+
+    ``ACCEPTANCE_MATRIX`` is a *coordination*-partition kind
+    (:data:`mission_runtime.artifacts._PLACEMENT_ARTIFACT_KINDS`): under coord
+    topology ``write_acceptance_matrix`` lands it on the coordination
+    worktree's ``feature_dir`` (T008), NOT the PRIMARY ``feature_dir`` threaded
+    through the gate pipeline — that ``feature_dir`` is the ``PRIMARY_METADATA``
+    read dir (``collect_feature_summary``), which resolves PRIMARY for every
+    topology. Reading the matrix off the raw PRIMARY ``feature_dir`` therefore
+    reports a false "acceptance-matrix.json not found" for a coord-topology
+    mission whose matrix correctly lives on coord.
+
+    Mirrors ``accept.py::_coord_worktree_root``'s guard exactly (Directive-044 —
+    reuse the placement seam, never hand-roll a ``-coord`` path): route to the
+    coord surface ONLY when the mission's stored topology routes through
+    coordination AND that surface is materialised on disk; otherwise fall back
+    to ``feature_dir`` so flat / ``SINGLE_BRANCH`` / ``LANES`` missions read
+    exactly where they do today (regression-preserving).
+    """
+    from mission_runtime import (
+        MissionArtifactKind,
+        placement_seam,
+        resolve_topology,
+        routes_through_coordination,
+    )
+
+    # ``feature_dir.name`` (not the raw ``feature`` operator handle) keys both
+    # resolvers here: the caller threads the PRIMARY_METADATA read dir, whose
+    # ``.name`` is a materialized primary dir name the resolver accepts and
+    # canonicalizes — mirroring ``collect_feature_summary``'s own
+    # ``primary_slug = feature_dir.name`` (C-002).
+    topology = resolve_topology(repo_root, feature_dir.name)
+    if not routes_through_coordination(topology):
+        return feature_dir
+
+    resolved = placement_seam(repo_root, feature_dir.name).read_dir(
+        MissionArtifactKind.ACCEPTANCE_MATRIX
+    )
+    if not resolved.exists():
+        return feature_dir
+    return resolved
+
+
 def _evaluate_acceptance_matrix(
     repo_root: Path,
     feature_dir: Path,
@@ -242,7 +286,8 @@ def _evaluate_acceptance_matrix(
         write_acceptance_matrix,
     )
 
-    acc_matrix = read_acceptance_matrix(feature_dir)
+    matrix_dir = _acceptance_matrix_read_dir(repo_root, feature_dir)
+    acc_matrix = read_acceptance_matrix(matrix_dir)
     if acc_matrix is None:
         message = (
             "Acceptance matrix (acceptance-matrix.json) is required for lane-based "
@@ -260,7 +305,7 @@ def _evaluate_acceptance_matrix(
 
     if acc_matrix.negative_invariants and mutate_matrix:
         acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants)
-        write_acceptance_matrix(feature_dir, acc_matrix)
+        write_acceptance_matrix(matrix_dir, acc_matrix)
     elif acc_matrix.negative_invariants:
         skipped_checks.append(
             AcceptanceCheckDiagnostic(
