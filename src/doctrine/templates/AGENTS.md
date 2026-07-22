@@ -173,10 +173,12 @@ git status | grep -E '\.(claude|codex|gemini|cursor)/'
 git reset HEAD .claude/
 ```
 
-### Worktree Charter Sharing
+### Worktree Team-Memory Sharing
 
 In worktrees, `.kittify/memory/` is a symlink to the main repo's memory,
-ensuring all mission branches share the same charter.
+ensuring all mission branches share the same team-memory store — the git-tracked,
+harness-neutral home for durable learned facts (decisions, gotchas, cross-cutting
+notes). See `.kittify/memory/README.md` for the curation convention.
 
 ```bash
 # In a worktree, this should show a symlink:
@@ -184,7 +186,11 @@ ls -la .kittify/memory
 # lrwxr-xr-x ... .kittify/memory -> ../../../.kittify/memory
 ```
 
-This is intentional and correct - it ensures a single source of truth for project principles.
+This is intentional and correct - it ensures every Mission branch reads and writes the
+same shared memory store instead of a divergent per-branch copy.
+
+The project charter (binding rules) is a separate artifact at `.kittify/charter/`,
+read via `spec-kitty charter context --action <name>` - not part of this symlink.
 
 ---
 
