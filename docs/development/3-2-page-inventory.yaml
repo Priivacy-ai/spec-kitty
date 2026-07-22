@@ -794,6 +794,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md
   tag: current
   divio_type: none
@@ -3087,6 +3093,12 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/triage/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/glossary-doctrine-overhaul-program.md
   tag: current
   divio_type: none
   owning_workstream: none
