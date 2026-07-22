@@ -8,6 +8,7 @@ from typing import cast
 from doctrine.shared.scoping import normalize_languages
 from doctrine.agent_profiles import AgentProfileRepository
 from doctrine.directives import DirectiveRepository
+from doctrine.glossary_packs import GlossaryPackRepository
 from doctrine.missions.step_contracts import MissionStepContractRepository
 from doctrine.paradigms import ParadigmRepository
 from doctrine.procedures import ProcedureRepository
@@ -134,6 +135,16 @@ class DoctrineService:
                 project_dir=self._project_dir("mission_step_contracts"),
             )
         return cast(MissionStepContractRepository, self._cache["mission_step_contracts"])
+
+    @property
+    def glossary_packs(self) -> GlossaryPackRepository:
+        if "glossary_packs" not in self._cache:
+            self._cache["glossary_packs"] = GlossaryPackRepository(
+                built_in_dir=self._built_in_dir("glossary_packs"),
+                org_dirs=self._org_dirs("glossary_packs"),
+                project_dir=self._project_dir("glossary_packs"),
+            )
+        return cast(GlossaryPackRepository, self._cache["glossary_packs"])
 
     @property
     def agent_profiles(self) -> AgentProfileRepository:

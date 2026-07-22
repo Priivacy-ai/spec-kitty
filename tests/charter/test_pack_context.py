@@ -381,12 +381,12 @@ activated_agent_profiles:
 
 
 # ---------------------------------------------------------------------------
-# Structural test: all 10 activated_* fields exist (T010)
+# Structural test: all 11 activated_* fields exist (T010, extended WP04 T021)
 # ---------------------------------------------------------------------------
 
 
-def test_packcontext_has_all_ten_activated_fields(tmp_path: Path) -> None:
-    """Structural guard: all 10 activated_* fields exist with correct defaults."""
+def test_packcontext_has_all_eleven_activated_fields(tmp_path: Path) -> None:
+    """Structural guard: all 11 activated_* fields exist with correct defaults."""
     _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
@@ -403,6 +403,7 @@ def test_packcontext_has_all_ten_activated_fields(tmp_path: Path) -> None:
     assert ctx.activated_procedures is None
     assert ctx.activated_agent_profiles is None
     assert ctx.activated_mission_step_contracts is None
+    assert ctx.activated_glossary_packs is None
 
 
 # ---------------------------------------------------------------------------

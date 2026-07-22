@@ -108,6 +108,12 @@ _ORG_DRG_KIND_ALIASES: dict[str, str] = {
     # which derive their exclusion from ``artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``.
     "templates": "templates",
     "assets": "assets",
+    # FR-008/FR-009 (glossary-pack-doctrine-kind mission, WP04 T020): the
+    # glossary-pack kind joins the canonical org-pack DRG universe in
+    # lockstep with ``charter.activations._ALLOWED_KINDS`` and
+    # ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` — see the three-way
+    # drift guard in ``tests/doctrine/test_org_pack_augmentation.py``.
+    "glossary_packs": "glossary_packs",
 }
 
 #: Accepted input forms = every alias key (canonical forms + backward-compat

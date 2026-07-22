@@ -54,22 +54,31 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #: So the counts are (upstream-source-truth 281/757/11) + S-C's intentional
 #: +8/+8/+0 = 289/765/11.
 #:
-#: Re-baselined again for WP03 of doctrine-tension-edges-01KY1WPC: retiring
-#: the contradiction-declaration field removes the 6 phantom paradigm/tactic-kind nodes and 10
-#: mis-minted ``replaces`` edges the field used to produce (2 directive<->
-#: directive + 8 paradigm->{paradigm,tactic}), and the new
+#: Re-baselined for WP03 of doctrine-tension-edges-01KY1WPC: retiring the
+#: contradiction-declaration field removes the 6 phantom paradigm/tactic-kind
+#: nodes and 10 mis-minted ``replaces`` edges the field used to produce (2
+#: directive<->directive + 8 paradigm->{paradigm,tactic}), and the new
 #: ``reconcile-change-scope-tensions`` directive (a plain built-in directive
-#: with no ordinary ``tactic_refs``/``references``) adds one orphan of its
-#: own in a PURE regeneration -- its only edges are the hand-authored
+#: with no ordinary ``tactic_refs``/``references``) adds one orphan of its own
+#: in a PURE regeneration -- its only edges are the hand-authored
 #: ``reconciles_tension`` edges the extractor cannot mint (see
 #: ``doctrine.drg.migration.hand_authored_overlay``). So a bare
-#: ``generate_graph`` run now yields 289 - 6 + 1 = 284 nodes,
-#: 765 - 10 = 755 edges, 11 - 1 + 2 = 12 orphans (the new directive, plus its
-#: two tension partners each already had another edge keeping them non-orphan,
-#: so only the new directive itself is added to the orphan set).
-_EXPECTED_NODE_COUNT = 284
+#: ``generate_graph`` run yields 289 - 6 + 1 = 284 nodes,
+#: 765 - 10 = 755 edges, 11 - 1 + 2 = 12 orphans.
+#:
+#: Mission glossary-pack-doctrine-kind-01KY30SW (WP03) then adds the built-in
+#: ``spec-kitty-core`` glossary pack's own source node
+#: (``glossary_pack:spec-kitty-core``, emitted by the
+#: ``_emit_glossary_pack_nodes`` block in ``extract_artifact_edges``). Mission
+#: A ships zero outbound references for the pack (enforcement fields are inert
+#: until Mission B), so this is +1 node / +0 edges / +1 orphan (the new node
+#: has no edges yet, same shape as any freshly-registered kind with no
+#: cross-references). Both changes compose over the same base:
+#: 284/755/12 + 1/0/1 = 285/755/13 (verified by regenerating the DRG against
+#: the current base -- see the base-divergence reconciliation).
+_EXPECTED_NODE_COUNT = 285
 _EXPECTED_EDGE_COUNT = 755
-_EXPECTED_ORPHAN_COUNT = 12
+_EXPECTED_ORPHAN_COUNT = 13
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).

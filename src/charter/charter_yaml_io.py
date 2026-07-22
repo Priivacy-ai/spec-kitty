@@ -46,6 +46,14 @@ _ACTIVATION_KEYS: tuple[str, ...] = (
     "activated_procedures",
     "activated_agent_profiles",
     "activated_mission_step_contracts",
+    # glossary-pack-doctrine-kind mission WP04: the eleventh flat
+    # ``activated_*`` root key. ``charter.pack_manager.YAML_KEY_MAP`` derives
+    # "glossary-pack" -> "activated_glossary_packs" automatically from
+    # ``CHARTER_KIND_TOKENS`` (WP01), so ``merge_defaults``/``commit_plan``
+    # attempt to write this key the moment a project's activation source is
+    # ``charter.yaml`` -- omitting it here raises "Unknown activation key(s)"
+    # (see test_activation_engine_charter_yaml.py).
+    "activated_glossary_packs",
 )
 
 #: Sections whose owned content is a single top-level scalar/mapping key —

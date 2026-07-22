@@ -41,8 +41,18 @@ class NodeKind(StrEnum):
     TEMPLATE = "template"
     ASSET = "asset"
     ACTION = "action"
+    # -- Retiring runtime glossary-term nodes (deleted in Mission C) ---------
+    # ``GLOSSARY_SCOPE`` and ``GLOSSARY`` are the *runtime* glossary-term node
+    # kinds. They are slated for deletion in Mission C; keep them fenced off
+    # from the doctrine-owned kind below so that deletion is a clean, isolated
+    # excision and does not disturb ``GLOSSARY_PACK``.
     GLOSSARY_SCOPE = "glossary_scope"
     GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"
+    # -- Doctrine-owned node (keep) -----------------------------------------
+    # ``GLOSSARY_PACK`` is a first-order, charter-activatable doctrine kind
+    # addressed by the underscore URN ``glossary_pack:<id>``. It is NOT part of
+    # the retiring runtime term nodes above and survives Mission C.
+    GLOSSARY_PACK = "glossary_pack"  # URN prefix: "glossary_pack:<id>"
     MISSION_TYPE = "mission_type"   # URN prefix: "mission_type:<id>"; carries `requires` edges to its action_sequence steps
     # URN prefix: "anti_pattern:<id>"; `rejects` targets only (D2) -- never
     # activated as a live rule; finer marking (e.g. "smell") lives in

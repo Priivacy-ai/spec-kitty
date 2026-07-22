@@ -48,6 +48,17 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     # (docs/adr/ only, not the rest of docs/) is pinned by
     # test_docs_adr_exemption_is_narrow below.
     "docs/adr/",
+    # src/doctrine/glossary_packs/built-in/ ships the migrated built-in
+    # glossary pack (mission glossary-pack-doctrine-kind-01KY30SW, WP03),
+    # whose data faithfully carries the seed's DEPRECATED entries
+    # ("ceremony commit", "status-writing operation") and the
+    # `synonyms_to_avoid` list on "status commit" -- i.e. it *documents*
+    # the forbidden legacy terms as data, the same way this test's own
+    # `_FORBIDDEN_TERMS` construction or a dictionary defining a banned word
+    # does. That is quoted/cataloged terminology, not active prose using it
+    # -- the same historical-artifact rationale as the docs/adr/ exemption
+    # above, applied to doctrine glossary data instead of decision records.
+    "src/doctrine/glossary_packs/built-in/",
     ".worktrees/",
     ".venv/",
     "node_modules/",
@@ -162,4 +173,46 @@ def test_docs_adr_exemption_is_narrow() -> None:
         assert not _line_is_excluded(hit), (
             f"Non-ADR docs path must still be scanned for legacy terms: {hit!r}. "
             "The docs/adr/ exemption must not blanket-exempt all of docs/."
+        )
+
+
+def test_glossary_pack_builtin_exemption_is_narrow() -> None:
+    """glossary_packs/built-in/ data is exempt; the rest of the package is not.
+
+    Mission glossary-pack-doctrine-kind-01KY30SW (WP03) migrated the full
+    104-term seed -- including its DEPRECATED entries and the
+    ``synonyms_to_avoid`` list on "status commit" -- into
+    ``src/doctrine/glossary_packs/built-in/*.glossary-pack.yaml``. That data
+    *documents* the forbidden legacy terms (same rationale as docs/adr/'s
+    quoted-history exemption above), so it is exempt.
+
+    This test pins the exemption as *narrow*: only the ``built-in/`` pack
+    data directory is excluded. Real code elsewhere in the same
+    ``glossary_packs`` package (or anywhere else under ``src/``) must still be
+    scanned, so an actual regression there is caught.
+    """
+    forbidden = _FORBIDDEN_TERMS[0]
+
+    pack_hit = (
+        "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml:"
+        f"88:  surface: {forbidden} commit"
+    )
+    assert _line_is_excluded(pack_hit), (
+        "src/doctrine/glossary_packs/built-in/ hits must be exempt -- the pack "
+        "faithfully documents the seed's deprecated/forbidden terminology "
+        "as data, not active prose using it."
+    )
+
+    # Real code in the same package (and elsewhere under src/) must remain in
+    # scope: an exemption here would be a package-wide carve-out.
+    still_scanned = (
+        f"src/doctrine/glossary_packs/models.py:10:# never say {forbidden}",
+        f"src/doctrine/glossary_packs/repository.py:5:# {forbidden} is banned",
+        f"src/doctrine/drg/models.py:1:# {forbidden}",
+    )
+    for hit in still_scanned:
+        assert not _line_is_excluded(hit), (
+            f"Non-built-in-pack path must still be scanned for legacy terms: "
+            f"{hit!r}. The glossary_packs/built-in/ exemption must not "
+            "blanket-exempt the whole package or the rest of src/."
         )

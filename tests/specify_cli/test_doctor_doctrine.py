@@ -489,9 +489,12 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
 
     payload = json.loads(result.output)
     # Contract pin: stable top-level + health keys cannot silently regress.
+    # WP05 (glossary-pack-doctrine-kind): ``glossary_packs`` is a new nested
+    # health dimension (FR-012/SC-001) folded into ``DoctrineHealthReport``
+    # alongside the pre-existing agent-profile ``packs``/``org_drg`` keys.
     assert "profile_health" in payload
     health = payload["profile_health"]
-    assert set(health) == {"healthy", "packs", "org_drg"}
+    assert set(health) == {"healthy", "packs", "org_drg", "glossary_packs"}
     assert health["healthy"] is False
 
     # Surfaced invalid profile with the stable fields + readable error.

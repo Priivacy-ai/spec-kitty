@@ -17,6 +17,8 @@ from :mod:`._doctor_shared` if shared infra is needed. It must NEVER import
 from __future__ import annotations
 
 import logging
+import re
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -26,8 +28,23 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
+    from doctrine.glossary_packs import GlossaryPack
 
-    from ._doctrine_health import DoctrineHealthReport
+    from ._doctrine_health import (
+        DoctrineHealthReport,
+        GlossaryPackHealth,
+        SkippedGlossaryPack,
+    )
+
+#: Parses the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
+#: shape ``doctrine.base.BaseDoctrineRepository`` emits on an unloadable
+#: glossary-pack file (``_load_built_in_items`` / ``_apply_overlay_layer``).
+#: ``re.DOTALL`` so a multi-line pydantic ``ValidationError`` reason is
+#: captured in full, not truncated at the first newline.
+_SKIPPED_GLOSSARY_PACK_PATTERN = re.compile(
+    r"^Skipping invalid (?P<layer>\S+) \S+ (?P<filename>\S+): (?P<reason>.*)$",
+    re.DOTALL,
+)
 
 # ``__all__`` lists the collectors re-exported through the ``doctor`` shim
 # (FR-006) plus the collectors ``doctor.py`` delegates to. The remaining
@@ -199,7 +216,91 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
             org_drg["errors"] = errors
         else:  # pragma: no cover — _collect_org_layer_data always returns a dict
             org_drg = {"errors": [load_error]}
-    return DoctrineHealthReport(packs=packs, org_drg=org_drg)
+    glossary_pack_health = _collect_glossary_pack_health(repo_root)
+    return DoctrineHealthReport(
+        packs=packs, org_drg=org_drg, glossary_packs=glossary_pack_health
+    )
+
+
+def _parse_skipped_glossary_pack_warning(message: object) -> SkippedGlossaryPack:
+    """Turn one captured ``UserWarning`` into a structured skip record.
+
+    ``BaseDoctrineRepository`` emits ``"Skipping invalid <layer> <kind> <file>:
+    <reason>"`` (see ``doctrine.base._load_built_in_items`` /
+    ``_apply_overlay_layer``); this parses that fixed shape rather than
+    inventing a second diagnostic format. A message that doesn't match (the
+    production emitter's shape is pinned, so this is defensive only) degrades
+    to an ``"unknown"`` layer/path with the full text as the reason, so a
+    format drift still surfaces a diagnostic instead of raising.
+    """
+    from ._doctrine_health import SkippedGlossaryPack
+
+    text = str(message)
+    match = _SKIPPED_GLOSSARY_PACK_PATTERN.match(text)
+    if match is None:
+        return SkippedGlossaryPack(layer="unknown", path="unknown", error_summary=text)
+    return SkippedGlossaryPack(
+        layer=match.group("layer"),
+        path=match.group("filename"),
+        error_summary=match.group("reason"),
+    )
+
+
+def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
+    """Build the glossary-pack health dimension (FR-012, SC-001, WP05).
+
+    Sourced from ``DoctrineService.glossary_packs`` — the real production
+    repository (WP02), not a re-implemented loader. Unlike
+    ``AgentProfileRepository``, ``GlossaryPackRepository`` (a plain
+    ``BaseDoctrineRepository``) has no structured skip-diagnostics list: an
+    unloadable pack file only ever surfaces as a ``UserWarning`` emitted
+    during the repository's (lazy) ``_load()``. This collector captures those
+    warnings during the first access to ``service.glossary_packs`` and turns
+    each into a :class:`~._doctrine_health.SkippedGlossaryPack` record — the
+    same surfaced-not-swallowed pattern :func:`_collect_profile_health`
+    already applies to agent profiles — so an invalid pack degrades the
+    aggregate ``healthy`` (SC-001) instead of vanishing silently.
+
+    Diagnostics are READ-ONLY and must never crash ``doctor doctrine`` on
+    operator misconfiguration: a hard load crash (e.g. a completely
+    unreadable doctrine root) degrades to zero packs plus one synthetic
+    invalid-pack record, rather than a silent, vacuously-healthy empty report.
+    """
+    from doctrine.service import DoctrineService
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    from ._doctrine_health import GlossaryPackHealth, SkippedGlossaryPack
+
+    packs: list[GlossaryPack] = []
+    invalid: list[SkippedGlossaryPack] = []
+    try:
+        org_roots = resolve_org_roots(repo_root)
+        project_doctrine = repo_root / ".kittify" / "doctrine"
+        project_root = project_doctrine if project_doctrine.exists() else None
+        service = DoctrineService(
+            org_roots=list(org_roots), project_root=project_root
+        )
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            packs = service.glossary_packs.list_all()
+        invalid = [
+            _parse_skipped_glossary_pack_warning(w.message)
+            for w in captured
+            if issubclass(w.category, UserWarning)
+        ]
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never crash
+        invalid = [
+            SkippedGlossaryPack(
+                layer="unknown",
+                path="unknown",
+                error_summary=f"glossary-pack health load error: {exc}",
+            )
+        ]
+
+    term_count = sum(len(pack.terms) for pack in packs)
+    return GlossaryPackHealth(
+        pack_count=len(packs), term_count=term_count, invalid_packs=invalid
+    )
 
 
 def _run_cross_grain_check(report: DoctrineHealthReport) -> None:

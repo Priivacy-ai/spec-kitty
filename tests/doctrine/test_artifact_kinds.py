@@ -26,6 +26,7 @@ class TestArtifactKindValues:
             "mission_step_contract",
             "template",
             "asset",
+            "glossary_pack",
             "anti_pattern",
         }
         assert {m.value for m in ArtifactKind} == expected
