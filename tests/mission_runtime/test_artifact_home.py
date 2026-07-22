@@ -41,8 +41,10 @@ def test_coordination_residue_path_filter_is_specific_to_coord_artifacts() -> No
     identity kinds (spec / data-model / research / checklist / plan / tasks /
     lanes) were re-partitioned onto the PRIMARY ``target_branch``, so their stale
     primary copies are NO LONGER coordination residue — they live with their
-    mission on primary by design. The residue authority now matches the COORD
-    partition only: issue-matrix, status events, analysis-report, acceptance-matrix.
+    mission on primary by design. FR-003 (coord-commit-integrity) then re-homed
+    ``analysis-report.md`` COORD→PRIMARY, so it too is no longer residue. The
+    residue authority now matches the COORD partition only: issue-matrix, status
+    events, acceptance-matrix.
     """
     assert is_coordination_artifact_residue_path(
         "kitty-specs/demo/issue-matrix.md", mission_slug="demo"
@@ -51,10 +53,14 @@ def test_coordination_residue_path_filter_is_specific_to_coord_artifacts() -> No
         "kitty-specs/demo/status.events.jsonl", mission_slug="demo"
     )
     assert is_coordination_artifact_residue_path(
-        "kitty-specs/demo/analysis-report.md", mission_slug="demo"
+        "kitty-specs/demo/acceptance-matrix.json", mission_slug="demo"
     )
     # The re-partitioned PRIMARY kinds are NOT coordination residue (the WP01
-    # correctness change): their home is the primary surface.
+    # correctness change + the FR-003 analysis-report re-home): their home is the
+    # primary surface.
+    assert not is_coordination_artifact_residue_path(
+        "kitty-specs/demo/analysis-report.md", mission_slug="demo"
+    )
     assert not is_coordination_artifact_residue_path(
         "kitty-specs/demo/plan.md", mission_slug="demo"
     )

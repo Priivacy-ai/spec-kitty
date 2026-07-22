@@ -135,6 +135,19 @@ def classify_path(path: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _glob_match(posix: str, pattern: str) -> bool:
+    """Return ``True`` if *pattern* (``*``/``?``/``**``) matches *posix*.
+
+    Shared by :func:`_path_matches` and :func:`_exception_for`, which both
+    need "plain fnmatch, with a ``**`` recursive fallback" glob semantics —
+    this is the single place that logic lives so the two call sites cannot
+    drift apart.
+    """
+    if fnmatch(posix, pattern):
+        return True
+    return "**" in pattern and _fnmatch_recursive(posix, pattern)
+
+
 def _move_for(path: str, omap: OccurrenceMap) -> tuple[str, str] | None:
     """Return ``(role, reason)`` when *path* participates in a declared move.
 
@@ -163,9 +176,7 @@ def _path_matches(posix: str, declared: str) -> bool:
         return False
     normalized = Path(declared).as_posix().rstrip("/")
     if "*" in normalized or "?" in normalized:
-        if fnmatch(posix, normalized):
-            return True
-        return "**" in normalized and _fnmatch_recursive(posix, normalized)
+        return _glob_match(posix, normalized)
     if posix == normalized:
         return True
     # Directory-prefix match: ``src/auth`` covers ``src/auth/login.py``.
@@ -183,9 +194,7 @@ def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
         # globs (``src/**/*.py``). fnmatch understands ``*`` and ``?`` but
         # not ``**``, so we also try a recursive-glob fallback when the
         # pattern contains ``**``.
-        if fnmatch(posix, pattern):
-            return exception
-        if "**" in pattern and _fnmatch_recursive(posix, pattern):
+        if _glob_match(posix, pattern):
             return exception
     return None
 
@@ -208,6 +217,69 @@ def _fnmatch_recursive(path: str, pattern: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Runtime-state gate exemption (FR-007, C-004)
+# ---------------------------------------------------------------------------
+
+# NAMED allowlist of the mission's own bookkeeping basenames (data-model.md
+# "runtime-state allowlist" entity). Deliberately narrow — spec.md/plan.md/
+# tasks.md are NOT here, so they stay reviewable. Basenames double as glob
+# patterns (a literal basename is just a pattern with no wildcards), so a
+# single `_glob_match` call handles both the exact names and the
+# `review-cycle-N.md` family.
+RUNTIME_STATE_ALLOWLIST: tuple[str, ...] = (
+    "status.events.jsonl",
+    "status.json",
+    "review-cycle-*.md",
+    "issue-matrix.md",
+    "acceptance-matrix.json",
+    "notes.md",
+)
+
+
+def _is_runtime_state_basename(basename: str) -> bool:
+    """Return ``True`` if *basename* is one of the mission's own bookkeeping files."""
+    return any(_glob_match(basename, pattern) for pattern in RUNTIME_STATE_ALLOWLIST)
+
+
+def _under_feature_dir(posix: str, feature_dir_rel: str) -> bool:
+    """Return ``True`` if *posix* lives under *feature_dir_rel* (repo-root-relative)."""
+    anchor = feature_dir_rel.strip("/")
+    if not anchor:
+        return False
+    return posix == anchor or posix.startswith(f"{anchor}/")
+
+
+def _runtime_state_exemption(path: str, feature_dir_rel: str | None) -> FileAssessment | None:
+    """Return an exemption verdict when *path* is the RUNNING mission's own runtime state.
+
+    Anchored to *feature_dir_rel* — the running mission's OWN feature_dir,
+    repo-root-relative — so this can only exempt paths under the mission
+    currently being reviewed (C-004). ``None`` (no *feature_dir_rel*, or the
+    path is outside it, or the basename is not in the allowlist) means "not
+    exempt here"; the caller falls through to the ordinary classifier.
+    """
+    if not feature_dir_rel:
+        return None
+    posix = Path(path).as_posix()
+    if not _under_feature_dir(posix, feature_dir_rel):
+        return None
+    basename = Path(posix).name
+    if not _is_runtime_state_basename(basename):
+        return None
+    return FileAssessment(
+        path=path,
+        category=None,
+        source="runtime-state",
+        action=None,
+        violation=False,
+        reason=(
+            f"'{basename}' is the mission's own runtime-state bookkeeping file "
+            "(FR-007 allowlist) — exempt from occurrence classification."
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Compliance check
 # ---------------------------------------------------------------------------
 
@@ -218,7 +290,7 @@ class FileAssessment:
 
     path: str
     category: str | None           # None => unclassified
-    source: str                    # "path-heuristic" | "exception"
+    source: str                    # "path-heuristic" | "exception" | "move" | "runtime-state"
     action: str | None             # None => no action defined in map
     violation: bool                # True when this file blocks approval
     reason: str                    # Human-readable rationale
@@ -234,8 +306,18 @@ class DiffCheckResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
-    """Classify a single file and determine whether it violates the map."""
+def assess_file(
+    path: str,
+    omap: OccurrenceMap,
+    feature_dir_rel: str | None = None,
+) -> FileAssessment:
+    """Classify a single file and determine whether it violates the map.
+
+    *feature_dir_rel* is the RUNNING mission's own ``feature_dir``, expressed
+    as a repo-root-relative POSIX path. When provided, it anchors the
+    runtime-state gate exemption (FR-007, C-004) so only this mission's own
+    bookkeeping files are exempted — never another mission's.
+    """
     # 1) Exceptions take precedence over path heuristics.
     exception = _exception_for(path, omap)
     if exception is not None:
@@ -274,7 +356,14 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             reason=f"Declared structural {role}: {move_reason}",
         )
 
-    # 3) Path heuristic classification.
+    # 3) Runtime-state gate exemption (FR-007, C-004). Fires BEFORE the
+    #    path-heuristic classifier, mirroring the move/exception exemptions
+    #    above — but only for the RUNNING mission's own bookkeeping files.
+    runtime_state = _runtime_state_exemption(path, feature_dir_rel)
+    if runtime_state is not None:
+        return runtime_state
+
+    # 4) Path heuristic classification.
     category = classify_path(path)
     if category is None:
         return FileAssessment(
@@ -290,7 +379,7 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             ),
         )
 
-    # 4) The classified category must appear in the map.
+    # 5) The classified category must appear in the map.
     category_entry = omap.categories.get(category)
     if category_entry is None:
         return FileAssessment(
@@ -335,14 +424,17 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
 def check_diff_compliance(
     changed_files: list[str],
     omap: OccurrenceMap,
+    feature_dir_rel: str | None = None,
 ) -> DiffCheckResult:
     """Assess every changed file and aggregate the verdict.
 
     *changed_files* is a list of repo-relative path strings obtained from
-    ``git diff --name-only``. The function is pure — no I/O — so it can be
-    unit-tested directly.
+    ``git diff --name-only``. *feature_dir_rel* is the running mission's own
+    ``feature_dir`` as a repo-root-relative POSIX path — see
+    :func:`assess_file` for how it anchors the runtime-state exemption. The
+    function is pure — no I/O — so it can be unit-tested directly.
     """
-    assessments = [assess_file(p, omap) for p in changed_files]
+    assessments = [assess_file(p, omap, feature_dir_rel) for p in changed_files]
     violations = [a for a in assessments if a.violation]
     errors = [f"{a.path}: {a.reason}" for a in violations]
 

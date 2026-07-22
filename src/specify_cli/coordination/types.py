@@ -159,3 +159,10 @@ class CommitReceipt:
     destination_ref: str
     worktree_root: Path
     event_ids: tuple[str, ...]
+    #: WP04/T015 (FR-004, #2861): ``True`` when this receipt is the idempotent
+    #: no-op of :meth:`BookkeepingTransaction.commit_idempotent` — the staged
+    #: paths already matched HEAD, so THIS transaction created no new commit and
+    #: ``commit_sha`` merely pins the pre-existing HEAD (the commit a prior
+    #: transaction created). A rollback of "this transaction's commit" must skip
+    #: a no-op receipt: there is nothing this transaction added to revert.
+    is_noop: bool = False

@@ -39,7 +39,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 import typer
 
@@ -135,6 +135,62 @@ def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> Wor
 # ---------------------------------------------------------------------------
 # T008 -- the two functions the WP names explicitly
 # ---------------------------------------------------------------------------
+
+
+def _handle_commit_failure(
+    w: ModuleType,
+    *,
+    exc: Exception,
+    receipt_ref: str,
+    message: str,
+    wp_id: str,
+    events_path: Path,
+    pre_emit_event_size: int,
+    status_path: Path,
+    pre_emit_status_bytes: bytes | None,
+    error_prefix: str,
+    include_recovery_note: bool,
+) -> NoReturn:
+    """Roll back status artifacts, record a ``refused`` receipt, surface, exit.
+
+    coord-commit-integrity WP01/T002 (campsite): the shared body of the two
+    copy-paste ``except`` arms in :func:`commit_workflow_change` (the
+    BookkeepingTransaction arm and the legacy ``safe_commit`` arm). Extracted
+    verbatim so adding the T003 misroute guard does not push
+    ``commit_workflow_change`` over the complexity ceiling.
+
+    When a chained ``safe_commit`` recovery already created a commit
+    (``_safe_commit_recovery_commit_sha`` returns a SHA) the status artifacts
+    are NOT rolled back (the commit is real); otherwise the event log / status
+    snapshot are restored to their pre-emit bytes. ``error_prefix`` is the arm-
+    specific message head (``": {exc}"`` is always appended); the legacy arm
+    additionally appends a recovery note (``include_recovery_note``).
+    """
+    recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
+    if recovery_commit_sha is None:
+        w._restore_status_artifacts(
+            events_path=events_path,
+            pre_emit_event_size=pre_emit_event_size,
+            status_path=status_path,
+            pre_emit_status_bytes=pre_emit_status_bytes,
+        )
+    w._record_receipt(
+        receipt_ref,
+        message,
+        "refused",
+        sha=recovery_commit_sha,
+        wp_id=wp_id,
+    )
+    error_text = f"{error_prefix}: {exc}"
+    if include_recovery_note:
+        recovery_note = (
+            "Commit was created before staging recovery failed; status artifacts were not rolled back."
+            if recovery_commit_sha is not None
+            else "Event log rolled back to pre-emit state."
+        )
+        error_text = f"{error_text}. {recovery_note}"
+    print(error_text)
+    raise typer.Exit(1) from exc
 
 
 def commit_workflow_change(
@@ -236,25 +292,19 @@ def commit_workflow_change(
             )
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
-            recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
-            if recovery_commit_sha is None:
-                w._restore_status_artifacts(
-                    events_path=events_path,
-                    pre_emit_event_size=pre_emit_event_size,
-                    status_path=status_path,
-                    pre_emit_status_bytes=pre_emit_status_bytes,
-                )
-            w._record_receipt(
-                str(coord_branch),
-                message,
-                "refused",
-                sha=recovery_commit_sha,
+            _handle_commit_failure(
+                w,
+                exc=exc,
+                receipt_ref=str(coord_branch),
+                message=message,
                 wp_id=wp_id,
+                events_path=events_path,
+                pre_emit_event_size=pre_emit_event_size,
+                status_path=status_path,
+                pre_emit_status_bytes=pre_emit_status_bytes,
+                error_prefix=f"Error: Failed to record {operation} via BookkeepingTransaction",
+                include_recovery_note=False,
             )
-            print(
-                f"Error: Failed to record {operation} via BookkeepingTransaction: {exc}"
-            )
-            raise typer.Exit(1) from exc
         if auto_rebase_lane_after_commit:
             try:
                 w._sync_lane_after_coordination_commit(
@@ -279,7 +329,30 @@ def commit_workflow_change(
                 raise typer.Exit(1) from exc
         return
 
-    # Legacy fallback (TODO(WP08): replace with the legacy bridge).
+    # FR-002(a) misroute-to-legacy guard (WP01/T003, #2861). We only reach here
+    # when the modern branch above was NOT taken, i.e. the identity triple is
+    # incomplete (``mission_id``/``mid8`` unresolved). If ``coord_branch`` is
+    # nonetheless present, this is a COORD-routed topology with a corrupt/partial
+    # identity: falling through to ``_commit_via_legacy_safe_commit`` would commit
+    # coordination artifacts from ``repo_root`` (whose HEAD is the caller's target
+    # branch, not the coord branch) — the silent-misroute class behind #2861
+    # (either a ``SafeCommitHeadMismatch`` or, worse, a phantom "already
+    # committed" no-op over gitignored ``.worktrees/`` paths). Fail loud instead;
+    # never route coord paths through the legacy repo_root leaf.
+    if coord_branch:
+        print(
+            f"Error: coord-commit misroute prevented for {wp_id}: mission "
+            f"{mission_slug!r} declares coordination_branch {str(coord_branch)!r} but "
+            f"its identity triple is incomplete (mission_id/mid8 unresolved). Refusing "
+            f"to commit coordination artifacts from the repository root. Repair "
+            f"meta.json (mission_id/mid8) and retry."
+        )
+        raise typer.Exit(1)
+
+    # Legacy fallback (TODO(WP08): replace with the legacy bridge). Genuinely
+    # coord-less (no coordination_branch) — the mission's paths live in
+    # ``repo_root``; ``_commit_via_legacy_safe_commit`` resolves the porcelain
+    # pre-check root from (mission_slug, mid8) for FR-002(b) robustness.
     try:
         w._commit_via_legacy_safe_commit(
             repo_root=repo_root,
@@ -287,33 +360,23 @@ def commit_workflow_change(
             paths=paths,
             message=message,
             wp_id=wp_id,
+            mission_slug=mission_slug,
+            mid8=mid8,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
-        recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
-        if recovery_commit_sha is None:
-            w._restore_status_artifacts(
-                events_path=events_path,
-                pre_emit_event_size=pre_emit_event_size,
-                status_path=status_path,
-                pre_emit_status_bytes=pre_emit_status_bytes,
-            )
-        w._record_receipt(
-            placement.ref,
-            message,
-            "refused",
-            sha=recovery_commit_sha,
+        _handle_commit_failure(
+            w,
+            exc=exc,
+            receipt_ref=placement.ref,
+            message=message,
             wp_id=wp_id,
+            events_path=events_path,
+            pre_emit_event_size=pre_emit_event_size,
+            status_path=status_path,
+            pre_emit_status_bytes=pre_emit_status_bytes,
+            error_prefix=f"Error: Failed to commit workflow status update for {wp_id}",
+            include_recovery_note=True,
         )
-        recovery_note = (
-            "Commit was created before staging recovery failed; status artifacts were not rolled back."
-            if recovery_commit_sha is not None
-            else "Event log rolled back to pre-emit state."
-        )
-        print(
-            f"Error: Failed to commit workflow status update for {wp_id}: {exc}. "
-            f"{recovery_note}"
-        )
-        raise typer.Exit(1) from exc
 
 
 def ensure_workspace_materialized(
@@ -641,14 +704,28 @@ def _implement_start_claim(
     import os
 
     from runtime.next.runtime_bridge import build_operational_context_for_claim
-    from specify_cli.status import build_resolved_actor, start_implementation_status
+    from specify_cli.status import (
+        build_resolved_actor,
+        parse_agent_boundary_string,
+        start_implementation_status,
+    )
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
+    # FR-005: parse the compact ``--agent`` boundary string into a bare tool +
+    # self-asserted profile/model — the whole compact string must never land
+    # in actor.tool, and an absent segment stays None (no synthetic default).
+    parsed_tool: str | None = None
+    self_profile: str | None = None
+    self_model: str | None = None
+    if agent:
+        parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(agent)
     transition_actor = build_resolved_actor(
         role=_IMPLEMENT_CLAIM_ROLE,
-        tool=agent or wp_agent_assignment.tool,
+        tool=parsed_tool or wp_agent_assignment.tool,
         binding=resolved_binding,
+        self_profile=self_profile,
+        self_model=self_model,
     )
 
     # FR-017 / NFR-004: build and validate the runtime OperationalContext
@@ -1432,6 +1509,7 @@ def review_claim_transition(
     """Claim a WP for review (``for_review`` -> ``in_review``) if applicable."""
     from specify_cli.status import build_resolved_actor, start_review_status
     from specify_cli.status import emit_inner_state_changed
+    from specify_cli.status import parse_agent_boundary_string
     from specify_cli.status import WPInnerStateDelta
 
     w = _wf()
@@ -1462,10 +1540,16 @@ def review_claim_transition(
     if resolved_binding is not None:
         claim_delta_values.update(resolved_binding.to_delta(role=_REVIEW_CLAIM_ROLE).to_dict())
     claim_delta = WPInnerStateDelta.from_dict(claim_delta_values)
+    # FR-005: parse the compact ``--agent`` boundary string into a bare tool +
+    # self-asserted profile/model (``agent`` is guaranteed truthy here — the
+    # ``--agent`` required guard above already raised otherwise).
+    parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(agent)
     transition_actor = build_resolved_actor(
         role=_REVIEW_CLAIM_ROLE,
-        tool=agent,
+        tool=parsed_tool,
         binding=resolved_binding,
+        self_profile=self_profile,
+        self_model=self_model,
     )
 
     with w.feature_status_lock(main_repo_root, mission_slug):

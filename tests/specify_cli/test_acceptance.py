@@ -176,21 +176,24 @@ def test_coord_topology_ignores_recognized_coordination_residue(tmp_path: Path) 
     ``test_coord_topology_blocks_primary_planning_residue`` for that flip).
 
     Only a COORD-partition artifact's stale primary copy is residue. Here we edit
-    ``analysis-report.md`` (``ANALYSIS_REPORT`` → coordination branch under coord
+    ``issue-matrix.md`` (``ISSUE_MATRIX`` → coordination branch under coord
     topology) and assert the dirty gate ignores it. (Positive side of the FR-008
     cell — the negative control is ``test_flat_topology_still_blocks_same_residue_paths``.)
+    Exemplar swapped from ``analysis-report.md``, which FR-003 re-homed to the
+    PRIMARY partition (its stale primary copy is now REAL dirt, not residue), to a
+    still-COORD residue member.
     """
     repo_root, feature_dir = _create_mission(
         tmp_path, topology="coord", wp_lanes={"WP01": Lane.DONE}
     )
 
-    (feature_dir / "analysis-report.md").write_text(
-        "# analysis\nEdited primary copy (coord residue).\n"
+    (feature_dir / "issue-matrix.md").write_text(
+        "# issues\nEdited primary copy (coord residue).\n"
     )
 
     summary = _summary(repo_root)
 
-    assert not any("analysis-report.md" in line for line in summary.git_dirty), summary.git_dirty
+    assert not any("issue-matrix.md" in line for line in summary.git_dirty), summary.git_dirty
 
 
 def test_coord_topology_blocks_primary_planning_residue(tmp_path: Path) -> None:

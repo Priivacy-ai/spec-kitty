@@ -1087,6 +1087,36 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         """
         self._deferred.append(side_effect)
 
+    def commit_idempotent(self, message: str) -> CommitReceipt:
+        """Commit staged paths, or no-op when they already match HEAD.
+
+        WP04/T015 (FR-004, #2861) — the single-write-authority follow-up
+        commit. The transactional status emit already committed the lane
+        transition to the coordination worktree; a follow-up workflow commit of
+        the same paths therefore finds them byte-identical to HEAD. Routing that
+        empty changeset through :meth:`commit` -> ``safe_commit`` would hit
+        "nothing to commit, working tree clean" -> ``git commit failed`` -> the
+        write is refused -> the manual review claim fails. THAT redundant second
+        commit is the live #2861 block. When the staged paths carry no git diff,
+        return an idempotent no-op receipt pinned at the current HEAD (the commit
+        the emit already created) instead. When there IS a diff, delegate to the
+        strict :meth:`commit` path unchanged.
+
+        Distinct from :meth:`commit` (used by the transactional emit's implicit
+        commit and by adversarial rollback callers), which must still surface an
+        empty/failed changeset as :class:`BookkeepingCommitFailed`.
+        """
+        if self._committed:
+            assert self._explicit_commit_receipt is not None  # noqa: S101
+            return self._explicit_commit_receipt
+        if self._staged_paths and not self._worktree_has_pending_changes():
+            receipt = self._noop_commit_receipt()
+            self._committed = True
+            self._explicit_commit_message = message
+            self._explicit_commit_receipt = receipt
+            return receipt
+        return self.commit(message)
+
     def commit(self, message: str) -> CommitReceipt:
         """Commit all staged paths via :func:`safe_commit`.
 
@@ -1149,6 +1179,68 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._explicit_commit_message = message
         self._explicit_commit_receipt = receipt
         return receipt
+
+    def _worktree_has_pending_changes(self) -> bool:
+        """Whether any staged path differs from HEAD in the coord worktree.
+
+        WP04/T015: scopes ``git status --porcelain`` to exactly the paths this
+        transaction staged. Empty output means those paths already match HEAD
+        (a prior transaction committed identical content) — the follow-up
+        commit would be the empty second commit behind #2861.
+
+        Fails OPEN (returns ``True``) when git cannot be consulted, so an
+        unreadable status never silently swallows a genuine commit — the
+        normal ``safe_commit`` path then runs and surfaces the real error.
+        """
+        if not self._staged_paths:
+            return False
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.worktree_root),
+                "status",
+                "--porcelain",
+                "--",
+                *[str(path) for path in self._staged_paths],
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return True
+        return bool(result.stdout.strip())
+
+    def _noop_commit_receipt(self) -> CommitReceipt:
+        """Receipt pinned at the current HEAD for an idempotent no-op commit.
+
+        WP04/T015: when :meth:`_worktree_has_pending_changes` reports the staged
+        paths already match HEAD, the transition is already durable at HEAD (the
+        prior transaction committed it). The receipt therefore points at that
+        existing commit so the caller's post-commit bookkeeping (lane sync /
+        revert-on-failure) targets the real transition commit.
+        """
+        head = subprocess.run(
+            ["git", "-C", str(self.worktree_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        sha = head.stdout.strip()
+        if head.returncode != 0 or not sha:
+            raise BookkeepingCommitFailed(
+                "commit() no-op: could not resolve HEAD in "
+                f"{self.worktree_root} to pin the already-committed transition"
+            )
+        return CommitReceipt(
+            commit_sha=sha,
+            committed_at=datetime.now(UTC),
+            destination_ref=self.destination_ref,
+            worktree_root=self.worktree_root,
+            event_ids=tuple(self._event_ids),
+            is_noop=True,
+        )
 
     # ---- private ----
 

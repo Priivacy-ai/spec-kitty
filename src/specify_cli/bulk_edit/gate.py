@@ -46,6 +46,32 @@ class GitDiffFilesResult:
     returncode: int | None = None
 
 
+def _is_bulk_edit_mission(feature_dir: Path) -> bool:
+    """Return ``True`` iff *feature_dir* belongs to a ``change_mode: bulk_edit`` mission.
+
+    Centralizes the guard that used to be duplicated between
+    :func:`ensure_occurrence_classification_ready` and
+    :func:`check_review_diff_compliance`, so "what counts as bulk_edit"
+    cannot drift between the two gate entry points.
+    """
+    meta = load_meta(feature_dir)
+    return meta is not None and meta.get("change_mode") == "bulk_edit"
+
+
+def _feature_dir_rel(feature_dir: Path, repo_root: Path) -> str | None:
+    """Return *feature_dir* relative to *repo_root* as a POSIX path, or ``None``.
+
+    ``None`` means *feature_dir* is not nested under *repo_root* (e.g. a
+    test double built from unrelated temp directories) — callers treat that
+    as "cannot anchor the runtime-state exemption" and fall back to the
+    ordinary classifier for every file.
+    """
+    try:
+        return feature_dir.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
 def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
     """Check if a bulk_edit mission has a valid occurrence map.
 
@@ -56,7 +82,7 @@ def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
         return GateResult(passed=True, change_mode=None)
 
     change_mode = meta.get("change_mode")
-    if change_mode != "bulk_edit":
+    if not _is_bulk_edit_mission(feature_dir):
         return GateResult(passed=True, change_mode=change_mode)
 
     # Load and validate occurrence map
@@ -213,8 +239,7 @@ def check_review_diff_compliance(
     :func:`render_diff_check_failure` and ``raise typer.Exit(1)`` when
     ``passed`` is False.
     """
-    meta = load_meta(feature_dir)
-    if meta is None or meta.get("change_mode") != "bulk_edit":
+    if not _is_bulk_edit_mission(feature_dir):
         return None
 
     omap = load_occurrence_map(feature_dir)
@@ -242,7 +267,8 @@ def check_review_diff_compliance(
             details.append(f"stderr={diff_files.stderr}")
         return DiffCheckResult(passed=False, errors=["; ".join(details)])
 
-    return check_diff_compliance(diff_files.files, omap)
+    feature_dir_rel = _feature_dir_rel(feature_dir, repo_root)
+    return check_diff_compliance(diff_files.files, omap, feature_dir_rel)
 
 
 def render_diff_check_failure(

@@ -155,9 +155,12 @@ def test_unprotected_direct_commit(tmp_path: Path) -> None:
 def test_protected_coord_placement_materialises(tmp_path: Path) -> None:
     """Coordination kind under coord topology → materialiser called; artifact on coord branch.
 
-    A coordination kind (``ANALYSIS_REPORT``) keeps the topology-routed coord
+    A coordination kind (``ACCEPTANCE_MATRIX``) keeps the topology-routed coord
     placement, so the router materialises the coord worktree (C-001) — unchanged
     by write-surface-coherence WP02 (only PRIMARY kinds were re-routed off coord).
+    Exemplar swapped from ``ANALYSIS_REPORT`` (re-homed PRIMARY by FR-003,
+    coord-commit-integrity) to a still-COORD kind so the coord-routing coverage
+    survives the re-home.
     """
     policy = _make_policy(protected=True)
     coord_target = _make_coord_target()
@@ -197,9 +200,9 @@ def test_protected_coord_placement_materialises(tmp_path: Path) -> None:
             repo_root=tmp_path,
             mission_slug=mission_slug,
             files=(artifact,),
-            message="Add analysis report",
+            message="Add acceptance matrix",
             policy=policy,
-            kind=MissionArtifactKind.ANALYSIS_REPORT,
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
         )
 
     assert result.status == "committed"
@@ -293,7 +296,7 @@ def test_1718_no_materialisation_at_read_time(tmp_path: Path) -> None:
                 files=(artifact,),
                 message="m",
                 policy=policy,
-                kind=MissionArtifactKind.ANALYSIS_REPORT,
+                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
             )
 
     assert len(materialise_calls) == 1
@@ -369,7 +372,7 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
             files=(artifact,),
             message="m",
             policy=policy,
-            kind=MissionArtifactKind.ANALYSIS_REPORT,
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
         )
 
     # Discriminating assertion: when materialiser returns primary, safe_commit lands
@@ -406,7 +409,7 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
             files=(artifact,),
             message="m",
             policy=policy,
-            kind=MissionArtifactKind.ANALYSIS_REPORT,
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
         )
 
     assert len(safe_commit_calls) == 1
@@ -498,41 +501,53 @@ def test_primary_kind_under_coord_topology_does_not_route_to_coord(tmp_path: Pat
     assert result.placement_ref == _PRIMARY_BRANCH
 
 
-def test_coord_kind_under_coord_topology_still_routes_to_coord(tmp_path: Path) -> None:
-    """A COORD kind (ANALYSIS_REPORT) under COORD topology STILL routes to coordination (C-001).
+def test_analysis_report_under_coord_topology_routes_to_primary(tmp_path: Path) -> None:
+    """FR-003 re-home: ANALYSIS_REPORT (now PRIMARY) under COORD topology lands PRIMARY.
 
-    The bifurcation's other half: WP02 removed the planning→coord route but the
-    coordination kinds (analysis-report, status) MUST keep materialising the coord
-    worktree. This guards against an over-broad fix that flips every kind primary.
+    INVERTS the pre-re-home ``…still_routes_to_coord`` flip-test (#2463 landmine).
+    ``ANALYSIS_REPORT`` was re-homed COORD→PRIMARY (data-model.md / FR-003), so it
+    now follows the SAME no-coord-transit path ``SPEC`` does: the materialiser is
+    NEVER engaged and the report commits directly to the primary ``target_branch``.
+    Asserting the PRIMARY truth (NOT re-asserting the old coord routing) is the
+    point — running this "green toward coord" would REVERSE the re-home.
+
+    This is a STUBBED router unit test (like its ``SPEC`` sibling); the
+    NON-FAKEABLE partition proof (real resolver + committed refs) lives in
+    ``tests/architectural/test_write_surface_placement_guard.py`` and
+    ``tests/coordination/test_analysis_report_rehome.py``. Coord-routing coverage
+    is preserved by ``test_protected_coord_placement_materialises`` (now keyed on
+    ``ACCEPTANCE_MATRIX``). Discriminating assertions mirror the ``SPEC`` test:
+    materialiser NOT called, safe_commit lands on the primary checkout,
+    ``placement_ref`` is the primary branch.
     """
-    policy = _make_policy(protected=True)
-    coord_target = _make_coord_target()
+    policy = _make_policy(protected=False)
     artifact = tmp_path / "analysis-report.md"
     artifact.write_text("# Analysis\n", encoding="utf-8")
-    coord_artifact = tmp_path / ".worktrees" / "coord" / "analysis-report.md"
-    coord_artifact.parent.mkdir(parents=True)
-    coord_artifact.write_text("# Analysis\n", encoding="utf-8")
+
+    # The kind-aware resolver returns the PRIMARY ref for the re-homed ANALYSIS_REPORT
+    # kind (mirroring the real ``resolve_placement_only`` post-re-home); the topology
+    # still routes coord, but the router must trust the placement for a primary kind.
+    from mission_runtime import CommitTarget
+
+    primary_placement = CommitTarget(ref=_PRIMARY_BRANCH)
 
     materialise_calls: list[object] = []
-
-    def _fake_materialise(repo_root, mission_slug, placement, files, **kwargs):
-        materialise_calls.append((repo_root, mission_slug, placement))
-        return coord_artifact.parent, (coord_artifact,)
+    safe_commit_calls: list[dict] = []
 
     with (
-        _patch_topology(coord=True),
-        _patch_primary_target(),
+        _patch_topology(coord=True),  # topology routes coord …
+        _patch_primary_target(),  # … but the primary target is "main" …
         patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=coord_target,
+            return_value=primary_placement,  # … and ANALYSIS_REPORT's placement IS "main".
         ),
         patch(
             "specify_cli.coordination.commit_router._materialise_coord_worktree",
-            side_effect=_fake_materialise,
+            side_effect=lambda *a, **kw: materialise_calls.append(a) or (tmp_path, (artifact,)),
         ),
         patch(
             "specify_cli.coordination.commit_router.safe_commit",
-            return_value=_FakeCommitResult(),
+            side_effect=lambda **kw: safe_commit_calls.append(kw) or _FakeCommitResult(),
         ),
     ):
         from specify_cli.coordination.commit_router import commit_for_mission
@@ -546,13 +561,17 @@ def test_coord_kind_under_coord_topology_still_routes_to_coord(tmp_path: Path) -
             kind=MissionArtifactKind.ANALYSIS_REPORT,
         )
 
-    # The COORD kind MUST still materialise the coord worktree.
-    assert len(materialise_calls) == 1, (
-        "ANALYSIS_REPORT (coord kind) did not route to coordination — the fix is "
-        "over-broad and broke C-001."
+    # The re-homed PRIMARY kind MUST NOT materialise the coord worktree.
+    assert len(materialise_calls) == 0, (
+        "ANALYSIS_REPORT (re-homed PRIMARY) materialised the coordination worktree "
+        "— the re-home did not remove its coord transit (FR-003)."
+    )
+    assert len(safe_commit_calls) == 1
+    assert safe_commit_calls[0]["worktree_root"] == tmp_path, (
+        "ANALYSIS_REPORT commit did not land on the primary checkout."
     )
     assert result.status == "committed"
-    assert result.placement_ref == _COORD_REF
+    assert result.placement_ref == _PRIMARY_BRANCH
 
 
 # ---------------------------------------------------------------------------
@@ -601,17 +620,20 @@ def test_materialise_coord_worktree_rejects_primary_kind(tmp_path: Path) -> None
 def test_materialise_coord_worktree_allows_coord_kind(tmp_path: Path) -> None:
     """A COORD kind passes the guard (degrades to primary on unresolvable mid8).
 
-    The complement of the guard test: a coordination kind (``ANALYSIS_REPORT``)
-    must NOT trip the guard. With no resolvable mid8 in a bare ``tmp_path`` the
-    helper degrades to the primary checkout (C-004 safety) — proving the guard
-    did not fire and the COORD path proceeded.
+    The complement of the guard test: a coordination kind (``ACCEPTANCE_MATRIX``)
+    must NOT trip the guard. Exemplar swapped from ``ANALYSIS_REPORT`` (re-homed
+    PRIMARY by FR-003 — it would now correctly TRIP the guard) to a still-COORD
+    kind so the "coord kind passes the guard" coverage survives the re-home. With
+    no resolvable mid8 in a bare ``tmp_path`` the helper degrades to the primary
+    checkout (C-004 safety) — proving the guard did not fire and the COORD path
+    proceeded.
     """
     from mission_runtime import CommitTarget
     from specify_cli.coordination.commit_router import _materialise_coord_worktree
 
-    artifact = tmp_path / "kitty-specs" / "001-write-surface" / "analysis-report.md"
+    artifact = tmp_path / "kitty-specs" / "001-write-surface" / "acceptance-matrix.json"
     artifact.parent.mkdir(parents=True)
-    artifact.write_text("# Analysis\n", encoding="utf-8")
+    artifact.write_text("{}\n", encoding="utf-8")
     coord_placement = CommitTarget(ref="kitty/mission-write-surface-01KVTVZS3A4B5C6D")
 
     worktree_root, paths = _materialise_coord_worktree(
@@ -619,8 +641,62 @@ def test_materialise_coord_worktree_allows_coord_kind(tmp_path: Path) -> None:
         "001-write-surface",
         coord_placement,
         (artifact,),
-        kind=MissionArtifactKind.ANALYSIS_REPORT,
+        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
     )
     # No mid8 ⇒ degrades to the primary checkout, but the guard did NOT raise.
     assert worktree_root == tmp_path
     assert paths == (artifact,)
+
+
+def test_coord_staging_keeps_matrices_but_skips_rehomed_analysis_report(
+    tmp_path: Path,
+) -> None:
+    """Coord-kind-caller regression (FR-003): the copy2-drop is NARROW.
+
+    Enumerates the coordination-partition artifacts a ``commit_for_mission``
+    coord-kind caller stages and proves ``_stage_artifacts_in_coord_worktree``:
+
+    * STILL copies the genuinely-COORD ``acceptance-matrix.json`` /
+      ``issue-matrix.md`` into the coord worktree (write-in-coord-home preserved —
+      the copy2 path is KEPT for them), and
+    * SKIPS the re-homed ``analysis-report.md`` (now PRIMARY) so no second (coord)
+      copy is made.
+
+    Without this guard an over-broad copy-drop would turn "silently copied" into
+    "silently missing" for the other coord kinds. It is the "prove write-in-coord-
+    home BEFORE the copy is removed" net the DoD calls for.
+    """
+    from specify_cli.coordination.commit_router import (
+        _stage_artifacts_in_coord_worktree,
+    )
+
+    repo_root = tmp_path / "repo"
+    coord_worktree = tmp_path / "coord"
+    specs = repo_root / "kitty-specs" / "001-demo"
+    specs.mkdir(parents=True)
+    acceptance = specs / "acceptance-matrix.json"
+    acceptance.write_text("{}\n", encoding="utf-8")
+    issue = specs / "issue-matrix.md"
+    issue.write_text("# issues\n", encoding="utf-8")
+    analysis = specs / "analysis-report.md"
+    analysis.write_text("# analysis\n", encoding="utf-8")
+
+    coord_files = _stage_artifacts_in_coord_worktree(
+        [acceptance, issue, analysis], coord_worktree, repo_root
+    )
+
+    coord_specs = coord_worktree / "kitty-specs" / "001-demo"
+    acc_dst = coord_specs / "acceptance-matrix.json"
+    iss_dst = coord_specs / "issue-matrix.md"
+    ana_dst = coord_specs / "analysis-report.md"
+
+    # COORD matrices ARE staged (copy2 KEPT) — write-in-coord-home preserved.
+    assert acc_dst.exists(), "acceptance-matrix.json was not staged to the coord worktree"
+    assert iss_dst.exists(), "issue-matrix.md was not staged to the coord worktree"
+    assert acc_dst in coord_files
+    assert iss_dst in coord_files
+
+    # Re-homed analysis-report is SKIPPED — no coord copy (write surface == read surface).
+    assert not ana_dst.exists(), "analysis-report.md was copied to coord — copy-drop failed"
+    assert ana_dst not in coord_files
+    assert analysis not in coord_files

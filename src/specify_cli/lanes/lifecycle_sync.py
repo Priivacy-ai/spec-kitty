@@ -55,13 +55,24 @@ class LaneAutoRebaseSyncError(RuntimeError):
 
 
 def _git_stdout(repo_root: Path, *args: str) -> str | None:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # coord-commit-integrity WP04/T015 (campsite): tolerate a non-existent
+    # ``cwd``. ``_resolve_lane_branch`` calls this with the lane WORKTREE path,
+    # which may not exist yet (a coord commit whose lane was never
+    # materialized). ``subprocess.run(cwd=<absent dir>)`` raises a raw
+    # ``FileNotFoundError`` ([Errno 2]) that crashed the auto-rebase sync
+    # instead of the documented "Returns None when ... no lane worktree
+    # exists" contract. Treat an absent cwd as an unresolved read (None) so the
+    # caller degrades cleanly to its computed lane-branch candidate.
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return None
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None

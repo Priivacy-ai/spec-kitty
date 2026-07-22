@@ -1253,6 +1253,17 @@ def coordination_health(
     json_output: Annotated[
         bool, typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
+    check_staleness: Annotated[
+        bool,
+        typer.Option(
+            "--check-staleness",
+            help=(
+                "Also report coord-branch-vs-target-branch staleness (Gap-1, "
+                "FR-008): non-blocking, whether the coord branch is behind or "
+                "has diverged from its mission's target_branch."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run the WP04 #1348 coordination + sparse-checkout health checks.
 
@@ -1266,13 +1277,19 @@ def coordination_health(
     findings exit 0 but are still printed.
 
     With ``--fix``, automatically flattens missions that have a stale
-    ``coordination_branch`` key (branch never created or already deleted)
-    and re-derives topology. Safe to run on 100%-done missions before
-    ``spec-kitty next`` or ``spec-kitty merge``.
+    ``coordination_branch`` key (branch never created or already deleted),
+    re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward
+    (FR-009) -- which fails loud with a unified diff and mutates nothing when
+    the coord branch has diverged or its worktree is dirty. Safe to run on
+    100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
+
+    With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
+    staleness (FR-008) — non-blocking either way.
 
     Examples:
         spec-kitty doctor coordination
         spec-kitty doctor coordination --fix
         spec-kitty doctor coordination --json
+        spec-kitty doctor coordination --check-staleness
     """
-    run_coordination_health(json_output, fix)
+    run_coordination_health(json_output, fix, check_staleness)

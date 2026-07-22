@@ -420,7 +420,12 @@ def _commit_via_coordination_transaction(
                             txn_path.read_bytes(), incoming
                         )
                     txn.write_artifact(txn_path, incoming)
-            receipt = txn.commit(message)
+            # WP04/T015 (FR-004, #2861): the transactional status emit already
+            # committed this lane transition to the coord worktree, so the
+            # staged paths are byte-identical to HEAD. Use the idempotent commit
+            # so that empty second commit is a clean no-op (pinned at HEAD)
+            # instead of the "nothing to commit" refusal that blocked #2861.
+            receipt = txn.commit_idempotent(message)
     except BookkeepingPolicyRefused as policy_exc:
         _record_receipt(
             coord_branch,
@@ -481,6 +486,13 @@ def _sync_lane_after_coordination_commit(
 
 def _revert_coordination_commit(receipt: CommitReceipt) -> None:
     """Undo a lifecycle coordination commit after lane sync refusal."""
+    # WP04/T015 (FR-004, #2861): a no-op receipt means THIS transaction created
+    # no commit — the transition commit belongs to the prior transactional emit
+    # (single write authority). ``receipt.commit_sha`` merely pins that
+    # pre-existing HEAD, so reverting it would wrongly undo a durable, separate
+    # commit. Nothing to roll back here.
+    if receipt.is_noop:
+        return
     head_result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=receipt.worktree_root,
@@ -575,6 +587,42 @@ def _resolve_workflow_read_dir(
     return read_dir
 
 
+def _resolve_legacy_porcelain_root(
+    repo_root: Path, mission_slug: str | None, mid8: str | None
+) -> Path:
+    """Return the git worktree root the legacy porcelain pre-check must run in.
+
+    coord-commit-integrity WP01/T004 (FR-002(b), #2684). A status file that
+    lives in a materialized ``.worktrees/<slug>-<mid8>-coord`` sub-worktree is
+    *gitignored* from ``repo_root``: ``git status --porcelain`` at ``repo_root``
+    reports it as clean, which the caller reads as a phantom "already committed"
+    early-return. Run the pre-check in the coord worktree instead, so the file
+    is correctly seen as dirty.
+
+    The coord sub-worktree is resolved through the ONE canonical authority,
+    :meth:`CoordinationWorkspace.resolve` (shared with WP04 — do NOT fork a
+    second resolver). :meth:`CoordinationWorkspace.worktree_path` is pure, so
+    the existence pre-check never materializes a spurious worktree for a
+    genuinely coord-less / flat mission whose paths really do live in
+    ``repo_root`` (the correct root in that case).
+    """
+    if not mid8 or not mission_slug:
+        return repo_root
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    try:
+        coord_worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+    except Exception:  # noqa: BLE001 — unresolved identity ⇒ paths live in repo_root
+        return repo_root
+    if not coord_worktree.exists():
+        # No coord worktree on disk ⇒ this mission's paths live in repo_root.
+        return repo_root
+    try:
+        return CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
+    except Exception:  # noqa: BLE001 — resolve refused ⇒ fall back to repo_root
+        return repo_root
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
@@ -582,6 +630,8 @@ def _commit_via_legacy_safe_commit(
     paths: list[Path],
     message: str,
     wp_id: str,
+    mission_slug: str | None = None,
+    mid8: str | None = None,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
     # #2684: nothing-to-commit is a benign no-op, not a hard failure. When the
@@ -596,9 +646,14 @@ def _commit_via_legacy_safe_commit(
     # rolling back the (correctly-persisted) event log. ``git status --porcelain``
     # reports both modified AND untracked paths, so a genuine first-time write
     # (new status.json) still has a non-empty pending set and proceeds to commit.
+    #
+    # WP01/T004 (FR-002(b)): run the pre-check in the resolved worktree root, not
+    # ``repo_root`` — a gitignored ``.worktrees/`` status file reads as clean
+    # from ``repo_root`` and would trip a phantom "already committed" no-op.
+    porcelain_root = _resolve_legacy_porcelain_root(repo_root, mission_slug, mid8)
     porcelain = subprocess.run(
         ["git", "status", "--porcelain", "--", *[str(p) for p in paths]],
-        cwd=repo_root,
+        cwd=porcelain_root,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -665,32 +720,6 @@ def _print_commit_summary(*, command_name: str, json_output: bool = False) -> No
         )
 
 
-
-
-
-
-def _resolve_git_common_dir(repo_root: Path) -> Path | None:
-    """Resolve absolute git common-dir path."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=True,
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
-
-    raw_value = result.stdout.strip()
-    if not raw_value:
-        return None
-    common_dir = Path(raw_value)
-    if not common_dir.is_absolute():
-        common_dir = (repo_root / common_dir).resolve()
-    return common_dir
 
 
 

@@ -222,11 +222,31 @@ def _is_dict(value: Any) -> bool:
 
 
 def _is_actor_payload(value: Any) -> bool:
+    """Proof-schema actor: a ``{actor_id, actor_type}`` dict (mission-run /
+    next-step / decision / proof events). Distinct from :func:`_is_actor_field`
+    below, which accepts the FR-006 resolved-actor ``{role, tool, profile,
+    model}`` shape for ``WPStatusChanged``/``WPCreated`` — the two actor
+    concepts have different schemas and must not be conflated.
+    """
     if not isinstance(value, dict):
         return False
     actor_id = value.get("actor_id")
     actor_type = value.get("actor_type")
     return isinstance(actor_id, str) and len(actor_id.strip()) >= 1 and actor_type in {"human", "llm", "service"}
+
+
+def _is_actor_field(value: Any) -> bool:
+    """FR-006: accept ``Union[str, Dict]`` for ``WPStatusChanged``/``WPCreated``
+    ``actor`` — a nonempty string (the historical bare-tool shape) OR a
+    nonempty dict (the resolved-actor ``{role, tool, profile, model}`` shape
+    from :func:`specify_cli.status.emit.build_resolved_actor`). Rejects an
+    empty string and an empty dict; does NOT require the proof-schema
+    ``actor_id``/``actor_type`` keys (:func:`_is_actor_payload`) — that is a
+    different actor concept and would wrongly reject a valid resolved actor.
+    """
+    if isinstance(value, str):
+        return len(value) >= 1
+    return isinstance(value, dict) and len(value) >= 1
 
 
 def _is_non_negative_number(value: Any) -> bool:
@@ -239,14 +259,6 @@ def _is_sha256_hex(value: Any) -> bool:
 
 def _is_probability(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1
-
-
-def _is_proof_actor(value: Any) -> bool:
-    if not isinstance(value, dict):
-        return False
-    actor_type = value.get("actor_type")
-    actor_id = value.get("actor_id")
-    return isinstance(actor_id, str) and len(actor_id.strip()) >= 1 and actor_type in {"human", "llm", "service"}
 
 
 def _is_proof_subject(value: Any) -> bool:
@@ -313,7 +325,7 @@ _BASE_PROOF_VALIDATORS: dict[str, Any] = {
     "proof_schema_version": lambda v: v == PROOF_SCHEMA_VERSION,
     "subject": _is_proof_subject,
     "source": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
-    "actor": _is_proof_actor,
+    "actor": _is_actor_payload,
     "confidence": _is_probability,
     "occurred_at": _is_datetime_string,
     "observed_at": _is_datetime_string,
@@ -431,7 +443,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             # (review m2). Both single-sourced from Lane — no hardcoded list.
             "from_lane": lambda v: v in _CANONICAL_LANE_VALUES,
             "to_lane": lambda v: v in _DISPLAY_LANE_VALUES,
-            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            # FR-006: Union[str, Dict] — a resolved-actor payload
+            # ({role, tool, profile, model}) must not be rejected as non-string.
+            "actor": _is_actor_field,
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "force": lambda v: isinstance(v, bool),
             "reason": _is_nullable_string,
@@ -449,7 +463,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "wp_title": lambda v: isinstance(v, str) and len(v) >= 1,
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            # FR-006: Union[str, Dict] — see WPStatusChanged.actor above.
+            "actor": _is_actor_field,
             "depends_on": lambda v: isinstance(v, list) and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
         },
     },

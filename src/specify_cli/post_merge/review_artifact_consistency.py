@@ -54,6 +54,41 @@ class ReviewArtifactSchemaFinding:
 ReviewArtifactFinding = RejectedReviewArtifactFinding | ReviewArtifactSchemaFinding
 
 
+def _resolve_review_cycle_read_dir(feature_dir: Path) -> Path:
+    """Resolve the PRIMARY mission dir the merge gate reads review-cycle artifacts from.
+
+    FR-001 (coord-commit-integrity, #2646/#2275): ``review-cycle-N.md`` is a
+    ``WORK_PACKAGE_TASK`` artifact — a PRIMARY-partition kind — so it lands under
+    ``tasks/<wp>/`` on the primary ``target_branch``, NOT the coordination husk. The
+    real-merge caller (``merge/executor.py``) hands this gate the coord STATUS husk
+    ``feature_dir`` (correct for the ``materialize`` status read, which stays on that
+    surface), but the review-cycle files no longer live there. This resolves the
+    PRIMARY home for the artifact read so the gate reads WHERE THE WRITE NOW LANDS —
+    converging the real-merge gate with the dry-run forecast + review lane gates,
+    which already resolve PRIMARY (``resolve_planning_read_dir`` / the primary walk).
+
+    Idempotent for a caller that already passes the PRIMARY dir (forecast /
+    lane-gate) and for coord-less topologies (``feature_dir`` IS primary). Degrades
+    to ``feature_dir`` unchanged when the repo root cannot be derived (a bare
+    non-git test fixture), preserving pre-existing behaviour.
+    """
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    try:
+        repo_root = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir
+    # ``resolve_planning_read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+    # bind explicitly so the declared ``Path`` return narrows back.
+    primary_dir: Path = resolve_planning_read_dir(
+        repo_root, feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    return primary_dir
+
+
 def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
@@ -134,13 +169,19 @@ def find_rejected_review_artifact_conflicts(
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
     findings: list[ReviewArtifactFinding] = []
 
+    # FR-001: the status snapshot above stays on the caller-supplied ``feature_dir``
+    # (the COORD status surface for a coord mission), but review-cycle artifacts are
+    # PRIMARY-partition — resolve their read home to PRIMARY so the gate reads where
+    # the write now lands (#2646/#2275).
+    review_cycle_dir = _resolve_review_cycle_read_dir(feature_dir)
+
     for wp_id in selected_wp_ids:
         state = snapshot.work_packages.get(wp_id)
         if state is None:
             continue
         lane = str(state.get("lane", ""))
         snapshot_override = _snapshot_review_override(state)
-        for artifact_dir in _artifact_dirs_for_wp(feature_dir, wp_id):
+        for artifact_dir in _artifact_dirs_for_wp(review_cycle_dir, wp_id):
             latest_path = _latest_review_artifact_path(artifact_dir)
             if latest_path is None:
                 continue
