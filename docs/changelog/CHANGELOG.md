@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-18'
+updated: '2026-07-22'
 ---
 # Changelog
 
@@ -328,6 +328,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   while running" shape as #2430.
 
 ### ♻️ Changed
+
+- **Glossary-term casing gate is prose-only; the baseline ratchet is retired (#2830, #2823).**
+  All pre-existing non-canonical glossary-term casing across `docs/` prose was paid down and the
+  frozen baseline (`tests/architectural/glossary_canonical_terms_baseline.txt`) deleted, so
+  `test_glossary_canonical_terms.py` now enforces **zero** non-canonical occurrences repo-wide
+  instead of freezing an escape hatch. The gate skips fenced code blocks and inline-code spans, so
+  captured CLI `--help` output and emitted-string literals keep their real casing. Also refreshes
+  the `AGENTS.md` Canonical Kind Vocabulary table (`template` → `procedure`, adds the
+  `glossary-pack` row) and retires the Contextive generated-file staleness test.
 
 - **Runtime-state corpus cutover completed; the phase-1 dual-write flag is deleted (#2816, #2848).**
   Completes the #2684 / #2093 eviction. WP runtime state — lane, claim, `agent`/`assignee`,
