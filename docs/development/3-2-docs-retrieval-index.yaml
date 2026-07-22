@@ -6176,6 +6176,19 @@ pages:
     - {slug: "safety-warning-remove-orphaned-and-shared-directories", text: "Safety warning: --remove-orphaned and shared directories", level: 2}
     - {slug: "quick-reference-recovery-table", text: "Quick-reference recovery table", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
+  - path: "docs/guides/fork-packaging-hooks.md"
+    title: "Fork packaging hooks"
+    divio_type: "how-to"
+    abstract: "How renamed or private-index forks customize Spec Kitty upgrade checks and package identity via entry points—without overlaying core sources."
+    anchors:
+    - {slug: "what-spec-kitty-owns-vs-what-you-own", text: "What Spec Kitty owns vs what you own", level: 2}
+    - {slug: "end-state-publish-flow", text: "End-state publish flow", level: 2}
+    - {slug: "phase-1-package-identity-upgrade-provider", text: "Phase 1 — Package identity + upgrade provider", level: 2}
+    - {slug: "multi-provider-selection", text: "Multi-provider selection", level: 3}
+    - {slug: "phase-2-full-distribution-profile", text: "Phase 2 — Full distribution profile", level: 2}
+    - {slug: "what-the-profile-drives", text: "What the profile drives", level: 3}
+    - {slug: "phase-3-validation-checklist", text: "Phase 3 — Validation checklist", level: 2}
+    - {slug: "related-guides", text: "Related guides", level: 2}
   - path: "docs/guides/generate-tasks.md"
     title: "How to Generate Work Packages"
     divio_type: "how-to"
