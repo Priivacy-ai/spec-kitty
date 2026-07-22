@@ -1,19 +1,19 @@
 {
-  "event_count": 17,
-  "last_event_id": "01KY4VJ898J5FSMWNMFHQ8JNRD",
-  "materialized_at": "2026-07-22T12:07:19.080491+00:00",
+  "event_count": 18,
+  "last_event_id": "01KY4VJB140KXGPWPQHG0PFQHS",
+  "materialized_at": "2026-07-22T12:07:21.892322+00:00",
   "mission_number": "",
   "mission_slug": "org-init-template-security-remediation-01KY4S90",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-07-22T12:07:19.080491+00:00"
     },
     "WP03": {
-      "actor": "cursor",
+      "actor": "user",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01KY4V7CB6Q2EV2XWMQ1ZVAR39",
-      "last_transition_at": "2026-07-22T12:01:22.790888+00:00"
+      "lane": "approved",
+      "last_event_id": "01KY4VJB140KXGPWPQHG0PFQHS",
+      "last_transition_at": "2026-07-22T12:07:21.892322+00:00"
     }
   }
 }
