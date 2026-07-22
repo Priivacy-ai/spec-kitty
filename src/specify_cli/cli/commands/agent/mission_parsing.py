@@ -24,6 +24,7 @@ from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.status import WPMetadata
 from specify_cli.task_utils import TIMESTAMP_FORMAT
+from kernel.paths import to_posix
 
 
 
@@ -144,7 +145,7 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
 
 def _normalize_owned_file_path(path: str) -> str:
     """Normalize a WP owned_files entry for repository-relative validation."""
-    normalized = path.strip().replace("\\", "/")
+    normalized = to_posix(path.strip())
     while normalized.startswith("./"):
         normalized = normalized[2:]
     return normalized

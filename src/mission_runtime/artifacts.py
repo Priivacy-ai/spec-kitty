@@ -17,6 +17,7 @@ from mission_runtime.context import (
     routes_through_coordination,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from kernel.paths import to_posix
 
 
 class Surface(enum.StrEnum):
@@ -331,7 +332,7 @@ def _artifact_kind_for_path(
     *,
     mission_slug: str | None,
 ) -> MissionArtifactKind | None:
-    normalized = str(path).replace("\\", "/").rstrip("/")
+    normalized = to_posix(path).rstrip("/")
     parts = PurePosixPath(normalized).parts
     try:
         specs_index = parts.index(KITTY_SPECS_DIR)
@@ -378,7 +379,7 @@ def is_self_bookkeeping_path(path: str | Path) -> bool:
     review, record-analysis).  See #1914 (no-op-stable gates) for the umbrella
     framing — the full no-op-stable rework is out of scope here.
     """
-    normalized = str(path).replace("\\", "/").rstrip("/")
+    normalized = to_posix(path).rstrip("/")
     if PurePosixPath(normalized).name in _SELF_BOOKKEEPING_FILENAMES:
         return True
     if any(normalized.endswith(suffix) for suffix in _SELF_BOOKKEEPING_SUFFIXES):

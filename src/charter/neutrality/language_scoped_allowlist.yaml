@@ -99,3 +99,8 @@ paths:
     owner: "charter team"
     reason: "Operator standing-order procedure (doctrine-catfooding #2196); its content is the concrete pytest gate commands to run post-merge — rewording to neutral phrasing would strip the actionable commands the ruling encodes."
     added_in: "3.2.4"
+  - path: "src/doctrine/toolguides/built-in/EFFICIENT_LOCAL_TOOLING.md"
+    scope: python
+    owner: "charter team"
+    reason: "General local-tooling toolguide whose '## Python environment isolation (uv)' section intentionally documents the uv/pytest interpreter-isolation gotcha for spec-kitty's own gates (a Python package); the uv-run pytest commands are the subject of that section and rewording them to neutral phrasing would strip the actionable guidance (mirrors the setup-doctor 'Spec Kitty itself is a Python package' precedent)."
+    added_in: "3.3.3"

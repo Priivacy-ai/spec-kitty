@@ -16,12 +16,19 @@ Coverage:
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import pytest
 
-from kernel.paths import get_kittify_home, get_package_asset_root, render_runtime_path
+from kernel.paths import (
+    get_kittify_home,
+    get_package_asset_root,
+    posix_tree_path,
+    render_runtime_path,
+    repo_tree_path,
+    to_posix,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -523,3 +530,73 @@ class TestGetPackageAssetRootErrorMessage:
         assert "XX" not in message, f"mutmut sentinel leaked into message: {message!r}"
         assert "SPEC_KITTY_TEMPLATE_ROOT" in message
         assert "spec-kitty-cli" in message
+
+
+# ---------------------------------------------------------------------------
+# Forward-slash normalization seams: to_posix / posix_tree_path / repo_tree_path
+# (#2836 — git HEAD:<path> / ls-files require forward slashes; the single
+# behaviour-agnostic separator seam lives here in kernel).
+# ---------------------------------------------------------------------------
+
+
+class TestToPosix:
+    """``to_posix`` normalizes Path and str inputs to forward slashes."""
+
+    def test_purepath_uses_as_posix(self) -> None:
+        assert to_posix(PurePosixPath("kitty-specs", "m", "spec.md")) == "kitty-specs/m/spec.md"
+
+    def test_path_input(self) -> None:
+        assert to_posix(Path("a") / "b" / "c.md") == "a/b/c.md"
+
+    def test_str_with_backslashes_is_normalized(self) -> None:
+        assert to_posix("a\\b\\c.md") == "a/b/c.md"
+
+    def test_str_already_posix_is_unchanged(self) -> None:
+        assert to_posix("a/b/c.md") == "a/b/c.md"
+
+
+class TestPosixTreePath:
+    """``posix_tree_path`` joins parts as a forward-slashed git tree path."""
+
+    def test_multi_component(self) -> None:
+        assert posix_tree_path(("kitty-specs", "slug", "spec.md")) == "kitty-specs/slug/spec.md"
+
+    def test_single_component(self) -> None:
+        assert posix_tree_path(("spec.md",)) == "spec.md"
+
+    def test_empty_parts_returns_empty_string(self) -> None:
+        # exercises the ``if parts else ""`` branch
+        assert posix_tree_path(()) == ""
+
+    def test_witnesses_windows_backslash_regression(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Substituting PureWindowsPath proves a reverted ``str(Path(*parts))``
+        form would reintroduce backslashes; the PurePosixPath fix is immune."""
+        monkeypatch.setattr("kernel.paths.Path", PureWindowsPath)
+        assert posix_tree_path(("kitty-specs", "slug", "spec.md")) == "kitty-specs/slug/spec.md"
+        assert "\\" not in posix_tree_path(("a", "b", "spec.md"))
+
+
+class TestRepoTreePath:
+    """``repo_tree_path`` resolves (git_cwd, forward-slashed tree path)."""
+
+    def test_primary_checkout(self, tmp_path: Path) -> None:
+        spec = tmp_path / "kitty-specs" / "slug" / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("x", encoding="utf-8")
+        git_cwd, tree_path = repo_tree_path(spec, tmp_path)
+        assert git_cwd == tmp_path.resolve()
+        assert tree_path == "kitty-specs/slug/spec.md"
+
+    def test_linked_worktree_strips_worktree_prefix(self, tmp_path: Path) -> None:
+        wt = tmp_path / ".worktrees" / "my-wt"
+        spec = wt / "kitty-specs" / "slug" / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("x", encoding="utf-8")
+        git_cwd, tree_path = repo_tree_path(spec, tmp_path)
+        assert git_cwd == wt.resolve()
+        assert tree_path == "kitty-specs/slug/spec.md"
+
+    def test_file_outside_repo_raises_value_error(self, tmp_path: Path) -> None:
+        outside = tmp_path.parent / "elsewhere" / "spec.md"
+        with pytest.raises(ValueError):
+            repo_tree_path(outside, tmp_path / "repo")

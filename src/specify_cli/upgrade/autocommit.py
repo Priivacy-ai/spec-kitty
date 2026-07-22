@@ -32,6 +32,7 @@ from mission_runtime import CommitTarget
 
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import safe_commit
+from kernel.paths import to_posix
 
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
 
@@ -75,7 +76,7 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
             path = entries[i]
             i += 1
 
-        normalized = path.strip().replace("\\", "/")
+        normalized = to_posix(path.strip())
         if normalized.startswith("./"):
             normalized = normalized[2:]
 
@@ -87,7 +88,7 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
 
 def is_upgrade_commit_eligible(path: str, checkout: Path) -> bool:
     """Return True when a changed file should be included in upgrade auto-commit."""
-    normalized = path.strip().replace("\\", "/")
+    normalized = to_posix(path.strip())
     if not normalized:
         return False
 
@@ -112,7 +113,7 @@ def expand_upgrade_commit_path(checkout: Path, relative_path: str) -> list[Path]
     staged file paths against the requested path list. Expand directories here
     so the expected set matches what git will actually stage.
     """
-    normalized = relative_path.strip().replace("\\", "/")
+    normalized = to_posix(relative_path.strip())
     absolute_path = checkout / normalized
 
     if absolute_path.exists() and absolute_path.is_dir() and not absolute_path.is_symlink():
@@ -142,7 +143,7 @@ def prepare_upgrade_commit_files(
     seen_paths: set[str] = set()
     for path in new_paths:
         for expanded_path in expand_upgrade_commit_path(checkout, path):
-            normalized = str(expanded_path).replace("\\", "/")
+            normalized = to_posix(expanded_path)
             if normalized in seen_paths:
                 continue
             seen_paths.add(normalized)
@@ -171,7 +172,7 @@ def commit_touched_checkout(
         return False, [], None
 
     commit_message = f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
-    committed_paths = [str(path).replace("\\", "/") for path in files_to_commit]
+    committed_paths = [to_posix(path) for path in files_to_commit]
     try:
         destination_ref = subprocess.check_output(
             ["git", "-C", str(checkout), "branch", "--show-current"],

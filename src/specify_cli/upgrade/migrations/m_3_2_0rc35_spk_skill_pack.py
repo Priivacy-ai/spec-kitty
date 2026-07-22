@@ -9,6 +9,7 @@ from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from kernel.paths import to_posix
 
 if TYPE_CHECKING:
     from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
@@ -162,7 +163,7 @@ class SpkSkillPackMigration(BaseMigration):
         save_manifest(manifest, project_path)
 
         preserved_paths = sorted(
-            str(path.relative_to(project_path)).replace("\\", "/")
+            to_posix(path.relative_to(project_path))
             for path in archived_paths
         )
 

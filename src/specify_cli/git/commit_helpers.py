@@ -78,6 +78,7 @@ from pathlib import Path
 from typing import Any
 
 from mission_runtime import CommitTarget
+from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
@@ -566,7 +567,7 @@ def assert_staging_area_matches_expected(
             head_sha=_run_git_text(repo_path, ["rev-parse", "HEAD"]),
         )
 
-    expected_set = {str(p).replace("\\", "/") for p in expected_paths}
+    expected_set = {to_posix(p) for p in expected_paths}
     unexpected: list[UnexpectedStagedPath] = []
     for raw_line in result.stdout.splitlines():
         line = raw_line.strip()
@@ -576,7 +577,7 @@ def assert_staging_area_matches_expected(
         if len(parts) != 2:
             continue
         status_code, staged_path = parts
-        normalized = staged_path.replace("\\", "/")
+        normalized = to_posix(staged_path)
         if normalized not in expected_set:
             unexpected.append(
                 UnexpectedStagedPath(path=normalized, status_code=f"{status_code} "),

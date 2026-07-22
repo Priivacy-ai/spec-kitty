@@ -54,6 +54,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import cast
 
+from kernel.paths import to_posix
 from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.baseline import (
@@ -229,8 +230,8 @@ def _glob_matches_file(glob_pattern: str, file_path: str) -> bool:
     other glob containing ``*`` falls back to shell-style matching;
     anything else is an exact-path match.
     """
-    pattern = glob_pattern.replace("\\", "/")
-    path = file_path.replace("\\", "/")
+    pattern = to_posix(glob_pattern)
+    path = to_posix(file_path)
     if pattern.endswith("/**"):
         prefix = pattern[: -len("/**")]
         return path == prefix or path.startswith(f"{prefix}/")
@@ -241,7 +242,7 @@ def _glob_matches_file(glob_pattern: str, file_path: str) -> bool:
 
 def _glob_to_pytest_target(glob_pattern: str) -> str:
     """A ``tests/**`` dorny glob -> a runnable pytest path argument."""
-    normalized = glob_pattern.replace("\\", "/")
+    normalized = to_posix(glob_pattern)
     if normalized.endswith("/**"):
         return normalized[: -len("/**")]
     return normalized
@@ -344,7 +345,7 @@ def derive_test_scope(
     excluded_scope_files: list[str] = []
 
     for raw_file in changed_files:
-        changed_file = raw_file.replace("\\", "/")
+        changed_file = to_posix(raw_file)
         matched_group_names = {
             name for name, globs in groups.items() if any(_glob_matches_file(g, changed_file) for g in globs)
         }

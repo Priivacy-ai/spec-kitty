@@ -47,7 +47,7 @@ git add -A && git commit -m "wip: checkpoint before rebase"
 Examples:
 
 ```bash
-# Avoid: rebasing a worktree while a background pytest run still reads it
+# Avoid: rebasing a worktree while a background test run still reads it
 git rebase origin/main &   # WRONG if a bg test is using this worktree right now
 
 # Prefer: wait for the background job, then move HEAD

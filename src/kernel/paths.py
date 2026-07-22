@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import importlib.resources
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 
 
 def _is_windows() -> bool:
@@ -139,9 +139,26 @@ def render_runtime_path(path: Path, *, for_user: bool = True) -> str:
     try:
         home = Path.home().resolve(strict=False)
         rel = abs_path.relative_to(home)
-        return "~/" + str(rel).replace("\\", "/")
+        return "~/" + to_posix(rel)
     except ValueError:
         return str(abs_path)
+
+
+def to_posix(path: Path | str) -> str:
+    """Normalize a path (or path-like string) to a forward-slashed string.
+
+    The single separator-normalization seam. For a ``PurePath`` it returns
+    ``.as_posix()``; for a ``str`` (git stdout, a glob pattern, user input) it
+    swaps ``\\`` for ``/``. Git object/pathspec syntax and cross-platform path
+    comparison require forward slashes (#2836); scattering
+    ``str(x).replace(...)`` across the tree re-invited the exact per-site Windows
+    drift #2836 fixed, so every such normalization routes here. Only the
+    separator is touched — surrounding concerns (``.strip()``, ``.rstrip("/")``,
+    splitting) stay at the call site.
+    """
+    if isinstance(path, PurePath):
+        return path.as_posix()
+    return path.replace("\\", "/")
 
 
 def posix_tree_path(parts: tuple[str, ...]) -> str:
@@ -198,6 +215,7 @@ __all__ = [
     "get_package_asset_root",
     "render_runtime_path",
     "repo_tree_path",
+    "to_posix",
 ]
 # ``posix_tree_path`` is intentionally NOT exported: it is the internal
 # forward-slash-join primitive behind ``repo_tree_path`` (the public seam other
