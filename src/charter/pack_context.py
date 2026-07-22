@@ -251,19 +251,29 @@ def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -
 
     Returns ``None`` when the key is absent — the legacy/un-migrated state,
     where callers fall back to reading/writing activation directly in
-    ``config.yaml`` (INV-2). Returns the resolved (repo-root-relative or
-    absolute) path when the key is present, WITHOUT checking existence:
-    callers apply their own fail-loud policy so the "missing file" error can
-    name the calling operation (read vs write).
+    ``config.yaml`` (INV-2). Also returns ``None`` when the key is present but
+    its value is NOT a string (e.g. a ``charter:`` mapping namespace holding
+    the pre-#2773 inline ``synthesis_inputs`` block): a mapping/list/scalar
+    value is the legacy inline shape, not a charter.yaml pointer, so it MUST
+    NOT be stringified into a bogus filesystem path. This mirrors
+    ``charter.evidence.orchestrator.load_url_list_from_config``, which likewise
+    reads ``url_list`` out of a mapping-shaped ``charter:`` key and treats the
+    path-string shape as "no inline mapping". Only a *string* value is a
+    pointer. Returns the resolved (repo-root-relative or absolute) path when a
+    string pointer is present, WITHOUT checking existence: callers apply their
+    own fail-loud policy so the "missing file" error can name the calling
+    operation (read vs write).
 
     Shared by :meth:`PackContext.from_config` (read) and
     ``charter.pack_manager`` (write) so pointer resolution has exactly one
     implementation (INV-5).
     """
     pointer = config_data.get(_CHARTER_POINTER_KEY)
-    if pointer is None:
+    if not isinstance(pointer, str):
+        # Absent (None) OR a non-string legacy inline mapping/namespace ->
+        # no pointer to resolve; callers use the legacy config.yaml read.
         return None
-    pointer_path = Path(str(pointer))
+    pointer_path = Path(pointer)
     return pointer_path if pointer_path.is_absolute() else repo_root / pointer_path
 
 

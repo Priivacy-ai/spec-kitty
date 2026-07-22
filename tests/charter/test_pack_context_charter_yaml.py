@@ -315,3 +315,43 @@ def test_resolve_charter_yaml_pointer_resolves_relative_to_repo_root(
     )
 
     assert resolved == tmp_path / ".kittify" / "charter" / "charter.yaml"
+
+
+def test_resolve_charter_yaml_pointer_mapping_value_is_not_a_pointer(
+    tmp_path: Path,
+) -> None:
+    """A mapping-valued ``charter:`` key (the pre-#2773 inline namespace
+    holding e.g. ``synthesis_inputs``) is NOT a charter.yaml pointer: it must
+    resolve to ``None`` (legacy inline read) rather than being stringified into
+    a bogus ``.../{'synthesis_inputs': ...}`` path that then "does not exist".
+    Mirrors ``load_url_list_from_config``'s tolerance for the same shape."""
+    from charter.pack_context import resolve_charter_yaml_pointer
+
+    inline = {"charter": {"synthesis_inputs": {"url_list": ["https://example.com/g"]}}}
+
+    assert resolve_charter_yaml_pointer(tmp_path, inline) is None
+
+
+def test_from_config_with_inline_charter_mapping_uses_legacy_read(
+    tmp_path: Path,
+) -> None:
+    """``charter:`` present as an inline mapping (not a string pointer) must be
+    treated as the legacy/un-migrated state: activation is read from the
+    top-level config.yaml keys, and no CHARTER_PACK_CONFIG_INVALID is raised
+    for the mapping value (regression guard for #2850)."""
+    content = """\
+vcs:
+  type: git
+charter:
+  synthesis_inputs:
+    url_list:
+      - https://example.com/governance
+activated_directives:
+  - 099-legacy-only-directive
+"""
+    _write_config(tmp_path, content)
+    # No charter.yaml file — the mapping value must NOT be read as a pointer.
+
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_directives == frozenset({"099-legacy-only-directive"})
