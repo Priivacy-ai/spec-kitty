@@ -1,0 +1,33 @@
+{
+  "accept_commit": "2878d11e9ad7aa35630b597c2b9b277296f69863",
+  "acceptance_history": [
+    {
+      "accept_commit": "2878d11e9ad7aa35630b597c2b9b277296f69863",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-22T10:25:07.563110+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "88d0ccd75cc5f6f806977fea0231b7d35dcbf4f7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-22T10:25:07.563110+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "88d0ccd75cc5f6f806977fea0231b7d35dcbf4f7",
+  "baseline_merge_commit": "1e43a9a38a757800888de94021fcb764c8f76d3c",
+  "coordination_branch": "kitty/mission-drg-relation-parity-activation-gate-01KY48PD",
+  "created_at": "2026-07-22T06:37:32.661363+00:00",
+  "flattened": false,
+  "friendly_name": "DRG completeness (#2843): relation-description parity + activation-gate consolidation",
+  "mission_id": "01KY48PDKMEBGQGAXNGW0ASKB7",
+  "mission_number": null,
+  "mission_slug": "drg-relation-parity-activation-gate-01KY48PD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Post-#2833 residue mission under epic #2466; item 1 (anti-pattern corpus) split to #2847. Item A backfills RELATION_DESCRIPTIONS in src/doctrine/drg/models.py with dual-doc parity. Item B fixes a latent correctness bug in charter/drg.py::_node_is_activated and consolidates 3 workaround sites onto one canonical-URN-aware gate. Pre-spec 4-lens research: docs/plans/engineering-notes/drg-completeness-2843-research.md.",
+  "purpose_tldr": "Close the two items #2833's landing left open: backfill the 12 undescribed DRG Relation descriptions (item A), and consolidate the stem-vs-canonical activation gate that latently drops every directive node under a populated activated_directives list (item B).",
+  "slug": "drg-relation-parity-activation-gate-01KY48PD",
+  "target_branch": "doctrine/drg-completeness-2843",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T09:01:34.863245+00:00"
+}

@@ -263,6 +263,14 @@ def test_config_kind_absent_from_graph_bites(tmp_path: Path) -> None:
     excluded from ``activated_kinds`` -- no directive kind can survive the
     KIND-level activation gate, so the graph shows zero directive nodes even
     though config carries directive IDs.
+
+    Campsite note (mission ``drg-relation-parity-activation-gate-01KY48PD``,
+    WP02/T007): ``_check_graph_kind_parity`` was re-pointed KIND-granular ->
+    per-ID (a deliberate behavior upgrade, plan.md IC-02); this test's own
+    ``graph_kind_gaps`` assertion is the one collateral break from that
+    re-point, and this file has no owning WP in that mission, so the fix
+    lands here directly (rationale-backed leeway, no ownership overlap) --
+    the finding now names the specific activated stem, not just its kind.
     """
     _write_config(
         tmp_path,
@@ -284,9 +292,9 @@ def test_config_kind_absent_from_graph_bites(tmp_path: Path) -> None:
     report = run_consistency_check(ctx)
 
     assert report.coherent is False
-    assert "directive" in report.graph_kind_gaps
+    assert f"directive/{_REAL_DIRECTIVE_STEM}" in report.graph_kind_gaps
     assert any(
-        "none survive in the activation-filtered DRG graph" in s
+        "does not survive in the activation-filtered DRG graph" in s
         for s in report.suggestions
     )
 

@@ -50,32 +50,29 @@ def test_new_relations_are_members_of_relation_enum() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_relation_descriptions_has_exactly_the_three_new_relations() -> None:
-    """Scope is deliberately the three new relations only (spec.md Assumption A2)."""
-    assert set(RELATION_DESCRIPTIONS) == {
-        Relation.IN_TENSION_WITH,
-        Relation.RECONCILES_TENSION,
-        Relation.REJECTS,
-    }
+def test_relation_descriptions_covers_every_relation_member() -> None:
+    """Completeness gate (FR-007, mission
+    ``drg-relation-parity-activation-gate-01KY48PD``): every ``Relation``
+    member must carry a description -- not just the three tension-vocabulary
+    relations this gate originally pinned to."""
+    assert set(RELATION_DESCRIPTIONS) == set(Relation)
 
 
-@pytest.mark.parametrize(
-    "relation",
-    [Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS],
-)
+@pytest.mark.parametrize("relation", list(Relation))
 def test_relation_description_is_non_empty_string(relation: Relation) -> None:
     description = RELATION_DESCRIPTIONS[relation]
     assert isinstance(description, str)
     assert description.strip() != ""
-    # Guard against a placeholder slipping through (WP08 mirrors this text
-    # verbatim into docs/architecture/doctrine-relationships.md; a stub here
-    # would ship as the canonical doc content).
+    # Guard against a placeholder slipping through (test_relation_doc_parity.py
+    # mirrors this text verbatim into docs/architecture/doctrine-relationships.md;
+    # a stub here would ship as the canonical doc content).
     assert len(description) > 40
 
 
 def test_relation_descriptions_are_distinct() -> None:
-    """Each of the three descriptions must be meaningfully different prose,
-    not the same placeholder copy-pasted three times."""
+    """Each of the 15 descriptions must be meaningfully different prose --
+    no two relations may share the same placeholder text (this is the
+    mechanical distinctness floor behind ``applies`` != ``scope``, AC3)."""
     descriptions = list(RELATION_DESCRIPTIONS.values())
     assert len(set(descriptions)) == len(descriptions)
 

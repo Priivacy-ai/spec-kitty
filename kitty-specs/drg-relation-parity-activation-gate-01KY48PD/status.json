@@ -1,0 +1,71 @@
+{
+  "event_count": 35,
+  "last_event_id": "01KY4NT09ASP9T6MRSGXKPZD03",
+  "materialized_at": "2026-07-22T10:26:41.578570+00:00",
+  "mission_number": "",
+  "mission_slug": "drg-relation-parity-activation-gate-01KY48PD",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY4NSX4XHK07AF0604X75C7V",
+      "last_transition_at": "2026-07-22T10:26:38.365790+00:00",
+      "shell_pid": 2299213,
+      "shell_pid_created_at": "1784710891.61"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KY4NSYS0MZQH3804PNNSS71F",
+      "last_transition_at": "2026-07-22T10:26:40.032941+00:00",
+      "shell_pid": 2421488,
+      "shell_pid_created_at": "1784713356.81"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY4NSZH7ZPYDVQMT78V653X2",
+      "last_transition_at": "2026-07-22T10:26:40.807469+00:00",
+      "shell_pid": 2421488,
+      "shell_pid_created_at": "1784713356.81"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:sonnet:doctrine-daphne:implementer",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY4NSY1EDS4G1TX319SWMHTA",
+      "last_transition_at": "2026-07-22T10:26:39.278867+00:00",
+      "shell_pid": 2301578,
+      "shell_pid_created_at": "1784710920.87"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:sonnet:doctrine-daphne:implementer",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KY4NT09ASP9T6MRSGXKPZD03",
+      "last_transition_at": "2026-07-22T10:26:41.578570+00:00",
+      "shell_pid": 2394119,
+      "shell_pid_created_at": "1784712348.18"
+    }
+  }
+}

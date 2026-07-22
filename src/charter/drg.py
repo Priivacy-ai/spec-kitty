@@ -50,6 +50,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from charter.catalog import resolve_doctrine_root
+from charter.kind_vocabulary import (
+    MissionTypeNotAnArtifactKind,
+    UnknownArtifactIdError,
+    resolve_artifact_urn,
+)
 from charter.pack_context import PackContext
 from doctrine.artifact_kinds import ArtifactKind
 from doctrine.drg import (
@@ -225,6 +231,23 @@ _SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {
 _MISSION_STEP_SINGULAR_KINDS: frozenset[str] = frozenset({"mission_step_contract"})
 
 
+#: Singular kinds excluded from stem->canonical-URN resolution (WP01).
+#:
+#: ``anti_pattern`` has no dedicated artifact file / config stem: it is a
+#: re-kinded, tagged node living inside another kind's YAML fragment, never
+#: a standalone ``*.anti_pattern.yaml`` file (see
+#: ``doctrine.artifact_kinds`` module docstring and its ``glob_pattern``
+#: entry, which is declared for enum completeness but never matches a real
+#: file). ``PackContext.activated_anti_patterns`` therefore already holds
+#: the canonical/direct artifact id, not a config stem needing resolution —
+#: routing it through :func:`charter.kind_vocabulary.resolve_artifact_urn`
+#: would always raise :class:`UnknownArtifactIdError` and silently drop
+#: every anti-pattern node. This mirrors the reference tension-scan's
+#: ``_CLI_KIND_TO_DRG_SINGULAR`` (``consistency_check.py:89-99``), which
+#: likewise omits ``anti_pattern`` from stem-resolution treatment.
+_NO_STEM_RESOLUTION_KINDS: frozenset[str] = frozenset({"anti_pattern"})
+
+
 def _split_urn(urn: str) -> tuple[str, str]:
     """Split ``"<kind>:<id>"`` into ``(kind, id)``.
 
@@ -262,10 +285,87 @@ def _owning_mission_type(urn: str) -> str | None:
     return head
 
 
+def _resolve_activated_urns_for_kind(
+    node_kind: str,
+    activated_ids: frozenset[str] | None,
+    *,
+    doctrine_root: Path,
+    org_roots: list[Path],
+) -> frozenset[str] | None:
+    """Resolve one kind's config-stem activation set to canonical URNs.
+
+    Preserves the three-state semantics of :class:`PackContext`'s per-kind
+    fields: ``None`` (key absent from config) stays ``None`` (default-allow);
+    an explicit empty set resolves to an empty ``frozenset`` (block-all).
+
+    Lifted (WP01, per ``contracts/activation-gate-contract.md``) from the
+    soon-to-be-deleted tension-scan's ``_resolve_activated_urns_for_kind``
+    (``consistency_check.py:874-905``): unknown/unresolvable stems are
+    skipped, never raised (:class:`UnknownArtifactIdError`) -- they are
+    already surfaced separately by ``_check_unknown_references``, and this
+    gate must never raise (it is consumed by five callers, including the
+    fail-closed-**report** ``_check_graph_kind_parity``).
+
+    ``node_kind`` values in :data:`_NO_STEM_RESOLUTION_KINDS` (currently only
+    ``anti_pattern``) bypass filesystem resolution entirely: their
+    ``PackContext`` field already holds canonical/direct ids, not config
+    stems, so each id is wrapped into a URN directly.
+    """
+    if activated_ids is None:
+        return None
+    if node_kind in _NO_STEM_RESOLUTION_KINDS:
+        return frozenset(f"{node_kind}:{raw_id}" for raw_id in activated_ids)
+    try:
+        kind_enum = ArtifactKind.from_operator_token(node_kind)
+    except MissionTypeNotAnArtifactKind:
+        # Defensive parity with the reference pattern; unreachable via the
+        # gate's fixed kind domain (_SINGULAR_TO_PER_KIND_FIELD never keys on
+        # "mission-type"), kept for symmetry should that domain ever grow.
+        return frozenset()
+
+    urns: set[str] = set()
+    for stem in activated_ids:
+        try:
+            urns.add(
+                resolve_artifact_urn(
+                    kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
+                )
+            )
+        except UnknownArtifactIdError:
+            continue  # Skip-with-report (contract): _check_unknown_references reports it.
+    return frozenset(urns)
+
+
+def _resolve_activated_urns_by_kind(
+    pack_context: PackContext,
+) -> dict[str, frozenset[str] | None]:
+    """Batch-resolve every per-kind activation set to canonical URNs, once.
+
+    Called once per :func:`filter_graph_by_activation` invocation -- never
+    per node -- so resolution is O(kinds x stems), not O(nodes x stems x
+    filesystem-walk). ``doctrine_root`` is sourced from
+    :func:`charter.catalog.resolve_doctrine_root` (the same source the
+    surviving compiler ``references.yaml`` projection uses), never
+    ``pack_context.pack_roots[0]`` (research.md D2 install-layout guard).
+    """
+    doctrine_root = resolve_doctrine_root()
+    org_roots = list(pack_context.org_roots)
+    return {
+        node_kind: _resolve_activated_urns_for_kind(
+            node_kind,
+            getattr(pack_context, per_kind_field, None),
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+        )
+        for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
+    }
+
+
 def _node_is_activated(
     node_kind: str,
     artifact_id: str,
     pack_context: PackContext,
+    resolved_urns_by_kind: dict[str, frozenset[str] | None],
 ) -> bool:
     """Return ``True`` when the artifact is visible under the activation filter.
 
@@ -278,6 +378,11 @@ def _node_is_activated(
         An empty string (malformed URN) bypasses the per-artifact-ID gate.
     pack_context:
         Activation state from the project charter.
+    resolved_urns_by_kind:
+        Pre-resolved (WP01) canonical-URN sets per singular kind, built once
+        by :func:`_resolve_activated_urns_by_kind` in
+        :func:`filter_graph_by_activation`. This keeps ``_node_is_activated``
+        a pure membership check with no filesystem I/O.
 
     Decision tree:
 
@@ -290,12 +395,13 @@ def _node_is_activated(
        extension kind not yet in :data:`_SINGULAR_TO_PLURAL`) is allowed
        through so the filter never silently swallows new artifact kinds —
        the DRG schema validator is the gatekeeper for kind legality.
-    3. Per-artifact-ID gate (FR-038, WP08): after the kind-level check, the
-       per-kind ``PackContext`` frozenset is consulted. ``None`` (key absent
-       from config) means all IDs are allowed. ``frozenset()`` (explicit
-       empty list) blocks all IDs. A non-empty frozenset gates by ID.
-       An empty *artifact_id* (malformed URN) bypasses this gate
-       (default-allow).
+    3. Per-artifact-ID gate (FR-038, WP08; canonical-URN corrected, WP01):
+       after the kind-level check, the pre-resolved canonical-URN set for
+       this kind is consulted. ``None`` (key absent from config) means all
+       IDs are allowed. An empty frozenset (explicit empty list) blocks all
+       IDs. A non-empty frozenset gates by full URN membership (not the bare
+       artifact id). An empty *artifact_id* (malformed URN) bypasses this
+       gate (default-allow).
     """
     # Step 1: mission-step contract kind check.
     if node_kind in _MISSION_STEP_SINGULAR_KINDS:
@@ -313,12 +419,12 @@ def _node_is_activated(
     if plural not in pack_context.activated_kinds:
         return False
 
-    # Step 3: per-artifact-ID gate (FR-038, WP08).
-    per_kind_field = _SINGULAR_TO_PER_KIND_FIELD.get(node_kind)
-    if per_kind_field is not None:
-        per_kind_set = getattr(pack_context, per_kind_field, None)
-        # artifact_id="" (malformed URN) → bypass (default-allow)
-        if per_kind_set is not None and artifact_id and artifact_id not in per_kind_set:
+    # Step 3: per-artifact-ID gate (FR-038, WP08), full-URN comparison (WP01).
+    resolved_urns = resolved_urns_by_kind.get(node_kind)
+    # artifact_id="" (malformed URN) → bypass (default-allow)
+    if resolved_urns is not None and artifact_id:
+        node_urn = f"{node_kind}:{artifact_id}"
+        if node_urn not in resolved_urns:
             return False
 
     return True
@@ -336,6 +442,11 @@ def filter_graph_by_activation(
       type is in :attr:`PackContext.activated_mission_types`.
     * All other artifact kinds are kept only when their plural kind is in
       :attr:`PackContext.activated_kinds`.
+    * Per-kind activated-ID sets (e.g. :attr:`PackContext.activated_directives`)
+      hold config **stems**; WP01 resolves them to canonical URNs once per
+      call (:func:`_resolve_activated_urns_by_kind`) via
+      :func:`charter.kind_vocabulary.resolve_artifact_urn` and compares on
+      the node's full URN -- see ``contracts/activation-gate-contract.md``.
     * Edges are kept only when both endpoints survive node filtering. This
       preserves the graph invariant that an edge always points to a node in
       the same graph; downstream traversal code does not need to special-
@@ -348,9 +459,10 @@ def filter_graph_by_activation(
     Direct doctrine-API callers (``DoctrineService.<repo>.get(...)``,
     ``MissionTemplateRepository.get(...)``) are exempt.
     """
+    resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context)
     surviving_nodes = [
         n for n in graph.nodes
-        if _node_is_activated(*_split_urn(n.urn), pack_context)
+        if _node_is_activated(*_split_urn(n.urn), pack_context, resolved_urns_by_kind)
     ]
     surviving_urns = {n.urn for n in surviving_nodes}
     surviving_edges = [

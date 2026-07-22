@@ -161,6 +161,23 @@ class PackContext:
     """Anti-pattern node IDs activated for this project (three-state)."""
 
     # ------------------------------------------------------------------
+    # Derived accessors
+    # ------------------------------------------------------------------
+
+    @property
+    def org_roots(self) -> tuple[Path, ...]:
+        """Org/project pack roots -- every :attr:`pack_roots` entry after the
+        built-in root at index 0.
+
+        Named accessor so new call sites (the activation gate, WP01 --
+        mission ``drg-relation-parity-activation-gate-01KY48PD``) don't
+        re-open-code the ``pack_roots[1:]`` slice already duplicated at
+        ``charter/compiler.py:144`` and ``charter/consistency_check.py:940``.
+        Those two existing sites are left as-is (out of scope for WP01).
+        """
+        return self.pack_roots[1:]
+
+    # ------------------------------------------------------------------
     # Constructor
     # ------------------------------------------------------------------
 
