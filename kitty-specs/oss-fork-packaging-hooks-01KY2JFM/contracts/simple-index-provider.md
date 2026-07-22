@@ -5,7 +5,7 @@
 - Implements `LatestVersionProvider.get_latest(package) -> LatestVersionResult`.
 - Never raises.
 - Fetches PEP 503 simple index HTML for the configured base URL + package.
-- Parses version candidates from anchor hrefs / wheel filenames; returns the highest sanitised version matching `_VERSION_RE`.
+- Parses version candidates from anchor hrefs / wheel filenames; returns the highest **stable** sanitised version matching `_VERSION_RE`. Pre-releases are excluded (mirroring `PyPIProvider`'s stable `info.version`); the highest pre-release is returned only when no stable version exists. Anchors carrying a PEP 592 `data-yanked` attribute are skipped.
 - TLS verification on; response size capped (same order as PyPIProvider 1 MiB); redirects not followed.
 - Successful lookups set `source="simple_index"`.
 - Failures return `version=None, source="none", error=<token>` (`timeout`, `http_error`, `parse_error`, `oversized`).
