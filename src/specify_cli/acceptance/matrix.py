@@ -333,9 +333,24 @@ def enforce_negative_invariants(
     Verification methods:
     - grep_absence: Run grep for pattern in repo; exit code 1 means absent.
     - custom_command: Run a command, check exit code (0 = absent/pass).
+
+    A negative invariant that already carries a recorded, non-``pending``
+    ``result`` (``confirmed_absent`` / ``still_present`` / ``verification_error``)
+    is NOT re-verified: it is preserved as-is. Re-verification only happens for
+    invariants still ``pending``.
+
+    This matters because this gate is invoked both during per-WP review — from
+    the integrated lane worktree, where mission-added files/tests exist — and
+    again at ``accept`` time, from the pre-merge primary repo root, where they
+    do not exist yet (they land only via ``spec-kitty merge``). Re-running an
+    already-recorded invariant against the pre-merge primary tree would clobber
+    an honest ``confirmed_absent`` with a false ``still_present`` (#1834).
     """
     results: list[NegativeInvariant] = []
     for ni in invariants:
+        if ni.result != "pending":
+            results.append(ni)
+            continue
         updated = _check_invariant(repo_root, ni)
         results.append(updated)
     return results
