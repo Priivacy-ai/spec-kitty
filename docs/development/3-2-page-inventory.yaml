@@ -1832,18 +1832,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/engineering_notes/doctrine-drg-missing-links-analysis.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/engineering_notes/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/accept-and-merge.md
   tag: current
   divio_type: how-to
@@ -2811,6 +2799,12 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/context-factory-readwrite-symmetry/00-SYNTHESIS.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md
   tag: current
   divio_type: none
   owning_workstream: none
