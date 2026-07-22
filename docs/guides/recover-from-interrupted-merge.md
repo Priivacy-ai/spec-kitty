@@ -42,7 +42,7 @@ spec-kitty merge --abort
 
 This runs `git merge --abort` (if a merge is in progress) and deletes `.kittify/merge-state.json`. The worktrees and branches are left intact so you can restart from scratch.
 
-## The Merge State File
+## The merge state file
 
 `.kittify/merge-state.json` is written atomically at each WP boundary. Fields:
 

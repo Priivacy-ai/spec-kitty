@@ -197,7 +197,7 @@ Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), lane met
 
 Always use `spec-kitty implement`.
 
-### Committing in the Repository Root Checkout During Implementation
+### Committing in the repository root checkout During Implementation
 
 ```bash
 # WRONG: Committing code in the repository root checkout

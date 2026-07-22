@@ -18,7 +18,7 @@ Every standalone Spec Kitty dispatch leaves an auditable trail. The trail serves
 2. **SaaS coherence**: the dashboard timeline shows the same history as the local audit log.
 3. **Governance provenance**: downstream retrospective and doctrine work can reference specific invocations.
 
-## Minimal Viable Trail
+## minimal viable trail
 
 **One JSONL file per invocation, written locally before the executor returns.**
 

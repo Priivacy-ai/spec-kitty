@@ -68,7 +68,7 @@ route through it — they live on the primary target branch.
 work packages assigned to that lane write code here. Lane branches are isolated
 from each other.
 
-**Base branch** — the mission's base (e.g. `feat/my-mission` or `main`).
+**base branch** — the mission's base (e.g. `feat/my-mission` or `main`).
 Documentation and the final merge target always resolve to base so they are
 available regardless of which lane is active.
 

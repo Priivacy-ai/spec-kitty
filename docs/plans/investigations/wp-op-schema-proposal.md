@@ -290,7 +290,7 @@ SPECIFY_SCHEMA_DIR = ROOT / "src" / "specify_cli" / "schemas"
 register(
     "work-package-spec",
     "specify_cli.core.wp_spec", "WorkPackageSpec",
-    "Work Package Spec",
+    "work package Spec",
     "Canonical YAML-authoritative work-package record; tasks/WP##.md is derived.",
     extra=lambda s: _add_item_patterns(s, {
         "dependencies": r"^WP\d{2}$",
@@ -317,7 +317,7 @@ they emit as `definitions/*` inside their parent (same as `tactic_step`).
 ```yaml
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://spec-kitty.dev/schemas/doctrine/work-package-spec.schema.yaml
-title: Work Package Spec
+title: work package Spec
 description: Canonical YAML-authoritative work-package record; tasks/WP##.md is derived.
 type: object
 additionalProperties: false          # ← from model_config extra="forbid"

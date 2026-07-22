@@ -42,7 +42,7 @@ Agent asks again: "What should I do next?"
 The runtime considers several factors when making its decision:
 
 - **Mission phase** -- Which step in the mission workflow is active (specify, plan, tasks, implement, review, accept)
-- **Work package status** -- Which WPs are planned, in progress, done, or blocked
+- **work package status** -- Which WPs are planned, in progress, done, or blocked
 - **Guard conditions** -- Whether required artifacts exist, whether prerequisites are met
 - **Priority ordering** -- Reviews before new implementations, dependency-free WPs before dependent ones
 

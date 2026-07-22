@@ -330,7 +330,7 @@ terms:
 
 ### Validation Rules
 
-- **surface** -- must be lowercase and trimmed (e.g., `work package`, not `Work Package` or ` work package `)
+- **surface** -- must be lowercase and trimmed (e.g., `work package`, not title-cased or space-padded)
 - **definition** -- must be a non-empty string
 - **confidence** -- float between 0.0 and 1.0
 - **status** -- one of `active`, `deprecated`, or `draft`

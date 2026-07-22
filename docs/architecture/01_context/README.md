@@ -73,7 +73,7 @@ flowchart LR
     onboarding[Project and Governance Onboarding]
     runtime[Mission Runtime and Flow Control]
     doctrine[Doctrine and Knowledge Governance]
-    lifecycle[Work Package State and Evidence]
+    lifecycle[work package State and Evidence]
     external[External Integration Boundaries]
 
     onboarding -->|establishes entry constraints| runtime
@@ -91,7 +91,7 @@ flowchart LR
 | Project and Governance Onboarding | Entry conditions and governance defaults must be explicit before runtime execution. |
 | Mission Runtime and Flow Control | Runtime loop owns action sequencing and mission resolution precedence. |
 | Doctrine and Knowledge Governance | Doctrine and glossary provide policy context but do not bypass runtime sequencing. |
-| Work Package State and Evidence | Lifecycle transitions remain host-authoritative and auditable. |
+| work package State and Evidence | Lifecycle transitions remain host-authoritative and auditable. |
 | External Integration Boundaries | External services consume host contracts and cannot become state authority. |
 
 ## Usage Flow Reference

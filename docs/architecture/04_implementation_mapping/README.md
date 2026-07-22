@@ -128,11 +128,11 @@ User runs: spec-kitty charter interview / generate
   → .kittify/charter/ (compiled governance bundle)
 ```
 
-### Loop C': Action Context Bootstrap (Agent → Charter → Doctrine)
+### Loop C': action context bootstrap (Agent → Charter → Doctrine)
 
 ```
 Agent calls: spec-kitty charter context --action implement
-  → src/charter/context.py (Action Context Resolver)
+  → src/charter/context.py (action context Resolver)
   → Load action index: src/doctrine/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/doctrine/service.py (DoctrineService) → fetch directive/tactic content by depth
@@ -190,7 +190,7 @@ Orchestration lifecycle event triggers:
 | **Glossary Hook Coordinator** | `doctrine/missions/glossary_hook.py`, `specify_cli/glossary/` | Glossary checks during mission execution |
 | **Charter Interview Flow** | `charter/interview.py` | Guided Q&A for governance capture |
 | **Charter Compiler** | `charter/compiler.py` | Doctrine→charter bundle compilation |
-| **Action Context Resolver** | `charter/context.py`, `resolver.py`, `reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
+| **action context Resolver** | `charter/context.py`, `resolver.py`, `reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
 | **Action Index** | `doctrine/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `doctrine/missions/action_index.py` |
 | **Execution Dispatch** | `doctrine/missions/*/command-templates/implement.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |

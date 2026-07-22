@@ -88,7 +88,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/doctrine/procedures/` and related doctrine procedure models                                                                                                                                                                        |
-| **Related terms** | [Tactic](#tactic), [Directive](#directive), [Mission Action](./orchestration.md#mission-action), [Step Contract](./orchestration.md#step-contract)                                                                                  |
+| **Related terms** | [Tactic](#tactic), [Directive](#directive), [Mission Action](./orchestration.md#mission-action), [step contract](./orchestration.md#step-contract)                                                                                  |
 
 ---
 

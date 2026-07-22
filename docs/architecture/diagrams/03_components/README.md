@@ -232,7 +232,7 @@ sequenceDiagram
     Activation-->>Human: commit_activation (writes config only after plan succeeds)
 ```
 
-## Canonical Work Package FSM
+## Canonical work package FSM
 
 ```mermaid
 stateDiagram-v2

@@ -1,12 +1,12 @@
 ---
 title: Set Up Codex for Spec Kitty
-description: Configure Codex CLI to load Spec Kitty project-local Agent Skills from `.agents/skills/`.
+description: Configure Codex CLI to load Spec Kitty project-local agent skills from `.agents/skills/`.
 doc_status: active
 updated: '2026-06-03'
 ---
 # Set Up Codex for Spec Kitty
 
-Codex CLI uses Spec Kitty's project-local Agent Skills. Spec Kitty installs one
+Codex CLI uses Spec Kitty's project-local agent skills. Spec Kitty installs one
 skill package per command under `.agents/skills/spec-kitty.<command>/SKILL.md`.
 
 Use this guide when an existing project does not show `$spec-kitty.*` skills in

@@ -90,7 +90,7 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `WP_ID` (argument) | Yes | Work package ID (e.g., `WP01`) |
+| `WP_ID` (argument) | Yes | work package ID (e.g., `WP01`) |
 | `--to` | Yes | Target lane (canonical or alias) |
 | `--actor` | Yes | Who is making this transition |
 | `--mission` | No | Mission slug |

@@ -203,7 +203,7 @@ slots for templates and gates, and the leak-closure invariant — see
 
 ## DRG composition
 
-The Doctrine Reference Graph (DRG) is the typed graph that the runtime traverses to
+The doctrine reference graph (DRG) is the typed graph that the runtime traverses to
 select context for a given action. Each layer can contribute graph **fragments**, and
 they merge additively:
 

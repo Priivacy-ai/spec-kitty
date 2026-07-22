@@ -46,26 +46,6 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo, pytest.mark.docs_
 
 _SCAN_GLOB: str = ":(glob)docs/**/*.md"
 
-#: Baseline of violations that pre-date this check (mission-review finding F4):
-#: without a baseline, the 200 pre-existing casing violations across ~70 files
-#: this check found on introduction would permanently redden every future PR
-#: to the repo, not just docs-touching ones. Only a violation NOT in this file
-#: (a genuinely new regression) fails the test — see ``_new_violations``.
-_BASELINE_FILE: Path = Path(__file__).parent / "glossary_canonical_terms_baseline.txt"
-
-
-def _load_baseline() -> frozenset[str]:
-    """Return the committed set of pre-existing, known-and-tracked violations."""
-    if not _BASELINE_FILE.is_file():
-        return frozenset()
-    lines = _BASELINE_FILE.read_text(encoding="utf-8").splitlines()
-    return frozenset(line for line in lines if line and not line.startswith("#"))
-
-
-def _new_violations(violations: list[str], baseline: frozenset[str]) -> list[str]:
-    """Return ``violations`` not already present in ``baseline`` (the ratchet)."""
-    return [v for v in violations if v not in baseline]
-
 # Mirrors test_no_legacy_terminology.py's _EXCLUDED_PATH_FRAGMENTS: kitty-specs/ and
 # docs/adr/ are historical/immutable snapshots (NFR-001/C-002 rationale in that file
 # applies identically here — quoted legacy casing inside an ADR body is quoted history,
@@ -188,27 +168,20 @@ def test_glossary_terms_use_canonical_casing() -> None:
     Sources terms from the live 104-term spec_kitty_core.yaml seed (not a hardcoded
     list — a future term addition/rename is picked up automatically).
 
-    Ratcheted against a committed baseline (mission-review finding F4,
-    ``glossary_canonical_terms_baseline.txt``): only a violation NOT already in the
-    baseline — a genuinely new regression — fails this test. The 200 pre-existing
-    violations this check found on introduction (across files outside the
-    introducing mission's own diff, per DIR-013) are tracked in the baseline, not
-    fixed here, so this check does not permanently redden every future PR to the
-    repo. Shrink the baseline file as violations get fixed over time.
+    Enforces **zero** non-canonical occurrences directly: the introducing mission's
+    baseline-ratchet escape hatch (``glossary_canonical_terms_baseline.txt``, 200
+    pre-existing violations) was fully paid down and retired (#2830), so this is now a
+    plain gate — any non-canonical usage anywhere in scanned docs/ fails the test.
     """
     terms = _load_canonical_surfaces()
     assert terms, "expected multi-word glossary surfaces to be loaded from the seed file"
     violations = _scan_for_violations(terms)
-    baseline = _load_baseline()
-    new = _new_violations(violations, baseline)
-    if new:
-        formatted = "\n  ".join(new)
+    if violations:
+        formatted = "\n  ".join(violations)
         pytest.fail(
-            "Documentation introduces NEW non-canonical glossary-term usage (not in "
-            f"the pre-existing baseline at {_BASELINE_FILE}).\n"
+            "Documentation uses non-canonical glossary-term casing.\n"
             "Canonical forms are defined in .kittify/glossaries/spec_kitty_core.yaml.\n"
-            f"New violations ({len(new)}):\n  {formatted}\n"
-            f"({len(baseline)} pre-existing violation(s) are tracked separately in the baseline file.)"
+            f"Violations ({len(violations)}):\n  {formatted}"
         )
 
 
@@ -276,30 +249,6 @@ def test_term_pattern_does_not_match_inside_longer_words() -> None:
     """
     content = "A reaction contextual to the change was recorded."
     assert _flagged_occurrences(content, "action context") == []
-
-
-def test_new_violations_ratchet_ignores_baseline_and_flags_new() -> None:
-    """The ratchet only surfaces violations absent from the baseline set.
-
-    Direct unit test of the pure ``_new_violations`` helper — proves both halves:
-    a violation already in the baseline (pre-existing, tracked debt) is not
-    re-flagged, and a violation not in the baseline (a new regression) is.
-    """
-    baseline = frozenset({"docs/guides/foo.md:1: found \"Work Package\", expected canonical form \"work package\""})
-    violations = [
-        "docs/guides/foo.md:1: found \"Work Package\", expected canonical form \"work package\"",  # in baseline
-        "docs/guides/bar.md:2: found \"Action Context\", expected canonical form \"action context\"",  # new
-    ]
-    assert _new_violations(violations, baseline) == [
-        "docs/guides/bar.md:2: found \"Action Context\", expected canonical form \"action context\""
-    ]
-
-
-def test_load_baseline_ignores_comments_and_blank_lines() -> None:
-    """The baseline loader skips ``#``-comment and blank lines, keeping only entries."""
-    baseline = _load_baseline()
-    assert all(line.strip() and not line.startswith("#") for line in baseline)
-    assert len(baseline) > 0, "expected the committed baseline file to carry entries"
 
 
 def test_term_pattern_normalizes_internal_whitespace() -> None:

@@ -117,7 +117,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 | **Context** | System Events |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Work Package](./orchestration.md#work-package), [Lane](./orchestration.md#lane), [Event Envelope](#event-envelope) |
+| **Related terms** | [work package](./orchestration.md#work-package), [Lane](./orchestration.md#lane), [Event Envelope](#event-envelope) |
 
 ---
 

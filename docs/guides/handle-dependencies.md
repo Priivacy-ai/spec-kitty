@@ -1,5 +1,5 @@
 ---
-title: How to Handle Work Package Dependencies
+title: How to Handle work package Dependencies
 description: Declare, implement, and maintain dependencies between work packages in Spec Kitty.
 doc_status: active
 updated: '2026-06-12'
@@ -9,7 +9,7 @@ related:
 - docs/guides/parallel-development.md
 - docs/guides/sync-workspaces.md
 ---
-# How to Handle Work Package Dependencies
+# How to handle work package dependencies
 
 Use dependencies to tell Spec Kitty which work packages (WPs) must land before another WP can safely build on them. Dependencies drive lane computation and keep parallel work predictable.
 
@@ -132,7 +132,7 @@ WP02 has dependencies. Use: spec-kitty agent action implement WP02 --agent <name
 
 ## See Also
 
-- [Implement a Work Package](implement-work-package.md) - Implementing inside the computed lane workspace
+- [Implement a work package](implement-work-package.md) - Implementing inside the computed lane workspace
 - [Parallel Development](parallel-development.md) - Running multiple agents
 - [Generate Tasks](generate-tasks.md) - Where dependencies are declared
 

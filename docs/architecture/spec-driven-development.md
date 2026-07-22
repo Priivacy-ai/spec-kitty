@@ -168,7 +168,7 @@ The plan answers: **How will we build it?**
 
 A good plan includes:
 - **Technical approach**: Architecture and design decisions
-- **Work package breakdown**: Discrete units of work
+- **work package breakdown**: Discrete units of work
 - **Dependencies**: What must be built first?
 - **Risks and mitigations**: What could go wrong?
 

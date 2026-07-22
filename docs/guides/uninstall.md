@@ -74,7 +74,7 @@ A project initialized with `spec-kitty init` contains generated agent and scaffo
 ```bash
 rm -rf .kittify/          # project scaffold and config
 rm -rf .claude/           # agent command directory (one per configured agent)
-rm -rf .codex/            # legacy Codex root (only present on installs that predate Agent Skills)
+rm -rf .codex/            # legacy Codex root (only present on installs that predate agent skills)
 rm -rf .gemini/
 rm -rf .agents/skills/    # codex/vibe skill packages
 # ... and any other configured agent directory listed in .kittify/config.yaml

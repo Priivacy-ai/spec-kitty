@@ -48,7 +48,7 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
 │             for agents                                                       │
 │ status      Canonical status management commands                             │
 │ tests       Test-related commands for AI agents                              │
-│ decision    Decision Moment ledger for interview questions.                  │
+│ decision    decision moment ledger for interview questions.                  │
 │ retrospect  Retrospective synthesis commands                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -92,7 +92,7 @@ _Mission action commands that display prompts and instructions for agents_
  planned WP
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   wp_id      [WP_ID]  Work package ID (e.g., WP01, wp01, WP01-slug) -        │
+│   wp_id      [WP_ID]  work package ID (e.g., WP01, wp01, WP01-slug) -        │
 │                       auto-detects first planned if omitted                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
@@ -132,7 +132,7 @@ _Mission action commands that display prompts and instructions for agents_
  for_review WP
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   wp_id      [WP_ID]  Work package ID (e.g., WP01) - auto-detects first      │
+│   wp_id      [WP_ID]  work package ID (e.g., WP01) - auto-detects first      │
 │                       for_review if omitted                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
@@ -314,7 +314,7 @@ _Agent context management commands_
 │                           tasks_finalize, implement, review, accept, status) │
 │                           [required]                                         │
 │    --mission        TEXT  Mission slug (e.g., '020-my-mission')              │
-│    --wp-id          TEXT  Work package ID (e.g., WP01)                       │
+│    --wp-id          TEXT  work package ID (e.g., WP01)                       │
 │    --agent          TEXT  Agent name for exact command rendering             │
 │    --json                 Output results as JSON                             │
 │    --help                 Show this message and exit.                        │
@@ -328,13 +328,13 @@ _Decision Moment ledger for interview questions._
 ```
  Usage: spec-kitty agent decision [OPTIONS] COMMAND [ARGS]...
 
- Decision Moment ledger for interview questions.
+ decision moment ledger for interview questions.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ open     Open a new Decision Moment or return idempotently if one already    │
+│ open     Open a new decision moment or return idempotently if one already    │
 │          exists.                                                             │
 │ resolve  Resolve a decision with a concrete final answer.                    │
 │ defer    Defer a decision for later resolution.                              │
@@ -400,7 +400,7 @@ _Decision Moment ledger for interview questions._
 ```
  Usage: spec-kitty agent decision open [OPTIONS]
 
- Open a new Decision Moment or return idempotently if one already exists.
+ Open a new decision moment or return idempotently if one already exists.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission                   TEXT  Mission handle (slug, mission_id, or    │
@@ -597,7 +597,7 @@ _Mission lifecycle commands for AI agents_
 │                                                           'documentation',   │
 │                                                           'software-dev')    │
 │ --json                                                    Output JSON format │
-│ --target-branch                        TEXT               Target branch      │
+│ --target-branch                        TEXT               target branch      │
 │                                                           (defaults to       │
 │                                                           current branch)    │
 │ --friendly-name                        TEXT               Human-friendly     │
@@ -742,7 +742,7 @@ _Mission lifecycle commands for AI agents_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                             TEXT  Mission slug (required in        │
 │                                             multi-mission repos)             │
-│ --target                              TEXT  Target branch to merge into      │
+│ --target                              TEXT  target branch to merge into      │
 │                                             (required in multi-feature       │
 │                                             repos)                           │
 │ --strategy                            TEXT  Merge strategy: merge, squash,   │
@@ -1102,7 +1102,7 @@ _Canonical status management commands_
  --reason "resuming after crash"
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (e.g., WP01) [required]                │
+│ *    wp_id      TEXT  work package ID (e.g., WP01) [required]                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --to                                 TEXT  Target lane (e.g., claimed,    │
@@ -1348,7 +1348,7 @@ _Task workflow commands for AI agents_
  --json
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (e.g., WP01) [required]                │
+│ *    wp_id      TEXT  work package ID (e.g., WP01) [required]                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission        TEXT  Mission slug                                          │

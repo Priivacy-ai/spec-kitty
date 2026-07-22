@@ -137,7 +137,7 @@ both a shipped default and project-level override. Use the existing
 
 ---
 
-## 4. Preflight Validation with Structured Result Object
+## 4. preflight validation with Structured Result Object
 
 **Doctrine:** Reflected in
 [`refactoring-extract-first-order-concept`](../../../src/doctrine/tactics/built-in/refactoring/refactoring-extract-first-order-concept.tactic.yaml)

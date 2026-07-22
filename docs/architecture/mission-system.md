@@ -1,6 +1,6 @@
 ---
 title: The Mission System Explained
-description: "Why mission types exist and how they nest: the Mission Type, Mission, Work Package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
+description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
 updated: '2026-07-14'
 related:
@@ -39,7 +39,7 @@ A workflow designed for software development doesn't fit research:
 
 Mission types solve this by providing domain-specific workflows, validation rules, and artifacts.
 
-## The Hierarchy: Mission Type, Mission, Work Package, Workspace
+## The Hierarchy: Mission Type, Mission, work package, Workspace
 
 Understanding how the pieces nest together is key to understanding Spec Kitty.
 
@@ -67,7 +67,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
 
 **Feature** -- Compatibility alias for a software-delivery mission. In software-dev contexts you will still see `feature` on legacy commands and filesystem fields.
 
-**Work Package (WP)** -- One parallelizable slice of work within a mission. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
+**work package (WP)** -- One parallelizable slice of work within a mission. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
 
 **Workspace** -- An isolated git worktree where a single WP is implemented. Each workspace has its own branch, its own working directory, and its own agent. Multiple workspaces can run in parallel.
 

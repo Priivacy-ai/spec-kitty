@@ -54,7 +54,7 @@ The Divio system identifies four distinct types of documentation, each serving a
 - Practical steps
 - Doesn't explain underlying concepts
 
-**Spec Kitty example**: "How to Review a Work Package" - steps to review, without explaining why review matters
+**Spec Kitty example**: "How to Review a work package" - steps to review, without explaining why review matters
 
 ### 3. Reference (Information-Oriented)
 

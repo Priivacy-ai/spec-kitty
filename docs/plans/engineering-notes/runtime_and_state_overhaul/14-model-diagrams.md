@@ -67,7 +67,7 @@ graph TD
   GOV -->|"blueprint + action-scoped governance"| MM
   GOV -->|"beliefs: profile + directives (sense of self)"| ACTOR
   MM -->|"driven through steps by  1:N"| RUNc
-  MM -->|"intent / Work Package"| PROMPT
+  MM -->|"intent / work package"| PROMPT
   GOV -->|"aligns: rules + profile"| PROMPT
   CTXc -->|"aligns: environment"| PROMPT
   PROMPT -->|"consumed by"| ACTOR
@@ -131,7 +131,7 @@ This aligns with the deep-dive bounded-context map (doc `03` B: distinct "Missio
 ### 2a · Governance domain
 
 Now shown bridging into execution (the governed-invocation assembly): Mission Type → Mission Step →
-governance bundle → prompt, targeting a Work Package issued by a Mission Run, consumed by an Actor.
+governance bundle → prompt, targeting a work package issued by a Mission Run, consumed by an Actor.
 Cross-domain concepts (other domains) are dashed.
 
 ```mermaid
@@ -145,7 +145,7 @@ graph TD
   AB["Action-scoped governance bundle<br/>resolved per (Mission Type × Mission Step)"]
   PMT["Executor Prompt"]
   RUN["Mission Run<br/>(Runtime domain)"]:::ext
-  WP["Work Package<br/>(Mission Mgmt domain)"]:::ext
+  WP["work package<br/>(Mission Mgmt domain)"]:::ext
   ACTOR["Actor"]:::ext
 
   CH --> DIR & TAC & PAR & STY & PROF
@@ -166,14 +166,14 @@ graph TD
 > and *selects* a **Mission Type**, which **comprises ordered Mission Steps**. The **action-scoped
 > bundle** is keyed by **(Mission Type × Mission Step)** and combined with the **bound Agent Profile**.
 > The bridge into execution: a **Mission Run** *issues* the current Mission Step; that step (for
-> implement/review) *targets* a **Work Package**; the bundle is *rendered into* the **Executor Prompt**
-> whose subject is that Work Package; the **Actor** *consumes* the prompt. (This static view is the
+> implement/review) *targets* a **work package**; the bundle is *rendered into* the **Executor Prompt**
+> whose subject is that work package; the **Actor** *consumes* the prompt. (This static view is the
 > structural counterpart to the governed-invocation sequence below.)
 
 ### 2b · Mission Management domain (the layered work) — corrected per `13`
 
 Cross-domain concepts dashed. Shows the same execution spine as 2a, from the Mission-Management side:
-a **Mission Step** (Governance) *targets* a **Work Package**; a **Mission Run** (Execution) *drives*
+a **Mission Step** (Governance) *targets* a **work package**; a **Mission Run** (Execution) *drives*
 the Mission and *issues* that step.
 
 ```mermaid
@@ -185,7 +185,7 @@ graph TD
   M["Mission (durable · kitty-specs/&lt;slug&gt;/ · git)<br/>[PURPOSE — now]"]
   ML["mission-level state<br/>identity(mission_id) · type · phase* · topology · interaction policy*"]
   WLAYER["work-package-level state = MissionStatus aggregate"]
-  WP["Work Package (1:N)<br/>lane (9-state FSM) · agent_profile · role · location · model · tool · evidence · deps"]
+  WP["work package (1:N)<br/>lane (9-state FSM) · agent_profile · role · location · model · tool · evidence · deps"]
   MT -->|"instantiated as  1:N"| M
   M --> ML
   M --> WLAYER
@@ -197,14 +197,14 @@ graph TD
 
 > Disambiguation: the **layered state lives on the Mission** (not the Run — `13`). Mission-level =
 > identity/type/phase/topology/policy; WP-level = the `MissionStatus` aggregate. The execution spine
-> (dashed) is consistent with 2a/2c: **Mission Run → Mission Step → Work Package**. `*` = provisional
+> (dashed) is consistent with 2a/2c: **Mission Run → Mission Step → work package**. `*` = provisional
 > (phase derived-not-enum; interaction policy resolved-and-frozen at plan time).
 
 ### 2c · Execution / Runtime domain (driver + Actor + Context) — corrected per `13`
 
 The domain now drawn in full: it **contains** the Mission Run, the **Actor** (realized here), and the
 **Context** subdomain; it reaches *out* (dashed) to Governance (Mission Step) and Mission Management
-(Mission, Work Package). Same spine as 2a/2b.
+(Mission, work package). Same spine as 2a/2b.
 
 ```mermaid
 graph TD
@@ -213,7 +213,7 @@ graph TD
 
   MS["Mission Step (Governance)"]:::ext
   M["Mission (Mission Mgmt)"]:::ext
-  WP["Work Package (Mission Mgmt)"]:::ext
+  WP["work package (Mission Mgmt)"]:::ext
 
   subgraph EXEC["EXECUTION / RUNTIME domain"]
     R["Mission Run<br/>(ephemeral · .kittify/runtime/runs/&lt;run_id&gt;)"]

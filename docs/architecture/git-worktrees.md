@@ -37,7 +37,7 @@ git checkout feature-b  # Now you're on feature-b, feature-a is gone
 
 **With worktrees** (multiple branches simultaneously):
 ```bash
-# Main repo stays on main branch
+# main repo stays on main branch
 my-repo/               # main branch
 
 # Each worktree has its own branch

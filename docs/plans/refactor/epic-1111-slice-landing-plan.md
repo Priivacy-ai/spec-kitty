@@ -222,7 +222,7 @@ The bug is precisely located (from the issue):
   without normalizing first — so one bad term raises and the whole scope fails.
 - `src/specify_cli/dashboard/handlers/glossary.py::_collect_all_senses` catches the
   per-scope exception and skips the entire scope, returning an empty list.
-- Concrete bad term: `surface: Sonar quality gate` in
+- Concrete bad term: `surface: sonar quality gate` in
   `.kittify/glossaries/spec_kitty_core.yaml:365` (capital S).
 
 **Fix is 3 lines + the seed file correction:**
@@ -387,7 +387,7 @@ without requiring production readiness.
 | 1. Dashboard glossary fix | #1098 | `glossary/models.py`, `glossary/scope.py`, `dashboard/handlers/glossary.py`, seed YAML | Minimal |
 | 2. CI DRG integrity gate | #1103 | `.github/workflows/ci-*.yml`, `tests/architectural/`, `src/doctrine/graph.yaml` (regen) | Minimal |
 | 3. Git policy + charter source-of-truth docs | #1102, #1007, #1013 | `docs/`, `.gitignore`, legacy test cleanup | Minimal |
-| 4. Charter lint + status + synthesize freshness | #1099, #1101, #1104 | `charter_lint/_drg.py`, `charter_lint/engine.py`, `charter_lint/findings.py`, `charter.py` | Low |
+| 4. charter lint + status + synthesize freshness | #1099, #1101, #1104 | `charter_lint/_drg.py`, `charter_lint/engine.py`, `charter_lint/findings.py`, `charter.py` | Low |
 | 5. ADR-8 (monorepo design) | #522 | `docs/adr/2.x/` | Minimal |
 | 6. Session-start preflight | #1100 | `specify_cli/preflight.py` (new), `specify_cli/next/runtime_bridge.py`, `charter.py` | Medium |
 | 7. Composable workflow sequencing | #682 | New mission, ~6–8 WPs | Medium-High |

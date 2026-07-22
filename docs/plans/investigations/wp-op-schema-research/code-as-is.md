@@ -64,7 +64,7 @@ Concretely duplicated across the three representations that can coexist:
 
 | Fact | Frontmatter | Prose body | `wps.yaml` (when present) |
 |---|---|---|---|
-| WP id | `work_package_id` | `## Work Package WP01: …` heading | `id` |
+| WP id | `work_package_id` | in the WP-prompt heading | `id` |
 | Title | `title` | same heading | `title` |
 | Dependencies | `dependencies: [...]` | `**Dependencies**: WP01, WP02` (parsed by `dependency_parser.py`) | `dependencies` |
 | Requirement refs | `requirement_refs` | prose `**Requirement Refs**:` | `requirement_refs` |

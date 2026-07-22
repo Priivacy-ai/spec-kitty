@@ -36,7 +36,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Feature](./orchestration.md#feature), [Work Package](./orchestration.md#work-package) |
+| **Related terms** | [Feature](./orchestration.md#feature), [work package](./orchestration.md#work-package) |
 
 ---
 
@@ -48,7 +48,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Work Package](./orchestration.md#work-package), [Lane](./orchestration.md#lane) |
+| **Related terms** | [work package](./orchestration.md#work-package), [Lane](./orchestration.md#lane) |
 
 ---
 

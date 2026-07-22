@@ -10,7 +10,7 @@ related:
 # Spec Kitty 3.2 — Archive & Migration Plan
 
 **Mission**: `spec-kitty-3-2-docs-01KS4KSZ`
-**Work Package**: WP09 (FR-013)
+**work package**: WP09 (FR-013)
 **Authoring agent**: `curator-carla` (claude:opus-4-7)
 **Status**: Planning artifact only. **No live page is moved in this WP.**
 
@@ -31,7 +31,7 @@ and reviewers can audit.
 - **Inventory** (WP02): `docs/development/3-2-page-inventory.yaml` — 13
   archival rows (5 under `docs/1x/**`, 8 under `docs/2x/**`) and 12 migration
   rows (11 already in `docs/migration/`, 1 in `docs/guides/`).
-- **Occurrence map** (WP01): `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml`
+- **occurrence map** (WP01): `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml`
   — `filesystem_paths.rewrite` rules:
   - `docs/1x/` → `docs/archive/1x/`
   - `docs/2x/` → `docs/archive/2x/`

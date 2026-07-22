@@ -97,7 +97,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
-### Work Package
+### work package
 
 | | |
 |---|---|
@@ -116,11 +116,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Type](#mission-type), [Step Contract](#step-contract), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Type](#mission-type), [step contract](#step-contract), [Procedure](./doctrine.md#procedure) |
 
 ---
 
-### Step Contract
+### step contract
 
 | | |
 |---|---|
@@ -140,7 +140,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical (generic prose only) |
 | **Applicable to** | `1.x`, `2.x` |
-| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [Step Contract](#step-contract), or [Procedure](./doctrine.md#procedure) when precision matters. |
+| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [step contract](#step-contract), or [Procedure](./doctrine.md#procedure) when precision matters. |
 
 ---
 
@@ -148,11 +148,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Legacy lexical variant of [Work Package](#work-package). |
+| **Definition** | Legacy lexical variant of [work package](#work-package). |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Canonical entry** | [Work Package](#work-package) |
+| **Canonical entry** | [work package](#work-package) |
 
 ---
 
@@ -160,7 +160,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Work package state position in the canonical lifecycle FSM. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`. Alias: `doing` -> `in_progress`. |
+| **Definition** | work package state position in the canonical lifecycle FSM. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`. Alias: `doing` -> `in_progress`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -175,7 +175,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Type](#mission-type), [Step Dependency](#step-dependency), [Step Contract](#step-contract), [Command Template](#command-template) |
+| **Related terms** | [Mission Type](#mission-type), [Step Dependency](#step-dependency), [step contract](#step-contract), [Command Template](#command-template) |
 
 ---
 
@@ -354,7 +354,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
-### Base Branch
+### base branch
 
 | | |
 |---|---|
@@ -362,11 +362,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Planning Base Branch](#planning-base-branch), [Lane](#lane) |
+| **Related terms** | [target branch](#target-branch), [Planning base branch](#planning-base-branch), [Lane](#lane) |
 
 ---
 
-### Branch Strategy Gate
+### branch strategy gate
 
 | | |
 |---|---|
@@ -374,11 +374,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [PR-Bound Mission](#pr-bound-mission), [Primary Branch](#primary-branch), [Feature Branch](#feature-branch), [Start Branch](#start-branch) |
+| **Related terms** | [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [feature branch](#feature-branch), [start branch](#start-branch) |
 
 ---
 
-### Current Branch
+### current branch
 
 | | |
 |---|---|
@@ -386,23 +386,23 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Base Branch](#base-branch) |
+| **Related terms** | [target branch](#target-branch), [base branch](#base-branch) |
 
 ---
 
-### Feature Branch
+### feature branch
 
 | | |
 |---|---|
-| **Definition** | A dedicated git branch for PR-bound mission planning and implementation work, typically named `feat/<slug>` for feature work or `fix/<slug>` for bug-fix work. It is distinct from the primary branch and is the recommended start point when a mission is expected to become a pull request. |
+| **Definition** | A dedicated git branch for pr-bound mission planning and implementation work, typically named `feat/<slug>` for feature work or `fix/<slug>` for bug-fix work. It is distinct from the primary branch and is the recommended start point when a mission is expected to become a pull request. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [PR-Bound Mission](#pr-bound-mission), [Primary Branch](#primary-branch), [Start Branch](#start-branch), [Target Branch](#target-branch) |
+| **Related terms** | [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [start branch](#start-branch), [target branch](#target-branch) |
 
 ---
 
-### Merge Target Branch
+### Merge target branch
 
 | | |
 |---|---|
@@ -410,11 +410,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Planning Base Branch](#planning-base-branch), [Work Package](#work-package) |
+| **Related terms** | [target branch](#target-branch), [Planning base branch](#planning-base-branch), [work package](#work-package) |
 
 ---
 
-### Planning Base Branch
+### Planning base branch
 
 | | |
 |---|---|
@@ -422,24 +422,24 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Lane](#lane), [Work Package](#work-package) |
+| **Related terms** | [target branch](#target-branch), [Merge target branch](#merge-target-branch), [Lane](#lane), [work package](#work-package) |
 
 ---
 
-### Primary Branch
+### primary branch
 
 | | |
 |---|---|
-| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. This is `primary` **Sense B** — the canonical term is "Primary Branch" (kept per operator decision D1); the wire keys `primary_branch` / `current_is_primary` are unchanged. |
+| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. This is `primary` **Sense B** — the canonical term is "primary branch" (kept per operator decision D1); the wire keys `primary_branch` / `current_is_primary` are unchanged. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). |
-| **Related terms** | [Current Branch](#current-branch), [Target Branch](#target-branch), [Feature Branch](#feature-branch), [Branch Strategy Gate](#branch-strategy-gate), [PRIMARY partition](#primary-partition), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target) |
+| **Related terms** | [current branch](#current-branch), [target branch](#target-branch), [feature branch](#feature-branch), [branch strategy gate](#branch-strategy-gate), [PRIMARY partition](#primary-partition), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target) |
 
 ---
 
-### PR-Bound Mission
+### pr-bound mission
 
 | | |
 |---|---|
@@ -447,11 +447,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Branch Strategy Gate](#branch-strategy-gate), [Feature Branch](#feature-branch), [Primary Branch](#primary-branch) |
+| **Related terms** | [branch strategy gate](#branch-strategy-gate), [feature branch](#feature-branch), [primary branch](#primary-branch) |
 
 ---
 
-### Start Branch
+### start branch
 
 | | |
 |---|---|
@@ -459,11 +459,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Feature Branch](#feature-branch), [Target Branch](#target-branch), [Branch Strategy Gate](#branch-strategy-gate) |
+| **Related terms** | [feature branch](#feature-branch), [target branch](#target-branch), [branch strategy gate](#branch-strategy-gate) |
 
 ---
 
-### Target Branch
+### target branch
 
 | | |
 |---|---|
@@ -471,7 +471,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Related terms** | [Base Branch](#base-branch), [Planning Base Branch](#planning-base-branch), [Merge Target Branch](#merge-target-branch), [Current Branch](#current-branch), [Mission](#mission) |
+| **Related terms** | [base branch](#base-branch), [Planning base branch](#planning-base-branch), [Merge target branch](#merge-target-branch), [current branch](#current-branch), [Mission](#mission) |
 
 ---
 
@@ -483,7 +483,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Target Branch](#target-branch), [Orchestrator API](#orchestrator-api), [WPStatusChanged](./system-events.md#wpstatuschanged) |
+| **Related terms** | [target branch](#target-branch), [Orchestrator API](#orchestrator-api), [WPStatusChanged](./system-events.md#wpstatuschanged) |
 
 ---
 
@@ -507,8 +507,8 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the repository's default integration branch — use [Primary Branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). Never write bare "primary" for the partition; always say "PRIMARY partition". |
-| **Related terms** | [Primary Branch](#primary-branch), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [Target Branch](#target-branch) |
+| **Do NOT use when** | The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). Never write bare "primary" for the partition; always say "PRIMARY partition". |
+| **Related terms** | [primary branch](#primary-branch), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [target branch](#target-branch) |
 
 ---
 
@@ -520,8 +520,8 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository's default integration branch — use [Primary Branch](#primary-branch). The concept is the branch the mission's code must ultimately land on — use [Target Branch](#target-branch). Avoid the bare aliases "primary target" and "primary ref". |
-| **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Base Branch](#base-branch), [Current Branch](#current-branch), [PRIMARY partition](#primary-partition) |
+| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the branch the mission's code must ultimately land on — use [target branch](#target-branch). Avoid the bare aliases "primary target" and "primary ref". |
+| **Related terms** | [target branch](#target-branch), [Merge target branch](#merge-target-branch), [base branch](#base-branch), [current branch](#current-branch), [PRIMARY partition](#primary-partition) |
 
 ---
 
@@ -534,7 +534,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. |
-| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge Target Branch](#merge-target-branch), [Lane](#lane) |
+| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge target branch](#merge-target-branch), [Lane](#lane) |
 
 ---
 
@@ -547,7 +547,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). |
-| **Related terms** | [Lane Consolidation](#lane-consolidation), [Publish to origin/main](#publish-to-originmain), [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch) |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Publish to origin/main](#publish-to-originmain), [target branch](#target-branch), [Merge target branch](#merge-target-branch) |
 
 ---
 
@@ -560,4 +560,4 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
-| **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [Primary Branch](#primary-branch) |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [primary branch](#primary-branch) |

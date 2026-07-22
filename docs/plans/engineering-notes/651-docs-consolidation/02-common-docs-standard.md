@@ -68,7 +68,7 @@ ADR-only: `date:`, `supersedes:`, `superseded-by:`.
 bidirectional, and the standard defines **no validator** for it. Resolvability and
 anti-sprawl enforcement are entirely **bespoke** (spec-kitty must supply them).
 
-### The three Agent Skills — scaffolding/authoring only
+### The three agent skills — scaffolding/authoring only
 
 | Skill | Automates | Does NOT do |
 |---|---|---|
@@ -111,7 +111,7 @@ DocFX). Full adoption therefore requires:
 ### Skills — implemented as doctrine tactics (WP02; ADR note superseded, reconciliation deferred to Mission B)
 
 The standard's three skills are adopted in Mission A as **doctrine tactics** (WP02), not
-as installed Agent Skills (`.agents/skills/`). The three built-in tactics live at
+as installed agent skills (`.agents/skills/`). The three built-in tactics live at
 `src/doctrine/tactics/built-in/`:
 
 | Tactic | File | What it governs |

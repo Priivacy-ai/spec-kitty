@@ -88,7 +88,7 @@ See [2.x Domain Breakdown](../README.md#domain-breakdown) for the domain-level m
 | Project and Governance Onboarding | CLI Command Surface, Charter and Governance Engine | Runtime and Mission Resolver, Runtime Asset Lifecycle |
 | Mission Runtime and Flow Control | Runtime and Mission Resolver, CLI Command Surface | Doctrine Artifact Catalog, Status and Event Model Layer |
 | Doctrine and Knowledge Governance | Doctrine Artifact Catalog, Glossary Corpus and Runtime Hook Layer | Charter and Governance Engine |
-| Work Package State and Evidence | Status and Event Model Layer, Runtime and Mission Resolver | Sync Reliability Core, Tracker Connector Boundary |
+| work package State and Evidence | Status and Event Model Layer, Runtime and Mission Resolver | Sync Reliability Core, Tracker Connector Boundary |
 | External Integration Boundaries | Orchestrator API Boundary, Tracker Connector Boundary | Status and Event Model Layer, Sync Reliability Core |
 
 ## Behavioral Collaboration Loops

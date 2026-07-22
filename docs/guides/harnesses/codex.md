@@ -1,6 +1,6 @@
 ---
 title: Use Spec Kitty in Codex CLI
-description: 'How to use Spec Kitty in Codex CLI, the first-class harness with the heaviest Agent Skills integration: prerequisites, skill install, and the command workflow.'
+description: 'How to use Spec Kitty in Codex CLI, the first-class harness with the heaviest agent skills integration: prerequisites, skill install, and the command workflow.'
 doc_status: active
 updated: '2026-06-03'
 related:
@@ -8,7 +8,7 @@ related:
 ---
 # Use Spec Kitty in Codex CLI
 
-> **Tier:** first_class — heaviest Agent Skills integration.
+> **Tier:** first_class — heaviest agent skills integration.
 > **Citation (accessed 2026-05-21):** <https://github.com/openai/codex>
 
 ## Prerequisites
@@ -22,7 +22,7 @@ related:
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Codex CLI consumes Spec Kitty as **Agent Skills** (not slash commands). Spec Kitty installs:
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Codex CLI consumes Spec Kitty as **agent skills** (not slash commands). Spec Kitty installs:
 
 - **Directory:** `.agents/skills/spec-kitty.<command>/`
 - **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
@@ -68,4 +68,4 @@ This is the key difference from slash-command hosts — do not type `/spec-kitty
 
 ## Where to learn more about Codex
 
-Authoritative documentation: <https://github.com/openai/codex> (accessed 2026-05-21). Consult the repository README for the latest Agent Skills syntax and version notes.
+Authoritative documentation: <https://github.com/openai/codex> (accessed 2026-05-21). Consult the repository README for the latest agent skills syntax and version notes.

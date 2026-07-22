@@ -9,7 +9,7 @@ updated: '2026-07-21'
 This page explains how relationships between doctrine artifacts are modelled in
 Spec Kitty, and — importantly — **how to author them**. As of the org-doctrine
 profile-integrity work (FR-001/FR-003/FR-004, NFR-007), every relationship is a
-**typed edge in the Doctrine Reference Graph (DRG)**. Relationships are *not*
+**typed edge in the doctrine reference graph (DRG)**. Relationships are *not*
 authored as fields on the artifacts themselves.
 
 > **One authoring surface.** Author relationships as DRG **fragment edges** in
