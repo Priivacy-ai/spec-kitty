@@ -431,3 +431,26 @@ class TestSynthesizeErrorPaths:
         assert result.exit_code == 1, (
             f"Expected exit 1, got {result.exit_code}: {result.output}"
         )
+
+    def test_pack_config_error_surfaces_diagnostic_body(self, tmp_path: Path) -> None:
+        """CHARTER_PACK_CONFIG_INVALID body reaches the operator, not just the code (#2850).
+
+        Regression for the diagnostic-quality gap the issue flagged: a
+        ``KittyInternalConsistencyError`` must be caught specifically (per
+        kernel.errors' contract) so its informative ``.body`` renders, instead
+        of being swallowed by the bare ``except Exception`` into
+        ``Unexpected error: <code>``.
+        """
+        _write_interview_answers(tmp_path)
+        config = tmp_path / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        # A STRING charter: pointer to a non-existent charter.yaml triggers a
+        # fail-loud CharterPackConfigError whose body names the bad pointer.
+        config.write_text("charter: does-not-exist/charter.yaml\n", encoding="utf-8")
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["synthesize"])
+
+        assert result.exit_code == 1, result.output
+        # The informative body — previously swallowed — must be present.
+        assert "does not exist" in result.output.lower(), result.output

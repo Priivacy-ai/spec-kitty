@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 import typer
+from kernel.errors import KittyInternalConsistencyError
 from rich.console import Console
 from specify_cli.cli.console import err_console
 
@@ -493,6 +494,22 @@ def charter_synthesize(  # noqa: C901
             }, indent=2, sort_keys=True))
         else:
             console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+    except KittyInternalConsistencyError as e:
+        # Contract (kernel.errors): CLI/UI layers catch this base type to render
+        # the diagnostic uniformly. Surface both the code AND the informative
+        # `.body` instead of swallowing it into "Unexpected error: <code>"
+        # (#2850 follow-up — the CHARTER_PACK_CONFIG_INVALID body was invisible).
+        detail = f"{e.code}: {e.body}" if e.body else e.code
+        if json_output:
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [detail],
+            }, indent=2, sort_keys=True))
+        else:
+            console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(code=1) from e
     except Exception as e:
         if json_output:
