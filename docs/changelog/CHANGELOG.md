@@ -329,6 +329,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Runtime-state corpus cutover completed; the phase-1 dual-write flag is deleted (#2816, #2848).**
+  Completes the #2684 / #2093 eviction. WP runtime state — lane, claim, `agent`/`assignee`,
+  `shell_pid`, subtask completion, `tracker_refs`, review-cycle fields, and resolved
+  role/profile/model bindings — is now **unconditionally** reconstructed from the append-only
+  event log through a single reader (`reconstruct_wp_view`); the `_phase1_dual_write_enabled`
+  flag and the legacy frontmatter-runtime fallback are removed, so `tasks/WP##.md` frontmatter
+  is no longer a runtime authority. The existing corpus was migrated (per-mission `backfill →
+  verify → status_phase` flip). Adds **`spec-kitty migrate backfill-runtime-state`**, which
+  seeds a mission's legacy runtime as events, verifies the reduced snapshot against the old
+  reader by count + value (fail-closed — never flips a mission that fails verify; per-mission
+  best-effort), and flips `meta.json` `status_phase` to snapshot-authority only for verified
+  missions; the same seed→verify→flip path ships as an auto-discovered upgrade migration for
+  consumer repos.
 - **`charter generate` seeds a starter `charter.md` companion when absent (#2800).**
   After the #2773 inversion `charter generate` produced no `charter.md` at all, leaving a
   fresh project without the display-only rationale companion and no signal one should exist.
