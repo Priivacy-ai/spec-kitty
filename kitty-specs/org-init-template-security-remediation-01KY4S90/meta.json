@@ -1,6 +1,8 @@
 {
+  "accept_commit": "8006f1f1b28e36f007ee34e3b36de996a51a6d6a",
   "acceptance_history": [
     {
+      "accept_commit": "8006f1f1b28e36f007ee34e3b36de996a51a6d6a",
       "acceptance_mode": "pr",
       "accepted_at": "2026-07-22T12:13:37.261611+00:00",
       "accepted_by": "igorpodsekin",
