@@ -34,24 +34,19 @@ def _sync_json_payload(result: SyncResult) -> dict[str, object]:
 
 
 def _emit_sync_human_result(result: SyncResult) -> None:
-    """Render the non-JSON ``charter sync`` result."""
+    """Render the non-JSON ``charter sync`` result.
+
+    Since the IC-04 triad retirement, ``charter.sync.sync()`` is a pure
+    staleness reporter — ``synced`` is always ``False`` and ``files_written``
+    always empty — so the only outcomes are an error or the already-in-sync
+    notice. The former ``synced=True`` success branch was dead under this call
+    path and has been removed.
+    """
     if result.error:
         console.print(f"[red]Error:[/red] {result.error}")
         raise typer.Exit(code=1)
 
-    if not result.synced:
-        console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
-        return
-
-    console.print("[green]Charter synced successfully[/green]")
-    console.print(f"Mode: {result.extraction_mode}")
-    if result.warnings:
-        console.print("\nWarnings:")
-        for warning in result.warnings:
-            console.print(f"  ! {warning}")
-    console.print("\nFiles written:")
-    for filename in result.files_written:
-        console.print(f"  ✓ {filename}")
+    console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
 
 
 @charter_app.command()
