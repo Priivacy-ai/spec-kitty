@@ -2,14 +2,21 @@
 subprocess contention lock (#2493) — mission ``loop-friction-quickwins-2``
 WP03.
 
-The unit-level branch tests below exercise
-``specify_cli.review._interpreter.resolve_pytest_command`` directly (no
-subprocess I/O). The remaining tests are real-subprocess integration cases:
-they prove ``review.pre_review_gate.run_scoped_tests_at_head`` actually
-routes through the resolved interpreter and the contention lock, rather than
-just asserting on a monkeypatched ``subprocess.run`` — a mock-only proof
-would not catch a regression back to the hardcoded ``sys.executable``
-literal this WP removes.
+The unit-level branch tests below exercise the resolver through its RELOCATED
+seam (mission ``doctrine-controlled-transition-gates-01KY51Z7`` WP02, T007):
+``GateCoverageScopeSource.test_command()`` (``specify_cli.review.scope_source``)
+is now ``resolve_pytest_command``'s sole production consumer, superseding the
+old direct call from ``review.pre_review_gate.run_scoped_tests_at_head``.
+This is a MIGRATION, not a regression — the branch behaviour under test
+(uv present + pyproject -> ``uv run``; else ``sys.executable``) is unchanged,
+only the call path proven is. The remaining tests are real-subprocess
+integration cases: they prove ``review.pre_review_gate.run_scoped_tests_at_head``
+actually routes through the resolved interpreter and the contention lock,
+rather than just asserting on a monkeypatched ``subprocess.run`` — a
+mock-only proof would not catch a regression back to the hardcoded
+``sys.executable`` literal this WP removes. Those integration tests are
+untouched by the WP02 migration: they exercise ``pre_review_gate.py``'s
+existing (still-behaviour-preserving) code path, which WP03 relocates.
 """
 from __future__ import annotations
 
@@ -22,6 +29,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.review import _interpreter, pre_review_gate
+from specify_cli.review.scope_source import GateCoverageScopeSource
 
 pytestmark = [pytest.mark.integration]
 
@@ -33,7 +41,8 @@ def _write_tiny_pytest_project(base: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T010(i-iii) — resolve_pytest_command branch coverage
+# T010(i-iii) / WP02-T007 — resolve_pytest_command branch coverage, proven
+# through its relocated consumer GateCoverageScopeSource.test_command()
 # ---------------------------------------------------------------------------
 
 
@@ -45,9 +54,13 @@ def test_uv_present_and_pyproject_present_resolves_to_uv_run(
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
     monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
-    command = _interpreter.resolve_pytest_command(["tests/foo"], repo_root=tmp_path)
+    command = GateCoverageScopeSource(repo_root=tmp_path).test_command()
 
-    assert command == ["uv", "run", "--project", str(tmp_path), "python", "-m", "pytest", "tests/foo"]
+    assert command is not None
+    assert command[:5] == ["uv", "run", "--project", str(tmp_path), "python"]
+    assert command[5:7] == ["-m", "pytest"]
+    assert command[-1] == "-q"
+    assert any(arg.startswith("--junitxml=") for arg in command)
 
 
 @pytest.mark.fast
@@ -59,9 +72,11 @@ def test_uv_present_but_no_pyproject_falls_back_to_sys_executable(
     monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
     assert not (tmp_path / "pyproject.toml").exists()
 
-    command = _interpreter.resolve_pytest_command(["tests/foo"], repo_root=tmp_path)
+    command = GateCoverageScopeSource(repo_root=tmp_path).test_command()
 
-    assert command == [sys.executable, "-m", "pytest", "tests/foo"]
+    assert command is not None
+    assert command[:3] == [sys.executable, "-m", "pytest"]
+    assert command[-1] == "-q"
 
 
 @pytest.mark.fast
@@ -70,9 +85,11 @@ def test_uv_absent_falls_back_to_sys_executable(monkeypatch: pytest.MonkeyPatch,
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
     monkeypatch.setattr(_interpreter.shutil, "which", lambda _name: None)
 
-    command = _interpreter.resolve_pytest_command(["tests/foo"], repo_root=tmp_path)
+    command = GateCoverageScopeSource(repo_root=tmp_path).test_command()
 
-    assert command == [sys.executable, "-m", "pytest", "tests/foo"]
+    assert command is not None
+    assert command[:3] == [sys.executable, "-m", "pytest"]
+    assert command[-1] == "-q"
 
 
 # ---------------------------------------------------------------------------

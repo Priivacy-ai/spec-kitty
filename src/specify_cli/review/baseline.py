@@ -19,12 +19,14 @@ import logging
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command_template
+from specify_cli.review.scope_source import RawRunResult, ScopeSource
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +200,7 @@ def capture_baseline(
     feature_dir: Path,
     wp_slug: str,
     test_command: str | None = None,
+    scope_source: ScopeSource | None = None,
 ) -> BaselineTestResult | None:
     """Capture baseline test results at implement time.
 
@@ -218,6 +221,15 @@ def capture_baseline(
         wp_slug: Slug of the WP task file (e.g. "WP04-baseline-test-capture").
         test_command: Optional override for the test command.  If None, reads
             from config; without config, baseline capture is skipped.
+        scope_source: Optional injected ``ScopeSource`` (mission
+            ``doctrine-controlled-transition-gates-01KY51Z7`` WP03, FR-011).
+            When provided, baseline capture routes through its
+            ``test_command()``/``parse_results()`` — the SAME authority the
+            pre-review head run uses — instead of independently reading
+            ``review.test_command`` from config (see
+            :func:`_capture_baseline_via_scope_source`). ``None`` (the
+            default) preserves this function's exact prior, config-driven
+            behaviour.
     """
     artifact_dir = feature_dir / "tasks" / wp_slug
     artifact_path = artifact_dir / "baseline-tests.json"
@@ -234,6 +246,40 @@ def capture_baseline(
         logger.warning("Could not find repo root from %s; skipping baseline capture.", worktree_path)
         return _make_sentinel(wp_id, base_branch, "")
 
+    if scope_source is not None:
+        return _capture_baseline_via_scope_source(
+            scope_source,
+            repo_root=repo_root,
+            base_branch=base_branch,
+            wp_id=wp_id,
+            artifact_path=artifact_path,
+        )
+
+    return _capture_baseline_via_config(
+        repo_root,
+        base_branch=base_branch,
+        wp_id=wp_id,
+        test_command=test_command,
+        artifact_path=artifact_path,
+    )
+
+
+def _capture_baseline_via_config(
+    repo_root: Path,
+    *,
+    base_branch: str,
+    wp_id: str,
+    test_command: str | None,
+    artifact_path: Path,
+) -> BaselineTestResult | None:
+    """The original, config-driven capture body (unchanged behaviour):
+    resolves ``review.test_command`` from ``.kittify/config.yaml`` (unless
+    an explicit override is given), runs it in a detached worktree on
+    ``base_branch``, and parses its JUnit XML output. Extracted out of
+    :func:`capture_baseline` so that function stays a thin dispatcher
+    between this path and :func:`_capture_baseline_via_scope_source`
+    (keeps both at or under the project's complexity ceiling).
+    """
     # Determine test command
     if test_command is None:
         test_command, output_format = _get_test_command(repo_root)
@@ -350,6 +396,144 @@ def capture_baseline(
         failed=failed,
         skipped=skipped,
         failures=tuple(failures),
+    )
+    result.save(artifact_path)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Port-driven baseline capture (mission doctrine-controlled-transition-gates-01KY51Z7
+# WP03, FR-011) — baseline capture via the injected ScopeSource, the SAME
+# test_command()/parse_results() authority the pre-review head run uses, so
+# baseline<->head symmetry is structural rather than two independently
+# resolved commands. This is additive: capture_baseline's existing,
+# config-driven body above (test_command is None -> _get_test_command) is
+# untouched — this path only engages when a caller explicitly injects a
+# scope_source.
+# ---------------------------------------------------------------------------
+
+
+def _extract_junit_output_path(command: Sequence[str]) -> Path | None:
+    """Best-effort recovery of a ``--junitxml=<path>`` argument embedded in a
+    ``ScopeSource``-provided argv, so a raw run's JUnit artifact (when the
+    resolved command happens to write one) can be handed to
+    ``parse_results`` without the port needing a dedicated accessor for it.
+    ``None`` when absent (e.g. a declared, non-JUnit command).
+    """
+    for arg in command:
+        if arg.startswith("--junitxml="):
+            return Path(arg.split("=", 1)[1])
+    return None
+
+
+def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
+    """Run a ``ScopeSource``-resolved command for baseline capture, producing
+    a :class:`RawRunResult` — the same UNPARSED shape the pre-review head
+    run produces (FR-011 symmetry) — for ``scope_source.parse_results``.
+    """
+    junit_path = _extract_junit_output_path(command)
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return RawRunResult(
+            returncode=-1,
+            stdout="",
+            stderr=f"baseline command timed out after {CAPTURE_BASELINE_TIMEOUT_SECONDS}s",
+            output_artifact_path=junit_path,
+        )
+    except OSError as exc:
+        return RawRunResult(
+            returncode=-1,
+            stdout="",
+            stderr=f"baseline command failed to execute: {exc}",
+            output_artifact_path=junit_path,
+        )
+    return RawRunResult(
+        returncode=result.returncode,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        output_artifact_path=junit_path,
+    )
+
+
+def _capture_baseline_via_scope_source(
+    scope_source: ScopeSource,
+    *,
+    repo_root: Path,
+    base_branch: str,
+    wp_id: str,
+    artifact_path: Path,
+) -> BaselineTestResult | None:
+    """FR-011: baseline capture via the injected ``ScopeSource`` — the SAME
+    ``test_command()``/``parse_results()`` authority the pre-review head run
+    uses, so baseline<->head symmetry is structural. Opt-in-and-visible: no
+    command resolved via the port -> skip, mirroring the config-driven
+    path's "No review.test_command configured" notice (FR-012) — never a
+    crash, never a silently fabricated baseline.
+    """
+    command = scope_source.test_command()
+    if not command:
+        logger.info(
+            "No test command resolved via the injected ScopeSource; skipping baseline capture for %s.", wp_id,
+        )
+        return None
+
+    try:
+        rev_result = subprocess.run(
+            ["git", "rev-parse", base_branch], cwd=str(repo_root), capture_output=True, text=True, check=False,
+        )
+    except OSError as exc:
+        logger.warning("git rev-parse failed: %s", exc)
+        return _make_sentinel(wp_id, base_branch, "")
+    if rev_result.returncode != 0:
+        logger.warning("Could not resolve base branch %s: %s", base_branch, rev_result.stderr)
+        return _make_sentinel(wp_id, base_branch, "")
+    base_commit = rev_result.stdout.strip()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_worktree = Path(tmp_dir) / "baseline-worktree"
+        try:
+            wt_result = subprocess.run(
+                ["git", "worktree", "add", str(tmp_worktree), base_branch, "--detach"],
+                cwd=str(repo_root), capture_output=True, text=True, check=False,
+            )
+        except OSError as exc:
+            logger.warning("git worktree add failed: %s", exc)
+            return _make_sentinel(wp_id, base_branch, base_commit)
+        if wt_result.returncode != 0:
+            logger.warning("Could not create baseline worktree for %s: %s", base_branch, wt_result.stderr)
+            return _make_sentinel(wp_id, base_branch, base_commit)
+
+        try:
+            raw = _run_command_for_baseline(command, cwd=tmp_worktree)
+        finally:
+            try:
+                subprocess.run(
+                    ["git", "worktree", "remove", str(tmp_worktree), "--force"],
+                    cwd=str(repo_root), capture_output=True, text=True, check=False,
+                )
+            except OSError as exc:
+                logger.warning("Could not remove temporary worktree: %s", exc)
+
+    failures = tuple(scope_source.parse_results(raw))
+    result = BaselineTestResult(
+        wp_id=wp_id,
+        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        base_branch=base_branch,
+        base_commit=base_commit,
+        test_runner="pytest" if any("pytest" in part for part in command) else "custom",
+        total=len(failures),
+        passed=0,
+        failed=len(failures),
+        skipped=0,
+        failures=failures,
     )
     result.save(artifact_path)
     return result
