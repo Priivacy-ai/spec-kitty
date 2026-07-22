@@ -234,3 +234,21 @@ def test_https_and_loopback_do_not_warn(caplog: pytest.LogCaptureFixture) -> Non
         SimpleIndexProvider("http://127.0.0.1:8080/simple/")
         SimpleIndexProvider("http://localhost/simple/")
     assert not caplog.records
+
+
+_HTML_SDIST_NO_PREFIX = """
+<html><body>
+<a href="acme_spec_kitty_cli-1.1.0.tar.gz">1.1.0</a>
+<a href="acme_spec_kitty_cli-1.3.0.tar.gz">1.3.0</a>
+</body></html>
+"""
+
+
+def test_sdist_version_parsed_without_package_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No package_prefix: the version is the trailing segment of <name>-<version>.
+    client = _FakeClient(_FakeResponse(_HTML_SDIST_NO_PREFIX.encode("utf-8")))
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: client)
+    result = SimpleIndexProvider("https://example.invalid/simple/").get_latest(
+        "acme-spec-kitty-cli"
+    )
+    assert result.version == "1.3.0"
