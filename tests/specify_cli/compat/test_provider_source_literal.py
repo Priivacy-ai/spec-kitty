@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import get_args, get_type_hints
 
 from specify_cli.compat.provider import LatestVersionResult
+import pytest
+
+pytestmark = pytest.mark.fast
 
 
 def test_simple_index_source_literal() -> None:

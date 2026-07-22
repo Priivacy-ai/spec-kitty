@@ -20,6 +20,8 @@ from specify_cli.distribution.profile import (
 )
 from specify_cli.distribution.upgrade_provider import clear_upgrade_provider_cache
 
+pytestmark = pytest.mark.fast
+
 
 class _FakeEntryPoint:
     def __init__(self, name: str, payload: Any) -> None:

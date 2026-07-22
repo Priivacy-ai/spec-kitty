@@ -7,10 +7,14 @@ from typing import Any
 import pytest
 
 from specify_cli.distribution.package_name import (
+
     DEFAULT_CLI_PACKAGE_NAME,
     clear_cli_package_name_cache,
     resolve_cli_package_name,
 )
+
+pytestmark = pytest.mark.fast
+
 
 
 class _FakeEntryPoint:
