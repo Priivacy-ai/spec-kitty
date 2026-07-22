@@ -25,6 +25,10 @@ from specify_cli.docs.index_model import (
 )
 from specify_cli.cli.commands import docs as docs_cli
 
+# In-process Typer CliRunner tests (no subprocess), so `fast` is permitted;
+# `unit` mirrors the sibling docs-index test files' tier.
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 runner = CliRunner()
 
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")

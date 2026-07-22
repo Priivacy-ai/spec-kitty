@@ -24,6 +24,19 @@ ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
 )
 
 
+# Generated artifacts that MIRROR doc content rather than reference the removed
+# doctrine directory. The Common Docs retrieval index stores heading-anchor
+# slugs, so a legitimately-named heading such as "Pillar 1: Agent Profiles"
+# yields a slug equal to LEGACY_DIRNAME -- a coincidental substring, NOT the
+# deleted doctrine directory this guard targets. Excluding the generated index
+# keeps the guard focused on genuine source references.
+# (This comment intentionally avoids the contiguous hyphenated literal so the
+# guard does not flag itself.)
+_GENERATED_EXCLUSIONS: frozenset[Path] = frozenset(
+    {REPO_ROOT / "docs" / "development" / "3-2-docs-retrieval-index.yaml"}
+)
+
+
 def _active_codebase_files() -> list[Path]:
     files: list[Path] = []
     for path in ACTIVE_CODEBASE_PATHS:
@@ -36,6 +49,7 @@ def _active_codebase_files() -> list[Path]:
             candidate
             for candidate in path.rglob("*")
             if candidate.is_file()
+            and candidate not in _GENERATED_EXCLUSIONS
             and "__pycache__" not in candidate.parts
             and candidate.suffix not in {".pyc", ".html", ".htm"}
         )

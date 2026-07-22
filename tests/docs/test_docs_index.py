@@ -49,7 +49,10 @@ from specify_cli.docs.index_model import (  # noqa: E402
     render_index,
 )
 
-pytestmark = [pytest.mark.fast]
+# NOT `fast`: the byte-stability test spawns a subprocess (a fresh interpreter
+# under a different PYTHONHASHSEED), which Rule 2 of the marker-correctness gate
+# forbids under `fast` (it would inflate the -m fast inner-loop wall-clock).
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
