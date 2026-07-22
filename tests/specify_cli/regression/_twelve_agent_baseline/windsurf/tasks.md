@@ -605,11 +605,11 @@ After reporting, ask the user directly:
 > **Should I use the `/spec-kitty-implement-review` skill<!-- glossary:glossary:skill --> to fully implement all WPs until completion?**
 > This will dispatch implementing and reviewing agents for every WP, handle rejection cycles, and merge all lanes when done.
 >
-> Optional quality control gate before implementation: run `/spec-kitty.analyze` first to persist an `analysis-report.md` and review spec/plan/task consistency before any WP implementation starts.
+> **Required pre-implementation gate:** `/spec-kitty.analyze` must run before any WP implementation. It persists an `analysis-report.md` and reviews spec/plan/task consistency; the implement gate refuses to start (`analysis_report_required`) until that report exists. This is not optional — it is the readiness gate `/spec-kitty.implement` enforces.
 
-- If the user says **yes**: invoke the `spec-kitty-implement-review` skill with the mission slug. The user may also specify which agents to use for implementation and review (e.g., "yes, use sonnet for implementing and opus for reviewing").
-- If the user says **no** or wants to do it manually: end here and let them run `/spec-kitty.implement` at their own pace.
-- If the user wants the optional quality gate first: run `/spec-kitty.analyze --mission <mission-slug>` and wait for the user's decision on whether to address findings before invoking implementation.
+- If the user says **yes**: first ensure `/spec-kitty.analyze` has been run for this mission (run it now if `analysis-report.md` is missing — implementation cannot claim a WP without it), then invoke the `spec-kitty-implement-review` skill with the mission slug. The user may also specify which agents to use for implementation and review (e.g., "yes, use sonnet for implementing and opus for reviewing").
+- If the user says **no** or wants to do it manually: end here and let them run `/spec-kitty.implement` at their own pace — reminding them that `/spec-kitty.analyze` is a required prerequisite the implement gate enforces.
+- If the user wants to review consistency findings first: run `/spec-kitty.analyze --mission <mission-slug>` (also the required gate) and wait for the user's decision on whether to address findings before invoking implementation.
 - If the user asks for a subset (e.g., "just WP01 and WP02 for now"): invoke the skill with that scope.
 
 This handoff is the natural transition from planning to execution. Do NOT skip the question — always offer it explicitly so the user can choose their execution strategy.
