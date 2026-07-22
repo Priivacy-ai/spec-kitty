@@ -808,6 +808,73 @@ def plan(
         )
 
 
+def _resolve_latest_version(
+    *,
+    cache_data_fresh: bool,
+    cache_record: Any,
+    preference_record: Any,
+    latest_version_provider: Any,
+    profile: Any,
+    nag_cache: Any,
+    installed_version: str,
+    now: datetime,
+) -> tuple[str | None, Literal["pypi", "simple_index", "none"], datetime | None]:
+    """Return ``(latest_version, cli_source, fetched_at)`` for the CLI status.
+
+    Fresh-cache fast path (NFR-001) trusts cached version data without a network
+    call; otherwise fetch from the provider, classify the source, update the
+    cache on a cacheable hit, and fall back to the cached version when the
+    provider returns nothing useful. Extracted from ``_plan_impl`` (keeps it
+    under the complexity ceiling and gives the fetch/source-classification a
+    directly testable seam).
+    """
+    if cache_data_fresh:
+        # Cache data is fresh — trust it; no network call.
+        latest_version = cache_record.latest_version if cache_record is not None else None
+        cli_source: Literal["pypi", "simple_index", "none"] = (
+            cache_record.latest_source if cache_record is not None else "none"
+        )
+        return latest_version, cli_source, None
+
+    # Cache stale or missing — fetch from provider.
+    latest_result = latest_version_provider.get_latest(profile.package_name)
+    source = latest_result.source
+    latest_version = latest_result.version
+
+    cacheable_source: Literal["pypi", "simple_index"] | None = None
+    if source == "pypi":
+        cacheable_source = "pypi"
+    elif source == "simple_index":
+        cacheable_source = "simple_index"
+
+    fetched_at = now if cacheable_source is not None else None
+
+    # If we got a version from a cacheable source, update the cache
+    # (preserve last_shown_at / user preferences).
+    if cacheable_source is not None and latest_version is not None:
+        _write_nag_cache_for_fetch(
+            nag_cache=nag_cache,
+            preference_record=preference_record,
+            installed_version=installed_version,
+            latest_version=latest_version,
+            latest_source=cacheable_source,
+            now=now,
+        )
+    elif cache_record is not None and cache_record.latest_version is not None:
+        # Provider returned nothing useful — fall back to cached version.
+        latest_version = cache_record.latest_version
+        fetched_at = None  # not fetched this run
+
+    if cacheable_source is not None:
+        cli_source = cacheable_source
+    elif cache_record is not None:
+        cli_source = cache_record.latest_source
+    else:
+        cli_source = "none"
+
+    return latest_version, cli_source, fetched_at
+
+
 def _plan_impl(
     invocation: Invocation,
     *,
@@ -823,8 +890,6 @@ def _plan_impl(
     from specify_cli.compat.config import UpgradeConfig
     from specify_cli.compat.provider import (
         FakeLatestVersionProvider,  # noqa: F401
-        NoNetworkProvider,
-        PyPIProvider,
     )
     from specify_cli.compat.safety import classify
     from specify_cli.compat.upgrade_hint import build_upgrade_hint
@@ -906,49 +971,16 @@ def _plan_impl(
         current_cli_version=installed_version,
     )
 
-    if cache_data_fresh:
-        # Cache data is fresh — trust it; no network call.
-        latest_version: str | None = cache_record.latest_version if cache_record is not None else None
-        cli_source: Literal["pypi", "simple_index", "none"] = (
-            cache_record.latest_source if cache_record is not None else "none"
-        )
-        fetched_at: datetime | None = None  # not fetched this run
-    else:
-        # Cache stale or missing — fetch from provider.
-        latest_result = latest_version_provider.get_latest(profile.package_name)
-        source = latest_result.source
-        latest_version = latest_result.version
-
-        cacheable_source: Literal["pypi", "simple_index"] | None = None
-        if source == "pypi":
-            cacheable_source = "pypi"
-        elif source == "simple_index":
-            cacheable_source = "simple_index"
-
-        fetched_at = now if cacheable_source is not None else None
-
-        # If we got a version from a cacheable source, update the cache
-        # (preserve last_shown_at / user preferences).
-        if cacheable_source is not None and latest_version is not None:
-            _write_nag_cache_for_fetch(
-                nag_cache=nag_cache,
-                preference_record=preference_record,
-                installed_version=installed_version,
-                latest_version=latest_version,
-                latest_source=cacheable_source,
-                now=now,
-            )
-        elif cache_record is not None and cache_record.latest_version is not None:
-            # Provider returned nothing useful — fall back to cached version.
-            latest_version = cache_record.latest_version
-            fetched_at = None  # not fetched this run
-
-        if cacheable_source is not None:
-            cli_source = cacheable_source
-        elif cache_record is not None:
-            cli_source = cache_record.latest_source
-        else:
-            cli_source = "none"
+    latest_version, cli_source, fetched_at = _resolve_latest_version(
+        cache_data_fresh=cache_data_fresh,
+        cache_record=cache_record,
+        preference_record=preference_record,
+        latest_version_provider=latest_version_provider,
+        profile=profile,
+        nag_cache=nag_cache,
+        installed_version=installed_version,
+        now=now,
+    )
 
     is_outdated = _version_is_outdated(installed_version, latest_version)
 
