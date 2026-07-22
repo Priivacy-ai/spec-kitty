@@ -7,9 +7,12 @@ the FR-011 / T020 surface for planner and related callers that must try
 
 from __future__ import annotations
 
+import logging
 from importlib.metadata import PackageNotFoundError, version
 
 __all__ = ["resolve_installed_distribution_version"]
+
+_log = logging.getLogger(__name__)
 
 
 def resolve_installed_distribution_version(
@@ -30,5 +33,13 @@ def resolve_installed_distribution_version(
         except PackageNotFoundError:
             continue
         except Exception:
+            # Contract: never raise — a malformed/unreadable metadata entry must
+            # degrade to the next candidate (ultimately ``default``), not crash a
+            # caller. Log at debug so the swallow is observable to packagers.
+            _log.debug(
+                "importlib.metadata.version(%r) raised unexpectedly; trying next candidate",
+                name,
+                exc_info=True,
+            )
             continue
     return default
