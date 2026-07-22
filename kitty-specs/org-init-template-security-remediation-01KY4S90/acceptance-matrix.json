@@ -1,7 +1,8 @@
 {
   "mission_slug": "org-init-template-security-remediation-01KY4S90",
-  "mission_number": null,
+  "mission_number": "",
   "mission_type": "software-dev",
+  "overall_verdict": "fail",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -121,7 +122,7 @@
       "verification_method": "grep_absence",
       "verification_command": "factory\\(url=url, ref=ref\\)$",
       "result": "confirmed_absent",
-      "evidence": "resolve._resolve_git uses inject_token=False",
+      "evidence": "grep found zero matches",
       "scope": "src/specify_cli/doctrine/template_render/resolve.py"
     },
     {
@@ -129,8 +130,8 @@
       "description": "copy_template_tree must not copy symlink targets via copy2 without symlink skip",
       "verification_method": "custom_command",
       "verification_command": "python -c \"from pathlib import Path; t=Path('src/specify_cli/doctrine/template_render/ignore_copy.py').read_text(); assert 'is_symlink()' in t\"",
-      "result": "confirmed_absent",
-      "evidence": "is_symlink skip present before copy2"
+      "result": "still_present",
+      "evidence": "Command exited 1: Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAssertionError"
     }
   ]
 }

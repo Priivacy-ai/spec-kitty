@@ -109,3 +109,4 @@ PWHEADLESS=1 pytest tests/specify_cli/doctrine/test_template_render_ignore_copy.
 ### 2026-07-22 – Prompt generated
 **Agent**: system
 **Action**: Prompt generated via /spec-kitty.tasks
+- 2026-07-22T12:07:19Z – user – shell_pid=66088 – Review passed: security remediation verified
