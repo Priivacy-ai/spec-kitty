@@ -216,3 +216,21 @@ def test_falls_back_to_prerelease_when_no_stable(monkeypatch: pytest.MonkeyPatch
 def test_yanked_release_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
     # 2.5.0 is the numeric max but is yanked (PEP 592) → 1.9.0 wins.
     assert _latest_for(monkeypatch, _HTML_WITH_YANKED) == "1.9.0"
+
+
+def test_non_https_index_url_warns(caplog: pytest.LogCaptureFixture) -> None:
+    import logging as _logging
+
+    with caplog.at_level(_logging.WARNING, logger="specify_cli.distribution.simple_index"):
+        SimpleIndexProvider("http://internal.invalid/simple/")
+    assert any("not https" in r.message for r in caplog.records)
+
+
+def test_https_and_loopback_do_not_warn(caplog: pytest.LogCaptureFixture) -> None:
+    import logging as _logging
+
+    with caplog.at_level(_logging.WARNING, logger="specify_cli.distribution.simple_index"):
+        SimpleIndexProvider("https://example.invalid/simple/")
+        SimpleIndexProvider("http://127.0.0.1:8080/simple/")
+        SimpleIndexProvider("http://localhost/simple/")
+    assert not caplog.records

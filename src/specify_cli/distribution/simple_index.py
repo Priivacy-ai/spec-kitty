@@ -7,7 +7,10 @@ pass ``index_url`` explicitly (typically from a subclass).
 
 Security properties mirror :class:`~specify_cli.compat.provider.PyPIProvider`:
 
-- TLS verification ON (httpx default, never disabled)
+- TLS verification ON for ``https://`` indexes (httpx default, never disabled).
+  A non-``https`` ``index_url`` (other than loopback) fetches over cleartext and
+  logs a warning at construction — using such an index is the packager's
+  explicit install-time trust decision, not an upstream guarantee.
 - Response body capped at 1 MiB
 - Redirects not followed
 - Version string regex-validated before return
@@ -15,6 +18,7 @@ Security properties mirror :class:`~specify_cli.compat.provider.PyPIProvider`:
 
 from __future__ import annotations
 
+import logging
 import re
 from html.parser import HTMLParser
 from urllib.parse import unquote, urljoin, urlparse
@@ -36,6 +40,29 @@ __all__ = [
 
 _HREF_EXT_RE = re.compile(r"\.(?:whl|tar\.gz|zip|egg)$", re.IGNORECASE)
 _PEP503_NORMALIZE_RE = re.compile(r"[-_.]+")
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+_log = logging.getLogger(__name__)
+
+
+def _warn_if_cleartext(index_url: str) -> None:
+    """Warn when *index_url* fetches over cleartext (non-https, non-loopback).
+
+    The transport is packager-controlled install-time trust, so a deliberate
+    internal ``http://`` index is honoured — but the cleartext fetch is logged
+    so the TLS-off decision is visible rather than silent.
+    """
+    parsed = urlparse(index_url)
+    if parsed.scheme == "https":
+        return
+    if parsed.hostname in _LOOPBACK_HOSTS:
+        return
+    _log.warning(
+        "SimpleIndexProvider index_url %r is not https; version metadata will be "
+        "fetched over cleartext. Prefer an https index unless this is a trusted "
+        "loopback/internal endpoint.",
+        index_url,
+    )
 
 
 class _AnchorCollector(HTMLParser):
@@ -86,6 +113,7 @@ class SimpleIndexProvider:
     ) -> None:
         if not index_url or not str(index_url).strip():
             raise ValueError("index_url is required and must be non-empty")
+        _warn_if_cleartext(str(index_url).strip())
         self._index_url = str(index_url).rstrip("/") + "/"
         self._package_prefix = package_prefix
         self._timeout_s = timeout_s
