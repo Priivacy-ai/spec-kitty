@@ -8,10 +8,14 @@ import pytest
 
 from specify_cli.compat.provider import FakeLatestVersionProvider, PyPIProvider
 from specify_cli.distribution.upgrade_provider import (
+
     PROVIDER_SELECT_ENV_VAR,
     clear_upgrade_provider_cache,
     resolve_upgrade_provider,
 )
+
+pytestmark = pytest.mark.fast
+
 
 
 class _FakeEntryPoint:

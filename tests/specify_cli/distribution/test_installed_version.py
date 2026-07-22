@@ -15,6 +15,8 @@ from specify_cli.distribution.installed_version import (
     resolve_installed_distribution_version,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def test_primary_name_hit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(

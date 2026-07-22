@@ -13,6 +13,8 @@ from specify_cli.distribution.package_name import (
 )
 from specify_cli.version_utils import get_version
 
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture(autouse=True)
 def _clear_name_cache() -> None:
@@ -61,9 +63,13 @@ def test_version_callback_label_uses_resolved_name(monkeypatch: pytest.MonkeyPat
         def print(self, msg: object) -> None:
             printed.append(str(msg))
 
+    # The banner now flows through the DistributionProfile (the aggregated identity
+    # seam), so patch the profile rather than the underlying name resolver.
+    from specify_cli.distribution.profile import DistributionProfile
+
     monkeypatch.setattr(
-        "specify_cli.distribution.package_name.resolve_cli_package_name",
-        lambda: "acme-spec-kitty-cli",
+        "specify_cli.distribution.resolve_distribution_profile",
+        lambda: DistributionProfile(package_name="acme-spec-kitty-cli", upgrade_provider=None),
     )
     monkeypatch.setattr("specify_cli.cli.console.console", FakeConsole())
     monkeypatch.setattr("specify_cli.cli.helpers.show_banner", lambda force=False: None)

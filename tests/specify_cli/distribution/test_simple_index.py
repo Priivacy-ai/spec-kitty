@@ -11,6 +11,8 @@ from specify_cli.compat import provider as provider_module
 from specify_cli.compat.provider import _MAX_RESPONSE_BYTES
 from specify_cli.distribution.simple_index import SimpleIndexProvider
 
+pytestmark = pytest.mark.fast
+
 
 class _FakeResponse:
     def __init__(self, body: bytes, status_code: int = 200) -> None:
