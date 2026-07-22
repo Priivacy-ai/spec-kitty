@@ -2810,6 +2810,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/coord-splitbrain-rootcause.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/coord-trust-mission-scope.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md
   tag: current
   divio_type: none

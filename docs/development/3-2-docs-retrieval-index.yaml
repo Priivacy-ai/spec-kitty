@@ -8552,6 +8552,38 @@ pages:
     - {slug: "5-multi-mission-approach-the-strangler-sequenced", text: "5. Multi-mission approach (the strangler, sequenced)", level: 2}
     - {slug: "6-net-new-missed-surfaces-debbie-fold-into-mission-a", text: "6. Net-new missed surfaces (debbie, fold into Mission A)", level: 2}
     - {slug: "7-decisions-of-record", text: "7. Decisions of record", level: 2}
+  - path: "docs/plans/engineering-notes/coord-splitbrain-rootcause.md"
+    title: "Coord-branch bookkeeping: read/write split-brain root-cause"
+    divio_type: "none"
+    abstract: "Root-cause analysis of the coordination-branch drift (#2841) as an unenforced write-placement split-brain, and the single placement-port seam that prevents it."
+    anchors:
+    - {slug: "0-the-one-paragraph-answer", text: "0. The one-paragraph answer", level: 2}
+    - {slug: "1-artifact-by-artifact-table", text: "1. Artifact-by-artifact table", level: 2}
+    - {slug: "2-the-single-load-bearing-seam", text: "2. The single load-bearing seam", level: 2}
+    - {slug: "3-what-prevention-makes-structurally-impossible-vs-the-residual-fail-loud-net", text: "3. What prevention makes structurally impossible vs. the residual fail-loud net", level: 2}
+    - {slug: "4-blunt-verdict", text: "4. Blunt verdict", level: 2}
+    - {slug: "composition-notes", text: "Composition notes", level: 3}
+    - {slug: "branch-caveat-verify-before-scoping-mechanical-fixes", text: "Branch caveat (verify before scoping mechanical fixes)", level: 3}
+  - path: "docs/plans/engineering-notes/coord-trust-mission-scope.md"
+    title: "Coordination-branch trust & reconciliation model — mission scope (#2841)"
+    divio_type: "none"
+    abstract: "Pre-spec scope for the coord-branch trust friction-remediation mission (#2841): the missing write-placement model, the solution shape, and the locked design decisions."
+    anchors:
+    - {slug: "1-problem-model-one-missing-model-three-symptoms", text: "1. Problem model — one missing model, three symptoms", level: 2}
+    - {slug: "2-evidence-the-real-surfaces-file-line", text: "2. Evidence — the real surfaces (file:line)", level: 2}
+    - {slug: "2-1-gap-1-bootstrap-snapshot-no-re-sync", text: "2.1 Gap 1 — bootstrap snapshot, no re-sync", level: 3}
+    - {slug: "2-2-gap-2-the-narrow-reconciliation-that-already-exists-the-extension-point", text: "2.2 Gap 2 — the narrow reconciliation that already exists (the extension point)", level: 3}
+    - {slug: "2-3-the-single-workspace-rebase-why-it-does-not-cover-gap-2", text: "2.3 The single-workspace rebase (why it does NOT cover Gap 2)", level: 3}
+    - {slug: "2-4-symptom-b-diff-compliance-gate-blocks-on-the-mission-s-own-runtime-state", text: "2.4 Symptom B — diff-compliance gate blocks on the mission's own runtime state", level: 3}
+    - {slug: "2-5-symptom-a-out-of-scope-composes-with-pr-2612", text: "2.5 Symptom A (out of scope — composes with PR#2612)", level: 3}
+    - {slug: "3-proposed-solution-shape-component-by-component", text: "3. Proposed solution shape (component by component)", level: 2}
+    - {slug: "c1-gate-auto-exemption-for-mission-owned-runtime-state-symptom-b", text: "C1 — Gate auto-exemption for mission-owned runtime state (Symptom B)", level: 3}
+    - {slug: "c2-coord-vs-target-freshness-check-safe-re-sync-gap-1", text: "C2 — Coord-vs-target freshness check + safe re-sync (Gap 1)", level: 3}
+    - {slug: "c3-generalized-reconciliation-engine-mission-repair-gap-2", text: "C3 — Generalized reconciliation engine + `mission repair` (Gap 2)", level: 3}
+    - {slug: "c4-cadence-wiring-gap-1-ux", text: "C4 — Cadence wiring (Gap 1 UX)", level: 3}
+    - {slug: "4-open-design-decisions-needing-an-operator-call", text: "4. Open design decisions needing an operator call", level: 2}
+    - {slug: "5-rough-wp-ic-shape-size", text: "5. Rough WP/IC shape & size", level: 2}
+    - {slug: "6-risk-blast-radius", text: "6. Risk / blast-radius", level: 2}
   - path: "docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md"
     title: "Built-in Doctrine DRG — missing / under-specified links analysis"
     divio_type: "none"
