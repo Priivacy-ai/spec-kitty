@@ -1,0 +1,33 @@
+{
+  "accept_commit": "e511a2acd8eeb26859cce2227fc58ec7a1ece1e7",
+  "acceptance_history": [
+    {
+      "accept_commit": "e511a2acd8eeb26859cce2227fc58ec7a1ece1e7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-21T23:24:03.733068+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "87b10ed779a93b2b019a01fb446200f173945ba0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-21T23:24:03.733068+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "87b10ed779a93b2b019a01fb446200f173945ba0",
+  "baseline_merge_commit": "b41f37d52d2fff58d0cf14dc869a514168c1b467",
+  "coordination_branch": "kitty/mission-glossary-pack-doctrine-kind-01KY30SW",
+  "created_at": "2026-07-21T19:00:23.134105+00:00",
+  "flattened": false,
+  "friendly_name": "Glossary Pack Doctrine Kind",
+  "mission_id": "01KY30SWEX1F4TVWW969P9H69Z",
+  "mission_number": null,
+  "mission_slug": "glossary-pack-doctrine-kind-01KY30SW",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's canonical terminology lives in a runtime seed file today. This mission promotes it to a first-order doctrine artefact: a new GLOSSARY_PACK ArtifactKind with a built-in spec-kitty-core pack carrying the 104 canonical terms. It is the keystone of the glossary doctrine overhaul program, unblocking the executable-enforcement and runtime-retirement missions that follow.",
+  "purpose_tldr": "Make the glossary a first-order, activatable doctrine artefact by adding a GLOSSARY_PACK kind and shipping the canonical terms as a built-in pack.",
+  "slug": "glossary-pack-doctrine-kind-01KY30SW",
+  "target_branch": "research/glossary-doctrine-artefact",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-21T20:26:34.698674+00:00"
+}
