@@ -946,6 +946,9 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
         ("tests/invocation", "tests/specify_cli/invocation"),
     ),
     "compat": ("lifecycle", "specify-cli-heavy", ("tests/specify_cli/compat",)),
+    "distribution": (
+        "lifecycle", "specify-cli-heavy", ("tests/specify_cli/distribution",),
+    ),
     "template": ("lifecycle", "specify-cli-heavy", ("tests/test_template",)),
     # agent_surface -> ``specify-cli-rest``.
     "orchestrator_api": (
