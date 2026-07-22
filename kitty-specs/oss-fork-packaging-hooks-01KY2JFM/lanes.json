@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "mission_slug": "oss-fork-packaging-hooks-01KY2JFM",
+  "mission_id": "01KY2JFMVQFA4Z4PHR5RDMMVCW",
+  "mission_branch": "kitty/mission-oss-fork-packaging-hooks-01KY2JFM",
+  "target_branch": "feat/oss-fork-packaging-hooks",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/distribution/__init__.py",
+        "src/specify_cli/distribution/package_name.py",
+        "src/specify_cli/distribution/upgrade_provider.py",
+        "tests/specify_cli/distribution/__init__.py",
+        "tests/specify_cli/distribution/test_package_name.py",
+        "tests/specify_cli/distribution/test_upgrade_provider.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/session_presence/manager.py",
+        "src/specify_cli/session_presence/upgrade_check.py",
+        "src/specify_cli/version_utils.py",
+        "tests/core/test_resolve_cli_package_name.py",
+        "tests/specify_cli/session_presence/test_upgrade_checker.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/compat/provider.py",
+        "src/specify_cli/distribution/profile.py",
+        "src/specify_cli/distribution/simple_index.py",
+        "tests/specify_cli/compat/test_provider_source_literal.py",
+        "tests/specify_cli/distribution/test_profile.py",
+        "tests/specify_cli/distribution/test_simple_index.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/compat/cache.py",
+        "src/specify_cli/compat/planner.py",
+        "src/specify_cli/compat/remediation.py",
+        "src/specify_cli/compat/upgrade_hint.py",
+        "src/specify_cli/core/version_checker.py",
+        "tests/core/test_upgrade_probe_and_notifier.py",
+        "tests/specify_cli/compat/test_planner_distribution_profile.py",
+        "tests/specify_cli/compat/test_remediation_index_url.py",
+        "tests/specify_cli/compat/test_upgrade_hint_chk028.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/fork-packaging-hooks.md",
+        "docs/guides/install-and-upgrade.md",
+        "docs/guides/upgrade-cli.md"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-21T15:11:31.885500+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
