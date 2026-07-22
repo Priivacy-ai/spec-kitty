@@ -4,7 +4,7 @@ description: Facilitates a structured mission retrospective at terminus
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/reference/agent-profiles/index.md
+  - docs/reference/agent_profiles/index.md
   - docs/doctrine/index.md
 ---
 

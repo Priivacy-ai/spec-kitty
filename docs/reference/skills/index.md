@@ -12,7 +12,7 @@ related:
 - docs/reference/skills/spk-admin-setup-doctor.md
 - docs/reference/skills/spk-meta-skill-map.md
 - docs/reference/index.md
-- docs/reference/agent-profiles/index.md
+- docs/reference/agent_profiles/index.md
 ---
 # Skills
 

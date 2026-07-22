@@ -4,7 +4,7 @@ description: Domain knowledge acquisition and synthesis specialist
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/reference/agent-profiles/index.md
+  - docs/reference/agent_profiles/index.md
   - docs/doctrine/index.md
 ---
 

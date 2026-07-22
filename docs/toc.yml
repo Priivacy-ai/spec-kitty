@@ -32,7 +32,7 @@
         - name: Skills
           href: reference/skills/index.md
         - name: Agent Profiles
-          href: reference/agent-profiles/index.md
+          href: reference/agent_profiles/index.md
     - name: Migrations
       href: migrations/index.md
     - name: Project Updates

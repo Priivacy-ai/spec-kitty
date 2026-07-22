@@ -3626,115 +3626,115 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/architect-alphonso.md
+- path: docs/reference/agent_profiles/architect-alphonso.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/curator-carla.md
+- path: docs/reference/agent_profiles/curator-carla.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/debugger-debbie.md
+- path: docs/reference/agent_profiles/debugger-debbie.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/designer-dagmar.md
+- path: docs/reference/agent_profiles/designer-dagmar.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/doctrine-daphne.md
+- path: docs/reference/agent_profiles/doctrine-daphne.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/frontend-freddy.md
+- path: docs/reference/agent_profiles/frontend-freddy.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/generic-agent.md
+- path: docs/reference/agent_profiles/generic-agent.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/human-in-charge.md
+- path: docs/reference/agent_profiles/human-in-charge.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/implementer-ivan.md
+- path: docs/reference/agent_profiles/implementer-ivan.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/index.md
+- path: docs/reference/agent_profiles/index.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/java-jenny.md
+- path: docs/reference/agent_profiles/java-jenny.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/node-norris.md
+- path: docs/reference/agent_profiles/node-norris.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/paula-patterns.md
+- path: docs/reference/agent_profiles/paula-patterns.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/planner-priti.md
+- path: docs/reference/agent_profiles/planner-priti.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/python-pedro.md
+- path: docs/reference/agent_profiles/python-pedro.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/randy-reducer.md
+- path: docs/reference/agent_profiles/randy-reducer.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/researcher-robbie.md
+- path: docs/reference/agent_profiles/researcher-robbie.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/retrospective-facilitator.md
+- path: docs/reference/agent_profiles/retrospective-facilitator.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/reference/agent-profiles/reviewer-renata.md
+- path: docs/reference/agent_profiles/reviewer-renata.md
   tag: current
   divio_type: none
   owning_workstream: none
