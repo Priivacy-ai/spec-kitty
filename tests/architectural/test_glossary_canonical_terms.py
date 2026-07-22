@@ -121,6 +121,40 @@ def _flagged_occurrences(content: str, surface: str) -> list[str]:
     return [actual for match in pattern.finditer(content) if (actual := _normalize_ws(match.group(0))) != canonical]
 
 
+_FENCE_RE: re.Pattern[str] = re.compile(r"^\s*(?:```|~~~)")
+_INLINE_CODE_RE: re.Pattern[str] = re.compile(r"`+[^`]*`+")
+
+
+def _fenced_line_numbers(text: str) -> frozenset[int]:
+    """1-based line numbers that sit inside (or mark) a ``` / ~~~ fenced code block.
+
+    Captured CLI ``--help`` output, program banners, and error literals live inside
+    fenced blocks; their casing must mirror the emitted strings, not the glossary's
+    prose canon, so those lines are not adjudicated — extending the module docstring's
+    precision-over-recall scope decision from single-word terms to code spans.
+    """
+    fenced: set[int] = set()
+    inside = False
+    for i, raw in enumerate(text.splitlines(), start=1):
+        if _FENCE_RE.match(raw):
+            inside = not inside
+            fenced.add(i)  # the fence marker line itself is non-prose
+            continue
+        if inside:
+            fenced.add(i)
+    return frozenset(fenced)
+
+
+def _strip_inline_code(line: str) -> str:
+    """Blank out inline-code spans so backticked literals aren't read as prose.
+
+    A term inside ``code`` markup is a literal (an identifier, path, emitted string,
+    or a deliberate wrong-casing illustration), not prose usage, so it is removed
+    before the casing comparison. Spans collapse to a space to preserve word bounds.
+    """
+    return _INLINE_CODE_RE.sub(" ", line)
+
+
 def _grep_candidate_lines(terms: list[str]) -> list[str]:
     """Return excluded-filtered ``<path>:<line>:<content>`` hits for any of ``terms``.
 
@@ -148,16 +182,29 @@ def _grep_candidate_lines(terms: list[str]) -> list[str]:
 
 
 def _scan_for_violations(terms: list[str]) -> list[str]:
-    """Scan ``docs/`` for non-canonically-cased occurrences of any of ``terms``.
+    """Scan ``docs/`` *prose* for non-canonically-cased occurrences of any of ``terms``.
+
+    Fenced code blocks and inline-code spans are excluded (``_fenced_line_numbers`` /
+    ``_strip_inline_code``): they hold captured ``--help`` output, program banners, and
+    literals whose casing must match the real emitted strings, not the glossary canon.
 
     Returns fully formatted ``{file}:{line}: found "{actual}", expected canonical
     form "{surface}"`` messages, one per flagged occurrence, in deterministic order.
     """
+    root = _repo_root()
     violations: list[str] = []
+    fenced_cache: dict[str, frozenset[int]] = {}
     for line in _grep_candidate_lines(terms):
         path, lineno, content = line.split(":", 2)
+        fenced = fenced_cache.get(path)
+        if fenced is None:
+            fenced = _fenced_line_numbers((root / path).read_text(encoding="utf-8"))
+            fenced_cache[path] = fenced
+        if int(lineno) in fenced:
+            continue
+        prose = _strip_inline_code(content)
         for surface in terms:
-            for actual in _flagged_occurrences(content, surface):
+            for actual in _flagged_occurrences(prose, surface):
                 violations.append(f'{path}:{lineno}: found "{actual}", expected canonical form "{surface}"')
     return sorted(set(violations))
 
@@ -249,6 +296,31 @@ def test_term_pattern_does_not_match_inside_longer_words() -> None:
     """
     content = "A reaction contextual to the change was recorded."
     assert _flagged_occurrences(content, "action context") == []
+
+
+def test_strip_inline_code_excludes_backticked_literals() -> None:
+    """A miscased term inside inline-code markup is removed before adjudication.
+
+    Captured literals like ``Work Package ID`` (emitted CLI ``--help`` text) shown in
+    backticks are string-fidelity, not prose, so the casing gate must not flag them —
+    but prose usage on the same line is still scanned.
+    """
+    line = "The flag prints `Work Package ID` but Work Package elsewhere is prose."
+    stripped = _strip_inline_code(line)
+    assert "Work Package ID" not in stripped
+    assert _flagged_occurrences(stripped, "work package") == ["Work Package"]
+
+
+def test_fenced_line_numbers_marks_block_interior_and_fences() -> None:
+    """Lines inside a ``` fenced block (and the fence markers) are reported non-prose.
+
+    Guards captured ``--help`` output / error banners reproduced in fenced blocks from
+    being adjudicated against the prose canon.
+    """
+    text = "prose one\n```\nWork Package captured output\n```\nprose two\n"
+    fenced = _fenced_line_numbers(text)
+    assert fenced == frozenset({2, 3, 4})
+    assert 1 not in fenced and 5 not in fenced
 
 
 def test_term_pattern_normalizes_internal_whitespace() -> None:

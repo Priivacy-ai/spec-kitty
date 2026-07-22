@@ -103,9 +103,9 @@ per-mission exception with rationale captured in `plan.md`.
 7. (review phase) A changed file matches a category whose action is
    `do_not_change`, with no per-file exception.
 
-Each failure prints a structured error starting with `bulk edit Gate:
-BLOCKED:` (planning gate) or `bulk edit Review: Diff Compliance:`
-(post-implementation gate). The triggering message also activates the
+Each failure prints a structured error starting with
+`Bulk Edit Gate: BLOCKED:` (planning gate) or
+`Bulk Edit Review: Diff Compliance:` (post-implementation gate). The triggering message also activates the
 `spec-kitty-bulk-edit-classification` skill, which walks the agent through
 remediation.
 

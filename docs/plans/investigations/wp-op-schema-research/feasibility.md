@@ -27,7 +27,7 @@ The trap is conflating two different markdown surfaces:
 | `tasks/WP##.md` **body** (the prompt) | **the prompt body IS the agent's instructions**; human- and agent-edited | ❌ **no** |
 
 The WP body is not decoration — it is load-bearing content consumed as prose:
-- Dashboard renders the body verbatim as `prompt_markdown` (`dashboard/scanner.py:976`), and pulls the card **title by matching the WP-prompt header regex** *in preference to* frontmatter title (`scanner.py:895-901`).
+- Dashboard renders the body verbatim as `prompt_markdown` (`dashboard/scanner.py:976`), and pulls the card **title from a body regex** `^#\s+Work Package Prompt:` *in preference to* frontmatter title (`scanner.py:895-901`).
 - Subtask progress is counted from `- [ ] T###` **checkboxes in the body or tasks.md**, not frontmatter (`scanner.py:950-961`).
 - Agents read the WP body as their work order.
 

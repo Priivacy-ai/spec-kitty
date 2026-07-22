@@ -132,7 +132,7 @@ User runs: spec-kitty charter interview / generate
 
 ```
 Agent calls: spec-kitty charter context --action implement
-  → src/charter/context.py (action context Resolver)
+  → src/charter/context.py (Action Context Resolver)
   → Load action index: src/doctrine/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/doctrine/service.py (DoctrineService) → fetch directive/tactic content by depth

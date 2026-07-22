@@ -107,7 +107,7 @@ planning artifacts, status events, review notes, and orchestration commits.
 When that happens, `spec-kitty merge` may stop before mutating merge state:
 
 ```text
-Error: target branch is not synchronized with its tracking branch.
+Error: Target branch is not synchronized with its tracking branch.
   diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
   branch_or_work_package: main
   violated_invariant: local_target_branch_must_match_tracking_branch

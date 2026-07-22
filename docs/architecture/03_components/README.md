@@ -51,7 +51,7 @@ flowchart TB
     subgraph Governance["Charter and Governance Engine"]
       interview[Charter Interview Flow]
       compile[Charter Compiler]
-      ctxResolve[action context Resolver]
+      ctxResolve[Action Context Resolver]
     end
 
     subgraph Knowledge["Doctrine and Glossary"]
@@ -223,7 +223,7 @@ sequenceDiagram
     participant GovCmd as Governance Command Set
     participant Interview as Charter Interview Flow
     participant Compile as Charter Compiler
-    participant Resolver as action context Resolver
+    participant Resolver as Action Context Resolver
 
     Human->>GovCmd: start governance update
     GovCmd->>Interview: collect governance answers

@@ -83,7 +83,7 @@ flowchart LR
     onboarding[Project and Governance Onboarding]
     runtime[Mission Runtime and Flow Control]
     doctrine[Doctrine and Knowledge Governance]
-    state[work package State and Evidence]
+    state[Work Package State and Evidence]
     external[External Integration Boundaries]
 
     onboarding --> runtime
