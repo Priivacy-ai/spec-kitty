@@ -16,10 +16,13 @@ from importlib.metadata import EntryPoint, entry_points, packages_distributions
 __all__ = [
     "CLI_PACKAGE_GROUP",
     "DEFAULT_CLI_PACKAGE_NAME",
-    "IMPORT_PACKAGE_NAME",
     "clear_cli_package_name_cache",
     "resolve_cli_package_name",
 ]
+
+# ``IMPORT_PACKAGE_NAME`` is a module-internal constant (the import package this
+# distribution ships), consumed only within this module — intentionally not
+# exported, per the symbol-level dead-code gate.
 
 CLI_PACKAGE_GROUP = "spec_kitty.cli_package"
 DEFAULT_CLI_PACKAGE_NAME = "spec-kitty-cli"
