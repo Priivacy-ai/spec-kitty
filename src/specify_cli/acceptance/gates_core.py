@@ -306,7 +306,7 @@ def _check_lane_gates(
 
 
 def _git_ref_exists(repo_root: Path, ref: str) -> bool:
-    return run_git(["rev-parse", "--verify", "--quiet", ref], cwd=repo_root, check=False).returncode == 0
+    return bool(run_git(["rev-parse", "--verify", "--quiet", ref], cwd=repo_root, check=False).returncode == 0)
 
 
 def _changed_workflow_files(repo_root: Path, feature_dir: Path, branch: str | None) -> list[str]:
