@@ -41,10 +41,10 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 - `kitty-specs/<feature>/contracts/` (API contracts when applicable)
 - Updated agent context files (based on the plan)
 
-## implementation concern Map
+## implementation concern map
 
 When a mission involves multiple distinct architectural areas, `plan.md` includes an
-**implementation concern Map** — a structured decomposition of intent before tasks are
+**implementation concern map** — a structured decomposition of intent before tasks are
 generated.
 
 Implementation concerns (IC-01, IC-02, …) are plan-level architectural units. They are

@@ -243,7 +243,7 @@ Pre-flight failed. Fix these issues before merging:
 spec-kitty agent action implement WP03
 ```
 
-### target branch Not Synchronized With Origin
+### target branch not synchronized with origin
 
 ```
 Error: target branch is not synchronized with its tracking branch.

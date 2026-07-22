@@ -22,7 +22,7 @@ Learn how to coordinate multiple AI agents working on different work packages si
 - Clear isolation with dedicated execution worktrees
 - Reduced merge conflicts
 
-## Understanding work package Dependencies
+## Understanding work package dependencies
 
 Common dependency patterns:
 

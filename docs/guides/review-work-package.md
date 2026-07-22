@@ -1,5 +1,5 @@
 ---
-title: How to Review a work package
+title: How to review a work package
 description: 'How to review a work package with Spec Kitty 3.2: Use this guide to review a completed work package and update its lane.'
 doc_status: active
 updated: '2026-06-03'
@@ -9,7 +9,7 @@ related:
 - docs/guides/implement-work-package.md
 - docs/guides/use-dashboard.md
 ---
-# How to Review a work package
+# How to review a work package
 
 Use this guide to review a completed work package and update its lane.
 
