@@ -138,3 +138,12 @@ if D slips, re-homed onto the asset rail later.
 - **Boundaries** — NOT #2653 (prose-only), and the doctrine-side tests
   (`test_glossary_link_integrity`, `test_glossary_node_kind`, `scripts.docs.glossary_linker`)
   are left untouched.
+
+## Related ADRs
+
+- [2026-07-22-1-gate-binding-content-vs-relationship.md](2026-07-22-1-gate-binding-content-vs-relationship.md)
+  — the reuse/attach counterpart of this promote decision: same content-vs-relationship
+  rule, opposite outcome. That ADR reuses the existing `mission_step_contract` kind for
+  gate bindings (a relationship/configuration on an existing artefact) rather than
+  promoting a new `gate` kind, because a gate binding — unlike this glossary pack — has no
+  files, repository, or provenance of its own.
