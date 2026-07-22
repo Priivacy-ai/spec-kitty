@@ -1,0 +1,159 @@
+{
+  "mission_slug": "doctrine-controlled-transition-gates-01KY51Z7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "ScopeSource port covers only repo-shape-varying concerns (test_command/file_to_scope/parse_results); changed_files stays the shared SSOT off-port",
+      "proof_type": "automated_test",
+      "evidence": "WP02 \u00b7 tests/review/test_scope_source.py (port-shape + changed_files-absent guards)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "GateCoverageScopeSource reproduces the incumbent scope derivation byte-identically (incl. matched_shard_groups metadata)",
+      "proof_type": "automated_test",
+      "evidence": "WP02+WP09 fidelity fix \u00b7 scope==derive_test_scope byte-identity assertion; parity-through-hook green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "DeclaredCommandScopeSource runs review.test_command whole-suite with baseline-relative verdict (newly-failing\u2192NEW_FAILURES; pre-existing\u2192not blocked)",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 \u00b7 test_scope_source.py + pre_existing_not_blocked integration arm",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Named GATE_REGISTRY with evaluate_pre_review_gate registered as the first handler on the for_review edge",
+      "proof_type": "automated_test",
+      "evidence": "WP04 \u00b7 tests/review/test_gate_registry.py (length-1 + dispatch parity)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Versioned contract-level gates binding with inert handler_kind discriminator",
+      "proof_type": "automated_test",
+      "evidence": "WP05 \u00b7 test_gate_binding_schema.py (schema + inert asset round-trip)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Gate handlers bind through the existing mission_step_contract kind (no new gate ArtifactKind)",
+      "proof_type": "automated_test",
+      "evidence": "WP05/WP06 \u00b7 owning-contract-URN join; WP01 ADR records the reuse principle",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Hook resolves bindings via activation join + named loader (DRG carries no payload)",
+      "proof_type": "automated_test",
+      "evidence": "WP06 \u00b7 resolve_active_gate_bindings; WP09 hook wiring; parity green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Lane-edge\u2192(mission,action)\u2192contract ownership with precedence; no-contract \u2192 distinguishable NO_COVERAGE warn",
+      "proof_type": "automated_test",
+      "evidence": "WP06 \u00b7 test_gate_bindings.py non-software-dev negative control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Internal _gate_coverage import removed from the always-on path; activation is the sole selector; consumer never imports it even under erroneous activation",
+      "proof_type": "automated_test",
+      "evidence": "WP09 \u00b7 #2534 import-spy erroneous-activation arm; grep-zero",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Layout-agnostic gating: non-pytest repo gated by its declared command",
+      "proof_type": "automated_test",
+      "evidence": "WP03 \u00b7 #2330 pre-review-facet closure test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "ScopeSource is the single test-command authority (baseline + head); pre_review_test_command reconciled",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP09 \u00b7 override-tier through the port + fail-open envelope",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "No-config baseline yields a visible NO_COVERAGE warning, never silent pass/crash",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 \u00b7 empty-cone no_coverage tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Fail-open on handler execution error; exactly two hard-stops (opt-in NEW_FAILURES block; terminal TIMED_OUT/CANCELLED)",
+      "proof_type": "automated_test",
+      "evidence": "WP09 \u00b7 test_keyboard_interrupt exits 1 (not 130) via shared fail-open wrapper",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Deterministic verdict aggregation (precedence; \u22641 warning/handler; no cross-suppression)",
+      "proof_type": "automated_test",
+      "evidence": "WP08 \u00b7 test_verdict_aggregation.py full outcome\u00d7precedence matrix",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "transition gate / gate handler / gate binding registered in both the glossary pack and orchestration.md with 5-sense guards",
+      "proof_type": "automated_test",
+      "evidence": "WP07 \u00b7 tests/glossary/test_gate_terms.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-22T21:24:17Z",
+      "notes": "Delivered + adversarially reviewed + approved (see reviews/)."
+    }
+  ],
+  "negative_invariants": []
+}

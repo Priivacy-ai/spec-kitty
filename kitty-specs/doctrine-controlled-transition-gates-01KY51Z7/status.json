@@ -1,0 +1,111 @@
+{
+  "event_count": 63,
+  "last_event_id": "01KY5VJGBFZT2YSSFRH3H3H7AE",
+  "materialized_at": "2026-07-22T21:26:41.775942+00:00",
+  "mission_number": "",
+  "mission_slug": "doctrine-controlled-transition-gates-01KY51Z7",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:sonnet:architect-alphonso:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VGR1GZW91GWRYAYVD5S81",
+      "last_transition_at": "2026-07-22T21:25:44.112614+00:00",
+      "shell_pid": 3307872,
+      "shell_pid_created_at": "1784736877.81"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VGZN6DMR1B7ZHE9J9822P",
+      "last_transition_at": "2026-07-22T21:25:51.910932+00:00",
+      "shell_pid": 3305540,
+      "shell_pid_created_at": "1784736824.24"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VHEBRJSNP2P4P45J9M59E",
+      "last_transition_at": "2026-07-22T21:26:06.968667+00:00",
+      "shell_pid": 3411460,
+      "shell_pid_created_at": "1784740263.13"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VHNGGHSMVZYMVM1HMHX37",
+      "last_transition_at": "2026-07-22T21:26:14.288429+00:00",
+      "shell_pid": 3479021,
+      "shell_pid_created_at": "1784742667.71"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VHWCP5N7V5ZANYZJNQDGF",
+      "last_transition_at": "2026-07-22T21:26:21.334870+00:00",
+      "shell_pid": 3509825,
+      "shell_pid_created_at": "1784743333.42"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VJ31WJJ18KGNRCGGXVHRK",
+      "last_transition_at": "2026-07-22T21:26:28.156396+00:00",
+      "shell_pid": 3559926,
+      "shell_pid_created_at": "1784744304.48"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude:haiku:doctrine-daphne:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VJ9K8MJPKB1Y710WW9BYD",
+      "last_transition_at": "2026-07-22T21:26:34.857013+00:00",
+      "shell_pid": 3561525,
+      "shell_pid_created_at": "1784744326.28"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VH72M5EK5VNKK23ZFHM3S",
+      "last_transition_at": "2026-07-22T21:25:59.509024+00:00",
+      "shell_pid": 3307872,
+      "shell_pid_created_at": "1784736877.81"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY5VJGBFZT2YSSFRH3H3H7AE",
+      "last_transition_at": "2026-07-22T21:26:41.775942+00:00",
+      "shell_pid": 3593973,
+      "shell_pid_created_at": "1784745661.4"
+    }
+  }
+}
