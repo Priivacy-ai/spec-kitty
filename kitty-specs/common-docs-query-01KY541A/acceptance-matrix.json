@@ -1,0 +1,89 @@
+{
+  "mission_slug": "common-docs-query-01KY541A",
+  "mission_number": 186,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Generate a docs retrieval index (title + heading-anchor slugs + short abstract, per page) over the page-inventory metadata spine.",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved (opus/reviewer-renata). scripts/docs/docs_index.py generate_index() + packaged src/specify_cli/docs/index_model.py render_index/parse_index; committed docs/development/3-2-docs-retrieval-index.yaml generated over the live 646-page docs/ tree. 24 tests in tests/docs/test_docs_index.py green.",
+      "notes": "Sibling artifact; PageInventoryEntry untouched (C-001).",
+      "verified_by": "reviewer-renata (opus, WP01) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "spec-kitty docs query \"<term>\" [--json] command searching the index across title/anchors/abstract.",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved. src/specify_cli/cli/commands/docs.py Typer sub-app registered next to glossary; live smoke `spec-kitty docs query \"worktree\" --json` returns real matching pages. 14 tests in tests/docs/test_docs_query_cli.py green.",
+      "notes": "Mirrors the glossary CLI shape; imports only the packaged specify_cli.docs.index_model.",
+      "verified_by": "reviewer-renata (opus, WP03) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Structured JSON result shape: path, title, matching anchors, abstract, divio_type; only the MATCHED anchors returned.",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP03. _matching_anchors() returns only anchors that hit the term/--section. Discriminating test: a >=2-anchor fixture where the term matches exactly one asserts the result contains ONLY that anchor; title-only match -> empty anchors. print(json.dumps(...)) JSON path (not Rich).",
+      "notes": "Renata's non-fakeable FR-003 fixture requirement satisfied.",
+      "verified_by": "reviewer-renata (opus, WP03) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "--divio-type and --section filters narrow to a Divio class / to pages containing a given heading anchor.",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP03. --divio-type validated against the correct value set (tutorial|how-to|reference|explanation|none, provably matching the committed index); --section filters to has-anchor-with-that-slug. Invalid --divio-type -> exit 2 no traceback. Tests green.",
+      "notes": "DivioType validated via literal tuple (correct values); canonical-enum consolidation deferred as a documented follow-up.",
+      "verified_by": "reviewer-renata (opus, WP03) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "CI-runnable freshness gate that regenerates the index and reports drift, mirroring the page-inventory lockfile gate.",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved. _check_docs_index_drift added to scripts/docs/check_docs_freshness.py as additive sub-check 6 (error-severity DOCS-INDEX-DRIFT); real mutate->detect->regenerate test asserts severity==error and a red aggregate exit; covered by docs-freshness.yml via the aggregate --ci entrypoint (T009 no-op). 7 tests green.",
+      "notes": "_check_inventory_lockfile_drift byte-untouched (C-001), snapshot-pinned.",
+      "verified_by": "reviewer-renata (opus, WP02) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Deterministic, byte-stable index (alphabetical by path; deterministic anchor slugs).",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP01. Non-fakeable test: fixture files created in non-alphabetical order + direct ascending-path assertion; byte-stability verified across a real subprocess run with a different PYTHONHASHSEED. Live 646-row index round-trips under --strict (exit 0).",
+      "notes": "Renata's fakeable-same-process concern resolved.",
+      "verified_by": "reviewer-renata (opus, WP01) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Full-tree docs query returns < 1s; no per-query filesystem walk (index loaded once).",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "WP03. Structural guard: a test spies Path.rglob and Path.open and asserts zero calls during store.query() after DocsIndexStore.load(); a wall-clock <1s live-tree smoke kept as a soft ceiling.",
+      "notes": "Structural invariant, not just a machine-dependent timing smoke.",
+      "verified_by": "reviewer-renata (opus, WP03) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "ruff + mypy clean on touched modules; complexity <=15; new branches/helpers covered by focused tests; no new suppressions.",
+      "pass_fail": "pass",
+      "proof_type": "automated_test",
+      "evidence": "All three WPs: uv run ruff check -> All checks passed; uv run mypy clean on the owned src/scripts modules (the pre-existing 'found twice under different module names' quirk reproduces on untouched files and is not introduced here); every function <=15 (ruff C901). 45 new focused tests across the three WPs.",
+      "notes": "No new noqa/type:ignore introduced by the mission.",
+      "verified_by": "reviewer-renata (opus, per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-22T16:00:00Z"
+    }
+  ],
+  "negative_invariants": []
+}
