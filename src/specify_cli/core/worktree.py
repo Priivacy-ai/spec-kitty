@@ -533,7 +533,9 @@ spec-kitty agent tasks move-task WP01 --to doing
     worktree_kittify = worktree_path / KITTIFY_DIR
     worktree_kittify.mkdir(exist_ok=True)
 
-    # Setup shared charter and AGENTS.md via symlink (or copy on Windows)
+    # Setup shared team-memory store (.kittify/memory/) and AGENTS.md via symlink
+    # (or copy on Windows). The charter itself lives separately at
+    # .kittify/charter/ and is not part of this symlink.
     # Calculate relative path from worktree to main repo
     # Worktree: .worktrees/001-feature/.kittify/memory
     # Main:     .kittify/memory
