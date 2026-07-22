@@ -14,7 +14,7 @@ alphabetically (same deterministic rule as the upgrade-provider resolver).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.metadata import EntryPoint, entry_points
 
 from specify_cli.compat.provider import LatestVersionProvider, PyPIProvider
@@ -124,15 +124,13 @@ def _synthesize_from_phase1() -> DistributionProfile:
     except Exception:
         provider = PyPIProvider()
 
-    return DistributionProfile(
+    # Derive from the single stock definition so field defaults (index_url,
+    # freshness TTL, notifier flag, …) live in one place and cannot drift; only
+    # the Phase-1-resolvable fields are overridden.
+    return replace(
+        stock_distribution_profile(),
         package_name=package_name,
-        package_aliases=(),
         upgrade_provider=provider,
-        index_url=None,
-        extra_index_url=None,
-        data_freshness_seconds=None,
-        disable_public_pypi_notifier=False,
-        version_label=None,
     )
 
 
