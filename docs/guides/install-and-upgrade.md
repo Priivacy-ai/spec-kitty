@@ -254,3 +254,4 @@ Expected — the nag is suppressed in CI but the compatibility gate is not. Add
 - [Environment Variables](../api/environment-variables.md)
 - [Getting Started Tutorial](getting-started.md)
 - [Non-Interactive Init](non-interactive-init.md)
+- [Fork packaging hooks](fork-packaging-hooks.md) — renamed / private-index distributors

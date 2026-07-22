@@ -7,7 +7,7 @@ build_upgrade_hint -- factory function; one call per InstallMethod value.
 
 Security properties enforced here
 -----------------------------------
-CHK028  ``command`` is sanitised against ``^[A-Za-z0-9 .\\-+_/=:]{1,128}$``
+CHK028  ``command`` is sanitised against ``^[A-Za-z0-9 .\\-+_/=:]{1,512}$``
         at dataclass construction time; ANSI escapes and shell metacharacters
         are rejected.
 CHK031  SOURCE and UNKNOWN hints carry ``command=None`` (a note instead),
@@ -20,13 +20,16 @@ import re
 from dataclasses import dataclass
 
 from specify_cli.compat._detect.install_method import InstallMethod
+from specify_cli.compat.remediation import COMMAND_ALLOWLIST_MAX_LEN
 
 
 # ---------------------------------------------------------------------------
-# Validation regex (CHK028)
+# Validation regex (CHK028) — shared max length with remediation.py
 # ---------------------------------------------------------------------------
 
-_COMMAND_RE = re.compile(r"^[A-Za-z0-9 .\-+_/=:]{1,128}$")
+_COMMAND_RE = re.compile(
+    rf"^[A-Za-z0-9 .\-+_/=:]{{1,{COMMAND_ALLOWLIST_MAX_LEN}}}$"
+)
 _VERSION_RE = re.compile(r"^[A-Za-z0-9.\-+]{1,64}$")
 
 
@@ -63,7 +66,7 @@ class UpgradeHint:
             raise ValueError(
                 f"UpgradeHint.command contains disallowed characters or is out of range: "
                 f"{self.command!r}. "
-                "Only [A-Za-z0-9 .\\-+_/=:] (1-128 chars) is permitted (CHK028)."
+                "Only [A-Za-z0-9 .\\-+_/=:] (1-512 chars) is permitted (CHK028)."
             )
 
 
@@ -126,7 +129,7 @@ for _method, (_cmd, _note) in _HINT_TABLE.items():
 def build_upgrade_hint(
     install_method: InstallMethod,
     *,
-    package: str = "spec-kitty-cli",  # noqa: ARG001  # public API; plan_remediation hardcodes the package in this migration step
+    package: str | None = None,
     target_version: str | None = None,
 ) -> UpgradeHint:
     """Return the :class:`UpgradeHint` for *install_method*.
@@ -142,16 +145,15 @@ def build_upgrade_hint(
 
     Args:
         install_method: The detected :class:`InstallMethod`.
-        package: Package name (reserved; ``spec-kitty-cli`` is always used
-            by the underlying planner in this migration step).
+        package: Optional package-name override.  When ``None`` (default),
+            uses the active :class:`DistributionProfile` package name.
         target_version: Optional latest version.  For uv-tool installs this
             is used to build a pinned upgrade command.
 
     Returns:
         A :class:`UpgradeHint` whose ``command`` / ``note`` is identical to
-        the pre-migration static-table value for every install method
-        (SC-003 guarantee verified by the snapshot-parity tests in
-        ``tests/specify_cli/compat/test_remediation.py``).
+        the pre-migration static-table value for every install method on the
+        stock profile (SC-003).
     """
     from dataclasses import replace as _replace  # stdlib — no circular import risk
 
@@ -160,6 +162,10 @@ def build_upgrade_hint(
         RemediationIntent,
         plan_remediation,
     )
+    from specify_cli.distribution import resolve_distribution_profile
+
+    profile = resolve_distribution_profile()
+    package_name = profile.package_name if package is None else package
 
     runtime = detect_runtime()
 
@@ -170,7 +176,21 @@ def build_upgrade_hint(
     if runtime.install_method != install_method:
         runtime = _replace(runtime, install_method=install_method)
 
-    cmd = plan_remediation(runtime, RemediationIntent.UPGRADE, target_version)
+    # When the caller pins an explicit package (parity / stock tests), do not
+    # inject profile index URLs — those belong to the profile-driven path.
+    index_url = None if package is not None else profile.index_url
+    extra_index_url = None if package is not None else profile.extra_index_url
+    aliases: tuple[str, ...] = () if package is not None else profile.package_aliases
+
+    cmd = plan_remediation(
+        runtime,
+        RemediationIntent.UPGRADE,
+        target_version,
+        package_name=package_name,
+        package_aliases=aliases,
+        index_url=index_url,
+        extra_index_url=extra_index_url,
+    )
     try:
         rendered = cmd.render(runtime.platform)
     except ValueError:

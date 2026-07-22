@@ -285,6 +285,11 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
         if not should_check_version(command_name):
             return False
 
+        from specify_cli.distribution import resolve_distribution_profile
+
+        if resolve_distribution_profile().disable_public_pypi_notifier:
+            return False
+
         # Deferred import to keep this module light and to avoid pulling httpx
         # into hot import paths for commands that skip the check.
         from specify_cli.core.upgrade_notifier import (

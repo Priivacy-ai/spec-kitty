@@ -1,9 +1,13 @@
-"""PyPI version cache management for the upgrade check mechanism.
+"""Version cache management for the upgrade check mechanism.
 
 Background refresh only — never blocks the foreground. Never raises on any failure.
 
 Cache location: ``~/.kittify/last-cli-check.json``
 TTL: 3600 seconds (1 hour)
+
+The refresh path resolves the upgrade provider and CLI package name via
+``specify_cli.distribution`` so packager entry points take effect without
+rewriting this module.
 """
 
 from __future__ import annotations
@@ -11,7 +15,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from datetime import datetime
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
@@ -20,6 +25,7 @@ __all__ = [
     "CACHE_PATH",
     "TTL_SECONDS",
     "UpgradeChecker",
+    "refresh_cache_once",
 ]
 
 CACHE_PATH: Path = Path.home() / ".kittify" / "last-cli-check.json"
@@ -32,24 +38,52 @@ def _is_opt_out_set() -> bool:
     return is_truthy(os.environ.get(OPT_OUT_ENV_VAR))
 
 
+def refresh_cache_once() -> None:
+    """Refresh the upgrade cache using the resolved provider. Never raises.
+
+    Intended for foreground tests and the background subprocess entry.
+    """
+    if _is_opt_out_set():
+        return
+
+    latest: str | None = None
+    try:
+        from specify_cli.distribution.package_name import resolve_cli_package_name
+        from specify_cli.distribution.upgrade_provider import resolve_upgrade_provider
+
+        package = resolve_cli_package_name()
+        result = resolve_upgrade_provider().get_latest(package)
+        if isinstance(result.version, str) and result.version:
+            latest = result.version
+    except Exception:
+        latest = None
+
+    try:
+        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE_PATH.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(
+                {
+                    "checked_at": datetime.now(UTC).isoformat(),
+                    "latest_version": latest,
+                }
+            ),
+            encoding="utf-8",
+        )
+        os.replace(tmp, CACHE_PATH)
+    except Exception:
+        return
+
+
 class UpgradeChecker:
-    """Manage the PyPI version cache at ``~/.kittify/last-cli-check.json``.
+    """Manage the version cache at ``~/.kittify/last-cli-check.json``.
 
     All public methods are safe to call unconditionally — any I/O or subprocess
     error is swallowed so callers never need to guard against exceptions.
     """
 
     def get_available_version(self) -> str | None:
-        """Return the cached latest version string, or ``None`` if unavailable.
-
-        Algorithm:
-        1. Try to read ``CACHE_PATH``. If absent or unreadable: return ``None``.
-        2. Parse JSON. If malformed: return ``None``.
-        3. Parse ``checked_at`` as ISO 8601 datetime.  Calculate age in seconds.
-        4. If age < TTL_SECONDS: return ``latest_version`` field.
-        5. If age >= TTL_SECONDS: return last known ``latest_version``
-           (stale but better than ``None``).
-        """
+        """Return the cached latest version string, or ``None`` if unavailable."""
         if _is_opt_out_set():
             return None
 
@@ -67,8 +101,6 @@ class UpgradeChecker:
         if not isinstance(latest_version, str):
             return None
 
-        # Always return the cached value (stale or fresh — callers just want best-known).
-        # We still parse checked_at so malformed timestamps fall back to None gracefully.
         checked_at_raw = data.get("checked_at")
         if isinstance(checked_at_raw, str):
             try:
@@ -79,49 +111,22 @@ class UpgradeChecker:
         return latest_version
 
     def check_in_background(self) -> None:
-        """Spawn a background subprocess to refresh the PyPI version cache.
+        """Spawn a background subprocess to refresh the version cache.
 
-        Fire-and-forget — returns immediately.  Any failure (subprocess not found,
-        permission error, network timeout, …) is silently swallowed.
+        Fire-and-forget — returns immediately.  Any failure is silently swallowed.
         """
         if _is_opt_out_set():
             return
 
         try:
             CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            script = f"""
-import json
-import os
-import urllib.request
-from datetime import datetime, timezone
-from pathlib import Path
-
-v = None
-try:
-    req = urllib.request.Request(
-        "https://pypi.org/pypi/spec-kitty-cli/json",
-        headers={{"User-Agent": "spec-kitty-cli session-presence-upgrade-check"}},
-    )
-    with urllib.request.urlopen(req, timeout=10) as response:
-        payload = json.load(response)
-    info = payload.get("info") if isinstance(payload, dict) else None
-    candidate = info.get("version") if isinstance(info, dict) else None
-    if isinstance(candidate, str):
-        v = candidate
-except Exception:
-    v = None
-
-p = Path({str(CACHE_PATH)!r})
-p.parent.mkdir(parents=True, exist_ok=True)
-tmp = p.with_suffix(".tmp")
-tmp.write_text(json.dumps({{
-    "checked_at": datetime.now(timezone.utc).isoformat(),
-    "latest_version": v,
-}}))
-os.replace(tmp, p)
-"""
             subprocess.Popen(
-                ["python3", "-c", script],
+                [
+                    sys.executable,
+                    "-c",
+                    "from specify_cli.session_presence.upgrade_check import refresh_cache_once; "
+                    "refresh_cache_once()",
+                ],
                 start_new_session=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,

@@ -135,7 +135,7 @@ class CliStatus:
 
     installed_version: str
     latest_version: str | None
-    latest_source: Literal["pypi", "none"]
+    latest_source: Literal["pypi", "simple_index", "none"]
     is_outdated: bool
     fetched_at: datetime | None
 
@@ -414,13 +414,77 @@ def _get_schema_bounds() -> tuple[int, int]:
 
 
 def _get_installed_version() -> str:
-    """Return the installed spec-kitty-cli version, or 'unknown'."""
-    try:
-        from importlib.metadata import version
+    """Return the installed CLI distribution version, or 'unknown'.
 
-        return version("spec-kitty-cli")
-    except Exception:  # noqa: BLE001
-        return "unknown"
+    Uses the active :class:`DistributionProfile` package name and aliases
+    via :func:`resolve_installed_distribution_version`.
+    """
+    from specify_cli.distribution import (
+        resolve_distribution_profile,
+        resolve_installed_distribution_version,
+    )
+
+    profile = resolve_distribution_profile()
+    return resolve_installed_distribution_version(
+        profile.package_name,
+        profile.package_aliases,
+    )
+
+
+_CACHEABLE_LATEST_SOURCES: frozenset[str] = frozenset({"pypi", "simple_index"})
+
+
+def _default_latest_provider(*, network_suppressed: bool, profile: Any) -> Any:
+    """Select the default latest-version provider for ``plan()``.
+
+    When network is suppressed, always use :class:`NoNetworkProvider`.
+    Otherwise prefer ``profile.upgrade_provider``, then
+    :func:`resolve_upgrade_provider` (stock PyPI fallback).
+    """
+    from specify_cli.compat.provider import NoNetworkProvider, PyPIProvider
+    from specify_cli.distribution import resolve_upgrade_provider
+
+    if network_suppressed:
+        return NoNetworkProvider()
+    if profile.upgrade_provider is not None:
+        return profile.upgrade_provider
+    try:
+        return resolve_upgrade_provider()
+    except Exception:  # noqa: BLE001 — fail-open to stock PyPI
+        return PyPIProvider()
+
+
+def _write_nag_cache_for_fetch(
+    *,
+    nag_cache: Any,
+    preference_record: Any,
+    installed_version: str,
+    latest_version: str,
+    latest_source: Literal["pypi", "simple_index"],
+    now: datetime,
+) -> None:
+    """Persist a successful provider fetch into the nag cache."""
+    from specify_cli.compat.cache import NagCacheRecord
+
+    if preference_record is not None:
+        new_record = replace(
+            preference_record,
+            cli_version_key=installed_version,
+            latest_version=latest_version,
+            latest_source=latest_source,
+            fetched_at=now,
+            last_shown_at=preference_record.last_shown_at,
+        )
+    else:
+        new_record = NagCacheRecord(
+            cli_version_key=installed_version,
+            latest_version=latest_version,
+            latest_source=latest_source,
+            fetched_at=now,
+            last_shown_at=None,
+        )
+    with contextlib.suppress(Exception):
+        nag_cache.write(new_record)
 
 
 def _version_is_outdated(installed: str, latest: str | None) -> bool:
@@ -764,6 +828,7 @@ def _plan_impl(
     )
     from specify_cli.compat.safety import classify
     from specify_cli.compat.upgrade_hint import build_upgrade_hint
+    from specify_cli.distribution import resolve_distribution_profile
 
     # Defaults
     if now is None:
@@ -780,8 +845,13 @@ def _plan_impl(
 
         project_root_resolver = locate_project_root
 
+    profile = resolve_distribution_profile()
+
     if latest_version_provider is None:
-        latest_version_provider = NoNetworkProvider() if invocation.suppresses_network() else PyPIProvider()  # noqa: SIM108
+        latest_version_provider = _default_latest_provider(
+            network_suppressed=invocation.suppresses_network(),
+            profile=profile,
+        )
 
     # --- Step 1: Build CliStatus ---
     installed_version = _get_installed_version()
@@ -800,6 +870,10 @@ def _plan_impl(
     # not fresh), causing every invocation to hit the provider even though the
     # cached version data was recent.  has_fresh_data checks fetched_at instead
     # and correctly returns True in that case (FIX C, P2).
+    #
+    # FR-012: when the profile sets data_freshness_seconds, that TTL drives
+    # has_fresh_data only.  Display throttle (is_fresh) always uses
+    # config.throttle_seconds.
     cache_record: NagCacheRecord | None = nag_cache.read()
     preference_record: NagCacheRecord | None = cache_record
 
@@ -810,10 +884,16 @@ def _plan_impl(
     if cache_record is not None and cache_record.cli_version_key != installed_version:
         cache_record = None
 
+    data_throttle_seconds = (
+        profile.data_freshness_seconds
+        if profile.data_freshness_seconds is not None
+        else config.throttle_seconds
+    )
+
     # Check whether the cached VERSION DATA is fresh enough to trust (skip provider).
     cache_data_fresh = NagCache.has_fresh_data(
         cache_record,
-        throttle_seconds=config.throttle_seconds,
+        throttle_seconds=data_throttle_seconds,
         now=now,
         current_cli_version=installed_version,
     )
@@ -829,43 +909,46 @@ def _plan_impl(
     if cache_data_fresh:
         # Cache data is fresh — trust it; no network call.
         latest_version: str | None = cache_record.latest_version if cache_record is not None else None
-        cli_source: Literal["pypi", "none"] = cache_record.latest_source if cache_record is not None else "none"
+        cli_source: Literal["pypi", "simple_index", "none"] = (
+            cache_record.latest_source if cache_record is not None else "none"
+        )
         fetched_at: datetime | None = None  # not fetched this run
     else:
         # Cache stale or missing — fetch from provider.
-        latest_result = latest_version_provider.get_latest("spec-kitty-cli")
-        fetched_at = now if latest_result.source == "pypi" else None
+        latest_result = latest_version_provider.get_latest(profile.package_name)
+        source = latest_result.source
         latest_version = latest_result.version
 
-        # If we got a version from the provider, update the cache (preserve last_shown_at).
-        if latest_result.source == "pypi" and latest_version is not None:
-            if preference_record is not None:
-                new_record = replace(
-                    preference_record,
-                    cli_version_key=installed_version,
-                    latest_version=latest_version,
-                    latest_source="pypi",
-                    fetched_at=now,
-                    last_shown_at=preference_record.last_shown_at,
-                )
-            else:
-                new_record = NagCacheRecord(
-                    cli_version_key=installed_version,
-                    latest_version=latest_version,
-                    latest_source="pypi",
-                    fetched_at=now,
-                    last_shown_at=None,
-                )
-            with contextlib.suppress(Exception):
-                nag_cache.write(new_record)
+        cacheable_source: Literal["pypi", "simple_index"] | None = None
+        if source == "pypi":
+            cacheable_source = "pypi"
+        elif source == "simple_index":
+            cacheable_source = "simple_index"
+
+        fetched_at = now if cacheable_source is not None else None
+
+        # If we got a version from a cacheable source, update the cache
+        # (preserve last_shown_at / user preferences).
+        if cacheable_source is not None and latest_version is not None:
+            _write_nag_cache_for_fetch(
+                nag_cache=nag_cache,
+                preference_record=preference_record,
+                installed_version=installed_version,
+                latest_version=latest_version,
+                latest_source=cacheable_source,
+                now=now,
+            )
         elif cache_record is not None and cache_record.latest_version is not None:
             # Provider returned nothing useful — fall back to cached version.
             latest_version = cache_record.latest_version
             fetched_at = None  # not fetched this run
 
-        cli_source = latest_result.source if latest_result.source == "pypi" else "none"
-        if cache_record is not None and latest_result.source != "pypi":
+        if cacheable_source is not None:
+            cli_source = cacheable_source
+        elif cache_record is not None:
             cli_source = cache_record.latest_source
+        else:
+            cli_source = "none"
 
     is_outdated = _version_is_outdated(installed_version, latest_version)
 
