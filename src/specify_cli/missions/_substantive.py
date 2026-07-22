@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import re
 import subprocess
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Final, Literal
+
+from kernel.paths import repo_tree_path
 
 Kind = Literal["spec", "plan"]
 
@@ -279,41 +281,19 @@ def is_substantive(file_path: Path, kind: Kind) -> bool:
     raise ValueError(f"Unknown kind: {kind!r}")
 
 
-def _tree_path(parts: tuple[str, ...]) -> str:
-    """Join path ``parts`` into a git tree path (always forward-slashed).
-
-    Git's ``HEAD:<path>`` object syntax and ``ls-files`` pathspec require
-    forward slashes. Rendering with ``str(Path(*parts))`` uses ``os.sep`` — a
-    backslash on Windows — which git rejects, making committed specs misreport
-    as uncommitted (#2836). ``PurePosixPath`` renders with ``/`` regardless of
-    the host OS, closing the defect by construction: the string is built from
-    the separator-agnostic ``parts`` tuple, never re-parsed through a host-native
-    ``Path``.
-    """
-    return PurePosixPath(*parts).as_posix() if parts else ""
-
-
 def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, str] | None:
-    """Return ``(git_cwd, tree_path)`` for committedness checks.
+    """Return ``(git_cwd, tree_path)`` for committedness checks, or ``None``.
 
-    Linked worktrees live under ``.worktrees/<name>/`` on disk, but branch tree
-    paths start at that worktree root.  A file at
-    ``.worktrees/<name>/kitty-specs/<slug>/spec.md`` must therefore be checked
-    as ``kitty-specs/<slug>/spec.md`` against the target ref.
+    Thin wrapper over the shared kernel seam :func:`kernel.paths.repo_tree_path`
+    that maps the "file outside the repo" case (``ValueError``) to ``None`` — the
+    sentinel ``is_committed`` reads as "cannot check, treat as uncommitted". The
+    worktree-strip and forward-slash normalization (#2836) live in the kernel so
+    this module and ``mission_finalize`` cannot drift.
     """
     try:
-        repo_abs = repo_root.resolve()
-        rel = file_path.resolve().relative_to(repo_abs)
+        return repo_tree_path(file_path, repo_root)
     except ValueError:
         return None
-
-    parts = rel.parts
-    if len(parts) > 2 and parts[0] == ".worktrees":
-        worktree_root = repo_abs / parts[0] / parts[1]
-        if worktree_root.is_dir():
-            return worktree_root, _tree_path(parts[2:])
-
-    return repo_abs, _tree_path(parts)
 
 
 def _head_carries_path(git_cwd: Path, tree_path: str) -> bool:

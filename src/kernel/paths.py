@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import importlib.resources
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 def _is_windows() -> bool:
@@ -144,4 +144,63 @@ def render_runtime_path(path: Path, *, for_user: bool = True) -> str:
         return str(abs_path)
 
 
-__all__ = ["get_kittify_home", "get_package_asset_root", "render_runtime_path"]
+def posix_tree_path(parts: tuple[str, ...]) -> str:
+    """Join path ``parts`` into a git tree path (always forward-slashed).
+
+    Git's ``HEAD:<path>`` object syntax and ``ls-files`` pathspec require
+    forward slashes. Rendering with ``str(Path(*parts))`` uses ``os.sep`` — a
+    backslash on Windows — which git rejects, making committed specs misreport
+    as uncommitted (#2836). ``PurePosixPath`` renders with ``/`` on every host,
+    closing the defect by construction: the string is built from the
+    separator-agnostic ``parts`` tuple, never re-parsed through a host-native
+    ``Path``.
+
+    This lives in ``kernel`` as the single behaviour-agnostic tree-path seam so
+    consumers in different layers (``specify_cli.missions._substantive`` and
+    ``cli.commands.agent.mission_finalize``) render tree paths identically
+    without importing from one another. It is the seam the #2836 regression is
+    witnessed against: because the bug is a POSIX/Windows *rendering* difference
+    it cannot be caught by a black-box input test on POSIX, so the guard
+    substitutes ``PureWindowsPath`` for the module ``Path`` symbol to prove a
+    reverted ``str(Path(*parts))`` form would reintroduce backslashes.
+    """
+    return PurePosixPath(*parts).as_posix() if parts else ""
+
+
+def repo_tree_path(file_path: Path, repo_root: Path) -> tuple[Path, str]:
+    """Return ``(git_cwd, tree_path)`` for a repo file; tree path forward-slashed.
+
+    ``git_cwd`` is the linked-worktree root when ``file_path`` lives under
+    ``.worktrees/<name>/`` — branch tree paths start at that worktree root, so a
+    file at ``.worktrees/<name>/kitty-specs/<slug>/spec.md`` is addressed as
+    ``kitty-specs/<slug>/spec.md`` — else the primary repo root. The tree path is
+    always forward-slashed via :func:`posix_tree_path` (#2836).
+
+    Canonical worktree-aware tree-path seam: both the committedness check
+    (``specify_cli.missions._substantive._git_commit_check_context``) and
+    finalize's branch-artifact reporting
+    (``cli.commands.agent.mission_finalize._branch_tree_relative_path``) route
+    through here, so the worktree-strip logic lives in exactly one place. Raises
+    ``ValueError`` when ``file_path`` is not under ``repo_root``.
+    """
+    repo_abs = repo_root.resolve()
+    rel = file_path.resolve().relative_to(repo_abs)
+    parts = rel.parts
+    if len(parts) > 2 and parts[0] == ".worktrees":
+        worktree_root = repo_abs / parts[0] / parts[1]
+        if worktree_root.is_dir():
+            return worktree_root, posix_tree_path(parts[2:])
+    return repo_abs, posix_tree_path(parts)
+
+
+__all__ = [
+    "get_kittify_home",
+    "get_package_asset_root",
+    "render_runtime_path",
+    "repo_tree_path",
+]
+# ``posix_tree_path`` is intentionally NOT exported: it is the internal
+# forward-slash-join primitive behind ``repo_tree_path`` (the public seam other
+# layers consume). It stays a module-level function so the #2836 regression
+# witness can substitute ``Path`` and call it directly, but it is not part of the
+# public API — keeping it out of ``__all__`` satisfies the dead-symbol gate.

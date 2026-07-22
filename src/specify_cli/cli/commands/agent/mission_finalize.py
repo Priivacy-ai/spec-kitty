@@ -41,6 +41,7 @@ from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
 
 from kernel._safe_re import re
+from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -172,15 +173,15 @@ def _validate_ownership_via_mission(
 
 
 def _branch_tree_relative_path(file_path: Path, repo_root: Path) -> str:
-    """Return the path as it appears in the current branch tree."""
-    repo_abs = repo_root.resolve()
-    rel = file_path.resolve().relative_to(repo_abs)
-    parts = rel.parts
-    if len(parts) > 2 and parts[0] == ".worktrees":
-        worktree_root = repo_abs / parts[0] / parts[1]
-        if worktree_root.is_dir():
-            return Path(*parts[2:]).as_posix()
-    return rel.as_posix()
+    """Return the path as it appears in the current branch tree.
+
+    Delegates to the canonical worktree-aware seam
+    (:func:`specify_cli.missions._substantive.repo_tree_path`) so the
+    worktree-strip and POSIX-normalization logic (#2836) lives in exactly one
+    place rather than being maintained as a second copy here. Raises
+    ``ValueError`` when ``file_path`` is not under ``repo_root`` (unchanged).
+    """
+    return repo_tree_path(file_path, repo_root)[1]
 
 
 def _collect_finalize_artifacts(
