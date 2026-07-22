@@ -21,7 +21,7 @@ gate. Run it when:
 
 See [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
 for the decision to ship it local-only, and the curated doctrine set in
-`src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml` and
+`src/doctrine/tactics/built-in/testing/mutation-testing-workflow.tactic.yaml` and
 `src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml` for
 how to write tests that kill mutants.
 
@@ -215,7 +215,7 @@ mode:
 - [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the decision record covering scope, doctrine, and the `non_sandbox`/`flaky`
   marker taxonomy.
-- [`src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml)
+- [`src/doctrine/tactics/built-in/testing/mutation-testing-workflow.tactic.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/tactics/built-in/testing/mutation-testing-workflow.tactic.yaml)
   — the five-step kill-the-survivor workflow.
 - [`src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml)
   — boundary-pair, non-identity-inputs, bi-directional-logic patterns.

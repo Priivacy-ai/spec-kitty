@@ -338,7 +338,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   exempts the historical `docs/adr/` and `docs/changelog/` trees. Also refreshes the `AGENTS.md`
   Canonical Kind Vocabulary table (`template` → `procedure`, adds the `glossary-pack` row) and
   retires the Contextive generated-file staleness test.
-
+- **The docs anti-sprawl structure ratchet (R1) is retired (#2851 follow-up).** The per-PR
+  blocking `anti_sprawl_ratchet.py --strict` step is removed from `docs-freshness.yml`, and
+  the script plus its orphaned `doctrine.directives.common_docs` constant (its only consumer)
+  and self-test are deleted. `DIRECTIVE_042`'s single-root / 13-section / no-shadow-tree policy
+  is unchanged — it remains a red-line integrity rule — but is now maintained by periodic bulk
+  curation rather than a per-PR CI gate, matching the operator's bulk-remediation ops intent and
+  trimming a blocking CI step. The other docs rulers (R2 related-edge validator, R3 lockfile
+  freshness, description-length and body-link gates) are unaffected and stay blocking.
 - **Runtime-state corpus cutover completed; the phase-1 dual-write flag is deleted (#2816, #2848).**
   Completes the #2684 / #2093 eviction. WP runtime state — lane, claim, `agent`/`assignee`,
   `shell_pid`, subtask completion, `tracker_refs`, review-cycle fields, and resolved

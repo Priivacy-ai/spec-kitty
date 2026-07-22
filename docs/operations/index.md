@@ -2,14 +2,16 @@
 title: Operations
 description: 'Durable operational runbooks for Spec Kitty: deployment, CI/CD setup, and standing CI-gate procedures that outlive any single mission.'
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-07-22'
 related:
 - docs/configuration/index.md
 - docs/guides/index.md
 - docs/index.md
 - docs/operations/identity-boundary-ci-gate.md
+- docs/operations/internal-hosted-readiness.md
 - docs/operations/recovery-index.md
 - docs/operations/ssh-deploy-keys.md
+- docs/operations/sync-daemon-orphan-cleanup.md
 - docs/plans/index.md
 ---
 # Operations
@@ -24,6 +26,8 @@ across missions (unlike the effort-scoped notes that live under
 - [SSH deploy-key setup for CI/CD](ssh-deploy-keys.md) — one-time deploy-key provisioning runbook.
 - [Identity-boundary CI gate](identity-boundary-ci-gate.md) — the `drift-detector` required check and its cross-repo SHA-bump procedure.
 - [Recovery guides](recovery-index.md) — task-oriented recovery procedures, including [logged-out on a connected teamspace](logged-out-teamspace.md).
+- [Sync daemon orphan cleanup](sync-daemon-orphan-cleanup.md) — operator runbook for stale sync daemons.
+- [Internal hosted-readiness mode (pre-launch)](internal-hosted-readiness.md) — the hidden SaaS rollout-gate path for internal dogfooding, not for end users.
 
 ## See also
 

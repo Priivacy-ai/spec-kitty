@@ -1,6 +1,13 @@
 ---
 title: Quality & Tech-Debt Standing Orders
 description: "Eight-section standing orders for spec-driven missions: adversarial squads, campsite cleaning, test discipline, architectural gates, sources, git workflow, and mission hygiene."
+doc_status: active
+updated: '2026-07-22'
+type: how-to
+related:
+- docs/development/index.md
+- docs/development/testing-flakiness.md
+- docs/development/pr-landing.md
 ---
 
 # Quality & Tech-Debt Standing Orders

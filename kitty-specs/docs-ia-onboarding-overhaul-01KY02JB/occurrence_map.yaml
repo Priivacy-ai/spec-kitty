@@ -170,6 +170,30 @@ moves:
       the 13-section layout (serialized_keys: manual_review). Listed here to
       mark them as reviewer-approved touch points of the restructure.
 
+  # --- #2851 docs/development redistribution: third-hop collapse override ---
+  # WP01 of this mission (below) relocated docs/guides/internal-hosted-readiness.md
+  # -> docs/development (contributor-only reclass, FR-003), and the WP01 how-to
+  # override (below) collapsed the pre-existing how-to->guides->development
+  # chain for the same file down to one hop. A later docs-CI hygiene pass
+  # (#2851, outside this mission) redistributed docs/development by concern and
+  # relocated this operator runbook one hop further, to docs/operations. The
+  # generator resolves a baseline URL through its FIRST matching `moves:` entry
+  # only (no multi-hop chaining), so this override MUST be listed before both
+  # of those entries to win the match — collapsing the full
+  # guides/how-to -> development -> operations chain into the final live
+  # destination, so neither historical baseline redirect stub is dead.
+  - from:
+      - docs/guides/internal-hosted-readiness.md
+      - docs/how-to/internal-hosted-readiness.md
+    to: docs/operations
+    reason: >-
+      #2851 docs/development redistribution moved this operator runbook to
+      docs/operations; this override collapses the guides/how-to ->
+      development -> operations chain to the final destination so the two
+      pre-#2851 baseline URLs (guides/internal-hosted-readiness.html,
+      how-to/internal-hosted-readiness.html) redirect correctly instead of
+      pointing at the now-vacated development/ path.
+
   # --- Divio → 13-section re-section (FR-009) — IC-01 CORRECTION (was MISSING) ---
   # The existing docs/ Divio dirs (how-to/reference/explanation/tutorials/recovery)
   # are PUBLISHED (120 of WP02's 168 baseline URLs) but the original moves: spine
@@ -281,3 +305,26 @@ moves:
   # by the two-hop override near the top of this file's "existing docs/
   # Divio dirs" section (must precede the generic docs/tutorials -> docs/guides
   # bucket move to win first-match resolution) — not repeated here.
+
+  # --- #2851 docs/development redistribution (audit-trail; no baseline URL) ---
+  # These 2 files carry no published URL in WP02's baseline manifest (they were
+  # created after that snapshot, inside docs/development, by the
+  # common-docs-structural-move mission itself) — so unlike
+  # internal-hosted-readiness above, no historical redirect stub is required
+  # (NFR-002 only protects baseline-era URLs). Recorded here for moves: spine
+  # lineage completeness; verified inert for derive_redirect_map (neither
+  # development/sync-daemon-orphan-cleanup.html nor
+  # development/terminology-sweep-report.html appears in
+  # redirect_baseline_urls.json).
+  - from: ["docs/development/sync-daemon-orphan-cleanup.md"]
+    to: docs/operations
+    reason: >-
+      #2851: sync-daemon operator runbook redistributed development ->
+      operations (durable ops content); no baseline URL, no redirect entry
+      required.
+  - from: ["docs/development/terminology-sweep-report.md"]
+    to: docs/plans/engineering-notes
+    reason: >-
+      #2851: terminology-sweep report redistributed development ->
+      plans/engineering-notes (ephemeral tracking doc, distil-then-retire); no
+      baseline URL, no redirect entry required.

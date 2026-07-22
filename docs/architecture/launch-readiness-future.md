@@ -14,7 +14,7 @@ audience: launch coordinators
 > experience, see the [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md). For the internal
 > hosted-readiness preview that lets contributors dogfood the hidden
 > mode now, see
-> [Internal Hosted-Readiness Mode (Pre-Launch)](../development/internal-hosted-readiness.md).
+> [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md).
 
 ## Why this doc exists
 
@@ -51,7 +51,7 @@ the launch flip. They remain internal developer tools — they are not
 user behavior either before or after launch. Internal contributors
 who need to point a session at a dev or staging hosted environment
 continue to use the workflow documented in
-[Internal Hosted-Readiness Mode (Pre-Launch)](../development/internal-hosted-readiness.md).
+[Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md).
 
 In other words: **the dev/staging override path is the same forever;
 only the user-facing defaults change at launch.**
@@ -166,7 +166,7 @@ editorial rule. It is what keeps the launch honest.
 
 ## Related
 
-- [Internal Hosted-Readiness Mode (Pre-Launch)](../development/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md)
   — the active dogfooding doc for today.
 - [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md)
   — the recovery contract that ships at launch unchanged.

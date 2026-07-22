@@ -51,8 +51,10 @@ integrity_rules:
     Superseded).
   - Every `related:` entry must resolve to an existing repo-relative `.md` path.
 validation_criteria:
-  - The structure ratchet confirms a single Common Docs root with all 13 sections
-    present and no shadow tree.
+  - The single-root / 13-section structure and the no-shadow-tree rule are
+    maintained by periodic bulk curation and review (the per-PR anti-sprawl
+    structure ratchet was retired); a second root or per-version shadow tree
+    remains a red-line violation caught at review time.
   - The page-inventory lockfile freshness gate confirms the rollup matches a fresh
     regeneration from frontmatter.
   - No documentation frontmatter uses a bare `status` key for the doc lifecycle

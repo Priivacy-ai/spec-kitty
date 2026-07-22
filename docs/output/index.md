@@ -4,7 +4,7 @@ description: 'Placeholder for the documentation mission type''s generic delivera
 doc_status: active
 updated: '2026-07-21'
 related:
-- docs/development/terminology-sweep-report.md
+- docs/plans/engineering-notes/terminology-sweep-report.md
 ---
 # docs/output/
 
@@ -18,4 +18,4 @@ output tree. This directory exists only to satisfy the mission type's generic pa
 check; it intentionally has no other content.
 
 Full deliverable record: `kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md` and
-`docs/development/terminology-sweep-report.md`.
+`docs/plans/engineering-notes/terminology-sweep-report.md`.

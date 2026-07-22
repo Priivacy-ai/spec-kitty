@@ -2,7 +2,7 @@
 title: Internal Hosted-Readiness Mode (Pre-Launch)
 description: 'How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch).'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-22'
 type: how-to
 related:
 - docs/guides/upgrade-cli.md

@@ -122,7 +122,7 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Internal Hosted-Readiness (Pre-Launch)](../development/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness (Pre-Launch)](../operations/internal-hosted-readiness.md)
   for the full operator walkthrough of the hidden hosted-readiness
   mode this flag enables today.
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
@@ -142,7 +142,7 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Internal Hosted-Readiness (Pre-Launch)](../development/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness (Pre-Launch)](../operations/internal-hosted-readiness.md)
   -- this URL override is a dev / staging tool used by internal
   operators, not user behavior.
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)

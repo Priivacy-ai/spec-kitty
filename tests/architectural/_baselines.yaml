@@ -37,11 +37,11 @@ test_no_dead_modules:
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
   # src/ caller via MissionTypeRepository (WP14 mission-type commands).
   # 3 -> 4 (common-docs-consolidation post-merge remediation): added
-  # doctrine.directives.common_docs, a constant module (COMMON_DOCS_DIRECTIVE_ID,
-  # the Common Docs directive-id SSOT) consumed by
-  # scripts/docs/anti_sprawl_ratchet.py -- wired from scripts/, not src/, the
-  # same "build-script-consumed" pattern as the schema generators.
-  category_2_build_schema_generators: 4  # justification: doctrine.directives.common_docs consumed from scripts/docs, not src/
+  # doctrine.directives.common_docs, a constant module (COMMON_DOCS_DIRECTIVE_ID)
+  # consumed by scripts/docs/anti_sprawl_ratchet.py.
+  # 4 -> 3 (#2851 follow-up: anti-sprawl ratchet retired): the ratchet was its
+  # only consumer, so doctrine.directives.common_docs was deleted with it.
+  category_2_build_schema_generators: 3  # justification: 3 schema generator modules consumed by scripts/generate_schemas.py
   # justification: 1 external/CLI entry point invoked outside the
   # spec-kitty import graph (commit_guard_hook). Shrunk from 4 by
   # retire-standalone-tasks-cli WP04 (FR-007): the 3 standalone-tasks-surface

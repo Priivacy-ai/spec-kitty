@@ -166,7 +166,7 @@ Deeper topics:
 
 Hosted auth, sync, and tracker flows remain opt-in. For setup details, see
 [Hosted Sync Workspaces](docs/guides/sync-workspaces.md), [Internal
-Hosted-Readiness](docs/development/internal-hosted-readiness.md), and
+Hosted-Readiness](docs/operations/internal-hosted-readiness.md), and
 [Launch-Readiness Behavior](docs/architecture/launch-readiness-future.md).
 
 ## FAQ

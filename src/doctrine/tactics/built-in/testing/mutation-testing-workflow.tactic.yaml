@@ -14,6 +14,7 @@ steps:
     examples:
       - "git diff main...HEAD --name-only | grep '\\.py$' | grep -v 'test_'"
       - "Prioritise functions with >= / <= guards, AND/OR chains, or any()/all() calls."
+      - "On a module that produces hundreds of mutants, sample 10-15% spread across all its functions before writing exhaustive tests — a small, varied sample is enough to reveal every recurring mutation pattern in the module."
   - title: Generate mental mutants
     description: >
       For each function, mentally apply operator mutations and ask whether an
@@ -53,6 +54,7 @@ failure_modes:
   - "Focusing exclusively on high mutation score rather than on meaningful, maintainable tests."
   - "Accepting 'no coverage' as equivalent to 'equivalent' — the former requires a test, the latter does not."
   - "Running mutation testing on generated, migrated, or boilerplate code where survivors are always equivalent."
+  - "Writing one test per surviving mutant instead of one pattern-based test that kills the whole family — a single well-chosen assertion can kill 3-10 related mutants at once."
 notes: >
   Target mutation scores: < 60% indicates structurally weak tests; 60–80%
   moderate — many improvements possible; 80–90% good; > 90% strong — watch for

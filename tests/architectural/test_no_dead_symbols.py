@@ -700,20 +700,6 @@ _CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
 )
 
 
-# ---------- C. Common Docs directive-id SSOT (scripts/-consumed) ----------
-# ``COMMON_DOCS_DIRECTIVE_ID`` is the single source of truth for the Common
-# Docs directive id. Its only callers are scripts/ + tests/, not src/, so
-# the qualified-import scanner sees no src/ caller. Allowlisted instead of
-# manufacturing a fake src/ caller.
-
-_CATEGORY_C_COMMON_DOCS_RATCHET_CONSTANT: frozenset[SymbolKey] = frozenset(
-    {
-        # doctrine.directives.common_docs::COMMON_DOCS_DIRECTIVE_ID
-        SymbolKey("COMMON_DOCS_DIRECTIVE_ID", "c5307876959d5ba1a91eff06c1116ad95e31fa496d4308a6183c0a5da326e0c8"),
-    }
-)
-
-
 # ---------- C. event-sync retention/delivery mission public surface ----------
 # Mission ``event-sync-retention-delivery-01KVYWRG`` (#2124) shipped two new
 # domains plus a ``sync.migrate_journal`` migration. The names below are the
@@ -948,7 +934,6 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     _CATEGORY_A_SLICE_F_DEFERRED
     | _CATEGORY_B_GRANDFATHERED_LEGACY
     | _CATEGORY_B_T001_UNBLINDED
-    | _CATEGORY_C_COMMON_DOCS_RATCHET_CONSTANT
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE

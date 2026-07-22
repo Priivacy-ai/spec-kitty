@@ -1,6 +1,13 @@
 ---
 title: UI End-to-End Tests (Playwright)
 description: How to boot the synthetic dashboard fixture and write a Playwright e2e test that regression-guards Mission dashboard UI rendering.
+doc_status: active
+updated: '2026-07-22'
+type: how-to
+related:
+- docs/development/index.md
+- docs/development/review-gates.md
+- docs/development/testing-parallel.md
 ---
 
 # UI End-to-End Tests (Playwright)

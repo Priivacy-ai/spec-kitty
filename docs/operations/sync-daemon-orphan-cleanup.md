@@ -1,6 +1,10 @@
 ---
 title: Sync Daemon Orphan Cleanup — Operator Runbook
 description: How to inspect, classify, and clean up stale Spec Kitty sync daemons.
+doc_status: active
+updated: '2026-07-22'
+related:
+- docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md
 ---
 
 # Sync Daemon Orphan Cleanup — Operator Runbook
@@ -17,21 +21,21 @@ scripting, and the hosted-auth/sync test environment gate.
 
 ## Why orphans accumulate
 
-Normal `spec-kitty` upgrades leave the prior sync daemon running. Before this
-mission shipped, the reaper skipped any candidate whose interpreter identity
+Normal `spec-kitty` upgrades leave the prior sync daemon running. Earlier
+reaper implementations skipped any candidate whose interpreter identity
 differed from the current process — so every version upgrade made the prior
-daemon permanently un-reapable. On one machine this produced 18 orphans on
-ports `9401–9418` spanning versions `3.2.2`, `3.2.3`, and `3.2.4`.
+daemon permanently un-reapable, and orphans would accumulate across
+upgrades on a single machine.
 
-Starting from this release, the reaper uses the **daemon-root scope marker**
+The reaper now uses the **daemon-root scope marker**
 (`--spec-kitty-daemon-root=<path>` embedded in the daemon's command line) as
 the primary kill authority. Executable or interpreter identity is stale-version
 *evidence only*, not a skip gate. Same-scope daemons from any prior version are
-now auto-cleaned at startup.
+auto-cleaned at startup.
 
 ---
 
-## The two-command operator path (SC-005)
+## The two-command operator path
 
 You have accumulated old sync daemons — for example, after several upgrades.
 
@@ -120,7 +124,7 @@ The following are **always** excluded from sync cleanup regardless of any
 other identity signal:
 
 - **Dashboard daemons** (`DaemonIntent.LOCAL_ONLY`, ports `9237–9336`). Sync
-  and dashboard daemon lifecycles are fully separate (C-001, C-002).
+  and dashboard daemon lifecycles are fully separate.
 - **Third-party applications** squatting on a port in `[9400, 9450)`. A
   foreign health response causes immediate `never_touch` classification.
 - **Out-of-range processes** (outside `[9400, 9450)`).
@@ -153,7 +157,7 @@ is silently dropped from the result.
 
 ---
 
-## Hosted auth / sync test environment gate (C-006)
+## Hosted auth / sync test environment gate
 
 On this development machine, hosted auth/sync test commands require the
 `SPEC_KITTY_ENABLE_SAAS_SYNC=1` environment variable:
@@ -175,17 +179,17 @@ The venv is assumed warm. The live-subprocess test suite uses real loopback
 ports and real PIDs; run it serially:
 
 ```bash
-# Classification + reset (WP03 / T029):
+# Classification + reset
 PWHEADLESS=1 .venv/bin/pytest tests/sync/test_daemon_orphan_classification.py -n0 -q
 
-# Boundary regression matrix (WP07 / T032–T035):
+# Boundary regression matrix
 PWHEADLESS=1 .venv/bin/pytest tests/sync/test_daemon_cleanup_boundary.py -n0 -q
 
-# #1071 singleton reconfirmation (WP08 / T038):
+# #1071 singleton reconfirmation
 PWHEADLESS=1 .venv/bin/pytest tests/sync/test_issue_1071_singleton_reconfirmation.py -n0 -q
 ```
 
-Lint and type gates (NFR-005):
+Lint and type gates:
 
 ```bash
 .venv/bin/ruff check src/specify_cli/sync tests/sync
@@ -194,23 +198,17 @@ Lint and type gates (NFR-005):
 
 ---
 
-## #1071 status
+## #1071 regression coverage
 
-Issue [#1071](https://github.com/Priivacy-ai/spec-kitty/issues/1071) (same-`$HOME`
-singleton leak — multiple same-scope sync daemons accumulating under one
-`$HOME`/runtime root) is **reconfirmed resolved** by the automated regression test
-`tests/sync/test_issue_1071_singleton_reconfirmation.py`.
+Issue [#1071](https://github.com/Priivacy-ai/spec-kitty/issues/1071) tracked a
+same-`$HOME` singleton leak — multiple same-scope sync daemons accumulating
+under one `$HOME`/runtime root. That leak is covered by the automated
+regression test `tests/sync/test_issue_1071_singleton_reconfirmation.py`,
+which spawns multiple same-scope sync daemons under a single shared
+`$HOME`/daemon-root, invokes the canonical reaper (`reap_orphan_daemons`),
+and asserts that stale same-scope daemons are reaped and exactly **one**
+singleton survives — no leak.
 
-The test reproduces the #1071 scenario: it spawns multiple same-scope sync
-daemons under a single shared `$HOME`/daemon-root, invokes the canonical reaper
-(`reap_orphan_daemons`), and asserts that stale same-scope daemons are reaped
-and exactly **one** singleton survives — no leak.
-
-**Recommended action:** Close issue #1071, citing
-`tests/sync/test_issue_1071_singleton_reconfirmation.py` as durable test
-evidence. The operator performs the GitHub close action; it is not performed
-automatically.
-
-If any residual same-`$HOME` leak is found in the future, open a new scoped
-issue rather than re-opening #1071, and add a targeted test case to the
-reconfirmation suite.
+If a residual same-`$HOME` leak is found in the future, open a new scoped
+issue and add a targeted test case to the reconfirmation suite rather than
+reworking this test.

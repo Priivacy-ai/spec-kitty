@@ -175,3 +175,35 @@ git checkout -- <file>
 | 80–90 % | Good |
 | 60–80 % | Moderate — improvements possible |
 | < 60 % | Structurally weak — tests don't assert behaviour |
+
+---
+
+## mutmut 3.x-Specific Gotchas
+
+- **`mutmut results` shows only survivors.** Killed mutants are filtered out of the
+  summary table, so it cannot be used to compute a kill rate directly. Read the
+  `.meta` JSON files under `mutants/` to count kills:
+
+  ```python
+  import json
+  from pathlib import Path
+
+  killed = survived = 0
+  for f in Path("mutants").rglob("*.meta"):
+      for v in json.load(open(f))["exit_code_by_key"].values():
+          if v == 0:
+              survived += 1
+          elif v is not None:
+              killed += 1
+  print(f"{100 * killed / (killed + survived):.1f}%")
+  ```
+
+- **Default-argument mutations are invisible by design.** mutmut 3.x replaces every
+  function with a trampoline dispatcher that always passes arguments as explicit
+  kwargs, so a mutation like `force=False` → `force=True` never changes runtime
+  behaviour. Treat these as equivalent mutants — no test can kill them.
+
+- **A targeted `mutmut run <specific>` clears that module's `.meta` file**, discarding
+  the kill/survive status of every other mutant in it. Establish and record a full
+  baseline run first; only run targeted/incremental passes afterwards, or use a
+  separate `mutants/` directory for the targeted session.

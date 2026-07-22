@@ -2,7 +2,7 @@
 title: Development
 description: The contributor/maintainer zone for Spec Kitty — landing PRs, the test suite, release process, and CI/operator internals — kept separate from end-user guides.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-07-22'
 related:
 - docs/configuration/index.md
 - docs/guides/index.md
@@ -21,8 +21,13 @@ no contributor-only page is reachable from end-user navigation.
 
 - [Contributing to Spec Kitty](contributing.md) — developer setup, running tests, submitting PRs, AI-assistance disclosure, and the release process.
 - [Review gates: pre-PR / pre-review checklist](review-gates.md) — the hygiene steps to run locally before requesting review.
-- [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
 - [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs across `spec-kitty-cli`/`-events`/`-tracker` that must never be committed.
+
+## Maintainer guides
+
+Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not general contributors.
+
+- [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
 
 ## Testing the Spec Kitty codebase
@@ -38,10 +43,8 @@ no contributor-only page is reachable from end-user navigation.
 
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
 - [UI end-to-end tests (Playwright)](ui-e2e.md) — the dashboard browser-regression suite.
-- [Sync daemon orphan cleanup](sync-daemon-orphan-cleanup.md) — operator runbook for stale sync daemons.
 - [Quality & tech-debt standing orders](quality-and-tech-debt-standing-orders.md) — the eight standing practices for spec-driven missions.
 - [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
-- [Internal hosted-readiness mode (pre-launch)](internal-hosted-readiness.md) — the hidden SaaS rollout-gate path for internal dogfooding, not for end users.
 
 ## Non-page artifacts
 
@@ -51,7 +54,6 @@ no contributor-only page is reachable from end-user navigation.
   `version_leakage_check.py`, `_inventory.py`) reads it at this stable path.
   A regression guard (`tests/docs/test_inventory_path_stable.py`) asserts the
   path cannot silently move.
-- **`mutation-testing-tactic.yaml`** — a doctrine tactic artifact (non-page).
 
 ## See also
 
