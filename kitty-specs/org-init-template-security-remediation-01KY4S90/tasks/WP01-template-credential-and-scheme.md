@@ -10,6 +10,9 @@ tracker_refs: []
 planning_base_branch: feat/doctrine-org-init-from-template
 merge_target_branch: feat/doctrine-org-init-from-template
 branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-org-init-from-template. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-org-init-from-template unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-org-init-template-security-remediation-01KY4S90
+base_commit: dd56dd53d4f80079dab9c969c7dd6e85fb516bda
+created_at: '2026-07-22T11:53:45.666536+00:00'
 subtasks:
 - T001
 - T002
@@ -18,6 +21,7 @@ subtasks:
 phase: Phase 1 - Credential and scheme
 assignee: ''
 agent: cursor
+shell_pid: '65016'
 history:
 - at: '2026-07-22T11:45:00Z'
   actor: system

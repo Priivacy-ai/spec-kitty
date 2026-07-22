@@ -11,5 +11,7 @@
   "purpose_tldr": "Harden doctrine org init --template against token leak, symlink exfil, and path-token gaps per PR #2719 review.",
   "slug": "org-init-template-security-remediation-01KY4S90",
   "target_branch": "feat/doctrine-org-init-from-template",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T11:53:43.596879+00:00"
 }
