@@ -196,14 +196,35 @@ terms:
   status: active
   surface: feature branch
 - confidence: 1.0
-  definition: The human-readable title string of a mission, used for display in 
-    dashboards and logs. Mutable — changing it does not affect routing or 
+  definition: The human-readable title string of a mission, used for display in
+    dashboards and logs. Mutable — changing it does not affect routing or
     identity.
   status: active
   surface: friendly_name
+- confidence: 0.95
+  definition: A versioned doctrine declaration attaching a named gate handler to
+    a status-transition edge (`{on_transition, handler, handler_kind, schema_version,
+    fail_open, provenance}`), authored on the review `MissionStepContract`. A
+    binding is a field/relationship, not a standalone artefact. Do NOT confuse
+    with the five pre-existing `*gate*` senses (branch strategy gate / diff
+    compliance gate / dependency gate / merge dependency gate / sonar quality
+    gate) — those are unrelated one-off guards, not doctrine-resolved lane-edge
+    checks.
+  status: active
+  surface: gate binding
+- confidence: 0.95
+  definition: A named, dispatchable check registered in `GATE_REGISTRY`; the
+    Spec-Kitty pre-review engine is the first handler, keyed to the `for_review`
+    edge. Registry membership is the callable source; activation decides whether
+    it runs. Do NOT confuse with the five pre-existing `*gate*` senses (branch
+    strategy gate / diff compliance gate / dependency gate / merge dependency
+    gate / sonar quality gate) — those are unrelated one-off guards, not
+    doctrine-resolved dispatch callables.
+  status: active
+  surface: gate handler
 - confidence: 0.75
-  definition: The middleware enforcement point in the agent pipeline where 
-    glossary semantic checks are applied before generation proceeds. Configured 
+  definition: The middleware enforcement point in the agent pipeline where
+    glossary semantic checks are applied before generation proceeds. Configured
     by the strictness setting.
   status: draft
   surface: glossary chokepoint
@@ -682,6 +703,17 @@ terms:
     action, and bypass usage.
   status: active
   surface: encoding provenance
+- confidence: 0.95
+  definition: A check that must pass before a work-package status-transition edge
+    (e.g. `in_progress->for_review`) is allowed. Resolved from the repo's active
+    doctrine and dispatched through the inverted move-task hook (`_mt_run_transition_gates`);
+    the flagship handler is the scoped pre-review regression check. Do NOT confuse
+    with the five pre-existing `*gate*` senses (branch strategy gate / diff
+    compliance gate / dependency gate / merge dependency gate / sonar quality
+    gate) — those are unrelated one-off guards, not doctrine-resolved lane-edge
+    checks.
+  status: active
+  surface: transition gate
 - confidence: 0.95
   definition: "An operator-chosen override of the encoding chokepoint's hard-fail
     behavior; uses the highest-confidence decode candidate and records `bypass_used:
