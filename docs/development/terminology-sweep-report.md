@@ -70,6 +70,12 @@ occurrences anywhere this mission touched. No fixes were needed.
 
 ### `test_glossary_canonical_terms.py` — mission scope clean; pre-existing drift outside scope remains
 
+> **Update (#2830, 2026-07-22):** the 200 pre-existing occurrences described below as
+> "left untouched" have since been fully paid down in a follow-up pass. The baseline-ratchet
+> escape hatch (`glossary_canonical_terms_baseline.txt`) was retired and the gate now enforces
+> **zero** non-canonical occurrences repo-wide. The paragraph below is preserved as the
+> historical record of the introducing mission's scope.
+
 This test (added by WP09) scans all of `docs/**/*.md` for the 104-term live glossary seed's
 multi-word surfaces (`.kittify/glossaries/spec_kitty_core.yaml`) in non-canonical casing. On the
 full `docs/` tree it initially reported **274 flagged occurrences**. Cross-referencing every

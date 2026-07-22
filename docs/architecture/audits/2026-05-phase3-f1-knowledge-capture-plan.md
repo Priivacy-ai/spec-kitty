@@ -7,7 +7,7 @@ updated: '2026-05-11'
 # F1 Knowledge-Capture Plan
 
 > Anchored in the CaaCS audit's Finding F1 (bus factor = 1 across 14/15 src/ hotspots).
-> Honors Decision Moment **DM-D**: *document/transfer first, then refactor*.
+> Honors decision moment **DM-D**: *document/transfer first, then refactor*.
 
 **Status:** proposed plan, no work scheduled yet.
 **Author:** Planner Priti (ad-hoc planning session, 2026-05).

@@ -33,7 +33,7 @@ If the JSON shows the current branch, `planning_base_branch`, and `merge_target_
 
 This is the simplest way to keep `main` clean: start from `main`, your release branch, or your mission integration branch before planning begins.
 
-## Pick an Explicit Target Branch
+## Pick an Explicit target branch
 
 If you want to plan from the repository root checkout but land somewhere other than the current branch, name it explicitly:
 
@@ -60,7 +60,7 @@ If the feature should actually land on `main`, either:
 
 Do not treat `main` as a synonym for "the repository root checkout."
 
-## Plan in the Repository Root Checkout, Implement in Worktrees
+## Plan in the repository root checkout, Implement in Worktrees
 
 The normal flow is:
 

@@ -43,7 +43,7 @@ Packaged mission defaults for 2.x live under doctrine:
 
 Each mission-type directory contains a `mission-runtime.yaml` (step DAG, guards, artifacts) and a set of command templates that are deployed to agent directories.
 
-## The Hierarchy: Mission Type, Mission, Work Package, Execution Workspace
+## The Hierarchy: Mission Type, Mission, work package, Execution Workspace
 
 Understanding how the pieces nest is key to understanding Spec Kitty:
 
@@ -52,7 +52,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
   |
   +-- Mission (concrete tracked item, in kitty-specs/###-name/)
         |
-        +-- Work Package (one parallelizable slice, tasks/WP01.md)
+        +-- work package (one parallelizable slice, tasks/WP01.md)
               |
               +-- Execution Workspace (isolated git worktree, usually .worktrees/###-name-lane-a/)
 ```
@@ -60,7 +60,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
 - **Mission Type** -- selected when the mission is created; determines actions, artifacts, and guards.
 - **Mission** -- stored in `kitty-specs/###-name/`; linked to its mission type via `meta.json`.
 - **Feature** -- legacy software-dev alias for a mission.
-- **Work Package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
+- **work package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
 - **Execution Workspace** -- the git worktree resolved for implementation. The runtime creates exactly one worktree per execution lane, and sequential WPs in the same lane reuse that worktree.
 
 Different missions in the same project can use different mission types simultaneously.

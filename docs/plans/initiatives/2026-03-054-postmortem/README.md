@@ -94,7 +94,7 @@ updated: '2026-04-05'
 | `initiatives/2026-03-doctrine-execution-integration/README.md` | Phase 1 status is "In Progress" but feature 054 is complete | Update Phase 1 to "Complete" with completion date. Note remaining deployment item (m_2_0_2 migration for slimmed templates). |
 | `04_implementation_mapping/README.md` | Table row for Agent Tool Connectors still says `src/specify_cli/missions/*/command-templates/` | Update to reflect `src/doctrine/missions/*/command-templates/` as new source (WP11/WP12). |
 | `04_implementation_mapping/README.md` | "What is emerging or aspirational" table lists "Charter compiler consumes Doctrine" as emerging | Move to "What exists and works today" — this is now fully implemented. |
-| `04_implementation_mapping/README.md` | Charter components table is incomplete | Add Action Context Resolver `charter/context.py` as distinct component with depth semantics and action index intersection. |
+| `04_implementation_mapping/README.md` | Charter components table is incomplete | Add action context Resolver `charter/context.py` as distinct component with depth semantics and action index intersection. |
 | `03_components/README.md` | Component diagram does not show ActionIndex or ContextBootstrap | Add ActionIndex as a component within Doctrine, and ContextBootstrap as a component within Charter. |
 
 ### Should update (alignment)

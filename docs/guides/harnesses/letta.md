@@ -32,7 +32,7 @@ Promotion to `supported` requires at least one documented smoke test against a r
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Letta Code consumes Spec Kitty as Agent Skills. Spec Kitty installs:
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Letta Code consumes Spec Kitty as agent skills. Spec Kitty installs:
 
 - **Directory:** `.agents/skills/spec-kitty.<command>/`
 - **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).

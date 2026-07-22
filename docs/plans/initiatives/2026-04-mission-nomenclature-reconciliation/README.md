@@ -18,7 +18,7 @@ with:
 
 - `Feature` retained only as a software-dev compatibility alias
 - `Workflow` demoted to umbrella prose
-- `Step Contract` and `Procedure` kept as distinct doctrine/runtime layers
+- `step contract` and `Procedure` kept as distinct doctrine/runtime layers
 
 ## Success Criteria
 
@@ -29,7 +29,7 @@ with:
 3. `mission_run_id` is used only for runtime/session identity.
 4. `feature_slug` is either removed, dual-written as a compatibility alias, or
    explicitly marked deprecated wherever it remains.
-5. `Step Contract` and `Procedure` mean the same thing in doctrine docs, CLI
+5. `step contract` and `Procedure` mean the same thing in doctrine docs, CLI
    help text, prompt templates, and UI copy.
 
 ## Canonical Target Vocabulary
@@ -39,9 +39,9 @@ with:
 | `Mission Type` | Reusable workflow blueprint | Examples: `software-dev`, `research`, `documentation` |
 | `Mission` | Concrete tracked item under `kitty-specs/<slug>/` | Generic tracked-item noun across all mission types |
 | `Mission Run` | Runtime/session instance | Runtime-only; never a synonym for the tracked mission |
-| `Work Package` | Planning/review slice inside a mission | `WPxx` artifacts and status |
+| `work package` | Planning/review slice inside a mission | `WPxx` artifacts and status |
 | `Mission Action` | Outer lifecycle action | `specify`, `plan`, `implement`, `review`, etc. |
-| `Step Contract` | Structured contract for one mission action | Internal decomposition of an action |
+| `step contract` | Structured contract for one mission action | Internal decomposition of an action |
 | `Procedure` | Reusable doctrine subworkflow | Delegated to by a step contract |
 | `Feature` | Compatibility alias for a software-dev mission | Not canonical product language |
 | `Workflow` | Umbrella prose only | Replace with specific nouns in technical surfaces |
@@ -77,7 +77,7 @@ Tasks:
 - Update `glossary/historical-terms.md` so `Feature` is marked as a
   compatibility alias, not a co-equal current term.
 - Add or update glossary entries for `Mission Type`, `Mission Action`,
-  `Step Contract`, and `Procedure` where needed.
+  `step contract`, and `Procedure` where needed.
 - Add one short glossary note that `workflow` is generic prose, not a primary
   domain object.
 - Update architecture and explanation docs that currently mix

@@ -486,8 +486,11 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 |-------|----------------|
 | `agent-profile` | `agent_profile` |
 | `mission-step-contract` | `mission_step_contract` |
-| `directive` / `tactic` / `styleguide` / `toolguide` / `paradigm` / `template` | (same) |
+| `glossary-pack` | `glossary_pack` |
+| `directive` / `tactic` / `styleguide` / `toolguide` / `paradigm` / `procedure` | (same) |
 | `mission-type` | raises `MissionTypeNotAnArtifactKind` |
+
+`template`, `asset`, and `anti_pattern` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially and are excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS` (`src/doctrine/artifact_kinds.py`). The tokens above (plus `mission-type`) are the charter-activatable vocabulary (`CHARTER_KIND_TOKENS`).
 
 ### `specializes_from` DRG Lineage
 

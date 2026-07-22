@@ -74,7 +74,7 @@ agents:
 
 The `available` field contains a list of active agent keys. Each key corresponds to a managed command surface:
 - `claude` → `~/.claude/commands/` (global)
-- `codex` → `.agents/skills/spec-kitty.<command>/` (project-local Agent Skills)
+- `codex` → `.agents/skills/spec-kitty.<command>/` (project-local agent skills)
 - `opencode` → `~/.opencode/command/` (global)
 
 When you run `spec-kitty agent config add` or `remove`, this list is automatically updated. Global slash-command files are refreshed by normal CLI startup; Codex, Vibe, Pi, and Letta command skills are managed inside the project.

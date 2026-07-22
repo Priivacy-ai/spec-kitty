@@ -105,7 +105,7 @@ A maintainer runs `charter synthesize` on an empty/first-run project. It must no
 - **SC-004**: `charter synthesize` on an empty config demands 0 companion tactics (first-run parity restored).
 - **SC-005**: Full gate green; #2581/#2573/#2549(B)/#2577 addressed; #2582/#2583 tracked as ops; epics stay open.
 
-## Proposed Work Package Outline (for /tasks materialization)
+## Proposed work package outline (for /tasks materialization)
 
 - **WP01 — Topology default (FR-001)**: `mission_create.py` + `core/mission_creation.py`; red-first feature-branch test. Independent. Closes #2581.
 - **WP02 — Pre-review-gate skip/env/progress (FR-002/003, C-001)**: `tasks_move_task.py::_mt_run_pre_review_gate` + `review/pre_review_gate.py`; flag + env + progress tests. Closes #2573 (partial). *Owned-files note: overlaps the #2576 rollback seam module — coordinate if coord-shadows PR #2584 unmerged.*

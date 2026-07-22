@@ -117,7 +117,7 @@ If you encounter a resolution failure:
 ## 5. Handle blocked decisions
 
 When a mission action encounters a question that requires a concrete answer before proceeding,
-the mission opens a Decision Moment and blocks. `spec-kitty next` will return with
+the mission opens a decision moment and blocks. `spec-kitty next` will return with
 `mission_state: "blocked"` or `result: "blocked"`.
 
 To resolve a blocked decision:

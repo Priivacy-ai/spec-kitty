@@ -442,7 +442,7 @@ wp_file = tasks_dir / "WP01-test.md"
 wp_file.write_bytes("""---
 work_package_id: WP01
 ---
-# Work Package Prompt: User's Test
+# work package Prompt: User's Test
 """.encode('cp1252'))
 ```
 

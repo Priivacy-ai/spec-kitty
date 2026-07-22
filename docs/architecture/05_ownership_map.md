@@ -15,9 +15,9 @@ related:
 | Mission   | [functional-ownership-map-01KPDY72](../../kitty-specs/functional-ownership-map-01KPDY72/spec.md)                                   |
 | Manifest  | [05_ownership_manifest.yaml](./05_ownership_manifest.yaml)                                                                         |
 | Exemplar  | Mission `charter-ownership-consolidation-and-neutrality-hardening-01KPD880`                                                        |
-| Direction | [#461 — Charter as Synthesis & Doctrine Reference Graph](https://github.com/Priivacy-ai/spec-kitty/issues/461)                     |
+| Direction | [#461 — Charter as Synthesis & doctrine reference graph](https://github.com/Priivacy-ai/spec-kitty/issues/461)                     |
 
-> **Terminology**: This document uses **Mission** (not "feature") and **Work Package** (not "task") per the repository's terminology canon in `AGENTS.md`. All downstream extraction PRs must follow the same convention.
+> **Terminology**: This document uses **Mission** (not "feature") and **work package** (not "task") per the repository's terminology canon in `AGENTS.md`. All downstream extraction PRs must follow the same convention.
 
 ---
 
@@ -66,7 +66,7 @@ related:
 1. Open the PR and read its description.
 2. Open this map and find the slice entry the PR claims to target.
 3. For each required field in the slice entry: confirm the PR delivers it, or confirm the PR names a follow-up tracker, or request changes.
-4. Verify **Mission / Work Package** canon — no "feature/task" language in the PR description or commit messages.
+4. Verify **Mission / work package** canon — no "feature/task" language in the PR description or commit messages.
 5. Verify the CHANGELOG entry exists if the slice had a shim removal.
 6. For the runtime slice only: confirm `dependency_rules` have a corresponding test.
 
@@ -161,7 +161,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 **`shims`**: *(none)*
 
 **`seams`**:
-- Runtime loads `doctrine.model_task_routing` to select the appropriate model for each Work Package task type
+- Runtime loads `doctrine.model_task_routing` to select the appropriate model for each work package task type
 - Charter reads doctrine principles during charter synthesis for principle–doctrine alignment checks
 
 ---
@@ -190,8 +190,8 @@ may_call = runtime["dependency_rules"]["may_call"]
 **`seams`**:
 - CLI shell calls runtime to execute the next-step control loop (`spec-kitty next`)
 - Runtime reads charter context at mission start via `charter.build_charter_context`
-- Runtime reads `doctrine.model_task_routing` for model selection at Work Package dispatch time
-- Runtime reads lifecycle lane state via `lifecycle_status` to decide which Work Package to claim next
+- Runtime reads `doctrine.model_task_routing` for model selection at work package dispatch time
+- Runtime reads lifecycle lane state via `lifecycle_status` to decide which work package to claim next
 - Runtime reads glossary state via `glossary` for terminology validation during mission execution
 
 **`dependency_rules`**:
@@ -217,7 +217,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 
 **`seams`**:
 - Doctrine registers a glossary runner via `kernel.glossary_runner.register()`; runtime reads via `get_runner()` (resolved by ADR `2026-03-25-1`)
-- Runtime reads canonical terminology via `glossary.store` to validate Work Package and Mission naming during mission execution
+- Runtime reads canonical terminology via `glossary.store` to validate work package and Mission naming during mission execution
 
 ---
 
@@ -237,7 +237,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 **`shims`**: *(none — lifecycle has not yet been extracted)*
 
 **`seams`**:
-- Runtime reads Work Package lane state via `status.lane_reader.get_wp_lane()` to decide what to claim next
+- Runtime reads work package lane state via `status.lane_reader.get_wp_lane()` to decide what to claim next
 - Orchestrator reads WP status via `status.reducer.materialize()` for cross-repo drift detection
 - CLI shell renders lane state via `status.models.StatusSnapshot` for the kanban display
 - Sync writes lane events via `status.emit.emit_status_transition()` after SaaS-side state changes
@@ -305,7 +305,7 @@ The following issues gate slice extractions and must land before the indicated m
 | Deprecation scaffolding / shim registry | [#615](https://github.com/Priivacy-ai/spec-kitty/issues/615) | Runtime (#612), Glossary (#613), Lifecycle (#614) |
 | Import-graph enforcement | AC in [#612](https://github.com/Priivacy-ai/spec-kitty/issues/612); also benefits [#614](https://github.com/Priivacy-ai/spec-kitty/issues/614) | Runtime (#612, load-bearing for `dependency_rules`), Lifecycle (#614, load-bearing due to high fan-in) |
 
-**Direction**: [#461 — Charter as Synthesis & Doctrine Reference Graph](https://github.com/Priivacy-ai/spec-kitty/issues/461) provides the architectural rationale for extracting charter-adjacent governance into standalone packages. The ownership map is a downstream artefact of that direction: it records the extraction targets once #461's analysis is settled.
+**Direction**: [#461 — Charter as Synthesis & doctrine reference graph](https://github.com/Priivacy-ai/spec-kitty/issues/461) provides the architectural rationale for extracting charter-adjacent governance into standalone packages. The ownership map is a downstream artefact of that direction: it records the extraction targets once #461's analysis is settled.
 
 ---
 

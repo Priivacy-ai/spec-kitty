@@ -51,7 +51,7 @@ flowchart TB
     subgraph Governance["Charter and Governance Engine"]
       interview[Charter Interview Flow]
       compile[Charter Compiler]
-      ctxResolve[Action Context Resolver]
+      ctxResolve[action context Resolver]
     end
 
     subgraph Knowledge["Doctrine and Glossary"]
@@ -129,7 +129,7 @@ flowchart TB
 | Next-Action Recommendation Output | Emits decisioning output without applying lifecycle mutation |
 | Charter Interview Flow | Captures governance intent from the Human in Charge |
 | Charter Compiler | Produces charter bundles and references |
-| Action Context Resolver | Provides command-scoped governance context |
+| action context Resolver | Provides command-scoped governance context |
 | Doctrine Catalog Loader | Loads doctrine assets as typed artifacts |
 | Schema Validation Gate | Enforces artifact compliance before runtime use |
 | Glossary Hook Coordinator | Applies glossary checks during mission execution |
@@ -153,7 +153,7 @@ See [2.x Domain Breakdown](../README.md#domain-breakdown) for domain-level defin
 | Project and Governance Onboarding | `Governance Command Set`, `Charter Interview Flow`, `Charter Compiler` |
 | Mission Runtime and Flow Control | `Command Router`, `Next Loop Coordinator`, `Mission Discovery and Resolution`, `Runtime Asset Lifecycle Coordinator`, `Tiered Template Resolution Pipeline`, `Next-Action Recommendation Output` |
 | Doctrine and Knowledge Governance | `Doctrine Catalog Loader`, `Schema Validation Gate`, `Glossary Hook Coordinator` |
-| Work Package State and Evidence | `Status Mutation Command Set`, `Lifecycle Command Gateway`, `Target-Line Router`, `WP Lifecycle Engine`, `Event Semantics Reducer`, `Feature Context Detection` |
+| work package State and Evidence | `Status Mutation Command Set`, `Lifecycle Command Gateway`, `Target-Line Router`, `WP Lifecycle Engine`, `Event Semantics Reducer`, `Feature Context Detection` |
 | External Integration Boundaries | `Orchestrator API Command Set`, `Sync Runtime Coordinator`, `Sync Transport Session`, `Tracker Connector Gateway` |
 
 ## Behavioral Sequences
@@ -223,7 +223,7 @@ sequenceDiagram
     participant GovCmd as Governance Command Set
     participant Interview as Charter Interview Flow
     participant Compile as Charter Compiler
-    participant Resolver as Action Context Resolver
+    participant Resolver as action context Resolver
 
     Human->>GovCmd: start governance update
     GovCmd->>Interview: collect governance answers
@@ -233,7 +233,7 @@ sequenceDiagram
     GovCmd-->>Human: confirmation and next actions
 ```
 
-## Canonical Work Package FSM
+## Canonical work package FSM
 
 ```mermaid
 stateDiagram-v2

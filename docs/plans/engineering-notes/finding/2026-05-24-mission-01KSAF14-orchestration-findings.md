@@ -15,7 +15,7 @@ Process observations from running mission `charter-ux-and-org-pack-vocabulary-01
 **What happened.** First implement-claim for WP01 was rejected with:
 
 ```
-Bulk Edit Gate: BLOCKED
+bulk edit Gate: BLOCKED
   • Missing required 'target' section
   • Category 'filesystem_paths' has invalid action 'rename-in-place'; must
     be one of ['do_not_change', 'manual_review', 'rename',

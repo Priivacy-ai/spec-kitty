@@ -8,7 +8,7 @@ related:
 ---
 # Feature Specification: Evict runtime-mutable WP state into the event log
 
-**Feature Branch**: `mission-prep/2684-wp-runtime-state-eviction`
+**feature branch**: `mission-prep/2684-wp-runtime-state-eviction`
 **Created**: 2026-07-19
 **Status**: Draft (spec + ADR authored; no cluster-touching work pending — the adjacent PRs are `pr:deferred` and yield to this mission)
 **Input**: #2684 (P0) — "Evict runtime-mutable WP state (shell_pid, history, subtask-checkbox, review-cycle, activity-log) from tasks/WP##.md into the event log", the execution vehicle for the #2093 authority ruling.

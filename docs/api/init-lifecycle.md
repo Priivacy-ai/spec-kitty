@@ -72,7 +72,7 @@ One directory per agent selected via `--ai`. Spec Kitty supports 16 agents total
 | `codex` | `.agents/skills/spec-kitty.*/` | `$spec-kitty.<command>` |
 | `vibe` | `.agents/skills/spec-kitty.*/` plus `.vibe/config.toml` | `/spec-kitty.<command>` |
 | `pi` | `.agents/skills/spec-kitty.*/` | `/skill:spec-kitty.<command>` |
-| `letta` | `.agents/skills/spec-kitty.*/` | Agent Skills |
+| `letta` | `.agents/skills/spec-kitty.*/` | agent skills |
 
 Codex, Vibe, Pi, and Letta share a single installation tree under `.agents/skills/`; Vibe also gets a `.vibe/config.toml` `skill_paths` entry pointing at that tree. Only the agents you list in `--ai` get directories.
 

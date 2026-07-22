@@ -105,7 +105,7 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 ## See Also
 
 - [Handle Dependencies](handle-dependencies.md) - Managing WP dependencies
-- [Implement a Work Package](implement-work-package.md) - Starting a WP
+- [Implement a work package](implement-work-package.md) - Starting a WP
 - [Use the Dashboard](use-dashboard.md) - Monitor parallel progress
 
 ## Background

@@ -113,7 +113,7 @@ The categories below are listed by the question they answer.
 | | |
 |---|---|
 | **Definition** | A smoke or integration test against the doctrine package — verifying that directives, tactics, paradigms, styleguides, toolguides, procedures, agent profiles, and mission step contracts load correctly from `src/doctrine/`, merge across layers (built-in / org / project), and surface through `DoctrineService`. |
-| **Use when** | The test exercises the three-layer doctrine model, the DRG (Doctrine Reference Graph) loader, profile resolution, or the doctrine catalog. |
+| **Use when** | The test exercises the three-layer doctrine model, the DRG (doctrine reference graph) loader, profile resolution, or the doctrine catalog. |
 | **Do NOT use when** | The test is for charter-side composition (use `unit` and let the file live under `tests/charter/`) or for a single doctrine helper function (use `unit`). |
 | **CI role** | Dedicated `-m doctrine` profile for fast feedback on doctrine drift. |
 | **Context** | Testing Taxonomy |
