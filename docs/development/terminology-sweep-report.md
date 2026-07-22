@@ -73,8 +73,10 @@ occurrences anywhere this mission touched. No fixes were needed.
 > **Update (#2830, 2026-07-22):** the 200 pre-existing occurrences described below as
 > "left untouched" have since been fully paid down in a follow-up pass. The baseline-ratchet
 > escape hatch (`glossary_canonical_terms_baseline.txt`) was retired and the gate now enforces
-> **zero** non-canonical occurrences repo-wide. The paragraph below is preserved as the
-> historical record of the introducing mission's scope.
+> **zero** non-canonical occurrences in prose repo-wide (it skips fenced code blocks and
+> inline-code spans, so captured `--help` output and emitted-string literals keep their real
+> casing). The paragraph below is preserved as the historical record of the introducing
+> mission's scope.
 
 This test (added by WP09) scans all of `docs/**/*.md` for the 104-term live glossary seed's
 multi-word surfaces (`.kittify/glossaries/spec_kitty_core.yaml`) in non-canonical casing. On the

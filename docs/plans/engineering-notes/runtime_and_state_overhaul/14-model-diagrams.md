@@ -67,7 +67,7 @@ graph TD
   GOV -->|"blueprint + action-scoped governance"| MM
   GOV -->|"beliefs: profile + directives (sense of self)"| ACTOR
   MM -->|"driven through steps by  1:N"| RUNc
-  MM -->|"intent / work package"| PROMPT
+  MM -->|"intent / Work Package"| PROMPT
   GOV -->|"aligns: rules + profile"| PROMPT
   CTXc -->|"aligns: environment"| PROMPT
   PROMPT -->|"consumed by"| ACTOR
@@ -145,7 +145,7 @@ graph TD
   AB["Action-scoped governance bundle<br/>resolved per (Mission Type × Mission Step)"]
   PMT["Executor Prompt"]
   RUN["Mission Run<br/>(Runtime domain)"]:::ext
-  WP["work package<br/>(Mission Mgmt domain)"]:::ext
+  WP["Work Package<br/>(Mission Mgmt domain)"]:::ext
   ACTOR["Actor"]:::ext
 
   CH --> DIR & TAC & PAR & STY & PROF
@@ -185,7 +185,7 @@ graph TD
   M["Mission (durable · kitty-specs/&lt;slug&gt;/ · git)<br/>[PURPOSE — now]"]
   ML["mission-level state<br/>identity(mission_id) · type · phase* · topology · interaction policy*"]
   WLAYER["work-package-level state = MissionStatus aggregate"]
-  WP["work package (1:N)<br/>lane (9-state FSM) · agent_profile · role · location · model · tool · evidence · deps"]
+  WP["Work Package (1:N)<br/>lane (9-state FSM) · agent_profile · role · location · model · tool · evidence · deps"]
   MT -->|"instantiated as  1:N"| M
   M --> ML
   M --> WLAYER
@@ -213,7 +213,7 @@ graph TD
 
   MS["Mission Step (Governance)"]:::ext
   M["Mission (Mission Mgmt)"]:::ext
-  WP["work package (Mission Mgmt)"]:::ext
+  WP["Work Package (Mission Mgmt)"]:::ext
 
   subgraph EXEC["EXECUTION / RUNTIME domain"]
     R["Mission Run<br/>(ephemeral · .kittify/runtime/runs/&lt;run_id&gt;)"]

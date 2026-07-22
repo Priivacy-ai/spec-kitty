@@ -337,7 +337,7 @@ def test_real_glossary_contexts_parse() -> None:
 
     Discovery is map-driven — the registered context slugs in
     ``contextive-map.yaml`` — the same authoritative source the generator
-    (:func:`gen.cmd_generate`) and :func:`test_real_check_mode_passes` use. This
+    (:func:`gen.cmd_generate`) uses. This
     deliberately does **not** blind-glob ``docs/context/*.md``: that directory is
     a mixed documentation section that also holds prose Explanation pages (e.g.
     ``charter-overview.md``) which are not glossary contexts and carry no terms.

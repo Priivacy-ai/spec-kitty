@@ -222,7 +222,7 @@ The bug is precisely located (from the issue):
   without normalizing first — so one bad term raises and the whole scope fails.
 - `src/specify_cli/dashboard/handlers/glossary.py::_collect_all_senses` catches the
   per-scope exception and skips the entire scope, returning an empty list.
-- Concrete bad term: `surface: sonar quality gate` in
+- Concrete bad term: `surface: Sonar quality gate` in
   `.kittify/glossaries/spec_kitty_core.yaml:365` (capital S).
 
 **Fix is 3 lines + the seed file correction:**

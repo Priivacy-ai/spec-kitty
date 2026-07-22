@@ -259,7 +259,7 @@ Active violations in user-visible help strings:
 |---|---|---|
 | `cli/commands/lifecycle.py` | 27 | `help="Feature name or slug (e.g., user-authentication)"` |
 | `cli/commands/agent/feature.py` | 49 | `help="Feature lifecycle commands for AI agents"` |
-| `cli/commands/agent/feature.py` | 503 | `help="feature slug (e.g., 'user-auth')"` |
+| `cli/commands/agent/feature.py` | 503 | `help="Feature slug (e.g., 'user-auth')"` |
 | `cli/commands/research.py` | 44 | `tracker.add("feature", ...)` — internal label, surfaces to users |
 | `cli/commands/implement.py` | 563 | Example slug `"001-my-feature"` in `--mission` help — perpetuates the term |
 

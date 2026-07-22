@@ -52,7 +52,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
   |
   +-- Mission (concrete tracked item, in kitty-specs/###-name/)
         |
-        +-- work package (one parallelizable slice, tasks/WP01.md)
+        +-- Work Package (one parallelizable slice, tasks/WP01.md)
               |
               +-- Execution Workspace (isolated git worktree, usually .worktrees/###-name-lane-a/)
 ```
