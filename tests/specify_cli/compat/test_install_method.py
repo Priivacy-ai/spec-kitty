@@ -440,3 +440,33 @@ class TestExceptionResilience:
                     )
                 except Exception as exc:  # noqa: BLE001
                     pytest.fail(f"detect_install_method raised with exe={exe!r}: {exc!r}")
+
+
+# --- #2857/#2872 review fold: detection resolves fork name + aliases ---
+
+
+def test_candidate_package_names_include_fork_name_and_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.compat._detect import install_method as im
+    from specify_cli.distribution.profile import DistributionProfile
+
+    fork = DistributionProfile(
+        package_name="acme-kitty-cli",
+        package_aliases=("acme-kitty", "spec-kitty-cli"),
+        upgrade_provider=None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.resolve_distribution_profile", lambda: fork
+    )
+    assert im._candidate_package_names() == ("acme-kitty-cli", "acme-kitty", "spec-kitty-cli")
+
+
+def test_candidate_package_names_fall_back_to_stock(monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.compat._detect import install_method as im
+
+    def _boom() -> object:
+        raise RuntimeError("no profile")
+
+    monkeypatch.setattr("specify_cli.distribution.resolve_distribution_profile", _boom)
+    assert im._candidate_package_names() == ("spec-kitty-cli",)
