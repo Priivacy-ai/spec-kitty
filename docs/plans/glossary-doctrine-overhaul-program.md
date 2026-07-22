@@ -1,6 +1,6 @@
 ---
 title: 'Glossary Doctrine Overhaul — Program Plan'
-description: 'Cross-mission program plan promoting the glossary to a first-order doctrine artefact (new GLOSSARY_PACK kind), retiring the runtime glossary, wiring data-driven terminology enforcement, and building the executable ASSET-kind gate subsystem. Sequences #1418/#2727/#2822/#2830/#2823/#2599.'
+description: 'Program plan: promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, wire terminology enforcement, and build the ASSET gate.'
 doc_status: draft
 updated: '2026-07-21'
 related:
