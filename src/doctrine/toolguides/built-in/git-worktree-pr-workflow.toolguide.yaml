@@ -1,0 +1,22 @@
+schema_version: "1.0"
+id: git-worktree-pr-workflow
+tool: git
+title: Git Worktree and PR-Landing Workflow
+guide_path: src/doctrine/toolguides/built-in/GIT_WORKTREE_PR_WORKFLOW.md
+summary: >
+  Operational gotchas for multi-worktree git repositories and PR-landing pushes:
+  the shared stash stack across worktrees, moving HEAD under a running
+  background job, recovering from a --force-with-lease (stale info) rejection,
+  and fork PR pushes over SSH.
+commands:
+  - git stash
+  - git worktree
+  - git rebase
+  - git push --force-with-lease
+  - git fetch
+  - git cherry-pick
+  - git remote add
+last_updated: "2026-07-22"
+references:
+  - src/doctrine/tactics/built-in/pr-agent-worktree-isolation.tactic.yaml
+  - src/doctrine/tactics/built-in/clean-linear-commit-history.tactic.yaml

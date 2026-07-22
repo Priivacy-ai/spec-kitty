@@ -76,8 +76,17 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #: cross-references). Both changes compose over the same base:
 #: 284/755/12 + 1/0/1 = 285/755/13 (verified by regenerating the DRG against
 #: the current base -- see the base-divergence reconciliation).
-_EXPECTED_NODE_COUNT = 285
-_EXPECTED_EDGE_COUNT = 755
+#:
+#: Move 2 of the agent-knowledge-canonical-homes finding
+#: (docs/plans/engineering-notes/agent-knowledge-canonical-homes.md) adds the
+#: new built-in ``git-worktree-pr-workflow`` toolguide, whose two ``suggests``
+#: references (to the existing ``clean-linear-commit-history`` and
+#: ``pr-agent-worktree-isolation`` tactics) are ordinary outbound edges --
+#: the new node itself is non-orphan and both targets already had other
+#: edges, so this is +1 node / +2 edges / +0 orphans:
+#: 285/755/13 + 1/2/0 = 286/757/13.
+_EXPECTED_NODE_COUNT = 286
+_EXPECTED_EDGE_COUNT = 757
 _EXPECTED_ORPHAN_COUNT = 13
 
 #: software-dev steps that are not action-sequence members (retrospect lives

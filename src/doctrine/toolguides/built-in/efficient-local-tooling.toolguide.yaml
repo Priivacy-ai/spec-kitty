@@ -23,3 +23,7 @@ commands:
   - 7z
   - wsl
   - rtk
+  - uv
+  - "gh --body-file"
+  - "git commit -F"
+last_updated: "2026-07-22"

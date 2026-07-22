@@ -11,6 +11,9 @@ nodes:
 - urn: toolguide:git-agent-commit-signing
   kind: toolguide
   label: Git Agent Commit Signing
+- urn: toolguide:git-worktree-pr-workflow
+  kind: toolguide
+  label: Git Worktree and PR-Landing Workflow
 - urn: toolguide:github-tracker
   kind: toolguide
   label: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
@@ -39,6 +42,12 @@ nodes:
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
 edges:
+- source: toolguide:git-worktree-pr-workflow
+  target: tactic:clean-linear-commit-history
+  relation: suggests
+- source: toolguide:git-worktree-pr-workflow
+  target: tactic:pr-agent-worktree-isolation
+  relation: suggests
 - source: toolguide:terminology-guard
   target: directive:DIRECTIVE_044
   relation: suggests
