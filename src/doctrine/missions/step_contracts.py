@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from importlib.resources import files
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ruamel.yaml import YAML
@@ -30,6 +31,7 @@ from doctrine.base import BaseDoctrineRepository
 
 __all__ = [
     "DelegatesTo",
+    "GateBinding",
     "MissionStepContract",
     "MissionStepContractRepository",
     "MissionStepInput",
@@ -83,6 +85,35 @@ class MissionStepContractStep(BaseModel):
     guidance: str | None = None
 
 
+class GateBinding(BaseModel):
+    """A transition-gate binding declared on a mission step contract.
+
+    Binds a WP-lane edge (``on_transition``, ``"<from_lane>-><to_lane>"``) to
+    a named handler resolved by plain dict lookup in the runtime
+    ``GATE_REGISTRY`` (:mod:`specify_cli.review.gate_registry`). A binding is
+    a **relationship/configuration on an existing artefact** — contract/
+    action-level, not a standalone activatable ``gate`` kind (C-001). It
+    rides the existing, runtime-wired ``mission_step_contract`` kind (FR-006);
+    activation gates on the *owning contract's* URN, never on ``handler``
+    (which is a registry name, not a DRG candidate).
+
+    ``handler_kind`` is an inert-in-half-A discriminator (FR-005, C-002):
+    ``"asset"`` validates and round-trips byte-stable but is never executed
+    until a future half-B asset executor lands (#2599). This keeps the
+    frozen, ``extra="forbid"`` schema forward-compatible without forcing a
+    breaking ``schema_version`` bump when that executor arrives.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    on_transition: str
+    handler: str
+    handler_kind: Literal["mission_step_contract", "asset"] = "mission_step_contract"
+    schema_version: str
+    fail_open: bool = True
+    provenance: str | None = None
+
+
 class MissionStepContract(BaseModel):
     """Legacy contract defining the structural steps of a mission action.
 
@@ -91,6 +122,14 @@ class MissionStepContract(BaseModel):
     Each step may delegate its concretization to doctrine artifacts via
     ``delegates_to`` and/or carry freeform ``guidance`` for
     step-specific instructions.
+
+    ``gates`` is a **contract/action-level** field (not per-step): a gate
+    binds an action's transition, not an individual step (data-model.md §3).
+    It defaults to an empty list so the 15 pre-existing built-in contracts
+    keep loading unchanged; this is an additive, backward-compatible schema
+    evolution (FR-005) and does not require bumping ``schema_version`` on
+    existing contracts — see ``save()`` for the matching byte-stability
+    guarantee (NFR-004).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
@@ -100,6 +139,7 @@ class MissionStepContract(BaseModel):
     action: str
     mission: str
     steps: list[MissionStepContractStep] = Field(min_length=1)
+    gates: list[GateBinding] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_unique_step_ids(self) -> MissionStepContract:
@@ -204,6 +244,14 @@ class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract])
         yaml_file = self._project_dir / filename
 
         data = contract.model_dump(mode="json", exclude_none=True)
+        # Targeted omission (NFR-004): `gates` defaults to `[]`, not `None`, so
+        # `exclude_none=True` alone does not drop it. A blanket
+        # `exclude_defaults=True` would also strip other legitimate defaults
+        # (e.g. `MissionStepContractStep.optional=False`), so instead pop the
+        # key only when the contract declared no gates -- previously-clean
+        # contracts re-save byte-identical, with no spurious `gates: []`.
+        if not data.get("gates"):
+            data.pop("gates", None)
 
         with yaml_file.open("w") as f:
             yaml.dump(data, f)

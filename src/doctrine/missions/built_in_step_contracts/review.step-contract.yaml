@@ -2,6 +2,13 @@ schema_version: "1.0"
 id: review
 action: review
 mission: software-dev
+gates:
+  - on_transition: "in_progress->for_review"
+    handler: "spec-kitty-pre-review"
+    handler_kind: "mission_step_contract"
+    schema_version: "1.0"
+    fail_open: true
+    provenance: "built-in"
 steps:
   - id: bootstrap
     description: Load charter context for this action
