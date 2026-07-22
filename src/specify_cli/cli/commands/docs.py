@@ -68,12 +68,18 @@ def _load_store() -> DocsIndexStore:
     is a Python traceback, and neither is conflated with "no match" (which
     is a valid, successful query result, not an error).
     """
+    # Paths resolve against the current working directory (matching the
+    # glossary/inventory convention -- these commands are run from a project
+    # root). The messages below say "current directory", not "this repository",
+    # so an invocation from a subdirectory is not misreported as docs-less.
+    # (A project-root walk-up is a possible future enhancement, deliberately
+    # out of scope here to stay consistent with the sibling commands.)
     index_path = Path(DEFAULT_INDEX_PATH)
     if not index_path.exists():
         docs_root = Path("docs")
         if not docs_root.exists():
             err_console.print(
-                "[red]Error: no docs/ tree found in this repository.[/red]"
+                "[red]Error: no docs/ tree found in the current directory.[/red]"
             )
         else:
             err_console.print(
