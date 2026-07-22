@@ -199,9 +199,16 @@ def _entry_from_mapping(raw: Mapping[str, Any]) -> DocsQueryEntry:
 def parse_index(text: str) -> list[DocsQueryEntry]:
     """Parse a rendered index string back into ``DocsQueryEntry`` rows.
 
-    Inverse of :func:`render_index`. Total/tolerant like ``parse_frontmatter``:
-    an empty, missing, or malformed ``pages:`` root yields ``[]`` rather than
-    raising, so a stale/corrupt committed file cannot crash the drift check.
+    Inverse of :func:`render_index`. Tolerant of a *structurally* degenerate
+    document -- an empty string, a non-mapping root, a missing ``pages:`` key,
+    or a non-list ``pages`` all yield ``[]`` rather than raising, so a stale or
+    empty committed file cannot crash the drift check.
+
+    A *syntactically* invalid YAML document (an unterminated scalar, leftover
+    merge markers, a truncated write) is NOT swallowed -- ``ruamel`` raises a
+    ``YAMLError``, which callers surface as a clean read/parse error (e.g. the
+    ``docs query`` CLI reports it without a traceback). "Degenerate but valid"
+    and "corrupt/unparseable" are deliberately different outcomes.
     """
     if not text.strip():
         return []

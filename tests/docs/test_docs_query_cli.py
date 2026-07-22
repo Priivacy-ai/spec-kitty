@@ -261,6 +261,24 @@ def test_missing_index_file_with_docs_tree_present_is_actionable_error(
     assert "index" in result.output.lower()
 
 
+def test_malformed_index_is_actionable_error_no_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A syntactically broken index (hand-edit / truncated write / merge markers)
+    # must surface a clean error, NOT a raw ruamel YAMLError traceback -- the
+    # "consumer hand-edits or a stale index" case.
+    index_path = tmp_path / DEFAULT_INDEX_PATH
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    index_path.write_text('pages:\n  - path: "a.md\n', encoding="utf-8")  # unterminated scalar
+    monkeypatch.chdir(tmp_path)
+
+    result = _invoke("query", "worktree", "--json")
+
+    assert result.exit_code != 0
+    assert "Traceback" not in result.output
+    assert "index" in result.output.lower()
+
+
 # ---------------------------------------------------------------------------
 # Row 7 (BLOCKING): default human path (no --json) -> table renders; piped
 # output has NO Rich markup/control tokens.

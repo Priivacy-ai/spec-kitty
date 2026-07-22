@@ -24,6 +24,7 @@ from pathlib import Path
 
 import typer
 from rich.table import Table
+from ruamel.yaml.error import YAMLError
 
 from specify_cli.cli.console import CliConsole, err_console
 from specify_cli.docs.index_model import (
@@ -82,9 +83,13 @@ def _load_store() -> DocsIndexStore:
         raise typer.Exit(1)
     try:
         return DocsIndexStore.load(index_path)
-    except OSError as exc:
+    except (OSError, YAMLError) as exc:
+        # A syntactically malformed index (hand-edit, truncated write, leftover
+        # merge markers) makes ruamel raise a YAMLError; an unreadable file
+        # raises OSError. Either way, surface a clean, actionable one-line error
+        # rather than a multi-frame traceback.
         err_console.print(
-            f"[red]Error: failed to read docs retrieval index at "
+            f"[red]Error: could not read or parse the docs retrieval index at "
             f"{index_path}: {exc}[/red]"
         )
         raise typer.Exit(1) from exc
