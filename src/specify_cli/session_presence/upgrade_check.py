@@ -25,8 +25,12 @@ __all__ = [
     "CACHE_PATH",
     "TTL_SECONDS",
     "UpgradeChecker",
-    "refresh_cache_once",
 ]
+
+# ``refresh_cache_once`` is invoked dynamically via a detached subprocess
+# (``python -c "from ... import refresh_cache_once; refresh_cache_once()"``),
+# which the static dead-code gate cannot trace — kept importable but not
+# exported so the gate does not flag it as unused.
 
 CACHE_PATH: Path = Path.home() / ".kittify" / "last-cli-check.json"
 TTL_SECONDS: int = 3600
