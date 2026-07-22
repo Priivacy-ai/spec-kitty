@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 import importlib
 import json
@@ -11,10 +12,14 @@ import sys
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
+import warnings
 
 import pytest
 from typer.testing import CliRunner
 
+from charter.pack_context import PackContext
+from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
+from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
@@ -24,7 +29,7 @@ from specify_cli.agent_tasks_ports import (
 from specify_cli.cli.commands.agent import tasks_move_task
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.review import pre_review_gate
+from specify_cli.review import gate_bindings, pre_review_gate
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
@@ -808,3 +813,213 @@ def test_2534_erroneous_activation_degrades_without_importing_gate_coverage(tmp_
     # module table via this dispatch (the import was refused, not swallowed).
     assert after == before
     assert _GATE_COVERAGE_MODULE not in (after - before)
+
+
+# --------------------------------------------------------------------------- #
+# Resolution-phase fail-open (regression for the pre-dispatch coverage hole).
+#
+# The inverted hook's fail-open envelope (``_mt_fail_open_gate``) wrapped ONLY
+# the dispatch/override tiers. A fault in the PRE-DISPATCH resolution phase —
+# binding resolution, context build, input resolution, or the deprecation warn —
+# escaped unwrapped to ``_do_move_task``'s outer ``except Exception`` and REFUSED
+# the ``for_review`` move (a fail-open→fail-closed regression + an unsanctioned
+# third hard-stop); a ``Ctrl-C`` slipped past that ``except Exception`` entirely
+# and exited 130, breaching the terminal-``CANCELLED`` invariant.
+#
+# These arms drive the REAL resolver (``resolve_gate_bindings_for_transition``
+# via the real built-in ``software-dev/review`` contract) into the specific
+# realistic failure modes — NOT a canned ``GateBindingResolution`` — and assert
+# warn-and-proceed / terminal-CANCELLED, never ``typer.Exit(1)`` refusal or 130.
+# --------------------------------------------------------------------------- #
+
+
+def _build_binding_resolution_fixture(tmp_path: Path) -> tuple[TasksPorts, _RecordingCoordRouter]:
+    """A fixture whose WP carries NO ``pre_review_test_scope``.
+
+    The operator-override tier short-circuits binding resolution when a scope is
+    pinned; omitting it forces the hook down the REAL doctrine binding-resolution
+    path (``resolve_gate_bindings_for_transition`` on the built-in
+    ``software-dev/review`` contract), which is where the resolution-phase faults
+    under test are raised.
+    """
+    feature_dir = tmp_path / "kitty-specs" / _MISSION
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tmp_path / ".kittify").mkdir()
+    (feature_dir / "meta.json").write_text(_META_JSON, encoding="utf-8")
+    (tasks_dir / "WP01-test.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Binding-resolution gate\n"
+        "execution_mode: code_change\n"
+        "agent: testbot\n"
+        "owned_files:\n  - src/example.py\n"
+        "authoritative_surface: src/\n"
+        "---\n\n# WP01\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="test-WP01-in-progress",
+            mission_slug=_MISSION,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-07-14T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+    router = _RecordingCoordRouter(write_dir=feature_dir)
+    ports = TasksPorts(fs=FakeFsReader(), coord=router, git=FakeGitOps(), render=FakeRender())
+    return ports, router
+
+
+def _minimal_review_drg() -> DRGGraph:
+    """A real (non-fabricated) DRG carrying the owning review-contract node."""
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-01-01T00:00:00Z",
+        generated_by="test",
+        nodes=[
+            DRGNode(urn="mission_step_contract:software-dev/review", kind=NodeKind.MISSION_STEP_CONTRACT),
+            DRGNode(urn="mission_type:software-dev", kind=NodeKind.MISSION_TYPE),
+        ],
+        edges=[],
+    )
+
+
+def _invoke_for_review(tmp_path: Path, ports: TasksPorts, *seams: Any) -> Any:
+    """Drive the real Typer ``move-task --to for_review`` under the given seam patches."""
+    with ExitStack() as stack:
+        stack.enter_context(
+            setup_mocked_env(
+                tmp_path,
+                mission_slug=_MISSION,
+                extra_patches={
+                    "_validate_ready_for_review": (True, []),
+                    "_check_unchecked_subtasks": [],
+                },
+            )
+        )
+        stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
+        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
+        stack.enter_context(
+            patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",))
+        )
+        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
+        for seam in seams:
+            stack.enter_context(seam)
+        return CliRunner().invoke(
+            app,
+            ["move-task", "WP01", "--to", "for_review", "--mission", _MISSION, "--no-auto-commit", "--json"],
+        )
+
+
+def _assert_warned_and_proceeded(result: Any, router: _RecordingCoordRouter) -> None:
+    """Fail-open: the resolution fault degraded to a NO_COVERAGE warn and the move applied."""
+    assert result.exit_code == 0, result.output
+    assert len(router.status_calls) == 1
+    request = router.status_calls[0]
+    assert request.to_lane is Lane.FOR_REVIEW
+    metadata = (request.policy_metadata or {})["pre_review_gate"]
+    assert metadata["outcome"] == pre_review_gate.GateOutcome.NO_COVERAGE.value
+    assert "unverified" in (metadata.get("reason") or "").lower()
+
+
+def test_org_pack_env_unset_during_resolution_warns_and_proceeds(tmp_path: Path) -> None:
+    """An ``OrgPackEnvVarUnsetError`` (``_resolve_pack_context`` fail-closed re-raise)
+    degrades to a NO_COVERAGE warn — the incumbent behaviour — not a refused move."""
+    ports, router = _build_binding_resolution_fixture(tmp_path)
+    result = _invoke_for_review(
+        tmp_path,
+        ports,
+        patch.object(gate_bindings, "load_validated_graph", return_value=_minimal_review_drg()),
+        patch.object(
+            PackContext,
+            "from_config",
+            side_effect=OrgPackEnvVarUnsetError("org-pack", "$UNSET_TOKEN/path", "UNSET_TOKEN"),
+        ),
+    )
+    _assert_warned_and_proceeded(result, router)
+
+
+def test_graph_load_error_during_resolution_warns_and_proceeds(tmp_path: Path) -> None:
+    """A malformed/invalid DRG (``load_validated_graph`` raises) degrades to a
+    NO_COVERAGE warn instead of escaping unwrapped and refusing the move."""
+    ports, router = _build_binding_resolution_fixture(tmp_path)
+    result = _invoke_for_review(
+        tmp_path,
+        ports,
+        patch.object(
+            gate_bindings,
+            "load_validated_graph",
+            side_effect=RuntimeError("malformed DRG graph"),
+        ),
+    )
+    _assert_warned_and_proceeded(result, router)
+
+
+def test_malformed_contract_during_resolution_warns_and_proceeds(tmp_path: Path) -> None:
+    """A malformed project ``*.step-contract.yaml`` (repository construction raises)
+    degrades to a NO_COVERAGE warn instead of a fail-closed refusal."""
+    ports, router = _build_binding_resolution_fixture(tmp_path)
+    result = _invoke_for_review(
+        tmp_path,
+        ports,
+        patch.object(
+            gate_bindings,
+            "_build_repository",
+            side_effect=ValueError("malformed spec-kitty-pre-review.step-contract.yaml"),
+        ),
+    )
+    _assert_warned_and_proceeded(result, router)
+
+
+def test_keyboard_interrupt_during_resolution_is_terminal_cancelled_not_130(tmp_path: Path) -> None:
+    """A ``Ctrl-C`` during the resolution phase yields the sanctioned terminal
+    CANCELLED hard-stop (exit 1), NOT an unhandled ``BaseException`` → exit 130."""
+    ports, router = _build_binding_resolution_fixture(tmp_path)
+    result = _invoke_for_review(
+        tmp_path,
+        ports,
+        patch.object(gate_bindings, "load_validated_graph", side_effect=KeyboardInterrupt),
+    )
+    assert result.exit_code == 1
+    assert result.exit_code != 130
+    payload = json.loads(result.stdout)
+    assert payload["pre_review_gate"]["outcome"] == pre_review_gate.GateOutcome.CANCELLED.value
+    assert payload["transition_applied"] is False
+    assert router.status_calls == []
+
+
+def test_deprecation_warn_under_filterwarnings_error_folds_into_envelope(tmp_path: Path) -> None:
+    """Renata #2: the ``review.pre_review_test_command`` deprecation ``warnings.warn``
+    must not hard-fail the move under ``-W error`` / pytest ``filterwarnings=error``.
+
+    Folded into the resolution fail-open envelope, a ``DeprecationWarning`` promoted
+    to an exception degrades to a single NO_COVERAGE warn and the move proceeds.
+    """
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "review:\n  pre_review_test_command: pytest tests/legacy\n", encoding="utf-8"
+    )
+    st: Any = SimpleNamespace(
+        main_repo_root=tmp_path,
+        json_output=True,
+        force=False,
+        wp=None,
+        old_lane=Lane.IN_PROGRESS,
+        target_lane=Lane.FOR_REVIEW,
+    )
+    tasks_stub = SimpleNamespace(console=SimpleNamespace(print=lambda *_a, **_k: None))
+    tasks_move_task._pre_review_test_command_deprecation_emitted = False
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        inputs, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(st, tasks_stub)
+    assert inputs is None
+    assert len(verdicts) == 1
+    assert verdicts[0].outcome is pre_review_gate.GateOutcome.NO_COVERAGE
+    assert "unverified" in (verdicts[0].reason or "").lower()

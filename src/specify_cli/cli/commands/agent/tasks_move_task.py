@@ -1042,6 +1042,22 @@ def _mt_empty_scope_verdict(reason: str, *, excluded_scope_files: tuple[str, ...
     )
 
 
+def _mt_cancelled_verdict() -> pre_review_gate.GateVerdict:
+    """The terminal ``CANCELLED`` verdict a ``KeyboardInterrupt`` degrades to (T041/C-003).
+
+    Single construction shared by every fail-open envelope (gate execution AND
+    the pre-dispatch resolution phase) so a ``Ctrl-C`` anywhere in the hook lands
+    on the sanctioned terminal-``CANCELLED`` hard-stop, never an unhandled
+    ``BaseException`` that escapes ``move-task`` as exit 130 (FR-013 invariant).
+    """
+    return pre_review_gate.GateVerdict(
+        outcome=pre_review_gate.GateOutcome.CANCELLED,
+        scope=pre_review_gate.ScopeResult.from_override(()),
+        reason="scoped test run cancelled",
+        run_state=pre_review_gate.HeadRunState.CANCELLED,
+    )
+
+
 def _mt_pre_review_gate_verdict(
     *,
     changed_files: tuple[str, ...],
@@ -1306,12 +1322,7 @@ def _mt_fail_open_gate(
     try:
         return run()
     except KeyboardInterrupt:
-        return pre_review_gate.GateVerdict(
-            outcome=pre_review_gate.GateOutcome.CANCELLED,
-            scope=pre_review_gate.ScopeResult.from_override(()),
-            reason="scoped test run cancelled",
-            run_state=pre_review_gate.HeadRunState.CANCELLED,
-        )
+        return _mt_cancelled_verdict()
     except pre_review_gate.GateAuthoritiesUnavailable as exc:
         return _mt_empty_scope_verdict(
             f"gate authorities unavailable — unverified: {exc}",
@@ -1422,6 +1433,41 @@ def _mt_resolve_transition_gate_inputs(st: _MoveTaskState) -> _TransitionGateInp
         changed_files=changed_files,
         gate_repo_root=worktree_path or st.main_repo_root,
     )
+
+
+def _mt_resolve_transition_gate_verdicts(
+    st: _MoveTaskState, _tasks: Any
+) -> tuple[_TransitionGateInputs | None, list[pre_review_gate.GateVerdict]]:
+    """Run the pre-dispatch resolution phase under the SAME fail-open as :func:`_mt_fail_open_gate`.
+
+    The incumbent (base ``e4ef6e850``) degraded a *resolution* fault to a
+    ``NO_COVERAGE`` warn and PROCEEDED. The inverted hook only wrapped the
+    dispatch/override tiers, so a fault in the pre-dispatch resolution phase —
+    the deprecation warn, input resolution, or binding resolution + context build
+    inside :func:`_mt_collect_transition_gate_verdicts` — escaped unwrapped to
+    ``_do_move_task``'s outer ``except Exception`` and REFUSED the ``for_review``
+    move (a fail-open→fail-closed regression + an unsanctioned third hard-stop),
+    while a ``Ctrl-C`` (a ``BaseException``) slipped past that ``except Exception``
+    entirely and exited 130 — the exact breach the terminal-``CANCELLED`` path
+    exists to prevent. Routing resolution through the same three-catch restores
+    C-003 / FR-013: ``KeyboardInterrupt`` → terminal ``CANCELLED``; any other
+    ``Exception`` (malformed step-contract, unset org-pack env var, invalid DRG
+    graph, malformed ``meta.json``/``"pending"`` sentinel, or ``warnings.warn``
+    under ``-W error``) → exactly one visible ``NO_COVERAGE`` warn and PROCEED.
+
+    Returns ``(inputs, verdicts)``; ``inputs`` is ``None`` when resolution raised
+    before the workspace inputs were built (no changed/dirty paths to reconcile).
+    """
+    try:
+        _mt_warn_pre_review_test_command_deprecated(st.main_repo_root)
+        inputs = _mt_resolve_transition_gate_inputs(st)
+        return inputs, _mt_collect_transition_gate_verdicts(st, inputs, _tasks)
+    except KeyboardInterrupt:
+        return None, [_mt_cancelled_verdict()]
+    except pre_review_gate.GateAuthoritiesUnavailable as exc:
+        return None, [_mt_empty_scope_verdict(f"gate authorities unavailable — unverified: {exc}")]
+    except Exception as exc:  # noqa: BLE001 — FR-013 fail-open over resolution (never break move-task)
+        return None, [_mt_empty_scope_verdict(f"pre-review gate resolution failed — unverified: {exc}")]
 
 
 def _mt_gate_representative(
@@ -1559,13 +1605,11 @@ def _mt_run_transition_gates(st: _MoveTaskState) -> None:
         return
 
     assert st.wp is not None
-    _mt_warn_pre_review_test_command_deprecated(st.main_repo_root)
-    inputs = _mt_resolve_transition_gate_inputs(st)
-    verdicts = _mt_collect_transition_gate_verdicts(st, inputs, _tasks)
-    dirty_after = (
-        _mt_pre_review_dirty_paths(inputs.worktree_path) if inputs.worktree_path is not None else ()
-    )
-    new_checkout_paths = tuple(sorted(set(dirty_after) - set(inputs.dirty_before)))
+    inputs, verdicts = _mt_resolve_transition_gate_verdicts(st, _tasks)
+    dirty_before = inputs.dirty_before if inputs is not None else ()
+    worktree_path = inputs.worktree_path if inputs is not None else None
+    dirty_after = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
+    new_checkout_paths = tuple(sorted(set(dirty_after) - set(dirty_before)))
     block_enabled = _mt_pre_review_block_enabled(st.main_repo_root)
     effect = _mt_translate_gate_verdicts(
         verdicts, block_enabled=block_enabled, force=st.force, new_checkout_paths=new_checkout_paths
