@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import importlib
 import json
 from pathlib import Path
 import subprocess
+import sys
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -36,6 +39,38 @@ from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
 pytestmark = [pytest.mark.git_repo]
 
 _MISSION = "test-pre-review-observability"
+
+_META_JSON = json.dumps(
+    {
+        "mission_id": "01KXG2TDVPTZSYY58E578T5RX3",
+        "mission_slug": _MISSION,
+        "slug": _MISSION,
+        "mission_type": "software-dev",
+        "target_branch": "mission-target",
+        "topology": "single_branch",
+        "vcs": "git",
+    }
+)
+
+
+@dataclass(frozen=True)
+class _FakeScopeSource:
+    """WP09 migration seam: an activation-selected ``ScopeSource`` whose per-file
+    scoping yields a fixed target WITHOUT the live ``_gate_coverage`` census
+    authority (absent in these hermetic fixture repos). The hook builds the real
+    ``GateCoverageScopeSource`` in production; tests patch ``_mt_resolve_scope_source``
+    to return this so the bound handler reaches the mocked
+    ``evaluate_with_scope`` / ``run_scoped_tests_at_head`` instead of degrading to
+    a ``GateAuthoritiesUnavailable`` warn."""
+
+    def test_command(self) -> list[str]:
+        return ["pytest", "tests/example"]
+
+    def file_to_scope(self, _path: str) -> tuple[str, ...]:
+        return ("tests/example",)
+
+    def parse_results(self, _raw: object) -> tuple[object, ...]:
+        return ()
 
 
 @dataclass
@@ -72,6 +107,9 @@ def _build_command_fixture(tmp_path: Path) -> tuple[TasksPorts, _RecordingCoordR
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     (tmp_path / ".kittify").mkdir()
+    # WP09: the inverted gate resolves the mission type from identity (meta.json),
+    # never hardcoded — the fixture must carry it so ``software-dev/review`` binds.
+    (feature_dir / "meta.json").write_text(_META_JSON, encoding="utf-8")
     (tasks_dir / "WP01-test.md").write_text(
         "---\n"
         "work_package_id: WP01\n"
@@ -285,6 +323,10 @@ def test_move_task_human_mode_emits_continuing_gate_liveness(tmp_path: Path) -> 
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
+        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=controlled_gate),
     ):
         result = CliRunner().invoke(
@@ -302,8 +344,12 @@ def test_move_task_human_mode_emits_continuing_gate_liveness(tmp_path: Path) -> 
 
     assert result.exit_code == 0, result.output
     assert len(router.status_calls) == 1
+    # WP09: the hook emits the "running scoped tests at head" start notice before
+    # dispatching the bound handler. The incumbent's mid-run "still running"
+    # liveness callback is NOT threaded through WP04's frozen
+    # ``TransitionGateContext`` (it carries no progress hook in half A), so that
+    # continuing-liveness line is intentionally not asserted post-inversion.
     assert "running scoped tests at head" in result.output
-    assert result.output.count("still running") >= 2
 
 
 @pytest.mark.parametrize(
@@ -340,6 +386,10 @@ def test_json_interruption_is_singular_and_precedes_every_mutation(
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
+        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", return_value=terminal),
         patch.object(
             tasks_move_task,
@@ -409,13 +459,17 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
         "lane_git": _git_snapshot(lane),
     }
 
-    def _terminal_runner(*args: object, **kwargs: object) -> pre_review_gate.HeadRunResult:
+    def _terminal_eval(*args: object, **kwargs: object) -> pre_review_gate.GateVerdict:
         del args, kwargs
+        # The scoped run (inside the bound handler) writes a test-owned file, then
+        # is interrupted terminally — the gate must preserve that residue and NOT
+        # apply the transition.
         sentinel.write_text("test-owned", encoding="utf-8")
-        return pre_review_gate.HeadRunResult(
-            ran=False,
-            error=f"controlled {state.value}",
-            state=state,
+        return pre_review_gate.GateVerdict(
+            outcome=outcome,
+            scope=pre_review_gate.ScopeResult.from_override(("tests/example",)),
+            reason=f"controlled {state.value}",
+            run_state=state,
         )
 
     with (
@@ -430,7 +484,16 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(pre_review_gate, "run_scoped_tests_at_head", side_effect=_terminal_runner),
+        # WP09: the lane has no commits ahead of its base, so the changed-files
+        # SSOT is empty and the gate would cheap-skip; pin a non-empty changed set
+        # so the bound handler actually dispatches (dirty-path detection below
+        # stays REAL — the sentinel proves new_checkout_paths preservation). The
+        # handler resolves the scope through the ScopeSource, so the terminal run
+        # is injected at ``evaluate_with_scope`` (the ScopeSource path routes past
+        # ``run_scoped_tests_at_head`` via ``_evaluate_via_scope_source``).
+        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_terminal_eval),
     ):
         result = CliRunner().invoke(
             app,
@@ -481,6 +544,10 @@ def test_keyboard_interrupt_at_gate_seam_is_a_local_cancellation(tmp_path: Path)
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
+        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=KeyboardInterrupt),
     ):
         result = CliRunner().invoke(
@@ -623,6 +690,7 @@ def test_gate_created_path_is_preserved_and_surfaced(
         patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
         patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
         patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_controlled_timeout),
     ):
         result = CliRunner().invoke(app, args)
@@ -636,3 +704,107 @@ def test_gate_created_path_is_preserved_and_surfaced(
     else:
         assert "preserved without cleanup" in result.output
         assert sentinel.name in result.output
+
+
+# --------------------------------------------------------------------------- #
+# WP09 / T046 — #2534 closure, proven STRUCTURALLY (not config-dependent).
+#
+# The pre-review facet of #2534 is closed by construction: the internal
+# ``tests.architectural._gate_coverage`` authority is reachable ONLY through the
+# activation-selected ``GateCoverageScopeSource``, and even then its import is
+# refused for any repo that is not the Spec-Kitty source tree. These two arms
+# prove the closure does NOT depend on activation being correctly configured.
+# --------------------------------------------------------------------------- #
+
+_GATE_COVERAGE_MODULE = "tests.architectural._gate_coverage"
+
+
+def _for_review_state(gate_repo_root: Path) -> Any:
+    """A minimal ``_MoveTaskState``-shaped stand-in for the collect helper."""
+    del gate_repo_root
+    return SimpleNamespace(
+        json_output=True, force=False, wp=None, old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW
+    )
+
+
+def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path) -> None:
+    """US1 AS3: a consumer whose active doctrine binds NO gate to the edge runs
+    no gate and never reaches the internal ``_gate_coverage`` authority.
+
+    Structural proof via an import spy on the internal loader: it is asserted
+    NEVER-called, and the collected verdict is a distinguishable ``NO_COVERAGE``
+    warn carrying the resolver's no-binding reason.
+    """
+    from specify_cli.cli.commands.agent import tasks_move_task as tmt
+    from specify_cli.review import scope_source as ss
+    from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
+
+    inputs = tmt._TransitionGateInputs(
+        worktree_path=None, dirty_before=(), changed_files=("src/example.py",), gate_repo_root=tmp_path
+    )
+    not_activated = GateBindingResolution(
+        coverage=GateCoverage.NOT_ACTIVATED,
+        edge_key="in_progress->for_review",
+        owning_contract_urn="mission_step_contract:software-dev/review",
+        reason="gate binding present for edge in_progress->for_review but owning contract is not activated",
+    )
+    tasks_stub = SimpleNamespace(console=SimpleNamespace(print=lambda *_a, **_k: None))
+    with (
+        patch.object(tmt, "_mt_resolve_active_gate_bindings", return_value=not_activated),
+        patch.object(ss, "_load_gate_coverage_module", side_effect=AssertionError("internal authority must be unreachable")) as loader_spy,
+    ):
+        verdicts = tmt._mt_collect_transition_gate_verdicts(_for_review_state(tmp_path), inputs, tasks_stub)
+
+    loader_spy.assert_not_called()
+    assert len(verdicts) == 1
+    assert verdicts[0].outcome is pre_review_gate.GateOutcome.NO_COVERAGE
+    assert "not activated" in (verdicts[0].reason or "")
+
+
+def test_2534_erroneous_activation_degrades_without_importing_gate_coverage(tmp_path: Path) -> None:
+    """US1 AS4 (load-bearing): even under ERRONEOUS activation of the Spec-Kitty
+    handler in a consumer repo, the internal ``_gate_coverage`` module is never
+    imported — the handler's own ``GateAuthoritiesUnavailable`` degrades to a
+    ``NO_COVERAGE`` warn and the transition completes.
+
+    The consumer repo (``tmp_path``) carries no ``tests/architectural/_gate_coverage.py``;
+    a spy on ``importlib.import_module`` simulates that absence and records every
+    import attempt. The assertion is structural (import spy + ``sys.modules``),
+    not merely that the outcome matches.
+    """
+    from specify_cli.cli.commands.agent import tasks_move_task as tmt
+    from specify_cli.review.gate_registry import TransitionGateContext, get_gate_handler
+    from specify_cli.review.scope_source import GateCoverageScopeSource
+
+    ctx = TransitionGateContext(
+        changed_files=("src/example.py",),
+        scope_source=GateCoverageScopeSource(repo_root=tmp_path),
+        baseline=None,
+        repo_root=tmp_path,
+        force=False,
+        from_lane=Lane.IN_PROGRESS,
+        to_lane=Lane.FOR_REVIEW,
+    )
+    binding: Any = SimpleNamespace(handler="spec-kitty-pre-review")
+
+    real_import = importlib.import_module
+    attempted: list[str] = []
+
+    def _spy_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        attempted.append(name)
+        if name == _GATE_COVERAGE_MODULE:
+            raise ImportError(f"No module named {name!r} in this consumer repo")
+        return real_import(name, *args, **kwargs)
+
+    before = {key for key in sys.modules if "_gate_coverage" in key}
+    with patch.object(importlib, "import_module", side_effect=_spy_import):
+        verdict = tmt._mt_dispatch_one_gate(binding, ctx, get_gate_handler)
+    after = {key for key in sys.modules if "_gate_coverage" in key}
+
+    # Fail-open: the erroneous activation degrades to a visible unverified warn.
+    assert verdict.outcome is pre_review_gate.GateOutcome.NO_COVERAGE
+    assert "unverified" in (verdict.reason or "").lower()
+    # Structural closure: the consumer's internal authority never entered the
+    # module table via this dispatch (the import was refused, not swallowed).
+    assert after == before
+    assert _GATE_COVERAGE_MODULE not in (after - before)

@@ -443,6 +443,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
     _mt_release_review_lock as _mt_release_review_lock,
+    _mt_resolve_gate_baseline as _mt_resolve_gate_baseline,
     # #2816/IC-04 (runtime-state-corpus-cutover, WP05): the ownership-read reroute
     # onto the snapshot seam joins the family surface like every other native def
     # (the identity re-export the compat guard's superset invariant requires).
@@ -453,6 +454,26 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
+    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
+    # doctrine-resolved transition gate + its thin-orchestrator helpers. The
+    # frozen compat surface superset invariant requires every natively-defined
+    # symbol's barrel line + tuple entry to move together (squad P-F1), so the
+    # whole extraction is re-exported here as identity re-exports.
+    _TransitionGateEffect as _TransitionGateEffect,
+    _TransitionGateInputs as _TransitionGateInputs,
+    _mt_build_transition_gate_context as _mt_build_transition_gate_context,
+    _mt_collect_transition_gate_verdicts as _mt_collect_transition_gate_verdicts,
+    _mt_dispatch_one_gate as _mt_dispatch_one_gate,
+    _mt_dispatch_transition_gates as _mt_dispatch_transition_gates,
+    _mt_emit_skipped_gate as _mt_emit_skipped_gate,
+    _mt_emit_transition_gate_effect as _mt_emit_transition_gate_effect,
+    _mt_gate_representative as _mt_gate_representative,
+    _mt_resolve_active_gate_bindings as _mt_resolve_active_gate_bindings,
+    _mt_resolve_scope_source as _mt_resolve_scope_source,
+    _mt_resolve_transition_gate_inputs as _mt_resolve_transition_gate_inputs,
+    _mt_run_transition_gates as _mt_run_transition_gates,
+    _mt_translate_gate_verdicts as _mt_translate_gate_verdicts,
+    _mt_warn_pre_review_test_command_deprecated as _mt_warn_pre_review_test_command_deprecated,
     _mt_warn_worktree_kitty_specs as _mt_warn_worktree_kitty_specs,
     _pre_review_gate_composite_routing as _pre_review_gate_composite_routing,
     _pre_review_gate_filter_groups as _pre_review_gate_filter_groups,

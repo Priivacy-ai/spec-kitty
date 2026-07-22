@@ -137,28 +137,54 @@ readers of that `-m` expression cannot silently diverge.
 
 ## Pre-review regression gate (`move-task --to for_review`)
 
-When a work package moves to `for_review`, Spec Kitty runs an auto-scoped
-regression gate: it derives the CI shards that cover the WP's changed files
-and re-runs them, so a WP that broke a shared contract pinned by a test
-*outside* its `owned_files` is caught at review time instead of only at merge
-(#572, #1979). By default the gate is **warn-only** -- it reports a new
-failure but the move still proceeds.
+When a work package moves to `for_review`, Spec Kitty runs a **doctrine-resolved**
+transition gate. Rather than a hardcoded call into one repo-specific engine, the
+hook resolves *which* named handlers the repo's active doctrine binds to the
+current lane edge (`in_progress->for_review`), dispatches each, and aggregates
+their verdicts (mission `doctrine-controlled-transition-gates`, epic #2535
+half A). In the Spec-Kitty source tree the built-in `software-dev/review`
+step-contract binds the `spec-kitty-pre-review` handler, which derives the CI
+shards covering the WP's changed files and re-runs them — so a WP that broke a
+shared contract pinned by a test *outside* its `owned_files` is caught at review
+time instead of only at merge (#572, #1979). By default the gate is
+**warn-only** -- it reports a new failure but the move still proceeds.
+
+**How the impl is selected.** Activation, not repo shape, decides whether the
+gate fires. A repo whose active doctrine binds no handler to the edge runs *no*
+gate (a distinguishable `NO_COVERAGE` warn, never a silent skip); a repo that
+activates a handler runs it. Toggling the binding's handler in doctrine flips
+whether the gate fires with **no code change** between states.
+
+**Fail-open and hard-stops.** Every handler *execution* error degrades to exactly
+one visible unverified `NO_COVERAGE` warning — a faulting handler never removes
+another's block from the computation. Exactly **two** hard-stops survive: a
+terminal interruption (`TIMED_OUT`/`CANCELLED`) aborts the move with the
+transition unapplied, and the opt-in `NEW_FAILURES` block (below) refuses the
+move. Terminal is checked before the block. This is the closure of the
+pre-review facet of #2534: a consumer repo never imports Spec-Kitty's internal
+`_gate_coverage` authority, and even under *erroneous* activation of the
+`spec-kitty-pre-review` handler the internal import is refused and degrades to a
+`NO_COVERAGE` warn — the closure is structural, not configuration-dependent.
 
 Configuration (`.kittify/config.yaml`, under `review:`):
 
 - `review.fail_on_pre_review_regression` (bool, default `false`) -- opt in to
   **block** the move when the gate finds a new failure. `move-task --force`
   records an override and proceeds anyway.
-- `review.pre_review_test_command` -- override the command the gate runs;
-  otherwise it uses the auto-derived, census-scoped `pytest` selection.
-- The block can only be *enforced* when `review.test_command` is also set;
-  opting in to the block without it yields a loud warning (the gate cannot run
-  a command it does not have).
+- `review.test_command` -- the single authority for the command the gate runs
+  (the `ScopeSource` port). The block can only be *enforced* when this is set;
+  opting in to the block without it yields a loud warning (the gate cannot run a
+  command it does not have).
+- `review.pre_review_test_command` -- **deprecated** and aliased to
+  `review.test_command`. A config that still sets it keeps working but earns a
+  one-time deprecation warning; move the value to `review.test_command`.
 
-Per-WP override: set `pre_review_test_scope` in a WP prompt's frontmatter to
-pin the exact test targets for that WP. Precedence: frontmatter
-`pre_review_test_scope` > config `review.pre_review_test_command` >
-auto-derived scope.
+> **Inherited limitation (#2741, P1 — inherited, NOT fixed by this mission).**
+> The gate scopes off the WP worktree's *working-tree* diff rather than the WP
+> commit range. The doctrine-controlled-transition-gates inversion is
+> behaviour-preserving and therefore *preserves* this by design; it is tracked
+> separately and must not be mistaken for a fix or flagged as a regression. Only
+> the `for_review` pre-review facet of the repo-shape coupling is inverted here.
 
 ## PR draft and WIP-title conventions
 

@@ -215,6 +215,27 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     "_detect_arbiter_override",
     "_run_arbiter_override",
     "_mt_run_pre_review_gate",
+    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
+    # doctrine-resolved transition gate + its thin-orchestrator helpers. Barrel
+    # lines + tuple entries move together (P-F1); the forwarder
+    # ``_mt_run_pre_review_gate`` above stays a real symbol delegating to
+    # ``_mt_run_transition_gates``.
+    "_mt_run_transition_gates",
+    "_TransitionGateInputs",
+    "_TransitionGateEffect",
+    "_mt_warn_pre_review_test_command_deprecated",
+    "_mt_resolve_scope_source",
+    "_mt_resolve_active_gate_bindings",
+    "_mt_resolve_gate_baseline",
+    "_mt_build_transition_gate_context",
+    "_mt_dispatch_one_gate",
+    "_mt_dispatch_transition_gates",
+    "_mt_collect_transition_gate_verdicts",
+    "_mt_resolve_transition_gate_inputs",
+    "_mt_gate_representative",
+    "_mt_translate_gate_verdicts",
+    "_mt_emit_skipped_gate",
+    "_mt_emit_transition_gate_effect",
     "_mt_resolve_pre_review_workspace",
     "_mt_pre_review_changed_files",
     "_mt_pre_review_dirty_paths",
@@ -435,5 +456,12 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     ``_legacy_unchecked_subtask_ids`` — the guard's only live caller stopped
     reading checkbox rows (tasks_shared 21 -> 20): 137 -> 136. The resolved-
     binding reassignment helper is a native move-task seam and therefore joins
-    the registration-shim compatibility surface: 136 -> 137."""
-    assert len(SYMBOL_TO_MODULE) == 137  # golden-count: cardinality-is-contract
+    the registration-shim compatibility surface: 136 -> 137. WP09
+    (doctrine-controlled-transition-gates-01KY51Z7) inverted the pre-review gate
+    into ``_mt_run_transition_gates`` and its thin-orchestrator extraction: two
+    dataclasses (``_TransitionGateInputs``/``_TransitionGateEffect``) and 13 new
+    ``_mt_*`` helpers join the tasks_move_task seam (56 -> 71): 137 -> 152. WP09
+    remediation (metadata-fidelity fix) then extracted ``_mt_resolve_gate_baseline``
+    — the shared baseline loader the restored FR-004 override tier and the handler
+    context both call — a native move-task seam def (71 -> 72): 152 -> 153."""
+    assert len(SYMBOL_TO_MODULE) == 153  # golden-count: cardinality-is-contract

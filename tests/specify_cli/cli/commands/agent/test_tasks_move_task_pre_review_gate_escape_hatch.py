@@ -36,6 +36,7 @@ from specify_cli.cli.commands.agent import tasks_move_task
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
 from specify_cli.review import pre_review_gate
+from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
 from specify_cli.status import Lane
 
 pytestmark = pytest.mark.fast
@@ -207,56 +208,56 @@ def test_default_does_not_print_skip_notice() -> None:
 
 
 def test_progress_notice_printed_before_running_nonempty_scope() -> None:
-    """An explicit override scope (frontmatter ``pre_review_test_scope``) is a
-    non-empty scope — the gate prints a running notice before evaluating it.
-    ``pre_review_gate.evaluate_with_scope`` is mocked so no real subprocess
-    ever spawns; the assertion is purely about notice-before-evaluate
-    ordering + content.
+    """WP09 migration: under the inverted hook, a non-empty scope = a non-empty
+    changed-file set with an ACTIVE doctrine binding. The hook prints the running
+    notice in ``_mt_collect_transition_gate_verdicts`` BEFORE dispatching the
+    bound handler. The dispatch seam is stubbed so no real handler/subprocess
+    runs; the assertion is purely about notice-before-dispatch ordering + content
+    (the incumbent's frontmatter-override tier is retired — the scope is the
+    changed-files SSOT applied through the ScopeSource).
     """
     st = _make_state()
-    st.wp = SimpleNamespace(
-        path=Path("WP01-x.md"), frontmatter="pre_review_test_scope: tests/foo/test_bar.py\n"
-    )
     call_order: list[str] = []
+    active = GateBindingResolution(
+        coverage=GateCoverage.ACTIVE,
+        edge_key="in_progress->for_review",
+        owning_contract_urn="mission_step_contract:software-dev/review",
+        reason="1 active gate binding(s)",
+        active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
+    )
     fake_verdict = pre_review_gate.GateVerdict(
-        outcome=pre_review_gate.GateOutcome.NO_COVERAGE,
-        scope=pre_review_gate.ScopeResult(
-            test_targets=("tests/foo/test_bar.py",),
-            matched_shard_groups=(),
-            matched_composite_dirs=(),
-            empty_cone_composite_dirs=(),
-            excluded_scope_files=(),
-        ),
-        reason="mocked — no real run",
+        outcome=pre_review_gate.GateOutcome.NO_NEW_FAILURES,
+        scope=pre_review_gate.ScopeResult.from_override(("tests/foo/test_bar.py",)),
+        reason="stubbed dispatch — no real run",
     )
 
-    def _fake_evaluate_with_scope(*args: Any, **kwargs: Any) -> pre_review_gate.GateVerdict:
-        call_order.append("evaluate")
-        return fake_verdict
+    def _fake_dispatch(*args: Any, **kwargs: Any) -> list[pre_review_gate.GateVerdict]:
+        call_order.append("dispatch")
+        return [fake_verdict]
 
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
-        patch(f"{_MODULE}._resolve_wp_slug", return_value="WP01-fake"),
-        patch(
-            "specify_cli.review.baseline.BaselineTestResult.load", return_value=None
-        ),
-        patch.object(
-            pre_review_gate, "evaluate_with_scope", side_effect=_fake_evaluate_with_scope
-        ),
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=Path("/lane")),
+        patch(f"{_MODULE}._mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch(f"{_MODULE}._mt_pre_review_dirty_paths", return_value=()),
+        patch(f"{_MODULE}._mt_resolve_active_gate_bindings", return_value=active),
+        patch(f"{_MODULE}._mt_build_transition_gate_context", return_value=object()),
+        patch(f"{_MODULE}._mt_dispatch_transition_gates", side_effect=_fake_dispatch),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         console_mock.print.side_effect = lambda *a, **k: call_order.append("print")
         tasks_move_task._mt_run_pre_review_gate(st)
 
-    assert call_order[0] == "print", "the progress notice must print BEFORE the scoped run"
+    assert call_order[0] == "print", "the progress notice must print BEFORE dispatch"
+    assert "dispatch" in call_order
+    assert call_order.index("print") < call_order.index("dispatch")
     printed = " ".join(str(call.args[0]) for call in console_mock.print.call_args_list)
     assert "running scoped tests at head" in printed
     assert "may take a few minutes" in printed
 
 
 def test_no_progress_notice_when_scope_is_empty() -> None:
-    """No override, no changed files -> the cheap empty-scope path never
-    claims it's "running" anything (it isn't)."""
+    """No changed files -> the cheap empty-scope path short-circuits before
+    binding resolution and never claims it's "running" anything (it isn't)."""
     st = _make_state()
     with (
         patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
