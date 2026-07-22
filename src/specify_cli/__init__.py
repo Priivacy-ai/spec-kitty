@@ -83,10 +83,14 @@ def version_callback(value: bool) -> None:
     if value:
         from specify_cli.cli.console import console
         from specify_cli.cli.helpers import show_banner
-        from specify_cli.distribution.package_name import resolve_cli_package_name
+        from specify_cli.distribution import resolve_distribution_profile
 
         show_banner(force=True)
-        console.print(f"{resolve_cli_package_name()} version {__version__}")
+        # Identity flows through the DistributionProfile (the aggregated seam):
+        # a fork's version_label wins, else its package_name.
+        profile = resolve_distribution_profile()
+        label = profile.version_label or profile.package_name
+        console.print(f"{label} version {__version__}")
         raise typer.Exit()
 
 def main_callback(
