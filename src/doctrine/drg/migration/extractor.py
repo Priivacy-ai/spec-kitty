@@ -141,6 +141,7 @@ _KIND_MAP: dict[str, NodeKind] = {
     "template": NodeKind.TEMPLATE,
     "action": NodeKind.ACTION,
     "mission_type": NodeKind.MISSION_TYPE,
+    "mission_step_contract": NodeKind.MISSION_STEP_CONTRACT,
 }
 
 # Reference types that are NOT DRG node kinds (skipped during extraction).
@@ -831,6 +832,56 @@ def _discover_mission_type_nodes(
         _ensure_node(nodes_by_urn, urn, NodeKind.MISSION_TYPE, label or None)
 
 
+def _discover_mission_step_contract_nodes(
+    doctrine_root: Path,
+    nodes_by_urn: dict[str, DRGNode],
+) -> None:
+    """Register a ``mission_step_contract`` node per built-in step contract.
+
+    Authoritative source: ``missions/built_in_step_contracts/*.step-contract.yaml``.
+    Each shipped contract carries ``mission`` + ``action`` fields; this mints one
+    ``mission_step_contract:<mission>/<action>`` node (labelled with the action)
+    so a node exists **iff** a contract exists. Mirrors how
+    :func:`extract_action_edges` mints ``action:<mission>/<action>`` nodes.
+
+    These nodes are what the pre-review activation ⋈ binding join
+    (``review/gate_bindings.py``) resolves against: without
+    ``mission_step_contract:software-dev/review`` the transition gate resolves
+    NOT_ACTIVATED and never fires. Because the node's owning mission type is
+    active by default, the node is default-activated, which makes the reference
+    cut (``software-dev/review`` → ``in_progress->for_review``) fire.
+
+    Raises:
+        ValueError: if two contracts declare the same ``mission``/``action``
+            pair. Left unchecked, ``_ensure_node`` would silently collapse the
+            pair onto one URN, masking an authoring collision behind a
+            freshness-clean graph.
+    """
+    contracts_dir = doctrine_root / "missions" / "built_in_step_contracts"
+    if not contracts_dir.is_dir():
+        return
+    seen_urns: dict[str, Path] = {}
+    for path in sorted(contracts_dir.glob("*.step-contract.yaml")):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        mission: str = data.get("mission", "")
+        action: str = data.get("action", "")
+        if not mission or not action:
+            continue
+        urn = artifact_to_urn("mission_step_contract", f"{mission}/{action}")
+        if urn in seen_urns:
+            msg = (
+                f"Duplicate mission_step_contract {urn!r} declared by both "
+                f"{seen_urns[urn].name} and {path.name} in {path.parent}"
+            )
+            raise ValueError(msg)
+        seen_urns[urn] = path
+        _ensure_node(
+            nodes_by_urn, urn, NodeKind.MISSION_STEP_CONTRACT, action
+        )
+
+
 def _resolve_action_sequence(
     step_repo: MissionStepRepository, mission_type_id: str, data: dict[str, Any]
 ) -> list[str]:
@@ -988,6 +1039,10 @@ def generate_graph(
 
     # Step 4b: Discover mission-type nodes
     _discover_mission_type_nodes(doctrine_root, nodes_by_urn)
+
+    # Step 4b': Discover mission_step_contract nodes (one per built-in step
+    # contract) so the pre-review activation join resolves ACTIVE.
+    _discover_mission_step_contract_nodes(doctrine_root, nodes_by_urn)
 
     # Step 4c: Graph-back the mission_type->step->template chain (FR-009):
     # mint mission-qualified template nodes + action->template instantiates
