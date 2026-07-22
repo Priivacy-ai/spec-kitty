@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-21'
 related:
 - docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md
-- docs/engineering_notes/index.md
+- docs/plans/engineering-notes/index.md
 ---
 # Built-in Doctrine DRG — Missing / Under-Specified Links Analysis
 
@@ -208,7 +208,7 @@ REFINES}`, the reachable frontier from a `mission_type` is:
   actually uses.
 - The only artifacts that cascade at all are those linked by `requires`/`suggests` chains that
   do *not* route through an action's `scope` — i.e. directive→directive `requires` (15),
-  procedure→* `requires` (82), paradigm→* `requires` (41), and the `suggests` web.
+  procedure→\* `requires` (82), paradigm→\* `requires` (41), and the `suggests` web.
 
 Decision to make: either (a) add `scope` (and possibly `instantiates`) to `REFERENCE_RELATIONS`,
 or (b) accept that `scope` is a non-activating "applicability context" relation and ensure any

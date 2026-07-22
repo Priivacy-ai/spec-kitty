@@ -19,7 +19,7 @@ date: '2026-07-21'
 
 ## Context and Problem Statement
 
-The Doctrine Reference Graph (DRG) models **obligation** in abundance and **tension** almost not at all. Measured on the current built-in layer (`docs/engineering_notes/doctrine-drg-missing-links-analysis.md`): 255 `requires` + 330 `suggests` edges, and **zero** edges that say "these two rules compete." When two `requires`d directives land in the same activated context with no arbitration, the competition is invisible to the runtime and the agent silently picks which one wins — the "premature victory / quiet deferment" problem #2537 traces.
+The Doctrine Reference Graph (DRG) models **obligation** in abundance and **tension** almost not at all. Measured on the current built-in layer (`docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md`): 255 `requires` + 330 `suggests` edges, and **zero** edges that say "these two rules compete." When two `requires`d directives land in the same activated context with no arbitration, the competition is invisible to the runtime and the agent silently picks which one wins — the "premature victory / quiet deferment" problem #2537 traces.
 
 The only machine-readable "these two are at odds" signal today is the `opposed_by` field, and it is broken three ways:
 
@@ -214,7 +214,7 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 
 ## More Information
 
-- Analysis: `docs/engineering_notes/doctrine-drg-missing-links-analysis.md` (cascade dead-ends, relation-usage census).
+- Analysis: `docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md` (cascade dead-ends, relation-usage census).
 - Migration precedent: `tests/doctrine/test_relationship_migration.py` (field→edge, zero-loss, no-field invariant).
 - Cascade engine + reference set: `src/charter/cascade.py` (`REFERENCE_RELATIONS`).
 - Consistency check surface: `src/charter/consistency_check.py`; CLI `spec-kitty charter pack consistency-check`.
