@@ -129,13 +129,133 @@ class Relation(StrEnum):
 
 
 #: Canonical relation-description registry (single authority, FR-012/A2).
-#: Scope for this mission is deliberately the three new relations only --
-#: backfilling descriptions for the other twelve pre-existing relations is an
-#: explicit non-goal (spec.md Assumption A2). This is the ONE seam that both
-#: a future ``describe(relation)`` call site and the WP08 doc-parity check
-#: (``docs/architecture/doctrine-relationships.md``) read from -- do not
-#: duplicate this mapping anywhere else.
+#: Covers all 15 ``Relation`` members (FR-005/FR-007, mission
+#: ``drg-relation-parity-activation-gate-01KY48PD``); completeness is
+#: enforced by ``tests/doctrine/drg/test_models.py``. This is the ONE seam
+#: that both a future ``describe(relation)`` call site and the doc-parity
+#: check (``docs/architecture/doctrine-relationships.md``) read from -- do
+#: not duplicate this mapping anywhere else.
 RELATION_DESCRIPTIONS: dict[Relation, str] = {
+    Relation.REQUIRES: (
+        "A directional, hard-dependency edge: resolving or activating the "
+        "source artifact pulls in the target as a mandatory prerequisite. "
+        "``resolve_action_context`` walks ``requires`` edges transitively, "
+        "with no depth limit, from an action's ``scope``-resolved artifacts; "
+        "``charter activate --cascade`` follows the same edge to pull in "
+        "artifacts that must also be active. It is the emission-heaviest "
+        "relation in the built-in graph (255 edges) and is the mandatory "
+        "counterpart to ``suggests``, not a stronger synonym for it."
+    ),
+    Relation.SUGGESTS: (
+        "A directional, soft-recommendation edge: the source artifact points "
+        "at content that is relevant but not mandatory. ``resolve_action_"
+        "context`` walks ``suggests`` edges only up to a bounded hop depth -- "
+        "unlike the unbounded transitive walk used for ``requires`` -- and "
+        "the charter cascade treats a ``suggests`` target as optional, "
+        "something an operator may accept or skip. It is the most-emitted "
+        "relation in the built-in graph (330 edges); the boundedness of the "
+        "walk, not the edge count, is what distinguishes it from ``requires``."
+    ),
+    Relation.APPLIES: (
+        "Names the edge from an agent profile to the concrete procedure or "
+        "tactic that profile executes as its operating workflow, e.g. "
+        "``agent_profile:doctrine-daphne`` --applies--> "
+        "``procedure:onboard-external-agent-to-pack``. Emission is narrow by "
+        "design (1 edge in the built-in graph): most profiles describe their "
+        "workflow in prose via the ``specialization`` field rather than a "
+        "graph edge. Distinct from ``scope``, which names the "
+        "action-to-governance-artifact edge role, not a profile's own "
+        "operating procedure -- the two are never interchangeable."
+    ),
+    Relation.SCOPE: (
+        "Names the edge from a mission-step action node to the directives "
+        "and tactics that govern performing that action -- the entry point "
+        "walked at depth 1 by ``resolve_action_context`` before it expands "
+        "through ``requires``/``suggests``. It is the most heavily emitted "
+        "action-adjacent relation in the built-in graph (157 edges). "
+        "Distinct from ``applies``: ``scope`` says an action is governed by "
+        "an artifact; ``applies`` says a profile executes a workflow "
+        "artifact. Despite both linking an action-adjacent node to guidance "
+        "content, they name different edge-roles and are never interchangeable."
+    ),
+    Relation.VOCABULARY: (
+        "Names the edge from a resolved doctrine artifact to a "
+        "``glossary_scope`` node, walked at depth 1 by "
+        "``resolve_action_context`` to surface which glossary sections apply "
+        "to an action's resolved context. Intended-but-dormant: zero edges "
+        "exist in the built-in graph today, so no action currently pulls in "
+        "glossary scope through this relation -- the walk is implemented and "
+        "exercised by tests, but no artifact author has emitted one yet."
+    ),
+    Relation.INSTANTIATES: (
+        "A directional edge from a mission-step action node to the template "
+        "it produces as its concrete output artifact, e.g. "
+        "``action:documentation/design`` --instantiates--> "
+        "``template:documentation/documentation-plan-template.md``. Emitted "
+        "8 times in the built-in graph, exclusively from ``action`` nodes to "
+        "``template`` nodes. Distinct from ``scope``, which links an action "
+        "to governance content it must follow, not content it produces."
+    ),
+    Relation.REPLACES: (
+        "A directional supersession edge: the source artifact fully "
+        "supersedes the target, which is no longer applicable once the "
+        "source is active. Retained for backward compatibility with "
+        "existing hand-authored fragments; zero edges exist in the built-in "
+        "graph by design -- new supersession is expressed by deactivating "
+        "the superseded artifact directly, or, for pack overlays, via "
+        "``overrides``. Distinct from ``in_tension_with``, which never "
+        "implies that either side is deprecated or wrong."
+    ),
+    Relation.DELEGATES_TO: (
+        "A directional, runtime handoff edge: one agent profile hands work "
+        "to another at execution time (e.g. an implementer profile "
+        "delegating a review to a reviewer profile). Deliberately kept "
+        "separate from ``specializes_from`` so a static lineage relationship "
+        "is never conflated with a live work handoff. Intended-but-dormant: "
+        "zero edges exist in the built-in graph today -- delegation is "
+        "currently expressed through a profile's ``collaboration."
+        "handoff_to`` prose field, not a graph edge."
+    ),
+    Relation.SPECIALIZES_FROM: (
+        "A directional, static lineage edge: a profile or artifact derives "
+        "from a parent, narrowing or extending it. Emitted 4 times in the "
+        "built-in graph, exclusively ``agent_profile`` -> ``agent_profile`` "
+        "(e.g. ``python-pedro`` --specializes_from--> ``implementer-ivan``). "
+        "Resolved via ``AgentProfileRepository.resolve_profile`` graph "
+        "traversal at composition time, and deliberately distinct from "
+        "``delegates_to`` so inheritance never leaks into runtime handoff "
+        "traversal."
+    ),
+    Relation.ENHANCES: (
+        "A directional org-pack overlay edge: a pack artifact field-merges "
+        "additional content into a built-in artifact, preserving the "
+        "built-in's action sequence and step I/O rather than replacing "
+        "them. Zero edges exist in the built-in graph by design -- "
+        "``enhances`` only ever originates from an org- or project-tier "
+        "pack fragment layered on top of a shipped artifact, never between "
+        "two built-in nodes. Distinct from ``overrides``, which replaces "
+        "rather than merges."
+    ),
+    Relation.OVERRIDES: (
+        "A directional org-pack overlay edge: a pack artifact declares a "
+        "full replacement of a built-in artifact's content, rather than a "
+        "field-merge. Zero edges exist in the built-in graph by design, for "
+        "the same reason as ``enhances`` -- it only ever originates from an "
+        "org- or project-tier overlay, never between two built-in nodes. "
+        "Silently dropping steps or stripping step I/O when applying an "
+        "``overrides`` edge is rejected by the loader."
+    ),
+    Relation.REFINES: (
+        "A directional edge: an artifact narrows or sharpens the "
+        "applicability or meaning of its target (a parent or built-in "
+        "artifact) without replacing it -- a first-class, traversable "
+        "relation, never a synonym for ``applies`` or ``specializes_from``. "
+        "Intended-but-dormant: zero edges exist in the built-in graph "
+        "today. The org-to-DRG bridge previously downgraded authored "
+        "``refines`` edges to ``applies`` silently; that lossy downgrade "
+        "has been removed, so ``refines`` now survives end-to-end once an "
+        "author emits one."
+    ),
     Relation.IN_TENSION_WITH: (
         "Marks two co-valid, co-activatable artefacts that compete on the "
         "same decision. The relation is symmetric and non-transitive: it is "

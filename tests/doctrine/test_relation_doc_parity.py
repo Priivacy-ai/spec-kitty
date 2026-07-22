@@ -1,19 +1,25 @@
-"""WP08 (T038-T041) -- enum <-> doc parity for the tension-vocabulary
-relation descriptions (FR-012, NFR-004, Assumption A2).
+"""WP08 (T038-T041) + WP05 (T019-T022) -- enum <-> doc parity for every
+relation description (FR-006, FR-012, NFR-003, NFR-004).
 
-Scope is exactly the three new relations added by mission
-``doctrine-tension-edges-01KY1WPC``: ``in_tension_with``, ``reconciles_tension``,
-``rejects``. The other twelve pre-existing ``Relation`` members are
-deliberately out of scope for this parity check -- backfilling descriptions
-for them is a follow-up, not part of this mission (spec.md Assumption A2).
+Scope was originally exactly the three tension-vocabulary relations added by
+mission ``doctrine-tension-edges-01KY1WPC`` (``in_tension_with``,
+``reconciles_tension``, ``rejects``); the other twelve pre-existing
+``Relation`` members were deliberately out of scope for that parity check,
+with backfilling flagged as a follow-up (spec.md Assumption A2, superseded).
+Mission ``drg-relation-parity-activation-gate-01KY48PD`` (WP04/WP05) IS that
+follow-up: it authored ``RELATION_DESCRIPTIONS`` entries and matching
+``### ...`` doc sections for all twelve remaining relations and widened
+``_SCOPED_RELATIONS`` to cover all 15 ``Relation`` members. There is no
+remaining excluded subset.
 
-``RELATION_DESCRIPTIONS`` in ``src/doctrine/drg/models.py`` (WP01) is the
+``RELATION_DESCRIPTIONS`` in ``src/doctrine/drg/models.py`` (WP01/WP04) is the
 single canonical authority for relation description text. This module is
 READ-ONLY with respect to that registry: it consumes the text, it never
 edits it. The mirrored copy for human readers lives in
-``docs/architecture/doctrine-relationships.md`` ("Tension vocabulary"
-section, WP08); this module is the enforcement that the two never drift
-apart, and names the specific relation that diverged when they do.
+``docs/architecture/doctrine-relationships.md``, restructured (WP05) into one
+dedicated ``### ...`` section per relation; this module is the enforcement
+that the two never drift apart, and names the specific relation that
+diverged when they do.
 
 A parity check that only verifies *presence* (both sides have *some*
 description) rather than content-equality would satisfy the letter of "a
@@ -36,13 +42,11 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 DOC_PATH = REPO_ROOT / "docs" / "architecture" / "doctrine-relationships.md"
 
-#: The three relations in this mission's parity scope (Assumption A2). Every
-#: other ``Relation`` member is deliberately excluded -- see module docstring.
-_SCOPED_RELATIONS: tuple[Relation, ...] = (
-    Relation.IN_TENSION_WITH,
-    Relation.RECONCILES_TENSION,
-    Relation.REJECTS,
-)
+#: All 15 ``Relation`` members are in parity scope (widened from the original
+#: 3 tension-vocabulary relations by mission
+#: ``drg-relation-parity-activation-gate-01KY48PD``, WP05/T020). There is no
+#: excluded subset -- see module docstring.
+_SCOPED_RELATIONS: tuple[Relation, ...] = tuple(Relation)
 
 # Matches a level-3 markdown heading ("### ...") whose title carries the
 # relation token as inline code (single OR double backticks -- the registry
@@ -89,7 +93,7 @@ def _extract_doc_description(doc_text: str, relation: Relation) -> str:
 
 
 def find_divergent_relations(doc_text: str) -> list[str]:
-    """Compare registry text against doc text for the 3 scoped relations.
+    """Compare registry text against doc text for all 15 scoped relations.
 
     Returns the relation tokens (``Relation.value``) whose doc entry diverges
     from ``RELATION_DESCRIPTIONS`` -- empty when everything matches. This is
@@ -117,7 +121,7 @@ def test_doc_file_exists() -> None:
 
 @pytest.mark.parametrize("relation", _SCOPED_RELATIONS, ids=lambda r: r.value)
 def test_doc_entry_matches_registry_verbatim(relation: Relation, doc_text: str) -> None:
-    """Each of the 3 new relations' doc entry must equal the registry text exactly."""
+    """Each of the 15 relations' doc entry must equal the registry text exactly."""
     registry_text = _normalize(RELATION_DESCRIPTIONS[relation])
     doc_entry = _extract_doc_description(doc_text, relation)
     assert doc_entry == registry_text, (
@@ -141,8 +145,8 @@ def test_red_first_mutation_is_detected_and_named(doc_text: str) -> None:
     only (the registry and the on-disk doc file are never touched), confirms
     ``find_divergent_relations`` fails and names exactly that relation, then
     "reverts" by re-running the check against the original, unmutated text
-    and confirming it passes again -- and that the other two relations never
-    show up as divergent in either run.
+    and confirming it passes again -- and that the other 14 scoped relations
+    never show up as divergent in either run.
     """
     target = Relation.RECONCILES_TENSION
     original_entry = _extract_doc_description(doc_text, target)
@@ -159,8 +163,8 @@ def test_red_first_mutation_is_detected_and_named(doc_text: str) -> None:
     mutated_doc_text = doc_text[:body_start] + f"\n\n{mutated_entry}\n\n" + doc_text[body_end:]
 
     # Red: the mutated copy must fail, and must name exactly the mutated
-    # relation -- not "parity check failed" in general, and not the other
-    # two relations, which were left untouched.
+    # relation -- not "parity check failed" in general, and not any of the
+    # other 14 scoped relations, which were left untouched.
     divergent_after_mutation = find_divergent_relations(mutated_doc_text)
     assert divergent_after_mutation == [target.value], (
         f"expected mutation to flag exactly ['{target.value}'], "

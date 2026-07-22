@@ -419,6 +419,163 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 ---
 
+<!-- ================================================================== -->
+<!-- Remaining DRG relations (WP04, mission                             -->
+<!-- drg-relation-parity-activation-gate-01KY48PD, FR-008)               -->
+<!-- These entries paraphrase the canonical registry for reader          -->
+<!-- completeness. This glossary is deliberately NOT the parity-enforced -->
+<!-- doc surface -- that role belongs solely to                         -->
+<!-- docs/architecture/doctrine-relationships.md, whose per-relation     -->
+<!-- section bodies are checked verbatim against                        -->
+<!-- RELATION_DESCRIPTIONS by tests/doctrine/test_relation_doc_parity.py.-->
+<!-- Do not attempt to make the prose below content-equal to the         -->
+<!-- registry; a wording drift here is expected and harmless.            -->
+<!-- ================================================================== -->
+
+### Hard Dependency — `requires` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation marking a mandatory prerequisite: the source artifact cannot be meaningfully resolved without the target also being present and considered. Governance-context resolution for a mission-step action walks `requires` edges transitively (no hop limit) once it has collected the action's [scoped](#governance-scope--scope-drg-relation) artifacts, and the charter activation cascade follows the same edge to pull in artifacts that must also be active. It is the most heavily used relation in the built-in graph. Canonical source: `RELATION_DESCRIPTIONS[Relation.REQUIRES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Soft Recommendation](#soft-recommendation--suggests-drg-relation), [Governance Scope](#governance-scope--scope-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Soft Recommendation — `suggests` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation pointing at content that is relevant but optional. Unlike [Hard Dependency](#hard-dependency--requires-drg-relation), which is walked transitively with no depth limit, governance-context resolution only follows `suggests` edges a bounded number of hops, and the charter activation cascade treats a `suggests` target as something an operator may accept or decline. It is emitted more often than any other relation in the built-in graph, but that volume is incidental — the depth-bounded walk, not the count, is what separates it from `requires`. Canonical source: `RELATION_DESCRIPTIONS[Relation.SUGGESTS]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Hard Dependency](#hard-dependency--requires-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Workflow Application — `applies` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from an agent profile to the concrete procedure or tactic it executes as its operating workflow. It is deliberately rare in the built-in graph — most profiles describe how they work through the `specialization` field's prose rather than a graph edge — so seeing only a handful of `applies` edges is expected, not a gap. Distinct from [Governance Scope](#governance-scope--scope-drg-relation): `applies` names what a profile *does*, `scope` names what an action is *governed by*; the two edge-roles are never interchangeable even though both link an actor-adjacent node to guidance content. Canonical source: `RELATION_DESCRIPTIONS[Relation.APPLIES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Governance Scope](#governance-scope--scope-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Governance Scope — `scope` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from a mission-step action node to the directives and tactics that govern performing that action. It is the entry point of governance-context resolution: the resolver first walks `scope` edges from the action node, then expands through [Hard Dependency](#hard-dependency--requires-drg-relation) and [Soft Recommendation](#soft-recommendation--suggests-drg-relation) edges from what it found. It is one of the most heavily emitted relations tied to action nodes in the built-in graph. Distinct from [Workflow Application](#workflow-application--applies-drg-relation) — see that entry for the contrast. Canonical source: `RELATION_DESCRIPTIONS[Relation.SCOPE]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Workflow Application](#workflow-application--applies-drg-relation), [Hard Dependency](#hard-dependency--requires-drg-relation), [Soft Recommendation](#soft-recommendation--suggests-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Glossary Vocabulary — `vocabulary` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from a resolved doctrine artifact to a glossary-scope node, meant to surface which glossary sections are relevant once governance context has been resolved for an action. The traversal step exists and is exercised by tests, but no built-in or org-pack artifact currently emits a `vocabulary` edge — treat it as intended-but-dormant rather than actively exercised. Canonical source: `RELATION_DESCRIPTIONS[Relation.VOCABULARY]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Governance Scope](#governance-scope--scope-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Template Instantiation — `instantiates` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from a mission-step action node to the template it produces as its concrete output. It appears only between `action` and `template` nodes in the built-in graph, in modest numbers, and is distinct from [Governance Scope](#governance-scope--scope-drg-relation): `scope` links an action to content it must follow, `instantiates` links it to content it produces. Canonical source: `RELATION_DESCRIPTIONS[Relation.INSTANTIATES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Governance Scope](#governance-scope--scope-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Supersession — `replaces` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation asserting that the source artifact fully supersedes the target, which stops applying once the source is active. It is retained for backward compatibility with older, hand-authored fragments; no built-in artifact emits it today, since current practice either deactivates the superseded artifact directly or, for pack overlays, expresses supersession through [Overlay Override](#overlay-override--overrides-drg-relation). Distinct from [Tension](#tension--in_tension_with-drg-relation), which never implies either side is deprecated or wrong. Canonical source: `RELATION_DESCRIPTIONS[Relation.REPLACES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Overlay Override](#overlay-override--overrides-drg-relation), [Tension](#tension--in_tension_with-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Delegation — `delegates_to` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation expressing a *runtime* handoff: one agent profile hands work to another at execution time. It is kept deliberately separate from [Lineage](#lineage--specializes_from-drg-relation) so a static "derives from" relationship never gets conflated with a live work handoff. No built-in artifact emits a `delegates_to` edge today — delegation is currently expressed in profile `collaboration.handoff_to` prose rather than as a graph edge, so treat this relation as intended-but-dormant. Canonical source: `RELATION_DESCRIPTIONS[Relation.DELEGATES_TO]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Lineage](#lineage--specializes_from-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Lineage — `specializes_from` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional, static [Three-layer DRG](#three-layer-drg) relation: a profile or artifact derives from a parent, narrowing or extending it. In the built-in graph this appears only between `agent_profile` nodes (e.g. a language-specialist implementer profile specializing from the generic implementer profile), and is resolved through `AgentProfileRepository.resolve_profile` graph traversal at composition time. Deliberately distinct from [Delegation](#delegation--delegates_to-drg-relation) so inheritance never leaks into runtime handoff traversal. Canonical source: `RELATION_DESCRIPTIONS[Relation.SPECIALIZES_FROM]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Delegation](#delegation--delegates_to-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
+### Overlay Enhancement — `enhances` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional org-pack overlay relation: a pack artifact field-merges additional content into a built-in artifact, preserving the built-in's existing action sequence and step I/O rather than discarding them. No built-in artifact emits this edge — by design, `enhances` only ever originates from an org- or project-tier pack fragment layered on top of a shipped artifact, never between two built-in nodes. Distinct from [Overlay Override](#overlay-override--overrides-drg-relation), which replaces rather than merges. Canonical source: `RELATION_DESCRIPTIONS[Relation.ENHANCES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Overlay Override](#overlay-override--overrides-drg-relation), [Three-layer DRG](#three-layer-drg), [Organisation Tier](#organisation-tier) |
+
+---
+
+### Overlay Override — `overrides` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional org-pack overlay relation: a pack artifact declares a full replacement of a built-in artifact's content rather than a field-merge. Like [Overlay Enhancement](#overlay-enhancement--enhances-drg-relation), no built-in artifact emits this edge by design — it only ever originates from an org- or project-tier overlay. Silently dropping steps or stripping step input/output when applying an `overrides` edge is rejected rather than tolerated. Canonical source: `RELATION_DESCRIPTIONS[Relation.OVERRIDES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Overlay Enhancement](#overlay-enhancement--enhances-drg-relation), [Three-layer DRG](#three-layer-drg), [Organisation Tier](#organisation-tier) |
+
+---
+
+### Refinement — `refines` (DRG Relation)
+
+| | |
+|---|---|
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation: an artifact narrows or sharpens the applicability or meaning of a parent or built-in target without replacing it. It is a first-class, traversable relation in its own right — never a stand-in for [Workflow Application](#workflow-application--applies-drg-relation) or [Lineage](#lineage--specializes_from-drg-relation). No built-in artifact currently emits a `refines` edge, so treat it as intended-but-dormant; an earlier version of the org-to-DRG bridge silently downgraded authored `refines` edges to `applies`, but that lossy downgrade has since been removed. Canonical source: `RELATION_DESCRIPTIONS[Relation.REFINES]` in `src/doctrine/drg/models.py`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Related terms** | [Workflow Application](#workflow-application--applies-drg-relation), [Lineage](#lineage--specializes_from-drg-relation), [Three-layer DRG](#three-layer-drg) |
+
+---
+
 ### Organisation Tier
 
 | | |

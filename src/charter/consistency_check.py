@@ -104,29 +104,6 @@ _DRG_SINGULAR_TO_CLI_KIND: dict[str, str] = {
     v: k for k, v in _CLI_KIND_TO_DRG_SINGULAR.items()
 }
 
-# ---------------------------------------------------------------------------
-# DRG singular kind -> ``PackContext.activated_kinds`` plural member (T018).
-#
-# Derived from YAML_KEY_MAP (``activated_<plural>`` minus the ``activated_``
-# prefix) rather than importing ``charter.drg``'s private
-# ``_SINGULAR_TO_PLURAL``. Deliberately used INSTEAD of
-# ``charter.drg.filter_graph_by_activation`` for the KIND-level check: that
-# helper's per-artifact-ID gate (``_node_is_activated`` Step 3) compares a
-# DRG node's canonical id (e.g. ``DIRECTIVE_001``) against
-# ``PackContext.activated_directives``, which holds config *stems* (e.g.
-# ``001-architectural-integrity-standard``) -- the exact stem<->canonical-id
-# mismatch this mission's ID-reconciliation is scoped to leave punted. Using
-# it here would make the KIND-level check spuriously fail for every kind
-# whose stem differs from its canonical id (directives), which is a
-# pre-existing defect in a file this WP does not own, not a real config<->
-# graph divergence. This module therefore reproduces only the KIND-level
-# gate (``activated_kinds`` membership), never the per-ID gate.
-# ---------------------------------------------------------------------------
-_DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER: dict[str, str] = {
-    drg_singular: YAML_KEY_MAP[cli_kind].removeprefix("activated_")
-    for cli_kind, drg_singular in _CLI_KIND_TO_DRG_SINGULAR.items()
-}
-
 
 # ---------------------------------------------------------------------------
 # TensionFinding (T024, FR-009/FR-010, contracts/tension-finding.md)
@@ -188,12 +165,17 @@ class ConsistencyReport:
             direction (paradigms only -- the one kind rendered 1:1 with no
             DRG-transitive expansion): a compiled paradigm reference with no
             matching config activation.
-        graph_kind_gaps: FR-005/T018 -- KIND-level parity findings between
-            ``config.activated_*`` and the activation-filtered DRG graph. A
-            kind with config-activated IDs but zero surviving graph nodes of
-            that kind is a whole-kind dangler. Deliberately KIND-granular,
-            not ID-granular (the config<->graph ID map is punted, see
-            ``_check_drg_cross_kind_refs``).
+        graph_kind_gaps: FR-005/T018 -- per-ID parity findings (T007
+            re-point) between ``config.activated_*`` and the
+            activation-filtered DRG graph. A config-activated stem that
+            resolves to a canonical doctrine id but whose node does not
+            survive in the activation-filtered graph is reported as
+            ``{cli_kind}/{stem}``. Formerly KIND-granular (a whole-kind
+            dangler when zero nodes of a kind survived); T007 re-pointed
+            this onto the WP01-corrected
+            ``charter.drg.filter_graph_by_activation`` gate, which resolves
+            the config-stem<->DRG-URN-id mismatch that made per-ID
+            unsuitable before (see ``_check_graph_kind_parity``).
         verification_errors: #2530 -- fail-closed signal distinct from every
             other (empty) finding list above. Populated when a parity check
             could not run at all because its input was unreadable or
@@ -774,6 +756,54 @@ def _check_reference_id_reverse_parity(
             )
 
 
+def _resolve_graph_kind_parity_stem(
+    cli_kind: str,
+    kind_enum: ArtifactKind,
+    stem: str,
+    surviving_urns: frozenset[str],
+    *,
+    doctrine_root: Path,
+    org_roots: list[Path],
+    graph_kind_gaps: list[str],
+    verification_errors: list[str],
+    suggestions: list[str],
+) -> None:
+    """Resolve one activated stem and check its per-ID DRG-graph survival (T007).
+
+    Narrow catch (``except UnknownArtifactIdError``, never broad ``except
+    Exception``): this check's contract is "config<->graph parity", so a stem
+    it cannot resolve is itself a "could not verify parity for this id"
+    condition and is reported by name into *verification_errors* -- in
+    addition to (not instead of) the separate "unknown to doctrine at all"
+    report :func:`_check_unknown_references` already produces for the same
+    stem. A non-``UnknownArtifactIdError`` failure here (a genuine
+    programming bug, not a config-drift condition) is deliberately left
+    uncaught and propagates -- collapsing this into a broad ``except
+    Exception`` would silently misreport a real bug as ordinary drift.
+    """
+    try:
+        urn = resolve_artifact_urn(
+            kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
+        )
+    except UnknownArtifactIdError as exc:
+        verification_errors.append(f"{cli_kind}/{stem}: {exc}")
+        suggestions.append(
+            f"{cli_kind}/{stem}: Could not resolve to a canonical doctrine "
+            f"id while checking config<->graph parity ({exc}). Run "
+            f"'charter deactivate {cli_kind} {stem}' to remove, or fix the "
+            f"stem."
+        )
+        return
+    if urn not in surviving_urns:
+        graph_kind_gaps.append(f"{cli_kind}/{stem}")
+        suggestions.append(
+            f"{cli_kind}/{stem}: Activated in config.yaml but does not "
+            f"survive in the activation-filtered DRG graph. Regenerate "
+            f"graph.yaml / run 'spec-kitty charter resynthesize' and check "
+            f"'activated_kinds' in config.yaml."
+        )
+
+
 def _check_graph_kind_parity(
     ctx: ProjectContext,
     raw_activated_by_kind: dict[str, list[str] | None],
@@ -781,27 +811,35 @@ def _check_graph_kind_parity(
     verification_errors: list[str],
     suggestions: list[str],
 ) -> None:
-    """FR-005/T018: config.activated_* <-> DRG graph, at KIND level only.
+    """FR-005/T018: config.activated_* <-> DRG graph, at per-ID level (T007).
 
-    Deliberately KIND-granular, not ID-granular: ``_check_drg_cross_kind_refs``
-    already documents that there is no canonical config-stem <-> DRG-URN-id
-    mapping (the "punted" map at :func:`_check_drg_cross_kind_refs`) --
-    building it here would grow an ID-reconciliation sub-project FR-005 does
-    not ask for. Instead this checks a coarser, still non-vacuous property:
-    when config explicitly activates one or more IDs for a DRG-representable
-    kind, the activation-filtered DRG graph must contain at least one
-    surviving node of that kind. A kind with config-activated IDs but zero
-    surviving graph nodes is a whole-kind dangler -- the KIND-level shadow of
-    the #2524 class.
+    T007 (workaround collapse, plan.md IC-02): re-pointed from KIND-granular
+    to per-ID, consuming the WP01-corrected
+    :func:`charter.drg.filter_graph_by_activation` gate directly instead of
+    reproducing a hand-rolled kind-membership check. Before WP01, this
+    function deliberately avoided that gate because its per-artifact-ID Step
+    3 compared a DRG node's canonical id against config *stems* without
+    resolving the stem<->canonical-id mismatch -- WP01 closed that mismatch
+    (the gate now resolves stems to canonical URNs internally and compares on
+    full URN), so the workaround this function used to need no longer
+    applies. This is a deliberate **behavior upgrade**, not a pure refactor: a
+    config-activated stem that resolves to doctrine but does not survive in
+    the activation-filtered graph is now flagged by its own id (``{cli_kind}/
+    {stem}``), not merely by "some id of this kind is missing" (the old
+    whole-kind-dangler granularity).
+
+    For each explicitly-activated stem this resolves it to a canonical URN
+    via :func:`charter.kind_vocabulary.resolve_artifact_urn` (the same
+    resolver :func:`_check_reference_id_parity` uses for the identical
+    stem<->canonical bridge) and checks membership in the activation-filtered
+    graph's surviving node URNs -- see
+    :func:`_resolve_graph_kind_parity_stem`.
 
     NOTE: this function deliberately does NOT import
     ``specify_cli.*freshness*`` (layer rule -- ``freshness/computer.py`` is a
     ``specify_cli`` module that imports ``charter``, so ``charter`` cannot
     import it back) and asserts a disjoint property from freshness (temporal
-    staleness vs config<->derived set parity). It also deliberately does NOT
-    use ``charter.drg.filter_graph_by_activation`` -- see the module-level
-    ``_DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER`` docstring for why that
-    helper's per-ID gate is unsuitable for a KIND-level check.
+    staleness vs config<->derived set parity).
 
     Fail-closed on DRG-load failure (#2530): the built-in DRG graph is
     always bundled with the package, so a failure loading/validating it
@@ -810,14 +848,20 @@ def _check_graph_kind_parity(
     condition, never a legitimate "not yet synthesized" skip -- unlike
     ``charter.yaml``, there is no not-yet-materialised state for the DRG.
     A failure here is therefore surfaced as a *verification_errors* entry
-    instead of a silent early return.
+    instead of a silent early return. This catch stays broad (``except
+    Exception``) -- it guards graph load/validate, a structurally different
+    failure mode from the narrow per-stem resolution catch in
+    :func:`_resolve_graph_kind_parity_stem`; collapsing the two would let a
+    genuine per-stem programming bug masquerade as a DRG-load failure.
     """
     try:
         from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+        from charter.drg import filter_graph_by_activation  # noqa: PLC0415
 
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
         full_drg = load_validated_graph(repo_root)
+        activated_drg = filter_graph_by_activation(full_drg, pack_context)
     except Exception as exc:  # noqa: BLE001 -- fail-closed signal below, not a silent pass.
         verification_errors.append(
             f"drg: Could not verify config<->graph kind parity "
@@ -830,131 +874,61 @@ def _check_graph_kind_parity(
         )
         return
 
-    graph_kinds_present: set[str] = set()
-    for node in full_drg.nodes:
-        node_kind, _ = _split_urn(node.urn)
-        activated_kinds_member = _DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER.get(node_kind)
-        if activated_kinds_member is not None and activated_kinds_member in pack_context.activated_kinds:
-            graph_kinds_present.add(node_kind)
+    surviving_urns = frozenset(node.urn for node in activated_drg.nodes)
+    doctrine_root = resolve_doctrine_root()
+    org_roots = list(pack_context.org_roots)
 
-    for cli_kind, drg_singular in _CLI_KIND_TO_DRG_SINGULAR.items():
+    for cli_kind in _CLI_KIND_TO_DRG_SINGULAR:
         raw_list = raw_activated_by_kind.get(cli_kind)
         if not raw_list:
             continue  # None (backward-compat all-active) or [] (nothing activated).
-        if drg_singular in graph_kinds_present:
-            continue
-        graph_kind_gaps.append(cli_kind)
-        suggestions.append(
-            f"{cli_kind}: config.yaml activates {len(set(raw_list))} "
-            f"{cli_kind} id(s) but none survive in the activation-filtered "
-            f"DRG graph. Regenerate graph.yaml / run 'spec-kitty charter "
-            f"resynthesize' and check 'activated_kinds' in config.yaml."
-        )
+        kind_enum = ArtifactKind.from_operator_token(cli_kind)
+        for stem in sorted(set(raw_list)):
+            _resolve_graph_kind_parity_stem(
+                cli_kind,
+                kind_enum,
+                stem,
+                surviving_urns,
+                doctrine_root=doctrine_root,
+                org_roots=org_roots,
+                graph_kind_gaps=graph_kind_gaps,
+                verification_errors=verification_errors,
+                suggestions=suggestions,
+            )
 
 
 # ---------------------------------------------------------------------------
 # Tension scan (T025/T026/T027, FR-009/FR-010)
 # ---------------------------------------------------------------------------
 #
-# Deliberately does NOT reuse ``charter.drg.filter_graph_by_activation`` for
-# per-ID gating: that helper's per-artifact-ID gate compares a DRG node's
-# canonical id (e.g. ``DIRECTIVE_024``) directly against
-# ``PackContext.activated_directives``, which holds config *stems* (e.g.
-# ``024-locality-of-change``) -- the same stem<->canonical-id mismatch
-# ``_check_graph_kind_parity`` above already documents and works around.
-# Using it here would make every directive node vanish from the
-# "activation-filtered graph" regardless of what is actually activated,
-# which would make this scan a NO-OP for directive/directive tensions -- the
-# exact defect NFR-001 exists to prevent. Instead this reproduces BOTH the
-# kind-level gate (mirroring ``_check_graph_kind_parity``) AND a correct
-# per-ID gate, resolving each activated stem to its canonical URN via
-# ``resolve_artifact_urn`` (the same resolver ``_check_reference_id_parity``
-# already uses for this exact stem<->canonical bridge).
-
-
-def _resolve_activated_urns_for_kind(
-    cli_kind: str,
-    raw_activated_by_kind: dict[str, list[str] | None],
-    *,
-    doctrine_root: Path,
-    org_roots: list[Path],
-) -> frozenset[str] | None:
-    """Resolve *cli_kind*'s explicitly-activated config stems to canonical URNs.
-
-    Returns ``None`` when the kind has no explicit activation entry
-    (backward-compat: every DRG node of that kind is considered active,
-    matching :attr:`PackContext.activated_directives`-style ``None``
-    semantics elsewhere in this module).
-    """
-    raw_list = raw_activated_by_kind.get(cli_kind)
-    if raw_list is None:
-        return None
-    try:
-        kind_enum = ArtifactKind.from_operator_token(cli_kind)
-    except MissionTypeNotAnArtifactKind:
-        return frozenset()
-
-    urns: set[str] = set()
-    for stem in set(raw_list):
-        try:
-            urn = resolve_artifact_urn(
-                kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
-            )
-        except UnknownArtifactIdError:
-            continue  # Already reported by _check_unknown_references.
-        urns.add(urn)
-    return frozenset(urns)
-
-
-def _node_is_tension_scan_active(
-    urn: str,
-    pack_context: PackContext,
-    per_kind_urns: dict[str, frozenset[str] | None],
-) -> bool:
-    """Return whether *urn* survives both the kind-level and per-ID gate.
-
-    Mirrors the two-step decision ``_node_is_activated`` (``charter/drg.py``)
-    makes, except the per-ID gate is resolved through canonical URNs (see
-    module note above) instead of comparing raw config stems directly.
-    """
-    node_kind, _ = _split_urn(urn)
-    activated_kinds_member = _DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER.get(node_kind)
-    if activated_kinds_member is None or activated_kinds_member not in pack_context.activated_kinds:
-        return False
-
-    cli_kind = _DRG_SINGULAR_TO_CLI_KIND.get(node_kind)
-    if cli_kind is None:
-        return True  # No CLI-kind mapping (e.g. anti_pattern) -- kind gate suffices.
-
-    per_id_urns = per_kind_urns.get(cli_kind)
-    return per_id_urns is None or urn in per_id_urns
+# T006 (workaround collapse, plan.md IC-02): this used to reimplement its own
+# kind-level + per-ID activation gate (the deleted
+# ``_resolve_activated_urns_for_kind``/``_node_is_tension_scan_active`` pair)
+# because ``charter.drg.filter_graph_by_activation``'s per-artifact-ID Step 3
+# compared a DRG node's canonical id directly against config *stems* without
+# resolving the stem<->canonical-id mismatch -- reusing the gate would have
+# made every directive node vanish regardless of what was actually activated,
+# a NO-OP for directive/directive tensions (the exact defect NFR-001 exists to
+# prevent). WP01 closed that mismatch inside the gate itself, so this scan now
+# consumes :func:`charter.drg.filter_graph_by_activation` directly, exactly as
+# :func:`_check_drg_cross_kind_refs` (above) already does.
 
 
 def _build_tension_active_urns(
-    ctx: ProjectContext,
     full_drg: DRGGraph,
     pack_context: PackContext,
 ) -> frozenset[str]:
-    """Return the set of node URNs active for tension-scan purposes."""
-    raw_activated_by_kind = _load_raw_activation_lists(ctx)
-    doctrine_root = resolve_doctrine_root()
-    org_roots = list(pack_context.pack_roots[1:])
+    """Return the set of node URNs active for tension-scan purposes.
 
-    per_kind_urns: dict[str, frozenset[str] | None] = {
-        cli_kind: _resolve_activated_urns_for_kind(
-            cli_kind,
-            raw_activated_by_kind,
-            doctrine_root=doctrine_root,
-            org_roots=org_roots,
-        )
-        for cli_kind in _CLI_KIND_TO_DRG_SINGULAR
-    }
+    Re-pointed (T006) onto the WP01-corrected
+    :func:`charter.drg.filter_graph_by_activation` gate -- see the module
+    note above for why the previous hand-rolled resolution trio is no longer
+    needed.
+    """
+    from charter.drg import filter_graph_by_activation  # noqa: PLC0415
 
-    return frozenset(
-        node.urn
-        for node in full_drg.nodes
-        if _node_is_tension_scan_active(node.urn, pack_context, per_kind_urns)
-    )
+    activated_drg = filter_graph_by_activation(full_drg, pack_context)
+    return frozenset(node.urn for node in activated_drg.nodes)
 
 
 def _tension_candidate_pairs(
@@ -1027,7 +1001,7 @@ def scan_unreconciled_tensions(ctx: ProjectContext) -> list[TensionFinding]:
     pack_context = ctx.require_pack_context()
     full_drg = load_validated_graph(repo_root)
 
-    active_urns = _build_tension_active_urns(ctx, full_drg, pack_context)
+    active_urns = _build_tension_active_urns(full_drg, pack_context)
     candidate_pairs = _tension_candidate_pairs(full_drg, active_urns)
     if not candidate_pairs:
         return []
