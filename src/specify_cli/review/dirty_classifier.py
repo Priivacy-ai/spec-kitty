@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 
 from mission_runtime import is_self_bookkeeping_path
+from kernel.paths import to_posix
 
 # ---------------------------------------------------------------------------
 # Benign filename / suffix patterns
@@ -73,7 +74,7 @@ def _is_benign(path: str, wp_id: str) -> bool:
        FR-001 / G-5 invariant — no independent literal here).
     """
     # Normalise separators for cross-platform safety
-    normalised = path.replace("\\", "/").strip()
+    normalised = to_posix(path).strip()
     basename = normalised.rsplit("/", 1)[-1] if "/" in normalised else normalised
 
     # 1. Known status/metadata artifact filenames

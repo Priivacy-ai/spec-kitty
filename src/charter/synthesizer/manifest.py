@@ -28,6 +28,7 @@ from ruamel.yaml import YAML
 
 from .errors import ManifestIntegrityError
 from .synthesize_pipeline import canonical_yaml
+from kernel.paths import to_posix
 
 if TYPE_CHECKING:
     from .path_guard import PathGuard
@@ -284,7 +285,7 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
 
 def _validate_manifest_path(raw_path: str, *, field_name: str, required_prefix: Path) -> Path:
     """Return a safe repo-relative manifest path under ``required_prefix``."""
-    path = Path(raw_path.replace("\\", "/"))
+    path = Path(to_posix(raw_path))
     if path.is_absolute() or ".." in path.parts:
         raise ValueError(
             f"{field_name} must be repo-relative and stay under "

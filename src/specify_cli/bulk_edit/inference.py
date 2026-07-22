@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.status import read_wp_frontmatter
+from kernel.paths import to_posix
 
 # ---------------------------------------------------------------------------
 # Weight tables
@@ -166,7 +167,7 @@ def scan_spec_file(feature_dir: Path) -> InferenceResult:
 
 
 def _normalize_owned_file(path: str) -> str:
-    normalized = path.strip().replace("\\", "/")
+    normalized = to_posix(path.strip())
     while normalized.startswith("./"):
         normalized = normalized[2:]
     return normalized

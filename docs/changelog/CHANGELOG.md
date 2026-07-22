@@ -120,8 +120,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `HEAD:<path>` object syntax and `ls-files` pathspec require forward slashes, so
   both subprocess checks failed and `is_committed()` reported genuinely-committed
   spec files as uncommitted, blocking the setup-plan workflow (e.g.
-  `/spec-kitty.plan` refusing to proceed). Both return sites now use `.as_posix()`.
-  Invisible on POSIX (macOS/Linux/CI) where `os.sep` is already `/`.
+  `/spec-kitty.plan` refusing to proceed). Both return sites now resolve through a
+  single worktree-aware kernel seam (`kernel.paths.repo_tree_path`) that renders
+  forward slashes on every host via `PurePosixPath`. Invisible on POSIX
+  (macOS/Linux/CI) where `os.sep` is already `/`.
+
+- **Posix path-separator normalization consolidated into one kernel seam.**
+  The `str(x).replace("\\", "/")` idiom behind #2836 was scattered across ~17
+  sites in `charter`, `mission_runtime`, and `specify_cli` (review, upgrade +
+  migrations, merge, git, skills, status, paths, bulk_edit) — each an independent
+  chance to reintroduce the Windows backslash defect. All now route through the
+  behaviour-agnostic `kernel.paths.to_posix(path: Path | str)` seam (kernel being
+  the zero-dependency root every layer can import downward), leaving the seam
+  definition as the only `replace("\\", "/")` in `src/`.
 
 - **Honest force-provenance on evidence-gated backward edges (#2684, #2736, #2810).**
   Persisted `StatusEvent.force` is now truthful — falsy on the evidence-gated

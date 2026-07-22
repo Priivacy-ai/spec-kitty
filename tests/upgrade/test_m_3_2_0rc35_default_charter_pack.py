@@ -145,7 +145,11 @@ def test_apply_writes_activation_kinds_that_keep_builtin_nodes_visible(
         generated_by="test",
         nodes=[
             DRGNode(
-                urn="directive:001-architectural-integrity-standard",
+                # Canonical directive URN form is ``directive:DIRECTIVE_NNN`` —
+                # config stems (``001-architectural-integrity-standard``) resolve
+                # to it via ``resolve_artifact_urn``. The activation filter
+                # compares on the canonical node URN, never the config slug.
+                urn="directive:DIRECTIVE_001",
                 kind=NodeKind.DIRECTIVE,
             )
         ],
@@ -153,9 +157,7 @@ def test_apply_writes_activation_kinds_that_keep_builtin_nodes_visible(
     )
 
     filtered = filter_graph_by_activation(graph, ctx)
-    assert [node.urn for node in filtered.nodes] == [
-        "directive:001-architectural-integrity-standard"
-    ]
+    assert [node.urn for node in filtered.nodes] == ["directive:DIRECTIVE_001"]
 
 
 @pytest.mark.fast

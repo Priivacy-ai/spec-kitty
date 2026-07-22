@@ -14,6 +14,7 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
+from kernel.paths import to_posix
 
 __all__ = [
     "CodeReadingCollector",
@@ -121,7 +122,7 @@ def _is_test_file(rel_path: str, filename: str) -> bool:
         if name.endswith(suffix):
             return True
     # Directory-based heuristic
-    parts = rel_path.replace("\\", "/").split("/")
+    parts = to_posix(rel_path).split("/")
     if "tests" in parts or "__tests__" in parts:
         return True
     return False

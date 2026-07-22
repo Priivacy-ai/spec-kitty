@@ -25,6 +25,7 @@ from specify_cli.runtime.home import get_kittify_home
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+from kernel.paths import to_posix
 
 _VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
 _VERSION_MARKER_HEAD_LINES = 15
@@ -90,7 +91,7 @@ class _SafeGlobalizeCommandsBase(BaseMigration):
 
     @staticmethod
     def _rel(path: Path, project_path: Path) -> str:
-        return str(path.relative_to(project_path)).replace("\\", "/")
+        return to_posix(path.relative_to(project_path))
 
     def _preserve(
         self,

@@ -38,6 +38,7 @@ from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENT
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.shims.registry import CONSUMER_SKILLS
+from kernel.paths import to_posix
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -670,7 +671,7 @@ def verify(repo_root: Path) -> VerifyReport:
             for file in subdir.rglob("*"):
                 if not file.is_file():
                     continue
-                rel = str(file.relative_to(repo_root)).replace("\\", "/")
+                rel = to_posix(file.relative_to(repo_root))
                 try:
                     _ensure_project_confined(repo_root, rel, file)
                 except InstallerError:
