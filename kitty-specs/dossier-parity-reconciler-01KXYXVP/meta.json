@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "455009afb27a93bbab1b2649651ac9d1d673b54a",
+  "coordination_branch": "kitty/mission-dossier-parity-reconciler-01KXYXVP",
+  "created_at": "2026-07-20T04:51:59.293459+00:00",
+  "flattened": false,
+  "friendly_name": "Dossier Parity Reconciler",
+  "mission_id": "01KXYXVPNXYGFRBAYSN31MFH6C",
+  "mission_number": 185,
+  "mission_slug": "dossier-parity-reconciler-01KXYXVP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Delivers the parity foundation for provable historical materialization (#2262): one canonical snapshot-hash definition computed identically by CLI and server, plus a DossierReconciler that verifies a rebuilt dossier is byte-identical to source and fails loud on divergence. A #1091 launch-gate dependency.",
+  "purpose_tldr": "Unify the dossier snapshot hash across CLI and server and build a reconciler that proves a rebuilt projection matches source.",
+  "slug": "dossier-parity-reconciler-01KXYXVP",
+  "target_branch": "feat/dossier-parity-reconciler",
+  "topology": "coord"
+}
