@@ -762,6 +762,75 @@ def backfill_runtime_state_cmd(
         raise typer.Exit(1)
 
 
+@app.command(name="rebaseline-dossier-hashes")
+def rebaseline_dossier_hashes(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a structured per-mission re-baseline report"),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Preview which recorded snapshot hashes would be re-baselined, without writing",
+        ),
+    ] = False,
+) -> None:
+    """One-time re-baseline of recorded dossier snapshot hashes (FR-009, WP05).
+
+    Recomputes every recorded ``.kittify/dossiers/<slug>/snapshot-latest.json``
+    hash under the canonical definition (WP01/WP02) so content that did not
+    change is not flagged divergent after the cutover. Idempotent (snapshots
+    already in canonical ``sha256:`` form are skipped) and read-only over source
+    artifacts — only the recorded snapshot cache files are written (#2263).
+
+    Exit codes:
+
+    - ``0`` — completed (some snapshots may be reported as errors and skipped)
+    - ``1`` — project root could not be located
+    """
+    from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        raise typer.Exit(1)
+
+    outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run)
+    changed = [o for o in outcomes if o.changed]
+    errored = [o for o in outcomes if o.error]
+
+    if json_output:
+        payload = {
+            "dry_run": dry_run,
+            "summary": {
+                "total": len(outcomes),
+                "rebaselined": len(changed),
+                "skipped": len(outcomes) - len(changed) - len(errored),
+                "error": len(errored),
+            },
+            "results": [
+                {
+                    "mission_slug": o.mission_slug,
+                    "snapshot_path": str(o.snapshot_path),
+                    "old_hash": o.old_hash,
+                    "new_hash": o.new_hash,
+                    "changed": o.changed,
+                    "error": o.error,
+                }
+                for o in outcomes
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "(dry-run) " if dry_run else ""
+        console.print(
+            f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s)."
+        )
+        for o in errored:
+            err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
