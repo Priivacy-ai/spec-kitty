@@ -1107,7 +1107,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         empty/failed changeset as :class:`BookkeepingCommitFailed`.
         """
         if self._committed:
-            assert self._explicit_commit_receipt is not None  # noqa: S101
+            if self._explicit_commit_receipt is None:
+                raise BookkeepingCommitFailed(
+                    "commit_idempotent(): transaction marked committed but no "
+                    "commit receipt was recorded"
+                )
             return self._explicit_commit_receipt
         if self._staged_paths and not self._worktree_has_pending_changes():
             receipt = self._noop_commit_receipt()

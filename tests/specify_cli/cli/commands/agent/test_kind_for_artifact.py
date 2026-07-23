@@ -45,12 +45,14 @@ def test_kind_for_artifact_only_returns_primary_kinds() -> None:
     """All mapped kinds are PRIMARY kinds — none route through coordination.
 
     A regression that mapped a planning ``artifact_type`` to a coordination kind
-    (e.g. ``STATUS_STATE`` / ``ANALYSIS_REPORT``) would wrongly route the planning
+    (e.g. ``STATUS_STATE`` / ``ISSUE_MATRIX``) would wrongly route the planning
     artifact to the coordination branch — the split-brain this mission closes.
+
+    ``ANALYSIS_REPORT`` is deliberately NOT in this set: coord-commit-integrity
+    FR-003 re-homed it COORD->PRIMARY, so it is no longer a coordination kind.
     """
     coord_kinds = {
         MissionArtifactKind.STATUS_STATE,
-        MissionArtifactKind.ANALYSIS_REPORT,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
         MissionArtifactKind.ISSUE_MATRIX,
     }

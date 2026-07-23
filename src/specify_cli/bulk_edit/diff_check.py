@@ -195,7 +195,18 @@ def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
         # not ``**``, so we also try a recursive-glob fallback when the
         # pattern contains ``**``.
         if _glob_match(posix, pattern):
-            return exception
+            # `omap.exceptions` is declared `list[dict[str, str]]` on
+            # OccurrenceMap, but mypy resolves it as `Any` when this module is
+            # type-checked as a standalone narrow-file target (the
+            # `specify_cli.*` / `follow_imports = "skip"` override in
+            # pyproject.toml treats non-explicitly-listed sibling modules —
+            # including occurrence_map.py — as untyped in that mode). An
+            # annotated local (not `cast()`, which mypy flags as redundant
+            # once whole-package checking resolves the real type) narrows
+            # explicitly so the declared return type holds under both
+            # invocation shapes.
+            matched: dict[str, str] = exception
+            return matched
     return None
 
 
