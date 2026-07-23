@@ -75,11 +75,12 @@ def _pack_context(
     activated_directives: frozenset[str] | None,
     activated_kinds: frozenset[str] = frozenset({"directives"}),
     activated_tactics: frozenset[str] | None = None,
+    activated_mission_types: frozenset[str] = frozenset(),
     repo_root: Path,
 ) -> PackContext:
     return PackContext(
         activated_kinds=activated_kinds,
-        activated_mission_types=frozenset(),
+        activated_mission_types=activated_mission_types,
         pack_roots=(),
         org_pack_names=(),
         repo_root=repo_root,
@@ -241,10 +242,23 @@ def test_cross_kind_refs_none_path_matches_no_filter_at_all(tmp_path: Path) -> N
     # mismatch unrelated to the per-ID stem/canonical fix under test.
     from charter.drg import _SINGULAR_TO_PLURAL
 
+    # ``mission_step_contract`` nodes gate on ``activated_mission_types`` (a
+    # SEPARATE axis from ``activated_kinds`` — see ``filter_graph_by_activation``
+    # docstring), so a genuine default-allow must also activate every mission
+    # type owning an MSC node in the corpus, else those nodes drop and this
+    # no-op assertion falsely fails. Derived from the graph so new built-in
+    # mission types stay covered automatically.
+    _MSC_PREFIX = "mission_step_contract:"
+    all_mission_types = frozenset(
+        n.urn[len(_MSC_PREFIX):].split("/", 1)[0]
+        for n in full_drg.nodes
+        if n.urn.startswith(_MSC_PREFIX)
+    )
     default_allow_ctx = _pack_context(
         activated_directives=None,
         activated_tactics=None,
         activated_kinds=frozenset(_SINGULAR_TO_PLURAL.values()),
+        activated_mission_types=all_mission_types,
         repo_root=tmp_path,
     )
     activated_drg = filter_graph_by_activation(full_drg, default_allow_ctx)

@@ -32,6 +32,8 @@ from specify_cli.review.verdict_aggregation import (
     aggregate_verdicts,
 )
 
+pytestmark = [pytest.mark.fast]
+
 _EMPTY_SCOPE = ScopeResult.from_override(())
 
 _NON_TERMINAL = (

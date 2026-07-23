@@ -150,7 +150,7 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths)
@@ -228,6 +228,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     "_mt_resolve_active_gate_bindings",
     "_mt_resolve_gate_baseline",
     "_mt_build_transition_gate_context",
+    "_mt_cancelled_verdict",
+    "_mt_fail_open_gate",
+    "_mt_resolve_transition_gate_verdicts",
     "_mt_dispatch_one_gate",
     "_mt_dispatch_transition_gates",
     "_mt_collect_transition_gate_verdicts",
@@ -463,5 +466,9 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     ``_mt_*`` helpers join the tasks_move_task seam (56 -> 71): 137 -> 152. WP09
     remediation (metadata-fidelity fix) then extracted ``_mt_resolve_gate_baseline``
     — the shared baseline loader the restored FR-004 override tier and the handler
-    context both call — a native move-task seam def (71 -> 72): 152 -> 153."""
-    assert len(SYMBOL_TO_MODULE) == 153  # golden-count: cardinality-is-contract
+    context both call — a native move-task seam def (71 -> 72): 152 -> 153. WP09
+    closeout (CI compat-surface remediation) then registered the three remaining
+    natively-defined move-task seam defs the extraction left unregistered —
+    ``_mt_cancelled_verdict``, ``_mt_fail_open_gate`` and
+    ``_mt_resolve_transition_gate_verdicts`` (72 -> 75): 153 -> 156."""
+    assert len(SYMBOL_TO_MODULE) == 156  # golden-count: cardinality-is-contract

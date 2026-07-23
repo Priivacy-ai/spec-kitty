@@ -14,9 +14,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.review import pre_review_gate
 from specify_cli.review.pre_review_gate import ScopeResult, derive_test_scope
 from specify_cli.review.scope_source import GateCoverageScopeSource
+
+pytestmark = [pytest.mark.fast]
 
 # Hermetic, offline override maps covering all three narrowing shapes:
 #  - ``status`` — per-shard group carrying its own ``tests/**`` glob

@@ -41,7 +41,7 @@ from specify_cli.review.scope_source import DeclaredCommandScopeSource, GateCove
 # ``-m "fast and not windows_ci"``), while ``integration`` keeps the 3 real-subprocess
 # tests (``run_scoped_tests_at_head`` spawns real pytest) OUT of the fast lane — a
 # module-level ``fast`` would have wrongly dragged them in.
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Synthetic filter-group / composite-routing fixtures (mirror the real
@@ -1201,8 +1201,9 @@ def test_capture_baseline_via_scope_source_skips_when_no_command_resolved(tmp_pa
 
 
 @pytest.mark.fast
-def test_extract_junit_output_path_finds_and_misses_correctly() -> None:
+def test_extract_junit_output_path_finds_and_misses_correctly(tmp_path: Path) -> None:
     """Focused unit coverage for the small pure helper both the baseline
     capture path and the engine's port-driven head run share."""
-    assert baseline_module._extract_junit_output_path(["--junitxml=/tmp/x.xml", "-q"]) == Path("/tmp/x.xml")
+    junit = tmp_path / "x.xml"
+    assert baseline_module._extract_junit_output_path([f"--junitxml={junit}", "-q"]) == junit
     assert baseline_module._extract_junit_output_path(["-q"]) is None

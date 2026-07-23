@@ -52,6 +52,8 @@ from specify_cli.review.verdict_aggregation import (
     aggregate_verdicts,
 )
 
+pytestmark = [pytest.mark.fast]
+
 # WP09 lands ``_mt_run_transition_gates`` (generalizes ``_mt_run_pre_review_gate``,
 # tasks_move_task.py:1160) -- the surface the through-hook arm proves parity for.
 _WP09_HOOK = "_mt_run_transition_gates"

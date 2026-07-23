@@ -11,6 +11,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+pytestmark = pytest.mark.fast
+
 # Terms to verify: must exist in both surfaces
 REQUIRED_TERMS = ["transition gate", "gate handler", "gate binding"]
 

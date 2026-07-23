@@ -16,6 +16,7 @@ gate-time reader).
 ## Schema
 
 ```yaml
+# round-trip: skip: illustrative GateBinding schema sketch — the executable GateBinding Pydantic round-trip (extra=forbid, byte-stable provenance/handler_kind) lives in tests/specify_cli/mission_step_contracts/test_gate_binding_schema.py
 # authored in review.step-contract.yaml (action: review), alongside the contract's steps
 gates:
   - on_transition: "in_progress->for_review"   # required
@@ -48,6 +49,7 @@ gates:
 ## Valid example (accepted)
 
 ```yaml
+# round-trip: skip: illustrative valid-instance sketch — accepted-input coverage lives in test_gate_binding_schema.py
 gates:
   - on_transition: "in_progress->for_review"
     handler: "spec-kitty-pre-review"
@@ -58,6 +60,7 @@ Accepted: `handler_kind` defaults to `mission_step_contract`, `fail_open` to `tr
 ## Rejection examples
 
 ```yaml
+# round-trip: skip: illustrative rejection cases — the executable reject-on-load coverage (unknown key / missing schema_version / invalid handler_kind) lives in test_gate_binding_schema.py
 # REJECTED — unknown key (extra="forbid")
 - on_transition: "in_progress->for_review"
   handler: "spec-kitty-pre-review"
@@ -78,6 +81,7 @@ Accepted: `handler_kind` defaults to `mission_step_contract`, `fail_open` to `tr
 ## Half-B round-trip example (accepted, inert)
 
 ```yaml
+# round-trip: skip: illustrative half-B inert-asset sketch — the executable asset-kind byte-stable round-trip lives in test_gate_binding_schema.py
 # ACCEPTED in half A; loaded, re-serialized byte-stable, NEVER executed
 - on_transition: "in_progress->for_review"
   handler: "third-party-scanner"

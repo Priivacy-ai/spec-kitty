@@ -156,7 +156,11 @@ test_example_round_trip:
   # GlossaryTerm pydantic model + tests/doctrine/glossary_packs/ coverage.
   # +1 (pre-existing on base): docs-ia-onboarding .../redirect-map-entry-contract.md
   # skip marker landed upstream without a baseline bump; absorbed here to unblock CI.
-  skip_marker_blocks: 8
+  # +4 (#2535 half A): doctrine-controlled-transition-gates .../contracts/gate-binding-schema.md
+  # four illustrative GateBinding YAML blocks (schema sketch, valid-instance, rejection
+  # cases, half-B inert-asset) — permanent non-executable exemptions; the executable
+  # GateBinding pydantic round-trip lives in test_gate_binding_schema.py.
+  skip_marker_blocks: 12
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01

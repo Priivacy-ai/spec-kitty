@@ -45,9 +45,12 @@ from enum import StrEnum
 
 from specify_cli.review.pre_review_gate import GateOutcome, GateVerdict
 
+# ``AggregateVerdict`` (the per-handler input row) is composed and consumed only
+# within this module and its unit tests; cross-module callers pass raw verdicts
+# to ``aggregate_verdicts`` and read the ``AggregateDecision`` result, so the
+# input row is not exported.
 __all__ = [
     "AggregateDecision",
-    "AggregateVerdict",
     "aggregate_verdicts",
 ]
 
