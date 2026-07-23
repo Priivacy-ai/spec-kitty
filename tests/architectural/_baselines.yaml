@@ -160,7 +160,10 @@ test_example_round_trip:
   # four illustrative GateBinding YAML blocks (schema sketch, valid-instance, rejection
   # cases, half-B inert-asset) — permanent non-executable exemptions; the executable
   # GateBinding pydantic round-trip lives in test_gate_binding_schema.py.
-  skip_marker_blocks: 12
+  # +1 (#2873): scopesource-gate-followup .../contracts/baseline-identity-contract.md
+  # illustrative BaselineTestResult.source_identity field-add snippet — permanent
+  # non-executable exemption; the executable round-trip lives in tests/review/test_baseline.py.
+  skip_marker_blocks: 13
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01

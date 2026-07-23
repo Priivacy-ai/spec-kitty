@@ -125,17 +125,21 @@ def test_gate_authorities_unavailable_is_consumer_repo_field_still_works() -> No
 
 
 @pytest.mark.fast
-def test_derive_test_scope_live_default_routes_through_gate_coverage_scope_source(
+def test_gate_coverage_scope_source_live_default_surfaces_authorities_unavailable(
     tmp_path: Path,
 ) -> None:
-    """FR-009: ``derive_test_scope``'s no-override default is now sourced via
-    ``GateCoverageScopeSource`` (``scope_source.py``) instead of a private
-    duplicate import in this module — a bare repo (no
+    """FR-009 (mission scopesource-gate-followup-01KY6S9P WP04): the census
+    derivation's no-override default now lives ONLY inside
+    ``GateCoverageScopeSource`` (``scope_source.py``) — the incumbent
+    ``pre_review_gate.derive_test_scope`` is retired. A bare repo (no
     ``tests/architectural/_gate_coverage.py``) still surfaces the SAME
-    ``GateAuthoritiesUnavailable(is_consumer_repo=True)`` contract existing
-    callers (``tasks_move_task.py``, unmigrated until WP09) depend on."""
+    ``GateAuthoritiesUnavailable(is_consumer_repo=True)`` contract via the
+    port's own ``scope_breakdown``/``file_to_scope`` (exercised in depth in
+    ``tests/review/test_scope_source.py``); this pins the contract at the
+    engine's own import boundary too."""
+    impl = GateCoverageScopeSource(repo_root=tmp_path)
     with pytest.raises(pre_review_gate.GateAuthoritiesUnavailable) as excinfo:
-        pre_review_gate.derive_test_scope(["src/anything.py"], repo_root=tmp_path)
+        impl.scope_breakdown("src/anything.py")
 
     assert excinfo.value.is_consumer_repo is True
 
@@ -173,12 +177,18 @@ def test_scope_source_seam_is_injected_not_selected_by_repo_shape(tmp_path: Path
 
 
 def _derive(changed_files: list[str]) -> ScopeResult:
-    return pre_review_gate.derive_test_scope(
-        changed_files,
+    """Drive the SURVIVING ``pre_review_gate`` composition
+    (``_scope_result_from_source`` / ``_scope_result_from_breakdown``) over a
+    ``GateCoverageScopeSource`` with hermetic override fixtures — migrated
+    (mission scopesource-gate-followup-01KY6S9P WP04) off the retired
+    ``derive_test_scope`` census tier, which this module no longer owns.
+    """
+    source = GateCoverageScopeSource(
         repo_root=_DUMMY_ROOT,
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
+        filter_groups_override=FAKE_GROUPS,
+        composite_routing_override=FAKE_ROUTING,
     )
+    return pre_review_gate._scope_result_from_source(source, changed_files)
 
 
 # ---------------------------------------------------------------------------
@@ -300,9 +310,12 @@ def _gate_coverage_source() -> GateCoverageScopeSource:
 
 @pytest.mark.fast
 def test_scope_result_from_source_reconstructs_full_breakdown_for_narrowing_source() -> None:
-    """A ``GateCoverageScopeSource`` (narrowing) rebuilds the SAME ``ScopeResult``
-    ``derive_test_scope`` emits for the same changed set — shard groups and all
-    (NFR-001). The pre-fix flat reconstruction dropped ``matched_shard_groups``."""
+    """A ``GateCoverageScopeSource`` (narrowing) rebuilds the FULL ``ScopeResult``
+    breakdown — shard groups, empty-cone composite dirs, and excluded files, not
+    just a flat target union (NFR-001). Pinned via literal expectations (mission
+    scopesource-gate-followup-01KY6S9P WP04 retired the ``derive_test_scope``
+    oracle this test used to diff against — the pre-fix flat reconstruction
+    dropped ``matched_shard_groups``, which is exactly what these literals pin)."""
     changed = ["src/specify_cli/status/emit.py", "src/specify_cli/validators/schema.py", "README.md"]
     scope = pre_review_gate._scope_result_from_source(_gate_coverage_source(), changed)
 
@@ -310,10 +323,11 @@ def test_scope_result_from_source_reconstructs_full_breakdown_for_narrowing_sour
     assert "core_misc" not in scope.matched_shard_groups
     assert scope.empty_cone_composite_dirs == ("validators",)
     assert scope.excluded_scope_files == ("README.md",)
-    incumbent = pre_review_gate.derive_test_scope(
-        changed, repo_root=_DUMMY_ROOT, filter_groups=FAKE_GROUPS, composite_routing=FAKE_ROUTING,
-    )
-    assert scope == incumbent
+    assert set(scope.test_targets) == {
+        "tests/status",
+        "tests/specify_cli/status",
+        "tests/architectural/test_execution_context_parity.py",
+    }
 
 
 @pytest.mark.fast
@@ -823,18 +837,42 @@ def _sentinel_baseline() -> BaselineTestResult:
     )
 
 
+# The 8 tests below drive ``evaluate_with_scope``'s legacy ``scope_source=None``
+# tail directly (mission scopesource-gate-followup-01KY6S9P WP04): they used to
+# reach it via ``evaluate_pre_review_gate``'s now-retired census-derived
+# auto-scope tier (``derive_test_scope(filter_groups=..., composite_routing=...)``
+# then delegate with ``scope_source=None``); that composition is gone, but the
+# ``scope_source=None`` tail itself is C-002 KEPT LIVE (the FR-004 override tier
+# still drives it via ``_mt_pre_review_gate_with_override_scope``) — so these
+# tests migrate to build the equivalent ``ScopeResult`` directly (the exact
+# shape ``derive_test_scope`` used to hand it) and call ``evaluate_with_scope``
+# in its place, preserving every monkeypatch/assertion unchanged.
+_VALIDATORS_EMPTY_CONE_SCOPE = ScopeResult(
+    test_targets=(),
+    matched_shard_groups=(),
+    matched_composite_dirs=("validators",),
+    empty_cone_composite_dirs=("validators",),
+    excluded_scope_files=(),
+)
+_GIT_NONEMPTY_SCOPE = ScopeResult(
+    test_targets=("tests/git", "tests/git_ops"),
+    matched_shard_groups=(),
+    matched_composite_dirs=("git",),
+    empty_cone_composite_dirs=(),
+    excluded_scope_files=(),
+)
+
+
 @pytest.mark.fast
 def test_empty_scope_short_circuits_before_running_or_diffing(monkeypatch: pytest.MonkeyPatch) -> None:
     def _boom(*args: object, **kwargs: object) -> HeadRunResult:
         raise AssertionError("run_scoped_tests_at_head must not be called for an empty scope")
 
     monkeypatch.setattr(pre_review_gate, "run_scoped_tests_at_head", _boom)
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/validators/schema.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _VALIDATORS_EMPTY_CONE_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=None,
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
     assert verdict.outcome is GateOutcome.NO_COVERAGE
 
@@ -846,12 +884,10 @@ def test_run_that_does_not_complete_degrades_to_no_coverage_warn(monkeypatch: py
         "run_scoped_tests_at_head",
         lambda *a, **k: HeadRunResult(ran=False, error="boom"),
     )
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/git/foo.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _GIT_NONEMPTY_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=None,
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
     assert verdict.outcome is GateOutcome.NO_COVERAGE
     assert "scoped test run did not complete" in (verdict.reason or "")
@@ -880,12 +916,10 @@ def test_terminal_interruption_remains_typed_in_gate_verdict(
         ),
     )
 
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/git/foo.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _GIT_NONEMPTY_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=None,
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
 
     assert verdict.outcome is outcome
@@ -903,12 +937,10 @@ def test_uncomputable_baseline_none_degrades_to_warn_and_surfaces_all_failures(
         "run_scoped_tests_at_head",
         lambda *a, **k: HeadRunResult(ran=True, current_failures=(fake_failure,)),
     )
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/git/foo.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _GIT_NONEMPTY_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=None,
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
     assert verdict.outcome is GateOutcome.UNVERIFIED_BASELINE
     assert verdict.new_failures == (fake_failure,)
@@ -922,12 +954,10 @@ def test_sentinel_baseline_degrades_to_warn(monkeypatch: pytest.MonkeyPatch) -> 
         "run_scoped_tests_at_head",
         lambda *a, **k: HeadRunResult(ran=True, current_failures=(fake_failure,)),
     )
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/git/foo.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _GIT_NONEMPTY_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=_sentinel_baseline(),
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
     assert verdict.outcome is GateOutcome.UNVERIFIED_BASELINE
 
@@ -945,12 +975,10 @@ def test_pre_existing_failure_does_not_block_no_new_failures_outcome(
         "run_scoped_tests_at_head",
         lambda *a, **k: HeadRunResult(ran=True, current_failures=(shared_failure,)),
     )
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/git/foo.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _GIT_NONEMPTY_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=_make_baseline((shared_failure,), failed=1),
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
     assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
     assert verdict.pre_existing_failures == (shared_failure,)
@@ -980,12 +1008,10 @@ def test_new_failure_is_surfaced_via_the_real_diff_baseline(monkeypatch: pytest.
         "run_scoped_tests_at_head",
         lambda *a, **k: HeadRunResult(ran=True, current_failures=(new_failure,)),
     )
-    verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["src/specify_cli/git/foo.py"],
+    verdict = pre_review_gate.evaluate_with_scope(
+        _GIT_NONEMPTY_SCOPE,
         repo_root=_DUMMY_ROOT,
         baseline=_make_baseline(),
-        filter_groups=FAKE_GROUPS,
-        composite_routing=FAKE_ROUTING,
     )
     assert verdict.outcome is GateOutcome.NEW_FAILURES
     assert verdict.new_failures == (new_failure,)
@@ -995,14 +1021,23 @@ def test_new_failure_is_surfaced_via_the_real_diff_baseline(monkeypatch: pytest.
 @pytest.mark.integration
 def test_end_to_end_new_failure_detected_via_real_subprocess_and_real_diff(tmp_path: Path) -> None:
     """Full composition with a REAL subprocess pytest run + the REAL
-    diff_baseline — only the scope-derivation inputs are synthetic."""
+    diff_baseline — only the scope-derivation inputs are synthetic.
+
+    Migrated (mission scopesource-gate-followup-01KY6S9P WP04) onto the
+    injected ``GateCoverageScopeSource`` path — the only surviving production
+    entry point into ``evaluate_pre_review_gate`` now that the census-derived
+    ``filter_groups=``/``composite_routing=`` auto-scope tier is retired."""
     _write_tiny_pytest_project(tmp_path, failing=True)
+    scope_source = GateCoverageScopeSource(
+        repo_root=tmp_path,
+        filter_groups_override={"auth_audit_git": ("src/specify_cli/git/**",)},
+        composite_routing_override={"git": (None, None, ("test_sample.py",))},
+    )
     verdict = pre_review_gate.evaluate_pre_review_gate(
         ["src/specify_cli/git/foo.py"],
         repo_root=tmp_path,
         baseline=_make_baseline(),  # base had no failures
-        filter_groups={"auth_audit_git": ("src/specify_cli/git/**",)},
-        composite_routing={"git": (None, None, ("test_sample.py",))},
+        scope_source=scope_source,
     )
     assert verdict.outcome is GateOutcome.NEW_FAILURES
     assert any("test_break" in f.test for f in verdict.new_failures)

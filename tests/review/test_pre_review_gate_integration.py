@@ -4,16 +4,26 @@ tests (mission ``review-regression-gate-01KWX6DF``, closes #572 refs #1979
 
 Every test below drives the REAL ``move-task --to for_review`` orchestrator
 (``_do_move_task``) end-to-end with the REAL WP01 gate engine
-(``pre_review_gate.evaluate_pre_review_gate`` / ``derive_test_scope`` /
-``run_scoped_tests_at_head`` / ``diff_baseline``) against a REAL throwaway git
-repository — never a stubbed/mocked verdict. The only injected seam is the
-LIVE gate-coverage authority lookup (``_pre_review_gate_filter_groups`` /
+(``pre_review_gate.evaluate_pre_review_gate`` / ``run_scoped_tests_at_head`` /
+``diff_baseline``) against a REAL throwaway git repository — never a
+stubbed/mocked verdict. The only injected seam is the LIVE gate-coverage
+authority lookup (``_pre_review_gate_filter_groups`` /
 ``_pre_review_gate_composite_routing``), which mirrors the SAME override seam
-WP01's own ``derive_test_scope`` exposes for its unit tests (see
-``tests/review/test_pre_review_gate_engine.py``) — swapping it avoids the
-``sys.modules`` staleness trap a throwaway
+``GateCoverageScopeSource``'s live census derivation exposes for its own unit
+tests (see ``tests/review/test_pre_review_gate_engine.py``) — swapping it
+avoids the ``sys.modules`` staleness trap a throwaway
 ``tests/architectural/_gate_coverage.py`` fixture would hit (the real repo's
 cached module would silently shadow it).
+
+**Post-census-tier-retirement note (mission
+scopesource-gate-followup-01KY6S9P WP04/WP05).** The public
+``pre_review_gate.derive_test_scope`` census tier this docstring used to name
+is retired; the auto-derivation path this file exercises now runs through
+``GateCoverageScopeSource``'s private census copy (``scope_source.py``),
+reached via the SAME kept ``_pre_review_gate_filter_groups`` /
+``_pre_review_gate_composite_routing`` seams named above. This file's test
+logic is unchanged — only the prose naming the underlying derivation is
+updated to match.
 
 Only the "mission bookkeeping" side (status events, WP frontmatter, coord
 write capabilities) is faked, via the SAME Fake-port pattern
@@ -726,12 +736,13 @@ def test_frontmatter_override_end_to_end_bypasses_auto_derivation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """FR-004 end-to-end: an explicit frontmatter override runs the REAL gate
-    against the override target — and bypasses ``derive_test_scope``'s
-    auto-derivation entirely. Proven by deliberately NOT patching the
-    filter-group/composite-routing seam: if the override didn't bypass
-    auto-derivation, ``GateAuthoritiesUnavailable`` would fire (no real
-    ``tests/architectural/_gate_coverage.py`` exists under the fixture repo)
-    and the outcome would be ``no_coverage``, not ``no_new_failures``.
+    against the override target — and bypasses the census auto-derivation
+    (now ``GateCoverageScopeSource``'s live derivation) entirely. Proven by
+    deliberately NOT patching the filter-group/composite-routing seam: if the
+    override didn't bypass auto-derivation, ``GateAuthoritiesUnavailable``
+    would fire (no real ``tests/architectural/_gate_coverage.py`` exists
+    under the fixture repo) and the outcome would be ``no_coverage``, not
+    ``no_new_failures``.
     """
     repo = _build_base_repo(
         tmp_path,
@@ -755,7 +766,7 @@ def test_frontmatter_override_end_to_end_bypasses_auto_derivation(
     metadata = _gate_metadata(router.status_calls[0])
     assert metadata["test_targets"] == ["tests/override-target"]
     assert metadata["outcome"] == "no_new_failures"
-    assert metadata["matched_shard_groups"] == []  # derive_test_scope never ran
+    assert metadata["matched_shard_groups"] == []  # census auto-derivation never ran
 
 
 # ---------------------------------------------------------------------------
@@ -826,7 +837,7 @@ def test_override_scope_force_bypasses_block_and_is_recorded(tmp_path: Path) -> 
     metadata = _gate_metadata(router.status_calls[0])
     assert metadata["outcome"] == "new_failures"
     assert metadata["test_targets"] == ["tests/override-target"]
-    assert metadata["matched_shard_groups"] == []  # derive_test_scope never ran (override tier)
+    assert metadata["matched_shard_groups"] == []  # census auto-derivation never ran (override tier)
     assert metadata["block_enabled"] is True
     assert metadata["blocked"] is False
     assert metadata["force_bypassed"] is True

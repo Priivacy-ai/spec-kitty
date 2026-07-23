@@ -22,12 +22,12 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command_template
-from specify_cli.review.scope_source import RawRunResult, ScopeSource
+from specify_cli.review.scope_source import RawRunResult, ScopeSource, scope_source_identity
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,9 @@ class BaselineTestResult:
     failed: int           # -1 means capture failed (sentinel)
     skipped: int
     failures: tuple[BaselineFailure, ...] = field(default_factory=tuple)
+    source_identity: str = "unknown"  # FR-009: "<ScopeSource class>/<parse-mode>", or
+                                       # "unknown" for a straddling-upgrade artifact
+                                       # captured before this field existed.
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -86,6 +89,7 @@ class BaselineTestResult:
             "failed": self.failed,
             "skipped": self.skipped,
             "failures": [f.to_dict() for f in self.failures],
+            "source_identity": self.source_identity,
         }
 
     @classmethod
@@ -102,6 +106,11 @@ class BaselineTestResult:
             failed=data["failed"],
             skipped=data["skipped"],
             failures=failures,
+            # Straddling-upgrade artifact captured before this field existed
+            # (US1 AS4): degrade to "unknown", never a KeyError. "unknown" at
+            # diff time makes WP04's head-side compare emit UNVERIFIED_BASELINE,
+            # never a spurious SOURCE_MISMATCH.
+            source_identity=data.get("source_identity", "unknown"),
         )
 
     @classmethod
@@ -455,8 +464,21 @@ def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
     """Run a ``ScopeSource``-resolved command for baseline capture, producing
     a :class:`RawRunResult` — the same UNPARSED shape the pre-review head
     run produces (FR-011 symmetry) — for ``scope_source.parse_results``.
+
+    B1 fix (FR-008): a ``--junitxml=<relative path>`` embedded in a
+    ``DeclaredCommandScopeSource``-resolved command resolves against the
+    subprocess's ``cwd`` (the baseline worktree), NOT this process's own
+    working directory. Anchoring the extracted path to ``cwd`` here — while
+    the caller still holds the worktree open — is what makes the artifact
+    locatable at all; without it, ``raw.output_artifact_path.exists()``
+    would check a path relative to the wrong directory regardless of when
+    ``parse_results`` runs. ``GateCoverageScopeSource`` already emits an
+    absolute path in its own tempdir (unrelated to ``cwd``), so this is a
+    no-op for it — ``is_absolute()`` short-circuits.
     """
     junit_path = _extract_junit_output_path(command)
+    if junit_path is not None and not junit_path.is_absolute():
+        junit_path = cwd / junit_path
     try:
         result = subprocess.run(
             command,
@@ -502,6 +524,18 @@ def _capture_baseline_via_scope_source(
     command resolved via the port -> skip, mirroring the config-driven
     path's "No review.test_command configured" notice (FR-012) — never a
     crash, never a silently fabricated baseline.
+
+    B1 fix (FR-008, data-model.md sec. 5): ``parse_results`` — and the
+    ``source_identity`` derived from the SAME raw result via
+    ``scope_source_identity`` — run INSIDE the ``with _baseline_worktree``
+    block, before teardown. A ``DeclaredCommandScopeSource``'s
+    worktree-relative ``--junitxml`` artifact (now anchored to ``cwd`` by
+    :func:`_run_command_for_baseline`) only exists while the worktree is
+    still alive; parsing after the block exited (the prior, buggy ordering)
+    silently lost it, degrading every declared-command baseline failure to
+    the generic whole-run synthetic placeholder. ``GateCoverageScopeSource``
+    parses an absolute path in its own tempdir, so this reordering is a
+    no-op for it — its behaviour is unaffected either way.
     """
     command = scope_source.test_command()
     if not command:
@@ -518,8 +552,9 @@ def _capture_baseline_via_scope_source(
         if tmp_worktree is None:
             return _make_sentinel(wp_id, base_branch, base_commit)
         raw = _run_command_for_baseline(command, cwd=tmp_worktree)
+        failures = tuple(scope_source.parse_results(raw))
+        source_identity = scope_source_identity(scope_source, raw)
 
-    failures = tuple(scope_source.parse_results(raw))
     result = BaselineTestResult(
         wp_id=wp_id,
         captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -531,6 +566,7 @@ def _capture_baseline_via_scope_source(
         failed=len(failures),
         skipped=0,
         failures=failures,
+        source_identity=source_identity,
     )
     result.save(artifact_path)
     return result

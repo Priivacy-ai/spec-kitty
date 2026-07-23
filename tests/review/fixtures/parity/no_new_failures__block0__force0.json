@@ -1,5 +1,5 @@
 {
-  "base_commit": "e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f",
+  "base_commit": "7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41",
   "block_enabled": false,
   "expected": {
     "blocked": false,
@@ -29,7 +29,7 @@
     "transition_applied": true
   },
   "force": false,
-  "oracle_provenance": "captured from base commit e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f against the incumbent _mt_run_pre_review_gate (never regenerated from HEAD)",
+  "oracle_provenance": "captured from base commit 7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41 against the incumbent _mt_run_pre_review_gate (never regenerated from HEAD)",
   "verdict": {
     "new_failures": [],
     "outcome": "no_new_failures",

@@ -150,7 +150,7 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane, coord-commit-integrity) = 76
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane) = 76, -1 (_mt_pre_review_gate_verdict retired, WP04) = 75
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
@@ -246,7 +246,6 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
-    "_mt_pre_review_gate_verdict",
     "_mt_pre_review_gate_metadata",
     "_mt_pre_review_gate_console_warning",
     "_mt_pre_review_gate_block_message",
@@ -475,5 +474,9 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     ``_mt_resolve_transition_gate_verdicts`` (72 -> 75): 153 -> 156. coord-commit-
     integrity (#2861, FR-005) added ``_binding_role_for_lane`` — the lane->role
     map dedup extracted from the two duplicate role maps at the move-task emit
-    seam (tasks_move_task 75 -> 76): 156 -> 157."""
-    assert len(SYMBOL_TO_MODULE) == 157  # golden-count: cardinality-is-contract
+    seam (tasks_move_task 75 -> 76): 156 -> 157. scopesource-gate-followup-01KY6S9P
+    (WP04, #2873) then retired ``_mt_pre_review_gate_verdict`` — the census-derived
+    composition helper had no production call site (the sole live ``for_review``
+    path always injects a ``scope_source``, never omits it) — and its ``tasks.py``
+    compat re-export (tasks_move_task 76 -> 75): 157 -> 156."""
+    assert len(SYMBOL_TO_MODULE) == 156  # golden-count: cardinality-is-contract

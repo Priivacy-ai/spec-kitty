@@ -45,6 +45,25 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   a consumer never reaches it, even under erroneous activation) **and #2330** (the
   pytest-layout papercut). Half B (executable gate assets, #2599) is out of scope.
 
+- **`ScopeSource` selection unified across baseline and head; `SOURCE_MISMATCH`
+  verdict added (#2873, epic #2535 half A follow-up).** `resolve_scope_source`
+  (config-driven: `review.test_command` set -> `DeclaredCommandScopeSource`, else
+  `GateCoverageScopeSource`) is now the SOLE construction point for both the
+  baseline-capture write side and the `for_review` head-side diff — closing the
+  false-mismatch bug where the head path stayed hardcoded to
+  `GateCoverageScopeSource` while a config-driven baseline used the selected
+  source. A new `GateOutcome.SOURCE_MISMATCH` (warn, fail-open by construction —
+  absent from `verdict_aggregation`'s terminal/block member allowlists) fires when
+  a completed head run's `scope_source_identity` disagrees with a KNOWN (captured)
+  baseline's; an unknown or missing baseline still degrades to
+  `UNVERIFIED_BASELINE`, never a mismatch. The ~450-LoC dead census-derivation
+  tier `pre_review_gate.py` inherited from before the `ScopeSource` port existed
+  (`derive_test_scope` and its glob/path helpers — the LIVE derivation has lived
+  exclusively in `scope_source.GateCoverageScopeSource`'s own private copy since
+  the port landed) is retired, along with the dead `_mt_pre_review_gate_verdict`
+  composition helper (no production call site — the live `for_review` path always
+  injects a `scope_source`).
+
 - **WP runtime-state evicted into the append-only event log (#2684, #2093).**
   Runtime-mutable work-package state — `shell_pid`, subtask completion,
   `## Activity Log` notes, `tracker_refs`, `agent`/`assignee`, and review-cycle

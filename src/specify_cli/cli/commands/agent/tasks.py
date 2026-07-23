@@ -445,7 +445,6 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_gate_env_disable_reason as _mt_pre_review_gate_env_disable_reason,
     _mt_pre_review_gate_metadata as _mt_pre_review_gate_metadata,
     _mt_pre_review_gate_skip_reason as _mt_pre_review_gate_skip_reason,
-    _mt_pre_review_gate_verdict as _mt_pre_review_gate_verdict,
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
     _mt_release_review_lock as _mt_release_review_lock,

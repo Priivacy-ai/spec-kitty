@@ -1149,7 +1149,16 @@ def implement_capture_baseline(
     w = _wf()
     try:
         from specify_cli.review.baseline import capture_baseline
+        from specify_cli.review.scope_source import resolve_scope_source
 
+        # T015 (mission scopesource-gate-followup-01KY6S9P, FR-011/FR-014):
+        # inject the shared factory so implement-time capture activates
+        # ``_capture_baseline_via_scope_source`` -- the SAME
+        # test_command()/parse_results() authority the pre-review head run
+        # uses, honoring whichever ScopeSource the repo resolves to
+        # (DeclaredCommandScopeSource / GateCoverageScopeSource). Resolved
+        # against the SAME ``main_repo_root`` the baseline artifact placement
+        # below already uses -- not a freshly reconstructed root.
         baseline = capture_baseline(
             worktree_path=workspace_path,
             base_branch=target_branch,
@@ -1157,6 +1166,7 @@ def implement_capture_baseline(
             mission_slug=mission_slug,
             feature_dir=feature_dir,
             wp_slug=wp_slug,
+            scope_source=resolve_scope_source(main_repo_root),
         )
         if baseline is not None and baseline.failed > 0:
             print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")

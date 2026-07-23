@@ -1,14 +1,17 @@
 """Parity oracle replay harness (WP08 / T038, NFR-001).
 
 Replays the golden fixtures under ``tests/review/fixtures/parity/`` -- captured
-from **base commit ``e4ef6e850``** against the **incumbent**
-``_mt_run_pre_review_gate`` (see ``fixtures/parity/_capture.py``) -- and proves
-the post-refactor path reproduces the base ``(outcome, scope, metadata,
-block/exit, console)`` tuple **field-by-field** (not "outcome matches" alone).
+from **base commit ``7081cf053``** (mission ``scopesource-gate-followup-01KY6S9P``
+WP01 re-pin -- this lane's HEAD, byte-identical to the mission's nominal base
+``eb06ca176`` under ``src/specify_cli/review/`` and ``tests/review/``) against
+the **incumbent** ``_mt_run_pre_review_gate`` (see ``fixtures/parity/_capture.py``)
+-- and proves the post-refactor path reproduces the base ``(outcome, scope,
+metadata, block/exit, console)`` tuple **field-by-field** (not "outcome
+matches" alone).
 
 **Oracle provenance (anti-circular, squad R-F2).** The expected values are NEVER
 regenerated from HEAD; every fixture carries a machine-emitted ``base_commit``
-header equal to ``e4ef6e850``. This harness asserts that provenance before
+header equal to ``7081cf053``. This harness asserts that provenance before
 trusting any fixture.
 
 **Two arms, deliberately:**
@@ -58,7 +61,12 @@ pytestmark = [pytest.mark.fast]
 # tasks_move_task.py:1160) -- the surface the through-hook arm proves parity for.
 _WP09_HOOK = "_mt_run_transition_gates"
 
-BASE_COMMIT = "e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f"
+#: Re-pinned by mission ``scopesource-gate-followup-01KY6S9P`` WP01 (see the
+#: matching constant + rationale in ``fixtures/parity/_capture.py``): this is
+#: this lane's actual HEAD, not the mission's nominal base ``eb06ca176``
+#: literal -- the two are byte-identical under ``src/specify_cli/review/`` and
+#: ``tests/review/``, so this SHA IS the incumbent for gate-behaviour purposes.
+BASE_COMMIT = "7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41"
 _FIXTURES_DIR = Path(__file__).parent / "fixtures" / "parity"
 
 
@@ -151,6 +159,40 @@ def test_oracle_covers_a_non_empty_shard_group_scope() -> None:
     for case in shard_carrying:
         assert case["expected"]["metadata"]["affected_shard_count"] >= 1
         assert case["expected"]["metadata"]["matched_shard_groups"]
+
+
+def test_override_nonempty_golden_drives_a_non_empty_scope() -> None:
+    """NFR-006 guard (mission ``scopesource-gate-followup-01KY6S9P`` WP01
+    T003/T004): the FR-004 override-tier golden must NOT be vacuous.
+
+    A vacuous golden would be captured from an EMPTY override scope, which
+    short-circuits *inside*
+    ``tasks_move_task._mt_pre_review_gate_with_override_scope`` before
+    ``evaluate_with_scope``/``run_scoped_tests_at_head`` ever run (B-vacuous,
+    post-plan squad finding) -- degrading "functional preservation" coverage
+    to an import check. This asserts every ``override_nonempty__*`` fixture
+    carries (a) a non-empty ``test_targets`` scope and (b) a ``completed``
+    ``run_state`` -- i.e. the real head run actually executed, not the
+    empty-scope short-circuit.
+    """
+    override_cases = [
+        case for name, case in zip(_IDS, _CASES, strict=True)
+        if name.startswith("override_nonempty__")
+    ]
+    assert override_cases, (
+        "no override_nonempty__* fixtures found -- T003 must capture at "
+        "least one non-empty FR-004 override-tier golden"
+    )
+    for case in override_cases:
+        scope = case["verdict"]["scope"]
+        assert scope["test_targets"], (
+            "override_nonempty golden captured an EMPTY scope (vacuous, "
+            "B-vacuous): run_scoped_tests_at_head never executed"
+        )
+        assert case["verdict"]["run_state"] == "completed", (
+            "override_nonempty golden's run_state is not 'completed' -- the "
+            "override scope short-circuited instead of driving a real head run"
+        )
 
 
 @pytest.mark.parametrize("case", _CASES, ids=_IDS)
