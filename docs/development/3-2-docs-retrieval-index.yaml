@@ -1115,7 +1115,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-3-global-skill-installation-per-project-symlinks.md"
     title: "ADR 3 (2026-04-08): Global Skill Installation with Per-Project Symlinks"
     divio_type: "none"
-    abstract: "Skills are markdown files that extend agent capabilities — they encode domain-specific workflows, patterns, and shortcuts that agents invoke during mission execution. Examples include `spec-kitty-git-workflow.md`, `spec-kitty-charter-doctrine.md`, and `spec-kitty-implement-review.md`."
+    abstract: "> **Superseded (2026-07-19):** the per-project **symlink** wiring decided here is > replaced by copy delivery — absolute symlinks dangle in dev-containers and are > unreadable to sandboxed agent harnesses (#2412). The **global canonical > install** half of this decision stands unchanged and is reaffirmed in > [ADR 2026-07-19-1](2026-07-19-1-skill-projection-copies-not-symlinks.md)."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2315,6 +2315,21 @@ pages:
     - {slug: "option-y-adr-first-then-shape-2773", text: "Option Y — ADR-first, then shape #2773", level: 3}
     - {slug: "option-z-keep-2773-bounded-invert-separately", text: "Option Z — keep #2773 bounded; invert separately", level: 3}
     - {slug: "option-b-charter-md-fully-generated-from-charter-yaml-rationale-fields", text: "Option (b) — charter.md fully generated from charter.yaml rationale fields", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-19-1-skill-projection-copies-not-symlinks.md"
+    title: "Skill projection delivers copies, not symlinks"
+    divio_type: "none"
+    abstract: "**Status:** Accepted · **Date:** 2026-07-19 · **Supersedes:** the per-project wiring half of [ADR 2026-04-08-3](2026-04-08-3-global-skill-installation-per-project-symlinks.md) (its global-canonical-install decision stands and is reaffirmed here) · **Related:** [#2412](https://github.com/Priivacy-ai/spec-kitty/issues/2412), [ADR 2026-07-07-1](2026-07-07-1-ignored-surface-backfill-migration-pattern.md) (IGNORED-surface backfill pattern)"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "mechanics", text: "Mechanics", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-b-keep-absolute-symlinks", text: "Option B: Keep absolute symlinks", level: 3}
+    - {slug: "option-c-configurable-delivery-mode", text: "Option C: Configurable delivery mode", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md"
     title: "ADR: Evict runtime-mutable WP state into the event log via a single generic InnerStateChanged annotation event"
