@@ -138,9 +138,10 @@ def commit_for_mission(
     """Commit a mission artifact to its kind-aware resolved placement.
 
     This is the single canonical commit entry point for all planning-phase
-    artifacts (spec, plan, tasks, gap-analysis, generator-config) and the
-    coordination-owned ones (analysis-report, acceptance meta). It replaces the
-    formerly open-coded inline tails in ``agent/mission.py``.
+    artifacts (spec, plan, tasks, gap-analysis, generator-config,
+    analysis-report — all PRIMARY-partition) and the coordination-owned ones
+    (acceptance-matrix, issue-matrix, status views). It replaces the formerly
+    open-coded inline tails in ``agent/mission.py``.
 
     Args:
         repo_root:   Primary checkout root (where ``kitty-specs/`` lives).
@@ -677,9 +678,13 @@ def _stage_artifacts_in_coord_worktree(
 ) -> list[Path]:
     """Copy artifacts from the primary checkout to the coordination worktree.
 
-    Mirrors ``_stage_finalize_artifacts_in_coord_worktree`` in ``mission.py``
-    (the canonical source of this logic), including:
-    - Skipping ``COORD_OWNED_STATUS_FILES`` (#1589).
+    This IS the canonical staging helper (#2056 WP08 / T033 collapsed the former
+    ``mission.py::_stage_finalize_artifacts_in_coord_worktree`` near-duplicate into
+    this one function; the old name survives only as a backward-compat alias at the
+    bottom of this module). Behaviour:
+    - Skipping ``COORD_OWNED_STATUS_FILES`` — STATUS-partition files authored
+      directly in the coord worktree, never copied from a stale primary (#1589).
+    - Skipping the re-homed ``analysis-report.md`` (FR-003) — see the loop body.
     - Skipping worktrees-nested paths (#FR-035).
     - Residue cleanup for ``primary_paths_created_this_invocation`` (R6 / #1814).
     """
@@ -698,6 +703,20 @@ def _stage_artifacts_in_coord_worktree(
         # (mirroring the COORD_OWNED_STATUS_FILES skip above) so a coord commit that
         # happens to sweep it makes no coord residue. ``acceptance-matrix.json`` /
         # ``issue-matrix.md`` STAY COORD and continue to be staged below.
+        #
+        # NOTE (coord-commit-integrity SURFACE A #2, DEFERRED): the operator asked
+        # to generalise this to a by-construction
+        # ``is_primary_artifact_kind(kind_for_mission_file(src))`` skip. That is
+        # UNSAFE as specified: this helper legitimately stages OTHER PRIMARY-kind
+        # planning artifacts (``tasks.md`` / ``lanes.json``) into the coord worktree
+        # for a combined commit — a pinned contract
+        # (``test_finalize_coord_staging.py`` / ``test_finalize_clobber_e2e.py``).
+        # There is no partition-derived distinction between ``analysis-report.md``
+        # (must-skip, re-homed) and ``tasks.md`` (must-stage), so a blanket
+        # primary-kind skip regresses those tests. Closing the "next re-home
+        # silently regresses" class requires first retiring the tasks.md/lanes.json
+        # → coord staging (a separate finalize-flow change); until then this stays
+        # the narrow, behaviour-correct analysis-report skip.
         if src.name == _ANALYSIS_REPORT_FILENAME:
             continue
         rel = src.relative_to(repo_root)

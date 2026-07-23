@@ -249,7 +249,16 @@ def test_issue_matrix_approval_blocker_keeps_missing_rows_when_parsed(tmp_path: 
     assert "Missing rows: #1582" in blocker
 
 
-def test_issue_matrix_approval_uses_primary_verdicts_when_coord_copy_stale(tmp_path: Path) -> None:
+def test_issue_matrix_read_is_coord_authoritative_no_primary_fallback(tmp_path: Path) -> None:
+    """coord-commit-integrity SURFACE A #1c: the issue-matrix reader consults ONLY
+    the coord/placement ``feature_dir``.
+
+    Flipped from ``..._uses_primary_verdicts_when_coord_copy_stale`` (which pinned
+    the now-DELETED ``_primary_issue_matrix_satisfies`` anti-pattern): a filled
+    PRIMARY copy must NOT rescue a stale/unfilled COORD copy — a PRIMARY fallback
+    for a COORD-partition kind was the split-brain the remediation kills. The
+    primary dir is consulted only for ``spec.md`` (a genuine PRIMARY kind).
+    """
     coord_dir = tmp_path / "coord" / "kitty-specs" / "demo"
     primary_dir = tmp_path / "primary" / "kitty-specs" / "demo"
     coord_dir.mkdir(parents=True)
@@ -257,10 +266,15 @@ def test_issue_matrix_approval_uses_primary_verdicts_when_coord_copy_stale(tmp_p
     spec_text = "Fix Priivacy-ai/spec-kitty issue #1582.\n"
     (coord_dir / "spec.md").write_text(spec_text, encoding="utf-8")
     (primary_dir / "spec.md").write_text(spec_text, encoding="utf-8")
-    _write_issue_matrix(coord_dir, "unknown")
-    _write_issue_matrix(primary_dir, "fixed")
+    _write_issue_matrix(coord_dir, "unknown")  # stale coord copy — authoritative
+    _write_issue_matrix(primary_dir, "fixed")  # filled primary copy — MUST be ignored
 
-    assert _issue_matrix_approval_blocker(coord_dir, primary_feature_dir=primary_dir) is None
+    # The filled primary copy MUST NOT rescue the stale coord matrix.
+    rescued = _issue_matrix_approval_blocker(coord_dir, primary_feature_dir=primary_dir)
+    assert rescued is not None
+    assert "Unknown: #1582" in rescued
+
+    # Without any primary hint the result is identical (coord-authoritative).
     stale_blocker = _issue_matrix_approval_blocker(coord_dir)
     assert stale_blocker is not None
     assert "Unknown: #1582" in stale_blocker

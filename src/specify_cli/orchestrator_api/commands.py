@@ -334,8 +334,11 @@ def _planning_read_dir(main_repo_root: Path, mission_slug: str) -> Path:
     primary ``target_branch`` for EVERY topology since the write-surface-coherence
     work (#2090): planning never transits the coordination branch. The coord-aware
     :func:`_resolve_mission_dir` returns the *coordination worktree*, which carries
-    ONLY status artifacts (``status.events.jsonl`` / ``status.json``) +
-    coordination-owned ones (``analysis-report.md``). Reading ``lanes.json`` or
+    ONLY the coordination-partition artifacts — the status views
+    (``status.events.jsonl`` / ``status.json``) and the accept/review matrices
+    (``acceptance-matrix.json`` / ``issue-matrix.md``). (``analysis-report.md`` was
+    re-homed COORD→PRIMARY, FR-003 coord-commit-integrity, so it is NOT here.)
+    Reading ``lanes.json`` or
     ``tasks/`` off that surface under coordination topology silently no-ops — the
     dependency graph comes back empty and the orchestrator stalls with every WP
     stuck at ``lane=planned`` (#2118).

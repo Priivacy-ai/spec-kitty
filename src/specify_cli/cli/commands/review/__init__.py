@@ -419,8 +419,19 @@ def review_mission(
         gates_recorded=gates_recorded,
     )
     _run_ble001_gate(repo_root, console, findings, gates_recorded)
+    # coord-commit-integrity SURFACE A #1c: ``issue-matrix.md`` is COORD-partition.
+    # Route the read through the shared placement seam so a coord/lanes-with-coord
+    # mission reads the coordination surface; ``coord_read_dir_for`` fails soft to
+    # ``None`` (→ primary ``feature_dir``) for coord-less missions AND for a
+    # post-merge mission whose coordination worktree has been consolidated away.
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+
+    issue_matrix_dir = (
+        coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+        or feature_dir
+    )
     issue_matrix_present = _evaluate_issue_matrix(
-        feature_dir=feature_dir,
+        feature_dir=issue_matrix_dir,
         review_mode=review_mode,
         console=console,
         findings=findings,

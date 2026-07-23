@@ -339,8 +339,18 @@ def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
     return findings
 
 
-def check_issue_matrix(feature_dir: Path) -> list[Finding]:
-    """Flag missions with issue references whose issue-matrix verdicts are missing."""
+def check_issue_matrix(
+    feature_dir: Path, *, issue_matrix_dir: Path | None = None
+) -> list[Finding]:
+    """Flag missions with issue references whose issue-matrix verdicts are missing.
+
+    ``issue_matrix_dir`` (coord-commit-integrity SURFACE A #1c): the COORD-partition
+    read surface for ``issue-matrix.md`` — the coordination worktree under
+    coord/lanes-with-coord topology, resolved by the caller through the shared
+    placement seam (:func:`mission_runtime.coord_read_dir_for`). Defaults to
+    ``feature_dir`` when ``None`` (coord-less missions and legacy callers).
+    ``spec.md`` is ALWAYS read from ``feature_dir`` — it is a PRIMARY-partition kind.
+    """
     spec_path = feature_dir / "spec.md"
     if not spec_path.exists():
         return []
@@ -365,7 +375,7 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
     if not refs:
         return []
 
-    matrix_path = feature_dir / "issue-matrix.md"
+    matrix_path = (issue_matrix_dir or feature_dir) / "issue-matrix.md"
     if not matrix_path.exists():
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return [
@@ -549,7 +559,18 @@ def run_doctor(
         result.findings.extend(check_drift(feature_dir))
 
     result.findings.extend(check_reviewer_self_approval(feature_dir))
-    result.findings.extend(check_issue_matrix(feature_dir))
+    # coord-commit-integrity SURFACE A #1c: route the COORD-partition issue-matrix
+    # read through the shared placement seam (coord surface under
+    # coord/lanes-with-coord; primary ``feature_dir`` fallback when coord-less or
+    # the coord worktree is gone). ``spec.md`` stays on ``feature_dir`` (PRIMARY).
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+
+    issue_matrix_dir = coord_read_dir_for(
+        repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX
+    )
+    result.findings.extend(
+        check_issue_matrix(feature_dir, issue_matrix_dir=issue_matrix_dir)
+    )
 
     # Repo-level sparse-checkout finding (FR-002). Appended last so existing
     # findings keep their position — scripts scraping doctor output rely on

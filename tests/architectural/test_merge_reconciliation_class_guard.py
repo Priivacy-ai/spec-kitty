@@ -24,7 +24,7 @@ per-registry lint home: ``tests/architectural/test_merge_pipeline_ratchets.py``.
     - **completeness (non-tautology)**: every both-sides-divergent canonical
       ``kitty-specs/**`` artifact enumerated from the INDEPENDENT
       mission-artifact-kind registry (``mission_runtime.artifacts`` —
-      ``MissionArtifactKind`` + ``_COORD_RESIDUE_FILENAMES`` /
+      ``MissionArtifactKind`` + ``_MISSION_FILE_KIND_BY_BASENAME`` /
       ``_COORD_RESIDUE_DIRS`` / ``kind_for_mission_file``), NOT enumerated from
       ``.gitattributes`` itself, carries a registered merge driver. Fail-closed: a
       *future* net-new canonical artifact re-inherits #2709 via ``-X theirs``
@@ -42,7 +42,7 @@ import pytest
 import specify_cli
 from mission_runtime.artifacts import (
     _COORD_RESIDUE_DIRS,
-    _COORD_RESIDUE_FILENAMES,
+    _MISSION_FILE_KIND_BY_BASENAME,
     MissionArtifactKind,
     kind_for_mission_file,
 )
@@ -221,6 +221,10 @@ _NON_DIVERGENT_CANONICAL_ARTIFACTS: frozenset[str] = frozenset(
         "lanes.json",
         "acceptance-matrix.json",
         "snapshot-latest.json",
+        # single-writer derived baseline (post-merge stale-assertion snapshot,
+        # review/baseline.py) — classified WORK_PACKAGE_TASK (PRIMARY partition),
+        # written by exactly one path, never both-sides-divergent bookkeeping.
+        "baseline-tests.json",
         # single-writer coordination / terminal
         "issue-matrix.md",
         "analysis-report.md",
@@ -239,7 +243,7 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
     """
     return {
         f"kitty-specs/**/{filename}": kind
-        for filename, kind in _COORD_RESIDUE_FILENAMES.items()
+        for filename, kind in _MISSION_FILE_KIND_BY_BASENAME.items()
     }
 
 

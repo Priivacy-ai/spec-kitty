@@ -195,7 +195,7 @@ def test_none_classified_file_falls_back_to_caller_kind_and_still_lands(
 ) -> None:
     """A ``None``-classified file (unrecognised path) is never dropped/misrouted.
 
-    ``gap-analysis.md`` is not in ``_COORD_RESIDUE_FILENAMES`` /
+    ``gap-analysis.md`` is not in ``_MISSION_FILE_KIND_BY_BASENAME`` /
     ``_COORD_RESIDUE_DIRS`` -- ``kind_for_mission_file`` classifies it ``None``.
     The contract requires the None-fallback to use the CALLER-supplied ``kind``
     (never dropped, never coerced into the other partition). This is the

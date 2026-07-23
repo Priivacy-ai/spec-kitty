@@ -131,8 +131,8 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # writer+gate+SSOT agree — a mis-classification correction, NOT a contract
         # redesign. This is the ONE frozenset membership move; the ~9 residue
         # delegators + ``is_primary_artifact_kind`` flip atomically from it. The
-        # ``_COORD_RESIDUE_FILENAMES["analysis-report.md"]`` classifier entry is KEPT
-        # (it is the file→kind map, not a residue-only list — deleting it would make
+        # ``_MISSION_FILE_KIND_BY_BASENAME["analysis-report.md"]`` classifier entry
+        # is KEPT (it is the file→kind map, not a residue-only list — deleting it would make
         # ``kind_for_mission_file("analysis-report.md") → None`` and mis-route it).
         MissionArtifactKind.ANALYSIS_REPORT,
     }
@@ -152,15 +152,17 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
     }
 )
 
-# The file→kind CLASSIFIER (despite the historical ``_COORD_RESIDUE`` name): the
-# ONE map :func:`kind_for_mission_file` consults to classify a bare mission-file
-# basename to its :class:`MissionArtifactKind`. It is NOT a residue-only list —
-# it holds PRIMARY-partition kinds (``spec.md``, ``analysis-report.md``, …) too.
-# The residue/partition question is answered SEPARATELY by the kind's frozenset
-# membership, so an entry here says only "this basename maps to this kind", never
-# "this kind is coord residue". KEEP every entry: dropping one makes the classifier
-# return ``None`` for that path → it mis-routes via the unrecognized-path fallback.
-_COORD_RESIDUE_FILENAMES: dict[str, MissionArtifactKind] = {
+# The file→kind CLASSIFIER: the ONE map :func:`kind_for_mission_file` consults to
+# classify a bare mission-file basename to its :class:`MissionArtifactKind`. It is
+# a plain basename→kind lookup that holds BOTH partitions' kinds — PRIMARY
+# (``spec.md``, ``analysis-report.md``, ``baseline-tests.json``, …) and COORD
+# (``issue-matrix.md``, ``status.events.jsonl``, …). The residue/partition question
+# is answered SEPARATELY by the kind's frozenset membership
+# (:data:`_PRIMARY_ARTIFACT_KINDS` / :data:`_PLACEMENT_ARTIFACT_KINDS`), so an entry
+# here says only "this basename maps to this kind", never "this kind is coord
+# residue". KEEP every entry: dropping one makes the classifier return ``None`` for
+# that path → it mis-routes via the unrecognized-path fallback.
+_MISSION_FILE_KIND_BY_BASENAME: dict[str, MissionArtifactKind] = {
     "plan.md": MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
     "tasks.md": MissionArtifactKind.TASKS_INDEX,
     "lanes.json": MissionArtifactKind.LANE_STATE,
@@ -178,6 +180,12 @@ _COORD_RESIDUE_FILENAMES: dict[str, MissionArtifactKind] = {
     "data-model.md": MissionArtifactKind.DATA_MODEL,
     "research.md": MissionArtifactKind.RESEARCH,
     "retrospective.yaml": MissionArtifactKind.RETROSPECTIVE,
+    # ``baseline-tests.json`` is the move-task post-merge stale-assertion baseline
+    # (``review/baseline.py``); it lives with its WP ``tasks/`` siblings on the
+    # PRIMARY ``target_branch`` for every topology, so it classifies to the PRIMARY
+    # ``WORK_PACKAGE_TASK`` partition. Listing it here makes that partition
+    # DERIVABLE from the basename rather than caller-asserted at the read site.
+    "baseline-tests.json": MissionArtifactKind.WORK_PACKAGE_TASK,
 }
 
 _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
@@ -189,7 +197,7 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
 # spec-kitty's OWN bookkeeping files. These classify ``kind=None`` against the
 # mission-artifact partition above, so the record-analysis dirty-tree preflight
 # used to treat their churn as "real dirt" and FALSELY block the write. This set
-# is DISJOINT from the coord-residue partition (``_COORD_RESIDUE_FILENAMES`` /
+# is DISJOINT from the coord-residue partition (``_MISSION_FILE_KIND_BY_BASENAME`` /
 # ``_PLACEMENT_ARTIFACT_KINDS``) and from the planning kinds: it contains ONLY
 # spec-kitty's own metadata, NEVER a planning artifact. The G-5 invariant — a
 # stale primary ``spec.md`` remains non-allowlisted "real dirt" — holds precisely
@@ -378,7 +386,7 @@ def _artifact_kind_for_path(
     mission_rel_parts = parts[rel_index:]
     if len(mission_rel_parts) == 1:
         name = mission_rel_parts[0]
-        return _COORD_RESIDUE_FILENAMES.get(name) or _COORD_RESIDUE_DIRS.get(name)
+        return _MISSION_FILE_KIND_BY_BASENAME.get(name) or _COORD_RESIDUE_DIRS.get(name)
 
     return _COORD_RESIDUE_DIRS.get(mission_rel_parts[0])
 

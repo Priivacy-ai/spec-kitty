@@ -238,35 +238,26 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     reports a false "acceptance-matrix.json not found" for a coord-topology
     mission whose matrix correctly lives on coord.
 
-    Mirrors ``accept.py::_coord_worktree_root``'s guard exactly (Directive-044 —
-    reuse the placement seam, never hand-roll a ``-coord`` path): route to the
-    coord surface ONLY when the mission's stored topology routes through
-    coordination AND that surface is materialised on disk; otherwise fall back
-    to ``feature_dir`` so flat / ``SINGLE_BRANCH`` / ``LANES`` missions read
-    exactly where they do today (regression-preserving).
+    Consumes the ONE shared coord-read seam
+    (:func:`mission_runtime.coord_read_dir_for`, coord-commit-integrity SURFACE A
+    #5) — the SAME seam ``accept.py::_coord_worktree_root`` consumes — so the
+    topology+existence guard is expressed once (Directive-044, never a hand-rolled
+    ``-coord`` path). It routes to the coord surface ONLY when the mission's stored
+    topology routes through coordination AND that surface is materialised on disk;
+    otherwise it falls back to ``feature_dir`` so flat / ``SINGLE_BRANCH`` /
+    ``LANES`` missions read exactly where they do today (regression-preserving).
     """
-    from mission_runtime import (
-        MissionArtifactKind,
-        placement_seam,
-        resolve_topology,
-        routes_through_coordination,
-    )
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
-    # ``feature_dir.name`` (not the raw ``feature`` operator handle) keys both
-    # resolvers here: the caller threads the PRIMARY_METADATA read dir, whose
+    # ``feature_dir.name`` (not the raw ``feature`` operator handle) keys the
+    # resolver here: the caller threads the PRIMARY_METADATA read dir, whose
     # ``.name`` is a materialized primary dir name the resolver accepts and
     # canonicalizes — mirroring ``collect_feature_summary``'s own
     # ``primary_slug = feature_dir.name`` (C-002).
-    topology = resolve_topology(repo_root, feature_dir.name)
-    if not routes_through_coordination(topology):
-        return feature_dir
-
-    resolved = placement_seam(repo_root, feature_dir.name).read_dir(
-        MissionArtifactKind.ACCEPTANCE_MATRIX
+    resolved = coord_read_dir_for(
+        repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX
     )
-    if not resolved.exists():
-        return feature_dir
-    return resolved
+    return resolved if resolved is not None else feature_dir
 
 
 def _evaluate_acceptance_matrix(

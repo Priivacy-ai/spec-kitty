@@ -52,6 +52,7 @@ from mission_runtime.artifacts import (
 from mission_runtime.resolution import (
     ActionContextError,
     PlacementSeam,
+    coord_read_dir_for,
     mission_context_for,
     placement_seam,
     resolve_action_context,
@@ -79,6 +80,7 @@ __all__ = [
     "WorkspaceFragment",
     "artifact_home_for",
     "classify_topology",
+    "coord_read_dir_for",
     "is_coordination_artifact_residue_path",
     "is_primary_artifact_kind",
     "is_self_bookkeeping_path",
