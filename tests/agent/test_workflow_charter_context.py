@@ -182,16 +182,25 @@ class TestPromptBuilderGovernanceContext:
         text = _governance_context(tmp_path, action="specify")
         assert "Governance:" in text
 
-    def test_compact_mode_auto_syncs_missing_governance_bundle(self, tmp_path: Path) -> None:
-        charter_dir = _make_charter_bundle(tmp_path, include_governance=False)
+    def test_compact_mode_builds_governance_without_derived_bundle(self, tmp_path: Path) -> None:
+        """Compact governance context builds even when no derived bundle exists on disk.
 
+        The derived bundle files (``governance.yaml`` / ``directives.yaml`` /
+        ``metadata.yaml``) are RETIRED (``charter.sync`` header, IC-04):
+        ``ensure_charter_bundle_fresh`` no longer writes them, and governance is
+        now read straight off the git-tracked charter (``charter.yaml`` /
+        ``charter.md``). This test pins the surviving contract — the compact
+        ``Governance:`` block is still produced — without asserting the retired
+        derived-file emission. ``include_governance=False`` keeps the meaningful
+        setup: no derived governance bundle is present when the context is built.
+        """
+        _make_charter_bundle(tmp_path, include_governance=False)
+
+        # Prime the first load so the second call renders in compact mode.
         _governance_context(tmp_path, action="specify")
         text = _governance_context(tmp_path, action="specify")
 
         assert "Governance:" in text
-        assert (charter_dir / "governance.yaml").exists()
-        assert (charter_dir / "directives.yaml").exists()
-        assert (charter_dir / "metadata.yaml").exists()
 
     def test_missing_charter_falls_back_to_legacy_governance(self, tmp_path: Path) -> None:
         """Missing charter skips context injection and falls back gracefully."""

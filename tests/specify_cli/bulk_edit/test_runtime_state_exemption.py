@@ -34,7 +34,7 @@ from specify_cli.bulk_edit.gate import check_review_diff_compliance
 from specify_cli.bulk_edit.occurrence_map import OccurrenceMap
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

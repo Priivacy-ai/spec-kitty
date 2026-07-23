@@ -384,6 +384,12 @@ globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] =
 from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskArgs as _MoveTaskArgs,
     _MoveTaskState as _MoveTaskState,
+    # coord-commit-integrity (#2861, FR-005): the lane->binding-role map helper
+    # extracted from the duplicated role maps at the move-task emit seam joins
+    # the family surface like every other native move-task def (identity
+    # re-export so ``@patch("...agent.tasks._binding_role_for_lane")`` keeps
+    # intercepting).
+    _binding_role_for_lane as _binding_role_for_lane,
     # WP09 (FR-008, IC-07): the six family stragglers that stayed behind at
     # WP05 — the arbiter override pair, the #2155 mixed-bundle partition, the
     # coord event-path probe, the event-field shaper and the reviewer detector

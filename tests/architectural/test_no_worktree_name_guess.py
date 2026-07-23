@@ -642,56 +642,51 @@ _SHORTID_NAMED_EXCLUSIONS_FILES: dict[tuple[str, str], str] = {
 # The mission-identity CONSUMER class is otherwise EMPTY after WP03/WP04/WP05
 # routed every site; only this deliberate diagnostic-tolerance fallback remains.
 # Keyed as (enclosing_qualname, token_line) composite (FR-008 / WP06 re-key).
-# The two doctor.py sites are byte-identical in source but live in DIFFERENT
-# functions — the composite key disambiguates them via the qualname component.
+# The two formerly byte-identical doctor.py tolerance sites were CONSOLIDATED by
+# the coord-trust Surface D fold into the single shared helper
+# ``_resolve_coord_short`` — one allow-list entry now covers every coord
+# worktree/branch short-id derivation in the doctor.
 _SHORTID_ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(
     {
         # ── _coordination_doctor.py — diagnostic short-id TOLERANCE, not a missed route ──
-        # ``short = resolve_mid8(slug, mission_id=mission_id) or mission_id[:8]``
-        # inside ``_check_coordination_worktree_health`` (moved from doctor.py by #2059).
+        # ``return resolve_mid8(slug, mission_id=mission_id) or mission_id[:8]``
+        # inside the shared ``_resolve_coord_short`` helper. The coord-trust
+        # Surface D fold deduplicated the two byte-identical tolerance sites
+        # (formerly ``_check_coordination_worktree_health`` and
+        # ``_check_lane_sparse_checkout_drift``) into this one helper.
         # WP03 routed the derivation through the failover-aware ``resolve_mid8``;
         # the ``or mission_id[:8]`` tail is a CONSCIOUS fallback that keeps the
         # doctor diagnostic emitting a display short-id even when resolve_mid8
         # declines to ``""`` (e.g. a malformed/short mission_id). Tolerance branch.
         (
-            "_check_coordination_worktree_health",
-            "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
-        ),
-        # ── _coordination_doctor.py — same idiom, different function ──
-        # Inside ``_check_lane_sparse_checkout_drift``.  Byte-identical source
-        # line; distinct qualname makes the composite key unique (T025-distinct-keys).
-        (
-            "_check_lane_sparse_checkout_drift",
-            "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
+            "_resolve_coord_short",
+            "return resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
         ),
     }
 )
 
 # Stale-detection map for the short-id allow-list: composite_key → relative file path.
-# #2059 moved both tolerance sites out of ``doctor.py`` into the ``_coordination_doctor``
-# sibling (same functions, byte-identical lines); the composite keys are unchanged, only
-# the home file moved.
+# The coord-trust Surface D fold consolidated the two ``_coordination_doctor``
+# tolerance sites into the single ``_resolve_coord_short`` helper; one entry now.
 _SHORTID_ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     (
-        "_check_coordination_worktree_health",
-        "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
-    ): "src/specify_cli/cli/commands/_coordination_doctor.py",
-    (
-        "_check_lane_sparse_checkout_drift",
-        "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
+        "_resolve_coord_short",
+        "return resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
     ): "src/specify_cli/cli/commands/_coordination_doctor.py",
 }
 
 # Pre-mission baseline of mission-identity ``[:8]`` slices across ``src/`` (the
 # raw count BEFORE home/allow-list filtering), pinned as a committed literal so
 # "the consumer class is empty" is an OBJECTIVE, diff-checkable claim rather
-# than a re-derivation of the live tree. Composition (verified at WP02 land):
+# than a re-derivation of the live tree. Composition (verified at WP02 land;
+# doctor sites collapsed 2→1 by the coord-trust Surface D fold):
 #   branch_naming.py:146/199/415  (3, HOME)
 #   mission_runtime/context.py:99/112  (2, HOME)
-#   cli/commands/_coordination_doctor.py  (2, allow-listed tolerance; moved from
-#       doctor.py by #2059)
-# => 7 raw matches; 5 in homes + 2 allow-listed => 0 un-accounted consumers.
-_SHORTID_BASELINE_RAW_MATCHES = 7
+#   cli/commands/_coordination_doctor.py  (1, allow-listed tolerance in the
+#       shared ``_resolve_coord_short`` helper; was 2 byte-identical sites
+#       before the coord-trust Surface D dedup)
+# => 6 raw matches; 5 in homes + 1 allow-listed => 0 un-accounted consumers.
+_SHORTID_BASELINE_RAW_MATCHES = 6
 
 
 def _unwrap_str_call(node: ast.expr) -> ast.expr:
@@ -1121,20 +1116,16 @@ def test_new_offender_in_allowlisted_function_is_flagged_red() -> None:
     )
 
 
-def test_two_doctor_sites_produce_distinct_composite_keys() -> None:
-    """The two byte-identical doctor tolerance sites produce DISTINCT composite keys.
+def test_consolidated_doctor_tolerance_site_is_single_and_allow_listed() -> None:
+    """The doctor short-id tolerance is a SINGLE consolidated site in the allow-list.
 
-    Both sites contain the same source line
-    ``short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]``.
-    A bare token-line key would collide, silently allowing one to cover the other.
-    The qualname component distinguishes them: ``_check_coordination_worktree_health``
-    vs ``_check_lane_sparse_checkout_drift``.  This test proves the two entries in
-    ``_SHORTID_ALLOWED_SITES`` are genuinely distinct.
-
-    #2059 decomposed ``doctor.py``: both functions (and their byte-identical
-    tolerance lines) moved into the ``_coordination_doctor`` sibling. The composite
-    keys are unchanged (qualname + token-line are byte-preserved); only the file the
-    sites live in changed, so this test now scans the sibling.
+    Formerly two byte-identical tolerance lines lived in
+    ``_check_coordination_worktree_health`` and ``_check_lane_sparse_checkout_drift``;
+    the coord-trust Surface D fold deduplicated them into the shared
+    ``_resolve_coord_short`` helper (``return resolve_mid8(...) or mission_id[:8]``).
+    This test pins that consolidation: exactly ONE tolerance site remains, its
+    composite key is stable (qualname + token-line), and it is the sole doctor
+    entry in ``_SHORTID_ALLOWED_SITES`` — the allow-list and live source agree.
     """
     from tests.architectural._ratchet_keys import composite_key_from_file
 
@@ -1142,50 +1133,32 @@ def test_two_doctor_sites_produce_distinct_composite_keys() -> None:
     if not doctor_path.exists():
         pytest.skip("_coordination_doctor.py not present in this checkout")
 
-    # Locate the two byte-identical tolerance sites by source content rather than
-    # by hardcoded line numbers — the literal-line pins drift whenever an edit
-    # above them shifts the file (e.g. the #2059 god-module tag comment), turning
-    # a pure line-shift into a spurious RED. The qualname-anchored composite key
-    # is itself drift-proof; the test fixture must be too.
-    site_marker = "short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]"
+    # Locate the tolerance site by source content rather than by hardcoded line
+    # numbers — the literal-line pins drift whenever an edit above them shifts the
+    # file, turning a pure line-shift into a spurious RED. The qualname-anchored
+    # composite key is itself drift-proof; the test fixture must be too.
+    site_marker = "return resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]"
     doctor_lines = doctor_path.read_text(encoding="utf-8").splitlines()
     site_linenos = [
         idx for idx, line in enumerate(doctor_lines, start=1) if site_marker in line
     ]
-    assert len(site_linenos) == 2, (
-        "expected exactly two byte-identical `mission_id[:8]` tolerance sites in "
-        f"_coordination_doctor.py, found {len(site_linenos)} at lines {site_linenos}"
+    assert len(site_linenos) == 1, (
+        "expected exactly ONE consolidated `mission_id[:8]` tolerance site in "
+        "_coordination_doctor.py (the coord-trust Surface D fold deduplicated the "
+        f"former two into `_resolve_coord_short`), found {len(site_linenos)} at "
+        f"lines {site_linenos}"
     )
 
-    key_3074 = composite_key_from_file(doctor_path, site_linenos[0])
-    key_3166 = composite_key_from_file(doctor_path, site_linenos[1])
+    key = composite_key_from_file(doctor_path, site_linenos[0])
 
-    # The token-line component must be EQUAL (byte-identical source lines).
-    assert key_3074[1] == key_3166[1], (
-        "expected the token-line component to be identical for the two "
-        f"byte-identical source lines:\n  3074 token: {key_3074[1]!r}\n  3166 token: {key_3166[1]!r}"
+    # The consolidated site lives in the shared `_resolve_coord_short` helper.
+    assert key[0] == "_resolve_coord_short", (
+        "expected the consolidated tolerance site to live in `_resolve_coord_short` "
+        f"but got qualname {key[0]!r}"
     )
 
-    # The qualname component must be DIFFERENT (different enclosing functions).
-    assert key_3074[0] != key_3166[0], (
-        "expected different qualnames for the two doctor.py sites but got the same — "
-        "the composite key cannot disambiguate them:\n"
-        f"  3074 qualname: {key_3074[0]!r}\n  3166 qualname: {key_3166[0]!r}"
-    )
-
-    # The overall composite keys must be DISTINCT.
-    assert key_3074 != key_3166, (
-        f"composite keys are identical — a colliding implementation would "
-        f"allow one allow-list entry to cover both sites:\n"
-        f"  3074 key: {key_3074!r}\n  3166 key: {key_3166!r}"
-    )
-
-    # Cross-check: both keys appear in _SHORTID_ALLOWED_SITES.
-    assert key_3074 in _SHORTID_ALLOWED_SITES, (
-        f"doctor.py:3074 composite key {key_3074!r} is missing from "
-        "_SHORTID_ALLOWED_SITES — the allow-list and the live source are out of sync"
-    )
-    assert key_3166 in _SHORTID_ALLOWED_SITES, (
-        f"doctor.py:3166 composite key {key_3166!r} is missing from "
+    # Cross-check: the composite key is the sole doctor entry in _SHORTID_ALLOWED_SITES.
+    assert key in _SHORTID_ALLOWED_SITES, (
+        f"_resolve_coord_short composite key {key!r} is missing from "
         "_SHORTID_ALLOWED_SITES — the allow-list and the live source are out of sync"
     )

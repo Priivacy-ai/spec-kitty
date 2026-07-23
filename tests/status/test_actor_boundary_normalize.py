@@ -24,7 +24,11 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.status.emit import build_resolved_actor, parse_agent_boundary_string
+from specify_cli.status.emit import (
+    build_resolved_actor,
+    build_self_asserting_actor,
+    parse_agent_boundary_string,
+)
 from specify_cli.status.resolved_binding import ResolvedBinding
 from specify_cli.sync.emitter import _PAYLOAD_RULES, _is_actor_field, _is_actor_payload
 
@@ -143,6 +147,54 @@ def test_build_resolved_actor_absent_both_stays_none() -> None:
     None — never a synthetic '{tool}-default' or 'unknown-model'."""
     actor = build_resolved_actor(role="implementer", tool="codex", binding=None)
     assert actor == {"role": "implementer", "profile": None, "tool": "codex", "model": None}
+
+
+# ---------------------------------------------------------------------------
+# build_self_asserting_actor — the one-shot boundary-parse + actor build helper
+# that collapses the three claim seams (workflow_executor x2, tasks_move_task)
+# ---------------------------------------------------------------------------
+
+
+def test_build_self_asserting_actor_parses_compact_agent_to_bare_tool() -> None:
+    """A compact ``tool:model:profile:role`` --agent is parsed at the boundary:
+    the bare tool lands in actor.tool (never the whole string) and the parsed
+    profile/model become self-asserted — no synthetic default, no minted binding."""
+    actor = build_self_asserting_actor(
+        role="reviewer",
+        agent="claude:opus:reviewer-renata:reviewer",
+        fallback_tool="claude",
+        binding=None,
+    )
+    assert actor["tool"] == "claude"  # bare, NOT the whole compact string
+    assert actor["profile"] == "reviewer-renata"
+    assert actor["model"] == "opus"
+    assert actor["role"] == "reviewer"
+
+
+def test_build_self_asserting_actor_uses_fallback_tool_when_agent_absent() -> None:
+    """With no --agent value the fallback tool is used and profile/model stay
+    None (absent segments never become a synthetic '{tool}-default')."""
+    actor = build_self_asserting_actor(
+        role="implementer",
+        agent=None,
+        fallback_tool="codex",
+        binding=None,
+    )
+    assert actor == {"role": "implementer", "profile": None, "tool": "codex", "model": None}
+
+
+def test_build_self_asserting_actor_binding_wins_over_parsed_agent() -> None:
+    """A resolved binding's profile/model take precedence over the self-asserted
+    parse (provenance: the binding is the authoritative record, C-002/C-007)."""
+    actor = build_self_asserting_actor(
+        role="implementer",
+        agent="claude:self-model:self-profile:implementer",
+        fallback_tool="claude",
+        binding=ResolvedBinding(agent_profile="python-pedro", model="claude-opus-4-8"),
+    )
+    assert actor["tool"] == "claude"
+    assert actor["profile"] == "python-pedro"  # binding wins
+    assert actor["model"] == "claude-opus-4-8"  # binding wins
 
 
 # ---------------------------------------------------------------------------
