@@ -26,7 +26,12 @@ from specify_cli.sync.history_import.upload import (
 pytestmark = pytest.mark.fast
 
 
-def _env(event_id: str, event_type: str = "WPStatusChanged") -> dict[str, Any]:
+def _env(
+    event_id: str, event_type: str = "WPStatusChanged"
+) -> dict[
+    str, Any
+]:  # canonical-event-exempt(exception-flow): the TeamSpace wire envelope is not a *Payload model; a raw fixture is the transport's unit-under-test input
+    # canonical-event-exempt(exception-flow): minimal wire envelope fed into the upload transport under test
     return {"event_id": event_id, "event_type": event_type, "payload": {"wp_id": "WP01"}}
 
 

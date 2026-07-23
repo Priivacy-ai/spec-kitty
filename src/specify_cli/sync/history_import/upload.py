@@ -58,7 +58,7 @@ def envelope_sha256(envelope: Envelope) -> str:
 
 
 @dataclass(frozen=True)
-class ProvenanceEntry:
+class ImportProvenanceEntry:
     """One provenance record for the import audit manifest."""
 
     event_id: str
@@ -69,9 +69,9 @@ class ProvenanceEntry:
     row_sha256: str | None = None
 
 
-def build_provenance_manifest(envelopes: Sequence[Envelope]) -> list[ProvenanceEntry]:
+def build_provenance_manifest(envelopes: Sequence[Envelope]) -> list[ImportProvenanceEntry]:
     return [
-        ProvenanceEntry(
+        ImportProvenanceEntry(
             event_id=str(env["event_id"]),
             event_type=str(env["event_type"]),
             envelope_sha256=envelope_sha256(env),

@@ -100,9 +100,13 @@ def test_local_only_lifecycle_events_are_filtered(tmp_path):
     _write_events(
         mission_dir,
         [
+            # canonical-event-exempt(exception-flow): on-disk lifecycle row fed into the drop-filter under test
             {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
+            # canonical-event-exempt(exception-flow): local-only row the filter must drop
             {"event_type": "MissionReopened", "aggregate_type": "Mission", "payload": {}},
+            # canonical-event-exempt(exception-flow): local-only row the filter must drop
             {"event_type": "FollowUpRecorded", "aggregate_type": "Mission", "payload": {}},
+            # canonical-event-exempt(exception-flow): on-disk lifecycle row fed into the drop-filter under test
             {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}},
         ],
     )
@@ -153,15 +157,15 @@ def test_wp_coverage_backfills_a_wp_referenced_only_by_a_lane_transition(tmp_pat
 
 
 def test_work_packages_are_sorted_by_wp_id(tmp_path):
+    # Emit WPCreated out of order via the canonical local emitter (not a
+    # hand-rolled event); the scan must return them sorted by wp_id.
+    from specify_cli.status.lifecycle_events import emit_wp_created_local
+
     mission_dir = tmp_path / "synthetic-sort-01CCCC"
-    _write_events(
-        mission_dir,
-        [
-            {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP03"}},
-            {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}},
-            {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP02"}},
-        ],
-    )
+    mission_dir.mkdir(parents=True)
+    for wp_id in ("WP03", "WP01", "WP02"):
+        emit_wp_created_local(mission_dir, mission_slug="synthetic-sort-01CCCC", wp_id=wp_id, wp_title=wp_id)
+
     scan = scan_mission(mission_dir)
     assert [wp.wp_id for wp in scan.work_packages] == ["WP01", "WP02", "WP03"]
 

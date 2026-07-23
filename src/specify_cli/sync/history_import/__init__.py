@@ -41,7 +41,7 @@ from specify_cli.sync.history_import.pipeline import (
 )
 from specify_cli.sync.history_import.upload import (
     PreflightRejected,
-    ProvenanceEntry,
+    ImportProvenanceEntry,
     UploadReport,
     build_provenance_manifest,
     run_import_upload,
@@ -70,7 +70,7 @@ __all__ = [
     "MissionScan",
     "PrefixSource",
     "PreflightRejected",
-    "ProvenanceEntry",
+    "ImportProvenanceEntry",
     "ScannedWorkPackage",
     "UploadReport",
     "apply_import",
