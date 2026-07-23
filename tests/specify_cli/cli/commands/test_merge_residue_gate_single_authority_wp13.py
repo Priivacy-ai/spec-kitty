@@ -415,7 +415,7 @@ def test_take_theirs_does_not_swallow_primary_planning_conflict(
 # The single residue authority symbols. A merge-path consumer must reference the
 # predicate (or the filename set) and must NOT redeclare its own residue literal.
 _RESIDUE_AUTHORITY_PREDICATE = "is_coordination_artifact_residue_path"
-_RESIDUE_AUTHORITY_FILENAMES = "_COORD_RESIDUE_FILENAMES"
+_RESIDUE_AUTHORITY_FILENAMES = "_MISSION_FILE_KIND_BY_BASENAME"
 _RESIDUE_AUTHORITY_NAMES = frozenset(
     {_RESIDUE_AUTHORITY_PREDICATE, _RESIDUE_AUTHORITY_FILENAMES}
 )
@@ -504,7 +504,7 @@ def test_merge_path_consumer_carries_no_local_residue_literal(rel_path: str) -> 
     assert offenders == [], (
         f"{rel_path} carries a local residue literal at line(s) {offenders}; "
         "the residue set must be expressed once in the single authority "
-        "(mission_runtime.artifacts._COORD_RESIDUE_FILENAMES)"
+        "(mission_runtime.artifacts._MISSION_FILE_KIND_BY_BASENAME)"
     )
 
 

@@ -74,6 +74,10 @@ _PUBLIC_SURFACE = sorted(
         "WorkspaceFragment",
         "artifact_home_for",
         "classify_topology",
+        # coord-commit-integrity SURFACE A (#5): the ONE topology-guarded coord-read
+        # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
+        # worktree_root consume — a package-root public symbol, so it is pinned here.
+        "coord_read_dir_for",
         "is_coordination_artifact_residue_path",
         "is_primary_artifact_kind",
         # gate-read-surface-completion WP05 (FR-003): the self-bookkeeping allowlist

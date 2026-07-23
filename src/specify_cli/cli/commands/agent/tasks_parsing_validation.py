@@ -160,6 +160,15 @@ def _issue_matrix_approval_blocker(
     (mission merge/acceptance) ``in-mission`` is rejected: every issue must have
     reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
     ``deferred-with-followup``) before the mission lands.
+
+    Placement (coord-commit-integrity SURFACE A #1c): ``issue-matrix.md`` is a
+    COORD-partition kind, so the matrix is read from ``feature_dir`` — the
+    caller's topology-resolved read surface (the coordination worktree under
+    coord / lanes-with-coord topology; the primary dir when coord-less). There is
+    NO PRIMARY fallback: a PRIMARY fallback for a COORD kind was the split-brain
+    anti-pattern (a stale primary copy silently satisfying a stale/unfilled coord
+    matrix). ``primary_feature_dir`` is consulted ONLY for ``spec.md`` — a genuine
+    PRIMARY-partition kind — to detect the referenced issues.
     """
     spec_feature_dir = (
         primary_feature_dir
@@ -187,13 +196,6 @@ def _issue_matrix_approval_blocker(
 
     matrix_path = feature_dir / "issue-matrix.md"
     if not matrix_path.exists():
-        if _primary_issue_matrix_satisfies(
-            primary_feature_dir=primary_feature_dir,
-            feature_dir=feature_dir,
-            spec_feature_dir=spec_feature_dir,
-            target_lane=target_lane,
-        ):
-            return None
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return (
             f"{_ISSUE_MATRIX_ERROR_PREFIX} is required before approval.\n"
@@ -212,13 +214,6 @@ def _issue_matrix_approval_blocker(
         unresolved_in_mission = []
 
     if result.passed and not missing_issues and not unresolved_in_mission:
-        return None
-    if _primary_issue_matrix_satisfies(
-        primary_feature_dir=primary_feature_dir,
-        feature_dir=feature_dir,
-        spec_feature_dir=spec_feature_dir,
-        target_lane=target_lane,
-    ):
         return None
 
     unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
@@ -243,32 +238,6 @@ def _issue_matrix_approval_blocker(
     for message in other_messages:
         lines.append(f"- {message}")
     return "\n".join(lines)
-
-
-def _primary_issue_matrix_satisfies(
-    *,
-    primary_feature_dir: Path | None,
-    feature_dir: Path,
-    spec_feature_dir: Path,
-    target_lane: Lane | None,
-) -> bool:
-    if primary_feature_dir is None or primary_feature_dir == feature_dir:
-        return False
-    if not (primary_feature_dir / "issue-matrix.md").exists():
-        return False
-
-    try:
-        result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
-            primary_feature_dir,
-            spec_feature_dir=spec_feature_dir,
-        )
-    except Exception as exc:  # noqa: BLE001 -- fallback must not hide real blockers
-        logger.debug("Could not evaluate primary issue-matrix fallback: %s", exc)
-        return False
-
-    if target_lane != Lane.DONE:
-        unresolved_in_mission = []
-    return result.passed and not missing_issues and not unresolved_in_mission
 
 
 # ---------------------------------------------------------------------------
@@ -1026,9 +995,11 @@ __all__ = [
     # _check_kitty_specs_contamination, _check_uncommitted_worktree_changes,
     # _check_worktree_health, _issue_matrix_diagnostic_lines,
     # _issue_matrix_evaluation, _issue_matrix_in_mission_rows,
-    # _issue_matrix_row_issues, _latest_status_event_time,
-    # _primary_issue_matrix_satisfies:
+    # _issue_matrix_row_issues, _latest_status_event_time:
     # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).
+    # (_primary_issue_matrix_satisfies was DELETED — coord-commit-integrity
+    # SURFACE A #1c: a PRIMARY fallback for the COORD-partition issue-matrix was
+    # the split-brain anti-pattern.)
     # _review_artifact_dir_for_wp, _review_cycle_number,
     # _validate_research_artifacts, _validate_worktree_state:
     # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).

@@ -67,6 +67,7 @@ __all__ = [
     "ActionContextError",
     "ActionName",
     "PlacementSeam",
+    "coord_read_dir_for",
     "mission_context_for",
     "placement_seam",
     "resolve_action_context",
@@ -1418,6 +1419,58 @@ class PlacementSeam:
             self.repo_root, self.mission_slug, kind=kind
         )
         return read_dir
+
+
+def coord_read_dir_for(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+) -> Path | None:
+    """Resolve the COORDINATION read dir for a coord-classified ``kind``, or ``None``.
+
+    The ONE shared coord-read guard (coord-commit-integrity SURFACE A #5): returns
+    the coordination-surface read dir for ``kind`` when — and only when — the
+    mission's STORED topology routes through coordination
+    (:func:`routes_through_coordination` over ``COORD`` / ``LANES_WITH_COORD``) AND
+    that coordination surface is materialised on disk. Returns ``None`` in every
+    coord-less case (``SINGLE_BRANCH`` / ``LANES``) and whenever the coord worktree
+    has not been materialised yet — there is no coord surface to read from, so the
+    caller falls back to its own primary ``feature_dir`` (or reports "nothing to
+    reconcile"). Never materialises the worktree (a read/scan must not have side
+    effects).
+
+    Extracted from the two byte-for-byte guards that each admitted "Mirrors the
+    other exactly":
+    :func:`specify_cli.acceptance.gates_core._acceptance_matrix_read_dir` and
+    :func:`specify_cli.cli.commands.accept._coord_worktree_root`. Both now consume
+    this single seam (Directive-044) instead of restating the topology+existence
+    check — routing every coord-read decision through the ONE
+    :func:`routes_through_coordination` predicate + the ONE
+    :class:`PlacementSeam` (T-1).
+
+    Fail-soft (post-merge safety): a mission whose stored topology still declares
+    coordination but whose coordination worktree has already been consolidated
+    away (e.g. a post-merge mission-review read) makes the underlying read
+    resolver refuse fail-closed (``StatusReadPathNotFound``) or report an
+    ambiguous handle. Those refusals mean "there is no coordination surface to
+    read from" — exactly the ``None`` case — so they are absorbed here and the
+    caller falls back to its own primary read dir.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+    )
+
+    topology = resolve_topology(repo_root, mission_slug)
+    if not routes_through_coordination(topology):
+        return None
+    try:
+        resolved = placement_seam(repo_root, mission_slug).read_dir(kind)
+    except (StatusReadPathNotFound, MissionSelectorAmbiguous, ActionContextError):
+        return None
+    if not resolved.exists():
+        return None
+    return resolved
 
 
 def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:

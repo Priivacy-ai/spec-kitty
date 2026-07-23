@@ -82,22 +82,18 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
     materialised on disk yet — there is nothing to reconcile before that
     (mirrors the leniency ``_status_read_feature_dir`` already applies).
     Never creates the worktree (a dirty-tree scan must not have side effects).
+
+    Consumes the ONE shared coord-read seam
+    (:func:`mission_runtime.coord_read_dir_for`, coord-commit-integrity SURFACE A
+    #5) — the SAME seam ``gates_core._acceptance_matrix_read_dir`` consumes — so
+    the topology+existence guard is expressed once (Directive-044).
     """
-    from mission_runtime import (
-        MissionArtifactKind,
-        placement_seam,
-        resolve_topology,
-        routes_through_coordination,
-    )
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
-    topology = resolve_topology(repo_root, mission_slug)
-    if not routes_through_coordination(topology):
-        return None
-
-    coord_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.ACCEPTANCE_MATRIX
+    coord_feature_dir = coord_read_dir_for(
+        repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX
     )
-    if not coord_feature_dir.exists():
+    if coord_feature_dir is None:
         return None
 
     try:
