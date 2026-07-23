@@ -8,6 +8,7 @@ bookkeeping commit succeeds.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+import logging
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -17,6 +18,7 @@ from typing import Any, TypeVar, cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.errors import StructuredError
 from specify_cli.coordination.status_service import (
     EventLogReadContract,
     read_event_log,
@@ -50,6 +52,8 @@ from specify_cli.status.views import DERIVED_STATUS_FILENAME as _DERIVED_STATUS_
 from specify_cli.status.transitions import is_terminal, resolve_lane_alias, validate_transition
 from specify_cli.status.wp_state import annotate as _annotate
 from specify_cli.workspace import canonicalize_feature_dir, delete_context
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -153,47 +157,86 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
 _NonTxnEmitResult = TypeVar("_NonTxnEmitResult")
 
 
-def _fallback_coord_branch(identity: _TransactionIdentity, mission_slug: str) -> str | None:
-    """The coordination branch for a coord-topology mission, or ``None`` when coord-less.
+class FallbackCoordWorktreeUnresolved(StructuredError):
+    """A stored-COORD mission's coord worktree could not be materialized for a write.
 
-    Uses the SAME authority ``_transaction_topology_available`` consults: the
-    declared ``coordination_branch`` when meta carries one, else a coord branch
-    that already exists on disk under the canonical ``CoordinationWorkspace``
-    grammar. A mission with neither is coord-less (``SINGLE_BRANCH``/``LANES``/flat).
+    US1 Edge Case / SC-001: a coord-routed (``COORD`` / ``LANES_WITH_COORD``)
+    mission whose coordination worktree cannot be materialized MUST NOT silently
+    degrade to a primary-uncommitted write (which strands the coord event log on
+    the wrong surface). This mirrors the sibling misroute guard
+    (``workflow_executor`` FR-002(a), which fails loud for the same
+    corrupt/unresolvable-identity class rather than routing coord artifacts to the
+    repository root) — reconciling the two coord-write authorities to ONE failure
+    policy. The legitimate primary path is preserved ONLY for coord-less
+    topologies (``SINGLE_BRANCH`` / ``LANES`` / flat), decided by the stored
+    topology SSOT — never by a surface existence test.
     """
-    if identity.coordination_branch is not None:
-        return identity.coordination_branch
-    if not identity.mid8:
-        return None
-    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
 
-    candidate = CoordinationWorkspace.branch_name(mission_slug, identity.mid8)
-    return candidate if _branch_exists(identity.repo_root, candidate) else None
+    error_code: str = "FALLBACK_COORD_WORKTREE_UNRESOLVED"
+
+    def __init__(self, *, mission_slug: str, mid8: str, cause: BaseException) -> None:
+        self.mission_slug = mission_slug
+        self.mid8 = mid8
+        super().__init__(
+            f"coord-routed mission {mission_slug!r} (mid8 {mid8!r}) requires its "
+            "coordination worktree for a status write, but it could not be "
+            f"materialized: {cause}. Refusing to degrade to a primary-uncommitted "
+            "write that would strand the coordination event log. Repair the "
+            "coordination worktree/branch (meta.mid8 / coordination_branch) and retry."
+        )
 
 
 def _resolve_fallback_coord_worktree(
     identity: _TransactionIdentity, mission_slug: str
 ) -> Path | None:
-    """Resolve the coord worktree for the non-transactional coord fallback, or
-    ``None`` for a coord-less topology (or a coord mission whose worktree cannot
-    be materialized — e.g. the repo root is not a work tree, so
-    ``CoordinationWorkspace.resolve`` cannot ``git worktree add``).
+    """Resolve the coord worktree for the non-transactional coord fallback.
 
-    FR-004 (row 7): a coord-topology status write in the ``_transaction_topology_
-    available`` False arm must still land on the coord worktree. Reuses the ONE
-    ``CoordinationWorkspace.resolve`` authority (never a forked resolver).
+    Two layers, mirroring the read contract's shape-vs-existence split
+    (:func:`_read_contract_routes_through_coordination` plus its transient probe
+    arms — the same two-layer structure the read side already uses):
+
+    * **SHAPE — stored-topology SSOT.** The coord-vs-primary decision is disposed
+      by the WP02 topology SSOT via
+      :func:`_read_contract_routes_through_coordination`
+      (``routes_through_coordination(read_topology(...))``), NOT a
+      ``coordination_branch is not None`` / branch-exists SURFACE test — the exact
+      re-derivation SC-001 forbids the read contract from doing. A coord-less
+      topology (``SINGLE_BRANCH`` / ``LANES`` / flat) returns ``None`` so the
+      caller PRESERVES the legitimate primary-uncommitted write (contract row 8);
+      no coord path is forced and no error is raised.
+    * **TRANSIENT MATERIALIZATION.** For a stored-``COORD`` / ``LANES_WITH_COORD``
+      mission the write MUST land on the coord worktree — materialize/target it
+      through the ONE ``CoordinationWorkspace.resolve`` authority (never a forked
+      resolver). If it genuinely cannot be resolved, FAIL LOUD
+      (:class:`FallbackCoordWorktreeUnresolved`) rather than silently degrade to a
+      primary-uncommitted write (US1 Edge Case; the same fail-loud policy the
+      ``workflow_executor`` misroute guard applies). Only the concrete
+      materialization failures are caught-and-re-raised; an unexpected error
+      (programming bug — ``AttributeError`` etc.) propagates raw rather than being
+      masked as a silent primary write (#3 narrowing).
     """
-    if _fallback_coord_branch(identity, mission_slug) is None or not identity.mid8:
+    if not _read_contract_routes_through_coordination(identity):
         return None
-    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
+    from specify_cli.coordination.workspace import (  # noqa: PLC0415
+        CoordinationWorkspace,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    )
 
     try:
         # Local annotation re-narrows the cross-module (``Any``) resolve result.
         coord_worktree: Path = CoordinationWorkspace.resolve(
             identity.repo_root, mission_slug, identity.mid8
         )
-    except Exception:  # noqa: BLE001 — unresolvable coord worktree → primary fallback (no error)
-        return None
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    ) as exc:
+        raise FallbackCoordWorktreeUnresolved(
+            mission_slug=mission_slug, mid8=identity.mid8, cause=exc
+        ) from exc
     return coord_worktree
 
 
@@ -209,14 +252,18 @@ def _emit_via_non_transactional_fallback(
     The ONE place the False arm decides coord-vs-primary — both the single and the
     batch site route through here, so neither branches in place.
 
-    * **Coord topology** (a coordination branch whose worktree resolves):
-      materialize/target the coord worktree via ``CoordinationWorkspace.resolve``
-      and commit the event THERE (via *coord_emit*), so a reader of the coord
-      event log never sees a stale primary-only-uncommitted write (contract row 7).
-    * **Coord-less topology** (``SINGLE_BRANCH``/``LANES``/flat, or a coord mission
-      whose worktree cannot be materialized): PRESERVE the primary-uncommitted
-      write path (via *primary_emit*, contract row 8). No coord path is forced and
-      no error is raised — a blanket delete of this arm would regress flat missions.
+    * **Coord topology** (stored ``COORD`` / ``LANES_WITH_COORD``): materialize/
+      target the coord worktree via ``CoordinationWorkspace.resolve`` and commit
+      the event THERE (via *coord_emit*), so a reader of the coord event log never
+      sees a stale primary-only-uncommitted write (contract row 7). If the coord
+      worktree genuinely cannot be materialized,
+      :func:`_resolve_fallback_coord_worktree` FAILS LOUD
+      (:class:`FallbackCoordWorktreeUnresolved`) — a stored-COORD write is never
+      silently degraded to a primary-uncommitted write (US1 Edge Case).
+    * **Coord-less topology** (``SINGLE_BRANCH``/``LANES``/flat): PRESERVE the
+      primary-uncommitted write path (via *primary_emit*, contract row 8). No coord
+      path is forced and no error is raised — a blanket delete of this arm would
+      regress flat missions.
     """
     coord_worktree = _resolve_fallback_coord_worktree(identity, mission_slug)
     if coord_worktree is not None:
@@ -263,6 +310,51 @@ def _commit_status_artifacts_to_coord(
     )
 
 
+def _snapshot_coord_status_artifacts(coord_feature_dir: Path) -> tuple[int, bytes | None]:
+    """Capture the coord event-log size + derived-snapshot bytes BEFORE emit.
+
+    Paired with :func:`_restore_coord_status_artifacts` so the FR-004 coord
+    fallback arm can roll an emitted-but-uncommitted event back if the subsequent
+    coord commit fails (rollback-symmetry with the transactional True-arm).
+    """
+    events_path = coord_feature_dir / _EVENTS_FILENAME
+    status_path = coord_feature_dir / _DERIVED_STATUS_FILENAME
+    pre_event_size = events_path.stat().st_size if events_path.exists() else 0
+    pre_status = status_path.read_bytes() if status_path.exists() else None
+    return pre_event_size, pre_status
+
+
+def _restore_coord_status_artifacts(
+    coord_feature_dir: Path,
+    *,
+    pre_emit_event_size: int,
+    pre_emit_status_bytes: bytes | None,
+) -> None:
+    """Truncate/restore the coord status artifacts after a failed coord commit.
+
+    Mirrors ``workflow._restore_status_artifacts`` so the FR-004 coord fallback
+    arm is transactional-symmetric with the ``BookkeepingTransaction`` True-arm: a
+    commit failure truncates the just-appended event (and restores the derived
+    snapshot) rather than stranding an emitted-but-uncommitted event on the coord
+    worktree working copy.
+    """
+    events_path = coord_feature_dir / _EVENTS_FILENAME
+    status_path = coord_feature_dir / _DERIVED_STATUS_FILENAME
+    try:
+        if events_path.exists():
+            with events_path.open("ab") as fh:
+                fh.truncate(pre_emit_event_size)
+    except OSError:
+        _logger.exception("Could not truncate %s on coord commit failure", events_path)
+    try:
+        if pre_emit_status_bytes is None:
+            status_path.unlink(missing_ok=True)
+        else:
+            status_path.write_bytes(pre_emit_status_bytes)
+    except OSError:
+        _logger.exception("Could not restore %s on coord commit failure", status_path)
+
+
 def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Path:
     """The coord worktree's on-disk feature dir for this mission (single grammar)."""
     # Explicit local annotation re-narrows the cross-module ``KITTY_SPECS_DIR``
@@ -295,17 +387,30 @@ def _fallback_emit_single(
 
     def _coord(coord_worktree: Path) -> StatusEvent:
         coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
+        pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
         event = _emit.emit_status_transition(
             replace(request, feature_dir=coord_fd, mission_dir=None),
             ensure_sync_daemon=ensure_sync_daemon,
             sync_dossier=sync_dossier,
         )
-        _commit_status_artifacts_to_coord(
-            repo_root=identity.repo_root,
-            mission_slug=mission_slug,
-            coord_worktree=coord_worktree,
-            coord_feature_dir=coord_fd,
-        )
+        # Rollback-symmetry (FR-004): a commit failure truncates the just-emitted
+        # event back rather than stranding it uncommitted on the coord worktree.
+        committed = False
+        try:
+            _commit_status_artifacts_to_coord(
+                repo_root=identity.repo_root,
+                mission_slug=mission_slug,
+                coord_worktree=coord_worktree,
+                coord_feature_dir=coord_fd,
+            )
+            committed = True
+        finally:
+            if not committed:
+                _restore_coord_status_artifacts(
+                    coord_fd,
+                    pre_emit_event_size=pre_size,
+                    pre_emit_status_bytes=pre_status,
+                )
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
             mission_slug=mission_slug,
@@ -338,17 +443,30 @@ def _fallback_emit_batch(
 
     def _coord(coord_worktree: Path) -> list[StatusEvent]:
         coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
+        pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
         events: list[StatusEvent] = _emit.emit_status_transition_batch(
             [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
             ensure_sync_daemon=ensure_sync_daemon,
             sync_dossier=sync_dossier,
         )
-        _commit_status_artifacts_to_coord(
-            repo_root=identity.repo_root,
-            mission_slug=mission_slug,
-            coord_worktree=coord_worktree,
-            coord_feature_dir=coord_fd,
-        )
+        # Rollback-symmetry (FR-004): a commit failure truncates the just-emitted
+        # batch back rather than stranding it uncommitted on the coord worktree.
+        committed = False
+        try:
+            _commit_status_artifacts_to_coord(
+                repo_root=identity.repo_root,
+                mission_slug=mission_slug,
+                coord_worktree=coord_worktree,
+                coord_feature_dir=coord_fd,
+            )
+            committed = True
+        finally:
+            if not committed:
+                _restore_coord_status_artifacts(
+                    coord_fd,
+                    pre_emit_event_size=pre_size,
+                    pre_emit_status_bytes=pre_status,
+                )
         return events
 
     return _emit_via_non_transactional_fallback(

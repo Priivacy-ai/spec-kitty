@@ -608,18 +608,34 @@ def _resolve_legacy_porcelain_root(
     """
     if not mid8 or not mission_slug:
         return repo_root
-    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.coordination.workspace import (
+        CoordinationWorkspace,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    )
 
     try:
         coord_worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
-    except Exception:  # noqa: BLE001 — unresolved identity ⇒ paths live in repo_root
+    except CoordinationWorkspaceIdentityUnresolved:
+        # Unresolved identity ⇒ paths live in repo_root (mid8 is guarded non-empty
+        # above, so this is belt-and-suspenders; a genuine programming error is no
+        # longer masked as a repo_root fallback — renata #3 narrowing).
         return repo_root
     if not coord_worktree.exists():
         # No coord worktree on disk ⇒ this mission's paths live in repo_root.
         return repo_root
     try:
         return CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
-    except Exception:  # noqa: BLE001 — resolve refused ⇒ fall back to repo_root
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    ):
+        # Resolve genuinely refused (git worktree add / branch-mismatch / OS
+        # error) ⇒ fall back to repo_root for the porcelain pre-check. Narrowed
+        # from a blind ``except Exception`` so an unexpected programming error
+        # propagates (observable) instead of masquerading as a repo_root fallback.
         return repo_root
 
 
@@ -692,8 +708,6 @@ def _commit_via_legacy_safe_commit(
     )
 
 
-
-
 def _print_commit_summary(*, command_name: str, json_output: bool = False) -> None:
     """T029: render the accumulated commit summary to the terminal.
 
@@ -720,18 +734,6 @@ def _print_commit_summary(*, command_name: str, json_output: bool = False) -> No
         )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 def _render_charter_context(repo_root: Path, action: str) -> str:
     """Render charter context for workflow prompts."""
     try:
@@ -741,20 +743,7 @@ def _render_charter_context(repo_root: Path, action: str) -> str:
         return f"Governance: unavailable ({exc})"
 
 
-
-
-
-
-
-
-
-
 app = typer.Typer(name="action", help="Mission action commands that display prompts and instructions for agents", no_args_is_help=True)
-
-
-
-
-
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
