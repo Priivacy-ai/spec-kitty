@@ -220,3 +220,85 @@ class TestWPStaticProjection:
         base = _make_wp()
         edited = base.update(**content_change)
         assert hash_wp_static_projection(edited) != hash_wp_static_projection(base)
+
+
+# ── Cross-repo golden vector for the per-WP content_hash (C-003, C-004) ──────
+#
+# The outer snapshot hash has a golden vector (GOLDEN_HASH), but the *per-WP*
+# content_hash it is computed over — the sha256 of the normalized static
+# projection serialized as `json.dumps(sort_keys=True, separators=(",",":"),
+# ensure_ascii=False, default=str)` — was only pinned self-referentially
+# (equality/length). That JSON serialization is itself a cross-repo contract:
+# a server (#2686) that serializes the same projection with default separators
+# (", "/": "), tuple-order keys, or a different ensure_ascii/None handling
+# produces a different per-artifact hash and therefore a different snapshot
+# hash — permanent false DIVERGENCE for identical content. This golden pins the
+# exact byte layout so any drift breaks locally. The SaaS side MUST assert the
+# same GOLDEN_WP_PROJECTION_HASH against GOLDEN_WP_DATA for the contract to hold.
+
+# Fixed, fully-specified WP input (independent of the mutable _make_wp fixture).
+GOLDEN_WP_DATA = {
+    "work_package_id": "WP01",
+    "title": "Canonical Dossier Snapshot-Hash Definition",
+    "dependencies": [],
+    "requirement_refs": ["FR-001", "FR-002", "FR-003"],
+    "tracker_refs": ["#2180"],
+    "owned_files": [
+        "src/specify_cli/dossier/hasher.py",
+        "src/specify_cli/dossier/indexer.py",
+    ],
+    "phase": "Phase 1 - Canonical hash foundation",
+    "task_type": "implement",
+    "subtasks": ["T001", "T002", "T003", "T004", "T005"],
+    # Runtime-mutable state below MUST be projected away before hashing.
+    "lane": "in_progress",
+    "agent": "claude:sonnet:python-pedro:implementer",
+    "shell_pid": 2760042,
+    "assignee": "someone",
+    "review_status": "pending",
+    "history": [{"at": "2026-07-20T06:13:30Z", "actor": "system"}],
+}
+
+# Exact serialized projection bytes (compact separators; null for absent
+# scalars; [] for empty lists; keys sorted). Any change here is a contract change.
+GOLDEN_WP_PROJECTION_SERIALIZED = (
+    '{"authoritative_surface":null,"create_intent":[],"dependencies":[],'
+    '"execution_mode":null,"owned_files":["src/specify_cli/dossier/hasher.py",'
+    '"src/specify_cli/dossier/indexer.py"],"phase":"Phase 1 - Canonical hash '
+    'foundation","priority":null,"requirement_refs":["FR-001","FR-002","FR-003"],'
+    '"scope":null,"subtasks":["T001","T002","T003","T004","T005"],'
+    '"task_type":"implement","title":"Canonical Dossier Snapshot-Hash '
+    'Definition","tracker_refs":["#2180"],"work_package_id":"WP01"}'
+)
+GOLDEN_WP_PROJECTION_HASH = "0c0016042d2faaf924b4029b5d3c30f4f27c442ae90ef648059b813591645696"
+
+
+class TestWPProjectionGoldenVector:
+    """Pin the exact per-WP content_hash byte layout for cross-repo parity."""
+
+    def test_projection_serializes_to_the_pinned_bytes(self):
+        import json
+
+        meta = WPMetadata.model_validate(GOLDEN_WP_DATA)
+        payload = json.dumps(
+            wp_static_projection(meta),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=str,
+        )
+        assert payload == GOLDEN_WP_PROJECTION_SERIALIZED
+
+    def test_projection_hash_matches_golden(self):
+        # Locks the sha256 of the pinned serialization. A server that conforms
+        # to C-004 must reproduce this exact digest from GOLDEN_WP_DATA.
+        meta = WPMetadata.model_validate(GOLDEN_WP_DATA)
+        assert hash_wp_static_projection(meta) == GOLDEN_WP_PROJECTION_HASH
+
+    def test_golden_is_bare_hex_no_prefix(self):
+        # The per-artifact content_hash form is bare 64-hex (no "sha256:"),
+        # matching ArtifactRef.content_hash_sha256 — distinct from the outer
+        # snapshot hash's "sha256:"-prefixed form.
+        assert not GOLDEN_WP_PROJECTION_HASH.startswith("sha256:")
+        assert len(GOLDEN_WP_PROJECTION_HASH) == 64  # golden-count: cardinality-is-contract
+        int(GOLDEN_WP_PROJECTION_HASH, 16)
