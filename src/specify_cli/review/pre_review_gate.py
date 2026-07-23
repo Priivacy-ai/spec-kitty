@@ -60,6 +60,7 @@ from specify_cli.review.baseline import (
 )
 from specify_cli.review.scope_source import (
     _JUNIT_ARTIFACT_FILENAME,
+    UNKNOWN_SOURCE_IDENTITY,
     RawRunResult,
     ScopeBreakdownSource,
     ScopeSource,
@@ -761,7 +762,11 @@ def _evaluate_via_scope_source(
 
     failures = scope_source.parse_results(raw)
     head_identity = scope_source_identity(scope_source, raw)
-    if baseline is not None and baseline.source_identity != "unknown" and baseline.source_identity != head_identity:
+    if (
+        baseline is not None
+        and baseline.source_identity != UNKNOWN_SOURCE_IDENTITY
+        and baseline.source_identity != head_identity
+    ):
         return GateVerdict(
             outcome=GateOutcome.SOURCE_MISMATCH,
             scope=scope,

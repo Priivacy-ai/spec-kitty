@@ -828,16 +828,17 @@ _pre_review_test_command_deprecation_emitted = False
 def _pre_review_gate_filter_groups() -> Mapping[str, tuple[str, ...]] | None:
     """Test seam: production always returns ``None``.
 
-    ``None`` lets ``pre_review_gate.evaluate_pre_review_gate`` derive filter
-    groups from the LIVE ``tests/architectural/_gate_coverage.py`` authority
-    under the gate's own ``repo_root`` (WP01's FR-006 single-source
-    invariant). Integration tests monkeypatch this (and its composite-routing
-    sibling below) to inject a hermetic fixture map — the SAME override seam
-    ``GateCoverageScopeSource``'s census derivation consumes — rather
-    than building a throwaway ``tests/architectural/_gate_coverage.py`` in a
-    fixture repo, which would silently resolve to the REAL repo's cached
-    ``sys.modules`` entry instead (the exact staleness
-    ``GateAuthoritiesUnavailable`` guards against).
+    ``None`` is threaded through ``_mt_resolve_scope_source`` into
+    ``resolve_scope_source(..., filter_groups_override=None)``, so
+    ``GateCoverageScopeSource`` derives filter groups from the LIVE
+    ``tests/architectural/_gate_coverage.py`` authority under the gate's own
+    ``repo_root`` (WP01's FR-006 single-source invariant). Integration tests
+    monkeypatch this (and its composite-routing sibling below) to inject a
+    hermetic fixture map — the SAME override seam ``GateCoverageScopeSource``'s
+    census derivation consumes — rather than building a throwaway
+    ``tests/architectural/_gate_coverage.py`` in a fixture repo, which would
+    silently resolve to the REAL repo's cached ``sys.modules`` entry instead
+    (the exact staleness ``GateAuthoritiesUnavailable`` guards against).
     """
     return None
 

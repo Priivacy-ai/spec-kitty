@@ -27,7 +27,12 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command_template
-from specify_cli.review.scope_source import RawRunResult, ScopeSource, scope_source_identity
+from specify_cli.review.scope_source import (
+    UNKNOWN_SOURCE_IDENTITY,
+    RawRunResult,
+    ScopeSource,
+    scope_source_identity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +78,9 @@ class BaselineTestResult:
     failed: int           # -1 means capture failed (sentinel)
     skipped: int
     failures: tuple[BaselineFailure, ...] = field(default_factory=tuple)
-    source_identity: str = "unknown"  # FR-009: "<ScopeSource class>/<parse-mode>", or
-                                       # "unknown" for a straddling-upgrade artifact
-                                       # captured before this field existed.
+    source_identity: str = UNKNOWN_SOURCE_IDENTITY  # FR-009: "<ScopeSource class>/<parse-mode>",
+                                       # or UNKNOWN_SOURCE_IDENTITY for a straddling-upgrade
+                                       # artifact captured before this field existed.
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -107,10 +112,10 @@ class BaselineTestResult:
             skipped=data["skipped"],
             failures=failures,
             # Straddling-upgrade artifact captured before this field existed
-            # (US1 AS4): degrade to "unknown", never a KeyError. "unknown" at
-            # diff time makes WP04's head-side compare emit UNVERIFIED_BASELINE,
-            # never a spurious SOURCE_MISMATCH.
-            source_identity=data.get("source_identity", "unknown"),
+            # (US1 AS4): degrade to UNKNOWN_SOURCE_IDENTITY, never a KeyError. It
+            # makes WP04's head-side compare emit UNVERIFIED_BASELINE at diff
+            # time, never a spurious SOURCE_MISMATCH.
+            source_identity=data.get("source_identity", UNKNOWN_SOURCE_IDENTITY),
         )
 
     @classmethod
