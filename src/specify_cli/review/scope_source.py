@@ -58,6 +58,7 @@ if TYPE_CHECKING:
 # factory/identity/predicate helpers below are public, cross-module symbols —
 # WP03 (baseline capture) and WP04 (head diff) import them directly.
 __all__ = [
+    "UNKNOWN_SOURCE_IDENTITY",
     "DeclaredCommandScopeSource",
     "FileScopeBreakdown",
     "GateCoverageScopeSource",
@@ -70,6 +71,14 @@ __all__ = [
     "resolve_scope_source",
     "scope_source_identity",
 ]
+
+#: Sentinel ``source_identity`` for a baseline artifact with no known capture
+#: source — a straddling-upgrade artifact written before the field existed, or
+#: a sentinel capture. The head-side ``SOURCE_MISMATCH`` check treats it as
+#: "not comparable, but not a mismatch" and degrades to ``UNVERIFIED_BASELINE``.
+#: One named constant so the writer (``baseline.py``) and the reader
+#: (``pre_review_gate.py``) cannot drift on a bare string literal.
+UNKNOWN_SOURCE_IDENTITY = "unknown"
 
 
 @dataclass(frozen=True)
