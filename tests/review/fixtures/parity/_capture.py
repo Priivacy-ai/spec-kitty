@@ -6,11 +6,15 @@ block/exit, console)`` from the **incumbent** ``_mt_run_pre_review_gate`` path
 behaviour *preservation* rather than snapshotting the refactored code (the
 circular-oracle trap, squad finding R-F2).
 
-**Anti-circular provenance (mandatory).** The oracle MUST be captured against the
-base commit ``e4ef6e850`` and NEVER regenerated from HEAD:
+**Anti-circular provenance (mandatory).** The oracle MUST be captured against
+the base commit ``7081cf053`` (mission ``scopesource-gate-followup-01KY6S9P``
+WP01 re-pin -- this lane's HEAD when it branched; ``src/specify_cli/review/``
+and ``tests/review/`` are byte-identical to the mission's nominal base
+``eb06ca176``, so this commit IS that incumbent for gate-behaviour purposes)
+and NEVER regenerated from HEAD:
 
-- The script ``assert``s ``git rev-parse HEAD == e4ef6e850`` and **fails loudly**
-  otherwise (see :func:`_require_base_commit`).
+- The script ``assert``s ``git rev-parse HEAD == 7081cf053`` and **fails
+  loudly** otherwise (see :func:`_require_base_commit`).
 - It **machine-emits the actual SHA it ran against** into every fixture header
   (``base_commit`` read from the running worktree) -- a hand-typed SHA literal is
   rejected in review.
@@ -18,8 +22,8 @@ base commit ``e4ef6e850`` and NEVER regenerated from HEAD:
 **How to (re)capture** -- via a detached ``git worktree`` at the base commit
 (THE method, not a fallback)::
 
-    git worktree add --detach /path/to/base-e4ef6e850 e4ef6e850
-    cd /path/to/base-e4ef6e850
+    git worktree add --detach /path/to/base-7081cf053 7081cf053
+    cd /path/to/base-7081cf053
     PYTHONPATH=$(pwd)/src python \\
         <repo>/tests/review/fixtures/parity/_capture.py \\
         --out <repo>/tests/review/fixtures/parity
@@ -43,15 +47,22 @@ from typing import Any
 
 #: The ONE authorised base commit for the oracle. The capture refuses to run
 #: anywhere else so the committed fixtures cannot silently drift onto HEAD.
-BASE_COMMIT = "e4ef6e8504a596ede7c016c2eb902f5c6b9b3a7f"
-_BASE_SHORT = "e4ef6e850"
+#: Re-pinned by mission ``scopesource-gate-followup-01KY6S9P`` WP01: the
+#: mission's nominal base is ``eb06ca176``, but this lane's actual HEAD is
+#: this SHA (planning-only commits atop ``eb06ca176`` that touch only
+#: ``kitty-specs/`` -- ``src/specify_cli/review/`` and ``tests/review/`` are
+#: byte-identical, confirmed via ``git diff --stat eb06ca176 HEAD -- src/
+#: tests/review/`` returning empty). Pinning to the literal ``eb06ca176``
+#: would make ``_require_base_commit`` fail on every checkout of this lane.
+BASE_COMMIT = "7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41"
+_BASE_SHORT = "7081cf053"
 
 
 def _require_base_commit() -> str:
     """Return the running HEAD SHA, asserting it is the authorised base commit.
 
     Fails LOUDLY (``SystemExit``) on any other commit -- the fixtures must be
-    captured from ``e4ef6e850`` against the incumbent function, never HEAD.
+    captured from ``7081cf053`` against the incumbent function, never HEAD.
     """
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -217,7 +228,59 @@ def _build_cancelled(prg: Any, _baseline_mod: Any) -> Any:
     )
 
 
+def _patch_run_result(prg: Any, run_result: Any) -> Callable[[], None]:
+    """Monkeypatch ``prg.run_scoped_tests_at_head`` to return ``run_result``.
+
+    Returns a restore callback. Same patch point ``_drive_engine`` uses
+    (module-global lookup, resolved at call time) so the override-tier
+    builder below exercises the SAME real call site rather than a
+    re-derived one.
+    """
+    original = prg.run_scoped_tests_at_head
+
+    def _stub(*_args: Any, **_kwargs: Any) -> Any:
+        return run_result
+
+    prg.run_scoped_tests_at_head = _stub
+    return lambda: setattr(prg, "run_scoped_tests_at_head", original)
+
+
+def _build_override_nonempty(prg: Any, baseline_mod: Any) -> Any:
+    """FR-004/NFR-006 override tier, driven with a NON-empty derived scope.
+
+    Exercises ``_mt_pre_review_gate_with_override_scope`` ->
+    ``evaluate_with_scope`` (``scope_source=None``) ->
+    ``run_scoped_tests_at_head`` end to end, through the REAL
+    ``tasks_move_task`` composition helper (not a hand-mirrored copy). An
+    EMPTY override scope short-circuits *inside*
+    ``_mt_pre_review_gate_with_override_scope`` before ``evaluate_with_scope``
+    is even called (see that function's own early return) -- a golden built
+    from an empty override list would never reach the run path this
+    scenario exists to freeze (B-vacuous, post-plan squad finding). Using a
+    non-empty ``("tests/foo",)`` target list is what makes this golden
+    non-vacuous.
+    """
+    from specify_cli.cli.commands.agent import tasks_move_task as tmt
+
+    run = _run_result(
+        prg,
+        ran=True,
+        state=prg.HeadRunState.COMPLETED,
+        current_failures=(_failure(baseline_mod),),
+    )
+    restore = _patch_run_result(prg, run)
+    try:
+        return tmt._mt_pre_review_gate_with_override_scope(
+            ("tests/foo",),
+            repo_root=Path("."),
+            baseline=_baseline_clean(baseline_mod),
+        )
+    finally:
+        restore()
+
+
 _STD = ((False, False), (True, False))
+_FULL_MATRIX = ((False, False), (False, True), (True, False), (True, True))
 _SCENARIOS: tuple[_Scenario, ...] = (
     _Scenario("no_coverage", _build_no_coverage, _STD),
     _Scenario("no_new_failures", _build_no_new_failures, ((False, False),)),
@@ -226,6 +289,7 @@ _SCENARIOS: tuple[_Scenario, ...] = (
     _Scenario("unverified_baseline", _build_unverified_baseline, _STD),
     _Scenario("timed_out", _build_timed_out, _STD),
     _Scenario("cancelled", _build_cancelled, ((False, False),)),
+    _Scenario("override_nonempty", _build_override_nonempty, _FULL_MATRIX),
 )
 
 

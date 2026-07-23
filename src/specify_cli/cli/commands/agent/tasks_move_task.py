@@ -108,7 +108,7 @@ from specify_cli.review.gate_registry import (
     TransitionGateContext,
     get_gate_handler,
 )
-from specify_cli.review.scope_source import GateCoverageScopeSource, ScopeSource
+from specify_cli.review.scope_source import ScopeSource, resolve_scope_source
 from specify_cli.review.verdict_aggregation import (
     AggregateDecision,
     aggregate_verdicts,
@@ -785,22 +785,22 @@ def _mt_run_decision(st: _MoveTaskState) -> None:
 #
 # Mission review-regression-gate-01KWX6DF WP02: wires WP01's engine
 # (``review/pre_review_gate.py`` — ``evaluate_pre_review_gate`` +
-# ``derive_test_scope`` + ``run_scoped_tests_at_head`` + reused
-# ``review/baseline.py`` JUnit parser/``diff_baseline``) into the
-# ``for_review`` transition. Warn by default (NFR-001); opt-in block via
-# config ``review.fail_on_pre_review_regression``; ``--force`` bypasses the
-# block and is recorded on the transition's ``policy_metadata`` (FR-004).
+# ``run_scoped_tests_at_head`` + reused ``review/baseline.py`` JUnit
+# parser/``diff_baseline``) into the ``for_review`` transition. Warn by
+# default (NFR-001); opt-in block via config
+# ``review.fail_on_pre_review_regression``; ``--force`` bypasses the block
+# and is recorded on the transition's ``policy_metadata`` (FR-004).
 #
-# The two small composition helpers below (``_mt_pre_review_gate_verdict`` /
-# ``_mt_pre_review_gate_with_override_scope``) call ONLY WP01's already-public
-# primitives (``derive_test_scope``/``evaluate_pre_review_gate``,
-# ``run_scoped_tests_at_head``, ``diff_baseline``, the ``GateVerdict``/
-# ``ScopeResult`` dataclasses) — they live here, not in
+# The composition helper below (``_mt_pre_review_gate_with_override_scope``)
+# calls ONLY WP01's already-public primitives (``evaluate_with_scope``, the
+# ``GateVerdict``/``ScopeResult`` dataclasses) — it lives here, not in
 # ``review/pre_review_gate.py``, because that module is WP01's owned surface
 # (outside this WP's ``owned_files``): the override-scope tier needs a
-# manually-built ``ScopeResult`` that ``derive_test_scope`` has no seam for,
-# so its tail (head-run -> ``diff_baseline``) is mirrored rather than
-# threaded through a WP01 signature change.
+# manually-built ``ScopeResult`` that the engine has no seam for, so its tail
+# (head-run -> ``diff_baseline``) is mirrored rather than threaded through a
+# WP01 signature change. (The sibling census-derived composition helper,
+# ``_mt_pre_review_gate_verdict``, was dead code with no production call site
+# — retired by mission scopesource-gate-followup-01KY6S9P WP04, FR-002.)
 
 _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
@@ -833,7 +833,7 @@ def _pre_review_gate_filter_groups() -> Mapping[str, tuple[str, ...]] | None:
     under the gate's own ``repo_root`` (WP01's FR-006 single-source
     invariant). Integration tests monkeypatch this (and its composite-routing
     sibling below) to inject a hermetic fixture map — the SAME override seam
-    ``derive_test_scope`` already exposes for WP01's own unit tests — rather
+    ``GateCoverageScopeSource``'s census derivation consumes — rather
     than building a throwaway ``tests/architectural/_gate_coverage.py`` in a
     fixture repo, which would silently resolve to the REAL repo's cached
     ``sys.modules`` entry instead (the exact staleness
@@ -1000,8 +1000,8 @@ def _mt_pre_review_gate_with_override_scope(
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
-    An override IS the test scope, by definition — WP01's census-derived
-    ``derive_test_scope`` never runs for this precedence tier. The non-empty
+    An override IS the test scope, by definition — the census-derived scope
+    (``GateCoverageScopeSource``) never runs for this precedence tier. The non-empty
     tail (head-run -> ``diff_baseline`` -> verdict) is NOT hand-mirrored here
     (pre-merge finding, #572/#1979/#2283: the mirrored copy left its
     ``NEW_FAILURES``/block/force + ``UNVERIFIED_BASELINE`` branches with zero
@@ -1056,54 +1056,6 @@ def _mt_cancelled_verdict() -> pre_review_gate.GateVerdict:
         reason="scoped test run cancelled",
         run_state=pre_review_gate.HeadRunState.CANCELLED,
     )
-
-
-def _mt_pre_review_gate_verdict(
-    *,
-    changed_files: tuple[str, ...],
-    override_targets: tuple[str, ...] | None,
-    gate_repo_root: Path,
-    baseline: BaselineTestResult | None,
-    progress_callback: Callable[[float], None] | None = None,
-) -> pre_review_gate.GateVerdict:
-    """Resolve the FR-004 precedence tier, then evaluate the gate.
-
-    An empty ``changed_files`` set with no override short-circuits BEFORE
-    even attempting to load the live gate-coverage authorities — keeping the
-    hook cheap for the common "nothing changed / no lane workspace"
-    case (WP02 spec explicit requirement), distinct from
-    :class:`pre_review_gate.GateAuthoritiesUnavailable` (a real authority-load
-    failure, folded into the SAME ``no_coverage`` shape once a non-empty
-    changed-file set actually attempts derivation).
-    """
-    if override_targets is not None:
-        return _mt_pre_review_gate_with_override_scope(
-            override_targets,
-            repo_root=gate_repo_root,
-            baseline=baseline,
-            progress_callback=progress_callback,
-        )
-    if not changed_files:
-        return _mt_empty_scope_verdict("no changed files detected for this WP — skipping the gate cheaply")
-    try:
-        return pre_review_gate.evaluate_pre_review_gate(
-            changed_files,
-            repo_root=gate_repo_root,
-            baseline=baseline,
-            filter_groups=_pre_review_gate_filter_groups(),
-            composite_routing=_pre_review_gate_composite_routing(),
-            progress_callback=progress_callback,
-        )
-    except pre_review_gate.GateAuthoritiesUnavailable as exc:
-        # T042 (#2534): under the inverted, doctrine-resolved gate, activation is
-        # the SOLE impl selector — a consumer repo simply never activates the
-        # Spec-Kitty handler, so the old ``is_consumer_repo`` split is dead. Every
-        # authority-load failure now degrades to the SAME generic per-handler
-        # fail-open warn (the ``_mt_dispatch_one_gate`` three-catch mirrors this).
-        return _mt_empty_scope_verdict(
-            f"gate authorities unavailable — unverified: {exc}",
-            excluded_scope_files=tuple(changed_files),
-        )
 
 
 def _mt_pre_review_gate_metadata(
@@ -1179,9 +1131,21 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
                 f"(outcome={outcome.value}: {verdict.reason or 'unverified'})"
             )
         return f"[dim]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/dim]"
+    if outcome is pre_review_gate.GateOutcome.SOURCE_MISMATCH:
+        # FR-009/FR-011 (mission scopesource-gate-followup-01KY6S9P WP04):
+        # warn-shaped, fail-open by construction (absent from
+        # ``verdict_aggregation``'s terminal/block member allowlists) — names
+        # both identities so an operator can see WHY the diff is untrustworthy.
+        return f"[yellow]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/yellow]"
     if outcome in (pre_review_gate.GateOutcome.TIMED_OUT, pre_review_gate.GateOutcome.CANCELLED):
         return f"[red]Pre-review regression gate: {outcome.value} — {verdict.reason or 'interrupted'}[/red]"
-    return "[dim]Pre-review regression gate: no new failures[/dim]"
+    if outcome is pre_review_gate.GateOutcome.NO_NEW_FAILURES:
+        return "[dim]Pre-review regression gate: no new failures[/dim]"
+    # Defensive: a future ``GateOutcome`` member must never silently render as
+    # a clean pass (mission scopesource-gate-followup-01KY6S9P WP04, T023) —
+    # this branch is unreachable for today's exhaustive member set but closes
+    # the silent-clean-pass class for whatever comes next.
+    return f"[dim]Pre-review regression gate: {outcome.value}[/dim]"
 
 
 def _mt_pre_review_gate_block_message(verdict: pre_review_gate.GateVerdict) -> str:
@@ -1250,15 +1214,26 @@ def _mt_warn_pre_review_test_command_deprecated(main_repo_root: Path) -> None:
 def _mt_resolve_scope_source(gate_repo_root: Path) -> ScopeSource:
     """Build the activation-selected ``ScopeSource`` for the pre-review handler.
 
-    Half A ships one production handler (``spec-kitty-pre-review``), whose impl
-    is the behaviour-preserving :class:`GateCoverageScopeSource`. The census
-    test seams (:func:`_pre_review_gate_filter_groups` /
-    :func:`_pre_review_gate_composite_routing`) are threaded through as the
-    ``*_override`` hooks so production leaves them ``None`` (live authority) and
-    hermetic tests can inject a fixture map — the SAME seam the incumbent used.
+    FR-014 (mission scopesource-gate-followup-01KY6S9P WP04, post-plan squad
+    finding priti-M1 — load-bearing): delegates to WP02's
+    ``resolve_scope_source`` factory — the SAME selection authority
+    ``baseline.py``'s write-side capture already uses — instead of
+    hard-constructing ``GateCoverageScopeSource`` directly. Without this
+    the head path would stay pinned to ``GateCoverageScopeSource`` while
+    the baseline uses whichever source ``review.test_command`` selects,
+    producing a guaranteed ``SOURCE_MISMATCH`` on every non-pytest review —
+    the exact false-positive this rewire closes.
+
+    The two census test seams (:func:`_pre_review_gate_filter_groups` /
+    :func:`_pre_review_gate_composite_routing`) are threaded through as
+    ``resolve_scope_source``'s ``*_override`` parameters so production still
+    leaves them ``None`` (live authority) and hermetic tests can inject a
+    fixture map — the SAME seam the incumbent used. ``resolve_scope_source``
+    lives in ``scope_source.py`` and never imports back into this module, so
+    no import cycle forms.
     """
-    return GateCoverageScopeSource(
-        repo_root=gate_repo_root,
+    return resolve_scope_source(
+        gate_repo_root,
         filter_groups_override=_pre_review_gate_filter_groups(),
         composite_routing_override=_pre_review_gate_composite_routing(),
     )
@@ -1323,7 +1298,7 @@ def _mt_fail_open_gate(
 ) -> pre_review_gate.GateVerdict:
     """Run a gate-execution callable under the incumbent three-catch fail-open (T041/FR-013).
 
-    Mirrors ``_mt_pre_review_gate_verdict``'s three-catch verbatim:
+    Mirrors the incumbent's three-catch verbatim:
     ``KeyboardInterrupt`` → terminal ``CANCELLED``; ``GateAuthoritiesUnavailable``
     → unverified ``NO_COVERAGE`` warn (the erroneous-activation degrade, #2534);
     any other ``Exception`` → unverified ``NO_COVERAGE`` warn. Guarantees a gate

@@ -1,15 +1,15 @@
 {
   "base_commit": "7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41",
-  "block_enabled": true,
+  "block_enabled": false,
   "expected": {
-    "blocked": true,
+    "blocked": false,
     "console": "[yellow]Pre-review regression gate:[/yellow] 1 new failure(s) across 0 affected shard(s) \u2014 tests/review/test_x.py::test_regressed",
-    "exit_code": 1,
+    "exit_code": null,
     "force_bypassed": false,
     "metadata": {
       "affected_shard_count": 0,
-      "block_enabled": true,
-      "blocked": true,
+      "block_enabled": false,
+      "blocked": false,
       "force_bypassed": false,
       "matched_composite_dirs": [],
       "matched_shard_groups": [],
@@ -28,9 +28,9 @@
     },
     "outcome": "new_failures",
     "terminal": false,
-    "transition_applied": false
+    "transition_applied": true
   },
-  "force": false,
+  "force": true,
   "oracle_provenance": "captured from base commit 7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41 against the incumbent _mt_run_pre_review_gate (never regenerated from HEAD)",
   "verdict": {
     "new_failures": [

@@ -171,10 +171,15 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 - `review.fail_on_pre_review_regression` (bool, default `false`) -- opt in to
   **block** the move when the gate finds a new failure. `move-task --force`
   records an override and proceeds anyway.
-- `review.test_command` -- the single authority for the command the gate runs
-  (the `ScopeSource` port). The block can only be *enforced* when this is set;
-  opting in to the block without it yields a loud warning (the gate cannot run a
-  command it does not have).
+- `review.test_command` -- selects which `ScopeSource` implementation the gate
+  runs (`resolve_scope_source`, `scope_source.py`): when set, a portable
+  `DeclaredCommandScopeSource` runs exactly this command; when unset --
+  including in the Spec-Kitty source repo itself -- the gate falls back to the
+  internal `GateCoverageScopeSource`, which derives its own scoped pytest
+  invocation and ignores this key entirely. The block can only be *enforced*
+  when a command is available (declared or derived); opting in to the block
+  without one yields a loud warning (the gate cannot run a command it does not
+  have).
 - `review.pre_review_test_command` -- **deprecated** and aliased to
   `review.test_command`. A config that still sets it keeps working but earns a
   one-time deprecation warning; move the value to `review.test_command`.

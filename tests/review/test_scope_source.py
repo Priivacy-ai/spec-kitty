@@ -8,7 +8,9 @@ not-yet-written ``scope_source`` module.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, ClassVar
 
 import pytest
 
@@ -119,9 +121,14 @@ def test_gate_coverage_file_to_scope_reproduces_composite_cone_narrowing(tmp_pat
 
 
 def test_gate_coverage_satisfies_the_scope_breakdown_refinement(tmp_path: Path) -> None:
-    """Only the census-narrowing impl exposes the breakdown refinement — that
-    membership is exactly what tells the engine an empty scope is a coverage
-    gap (vs. a whole-suite ``DeclaredCommandScopeSource`` run)."""
+    """Only the census-narrowing impl exposes the breakdown refinement.
+
+    T011 note: pre-T008 this test's docstring ALSO claimed that this same
+    membership check is what tells the engine an empty scope is a coverage
+    gap — that conflation of capability (this test) with policy is exactly
+    the signal-weld T008 retires (carla-2). The "empty scope is a gap" intent
+    is migrated onto ``empty_scope_is_coverage_gap`` below; THIS test now
+    proves only the ``ScopeBreakdownSource`` structural-typing membership."""
     from specify_cli.review.scope_source import ScopeBreakdownSource
 
     assert isinstance(GateCoverageScopeSource(repo_root=tmp_path), ScopeBreakdownSource)
@@ -428,31 +435,403 @@ def test_pre_existing_failure_fixture_is_not_blocked(tmp_path: Path) -> None:
 # T010 — behaviour-parity micro-golden for the internal scope derivation
 # ---------------------------------------------------------------------------
 #
-# Snapshot the OLD ``pre_review_gate.derive_test_scope`` behaviour (the
-# actual, unmodified function — not a hand-computed expectation, to avoid a
-# self-referential oracle) and assert the NEW ``GateCoverageScopeSource``
-# reproduces it for each representative shape.
+# Pinned literal golden (mission scopesource-gate-followup-01KY6S9P WP04):
+# this used to snapshot the LIVE ``pre_review_gate.derive_test_scope`` output
+# and diff ``GateCoverageScopeSource.file_to_scope`` against it. WP04 retired
+# ``derive_test_scope`` (the census tier now lives ONLY as this module's own
+# private copy) — the oracle it compared against no longer exists, so the
+# expected sets below are the LAST values that comparison produced, captured
+# before the deletion, over the SAME ``_MICRO_GOLDEN_GROUPS``/
+# ``_MICRO_GOLDEN_ROUTING`` fixtures (unchanged). This keeps the test a
+# genuine pinned-behaviour guard rather than a self-referential comparison
+# against this module's own function.
 
 
 @pytest.mark.parametrize(
-    "changed_file",
+    ("changed_file", "expected_targets"),
     [
-        "src/specify_cli/status/emit.py",  # per-shard tests/** direct target
-        "src/specify_cli/git/foo.py",  # composite routing, non-empty cone
-        "src/specify_cli/governance_file.py",  # top-level file, no owning dir -> ()
-        "src/kernel/foo.py",  # catch-all only -> excluded, empty
+        ("src/specify_cli/status/emit.py", frozenset({"tests/status"})),  # per-shard tests/** direct target
+        (
+            "src/specify_cli/git/foo.py",  # composite routing, non-empty cone
+            frozenset({"tests/git", "tests/git_ops"}),
+        ),
+        ("src/specify_cli/governance_file.py", frozenset()),  # top-level file, no owning dir -> ()
+        ("src/kernel/foo.py", frozenset()),  # catch-all only -> excluded, empty
     ],
 )
-def test_internal_scope_derivation_micro_parity_with_old_derive_test_scope(
-    tmp_path: Path, changed_file: str,
+def test_internal_scope_derivation_pinned_golden(
+    tmp_path: Path, changed_file: str, expected_targets: frozenset[str],
 ) -> None:
-    old_scope = pre_review_gate.derive_test_scope(
-        [changed_file],
-        repo_root=tmp_path,
-        filter_groups=_MICRO_GOLDEN_GROUPS,
-        composite_routing=_MICRO_GOLDEN_ROUTING,
-    )
-
     new_targets = _gate_coverage_impl(tmp_path).file_to_scope(changed_file)
 
-    assert set(new_targets) == set(old_scope.test_targets)
+    assert set(new_targets) == expected_targets
+
+
+# ---------------------------------------------------------------------------
+# T006 — resolve_scope_source factory
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_scope_source_returns_gate_coverage_for_a_pytest_shaped_repo(tmp_path: Path) -> None:
+    result = scope_source.resolve_scope_source(tmp_path)
+
+    assert isinstance(result, GateCoverageScopeSource)
+
+
+def test_resolve_scope_source_threads_the_override_params_into_gate_coverage(tmp_path: Path) -> None:
+    groups: dict[str, tuple[str, ...]] = {"status": ("src/specify_cli/status/**",)}
+    routing: dict[str, pre_review_gate._CompositeRoute] = {}
+
+    result = scope_source.resolve_scope_source(
+        tmp_path, filter_groups_override=groups, composite_routing_override=routing,
+    )
+
+    assert isinstance(result, GateCoverageScopeSource)
+    assert result.filter_groups == groups
+    assert result.composite_routing == routing
+
+
+# ---------------------------------------------------------------------------
+# T007 — source-owned parse_mode + scope_source_identity single-source helper
+# ---------------------------------------------------------------------------
+
+
+def test_gate_coverage_parse_mode_is_junit_xml_when_artifact_present(tmp_path: Path) -> None:
+    junit_path = tmp_path / "present.xml"
+    junit_path.write_text("<testsuite></testsuite>", encoding="utf-8")
+    impl = GateCoverageScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=0, stdout="", stderr="", output_artifact_path=junit_path)
+
+    assert impl.parse_mode(raw) == "junit_xml"
+
+
+def test_gate_coverage_parse_mode_is_junit_xml_even_when_artifact_is_missing(tmp_path: Path) -> None:
+    """T007 anti-dup trap: this source is junit-only even for its no-artifact
+    synthetic-failure case — a naive re-inspection of ``raw`` (no artifact,
+    no FAIL-text convention) would wrongly conclude ``"text"``/``"none"``."""
+    impl = GateCoverageScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=1, stdout="", stderr="", output_artifact_path=None)
+
+    assert impl.parse_mode(raw) == "junit_xml"
+
+
+def test_gate_coverage_parse_results_dispatches_through_parse_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One-authority guard (T007): ``parse_results`` must consult
+    ``parse_mode`` rather than re-deciding independently — proven here by
+    spying on the call."""
+    calls: list[RawRunResult] = []
+    original = GateCoverageScopeSource.parse_mode
+
+    def spy(self: GateCoverageScopeSource, raw: RawRunResult) -> str:
+        calls.append(raw)
+        return original(self, raw)
+
+    monkeypatch.setattr(GateCoverageScopeSource, "parse_mode", spy)
+    impl = GateCoverageScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=1, stdout="", stderr="", output_artifact_path=None)
+
+    impl.parse_results(raw)
+
+    assert calls == [raw]
+
+
+def test_declared_command_parse_mode_is_junit_xml_when_artifact_present(tmp_path: Path) -> None:
+    junit_path = tmp_path / "declared.xml"
+    junit_path.write_text("<testsuite></testsuite>", encoding="utf-8")
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=0, stdout="", stderr="", output_artifact_path=junit_path)
+
+    assert impl.parse_mode(raw) == "junit_xml"
+
+
+def test_declared_command_parse_mode_is_text_for_a_fail_line(tmp_path: Path) -> None:
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=1, stdout="FAIL test_beta: boom\n", stderr="")
+
+    assert impl.parse_mode(raw) == "text"
+
+
+def test_declared_command_parse_mode_is_none_for_an_unparseable_nonzero_exit(tmp_path: Path) -> None:
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=2, stdout="", stderr="panic: segmentation fault\n")
+
+    assert impl.parse_mode(raw) == "none"
+
+
+def test_declared_command_parse_mode_is_none_for_a_clean_pass(tmp_path: Path) -> None:
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=0, stdout="ok test_alpha\n", stderr="")
+
+    assert impl.parse_mode(raw) == "none"
+
+
+def test_declared_command_parse_results_dispatches_through_parse_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Behavioral one-authority guard (T007): forcing ``parse_mode`` to
+    return a DIFFERENT value than its natural decision flips
+    ``parse_results``'s branch — proving ``parse_results`` dispatches
+    THROUGH ``parse_mode`` rather than re-deciding independently. The
+    natural mode for this ``raw`` is ``"text"`` (a FAIL line is present);
+    forcing ``"none"`` must route to the whole-run-failure branch instead."""
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=1, stdout="FAIL test_beta: boom\n", stderr="")
+    monkeypatch.setattr(DeclaredCommandScopeSource, "parse_mode", lambda self, raw: "none")
+
+    failures = impl.parse_results(raw)
+
+    assert len(failures) == 1
+    assert failures[0].test == "<declared-command>"
+
+
+def test_declared_command_parse_mode_and_parse_results_agree_on_junit_xml(tmp_path: Path) -> None:
+    junit_path = tmp_path / "agree.xml"
+    junit_path.write_text(
+        '<testsuite><testcase classname="t" name="test_ok" /></testsuite>', encoding="utf-8",
+    )
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=0, stdout="", stderr="", output_artifact_path=junit_path)
+
+    assert impl.parse_mode(raw) == "junit_xml"
+    assert impl.parse_results(raw) == ()
+
+
+def test_scope_source_identity_is_source_class_slash_parse_mode(tmp_path: Path) -> None:
+    gate_impl = GateCoverageScopeSource(repo_root=tmp_path)
+    declared_impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    raw_no_artifact = RawRunResult(returncode=1, stdout="", stderr="", output_artifact_path=None)
+    raw_fail_text = RawRunResult(returncode=1, stdout="FAIL test_x: boom\n", stderr="")
+
+    assert scope_source.scope_source_identity(gate_impl, raw_no_artifact) == "GateCoverageScopeSource/junit_xml"
+    assert (
+        scope_source.scope_source_identity(declared_impl, raw_fail_text) == "DeclaredCommandScopeSource/text"
+    )
+
+
+def test_scope_source_identity_never_re_inspects_raw_itself(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T007 anti-dup guard: ``scope_source_identity`` must derive its token
+    EXCLUSIVELY from ``scope_source.parse_mode(raw)`` — proven by forcing
+    ``parse_mode`` to a value that contradicts what a naive re-inspection of
+    ``raw`` would conclude, and asserting the forced value wins."""
+    impl = GateCoverageScopeSource(repo_root=tmp_path)
+    raw = RawRunResult(returncode=1, stdout="", stderr="", output_artifact_path=None)
+    monkeypatch.setattr(GateCoverageScopeSource, "parse_mode", lambda self, raw: "text")
+
+    assert scope_source.scope_source_identity(impl, raw) == "GateCoverageScopeSource/text"
+
+
+# ---------------------------------------------------------------------------
+# T008 — two independent predicates
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _PolicyWithoutCapabilitySource:
+    """Synthetic (T008): sets the empty-is-gap marker WITHOUT ``scope_breakdown``
+    — policy without capability."""
+
+    treats_empty_scope_as_coverage_gap: ClassVar[bool] = True
+
+    def test_command(self) -> list[str] | None:
+        return None
+
+    def file_to_scope(self, path: str) -> tuple[str, ...]:
+        return ()
+
+    def parse_mode(self, raw: RawRunResult) -> str:
+        return "none"
+
+    def parse_results(self, raw: RawRunResult) -> tuple[Any, ...]:
+        return ()
+
+
+@dataclass
+class _CapabilityWithoutPolicySource:
+    """Synthetic (T008): implements ``scope_breakdown`` WITHOUT the marker —
+    capability without policy."""
+
+    def test_command(self) -> list[str] | None:
+        return None
+
+    def file_to_scope(self, path: str) -> tuple[str, ...]:
+        return self.scope_breakdown(path).test_targets
+
+    def scope_breakdown(self, path: str) -> Any:
+        from specify_cli.review.scope_source import FileScopeBreakdown
+
+        return FileScopeBreakdown()
+
+    def parse_mode(self, raw: RawRunResult) -> str:
+        return "none"
+
+    def parse_results(self, raw: RawRunResult) -> tuple[Any, ...]:
+        return ()
+
+
+def test_predicates_on_gate_coverage_scope_source_are_both_true(tmp_path: Path) -> None:
+    impl = GateCoverageScopeSource(repo_root=tmp_path)
+
+    assert scope_source.empty_scope_is_coverage_gap(impl) is True
+    assert scope_source.exposes_scope_breakdown(impl) is True
+
+
+def test_predicates_on_declared_command_scope_source_are_both_false(tmp_path: Path) -> None:
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+
+    assert scope_source.empty_scope_is_coverage_gap(impl) is False
+    assert scope_source.exposes_scope_breakdown(impl) is False
+
+
+def test_empty_scope_is_coverage_gap_and_exposes_scope_breakdown_are_independent_signals() -> None:
+    """US3 AS3 weld-is-gone proof (T008/T011, carla-2 guard): a synthetic
+    source can satisfy ONE predicate without the other — proving the two
+    predicates read DISTINCT signals rather than the same ``isinstance``
+    check."""
+    policy_only = _PolicyWithoutCapabilitySource()
+    capability_only = _CapabilityWithoutPolicySource()
+
+    assert scope_source.empty_scope_is_coverage_gap(policy_only) is True
+    assert scope_source.exposes_scope_breakdown(policy_only) is False
+
+    assert scope_source.empty_scope_is_coverage_gap(capability_only) is False
+    assert scope_source.exposes_scope_breakdown(capability_only) is True
+
+
+def test_gate_coverage_empty_scope_is_a_coverage_gap_declared_command_is_not(tmp_path: Path) -> None:
+    """T011 migration of the isinstance-membership intent test (pre-T008
+    ``:121-128``): pin "membership tells the engine an empty scope is a
+    coverage gap" onto the PREDICATE, not a raw ``isinstance`` check."""
+    assert scope_source.empty_scope_is_coverage_gap(GateCoverageScopeSource(repo_root=tmp_path)) is True
+    assert scope_source.empty_scope_is_coverage_gap(DeclaredCommandScopeSource(repo_root=tmp_path)) is False
+
+
+# ---------------------------------------------------------------------------
+# T009 — ScopeBreakdownMixin + GateCoverageScopeSource inheritance
+# ---------------------------------------------------------------------------
+
+
+def test_gate_coverage_scope_source_inherits_scope_breakdown_mixin(tmp_path: Path) -> None:
+    assert isinstance(GateCoverageScopeSource(repo_root=tmp_path), scope_source.ScopeBreakdownMixin)
+
+
+def test_declared_command_scope_source_does_not_inherit_scope_breakdown_mixin(tmp_path: Path) -> None:
+    assert not isinstance(DeclaredCommandScopeSource(repo_root=tmp_path), scope_source.ScopeBreakdownMixin)
+
+
+def test_gate_coverage_file_to_scope_is_the_mixin_default_not_a_hand_written_override() -> None:
+    """Structural proof T009 deleted the hand-written override: the method
+    resolves to the mixin's OWN ``file_to_scope`` implementation."""
+    assert GateCoverageScopeSource.file_to_scope is scope_source.ScopeBreakdownMixin.file_to_scope
+
+
+# Behavior-preservation for the mixin refactor is guarded by the WP01 golden,
+# replayed as its own pytest invocation
+# (``tests/review/test_transition_gate_parity.py``) per the WP's mandated
+# command — not duplicated here.
+
+
+# ---------------------------------------------------------------------------
+# T010 — config-driven selection (FR-014)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_scope_source_routes_a_non_pytest_review_test_command_to_declared_command(
+    tmp_path: Path,
+) -> None:
+    _write_config(tmp_path, test_command="./run-tests.sh --ci")
+
+    result = scope_source.resolve_scope_source(tmp_path)
+
+    assert isinstance(result, DeclaredCommandScopeSource)
+
+
+def test_resolve_scope_source_with_no_review_test_command_routes_to_gate_coverage(tmp_path: Path) -> None:
+    """Named guard (B-sel): spec-kitty's OWN repo sets NO
+    ``review.test_command`` — it must keep routing to
+    ``GateCoverageScopeSource``, never silently swap to the portable source."""
+    _write_config(tmp_path, test_command=None)
+
+    result = scope_source.resolve_scope_source(tmp_path)
+
+    assert isinstance(result, GateCoverageScopeSource)
+
+
+def test_resolve_scope_source_with_no_config_file_at_all_routes_to_gate_coverage(tmp_path: Path) -> None:
+    """spec-kitty's real repo shape: no ``.kittify/config.yaml`` `review`
+    section (or none at all) still must not be misrouted."""
+    result = scope_source.resolve_scope_source(tmp_path)
+
+    assert isinstance(result, GateCoverageScopeSource)
+
+
+# ---------------------------------------------------------------------------
+# T012 — NFR-005 dual-root equivalence + structural same-helper assertion
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_scope_source_declared_command_test_command_equal_across_distinct_roots(
+    tmp_path: Path,
+) -> None:
+    """NFR-005 (M-nfr5r): baseline captures under ``main_repo_root``, head
+    diffs under ``gate_repo_root`` — two DISTINCT paths for the SAME logical
+    repo. A ``repo_root``-driven ``test_command()`` divergence would silently
+    break the baseline<->head comparison, and ``source_identity``
+    (class+parse-mode only) can't catch it — pin equality explicitly under
+    two REAL, DISTINCT roots. ``source_identity`` deliberately EXCLUDES the
+    command (see its docstring); command equality is THIS test's job."""
+    main_repo_root = tmp_path / "main-checkout"
+    gate_repo_root = tmp_path / "gate-worktree"
+    for root in (main_repo_root, gate_repo_root):
+        _write_config(root, test_command="./run-tests.sh --ci")
+
+    main_source = scope_source.resolve_scope_source(main_repo_root)
+    gate_source = scope_source.resolve_scope_source(gate_repo_root)
+
+    assert main_source.test_command() == gate_source.test_command()
+
+    raw = RawRunResult(returncode=0, stdout="ok\n", stderr="")
+    assert scope_source.scope_source_identity(main_source, raw) == scope_source.scope_source_identity(
+        gate_source, raw,
+    )
+
+
+def _drop_junitxml_arg(argv: list[str]) -> list[str]:
+    """Strip the per-instance-unique ``--junitxml=<tempdir>`` arg for comparison."""
+    return [arg for arg in argv if not arg.startswith("--junitxml=")]
+
+
+def test_resolve_scope_source_gate_coverage_test_command_structurally_equal_across_distinct_roots(
+    tmp_path: Path,
+) -> None:
+    """Same dual-root parity for the OTHER branch (no ``review.test_command``,
+    spec-kitty's own shape): the JUnit output path is allocated per-instance
+    (a unique tempdir, by design) so the full argv differs only in that one
+    ephemeral ``--junitxml=`` arg — everything else must be identical."""
+    main_repo_root = tmp_path / "main-checkout"
+    gate_repo_root = tmp_path / "gate-worktree"
+    main_repo_root.mkdir()
+    gate_repo_root.mkdir()
+
+    main_source = scope_source.resolve_scope_source(main_repo_root)
+    gate_source = scope_source.resolve_scope_source(gate_repo_root)
+
+    assert isinstance(main_source, GateCoverageScopeSource)
+    assert isinstance(gate_source, GateCoverageScopeSource)
+    main_command = main_source.test_command()
+    gate_command = gate_source.test_command()
+    assert main_command is not None
+    assert gate_command is not None
+    assert _drop_junitxml_arg(main_command) == _drop_junitxml_arg(gate_command)
+
+
+def test_scope_source_identity_is_the_single_producer_symbol() -> None:
+    """Structural same-helper guard (M-nfr5s): pins ``scope_source_identity``'s
+    qualified module/name so a future split into two independently-derived
+    producers (one for baseline capture, one for head diff) cannot silently
+    re-open without this guard moving."""
+    assert scope_source.scope_source_identity.__module__ == "specify_cli.review.scope_source"
+    assert scope_source.scope_source_identity.__qualname__ == "scope_source_identity"

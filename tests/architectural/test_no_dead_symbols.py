@@ -925,6 +925,51 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = fr
 )
 
 
+# ---------- C. scopesource-gate-followup-01KY6S9P WP04 single-factory-construction hub ----------
+# WP04 (this WP, epic #2535 half A follow-up, tracker #2873) landed the FR-014
+# rewire: ``tasks_move_task._mt_resolve_scope_source`` now delegates to WP02's
+# ``resolve_scope_source`` factory instead of hard-constructing
+# ``GateCoverageScopeSource`` directly, and ``pre_review_gate.py`` no longer
+# imports ``GateCoverageScopeSource`` at all (its former direct uses --
+# ``_live_filter_groups``/``_live_composite_routing`` -- were retired
+# alongside the census tier they backed, FR-001). Every concrete
+# ``ScopeSource`` implementer below is genuinely alive at runtime --
+# ``resolve_scope_source`` selects and constructs one of them on every
+# ``for_review`` move -- but by DESIGN (the structural-Protocol port,
+# ``ScopeSource``/``ScopeBreakdownSource``) callers outside this module never
+# name the concrete class: they receive a value through the factory and use
+# it polymorphically (``scope_source.test_command()``, ``.scope_breakdown()``,
+# ``.file_to_scope()``), so this cross-module-import gate's heuristic never
+# sees a wiring edge for the concrete classes themselves, no matter how
+# thoroughly they are exercised. Proven live + correct end-to-end by ~40
+# tests across ``tests/review/test_scope_source.py``,
+# ``test_pre_review_gate_engine.py``, and ``test_baseline_lifecycle.py``.
+_CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.review.scope_source::GateCoverageScopeSource -- constructed
+        # exclusively via resolve_scope_source() (same-module) since WP04's FR-014
+        # rewire; real caller confirmed via tasks_move_task._mt_resolve_scope_source
+        # -> resolve_scope_source -> GateCoverageScopeSource(...).
+        SymbolKey("GateCoverageScopeSource", "b6749c13ceb0eb0b8f9484f46f288ac8e5f022d069188a1cafc9280c57c4d2c4"),
+        # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
+        # exclusively via resolve_scope_source() (same-module); consumed
+        # cross-module only structurally, through the ScopeSource port (never
+        # imported by concrete name outside scope_source.py by design).
+        SymbolKey("DeclaredCommandScopeSource", "0ed7a0eef11d4d8eb249209fedd58c04dc833a9f9dc3ac6a71193f394bdb6142"),
+        # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
+        # of GateCoverageScopeSource.scope_breakdown(); consumed structurally
+        # (attribute access) by pre_review_gate._scope_result_from_breakdown,
+        # never imported there by concrete type name.
+        SymbolKey("FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae"),
+        # specify_cli.review.scope_source::ScopeBreakdownMixin -- inherited only
+        # by GateCoverageScopeSource, same-module; the mixin's file_to_scope
+        # default projection (FR-006) is exercised by every narrowing-source
+        # test but the mixin class itself is never imported cross-module.
+        SymbolKey("ScopeBreakdownMixin", "c54d14c1c0c52cbd24231e9cc6bbf90ea9c988b830edce5628bb5d32da27fae4"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -953,6 +998,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
+    | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
 )
 
 

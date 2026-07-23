@@ -31,6 +31,7 @@ duplicated here.
 """
 from __future__ import annotations
 
+import abc
 import fnmatch
 import importlib
 import shlex
@@ -41,7 +42,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, cast, runtime_checkable
 
 from kernel.paths import to_posix
 from specify_cli.review._interpreter import resolve_pytest_command
@@ -49,17 +50,25 @@ from specify_cli.review._interpreter import resolve_pytest_command
 if TYPE_CHECKING:
     from specify_cli.review.baseline import BaselineFailure
 
-# ``DeclaredCommandScopeSource`` (the portable, layout-agnostic impl) and
-# ``FileScopeBreakdown`` (the per-file breakdown dataclass) are not yet consumed
-# cross-module in half A: the activation-resolved wiring that would select the
-# portable source lands with #2873, and the breakdown is an internal detail of
-# the census path. Both stay importable by their unit tests; they are re-added
-# to ``__all__`` when a runtime caller wires them.
+# ``resolve_scope_source`` (FR-003/FR-014, WP02) is the selection-wiring
+# authority: a repo with ``review.test_command`` configured (a non-pytest
+# consumer) routes to the portable ``DeclaredCommandScopeSource``; otherwise
+# (including spec-kitty's own repo, which sets no ``review.test_command``) it
+# routes to the internal ``GateCoverageScopeSource``. Both classes and the
+# factory/identity/predicate helpers below are public, cross-module symbols —
+# WP03 (baseline capture) and WP04 (head diff) import them directly.
 __all__ = [
+    "DeclaredCommandScopeSource",
+    "FileScopeBreakdown",
     "GateCoverageScopeSource",
     "RawRunResult",
+    "ScopeBreakdownMixin",
     "ScopeBreakdownSource",
     "ScopeSource",
+    "empty_scope_is_coverage_gap",
+    "exposes_scope_breakdown",
+    "resolve_scope_source",
+    "scope_source_identity",
 ]
 
 
@@ -122,6 +131,17 @@ class ScopeSource(Protocol):
         """
         ...
 
+    def parse_mode(self, raw: RawRunResult) -> str:
+        """The parse-mode this source's OWN :meth:`parse_results` applied to ``raw``.
+
+        The single source-owned authority (T007, FR-009) for "which branch did
+        parse_results take" — :func:`scope_source_identity` calls this rather
+        than re-inspecting ``raw`` a second time, so the decision has exactly
+        one owner per source. Vocabulary: ``"junit_xml"`` / ``"text"`` /
+        ``"none"``.
+        """
+        ...
+
 
 @dataclass(frozen=True)
 class FileScopeBreakdown:
@@ -166,15 +186,67 @@ class ScopeBreakdownSource(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Two independent predicates + ScopeBreakdownMixin (FR-005/FR-006, T008/T009)
+# ---------------------------------------------------------------------------
+
+
+def exposes_scope_breakdown(source: ScopeSource) -> bool:
+    """Capability signal: does ``source`` expose the breakdown refinement?
+
+    Backs ``isinstance(source, ScopeBreakdownSource)`` — structural presence
+    of :meth:`ScopeBreakdownSource.scope_breakdown`. DISTINCT from
+    :func:`empty_scope_is_coverage_gap` (T008 un-weld, carla-2 guard): a
+    source can implement ``scope_breakdown`` without opting into the
+    empty-scope-is-a-gap policy, and vice versa.
+    """
+    return isinstance(source, ScopeBreakdownSource)
+
+
+def empty_scope_is_coverage_gap(source: ScopeSource) -> bool:
+    """Policy signal: does an EMPTY per-file scope from ``source`` mean a coverage gap?
+
+    Backs the source's own ``treats_empty_scope_as_coverage_gap`` ``ClassVar``
+    marker (default ``False`` when absent) — a signal DISTINCT from
+    :func:`exposes_scope_breakdown` (T008 un-weld, carla-2 guard). Reading the
+    same ``isinstance`` check for both predicates is the exact failure mode
+    this un-weld retires.
+    """
+    return bool(getattr(source, "treats_empty_scope_as_coverage_gap", False))
+
+
+class ScopeBreakdownMixin(abc.ABC):
+    """Default ``file_to_scope`` projection for a breakdown-capable source (FR-006).
+
+    A ``Protocol`` default body never reaches a *structural* implementer, so
+    this is an ABC/mixin instead: a source that INHERITS it gets
+    ``file_to_scope`` for free — a thin projection over its own
+    :meth:`scope_breakdown` — and gains the
+    ``treats_empty_scope_as_coverage_gap = True`` policy marker.
+    :class:`DeclaredCommandScopeSource` deliberately does NOT inherit this: its
+    empty per-file scope is not a coverage gap (it always runs its whole
+    declared suite), so :func:`empty_scope_is_coverage_gap` stays ``False``
+    for it.
+    """
+
+    treats_empty_scope_as_coverage_gap: ClassVar[bool] = True
+
+    @abc.abstractmethod
+    def scope_breakdown(self, path: str) -> FileScopeBreakdown: ...
+
+    def file_to_scope(self, path: str) -> tuple[str, ...]:
+        """The flat ``test_targets`` projection of :meth:`scope_breakdown`."""
+        return self.scope_breakdown(path).test_targets
+
+
+# ---------------------------------------------------------------------------
 # GateCoverageScopeSource — internal, behaviour-preserving (FR-002/FR-009)
 # ---------------------------------------------------------------------------
 
-# Mirrors pre_review_gate.py's own constants/helpers. Deliberately
-# duplicated (not imported) — this module owns a PRIVATE copy of the census
-# derivation so it never has to import pre_review_gate.py at module scope
-# (that would recreate the exact cycle the guard above avoids). WP03 retires
-# the pre_review_gate.py originals once that module is rewired onto this
-# port; until then the two copies coexist (relocation, not redesign).
+# This module is the SOLE home of the census derivation: it owns a PRIVATE
+# copy of these constants/helpers so it never has to import pre_review_gate.py
+# at module scope (that would recreate the exact cycle the guard above avoids).
+# The formerly-duplicated originals in pre_review_gate.py were retired by
+# mission #2873 (the dead census tier); do NOT reintroduce a second copy there.
 _SRC_PACKAGE_PREFIX = "src/specify_cli/"
 _TESTS_PREFIX = "tests/"
 _GATE_COVERAGE_MODULE_NAME = "tests.architectural._gate_coverage"
@@ -286,7 +358,7 @@ def _default_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]
 
 
 @dataclass
-class GateCoverageScopeSource:
+class GateCoverageScopeSource(ScopeBreakdownMixin):
     """Reproduces today's exact Spec-Kitty pre-review behaviour (FR-002).
 
     Zero behaviour change (NFR-001): the ``_gate_coverage`` census-narrowing
@@ -352,15 +424,6 @@ class GateCoverageScopeSource:
         command: list[str] = resolve_pytest_command([f"--junitxml={junit_path}", "-q"], repo_root=self.repo_root)
         return command
 
-    def file_to_scope(self, path: str) -> tuple[str, ...]:
-        """The flat ``test_targets`` projection of :meth:`scope_breakdown`.
-
-        Behaviour-preserving: identical to the pre-inversion narrowing — the
-        breakdown's shard/composite bookkeeping is simply discarded here for
-        callers that only need the runnable targets.
-        """
-        return self.scope_breakdown(path).test_targets
-
     def scope_breakdown(self, path: str) -> FileScopeBreakdown:
         """Today's ``_gate_coverage`` census narrowing for ONE changed file, WITH breakdown.
 
@@ -410,10 +473,32 @@ class GateCoverageScopeSource:
             contributes_scope=True,
         )
 
+    def parse_mode(self, _raw: RawRunResult) -> str:
+        """Always ``"junit_xml"`` — this source is junit-only (T007).
+
+        Matches :meth:`parse_results` exactly, INCLUDING the no-artifact
+        synthetic-failure case: a missing artifact still yields a
+        junit-shaped failure, never ``"text"``/``"none"``. The argument is
+        unused by design (underscore-prefixed, mirroring
+        :meth:`DeclaredCommandScopeSource.file_to_scope`'s own convention).
+        """
+        return "junit_xml"
+
     def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
-        """Parse JUnit XML from ``raw.output_artifact_path`` (``_parse_junit_xml`` semantics)."""
+        """Parse JUnit XML from ``raw.output_artifact_path`` (``_parse_junit_xml`` semantics).
+
+        Dispatches through :meth:`parse_mode` (T007 single-authority): this
+        source only ever has one mode, so the dispatch is a no-op branch, but
+        it keeps the "what mode did this run take" decision owned in exactly
+        one place.
+        """
         from specify_cli.review.baseline import BaselineFailure, _parse_junit_xml
 
+        # T007 single-authority dispatch: this source has exactly one mode
+        # (always ``"junit_xml"``, see :meth:`parse_mode`), so the call below
+        # proves parse_mode is consulted rather than re-deriving the decision
+        # here a second time — an untestable "else" branch would be dead code.
+        self.parse_mode(raw)
         artifact = raw.output_artifact_path
         if artifact is None or not artifact.exists():
             return (
@@ -515,26 +600,114 @@ class DeclaredCommandScopeSource:
         """
         return ()
 
+    def parse_mode(self, raw: RawRunResult) -> str:
+        """The three-way parse-mode decision (T007), source-owned single authority.
+
+        Mirrors :meth:`parse_results`'s own branch exactly: a resolved JUnit
+        artifact wins (``"junit_xml"``); else any ``FAIL <test>`` line found
+        in ``stdout``/``stderr`` (``"text"``); else ``"none"`` (covers both a
+        clean pass and an unparseable non-zero exit — :meth:`parse_results`
+        further distinguishes those two only for its OWN return value, never
+        for the mode label).
+        """
+        if raw.output_artifact_path is not None and raw.output_artifact_path.exists():
+            return "junit_xml"
+        text_failures = _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
+            raw.stderr
+        )
+        if text_failures:
+            return "text"
+        return "none"
+
     def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
         """Parse the declared command's own output into per-failure identities.
 
+        Dispatches through :meth:`parse_mode` (T007 single-authority): the
+        branch condition below is decided ONCE, by ``parse_mode``, and
+        ``parse_results`` acts on that decision rather than re-deriving it.
         Prefers a JUnit artifact when the declared command happens to
         produce one (``test_output_format: junit_xml`` consumers); otherwise
         parses ``stdout``/``stderr`` via the ``FAIL <test>`` convention. A
         non-zero exit with nothing parseable still counts as failing
         (surfaced via :func:`_whole_run_failure`, never swallowed).
         """
-        if raw.output_artifact_path is not None and raw.output_artifact_path.exists():
+        mode = self.parse_mode(raw)
+        if mode == "junit_xml":
             from specify_cli.review.baseline import _parse_junit_xml
 
-            _total, _passed, _failed, _skipped, failures = _parse_junit_xml(raw.output_artifact_path)
+            artifact = raw.output_artifact_path
+            assert artifact is not None  # guaranteed by parse_mode's own "junit_xml" branch
+            _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
             return tuple(failures)
 
-        text_failures = _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
-            raw.stderr
-        )
-        if text_failures:
-            return text_failures
+        if mode == "text":
+            return _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
+                raw.stderr
+            )
+
         if raw.returncode != 0:
             return (_whole_run_failure(raw),)
         return ()
+
+
+# ---------------------------------------------------------------------------
+# Factory (FR-003/FR-014) + identity helper (FR-009/NFR-005) — T006/T007/T010
+# ---------------------------------------------------------------------------
+
+
+def resolve_scope_source(
+    repo_root: Path,
+    *,
+    filter_groups_override: Mapping[str, tuple[str, ...]] | None = None,
+    composite_routing_override: Mapping[str, _CompositeRoute] | None = None,
+) -> ScopeSource:
+    """The ONE factory both baseline capture (WP03) and the head hook (WP04) call.
+
+    Selection (FR-014, the load-bearing operator decision — B-sel): a repo
+    with ``review.test_command`` configured (a non-pytest consumer) gets the
+    portable :class:`DeclaredCommandScopeSource`; otherwise — including
+    spec-kitty's OWN repo, which sets no ``review.test_command`` — gets the
+    internal :class:`GateCoverageScopeSource`. Reads the SAME config surface
+    :func:`specify_cli.review.baseline._get_test_command` reads; no new
+    config key is invented.
+
+    The two monkeypatch seams
+    (``tasks_move_task._pre_review_gate_filter_groups`` /
+    ``_pre_review_gate_composite_routing``) stay in ``tasks_move_task.py`` and
+    are threaded through here as ``*_override`` parameters — this factory
+    never imports back into ``tasks_move_task`` (no import cycle; both
+    current consumers already import THIS module).
+    """
+    from specify_cli.review.baseline import _get_test_command
+
+    command_template, _output_format = _get_test_command(repo_root)
+    if command_template:
+        return DeclaredCommandScopeSource(repo_root=repo_root)
+    return GateCoverageScopeSource(
+        repo_root=repo_root,
+        filter_groups_override=filter_groups_override,
+        composite_routing_override=composite_routing_override,
+    )
+
+
+def scope_source_identity(scope_source: ScopeSource, raw: RawRunResult) -> str:
+    """The SINGLE ``<SourceClass>/<parse-mode>`` token producer (FR-009/NFR-005).
+
+    Both baseline capture (WP03, into ``BaselineTestResult.source_identity``)
+    and head diff (WP04, ``pre_review_gate.py``'s ``SOURCE_MISMATCH`` check)
+    call THIS function — never a second, independently-derived token.
+
+    Delegates the parse-mode decision to the source's OWN
+    :meth:`ScopeSource.parse_mode` and NEVER re-inspects ``raw`` itself
+    (T007 anti-duplication guard, post-plan paula GAP): re-deriving the mode
+    here a second time would re-create the exact lock-step-drift pattern this
+    mission retires — e.g. ``GateCoverageScopeSource`` is junit-only even
+    when its artifact is *missing* (a synthetic junit-shaped failure), so a
+    uniform re-inspection of ``raw`` would mislabel that case as
+    ``"text"``/``"none"``.
+
+    The command is deliberately absent from the token — NFR-005 carries
+    command equality separately (see :func:`resolve_scope_source`'s dual-root
+    ``test_command()`` parity, pinned in ``test_scope_source.py``).
+    """
+    return f"{type(scope_source).__name__}/{scope_source.parse_mode(raw)}"
