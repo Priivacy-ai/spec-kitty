@@ -607,38 +607,43 @@ class DeclaredCommandScopeSource:
         return ()
 
     def parse_mode(self, raw: RawRunResult) -> str:
-        """The three-way parse-mode decision (T007), source-owned single authority.
+        """The parse *strategy* this source uses — a STABLE, outcome-invariant
+        identity component (T007 + FR-009).
 
-        Mirrors :meth:`parse_results`'s own branch exactly: a resolved JUnit
-        artifact wins (``"junit_xml"``); else any ``FAIL <test>`` line found
-        in ``stdout``/``stderr`` (``"text"``); else ``"none"`` (covers both a
-        clean pass and an unparseable non-zero exit — :meth:`parse_results`
-        further distinguishes those two only for its OWN return value, never
-        for the mode label).
+        Two strategies only: a resolved JUnit artifact is parsed as JUnit XML
+        (``"junit_xml"``); otherwise the declared command's textual output is
+        parsed via the ``FAIL <test>`` convention (``"text"``). The label names
+        HOW this source parses, NOT whether THIS run happened to find failures.
+
+        A clean text-convention run is therefore still ``"text"`` (not a former
+        third ``"none"`` value) — so :func:`scope_source_identity` stays
+        IDENTICAL across a green baseline and a failing head of the same
+        configured source. That stability is load-bearing: the ``SOURCE_MISMATCH``
+        check (``pre_review_gate._evaluate_via_scope_source``) compares baseline
+        vs head identity, and an outcome-dependent label made a green
+        (``"none"``) baseline look "not comparable" to a failing (``"text"``)
+        head — silently failing the gate open on the single case a regression
+        gate exists to catch. The empty-vs-nonzero-exit distinction is a
+        failure-EXTRACTION concern owned by :meth:`parse_results`, never the
+        strategy label. (Mission scopesource-gate-followup landing fold.)
         """
         if raw.output_artifact_path is not None and raw.output_artifact_path.exists():
             return "junit_xml"
-        text_failures = _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
-            raw.stderr
-        )
-        if text_failures:
-            return "text"
-        return "none"
+        return "text"
 
     def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
         """Parse the declared command's own output into per-failure identities.
 
-        Dispatches through :meth:`parse_mode` (T007 single-authority): the
-        branch condition below is decided ONCE, by ``parse_mode``, and
-        ``parse_results`` acts on that decision rather than re-deriving it.
-        Prefers a JUnit artifact when the declared command happens to
-        produce one (``test_output_format: junit_xml`` consumers); otherwise
-        parses ``stdout``/``stderr`` via the ``FAIL <test>`` convention. A
-        non-zero exit with nothing parseable still counts as failing
-        (surfaced via :func:`_whole_run_failure`, never swallowed).
+        Dispatches through :meth:`parse_mode`'s strategy decision (T007
+        single-authority): a JUnit artifact is parsed as JUnit XML; otherwise
+        the text-convention (``FAIL <test>``) strategy runs. Within the text
+        strategy, a run that yields no parseable ``FAIL`` line but still exited
+        non-zero is surfaced as a whole-run failure (:func:`_whole_run_failure`,
+        never swallowed); a clean zero-exit run yields ``()``. These
+        empty-vs-nonzero sub-cases are extraction detail, not a strategy label,
+        so they live here rather than in :meth:`parse_mode`.
         """
-        mode = self.parse_mode(raw)
-        if mode == "junit_xml":
+        if self.parse_mode(raw) == "junit_xml":
             from specify_cli.review.baseline import _parse_junit_xml
 
             artifact = raw.output_artifact_path
@@ -646,11 +651,11 @@ class DeclaredCommandScopeSource:
             _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
             return tuple(failures)
 
-        if mode == "text":
-            return _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
-                raw.stderr
-            )
-
+        text_failures = _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
+            raw.stderr
+        )
+        if text_failures:
+            return text_failures
         if raw.returncode != 0:
             return (_whole_run_failure(raw),)
         return ()

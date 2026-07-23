@@ -553,37 +553,69 @@ def test_declared_command_parse_mode_is_text_for_a_fail_line(tmp_path: Path) -> 
     assert impl.parse_mode(raw) == "text"
 
 
-def test_declared_command_parse_mode_is_none_for_an_unparseable_nonzero_exit(tmp_path: Path) -> None:
+def test_declared_command_parse_mode_is_text_for_an_unparseable_nonzero_exit(tmp_path: Path) -> None:
+    """The non-JUnit strategy is a STABLE ``"text"`` label regardless of the
+    run's outcome (landing fold): an unparseable non-zero exit is still the
+    text-convention strategy — ``parse_results`` surfaces it as a whole-run
+    failure, but the identity component stays ``"text"`` so it never spuriously
+    mismatches a green ``"text"`` baseline."""
     impl = DeclaredCommandScopeSource(repo_root=tmp_path)
     raw = RawRunResult(returncode=2, stdout="", stderr="panic: segmentation fault\n")
 
-    assert impl.parse_mode(raw) == "none"
+    assert impl.parse_mode(raw) == "text"
+    # extraction still records the whole-run failure — the label is unaffected
+    assert impl.parse_results(raw)[0].test == "<declared-command>"
 
 
-def test_declared_command_parse_mode_is_none_for_a_clean_pass(tmp_path: Path) -> None:
+def test_declared_command_parse_mode_is_text_for_a_clean_pass(tmp_path: Path) -> None:
+    """A clean text-convention run keeps the stable ``"text"`` strategy label
+    (was the outcome-dependent ``"none"`` before the landing fold) — this is
+    what keeps a green baseline's identity comparable to a later failing head."""
     impl = DeclaredCommandScopeSource(repo_root=tmp_path)
     raw = RawRunResult(returncode=0, stdout="ok test_alpha\n", stderr="")
 
-    assert impl.parse_mode(raw) == "none"
+    assert impl.parse_mode(raw) == "text"
+    assert impl.parse_results(raw) == ()
 
 
 def test_declared_command_parse_results_dispatches_through_parse_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Behavioral one-authority guard (T007): forcing ``parse_mode`` to
-    return a DIFFERENT value than its natural decision flips
-    ``parse_results``'s branch — proving ``parse_results`` dispatches
-    THROUGH ``parse_mode`` rather than re-deciding independently. The
-    natural mode for this ``raw`` is ``"text"`` (a FAIL line is present);
-    forcing ``"none"`` must route to the whole-run-failure branch instead."""
+    contradict a naive re-inspection of ``raw`` flips ``parse_results``'s
+    branch — proving it dispatches THROUGH ``parse_mode`` rather than
+    re-deciding independently. Here ``raw`` carries a JUnit artifact (natural
+    mode ``"junit_xml"``), but ``parse_mode`` is forced to ``"text"``:
+    ``parse_results`` must take the text-convention branch (parse the ``FAIL``
+    line) and NOT consult the artifact."""
+    junit_path = tmp_path / "declared.xml"
+    junit_path.write_text(
+        '<testsuite><testcase classname="t" name="test_ok" /></testsuite>', encoding="utf-8",
+    )
     impl = DeclaredCommandScopeSource(repo_root=tmp_path)
-    raw = RawRunResult(returncode=1, stdout="FAIL test_beta: boom\n", stderr="")
-    monkeypatch.setattr(DeclaredCommandScopeSource, "parse_mode", lambda self, raw: "none")
+    raw = RawRunResult(returncode=1, stdout="FAIL test_beta: boom\n", stderr="", output_artifact_path=junit_path)
+    monkeypatch.setattr(DeclaredCommandScopeSource, "parse_mode", lambda self, raw: "text")
 
     failures = impl.parse_results(raw)
 
+    # Text branch parsed the FAIL line; the (passing) JUnit artifact was ignored.
     assert len(failures) == 1
-    assert failures[0].test == "<declared-command>"
+    assert failures[0].test == "test_beta"
+
+
+def test_declared_command_identity_is_stable_across_clean_and_failing_runs(tmp_path: Path) -> None:
+    """Finding-1 regression (landing fold): a stably-configured text-convention
+    source yields the SAME ``source_identity`` whether a run was clean or found
+    failures. Before the parse_mode strategy-stabilization the clean run was
+    ``.../none`` and the failing run ``.../text``, so a green baseline vs a
+    failing head produced a spurious ``SOURCE_MISMATCH`` (fail-open) instead of
+    ``NEW_FAILURES`` — the gate silently passed a genuinely-new failure."""
+    impl = DeclaredCommandScopeSource(repo_root=tmp_path)
+    clean = RawRunResult(returncode=0, stdout="ok test_alpha\n", stderr="")
+    failing = RawRunResult(returncode=1, stdout="FAIL test_beta: boom\n", stderr="")
+
+    assert scope_source.scope_source_identity(impl, clean) == scope_source.scope_source_identity(impl, failing)
+    assert scope_source.scope_source_identity(impl, clean) == "DeclaredCommandScopeSource/text"
 
 
 def test_declared_command_parse_mode_and_parse_results_agree_on_junit_xml(tmp_path: Path) -> None:

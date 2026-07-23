@@ -63,6 +63,10 @@ class _StubScopeSourceBase:
     """
 
     mode: str = "junit_xml"
+    #: Failures the head run surfaces. Default ``()`` (clean); a same-class
+    #: instance can carry a NEW failure without changing its identity token —
+    #: the class name is the identity's class half, so a subclass would NOT do.
+    head_failures: tuple[BaselineFailure, ...] = ()
 
     def test_command(self) -> list[str] | None:
         return [sys.executable, "-c", "pass"]
@@ -77,7 +81,7 @@ class _StubScopeSourceBase:
 
     def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
         del raw
-        return ()
+        return self.head_failures
 
 
 class _StubSourceAlpha(_StubScopeSourceBase):
@@ -145,6 +149,27 @@ def test_matching_identity_falls_through_to_normal_classification() -> None:
     verdict = _evaluate(_StubSourceAlpha(mode="junit_xml"), baseline)
 
     assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
+    assert verdict.outcome is not GateOutcome.SOURCE_MISMATCH
+
+
+def test_same_text_identity_green_baseline_failing_head_blocks_not_mismatch() -> None:
+    """Finding-1 regression (landing fold): a stably-configured text-convention
+    source whose baseline was green (identity ``.../text``, zero failures) and
+    whose head introduces a NEW failure (identity ``.../text``) must reach
+    ``NEW_FAILURES`` classification and BLOCK — NOT fail open as
+    ``SOURCE_MISMATCH``.
+
+    Before ``DeclaredCommandScopeSource.parse_mode`` was stabilized to a
+    strategy label, a green baseline was ``.../none`` and the failing head
+    ``.../text``; the identities differed, so the gate returned the fail-open
+    ``SOURCE_MISMATCH`` and silently passed a genuinely-new failure — defeating
+    the gate on the exact non-pytest consumer this mission set out to protect.
+    """
+    baseline = _baseline_with_identity("_StubSourceAlpha/text")  # green: failed=0, failures=()
+    head = _StubSourceAlpha(mode="text", head_failures=(BaselineFailure(test="test_new", error="boom", file="unknown"),))
+    verdict = _evaluate(head, baseline)
+
+    assert verdict.outcome is GateOutcome.NEW_FAILURES, verdict.reason
     assert verdict.outcome is not GateOutcome.SOURCE_MISMATCH
 
 
