@@ -129,6 +129,22 @@ spec-kitty auth login
   for how this variable's meaning changes at the public Teamspace
   launch.
 
+### SPEC_KITTY_EVENT_WEBHOOK
+
+Forward every sync event envelope to a local HTTP(S) endpoint.
+
+**Purpose**: A generic, opt-in observability seam for external local tools.
+When set to an `http://` or `https://` URL, each event emitted by the CLI is
+additionally POSTed to that URL as JSON (`Content-Type: application/json`),
+best-effort. It is independent of `SPEC_KITTY_ENABLE_SAAS_SYNC` - it fires even
+when hosted sync is disabled. Delivery is fire-and-forget with a short timeout;
+failures never break or meaningfully slow the CLI. Leave it unset for zero cost.
+
+**Example**:
+```bash
+export SPEC_KITTY_EVENT_WEBHOOK=http://127.0.0.1:8787/events
+```
+
 ### SPEC_KITTY_SAAS_URL
 
 Override the Spec Kitty SaaS base URL.
@@ -312,6 +328,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
+| `SPEC_KITTY_EVENT_WEBHOOK` | POST every sync event envelope to a local HTTP(S) URL | `http://127.0.0.1:8787/events` |
 | `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://spec-kitty-dev.fly.dev` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |
 | `SPEC_KITTY_NAG_THROTTLE_SECONDS` | Override upgrade-check cadence | `86400` |
