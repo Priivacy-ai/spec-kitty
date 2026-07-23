@@ -17,6 +17,9 @@ Stages (see issue #2262 §3.3):
 * WP-Y4 — :mod:`.identity`: resolve the ``(project_uuid, project_slug,
   repo_slug)`` trio — real persisted UUID on ``--apply`` (INV-5), synthetic
   offline UUID for dry-run, never persisting on the read path (INV-2).
+* :mod:`.pipeline`: ``build_import_plan`` runs SELECT → AUDIT → SCAN →
+  IDENTITY → SYNTHESIZE and returns the :class:`ImportPlan` both ``--dry-run``
+  and ``--apply`` consume.
 
 Later slices add PROVENANCE, PREFLIGHT, UPLOAD, and REPORT.
 """
@@ -27,6 +30,12 @@ from specify_cli.sync.history_import.identity import (
     ImportIdentity,
     ImportIdentityError,
     resolve_import_identity,
+)
+from specify_cli.sync.history_import.pipeline import (
+    ImportAuditBlocked,
+    ImportPlan,
+    build_import_plan,
+    describe_plan,
 )
 from specify_cli.sync.history_import.scan import (
     MissionScan,
@@ -42,11 +51,15 @@ from specify_cli.sync.history_import.synthesize import (
 )
 
 __all__ = [
+    "ImportAuditBlocked",
     "ImportIdentity",
     "ImportIdentityError",
+    "ImportPlan",
     "MissionScan",
     "PrefixSource",
     "ScannedWorkPackage",
+    "build_import_plan",
+    "describe_plan",
     "dry_run_project_uuid",
     "resolve_import_identity",
     "scan_mission",
