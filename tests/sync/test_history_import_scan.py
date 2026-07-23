@@ -177,3 +177,19 @@ def test_scan_missions_preserves_input_order():
         "032-identity-aware-cli-event-sync",
     ]
     assert all(isinstance(scan, MissionScan) for scan in scans)
+
+
+# ── malformed WP frontmatter must not abort the scan (#2883 items 3/4) ────────
+
+
+def test_malformed_wp_frontmatter_is_skipped_not_fatal(tmp_path):
+    """A WP file whose frontmatter parses to a list (not a dict) raises a
+    structural TypeError inside the reader. The scan must skip it, not abort —
+    otherwise one bad legacy doc sinks the whole import."""
+    mission_dir = tmp_path / "synthetic-malformed-01FFFF"
+    tasks = mission_dir / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "WP01-bad.md").write_text("---\n- a\n- b\n---\nbody\n", encoding="utf-8")
+
+    scan = scan_mission(mission_dir)  # must not raise
+    assert scan.work_packages == ()  # the malformed WP is skipped, scan survives
