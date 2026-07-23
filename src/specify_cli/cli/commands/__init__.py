@@ -177,6 +177,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import ops as ops_module
     from . import profiles_cmd as profiles_cmd_module
     from . import profile_invocation as profile_invocation_module
+    from . import reconcile as reconcile_module
     from . import research as research_module
     from . import review as review_module
     from . import safe_commit_cmd as safe_commit_module
@@ -226,6 +227,9 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(plugin_module.plugin_app, name="plugin", help="Plugin bundle commands")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
+    app.command(name="reconcile", help="Reconcile a mission dossier against its recorded snapshot (exit 0=parity, non-zero=divergence).")(
+        reconcile_module.reconcile
+    )
     app.command()(research_module.research)
     app.command(name="review")(review_module.review_mission)
     app.command(name="safe-commit")(safe_commit_module.safe_commit_command)
