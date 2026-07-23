@@ -1132,6 +1132,34 @@ def implement_try_render_fix_mode_prompt(
         return None
 
 
+def _baseline_artifact_needs_commit(repo_root: Path, artifact: Path) -> bool:
+    """True if ``artifact`` has something to commit (untracked or modified) in ``repo_root``.
+
+    A resume of an already-captured WP re-loads the cached, already-committed
+    artifact; re-committing it would run ``git commit`` with nothing staged and
+    raise "nothing to commit" — a misleading best-effort warning on every
+    resume (#2895). Gating the commit on a non-empty ``git status --porcelain``
+    for the artifact skips that no-op. Degrades to ``True`` (attempt the commit,
+    preserving prior behaviour) if git is unusable here.
+    """
+    from specify_cli.core import git_ops
+
+    try:
+        rc, out, _err = git_ops.run_command(
+            ["git", "status", "--porcelain", "--", str(artifact)],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+    except Exception:  # noqa: BLE001 — git absent/unusable: fall back to attempting the commit
+        return True
+    if rc != 0:
+        # git couldn't report status (e.g. not a repo): don't suppress a
+        # possibly-needed commit — preserve the prior "always attempt" behaviour.
+        return True
+    return bool(out.strip())
+
+
 def implement_capture_baseline(
     *,
     workspace_path: Path,
@@ -1188,7 +1216,12 @@ def implement_capture_baseline(
         # (The ``failed == -1`` sentinel is never persisted, so it never
         # reaches this commit.)
         baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
-        if baseline is not None and baseline.failed != -1 and baseline_artifact.exists():
+        if (
+            baseline is not None
+            and baseline.failed != -1
+            and baseline_artifact.exists()
+            and _baseline_artifact_needs_commit(main_repo_root, baseline_artifact)
+        ):
             # Mechanical WP06 pre-step migration.
             try:
                 # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
@@ -1213,7 +1246,16 @@ def implement_capture_baseline(
                     capability=GuardCapability.STANDARD,
                 )
             except Exception as bl_commit_exc:  # noqa: BLE001 — best-effort
+                # #2896: surface the real refusal reason visibly, not only to
+                # the logger — otherwise a later `for_review` block on the
+                # still-uncommitted artifact reads as a mysterious "uncommitted
+                # owned file" with no trace of WHY the commit was refused (e.g.
+                # a protected target / SafeCommitHeadMismatch).
                 logger.warning("Baseline artifact commit failed: %s", bl_commit_exc)
+                print(
+                    f"[yellow]Warning: baseline artifact was not committed "
+                    f"({bl_commit_exc}); a later move to for_review may block on it.[/yellow]"
+                )
     except Exception as bl_err:
         logger.warning("Baseline capture error: %s", bl_err)
 
