@@ -1854,7 +1854,7 @@ def _mt_hop_policy_metadata(
     return None
 
 
-def _binding_role_for_lane(lane: Lane) -> str | None:
+def _binding_role_for_lane(lane: Lane | str) -> str | None:
     """Map a target lane to its resolved-binding role.
 
     Shared by :func:`_mt_emit_transitions` (the live transition-emit path,
