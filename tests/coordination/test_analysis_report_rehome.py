@@ -34,7 +34,7 @@ from mission_runtime.artifacts import assert_partition_invariant
 
 from tests.integration.coord_topology_fixture import _build_coord_topology
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _ANALYSIS_REPORT = "analysis-report.md"
 

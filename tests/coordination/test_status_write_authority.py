@@ -29,6 +29,8 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status.models import Lane, TransitionRequest
 from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 
 def _git_show(repo_root: Path, ref: str, rel_path: str) -> str:
     result = subprocess.run(

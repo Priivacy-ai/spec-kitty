@@ -40,7 +40,7 @@ from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeRender,
 )
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _MISSION = "coord-staleness-01KY5JS8"
 
@@ -504,9 +504,15 @@ def test_d_finalize_tasks_surfaces_warn_and_exits_0(
         mission_slug=mission_slug,
         target_branch=_TARGET_BRANCH,
     ):
-        # Must NOT raise — finalize-tasks stays non-blocking (FR-008).
+        # HUMAN mode (json_output=False): the advisory staleness WARN is a
+        # human-facing hint printed via the shared stdout console. It is gated
+        # OFF under ``--json`` so the machine-readable payload stays pure JSON
+        # (a ``--json`` WARN line broke ``json.loads`` on the finalize stdout --
+        # see ``test_coord_loop_tasks::test_finalize_tasks_primary_leg_reads_primary_tasks_md``).
+        # FR-008's "surface the WARN" contract lives in human mode; this test
+        # exercises exactly that. Must NOT raise -- finalize stays non-blocking.
         tasks_finalize._do_finalize_tasks(
-            mission=mission_slug, json_output=True, validate_only=True, ports=ports,
+            mission=mission_slug, json_output=False, validate_only=True, ports=ports,
         )
 
     out = capsys.readouterr().out

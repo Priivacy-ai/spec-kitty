@@ -56,6 +56,8 @@ from typer.testing import CliRunner
 from specify_cli import app as root_app
 from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 runner = CliRunner()
 
 _COMPACT_ACTOR = "claude:opus:reviewer-renata:reviewer"

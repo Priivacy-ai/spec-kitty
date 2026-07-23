@@ -150,10 +150,12 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane, coord-commit-integrity) = 76
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
-    # #2639: +complete-deferred-readiness + pre-review-dirty-paths)
+    # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
+    # coord-commit-integrity #2861: +_binding_role_for_lane role-map dedup)
+    "_binding_role_for_lane",
     "_default_move_task_ports",
     "_MoveTaskState",
     "_MoveTaskArgs",
@@ -470,5 +472,8 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     closeout (CI compat-surface remediation) then registered the three remaining
     natively-defined move-task seam defs the extraction left unregistered —
     ``_mt_cancelled_verdict``, ``_mt_fail_open_gate`` and
-    ``_mt_resolve_transition_gate_verdicts`` (72 -> 75): 153 -> 156."""
-    assert len(SYMBOL_TO_MODULE) == 156  # golden-count: cardinality-is-contract
+    ``_mt_resolve_transition_gate_verdicts`` (72 -> 75): 153 -> 156. coord-commit-
+    integrity (#2861, FR-005) added ``_binding_role_for_lane`` — the lane->role
+    map dedup extracted from the two duplicate role maps at the move-task emit
+    seam (tasks_move_task 75 -> 76): 156 -> 157."""
+    assert len(SYMBOL_TO_MODULE) == 157  # golden-count: cardinality-is-contract

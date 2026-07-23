@@ -120,14 +120,20 @@ def test_pre_review_gate_reads_baseline_from_primary_not_coord_husk(
         return real_load(path)
 
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
         patch(f"{_MODULE}._resolve_wp_slug", return_value=_WP_SLUG),
         patch(
             f"{_WORKFLOW}._resolve_workflow_read_dir", return_value=primary_dir
         ) as seam_mock,
         patch.object(BaselineTestResult, "load", side_effect=_spy_load),
     ):
-        tasks_move_task._mt_run_pre_review_gate(st)
+        # ``_mt_resolve_gate_baseline`` is the shared baseline loader the WP09
+        # (doctrine-controlled-transition-gates) refactor extracted from the
+        # pre-review gate; both the handler context and the FR-004 override tier
+        # call it, and it is where the C-008 kind-aware seam routing lives. The
+        # full-gate entry point now reaches it ONLY when the active doctrine
+        # binds a handler to the for_review edge (absent in this minimal fixture),
+        # so exercise the C-008 concern at the seam that owns it.
+        tasks_move_task._mt_resolve_gate_baseline(st)
 
     # The kind-aware seam was consulted for the WORK_PACKAGE_TASK read dir.
     seam_mock.assert_called_once()

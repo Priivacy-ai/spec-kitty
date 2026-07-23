@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,7 +24,7 @@ from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane, TransitionRequest
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
@@ -99,6 +100,16 @@ def _mark_fake_worktree(path: Path) -> None:
     """Create the minimal marker required by workspace-resolution guards."""
     path.mkdir(parents=True, exist_ok=True)
     (path / ".git").write_text("gitdir: ../fake\n", encoding="utf-8")
+
+
+def _git(repo_root: Path, *args: str) -> None:
+    """Run a git subcommand in *repo_root*, raising on failure."""
+    subprocess.run(
+        ["git", "-C", str(repo_root), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 @pytest.fixture()
@@ -334,31 +345,51 @@ def test_workflow_implement_emits_rework_to_coord_status_path(
     mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
     coord_branch = f"kitty/mission-{mission_slug}"
     feature_dir = workflow_repo / "kitty-specs" / mission_slug
-    coord_feature_dir = (
-        CoordinationWorkspace.worktree_path(workflow_repo, mission_slug, mid8)
-        / "kitty-specs"
-        / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "coordination_branch": coord_branch,
+            }
+        ),
+        encoding="utf-8",
     )
-    for mission_dir in (feature_dir, coord_feature_dir):
-        tasks_dir = mission_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        (mission_dir / "meta.json").write_text(
-            json.dumps(
-                {
-                    "mission_slug": mission_slug,
-                    "mission_id": mission_id,
-                    "mid8": mid8,
-                    "coordination_branch": coord_branch,
-                }
-            ),
-            encoding="utf-8",
-        )
-        write_single_lane_manifest(mission_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        _write_current_analysis_report(mission_dir, workflow_repo)
-        _write_wp_file(tasks_dir / "WP01-test.md", "WP01", lane="for_review")
-
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+    _write_current_analysis_report(feature_dir, workflow_repo)
+    _write_wp_file(tasks_dir / "WP01-test.md", "WP01", lane="for_review")
+    # Primary canonical state stays at ``planned`` — proving the rework write lands
+    # on the coord path, not primary.
     _seed_wp_lane(feature_dir, "WP01", "planned")
+
+    # The fail-loud coord-write policy (``FallbackCoordWorktreeUnresolved`` /
+    # ``_resolve_fallback_coord_worktree``) refuses to degrade a stored-COORD write
+    # to a primary-uncommitted write, so the coord worktree must be a REAL,
+    # materializable git worktree. Turn the fixture repo into a real git repo,
+    # branch the coord ref off the seeded scaffold, and materialize the coord
+    # worktree through the SAME production authority the code uses
+    # (``CoordinationWorkspace.resolve``) — mirroring the canonical
+    # ``_build_mission_repo(coord=True, materialize_coord=True)`` pattern.
+    _git(workflow_repo, "init", "-q", "-b", "main")
+    _git(workflow_repo, "config", "user.email", "workflow-lane-gate@example.invalid")
+    _git(workflow_repo, "config", "user.name", "Workflow Lane Gate")
+    _git(workflow_repo, "config", "commit.gpgsign", "false")
+    _git(workflow_repo, "add", "-A")
+    _git(workflow_repo, "commit", "-q", "-m", "seed mission scaffold")
+    _git(workflow_repo, "branch", coord_branch)
+
+    coord_worktree = CoordinationWorkspace.resolve(workflow_repo, mission_slug, mid8)
+    coord_feature_dir = coord_worktree / "kitty-specs" / mission_slug
+    # Diverge the coord canonical state to ``for_review`` and commit it on the coord
+    # branch, so ``implement`` reads (and reworks) the coord status path.
+    (coord_feature_dir / "status.events.jsonl").unlink(missing_ok=True)
     _seed_wp_lane(coord_feature_dir, "WP01", "for_review")
+    _git(coord_worktree, "add", "-A")
+    _git(coord_worktree, "commit", "-q", "-m", "coord: WP01 for_review")
+
     workspace = lane_worktree_path(workflow_repo, mission_slug)
     _mark_fake_worktree(workspace)
     (workspace / "kitty-specs" / mission_slug / "tasks").mkdir(parents=True)

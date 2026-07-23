@@ -31,6 +31,8 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, safe_commit
 from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 runner = CliRunner()
 
 
