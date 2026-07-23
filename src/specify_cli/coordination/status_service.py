@@ -25,7 +25,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from specify_cli.status import EventStream, InnerStateChanged, Lane, StatusEvent
@@ -65,7 +65,7 @@ def _is_coordination_worktree_path(path: Path) -> bool:
     """
     from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 
-    return cast(bool, is_under_worktrees_segment(path))
+    return is_under_worktrees_segment(path)
 
 
 @dataclass(frozen=True)

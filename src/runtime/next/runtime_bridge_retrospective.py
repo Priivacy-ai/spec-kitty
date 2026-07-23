@@ -56,9 +56,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.mission_metadata import load_meta_or_empty
+
+if TYPE_CHECKING:
+    from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +199,7 @@ def _resolution_error_source_map() -> dict[str, str]:
 def _build_retrospective_facilitator_callback(
     mission_slug: str,
     repo_root: Path,
-    provenance_kind: str = "runtime_post_completion",
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> Any:
     """Build the facilitator callback that wires WP01/02/03 surfaces into the terminus.
 
@@ -230,7 +233,7 @@ def _build_retrospective_facilitator_callback(
         emit_capture_failed,
     )
 
-    _prov: str = provenance_kind  # captured in closure
+    _prov: ProvenanceKind = provenance_kind  # captured in closure
 
     def _facilitator(
         *,

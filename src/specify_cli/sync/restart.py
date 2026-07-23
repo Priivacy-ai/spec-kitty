@@ -105,28 +105,33 @@ def _owner_record_present() -> bool:
 
 def _daemon_state_metadata_present() -> bool:
     """Return True iff daemon state metadata exists on disk."""
-    from specify_cli.sync.daemon import DAEMON_STATE_FILE
+    from specify_cli.sync import daemon
 
-    return bool(DAEMON_STATE_FILE.exists())
+    state_file: Path = daemon.DAEMON_STATE_FILE
+    return bool(state_file.exists())
 
 
 def _restartable_daemon_state_metadata_present() -> bool:
     """Return True iff daemon state metadata is parseable enough to stop."""
-    from specify_cli.sync.daemon import DAEMON_STATE_FILE, _parse_daemon_file
+    from specify_cli.sync import daemon
+    from specify_cli.sync.daemon import _parse_daemon_file
 
-    if not DAEMON_STATE_FILE.exists():
+    state_file: Path = daemon.DAEMON_STATE_FILE
+    if not state_file.exists():
         return False
-    _url, port, _token, _pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    _url, port, _token, _pid = _parse_daemon_file(state_file)
     return port is not None
 
 
 def _read_daemon_state_pid() -> int | None:
     """Return the PID from daemon state metadata, or ``None`` if absent/invalid."""
-    from specify_cli.sync.daemon import DAEMON_STATE_FILE, _parse_daemon_file
+    from specify_cli.sync import daemon
+    from specify_cli.sync.daemon import _parse_daemon_file
 
-    if not DAEMON_STATE_FILE.exists():
+    state_file: Path = daemon.DAEMON_STATE_FILE
+    if not state_file.exists():
         return None
-    _url, _port, _token, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    _url, _port, _token, pid = _parse_daemon_file(state_file)
     return pid
 
 

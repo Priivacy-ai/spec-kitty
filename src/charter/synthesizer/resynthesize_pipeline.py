@@ -34,7 +34,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from doctrine.drg.loader import load_graph_or_dir
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
@@ -561,16 +561,13 @@ def _load_merged_drg(
     Falls back to ``request.drg_snapshot`` if no project graph file exists.
     """
     project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
-    # cast: charter.* follow_imports=skip collapses SynthesisRequest.
-    # drg_snapshot's declared "Mapping[str, Any]" type to Any at this
-    # call site (request.py:144).
     if not project_graph_dir.exists():
-        return cast("Mapping[str, Any]", request.drg_snapshot)
+        return request.drg_snapshot
 
     try:
         project_graph_model = load_graph_or_dir(project_graph_dir)
     except Exception:  # noqa: BLE001
-        return cast("Mapping[str, Any]", request.drg_snapshot)
+        return request.drg_snapshot
     project_graph = project_graph_model.model_dump(mode="json")
 
     # Merge: combine nodes from both graphs (project overlay + built-in snapshot)

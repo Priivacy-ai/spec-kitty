@@ -470,10 +470,11 @@ def _plan_pipx(
     packaging: _RemediationPackaging,
 ) -> RemediationCommand:
     """Build a RemediationCommand for PIPX installs."""
+    argv: tuple[str, ...]
     if intent == RemediationIntent.UPGRADE:
-        argv: tuple[str, ...] = ("pipx", "upgrade", packaging.package_name)
+        argv = ("pipx", "upgrade", packaging.package_name)
     else:
-        argv: tuple[str, ...] = ("pipx", "install", "--include-deps", f"{packaging.package_name}[test]")
+        argv = ("pipx", "install", "--include-deps", f"{packaging.package_name}[test]")
     argv = _with_index_before_package(argv, packaging)
     return RemediationCommand(intent=intent, argv=argv, env={}, note=None)
 

@@ -489,7 +489,7 @@ def _feature_status_lock_root(feature_dir: Path, repo_root: Path | None) -> Path
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    return cast(Path, resolve_status_lock_root(feature_dir, repo_root))
+    return resolve_status_lock_root(feature_dir, repo_root)
 
 
 def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately

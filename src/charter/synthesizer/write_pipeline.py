@@ -202,16 +202,12 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
     - tactic:    ``<slug>.tactic.yaml``
     - styleguide: ``<slug>.styleguide.yaml``
     """
-    # cast: charter.* follow_imports=skip collapses artifact_filename's
-    # declared "-> str" return type to Any at this call site.
-    return cast("str", artifact_filename(kind, slug, artifact_id))
+    return artifact_filename(kind, slug, artifact_id)
 
 
 def _doctrine_kind_subdir(kind: str) -> str:
     """Return the doctrine subdirectory name for a given artifact kind."""
-    # cast: charter.* follow_imports=skip collapses doctrine_kind_subdir's
-    # declared "-> str" return type to Any at this call site.
-    return cast("str", doctrine_kind_subdir(kind))
+    return doctrine_kind_subdir(kind)
 
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:

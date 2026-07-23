@@ -719,6 +719,19 @@ def _finding_for_reconcile_marker(
             extra=base_extra,
         )
     coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
+    if mission_slug is None:
+        # No slug to resolve a planning directory — surface a warning rather
+        # than passing None into the read seam and crashing the doctor sweep.
+        return DoctorFinding(
+            severity="warning",
+            message=(
+                "A `pending_coord_reconcile` marker is present but its mission "
+                "carries no `mission_slug` to resolve a planning directory."
+            ),
+            next_step=_MARKER_UNRESOLVABLE_MISSION_HINT,
+            error_code=_MARKER_UNRESOLVABLE_MISSION_CODE,
+            extra=base_extra,
+        )
     try:
         # Same canonicalizing WORK_PACKAGE_TASK read seam the executor's mark/heal
         # use (folds a bare handle → `<slug>-<mid8>`), so all three strand sites

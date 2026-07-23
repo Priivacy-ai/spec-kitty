@@ -1811,9 +1811,7 @@ def _mt_shell_pid_baseline(pid: int) -> str | None:
     """
     from specify_cli.core.process_liveness import capture_creation_time_baseline
 
-    # cast: the specify_cli.* boundary makes the return type Any under
-    # follow_imports=skip; the real signature is ``str | None``.
-    return cast("str | None", capture_creation_time_baseline(pid))
+    return capture_creation_time_baseline(pid)
 
 
 def _mt_hop_policy_metadata(
