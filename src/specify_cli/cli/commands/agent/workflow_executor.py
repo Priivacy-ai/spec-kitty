@@ -137,17 +137,31 @@ def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> Wor
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True, slots=True)
+class _CommitFailureContext:
+    """The status-artifact rollback inputs threaded to :func:`_handle_commit_failure`.
+
+    coord-commit-integrity (campsite, Sonar S107): bundles the four rollback
+    coordinates — the event-log path + its pre-emit size and the status-snapshot
+    path + its pre-emit bytes — that ``_restore_status_artifacts`` needs to
+    truncate/restore the artifacts to their pre-emit state. Both ``except`` arms
+    in :func:`commit_workflow_change` share one identical instance, so the
+    failure handler takes this frozen bundle plus only the arm-specific fields.
+    """
+
+    events_path: Path
+    pre_emit_event_size: int
+    status_path: Path
+    pre_emit_status_bytes: bytes | None
+
+
 def _handle_commit_failure(
-    w: ModuleType,
     *,
     exc: Exception,
     receipt_ref: str,
     message: str,
     wp_id: str,
-    events_path: Path,
-    pre_emit_event_size: int,
-    status_path: Path,
-    pre_emit_status_bytes: bytes | None,
+    rollback: _CommitFailureContext,
     error_prefix: str,
     include_recovery_note: bool,
 ) -> NoReturn:
@@ -162,17 +176,19 @@ def _handle_commit_failure(
     When a chained ``safe_commit`` recovery already created a commit
     (``_safe_commit_recovery_commit_sha`` returns a SHA) the status artifacts
     are NOT rolled back (the commit is real); otherwise the event log / status
-    snapshot are restored to their pre-emit bytes. ``error_prefix`` is the arm-
-    specific message head (``": {exc}"`` is always appended); the legacy arm
-    additionally appends a recovery note (``include_recovery_note``).
+    snapshot are restored to their pre-emit bytes (from ``rollback``).
+    ``error_prefix`` is the arm-specific message head (``": {exc}"`` is always
+    appended); the legacy arm additionally appends a recovery note
+    (``include_recovery_note``).
     """
+    w = _wf()
     recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
     if recovery_commit_sha is None:
         w._restore_status_artifacts(
-            events_path=events_path,
-            pre_emit_event_size=pre_emit_event_size,
-            status_path=status_path,
-            pre_emit_status_bytes=pre_emit_status_bytes,
+            events_path=rollback.events_path,
+            pre_emit_event_size=rollback.pre_emit_event_size,
+            status_path=rollback.status_path,
+            pre_emit_status_bytes=rollback.pre_emit_status_bytes,
         )
     w._record_receipt(
         receipt_ref,
@@ -245,6 +261,12 @@ def commit_workflow_change(
     coord_branch, mission_id, mid8 = w._load_coord_branch_meta(primary_meta_dir)
     events_path = feature_dir / w._STATUS_EVENTS_FILENAME
     status_path = feature_dir / w._STATUS_FILENAME
+    rollback_ctx = _CommitFailureContext(
+        events_path=events_path,
+        pre_emit_event_size=pre_emit_event_size,
+        status_path=status_path,
+        pre_emit_status_bytes=pre_emit_status_bytes,
+    )
     # T017: the seam-resolved STATUS_STATE placement. The MECHANISM choice
     # below (BookkeepingTransaction vs. the legacy safe_commit fallback) still
     # keys off ``_load_coord_branch_meta`` — it needs the concrete
@@ -293,15 +315,11 @@ def commit_workflow_change(
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
             _handle_commit_failure(
-                w,
                 exc=exc,
                 receipt_ref=str(coord_branch),
                 message=message,
                 wp_id=wp_id,
-                events_path=events_path,
-                pre_emit_event_size=pre_emit_event_size,
-                status_path=status_path,
-                pre_emit_status_bytes=pre_emit_status_bytes,
+                rollback=rollback_ctx,
                 error_prefix=f"Error: Failed to record {operation} via BookkeepingTransaction",
                 include_recovery_note=False,
             )
@@ -365,15 +383,11 @@ def commit_workflow_change(
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
         _handle_commit_failure(
-            w,
             exc=exc,
             receipt_ref=placement.ref,
             message=message,
             wp_id=wp_id,
-            events_path=events_path,
-            pre_emit_event_size=pre_emit_event_size,
-            status_path=status_path,
-            pre_emit_status_bytes=pre_emit_status_bytes,
+            rollback=rollback_ctx,
             error_prefix=f"Error: Failed to commit workflow status update for {wp_id}",
             include_recovery_note=True,
         )
@@ -704,28 +718,20 @@ def _implement_start_claim(
     import os
 
     from runtime.next.runtime_bridge import build_operational_context_for_claim
-    from specify_cli.status import (
-        build_resolved_actor,
-        parse_agent_boundary_string,
-        start_implementation_status,
-    )
+    from specify_cli.status import start_implementation_status
+    from specify_cli.status.emit import build_self_asserting_actor
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
-    # FR-005: parse the compact ``--agent`` boundary string into a bare tool +
-    # self-asserted profile/model — the whole compact string must never land
-    # in actor.tool, and an absent segment stays None (no synthetic default).
-    parsed_tool: str | None = None
-    self_profile: str | None = None
-    self_model: str | None = None
-    if agent:
-        parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(agent)
-    transition_actor = build_resolved_actor(
+    # FR-005: route the compact ``--agent`` value through the single self-
+    # asserting actor seam — only the parsed BARE tool reaches actor.tool, an
+    # absent segment stays None (no synthetic default), and the dispatch
+    # binding wins over the self-asserted parse.
+    transition_actor = build_self_asserting_actor(
         role=_IMPLEMENT_CLAIM_ROLE,
-        tool=parsed_tool or wp_agent_assignment.tool,
+        agent=agent,
+        fallback_tool=wp_agent_assignment.tool,
         binding=resolved_binding,
-        self_profile=self_profile,
-        self_model=self_model,
     )
 
     # FR-017 / NFR-004: build and validate the runtime OperationalContext
@@ -1507,10 +1513,10 @@ def review_claim_transition(
     resolved_binding: ResolvedBinding | None = None,
 ) -> WorkPackage:
     """Claim a WP for review (``for_review`` -> ``in_review``) if applicable."""
-    from specify_cli.status import build_resolved_actor, start_review_status
+    from specify_cli.status import start_review_status
     from specify_cli.status import emit_inner_state_changed
-    from specify_cli.status import parse_agent_boundary_string
     from specify_cli.status import WPInnerStateDelta
+    from specify_cli.status.emit import build_self_asserting_actor
 
     w = _wf()
 
@@ -1540,16 +1546,17 @@ def review_claim_transition(
     if resolved_binding is not None:
         claim_delta_values.update(resolved_binding.to_delta(role=_REVIEW_CLAIM_ROLE).to_dict())
     claim_delta = WPInnerStateDelta.from_dict(claim_delta_values)
-    # FR-005: parse the compact ``--agent`` boundary string into a bare tool +
-    # self-asserted profile/model (``agent`` is guaranteed truthy here — the
-    # ``--agent`` required guard above already raised otherwise).
-    parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(agent)
-    transition_actor = build_resolved_actor(
+    # FR-005: route the compact ``--agent`` value through the single self-
+    # asserting actor seam — only the parsed BARE tool reaches actor.tool, an
+    # absent segment stays None, and the dispatch binding wins over the self-
+    # asserted parse (``agent`` is guaranteed truthy here — the ``--agent``
+    # required guard above already raised otherwise, so ``fallback_tool`` is
+    # unreachable).
+    transition_actor = build_self_asserting_actor(
         role=_REVIEW_CLAIM_ROLE,
-        tool=parsed_tool,
+        agent=agent,
+        fallback_tool=None,
         binding=resolved_binding,
-        self_profile=self_profile,
-        self_model=self_model,
     )
 
     with w.feature_status_lock(main_repo_root, mission_slug):

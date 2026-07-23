@@ -189,3 +189,104 @@ def test_2861_block_is_closed_manual_coord_review_succeeds(
     # review claim is confirmed in the output.
     assert _COMPACT_ACTOR in output, output
     assert "Claimed WP01 for review" in output, output
+
+
+def _git_show(repo: Path, ref: str, path: str) -> str | None:
+    """Return ``git show <ref>:<path>`` content, or ``None`` if absent on ref.
+
+    Reads COMMITTED tree state (not the filesystem) so the assertion pins what
+    the review claim actually persisted onto the coord branch.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo), "show", f"{ref}:{path}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def _last_in_review_actor(events_text: str, wp_id: str) -> dict[str, object]:
+    """Return the ``actor`` of the last ``* -> in_review`` transition for ``wp_id``.
+
+    Parses the committed ``status.events.jsonl`` and selects the terminal
+    review-claim transition — skipping any trailing ``InnerStateChanged``
+    annotation (whose actor is a plain string), so the assertion targets the
+    lane transition the FR-005 seam stamps with the structured actor.
+    """
+    selected: dict[str, object] | None = None
+    for line in events_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        event = json.loads(line)
+        if event.get("wp_id") == wp_id and event.get("to_lane") == "in_review":
+            selected = event
+    assert selected is not None, f"no in_review transition for {wp_id} in:\n{events_text}"
+    actor = selected["actor"]
+    assert isinstance(actor, dict), f"in_review actor is not a structured dict: {actor!r}"
+    return actor
+
+
+@pytest.mark.git_repo
+def test_2861_review_seam_persists_parsed_bare_tool_not_whole_agent_string(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-005 seam-wiring: the LIVE compact-``--agent`` review claim persists the
+    PARSED bare tool + self-asserted profile into the committed coord event.
+
+    The unit tests pin ``parse_agent_boundary_string`` + ``build_resolved_actor``
+    in isolation, but nothing pinned the 3 live seams actually threading the
+    PARSED bare token into the PERSISTED event. This drives the REAL
+    ``agent action review`` end-to-end against the sanctioned coord fixture and
+    reads the committed coord ``status.events.jsonl``: the last ``in_review``
+    transition's ``actor["tool"]`` MUST be the bare ``"claude"`` (NOT the whole
+    ``claude:opus:reviewer-renata:reviewer`` compact string — the #2861 leak),
+    and ``actor["profile"]`` MUST be the self-asserted ``"reviewer-renata"``.
+
+    Goes RED if any live seam reverts to ``tool=agent`` (the whole compact
+    string lands in ``actor.tool``) or drops the self-asserted profile parse.
+    """
+    monkeypatch.setenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", "1")
+    repo_root, mission_slug = _build_mission_repo(
+        tmp_path,
+        monkeypatch,
+        coord=True,
+        mission_slug="trio-coord-review",
+        wp_lane="for_review",
+        materialize_coord=True,
+    )
+    _materialize_lane_worktree(repo_root, mission_slug, "WP01")
+
+    result = runner.invoke(
+        root_app,
+        [
+            "agent",
+            "action",
+            "review",
+            "WP01",
+            "--mission",
+            mission_slug,
+            "--agent",
+            _COMPACT_ACTOR,
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    mid8 = mission_slug.rsplit("-", 1)[1]
+    coord_branch = f"kitty/mission-trio-coord-review-{mid8}"
+    events_rel = f"kitty-specs/{mission_slug}/status.events.jsonl"
+    coord_events = _git_show(repo_root, coord_branch, events_rel)
+    assert coord_events is not None, "status.events.jsonl must exist on the coord branch"
+
+    actor = _last_in_review_actor(coord_events, "WP01")
+    # The PARSED bare tool — NOT the whole compact --agent string (the #2861 leak).
+    assert actor["tool"] == "claude", (
+        f"the review seam must persist the PARSED bare tool, not the whole "
+        f"--agent string; got actor.tool={actor['tool']!r}"
+    )
+    # The self-asserted profile parsed from the --agent boundary string.
+    assert actor["profile"] == "reviewer-renata", (
+        f"the review seam must persist the self-asserted profile from the "
+        f"--agent value; got actor.profile={actor['profile']!r}"
+    )

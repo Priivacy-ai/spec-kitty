@@ -1147,6 +1147,48 @@ def parse_agent_boundary_string(
     return tool, (model_seg or None), (profile_seg or None), (role_seg or None)
 
 
+def build_self_asserting_actor(
+    *,
+    role: str,
+    agent: str | None,
+    fallback_tool: str | None,
+    binding: ResolvedBinding | None,
+) -> dict[str, str | None]:
+    """Build a claim/review transition actor from a compact ``--agent`` value.
+
+    THE single seam (FR-005) that every live claim/review call site routes
+    through. It composes the two thin primitives —
+    :func:`parse_agent_boundary_string` (parse the compact
+    ``tool:model:profile:role`` string into a **bare** tool plus self-asserted
+    profile/model, absent segments staying ``None``) and
+    :func:`build_resolved_actor` (a genuine dispatch-resolved ``binding`` always
+    wins; the self-asserted value only fills a gap the binding leaves open).
+
+    Crucially, only the **parsed bare tool** ever reaches ``actor["tool"]`` — the
+    whole compact ``--agent`` string must never land there (the #2861 leak this
+    seam closes). When ``agent`` is falsy no parse happens and ``fallback_tool``
+    carries the tool slot; a genuinely present ``agent`` always yields a
+    non-empty parsed tool (the parser raises on an empty tool segment), so the
+    fallback is only reached for a bindingless, agentless claim.
+
+    No synthetic default is ever fabricated and no :class:`ResolvedBinding` is
+    minted here (C-002/C-007): an identity segment absent on both the binding
+    and the self-asserted parse stays a plain ``None``.
+    """
+    parsed_tool: str | None = None
+    self_profile: str | None = None
+    self_model: str | None = None
+    if agent:
+        parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(agent)
+    return build_resolved_actor(
+        role=role,
+        tool=parsed_tool or fallback_tool,
+        binding=binding,
+        self_profile=self_profile,
+        self_model=self_model,
+    )
+
+
 @dataclass(frozen=True)
 class ResolvedBindingEmit:
     """Outcome of a resolved-binding claim-seam emit (FR-014 / T039).
