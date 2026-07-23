@@ -30,25 +30,28 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status import read_events
-from specify_cli.status.lifecycle_events import (
+
+# Access the status subsystem only through its package facade (the
+# status-module-boundary gate forbids new deep submodule imports).
+from specify_cli.status import (
     FOLLOW_UP_RECORDED,
     MISSION_CREATED,
     MISSION_REOPENED,
     WP_CREATED,
+    StatusEvent,
     mission_event_log_path,
+    read_authored_wp_frontmatter,
+    read_events,
     read_lifecycle_events,
 )
-from specify_cli.status.models import StatusEvent
-from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
 
 logger = logging.getLogger(__name__)
 
 _META_FILENAME = "meta.json"
 _TASKS_DIRNAME = "tasks"
 _DEFAULT_MISSION_TYPE = "software-dev"
-_KITTY_SPECS_ANCHOR = "kitty-specs"
 
 # The lifecycle event types that are deliberately local-only and MUST be kept
 # off the SaaS strict-validation path (status/lifecycle.py:165). We mirror that
@@ -267,8 +270,8 @@ def _ensure_wp_coverage(
 def _repo_relative_path(path: Path) -> str | None:
     """Return the POSIX ``kitty-specs/...`` path, matching the on-disk shape."""
     parts = path.parts
-    if _KITTY_SPECS_ANCHOR in parts:
-        return "/".join(parts[parts.index(_KITTY_SPECS_ANCHOR) :])
+    if KITTY_SPECS_DIR in parts:
+        return "/".join(parts[parts.index(KITTY_SPECS_DIR) :])
     return None
 
 

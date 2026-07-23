@@ -23,7 +23,7 @@ from specify_cli.sync.history_import.identity import ImportIdentity, resolve_imp
 from specify_cli.sync.history_import.scan import MissionScan, scan_missions
 from specify_cli.sync.history_import.synthesize import synthesize_streams
 from specify_cli.sync.history_import.upload import (
-    ProvenanceEntry,
+    ImportProvenanceEntry,
     UploadReport,
     build_provenance_manifest,
     run_import_upload,
@@ -127,7 +127,7 @@ class ApplyResult:
     """The outcome of an ``--apply`` run: the plan, its provenance, the upload."""
 
     plan: ImportPlan
-    manifest: list[ProvenanceEntry]
+    manifest: list[ImportProvenanceEntry]
     report: UploadReport
 
 
