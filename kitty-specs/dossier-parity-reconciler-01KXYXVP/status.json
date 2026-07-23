@@ -1,0 +1,56 @@
+{
+  "event_count": 37,
+  "last_event_id": "01KXZ80E1E80SC9VZB20CD3K9M",
+  "materialized_at": "2026-07-20T07:49:20.046132+00:00",
+  "mission_number": "185",
+  "mission_slug": "dossier-parity-reconciler-01KXYXVP",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KXZ80AP5292EZCNAJRDP8KF1",
+      "last_transition_at": "2026-07-20T07:49:16.613849+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXZ80BJ6SFQG4K025SSPTJHZ",
+      "last_transition_at": "2026-07-20T07:49:17.510831+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXZ80CD74PE2082BR1E0PZ9B",
+      "last_transition_at": "2026-07-20T07:49:18.375446+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXZ80D72N4Y44J6DAZ97CR6D",
+      "last_transition_at": "2026-07-20T07:49:19.202197+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXZ80E1E80SC9VZB20CD3K9M",
+      "last_transition_at": "2026-07-20T07:49:20.046132+00:00"
+    }
+  }
+}
