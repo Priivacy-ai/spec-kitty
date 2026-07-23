@@ -603,6 +603,28 @@ def test_declared_command_parse_results_dispatches_through_parse_mode(
     assert failures[0].test == "test_beta"
 
 
+def test_resolve_scope_source_overrides_do_not_affect_selection_or_identity(tmp_path: Path) -> None:
+    """#2893 invariant guard: the census filter/composite ``*_override`` params
+    must never change which source ``resolve_scope_source`` selects NOR its
+    identity token. Baseline capture resolves with NO overrides while the head
+    resolves WITH them — if an override leaked into selection or identity, every
+    fixture-override review would emit a spurious ``SOURCE_MISMATCH``. Pins the
+    latent invariant so a future change that folds override content into either
+    is caught here rather than in the field."""
+    raw = RawRunResult(returncode=0, stdout="", stderr="", output_artifact_path=None)
+    plain = scope_source.resolve_scope_source(tmp_path)
+    overridden = scope_source.resolve_scope_source(
+        tmp_path,
+        filter_groups_override={"core": ("tests/x",)},
+        composite_routing_override={},
+    )
+
+    # Same source class selected (no review.test_command -> GateCoverageScopeSource both sides).
+    assert type(plain) is type(overridden)
+    # Same identity token for the same run, overrides notwithstanding.
+    assert scope_source.scope_source_identity(plain, raw) == scope_source.scope_source_identity(overridden, raw)
+
+
 def test_declared_command_identity_is_stable_across_clean_and_failing_runs(tmp_path: Path) -> None:
     """Finding-1 regression (landing fold): a stably-configured text-convention
     source yields the SAME ``source_identity`` whether a run was clean or found
