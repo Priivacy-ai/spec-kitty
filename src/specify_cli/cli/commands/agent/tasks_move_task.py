@@ -1891,7 +1891,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
         transition_actor: str | dict[str, str | None] = hop_actor
         annotation_delta = None
         if binding_role is not None and st.resolved_binding is not None:
-            from specify_cli.status.emit import build_self_asserting_actor
+            from specify_cli.status import build_self_asserting_actor
 
             # FR-005: route the compact ``--agent`` value through the single
             # self-asserting actor seam — only the parsed BARE tool reaches

@@ -719,7 +719,7 @@ def _implement_start_claim(
 
     from runtime.next.runtime_bridge import build_operational_context_for_claim
     from specify_cli.status import start_implementation_status
-    from specify_cli.status.emit import build_self_asserting_actor
+    from specify_cli.status import build_self_asserting_actor
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
@@ -1516,7 +1516,7 @@ def review_claim_transition(
     from specify_cli.status import start_review_status
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import WPInnerStateDelta
-    from specify_cli.status.emit import build_self_asserting_actor
+    from specify_cli.status import build_self_asserting_actor
 
     w = _wf()
 
