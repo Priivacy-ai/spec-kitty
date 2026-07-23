@@ -13,44 +13,37 @@ Key responsibilities:
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-import hashlib
 import json
 from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.core.paths import assert_safe_path_segment
+from .hasher import compute_dossier_snapshot_hash
 from .models import MissionDossier, MissionDossierSnapshot
 
 
 def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
-    """Compute SHA256 parity hash from artifact content hashes.
+    """Compute the canonical dossier snapshot hash for a dossier (FR-008).
 
-    Algorithm (order-independent):
-    1. Extract content_hash_sha256 from all artifacts (skip missing/unreadable)
-    2. Sort hashes lexicographically
-    3. Concatenate sorted hashes
-    4. Compute SHA256 of concatenation
-    5. Return hex string
+    Delegates to WP01's single canonical definition
+    :func:`specify_cli.dossier.hasher.compute_dossier_snapshot_hash` over the
+    ``(relative_path, content_hash)`` entries of the present artifacts. The
+    canonical form is content-addressed, order-independent (sorted by path),
+    and byte-identical to the SaaS server (cross-repo contract C-003). The
+    prior concat-of-hashes / bare-hex form is retired (FR-003).
 
     Args:
         dossier: MissionDossier with indexed artifacts
 
     Returns:
-        Hex string of SHA256 parity hash (64 characters)
+        The canonical ``"sha256:<64-hex>"`` snapshot hash.
     """
-    # 1. Extract hashes from present artifacts only
-    present_hashes = [a.content_hash_sha256 for a in dossier.artifacts if a.is_present and a.content_hash_sha256]
-
-    # 2. Sort lexicographically
-    sorted_hashes = sorted(present_hashes)
-
-    # 3. Concatenate
-    combined = "".join(sorted_hashes)
-
-    # 4. Hash
-    parity_hash = hashlib.sha256(combined.encode()).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-
-    return parity_hash
+    entries: list[tuple[str, str | None]] = [(a.relative_path, a.content_hash_sha256) for a in dossier.artifacts if a.is_present and a.content_hash_sha256]
+    # Explicit annotation: mypy's narrow-file override skips following the
+    # specify_cli.* import graph, so the canonical function's declared ``str``
+    # return would otherwise read as ``Any`` here.
+    canonical_hash: str = compute_dossier_snapshot_hash(entries)
+    return canonical_hash
 
 
 def get_parity_hash_components(dossier: MissionDossier) -> list[str]:
@@ -73,7 +66,7 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
     1. Sort artifacts by artifact_key (deterministic ordering)
     2. Count artifacts by status (required/optional, present/missing)
     3. Compute completeness status (all required present? → complete)
-    4. Compute parity hash (sorted artifact hashes, combined hash)
+    4. Compute the canonical parity hash (see compute_parity_hash_from_dossier)
     5. Return snapshot object
 
     Args:

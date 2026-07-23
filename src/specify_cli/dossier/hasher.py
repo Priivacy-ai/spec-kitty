@@ -1,14 +1,30 @@
 """Deterministic SHA256 hashing utilities for mission artifacts.
 
-This module provides functions and classes for computing deterministic
-content hashes and order-independent parity hashes, critical for
-reproducible artifact indexing and drift detection.
+This module is the single owning definition (C-001) of the **canonical
+dossier snapshot hash** used across the CLI and the SaaS server
+(spec-kitty#2180). It also provides per-artifact content hashing and the
+normalized WP static-projection input the snapshot hash is computed over.
 
-See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
+Canonical dossier snapshot hash (:func:`compute_dossier_snapshot_hash`):
+    sort entries by artifact path; join ``"{path}\\t{content_hash}"`` lines
+    with newlines; ``sha256`` the utf-8 bytes; prefix the hex digest with
+    ``sha256:``. This is byte-identical to the server's
+    ``apps/dossier/materialize.py::_compute_snapshot_hash`` (cross-repo
+    contract C-003). The prior concat-of-hashes / bare-hex form is retired.
+
+See: kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md (FR-001..FR-003,
+C-001, C-004) and kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
+from __future__ import annotations
+
 import hashlib
+import json
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from specify_cli.status.wp_metadata import WPMetadata
 
 
 def hash_file(file_path: Path) -> str:
@@ -124,94 +140,109 @@ def hash_file_with_validation(file_path: Path) -> tuple[str | None, str | None]:
         return None, "unreadable"
 
 
-class Hasher:
-    """Compute order-independent parity hash from artifact hashes.
+def compute_dossier_snapshot_hash(entries: list[tuple[str, str | None]]) -> str:
+    """Compute the ONE canonical dossier snapshot hash (FR-001, FR-003, C-001).
 
-    Maintains a pool of artifact hashes and computes deterministic parity hash
-    by lexicographically sorting hashes before concatenation. This ensures
-    that artifacts indexed in any order produce identical parity hash,
-    critical for reproducible dossier snapshots.
+    This is the single owning definition of the snapshot hash. It is
+    byte-identical to the SaaS server's
+    ``apps/dossier/materialize.py::_compute_snapshot_hash`` (cross-repo
+    contract C-003, spec-kitty#2180) — do NOT change the ordering, separator,
+    or algorithm without updating the server in lock-step.
 
-    Attributes:
-        hashes: List of artifact content hashes (hex strings)
+    Algorithm:
+        1. Sort ``(artifact_path, content_hash)`` entries by path (tuple sort).
+        2. Join ``"{path}\\t{content_hash or ''}"`` lines with ``"\\n"``.
+        3. ``sha256`` the utf-8 encoded bytes.
+        4. Prefix the lowercase hex digest with ``"sha256:"``.
+
+    Content-addressed and order-independent: any artifact add/remove/update
+    changes the digest; the on-disk scan order does not. An empty ``entries``
+    list hashes the empty string, a stable sentinel shared with the server.
+
+    Args:
+        entries: ``(artifact_path, content_hash)`` pairs. ``content_hash`` may
+            be ``None`` (treated as the empty string, matching the server).
+
+    Returns:
+        The canonical ``"sha256:<64-hex>"`` digest.
 
     Examples:
-        >>> hasher = Hasher()
-        >>> hasher.add_artifact_hash("abc123def456")
-        >>> hasher.add_artifact_hash("xyz789")
-        >>> parity = hasher.compute_parity_hash()
-        >>> len(parity)
-        64
-        >>> # Order independence: same hashes, different order
-        >>> hasher2 = Hasher()
-        >>> hasher2.add_artifact_hash("xyz789")
-        >>> hasher2.add_artifact_hash("abc123def456")
-        >>> hasher2.compute_parity_hash() == parity
+        >>> compute_dossier_snapshot_hash([("b.md", "y"), ("a.md", "x")]) == \
+        ...     compute_dossier_snapshot_hash([("a.md", "x"), ("b.md", "y")])
         True
     """
+    lines = "\n".join(f"{path}\t{content_hash or ''}" for path, content_hash in sorted(entries))
+    digest = hashlib.sha256(lines.encode("utf-8")).hexdigest()  # noqa: TID251 - canonical snapshot-hash owner
+    return f"sha256:{digest}"
 
-    def __init__(self) -> None:
-        """Initialize empty hash pool."""
-        self.hashes: list[str] = []
 
-    def add_artifact_hash(self, artifact_hash: str) -> None:
-        """Add artifact hash to pool.
+# ── Normalized WP static projection (FR-002, C-004) ─────────────────────────
 
-        Args:
-            artifact_hash: 64-character SHA256 hex string (or other hash)
+# The canonical, churn-free subset of WP frontmatter that defines a work
+# package's *content* (its contract) — as opposed to its runtime execution /
+# review state (lane, agent, shell_pid, history, assignee, review_* , etc.),
+# which mutate during a mission and MUST NOT move the content hash (AS-4).
+#
+# This shape is load-bearing for cross-repo parity: #2686 (server-side WP
+# projection) and #2684 (runtime-state eviction) conform to THIS definition
+# rather than redefining it (C-004, A-002). Add a field here only if it is
+# genuinely part of the WP's authored specification, never its live state.
+WP_STATIC_PROJECTION_FIELDS: tuple[str, ...] = (
+    "work_package_id",
+    "title",
+    "dependencies",
+    "requirement_refs",
+    "tracker_refs",
+    "priority",
+    "execution_mode",
+    "owned_files",
+    "create_intent",
+    "authoritative_surface",
+    "scope",
+    "task_type",
+    "subtasks",
+    "phase",
+)
 
-        Raises:
-            ValueError: If artifact_hash is not a non-empty string
-        """
-        if not artifact_hash or not isinstance(artifact_hash, str):
-            raise ValueError(f"artifact_hash must be non-empty string; got {repr(artifact_hash)}")
-        self.hashes.append(artifact_hash)
 
-    def compute_parity_hash(self) -> str:
-        """Compute order-independent parity hash from pooled hashes.
+def wp_static_projection(meta: WPMetadata) -> dict[str, Any]:
+    """Project a :class:`WPMetadata` onto its canonical static content fields.
 
-        Algorithm:
-        1. Sort artifact hashes lexicographically
-        2. Concatenate sorted hashes into single string
-        3. Compute SHA256 of concatenated string
-        4. Return 64-character hex string
+    Returns only the :data:`WP_STATIC_PROJECTION_FIELDS` — the authored WP
+    contract — dropping every runtime-mutable field so downstream hashing is
+    immune to execution/review churn (FR-002, AS-4).
 
-        Order-independent: artifacts can be scanned in any order,
-        parity hash will be identical.
+    Args:
+        meta: Parsed WP frontmatter.
 
-        Returns:
-            64-character lowercase hex string (SHA256 of concatenated sorted hashes)
+    Returns:
+        A plain ``dict`` of the static projection (JSON-serializable values).
+    """
+    return {field: getattr(meta, field) for field in WP_STATIC_PROJECTION_FIELDS}
 
-        Examples:
-            >>> hasher = Hasher()
-            >>> hasher.add_artifact_hash("zzz")
-            >>> hasher.add_artifact_hash("aaa")
-            >>> hasher.add_artifact_hash("mmm")
-            >>> parity1 = hasher.compute_parity_hash()
-            >>> hasher2 = Hasher()
-            >>> hasher2.add_artifact_hash("aaa")
-            >>> hasher2.add_artifact_hash("zzz")
-            >>> hasher2.add_artifact_hash("mmm")
-            >>> parity2 = hasher2.compute_parity_hash()
-            >>> parity1 == parity2
-            True
-        """
-        # Sort hashes lexicographically
-        sorted_hashes = sorted(self.hashes)
 
-        # Concatenate into single string
-        combined = "".join(sorted_hashes)
+def hash_wp_static_projection(meta: WPMetadata) -> str:
+    """Content-hash the normalized WP static projection (FR-002, C-004).
 
-        # Compute SHA256 of concatenated string
-        parity_hasher = hashlib.sha256()  # noqa: TID251 - production raw SHA-256 owner
-        parity_hasher.update(combined.encode("utf-8"))
+    Serializes :func:`wp_static_projection` deterministically (sorted keys,
+    compact separators) and returns its ``sha256`` hex digest. This is the
+    per-WP ``content_hash`` input to :func:`compute_dossier_snapshot_hash`,
+    replacing raw ``WP##.md`` byte hashing so runtime-mutable churn does not
+    change the dossier snapshot hash.
 
-        return parity_hasher.hexdigest()
+    Args:
+        meta: Parsed WP frontmatter.
 
-    def get_sorted_hashes(self) -> list[str]:
-        """Get sorted artifact hashes (for audit/debugging).
-
-        Returns:
-            Lexicographically sorted list of artifact hashes
-        """
-        return sorted(self.hashes)
+    Returns:
+        64-character lowercase hex string (bare digest, no ``sha256:`` prefix
+        — it is a per-artifact content hash, matching the raw-byte form's
+        shape so it validates as an ``ArtifactRef.content_hash_sha256``).
+    """
+    payload = json.dumps(
+        wp_static_projection(meta),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()  # noqa: TID251 - canonical WP projection-hash owner
