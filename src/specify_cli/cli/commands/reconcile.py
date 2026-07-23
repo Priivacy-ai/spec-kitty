@@ -77,21 +77,6 @@ _EXIT_ERROR = 2
 _DEFAULT_MISSION_TYPE = "software-dev"
 
 
-def _present_projection(artifacts: object) -> list[tuple[str, str | None]]:
-    """Project present artifacts to canonical ``(path, content_hash)`` entries.
-
-    Present-only, so both the freshly-rebuilt source and the recorded snapshot
-    are projected symmetrically (an added/removed file surfaces as a NAMED
-    divergence, a byte change as a content mismatch). This is the exact input
-    shape WP01's canonical hash consumes.
-    """
-    entries: list[tuple[str, str | None]] = []
-    for artifact in artifacts:  # type: ignore[attr-defined]
-        if getattr(artifact, "is_present", False):
-            entries.append((artifact.relative_path, artifact.content_hash_sha256))
-    return entries
-
-
 def reconcile_mission_dossier(
     mission_slug: str,
     *,
@@ -148,7 +133,7 @@ def reconcile_mission_dossier(
     # Load the recorded snapshot FIRST: with no record there is nothing to
     # reconcile against, and fabricating a pass would violate fail-closed.
     try:
-        from specify_cli.dossier.snapshot import load_snapshot
+        from specify_cli.dossier.snapshot import load_snapshot, present_projection
 
         recorded_snapshot = load_snapshot(feature_dir, mission_slug)
     except Exception as exc:  # noqa: BLE001 - fail-closed: any load failure is an ERROR
@@ -174,10 +159,8 @@ def reconcile_mission_dossier(
             error=f"could not rebuild dossier from source for {mission_slug}: {exc}",
         )
 
-    source_projection = _present_projection(dossier.artifacts)
-    recorded_projection = [
-        (str(summary.get("relative_path", "")), summary.get("content_hash_sha256")) for summary in recorded_snapshot.artifact_summaries if summary.get("is_present")
-    ]
+    source_projection = present_projection(dossier.artifacts)
+    recorded_projection = present_projection(recorded_snapshot.artifact_summaries)
 
     # WP03 owns hashing + comparison (C-001). We never pass the snapshot's stored
     # parity_hash: it is the legacy concat-of-hashes form, not WP01's canonical

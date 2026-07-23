@@ -1003,3 +1003,24 @@ class TestSnapshotTraversalGuard:
         """load_snapshot with a traversal slug must raise ValueError."""
         with pytest.raises(ValueError):
             load_snapshot(tmp_path, bad_slug)
+
+
+class TestPresentProjection:
+    """#2883 item 2: the single present-artifact projection shared by the
+    snapshot-hash producer and the reconciler's source/recorded sides."""
+
+    def test_filters_and_treats_objects_and_dicts_identically(self):
+        from types import SimpleNamespace
+
+        from specify_cli.dossier.snapshot import present_projection
+
+        rows = [
+            {"relative_path": "spec.md", "content_hash_sha256": "aaa", "is_present": True},
+            {"relative_path": "gone.md", "content_hash_sha256": "bbb", "is_present": False},  # absent → dropped
+            {"relative_path": "empty.md", "content_hash_sha256": "", "is_present": True},  # present, no hash → dropped
+        ]
+        objects = [SimpleNamespace(**row) for row in rows]
+
+        expected = [("spec.md", "aaa")]
+        assert present_projection(rows) == expected  # recorded summary dicts
+        assert present_projection(objects) == expected  # ArtifactRef-shaped objects — one definition

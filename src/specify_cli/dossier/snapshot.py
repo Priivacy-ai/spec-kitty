@@ -14,12 +14,39 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
 import json
+from collections.abc import Iterable, Mapping
 from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.core.paths import assert_safe_path_segment
 from .hasher import compute_dossier_snapshot_hash
 from .models import MissionDossier, MissionDossierSnapshot
+
+
+def _artifact_field(artifact: object, key: str) -> object:
+    """Read *key* from either an ArtifactRef object or a recorded summary dict."""
+    if isinstance(artifact, Mapping):
+        return artifact.get(key)
+    return getattr(artifact, key, None)
+
+
+def present_projection(artifacts: Iterable[object]) -> list[tuple[str, str | None]]:
+    """Canonical ``(relative_path, content_hash)`` projection of PRESENT artifacts.
+
+    Single source of the present-artifact filter used by BOTH the snapshot-hash
+    producer and the reconciler's source/recorded projections, so they can never
+    drift apart (#2883 item 2). An artifact contributes iff it is present with a
+    non-empty content hash — the exact basis the recorded snapshot hash is built
+    on. Accepts both :class:`ArtifactRef` objects and recorded summary dicts so
+    the source (objects) and recorded (dicts) sides share one definition.
+    """
+    entries: list[tuple[str, str | None]] = []
+    for artifact in artifacts:
+        content_hash = _artifact_field(artifact, "content_hash_sha256")
+        if _artifact_field(artifact, "is_present") and content_hash:
+            relative_path = _artifact_field(artifact, "relative_path")
+            entries.append((str(relative_path or ""), str(content_hash)))
+    return entries
 
 
 def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
@@ -38,7 +65,7 @@ def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
     Returns:
         The canonical ``"sha256:<64-hex>"`` snapshot hash.
     """
-    entries: list[tuple[str, str | None]] = [(a.relative_path, a.content_hash_sha256) for a in dossier.artifacts if a.is_present and a.content_hash_sha256]
+    entries = present_projection(dossier.artifacts)
     # Explicit annotation: mypy's narrow-file override skips following the
     # specify_cli.* import graph, so the canonical function's declared ``str``
     # return would otherwise read as ``Any`` here.
@@ -55,7 +82,7 @@ def get_parity_hash_components(dossier: MissionDossier) -> list[str]:
     Returns:
         Sorted list of SHA256 hashes from present artifacts
     """
-    present_hashes = [a.content_hash_sha256 for a in dossier.artifacts if a.is_present and a.content_hash_sha256]
+    present_hashes = [content_hash for _, content_hash in present_projection(dossier.artifacts) if content_hash]
     return sorted(present_hashes)
 
 

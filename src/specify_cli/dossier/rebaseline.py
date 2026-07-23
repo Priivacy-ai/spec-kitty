@@ -27,6 +27,13 @@ Design guarantees:
   source artifact.
 - **Idempotent.** A snapshot already in the canonical (``sha256:``-prefixed)
   form is left byte-for-byte untouched, so re-running is a no-op.
+- **Full re-snapshot, NOT a pure hash reformat (#2883 item 7).** A non-canonical
+  recorded hash is replaced by recomputing over *current* source, so any source
+  change made since the last emit is absorbed into the new baseline. In other
+  words re-baseline silently advances the recorded hash to current source and
+  thereby masks any pre-cutover drift. This is intentional for the one-time
+  cutover and bounded by A-003 (no live hosted customers); a later reader must
+  not mistake it for reformatting the stored value in place.
 
 See: kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md (FR-009, NFR-003,
 A-003) and tasks/WP05-rebaseline-migration.md (T019-T021).
