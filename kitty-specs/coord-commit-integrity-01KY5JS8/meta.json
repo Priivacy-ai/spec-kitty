@@ -1,0 +1,18 @@
+{
+  "coordination_branch": "kitty/mission-coord-commit-integrity-01KY5JS8",
+  "created_at": "2026-07-22T18:53:05.529695+00:00",
+  "flattened": false,
+  "friendly_name": "Trusted mission-artifact commit path",
+  "mission_id": "01KY5JS83S0413RQJT172RZR8T",
+  "mission_number": null,
+  "mission_slug": "coord-commit-integrity-01KY5JS8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Coordination-branch drift (#2841) and the review-claim actor leak (#2861) share one commit seam: mission artifacts get written to the wrong partition or with an invalid actor, then break at merge or block mid-flow. This mission routes every mission-artifact write through one placement port so a wrong-partition write is unrepresentable at commit, fixes the actor identity on the same path, stops the diff-compliance gate blocking a mission's own runtime state, and adds a non-blocking coord-staleness signal.",
+  "purpose_tldr": "Make the coordination-branch bookkeeping commit path correct-by-construction so mission status/review artifacts can no longer silently diverge or block the loop.",
+  "slug": "coord-commit-integrity-01KY5JS8",
+  "target_branch": "remediation/coord-trust-2841",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T20:05:06.507249+00:00"
+}
