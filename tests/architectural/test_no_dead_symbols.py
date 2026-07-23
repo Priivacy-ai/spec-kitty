@@ -950,7 +950,10 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # exclusively via resolve_scope_source() (same-module) since WP04's FR-014
         # rewire; real caller confirmed via tasks_move_task._mt_resolve_scope_source
         # -> resolve_scope_source -> GateCoverageScopeSource(...).
-        SymbolKey("GateCoverageScopeSource", "b6749c13ceb0eb0b8f9484f46f288ac8e5f022d069188a1cafc9280c57c4d2c4"),
+        # Content-hash re-pin (landing fold #2892): parse_results now consumes
+        # parse_mode's result in its branch condition (was a discarded call),
+        # moving the class body hash b6749c1 -> 07f52ef. Still same-module-constructed.
+        SymbolKey("GateCoverageScopeSource", "07f52ef5a1d46d26494964082ad14dbe83e7009c88987837e4096b3de4226be8"),
         # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
