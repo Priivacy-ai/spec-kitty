@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, TypeGuard, cast, runtime_checkable
 
 from kernel.paths import to_posix
 from specify_cli.review._interpreter import resolve_pytest_command
@@ -190,7 +190,7 @@ class ScopeBreakdownSource(Protocol):
 # ---------------------------------------------------------------------------
 
 
-def exposes_scope_breakdown(source: ScopeSource) -> bool:
+def exposes_scope_breakdown(source: ScopeSource) -> TypeGuard[ScopeBreakdownSource]:
     """Capability signal: does ``source`` expose the breakdown refinement?
 
     Backs ``isinstance(source, ScopeBreakdownSource)`` — structural presence
@@ -198,6 +198,12 @@ def exposes_scope_breakdown(source: ScopeSource) -> bool:
     :func:`empty_scope_is_coverage_gap` (T008 un-weld, carla-2 guard): a
     source can implement ``scope_breakdown`` without opting into the
     empty-scope-is-a-gap policy, and vice versa.
+
+    A :class:`~typing.TypeGuard` (not a bare ``bool``): the capability check IS
+    a type refinement, so a caller that gates on it narrows ``source`` to
+    :class:`ScopeBreakdownSource` and can reach :meth:`~ScopeBreakdownSource.scope_breakdown`
+    without a cast — the un-weld from :func:`empty_scope_is_coverage_gap` is
+    unaffected (that predicate stays a plain policy ``bool``).
     """
     return isinstance(source, ScopeBreakdownSource)
 
