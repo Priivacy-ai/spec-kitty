@@ -1,0 +1,31 @@
+{
+  "accept_commit": "b66b35b3e9c07d9fa3da88029bd9e37bd836a79c",
+  "acceptance_history": [
+    {
+      "accept_commit": "b66b35b3e9c07d9fa3da88029bd9e37bd836a79c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-23T15:43:45.469611+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "8acfff533f01e09744571c83a62ff3bff6e81595"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-23T15:43:45.469611+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "8acfff533f01e09744571c83a62ff3bff6e81595",
+  "baseline_merge_commit": "6a4faa81955f70d0a73bd2c0757cc80d3d3da73b",
+  "coordination_branch": "kitty/mission-scopesource-gate-followup-01KY6S9P",
+  "created_at": "2026-07-23T06:06:10.138751+00:00",
+  "flattened": false,
+  "friendly_name": "ScopeSource gate follow-up: cleanup & correctness",
+  "mission_id": "01KY6S9P6T2N0SJ84YXYSJ4P3W",
+  "mission_number": null,
+  "mission_slug": "scopesource-gate-followup-01KY6S9P",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The doctrine-controlled transition gates (half A, #2871) shipped with three deliberately-deferred follow-ups (#2873): a fully-duplicated dead census-derivation tier, a port contract that welds two orthogonal concerns onto one type check, and — most importantly — an unrealized 'one command authority for baseline and head' promise that mis-reports every review as failing the moment a consumer uses a non-pytest test command or half B adds a second command source. This mission retires the dead code, decouples the port, and closes the baseline-head correctness split so the gate is correct and clean before half B (#2599).",
+  "purpose_tldr": "Retire dead code and close a latent baseline-comparison bug in the doctrine-controlled review gate, before its executable-assets successor (half B) builds on it.",
+  "slug": "scopesource-gate-followup-01KY6S9P",
+  "target_branch": "fix/scopesource-gate-followup",
+  "topology": "coord"
+}

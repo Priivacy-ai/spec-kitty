@@ -1,0 +1,71 @@
+{
+  "event_count": 35,
+  "last_event_id": "01KY7TGPATZF8EXVSNSJTT29PW",
+  "materialized_at": "2026-07-23T15:46:42.650273+00:00",
+  "mission_number": "",
+  "mission_slug": "scopesource-gate-followup-01KY6S9P",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY7TFW37CFF2VTNH9FQ36M40",
+      "last_transition_at": "2026-07-23T15:46:15.783881+00:00",
+      "shell_pid": 1000127,
+      "shell_pid_created_at": "1784808807.75"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY7TG2T7B5VW5SQW055K6KDC",
+      "last_transition_at": "2026-07-23T15:46:22.663202+00:00",
+      "shell_pid": 1089850,
+      "shell_pid_created_at": "1784810426.03"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY7TG9B9N58K5VSMVBZAPRY6",
+      "last_transition_at": "2026-07-23T15:46:29.353906+00:00",
+      "shell_pid": 1139613,
+      "shell_pid_created_at": "1784812600.35"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY7TGFWCXTKZNYWW2S0WP9CB",
+      "last_transition_at": "2026-07-23T15:46:36.044390+00:00",
+      "shell_pid": 1197446,
+      "shell_pid_created_at": "1784814917.35"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY7TGPATZF8EXVSNSJTT29PW",
+      "last_transition_at": "2026-07-23T15:46:42.650273+00:00",
+      "shell_pid": 1290749,
+      "shell_pid_created_at": "1784819918.49"
+    }
+  }
+}
