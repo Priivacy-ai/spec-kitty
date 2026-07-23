@@ -555,8 +555,10 @@ class TestFinalizeLeavesNoPrimaryResidue:
         assert result.exit_code == 0, f"finalize failed:\n{result.output}"
 
         # write-surface-coherence WP01: ``kind`` is REQUIRED. record-analysis
-        # writes ``ANALYSIS_REPORT`` (a COORD-partition kind), so its placement
-        # resolves to the coordination ref under coord topology.
+        # writes ``ANALYSIS_REPORT``, which coord-commit-integrity FR-003
+        # re-homed COORD->PRIMARY -- its placement resolves to the primary ref
+        # even though this mission's topology routes other kinds through
+        # coordination (checked separately below).
         placement = resolve_placement_only(
             repo, mission_slug, kind=MissionArtifactKind.ANALYSIS_REPORT
         )

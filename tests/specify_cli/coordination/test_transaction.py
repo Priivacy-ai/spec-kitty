@@ -843,6 +843,99 @@ def test_write_artifact_preserves_existing_file_mode(repo: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_worktree_has_pending_changes_fails_open_when_git_unreadable(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F-1: an unreadable ``git status`` must fail OPEN (return ``True``).
+
+    ``_worktree_has_pending_changes`` backs :meth:`commit_idempotent`'s no-op
+    detection: reporting "no pending changes" incorrectly would route the
+    commit through the no-op arm and silently skip a real transition. When
+    git itself cannot be consulted (non-zero returncode -- e.g. a corrupted
+    worktree), the safety net must fail OPEN so the caller falls through to
+    the ordinary strict-commit path, which then surfaces the real failure.
+    """
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="pending_changes_fail_open",
+    ) as txn:
+        txn.append_event(_make_event("WP01", "claimed"))
+        assert txn._staged_paths
+
+        def _unreadable_status(
+            *_args: Any, **_kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(
+                args=[], returncode=128, stdout="", stderr="fatal: not a git repository",
+            )
+
+        with monkeypatch.context() as m:
+            m.setattr(transaction_module.subprocess, "run", _unreadable_status)
+            assert txn._worktree_has_pending_changes() is True
+
+        txn.commit("status: cleanup after fail-open probe")
+
+
+def test_noop_commit_receipt_raises_when_head_unreadable(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F-2: ``_noop_commit_receipt`` must raise when HEAD cannot be resolved.
+
+    The no-op arm is only reached when :meth:`_worktree_has_pending_changes`
+    believes the transition is already durable at HEAD. If ``git rev-parse
+    HEAD`` itself fails or returns an empty SHA, that belief cannot be
+    confirmed, so the safety net must raise :class:`BookkeepingCommitFailed`
+    rather than hand the caller a receipt pinned at an unresolved commit.
+    """
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="noop_receipt_head_unreadable",
+    ) as txn:
+
+        def _unreadable_head(
+            *_args: Any, **_kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(
+                args=[], returncode=1, stdout="", stderr="fatal: bad HEAD",
+            )
+
+        with monkeypatch.context() as m:
+            m.setattr(transaction_module.subprocess, "run", _unreadable_head)
+            with pytest.raises(BookkeepingCommitFailed, match="could not resolve HEAD"):
+                txn._noop_commit_receipt()
+
+
+def test_commit_idempotent_raises_if_committed_without_receipt(repo: Path) -> None:
+    """E-3: ``commit_idempotent`` must not fall through to an implicit ``None``.
+
+    Models the invariant violation the removed ``assert`` used to guard: an
+    ``assert`` shaping a runtime return is stripped under ``python -O``, which
+    would let ``commit_idempotent`` violate its ``-> CommitReceipt`` contract
+    by returning ``None``. The replacement raises
+    :class:`BookkeepingCommitFailed` instead, matching
+    :meth:`_noop_commit_receipt`'s explicit-raise style.
+    """
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="commit_idempotent_invariant",
+    ) as txn:
+        txn._committed = True
+        with pytest.raises(BookkeepingCommitFailed, match="no commit receipt"):
+            txn.commit_idempotent("status: should not happen")
+
+
 def test_nested_lock_attempt_times_out_from_other_thread(repo: Path) -> None:
     """A second acquire() from a different thread must hit the lock timeout."""
     # First, acquire the lock in the main thread and HOLD it.

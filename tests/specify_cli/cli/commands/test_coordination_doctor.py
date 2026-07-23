@@ -206,10 +206,14 @@ def test_run_coordination_health_error_exit(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    # `run_coordination_health` now calls `_collect_coordination_findings` with
+    # the `check_staleness` keyword unconditionally (E-1 fix: the closure that
+    # used to preserve a single-positional-arg call shape was removed) — the
+    # stub must accept it.
     monkeypatch.setattr(
         cd,
         "_collect_coordination_findings",
-        lambda _r: [cd.DoctorFinding(severity="error", message="boom")],
+        lambda _r, **_k: [cd.DoctorFinding(severity="error", message="boom")],
     )
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=True)
@@ -220,10 +224,12 @@ def test_run_coordination_health_clean_exit(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    # See test_run_coordination_health_error_exit above: the stub must accept
+    # the `check_staleness` keyword now that the call is unconditional.
     monkeypatch.setattr(
         cd,
         "_collect_coordination_findings",
-        lambda _r: [cd.DoctorFinding(severity="ok", message="fine")],
+        lambda _r, **_k: [cd.DoctorFinding(severity="ok", message="fine")],
     )
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=False)

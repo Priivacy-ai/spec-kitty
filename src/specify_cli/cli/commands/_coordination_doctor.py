@@ -34,7 +34,6 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NoReturn
 
 import typer
 
@@ -575,23 +574,48 @@ def _coord_branch_stale_vs_target_finding(
     )
 
 
+def _coord_vs_target_shas(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> tuple[str, str, str, str] | None:
+    """Resolve ``(coord_branch, target_branch, coord_sha, target_sha)`` for one mission.
+
+    Shared identity + ``target_branch`` + SHA-resolution preamble (A-3,
+    coord-commit-integrity squad) for every Gap-1 coord-vs-target call site
+    (:func:`_check_coord_branch_staleness`, :func:`_fix_one_mission_coord_staleness`).
+    Returns ``None`` when the mission is legacy/non-coordinated, its
+    slug/mission_id/``target_branch`` identity is incomplete, or either ref is
+    unreadable. Deliberately does NOT compare the two SHAs for equality --
+    "already in sync" means something different to each caller (a
+    non-finding vs. nothing-to-fix), so that decision stays with them.
+    """
+    identity = _coordination_identity(mission_meta)
+    if identity is None:
+        return None
+    coord_branch, mission_slug, mission_id = identity
+    if not mission_slug or not mission_id:
+        return None
+    target_branch = mission_meta.get("target_branch")
+    if not isinstance(target_branch, str) or not target_branch:
+        return None
+    coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
+    target_sha = _rev_parse(repo_root, f"refs/heads/{target_branch}")
+    if not coord_sha or not target_sha:
+        return None
+    return coord_branch, target_branch, coord_sha, target_sha
+
+
 def _check_coord_branch_staleness(
     repo_root: Path, mission_meta: dict[str, object],
 ) -> list[DoctorFinding]:
     """FR-008 entry: coord-branch-vs-target staleness for one mission (Gap-1).
 
     Skips silently for legacy (non-coordinated) missions, incomplete
-    identity, or a missing/blank ``target_branch``.
+    identity, a missing/blank ``target_branch``, or an unreadable ref.
     """
-    identity = _coordination_identity(mission_meta)
-    if identity is None:
+    shas = _coord_vs_target_shas(repo_root, mission_meta)
+    if shas is None:
         return []
-    coord_branch, mission_slug, mission_id = identity
-    if not mission_slug or not mission_id:
-        return []
-    target_branch = mission_meta.get("target_branch")
-    if not isinstance(target_branch, str) or not target_branch:
-        return []
+    coord_branch, target_branch, _coord_sha, _target_sha = shas
     finding = _coord_branch_stale_vs_target_finding(repo_root, coord_branch, target_branch)
     return [finding] if finding is not None else []
 
@@ -1151,10 +1175,11 @@ def _apply_coordination_fixes(
     pruned) so the entrypoint surfaces them in the post-fix output.
 
     The WP06 Gap-1 fast-forward (:func:`_apply_coord_staleness_fixes`) is
-    deliberately NOT dispatched from here: unlike every other fixer above, it
-    can FAIL LOUD (``raise typer.Exit``) on an unsafe precondition, so it runs
-    as its own step in :func:`run_coordination_health` — AFTER these
-    idempotent, order-irrelevant fixers have already applied.
+    deliberately NOT dispatched from here: unlike every other fixer above, an
+    unsafe per-mission precondition surfaces as its own ``error`` finding
+    rather than folding into this function's return, so it runs as its own
+    step in :func:`run_coordination_health` — AFTER these idempotent,
+    order-irrelevant fixers have already applied.
     """
     _apply_never_created_fix(findings, repo_root)
     return _apply_stranded_revert_fix(findings, repo_root)
@@ -1179,67 +1204,95 @@ def _unified_diff(repo_root: Path, ref_a: str, ref_b: str) -> str:
     return result.stdout
 
 
-def _fail_loud_coord_staleness(
-    repo_root: Path, coord_branch: str, target_branch: str, *, reason: str,
-) -> NoReturn:
-    """FR-009: abort the Gap-1 ``--fix`` with a unified diff, mutating NOTHING.
+#: Blocked Gap-1 fix (diverged coord branch, or a dirty coord worktree): a
+#: surfaced ``error`` finding rather than an abort (renata LOW, see
+#: :func:`_coord_staleness_fix_blocked_finding`).
+_COORD_STALE_FIX_BLOCKED_CODE = "COORDINATION_BRANCH_STALE_FIX_BLOCKED"
 
-    ``reason`` only shapes the printed message (e.g. ``"diverged from"`` /
-    ``"the coord worktree is dirty vs"``); the diff itself is always
-    ``coord_branch..target_branch`` so the operator can see exactly what a
-    fast-forward would have applied. This is the data-loss-sensitive decision
-    (C-005 warn-first) -- callers must not attempt any git mutation before
-    this can be ruled out.
+
+def _coord_staleness_fix_blocked_finding(
+    repo_root: Path, coord_branch: str, target_branch: str, *, reason: str,
+) -> DoctorFinding:
+    """FR-009: an unsafe Gap-1 fast-forward precondition, as a surfaced ``error``.
+
+    Renata LOW (coord-commit-integrity squad): a per-mission unsafe
+    precondition (diverged coord branch, or a dirty coord worktree) must not
+    raise and abort the entire ``--fix`` run -- doing so let one mission's
+    Gap-1 problem block the flatten-cleanup fix for every OTHER mission
+    processed in the same run. Returning an ``error`` finding instead keeps
+    C-005 warn-first (the caller never attempts the merge -- mutates
+    NOTHING) and FR-009's fail-loud-with-diff contract (the diff is embedded
+    in the message, exactly as it was previously printed to the console),
+    while letting :func:`_apply_coord_staleness_fixes` continue to the next
+    mission. ``reason`` shapes the message (e.g. ``"diverged from"`` /
+    ``"not cleanly fast-forwardable vs"``); the diff itself is always
+    ``coord_branch..target_branch``.
     """
     diff_text = _unified_diff(repo_root, coord_branch, target_branch)
-    console.print(
-        f"[red]Refusing to fast-forward:[/red] coordination branch {coord_branch!r} "
+    message = (
+        f"Refusing to fast-forward: coordination branch {coord_branch!r} "
         f"is {reason} target branch {target_branch!r} — `--fix` mutates nothing."
     )
     if diff_text:
-        console.print(diff_text)
-    raise typer.Exit(1)
+        message = f"{message}\n{diff_text}"
+    return DoctorFinding(
+        severity="error",
+        message=message,
+        next_step=(
+            "Inspect the diff above and reconcile manually; `--fix` will not "
+            "mutate a diverged or dirty coordination branch."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
 
 
-def _fix_one_mission_coord_staleness(repo_root: Path, mission_meta: dict[str, object]) -> None:
+def _fix_one_mission_coord_staleness(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> DoctorFinding | None:
     """Attempt the Gap-1 fast-forward for a single mission.
 
-    Skips silently (nothing to fix) when the mission is not coordinated, its
-    identity/``target_branch`` is incomplete, either ref is unreadable, the
-    SHAs already match, or the coord worktree does not exist (the existing
-    ``COORDINATION_WORKTREE_MISSING``/``NEVER_CREATED`` findings already cover
-    that case). Otherwise: strict-ancestor + clean coord worktree fast-forwards
-    the coord worktree onto ``target_branch`` (``git merge --ff-only``, itself
-    belt-and-braces safe); anything else fails loud via
-    :func:`_fail_loud_coord_staleness`, mutating nothing.
+    Skips silently (nothing to fix, returns ``None``) when the mission is not
+    coordinated, its identity/``target_branch`` is incomplete, either ref is
+    unreadable, the SHAs already match, or the coord worktree does not exist
+    (the existing ``COORDINATION_WORKTREE_MISSING``/``NEVER_CREATED`` findings
+    already cover that case). Otherwise: strict-ancestor + clean coord
+    worktree fast-forwards the coord worktree onto ``target_branch`` (``git
+    merge --ff-only``, itself belt-and-braces safe) and returns ``None``;
+    anything else returns a blocked-fix ``error`` finding via
+    :func:`_coord_staleness_fix_blocked_finding` instead of raising, mutating
+    nothing (renata LOW: a single mission's unsafe precondition must not
+    abort ``--fix`` for every OTHER mission in the same run).
     """
-    identity = _coordination_identity(mission_meta)
-    if identity is None:
-        return
-    coord_branch, mission_slug, mission_id = identity
-    if not mission_slug or not mission_id:
-        return
-    target_branch = mission_meta.get("target_branch")
-    if not isinstance(target_branch, str) or not target_branch:
-        return
-
-    coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
-    target_sha = _rev_parse(repo_root, f"refs/heads/{target_branch}")
-    if not coord_sha or not target_sha or coord_sha == target_sha:
-        return  # nothing to fix: unreadable, or already in sync
+    shas = _coord_vs_target_shas(repo_root, mission_meta)
+    if shas is None:
+        return None
+    coord_branch, target_branch, coord_sha, target_sha = shas
+    if coord_sha == target_sha:
+        return None  # nothing to fix: already in sync
 
     if not _is_ff_candidate(repo_root, coord_sha, target_sha):
-        _fail_loud_coord_staleness(repo_root, coord_branch, target_branch, reason="diverged from")
+        return _coord_staleness_fix_blocked_finding(
+            repo_root, coord_branch, target_branch, reason="diverged from",
+        )
+
+    # `shas` only proves coordination_branch/target_branch/slug/id are all
+    # present and non-blank (see _coord_vs_target_shas); re-resolving here is
+    # cheap (dict lookups, no I/O) and keeps this function's own inputs
+    # explicit rather than threading slug/id back out of the shared helper.
+    identity = _coordination_identity(mission_meta)
+    if identity is None:
+        return None  # unreachable in practice -- defensive, not an assert
+    _coord_branch_unused, mission_slug, mission_id = identity
 
     from specify_cli.coordination import CoordinationWorkspace
 
     short = _resolve_coord_short(mission_slug, mission_id)
     worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
     if not worktree.exists():
-        return  # no coord worktree to fast-forward into; worktree-health check covers this
+        return None  # no coord worktree to fast-forward into; worktree-health check covers this
 
     if _coord_worktree_dirty_finding(worktree) is not None:
-        _fail_loud_coord_staleness(
+        return _coord_staleness_fix_blocked_finding(
             repo_root, coord_branch, target_branch, reason="not cleanly fast-forwardable vs",
         )
 
@@ -1251,27 +1304,35 @@ def _fix_one_mission_coord_staleness(repo_root: Path, mission_meta: dict[str, ob
         f"[green]Fast-forwarded:[/green] coordination branch {coord_branch!r} "
         f"({coord_sha[:8]} -> {target_sha[:8]}) to match target {target_branch!r}."
     )
+    return None
 
 
-def _apply_coord_staleness_fixes(repo_root: Path) -> None:
+def _apply_coord_staleness_fixes(repo_root: Path) -> list[DoctorFinding]:
     """FR-009 (Gap-1, C-003 minimized): fast-forward every coordinated mission's
     coord branch to ``target_branch`` -- and ONLY when that is unambiguously safe.
 
     Iterates every mission under ``kitty-specs/`` and delegates to
     :func:`_fix_one_mission_coord_staleness`. Stays the ONLY ``--fix`` behaviour
     for Gap-1 (C-003): it never attempts a general repair of arbitrary drifted
-    coordination content.
+    coordination content. Returns the blocked-fix ``error`` findings for any
+    mission whose Gap-1 precondition was unsafe (renata LOW) so the caller can
+    fold them into the post-fix findings -- one such mission no longer aborts
+    fixing every OTHER mission in the same run.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
-        return
+        return []
+    blocked: list[DoctorFinding] = []
     for mission_dir in sorted(specs_dir.iterdir()):
         if not mission_dir.is_dir():
             continue
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
             continue
-        _fix_one_mission_coord_staleness(repo_root, meta)
+        finding = _fix_one_mission_coord_staleness(repo_root, meta)
+        if finding is not None:
+            blocked.append(finding)
+    return blocked
 
 
 def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool) -> None:
@@ -1308,8 +1369,12 @@ def run_coordination_health(
     findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
     to re-derive topology from the now-absent key, then attempts the WP06
     Gap-1 coord-vs-target fast-forward (:func:`_apply_coord_staleness_fixes`)
-    -- which FAILS LOUD (raises) on a diverged or dirty coord branch, mutating
-    nothing (FR-009/C-005).
+    for every coordinated mission. A per-mission unsafe precondition (diverged
+    coord branch, or a dirty coord worktree) surfaces as an ``error`` finding
+    rather than raising (renata LOW, coord-commit-integrity squad) -- the
+    command still exits 1 overall for that mission, but no longer aborts
+    fixing every OTHER mission in the same run. FR-009/C-005 hold either way:
+    nothing is ever mutated for the blocked mission.
 
     ``check_staleness`` (FR-008, ``--check-staleness``) additionally reports
     Gap-1 coord-branch-vs-``target_branch`` staleness findings; it is purely a
@@ -1325,25 +1390,23 @@ def run_coordination_health(
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
 
-    def _collect() -> list[DoctorFinding]:
-        # Pre-WP06 call shape preserved when the flag is off (default): some
-        # tests monkeypatch `_collect_coordination_findings` with a
-        # single-positional-arg stub, which a keyword call would break.
-        if check_staleness:
-            return _collect_coordination_findings(repo_root, check_staleness=True)
-        return _collect_coordination_findings(repo_root)
-
-    findings = _collect()
+    findings = _collect_coordination_findings(repo_root, check_staleness=check_staleness)
 
     if fix:
         fix_warnings = _apply_coordination_fixes(findings, repo_root)
-        _apply_coord_staleness_fixes(repo_root)  # FR-009 Gap-1 — may fail loud (raises)
+        # FR-009 Gap-1: a per-mission unsafe precondition (diverged / dirty)
+        # now returns a blocked-fix `error` finding (renata LOW) instead of
+        # raising, so one mission's Gap-1 problem no longer aborts fixing
+        # every OTHER mission processed in this run.
+        staleness_blocked = _apply_coord_staleness_fixes(repo_root)
         # Re-collect findings after fix so the exit code reflects the new state,
-        # then fold in any warnings the fixers raised for markers they could not
-        # heal (pruned worktree / unparseable / unresolvable) — these must not be
+        # then fold in any warnings/blocked-fix findings the fixers raised for
+        # issues they could not heal (pruned worktree / unparseable /
+        # unresolvable / unsafe Gap-1 precondition) — these must not be
         # silently dropped by the re-collect.
-        findings = _collect()
+        findings = _collect_coordination_findings(repo_root, check_staleness=check_staleness)
         findings.extend(fix_warnings)
+        findings.extend(staleness_blocked)
 
     _emit_coordination_findings(findings, json_output)
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)

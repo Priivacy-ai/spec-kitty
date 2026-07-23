@@ -179,6 +179,12 @@ def test_check_coord_branch_staleness_skips_missing_target_branch(tmp_path: Path
 def test_check_coord_branch_staleness_delegates(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    # A-3 dedup: `_check_coord_branch_staleness` now resolves both SHAs via the
+    # shared `_coord_vs_target_shas` preamble before delegating; both refs must
+    # be readable (and non-equal) or the shared helper short-circuits to `[]`
+    # before `_coord_branch_stale_vs_target_finding` is ever reached.
+    shas = {"refs/heads/coord": "coord-sha", "refs/heads/main": "main-sha"}
+    monkeypatch.setattr(cd, "_rev_parse", lambda _cwd, ref: shas[ref])
     sentinel = cd.DoctorFinding(severity="warning", message="m", error_code="E")
     monkeypatch.setattr(cd, "_coord_branch_stale_vs_target_finding", lambda *a: sentinel)
     meta = {
@@ -186,6 +192,36 @@ def test_check_coord_branch_staleness_delegates(
         "mission_id": "01ABCDEF00000000000000000A", "target_branch": "main",
     }
     assert cd._check_coord_branch_staleness(tmp_path, meta) == [sentinel]
+
+
+def test_coord_vs_target_shas_none_when_target_branch_missing(tmp_path: Path) -> None:
+    meta = {"coordination_branch": "coord", "mission_slug": "m", "mission_id": "01ABCDEF00000000000000000A"}
+    assert cd._coord_vs_target_shas(tmp_path, meta) is None
+
+
+def test_coord_vs_target_shas_none_when_sha_unreadable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cd, "_rev_parse", lambda *_a: "")
+    meta = {
+        "coordination_branch": "coord", "mission_slug": "m",
+        "mission_id": "01ABCDEF00000000000000000A", "target_branch": "main",
+    }
+    assert cd._coord_vs_target_shas(tmp_path, meta) is None
+
+
+def test_coord_vs_target_shas_returns_tuple_when_resolvable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    shas = {"refs/heads/coord": "coord-sha", "refs/heads/main": "main-sha"}
+    monkeypatch.setattr(cd, "_rev_parse", lambda _cwd, ref: shas[ref])
+    meta = {
+        "coordination_branch": "coord", "mission_slug": "m",
+        "mission_id": "01ABCDEF00000000000000000A", "target_branch": "main",
+    }
+    assert cd._coord_vs_target_shas(tmp_path, meta) == (
+        "coord", "main", "coord-sha", "main-sha",
+    )
 
 
 def test_unified_diff_returns_empty_on_os_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -475,3 +511,90 @@ def test_d_finalize_tasks_surfaces_warn_and_exits_0(
 
     out = capsys.readouterr().out
     assert "behind target branch" in out
+
+
+# ===========================================================================
+# (e) renata LOW: blast-radius regression -- one mission's unsafe Gap-1
+# precondition must not abort ``--fix`` for an UNRELATED mission.
+# ===========================================================================
+
+
+def _patch_worktree_path_by_slug(
+    monkeypatch: pytest.MonkeyPatch, mapping: dict[str, Path], fallback: Path,
+) -> None:
+    """Route ``CoordinationWorkspace.worktree_path`` by ``mission_slug``.
+
+    The single-worktree ``_patch_worktree_path`` helper above is fine for the
+    (a)-(d) single-mission fixtures; a two-mission blast-radius fixture needs
+    each mission's coord worktree to resolve independently (a shared stub
+    would make the never-created mission's worktree wrongly appear to exist).
+    """
+    from specify_cli import coordination as coord_mod
+
+    def _route(_repo_root: Path, mission_slug: str, _mid8: str) -> Path:
+        return mapping.get(mission_slug, fallback)
+
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace, "worktree_path", staticmethod(_route)
+    )
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_e_one_diverged_mission_does_not_block_fix_for_other_missions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """(e, renata LOW) one mission's diverged Gap-1 state must not abort ``--fix``
+    for an UNRELATED mission's flatten-cleanup in the same run.
+
+    Regression for the blast-radius bug: ``_apply_coord_staleness_fixes`` used
+    to raise (via the removed ``_fail_loud_coord_staleness``) the instant ANY
+    mission's coord branch was diverged, aborting the whole ``--fix`` command
+    before an unrelated, already-safe ``COORDINATION_WORKTREE_NEVER_CREATED``
+    flatten fix for a DIFFERENT mission ever ran. It must now surface a
+    blocked-fix ``error`` finding for the diverged mission and still apply the
+    other mission's fix.
+    """
+    repo = tmp_path / "repo"
+    diverged_slug = "diverged-mission"
+    _make_diverged_repo(repo, diverged_slug)
+    diverged_worktree = _add_coord_worktree(repo, tmp_path)
+
+    # An UNRELATED mission whose coordination_branch was never created --
+    # exactly the flatten-cleanup case a bare `--fix` is meant to repair.
+    flat_slug = "flatten-mission"
+    flat_dir = repo / "kitty-specs" / flat_slug
+    flat_dir.mkdir(parents=True)
+    (flat_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": flat_slug,
+            "mission_id": "01ABCDEF00000000000000FLAT",
+            "coordination_branch": "kitty/mission-flatten-mission-neverexisted",
+        }),
+        encoding="utf-8",
+    )
+
+    _patch_worktree_path_by_slug(
+        monkeypatch,
+        {diverged_slug: diverged_worktree},
+        fallback=tmp_path / "no-such-worktree",
+    )
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+    # The diverged mission IS a real, surfaced error -- overall exit stays 1.
+    assert exc.value.exit_code == 1
+
+    out = capsys.readouterr().out
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+
+    # The unrelated mission's flatten fix must have applied regardless.
+    flattened_meta = json.loads((flat_dir / "meta.json").read_text())
+    assert "coordination_branch" not in flattened_meta, (
+        "an unrelated mission's diverged Gap-1 state must not block the "
+        "flatten-cleanup fix for a different mission in the same --fix run"
+    )

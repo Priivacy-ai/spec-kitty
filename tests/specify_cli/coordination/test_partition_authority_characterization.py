@@ -57,9 +57,10 @@ _PRIMARY_REF = "main"
 _COORD_REF = _COORD_BRANCH
 
 # A COORD-partition caller kind -- the shape every ``move-task``/status-commit
-# caller of ``commit_for_mission`` passes (``STATUS_STATE`` /
-# ``ACCEPTANCE_MATRIX`` / ``ISSUE_MATRIX`` / ``ANALYSIS_REPORT`` are all
-# COORD-partition members of ``_PLACEMENT_ARTIFACT_KINDS``).
+# caller of ``commit_for_mission`` passes (``STATUS_STATE`` / ``ACCEPTANCE_MATRIX``
+# / ``ISSUE_MATRIX`` are COORD-partition members of ``_PLACEMENT_ARTIFACT_KINDS``;
+# ``ANALYSIS_REPORT`` was re-homed COORD->PRIMARY by coord-commit-integrity FR-003
+# and is no longer one of them).
 _COORD_CALLER_KIND = MissionArtifactKind.STATUS_STATE
 
 
