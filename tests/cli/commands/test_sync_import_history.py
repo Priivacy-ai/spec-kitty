@@ -118,7 +118,7 @@ def test_selection_repair_error_exits_one(tmp_path, monkeypatch):
 # ── stage 2: fail-closed audit gate ──────────────────────────────────────────
 
 
-def test_clean_missions_are_listed_on_dry_run(tmp_path, monkeypatch):
+def test_clean_missions_are_previewed_on_dry_run(tmp_path, monkeypatch):
     dirs = [tmp_path / "demo-mission-01AAAA", tmp_path / "demo-mission-01BBBB"]
     _patch_checkout(monkeypatch, tmp_path)
     _patch_selection(monkeypatch, mission_dirs=dirs, blockers=[])
@@ -126,10 +126,15 @@ def test_clean_missions_are_listed_on_dry_run(tmp_path, monkeypatch):
     result = runner.invoke(app, ["import-history"])
     assert result.exit_code == 0
     plain = _strip_ansi(result.output)
-    assert "2 mission(s) eligible for import" in plain
-    assert "audit clean" in plain
+    # The dry-run now previews the synthesized plan, not just the selection.
+    assert "2 mission(s)" in plain
     assert "demo-mission-01AAAA" in plain
     assert "demo-mission-01BBBB" in plain
+    # A MissionCreated is synthesized per mission even with nothing on disk.
+    assert "MissionCreated" in plain
+    # Dry-run resolves the synthetic offline identity and uploads nothing.
+    assert "synthetic offline id" in plain
+    assert "nothing uploaded" in plain
 
 
 def test_audit_blockers_block_import_and_name_the_finding(tmp_path, monkeypatch):
@@ -169,13 +174,15 @@ def test_apply_is_an_honest_nonzero_stub(tmp_path, monkeypatch):
     assert "not available yet" in _strip_ansi(result.output)
 
 
-def test_apply_is_still_gated_by_the_audit(tmp_path, monkeypatch):
-    """``--apply`` never reaches the stub if the audit blocks (exit 1, not 3)."""
-    dirs = [tmp_path / "demo-mission-01EEEE"]
-    blockers = [{"mission_slug": "demo-mission-01EEEE", "message": "unresolved blocker"}]
-    _patch_checkout(monkeypatch, tmp_path)
-    _patch_selection(monkeypatch, mission_dirs=dirs, blockers=blockers)
+def test_apply_short_circuits_before_any_work(monkeypatch):
+    """Until WP-Y5 wires the upload, ``--apply`` is a pure honest stub: it does
+    no checkout resolution / selection / scan, so it can have no side effects.
+    (The audit-gate-on-apply returns with the real upload path.)"""
 
+    def _forbidden_checkout():
+        raise AssertionError("the --apply stub must not resolve a checkout")
+
+    monkeypatch.setattr(sync_command, "_require_active_checkout", _forbidden_checkout)
     result = runner.invoke(app, ["import-history", "--apply"])
-    assert result.exit_code == 1
-    assert "Import blocked" in _strip_ansi(result.output)
+    assert result.exit_code == 3
+    assert "not available yet" in _strip_ansi(result.output)
