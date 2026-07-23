@@ -1170,36 +1170,50 @@ def implement_capture_baseline(
         )
         if baseline is not None and baseline.failed > 0:
             print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")
-            # Commit the baseline artifact to the feature branch
-            baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
-            if baseline_artifact.exists():
-                # Mechanical WP06 pre-step migration.
-                try:
-                    # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
-                    # WORK_PACKAGE_TASK-kind artifact — a PRIMARY-partition
-                    # kind (T017): it lands on the mission/lane
-                    # ``target_branch`` for EVERY topology, resolved via the
-                    # seam rather than constructed inline. STANDARD asserts
-                    # no protected-branch flow, so a protected target is
-                    # refused — the best-effort handler below logs the
-                    # refusal (FR-008).
-                    baseline_placement = w._resolve_workflow_placement(
-                        repo_root=main_repo_root,
-                        mission_slug=mission_slug,
-                        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-                    )
-                    w.safe_commit(
-                        repo_root=main_repo_root,
-                        worktree_root=main_repo_root,
-                        target=baseline_placement,
-                        message=f"chore: Capture baseline tests for {normalized_wp_id}",
-                        paths=(baseline_artifact,),
-                        capability=GuardCapability.STANDARD,
-                    )
-                except Exception as bl_commit_exc:  # noqa: BLE001 — best-effort
-                    logger.warning("Baseline artifact commit failed: %s", bl_commit_exc)
         elif baseline is not None and baseline.failed == -1:
             print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
+
+        # Commit the baseline artifact whenever capture actually wrote one
+        # (any non-sentinel result, clean OR dirty) — NOT only when
+        # ``failed > 0``. Landing fold (mission scopesource-gate-followup): the
+        # unified ScopeSource capture path (T015) calls ``result.save(...)``
+        # unconditionally, and the head-side gate LOADS this artifact to diff
+        # against (``tasks_move_task.py`` ``_load_baseline``). So a clean
+        # (``failed == 0``) baseline MUST be committed too — both to feed the
+        # baseline↔head diff this mission unifies, and to keep the
+        # ``for_review`` uncommitted-owned-file guard from blocking on an
+        # otherwise-orphaned WP-owned artifact. The prior ``failed > 0`` gate
+        # left every clean baseline uncommitted, which regressed
+        # ``test_issue_2684`` once implement-time capture began emitting one.
+        # (The ``failed == -1`` sentinel is never persisted, so it never
+        # reaches this commit.)
+        baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
+        if baseline is not None and baseline.failed != -1 and baseline_artifact.exists():
+            # Mechanical WP06 pre-step migration.
+            try:
+                # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
+                # WORK_PACKAGE_TASK-kind artifact — a PRIMARY-partition
+                # kind (T017): it lands on the mission/lane
+                # ``target_branch`` for EVERY topology, resolved via the
+                # seam rather than constructed inline. STANDARD asserts
+                # no protected-branch flow, so a protected target is
+                # refused — the best-effort handler below logs the
+                # refusal (FR-008).
+                baseline_placement = w._resolve_workflow_placement(
+                    repo_root=main_repo_root,
+                    mission_slug=mission_slug,
+                    kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+                )
+                w.safe_commit(
+                    repo_root=main_repo_root,
+                    worktree_root=main_repo_root,
+                    target=baseline_placement,
+                    message=f"chore: Capture baseline tests for {normalized_wp_id}",
+                    paths=(baseline_artifact,),
+                    capability=GuardCapability.STANDARD,
+                )
+            except Exception as bl_commit_exc:  # noqa: BLE001 — best-effort
+                logger.warning("Baseline artifact commit failed: %s", bl_commit_exc)
     except Exception as bl_err:
         logger.warning("Baseline capture error: %s", bl_err)
 
