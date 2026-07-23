@@ -80,7 +80,7 @@ def synthesize_mission_stream(
     change can never carry a lower clock than its work package's creation.
     """
     mission_ts = _earliest_timestamp(scan)
-    correlation_id = deterministic_ulid(f"import:{scan.mission_slug}:correlation")
+    correlation_id = deterministic_ulid(f"import:{_identity_key(scan)}:correlation")
     identity = _EnvelopeIdentity(
         project_uuid=str(project_uuid),
         project_slug=project_slug,
@@ -178,7 +178,7 @@ def _mission_created_envelope(
         created_at=mission_ts,
     )
     return _envelope(
-        event_id=deterministic_ulid(f"import:{scan.mission_slug}:MissionCreated"),
+        event_id=deterministic_ulid(f"import:{_identity_key(scan)}:MissionCreated"),
         event_type=MISSION_CREATED,
         aggregate_id=scan.canonical_mission_id or scan.mission_slug,
         aggregate_type=_AGG_MISSION,
@@ -207,7 +207,7 @@ def _wp_created_envelope(
         created_at=_parse_timestamp(wp.created_at),
     ).model_dump(mode="json", exclude_none=False)
     return _envelope(
-        event_id=deterministic_ulid(f"import:{scan.mission_slug}:WPCreated:{wp.wp_id}"),
+        event_id=deterministic_ulid(f"import:{_identity_key(scan)}:WPCreated:{wp.wp_id}"),
         event_type=WP_CREATED,
         aggregate_id=wp.wp_id,
         aggregate_type=_AGG_WORK_PACKAGE,
@@ -270,6 +270,19 @@ def _rebrand_as_import(envelope: dict[str, Any], identity: _EnvelopeIdentity) ->
     envelope["node_id"] = _NODE_ID
     envelope["correlation_id"] = identity.correlation_id
     return envelope
+
+
+def _identity_key(scan: MissionScan) -> str:
+    """Seed/dedup key: the canonical mission id when present, else the slug.
+
+    The deterministic import ``event_id``s must key on the same identity the
+    envelopes' ``aggregate_id`` trusts (mission 083 moved identity onto
+    ``mission_id``). Seeding on the slug alone would let a deleted-then-recreated
+    same-slug mission hash an identical creation prefix, so the server dedups the
+    new mission's ``MissionCreated`` as a duplicate and it silently never
+    materializes (its WPs orphan).
+    """
+    return scan.canonical_mission_id or scan.mission_slug
 
 
 def _parse_timestamp(value: str | None) -> datetime | None:

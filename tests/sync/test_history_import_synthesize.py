@@ -145,11 +145,41 @@ def test_event_ids_are_deterministic_and_namespaced():
     second = synthesize_mission_stream(_demo_scan(), **kwargs)
 
     assert [env["event_id"] for env in first] == [env["event_id"] for env in second]
-    # Creation-prefix ids live in the `import:` namespace (never the dry-run one).
-    assert first[0]["event_id"] == deterministic_ulid("import:demo-mission:MissionCreated")
-    assert first[1]["event_id"] == deterministic_ulid("import:demo-mission:WPCreated:WP01")
+    # Creation-prefix ids live in the `import:` namespace and seed on the
+    # canonical mission id (not the slug — see the collision test below).
+    assert first[0]["event_id"] == deterministic_ulid(f"import:{_MISSION_ID}:MissionCreated")
+    assert first[1]["event_id"] == deterministic_ulid(f"import:{_MISSION_ID}:WPCreated:WP01")
     # Replayed status events keep their real on-disk event_id.
     assert first[3]["event_id"] == "01HZ0000000000000000000001"
+
+
+def test_creation_prefix_ids_seed_on_canonical_id_not_slug():
+    """Two missions sharing a slug but with different canonical ids must NOT
+    produce colliding creation-prefix event_ids — otherwise a deleted-then-
+    recreated same-slug mission would dedup as a duplicate and never
+    materialize (Stijn's #2884 review, fix #2)."""
+    kwargs = {"project_uuid": _PROJECT_UUID, "project_slug": "p", "repo_slug": "p"}
+
+    def _scan(mission_id: str) -> MissionScan:
+        return MissionScan(
+            mission_slug="reused-slug",
+            canonical_mission_id=mission_id,
+            mission_number=None,
+            name="Reused Slug",
+            mission_type="software-dev",
+            purpose_tldr=None,
+            purpose_context=None,
+            target_branch="main",
+            created_at="2026-02-01T00:00:00+00:00",
+            prefix_source=PrefixSource.SYNTHESIZED,
+            work_packages=(),
+            lane_transitions=(),
+        )
+
+    a = synthesize_mission_stream(_scan("01AAAAAAAAAAAAAAAAAAAAAAAA"), **kwargs)
+    b = synthesize_mission_stream(_scan("01BBBBBBBBBBBBBBBBBBBBBBBB"), **kwargs)
+    assert a[0]["event_type"] == b[0]["event_type"] == "MissionCreated"
+    assert a[0]["event_id"] != b[0]["event_id"]
 
 
 def test_project_identity_is_threaded_into_every_envelope():
@@ -159,7 +189,7 @@ def test_project_identity_is_threaded_into_every_envelope():
     assert all(env["repo_slug"] == "acme/spec-kitty" for env in stream)
     # The whole stream is one coherent import operation: unified correlation id
     # and build id across the synthesized prefix AND the reused status envelopes.
-    assert len({env["correlation_id"] for env in stream}) == 1
+    assert len({env["correlation_id"] for env in stream}) == 1  # golden-count: cardinality-is-contract
     assert {env["build_id"] for env in stream} == {"import-history"}
 
 

@@ -50,6 +50,7 @@ from specify_cli.sync.history_import.upload import (
 )
 from specify_cli.sync.history_import.scan import (
     MissionScan,
+    MissionScanError,
     PrefixSource,
     ScannedWorkPackage,
     scan_mission,
@@ -68,6 +69,7 @@ __all__ = [
     "ImportIdentityError",
     "ImportPlan",
     "MissionScan",
+    "MissionScanError",
     "PrefixSource",
     "PreflightRejected",
     "ImportProvenanceEntry",
