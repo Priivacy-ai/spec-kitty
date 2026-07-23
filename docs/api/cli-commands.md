@@ -2197,18 +2197,20 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --help               Show this message and exit.                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ backfill-identity       Write a ULID mission_id into any meta.json that      │
-│                         lacks one.                                           │
-│ backfill-topology       Persist each legacy mission's MissionTopology into   │
-│                         its meta.json.                                       │
-│ charter-encoding        Scan charter content for non-UTF-8 encodings;        │
-│                         normalize-or-fail-loud.                              │
-│ normalize-lifecycle     Normalize legacy ``kitty-specs`` missions for the    │
-│                         MVP lifecycle model.                                 │
-│ rewrite-opposed-by      Rewrite a pack's legacy ``opposed_by`` entries into  │
-│                         DRG edges.                                           │
-│ backfill-runtime-state  Seed legacy runtime state as events, verify          │
-│                         fail-closed, and flip status_phase.                  │
+│ backfill-identity          Write a ULID mission_id into any meta.json that   │
+│                            lacks one.                                        │
+│ backfill-topology          Persist each legacy mission's MissionTopology     │
+│                            into its meta.json.                               │
+│ charter-encoding           Scan charter content for non-UTF-8 encodings;     │
+│                            normalize-or-fail-loud.                           │
+│ normalize-lifecycle        Normalize legacy ``kitty-specs`` missions for the │
+│                            MVP lifecycle model.                              │
+│ rewrite-opposed-by         Rewrite a pack's legacy ``opposed_by`` entries    │
+│                            into DRG edges.                                   │
+│ backfill-runtime-state     Seed legacy runtime state as events, verify       │
+│                            fail-closed, and flip status_phase.               │
+│ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
+│                            hashes (FR-009, WP05).                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2418,6 +2420,32 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --mission        SLUG  Scope to a single mission slug (e.g. 083-foo-bar).    │
 │                        Omit to process all.                                  │
 │ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate rebaseline-dossier-hashes
+
+```
+ Usage: spec-kitty migrate rebaseline-dossier-hashes [OPTIONS]
+
+ One-time re-baseline of recorded dossier snapshot hashes (FR-009, WP05).
+
+ Recomputes every recorded ``.kittify/dossiers/<slug>/snapshot-latest.json``
+ hash under the canonical definition (WP01/WP02) so content that did not
+ change is not flagged divergent after the cutover. Idempotent (snapshots
+ already in canonical ``sha256:`` form are skipped) and read-only over source
+ artifacts — only the recorded snapshot cache files are written (#2263).
+
+ Exit codes:
+
+ - ``0`` — completed (some snapshots may be reported as errors and skipped)
+ - ``1`` — project root could not be located
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json             Emit a structured per-mission re-baseline report          │
+│ --dry-run          Preview which recorded snapshot hashes would be           │
+│                    re-baselined, without writing                             │
+│ --help             Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3481,6 +3509,25 @@ _Manage and list agent profiles._
 │ --all           Bypass the activation gate for inspection (show              │
 │                 non-activated profiles).                                     │
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty reconcile
+
+_Reconcile a mission dossier against its recorded snapshot (exit 0=parity, non-zero=divergence)._
+
+```
+ Usage: spec-kitty reconcile [OPTIONS]
+
+ Reconcile a mission dossier against its recorded snapshot (exit 0=parity,
+ non-zero=divergence).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission        TEXT  Mission slug to reconcile against its recorded     │
+│                           snapshot                                           │
+│                           [required]                                         │
+│    --json                 Emit a machine-readable JSON result                │
+│    --help                 Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

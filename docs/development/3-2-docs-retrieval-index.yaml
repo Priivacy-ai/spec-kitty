@@ -2667,6 +2667,7 @@ pages:
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
     - {slug: "spec-kitty-migrate-charter-encoding", text: "spec-kitty migrate charter-encoding", level: 2}
     - {slug: "spec-kitty-migrate-normalize-lifecycle", text: "spec-kitty migrate normalize-lifecycle", level: 2}
+    - {slug: "spec-kitty-migrate-rebaseline-dossier-hashes", text: "spec-kitty migrate rebaseline-dossier-hashes", level: 2}
     - {slug: "spec-kitty-migrate-rewrite-opposed-by", text: "spec-kitty migrate rewrite-opposed-by", level: 2}
     - {slug: "spec-kitty-mission", text: "spec-kitty mission", level: 2}
     - {slug: "spec-kitty-mission-close", text: "spec-kitty mission close", level: 2}
@@ -2713,6 +2714,7 @@ pages:
     - {slug: "spec-kitty-profiles", text: "spec-kitty profiles", level: 2}
     - {slug: "spec-kitty-profiles-list", text: "spec-kitty profiles list", level: 2}
     - {slug: "spec-kitty-profiles-show", text: "spec-kitty profiles show", level: 2}
+    - {slug: "spec-kitty-reconcile", text: "spec-kitty reconcile", level: 2}
     - {slug: "spec-kitty-research", text: "spec-kitty research", level: 2}
     - {slug: "spec-kitty-retrospect", text: "spec-kitty retrospect", level: 2}
     - {slug: "spec-kitty-retrospect-backfill", text: "spec-kitty retrospect backfill", level: 2}
