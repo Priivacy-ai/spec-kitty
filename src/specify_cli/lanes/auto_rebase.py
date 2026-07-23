@@ -89,6 +89,13 @@ RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
 #      surface residue) yet still managed by auto-rebase — the two concerns are
 #      orthogonal.
 #
+#      ``analysis-report.md`` (``ANALYSIS_REPORT``) joined this arm when
+#      coord-commit-integrity (FR-003) re-homed it COORD→PRIMARY: it left the
+#      surface-residue set (Arm 1) but stays a MACHINE-GENERATED, deterministically
+#      reconcilable artifact (unlike the author-owned narrative docs below), so it
+#      must remain take-theirs. Dropping it from BOTH arms would reintroduce the
+#      #2070 auto-rebase-halt regression on an ``analysis-report.md`` conflict.
+#
 # NOT included here (these stay Manual halts so the operator reconciles real
 # authored drift): ``plan.md`` (``FINALIZED_EXECUTION_PLAN``) and ``tasks.md``
 # (``TASKS_INDEX``) — narrative planning docs whose conflicts are author-owned —
@@ -98,6 +105,7 @@ _AUTO_REBASE_MANAGED_LAYOUT_KINDS: frozenset[MissionArtifactKind] = frozenset(
     {
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.WORK_PACKAGE_TASK,
+        MissionArtifactKind.ANALYSIS_REPORT,
     }
 )
 
@@ -200,13 +208,15 @@ def _is_coordination_owned_artifact(rel_path: str) -> bool:
 
     1. *Surface residue* — drawn from the single authority
        :func:`mission_runtime.is_coordination_artifact_residue_path`
-       (``issue-matrix.md`` / ``analysis-report.md`` / ``acceptance-matrix.json``).
-    2. *Mission-owned planning LAYOUT* — ``lanes.json`` (``LANE_STATE``) and
-       ``tasks/WP*.md`` (``WORK_PACKAGE_TASK``). These moved to the PRIMARY
-       partition in #2090 so they are NO LONGER surface residue, yet auto-rebase
-       still resolves a stale lane copy take-theirs against the finalize-tasks
-       layout. The #2070 delegation to the residue predicate alone dropped them
-       and broke deterministic reconciliation (this regression's root cause).
+       (``issue-matrix.md`` / ``acceptance-matrix.json``).
+    2. *Mission-owned planning LAYOUT* — ``lanes.json`` (``LANE_STATE``),
+       ``tasks/WP*.md`` (``WORK_PACKAGE_TASK``), and ``analysis-report.md``
+       (``ANALYSIS_REPORT``, re-homed COORD→PRIMARY by coord-commit-integrity
+       FR-003). These live on the PRIMARY partition so they are NO LONGER surface
+       residue, yet auto-rebase still resolves a stale lane copy take-theirs
+       against the finalize-tasks / generated layout. The #2070 delegation to the
+       residue predicate alone dropped them and broke deterministic reconciliation
+       (this regression's root cause).
 
     ``plan.md`` / ``tasks.md`` and the planning SOURCE docs are intentionally in
     NEITHER arm — their conflicts surface as Manual halts.
