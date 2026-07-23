@@ -210,9 +210,14 @@ def _wps_from_task_files(mission_dir: Path) -> tuple[ScannedWorkPackage, ...]:
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
             metadata, _ = read_authored_wp_frontmatter(wp_file)
-        except (FrontmatterError, ValidationError) as exc:
-            # Unreadable / invalid frontmatter: skip here and let
-            # _ensure_wp_coverage back-fill from the lane transitions.
+        except (FrontmatterError, ValidationError, ValueError, TypeError, KeyError) as exc:
+            # A malformed WP doc (bad YAML, non-dict frontmatter, invalid schema)
+            # must never abort the whole scan. The catch is broadened past the
+            # frontmatter/validation errors to the structural ones a malformed
+            # doc can raise before validation (e.g. a YAML-list frontmatter →
+            # TypeError) — the #2883 items 3/4 concern, applied to this reader.
+            # Skip here; _ensure_wp_coverage back-fills any WP a lane transition
+            # still references, so INV-3 coverage holds.
             logger.warning("import-history: skipping unreadable WP file %s: %s", wp_file, exc)
             continue
         wps.append(
