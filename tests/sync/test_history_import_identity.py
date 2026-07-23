@@ -102,6 +102,17 @@ def test_apply_fails_closed_when_config_not_writable(tmp_path, monkeypatch):
         resolve_import_identity(tmp_path, [], apply=True)
 
 
+def test_apply_fails_closed_when_persist_silently_fails(tmp_path, monkeypatch):
+    """If the boundary reports writable but no UUID actually lands (a silent
+    write failure), --apply refuses rather than proceeding under no identity."""
+    (tmp_path / ".kittify").mkdir()
+    monkeypatch.setattr(identity_module, "is_writable", lambda _path: True)
+    # ensure_identity "runs" but persists nothing → the re-read finds no UUID.
+    monkeypatch.setattr(identity_module, "ensure_identity", lambda _root: None)
+    with pytest.raises(ImportIdentityError, match="did not persist"):
+        resolve_import_identity(tmp_path, [], apply=True)
+
+
 def test_apply_fails_closed_on_a_non_checkout(tmp_path):
     """No ``.kittify/`` at all means this isn't an initialized checkout — apply
     must refuse rather than mint an identity outside a real project."""

@@ -8,8 +8,10 @@ than hand-rolling HTTP:
   with the same canonical-JSON shape the migration dry-run uses.
 * **PREFLIGHT (stage 7):** POST each chunk to ``/api/v1/events/preflight/`` and
   gate on ``accepted`` — the server validates shape/ingress without mutating
-  state. Every chunk is preflighted *before* any chunk uploads, so a rejection
-  anywhere leaves the projection untouched (fail-closed, INV-6).
+  state. Every chunk is preflighted *before* any chunk uploads, so a *preflight*
+  rejection anywhere leaves the projection untouched (fail-closed, INV-6). A
+  mid-upload delivery failure can leave a partial, but it is a valid Lamport-
+  ordered prefix (never an orphan) and a re-run completes idempotently.
 * **UPLOAD (stage 8):** chunk the stream and hand each chunk to a
   :class:`DeliveryReceiver` (gzip + POST + response mapping + poison-batch
   bisection all live there). The server dedups on ``event_id``, so a re-run is
@@ -166,8 +168,17 @@ def run_import_upload(
     """Preflight every chunk, then (only if all pass) upload every chunk.
 
     Preflighting the whole stream before delivering anything is the fail-closed
-    ordering: a rejection in any chunk raises :class:`PreflightRejected` and
-    nothing is uploaded (INV-6).
+    ordering: a **preflight** rejection in any chunk raises
+    :class:`PreflightRejected` and nothing is uploaded (INV-6).
+
+    A mid-upload *delivery* failure (after preflight passes) can leave a partial
+    upload, but that is still safe: chunks carry monotonic per-mission Lamport
+    clocks, so any delivered prefix is a valid ordered prefix (a WPStatusChanged
+    never lands before its WPCreated), never an orphan — and a re-run completes
+    idempotently (the server dedups on ``event_id``). Note the import-once
+    payload freeze: a fixed deterministic ``event_id`` means re-running after the
+    on-disk facts change re-sends the *same* id, so the updated payload is
+    dropped as a duplicate rather than overwriting.
     """
     chunks = list(_chunked(envelopes, chunk_size))
     for chunk in chunks:

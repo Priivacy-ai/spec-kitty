@@ -22,6 +22,7 @@ import pytest
 from specify_cli.status.models import StatusEvent
 from specify_cli.sync.history_import.scan import (
     MissionScan,
+    MissionScanError,
     PrefixSource,
     _read_importable_lifecycle,
     scan_mission,
@@ -186,6 +187,20 @@ def test_scan_missions_preserves_input_order():
 # ── malformed WP frontmatter must not abort the scan (#2883 items 3/4) ────────
 
 
+def test_corrupt_status_log_raises_named_mission_scan_error(tmp_path):
+    """A corrupt status.events.jsonl fails closed as MissionScanError naming the
+    mission, not a raw StoreError traceback (Stijn's #2884 review, fix #3)."""
+    mission_dir = tmp_path / "synthetic-corrupt-01GGGG"
+    mission_dir.mkdir(parents=True)
+    # A structurally-broken lane row (not a lifecycle event_type row, so it
+    # reaches the lane reader) that read_events rejects with StoreError.
+    (mission_dir / "status.events.jsonl").write_text("{ this is not valid json\n", encoding="utf-8")
+
+    with pytest.raises(MissionScanError) as excinfo:
+        scan_mission(mission_dir)
+    assert "synthetic-corrupt-01GGGG" in str(excinfo.value)
+
+
 def test_malformed_wp_frontmatter_is_skipped_not_fatal(tmp_path):
     """A WP file whose frontmatter parses to a list (not a dict) raises a
     structural TypeError inside the reader. The scan must skip it, not abort —
@@ -197,3 +212,42 @@ def test_malformed_wp_frontmatter_is_skipped_not_fatal(tmp_path):
 
     scan = scan_mission(mission_dir)  # must not raise
     assert scan.work_packages == ()  # the malformed WP is skipped, scan survives
+
+
+def test_malformed_wp_referenced_by_a_lane_transition_is_backfilled_no_orphan(tmp_path):
+    """A WP whose task file is malformed (skipped) but which a lane transition
+    references must still get a WPCreated via coverage backfill — the exact spot
+    an orphan WPStatusChanged would appear if _ensure_wp_coverage regressed."""
+    mission_dir = tmp_path / "synthetic-orphan-01HHHH"
+    tasks = mission_dir / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "WP01-bad.md").write_text("---\n- a\n- b\n---\nbody\n", encoding="utf-8")  # malformed → skipped
+    _write_events(
+        mission_dir,
+        [
+            {
+                "actor": "migration",
+                "at": "2026-02-07T00:00:00Z",
+                "event_id": "01KJ5V38V9HRA67BAXKNQDWP01",
+                "evidence": None,
+                "execution_mode": "direct_repo",
+                "force": False,
+                "from_lane": "planned",
+                "mission_id": None,
+                "mission_slug": "synthetic-orphan-01HHHH",
+                "policy_metadata": None,
+                "reason": None,
+                "review_ref": None,
+                "to_lane": "in_progress",
+                "wp_id": "WP01",
+            }
+        ],
+    )
+
+    scan = scan_mission(mission_dir)
+
+    by_id = {wp.wp_id: wp for wp in scan.work_packages}
+    assert "WP01" in by_id, "malformed-but-referenced WP must be backfilled, not orphaned"
+    assert by_id["WP01"].source is PrefixSource.SYNTHESIZED
+    # Every wp_id a lane transition references is covered (INV-3).
+    assert {event.wp_id for event in scan.lane_transitions} <= set(by_id)
