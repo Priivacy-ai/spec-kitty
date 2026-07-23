@@ -509,13 +509,15 @@ class GateCoverageScopeSource(ScopeBreakdownMixin):
         """
         from specify_cli.review.baseline import BaselineFailure, _parse_junit_xml
 
-        # T007 single-authority dispatch: this source has exactly one mode
-        # (always ``"junit_xml"``, see :meth:`parse_mode`), so the call below
-        # proves parse_mode is consulted rather than re-deriving the decision
-        # here a second time — an untestable "else" branch would be dead code.
-        self.parse_mode(raw)
+        # T007 single-authority dispatch: the mode decision is owned by
+        # ``parse_mode`` and CONSUMED here in the branch condition (not a
+        # discarded call — #2892). For this junit-only source ``mode`` is always
+        # ``"junit_xml"``, so the extra disjunct never changes the outcome, but
+        # it folds a hypothetical non-junit mode into the same synthetic-failure
+        # path rather than leaving an untestable dead ``else``.
+        mode = self.parse_mode(raw)
         artifact = raw.output_artifact_path
-        if artifact is None or not artifact.exists():
+        if mode != "junit_xml" or artifact is None or not artifact.exists():
             return (
                 BaselineFailure(
                     test="<gate-coverage-junit>",
