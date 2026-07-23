@@ -2349,6 +2349,7 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "program-sequence", text: "Program sequence", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "related-adrs", text: "Related ADRs", level: 2}
   - path: "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md"
     title: "in_tension_with and reconciles_tension DRG edges (retiring opposed_by)"
     divio_type: "none"
@@ -2374,6 +2375,20 @@ pages:
     - {slug: "option-b-keep-opposed-by-as-a-field-add-a-reader", text: "Option B — keep `opposed_by` as a field, add a reader", level: 3}
     - {slug: "option-c-dual-representation-edge-field-during-a-deprecation-window", text: "Option C — dual representation (edge + field) during a deprecation window", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-22-1-gate-binding-content-vs-relationship.md"
+    title: "ADR: gate bindings reuse `mission_step_contract` — the content-vs-relationship principle"
+    divio_type: "none"
+    abstract: "**Status:** Accepted"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "the-principle", text: "The principle", level: 3}
+    - {slug: "reconciling-the-glossary-precedent-squad-finding-c-c4", text: "Reconciling the glossary precedent (squad finding C-C4)", level: 3}
+    - {slug: "rejected-option-2-promote-a-gate-artifactkind", text: "Rejected: Option 2 (promote a `gate` `ArtifactKind`)", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "related-adrs", text: "Related ADRs", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -5545,12 +5560,15 @@ pages:
     - {slug: "branch-strategy-gate", text: "branch strategy gate", level: 3}
     - {slug: "current-branch", text: "current branch", level: 3}
     - {slug: "feature-branch", text: "feature branch", level: 3}
+    - {slug: "gate-binding", text: "gate binding", level: 3}
+    - {slug: "gate-handler", text: "gate handler", level: 3}
     - {slug: "merge-target-branch", text: "Merge target branch", level: 3}
     - {slug: "planning-base-branch", text: "Planning base branch", level: 3}
     - {slug: "primary-branch", text: "primary branch", level: 3}
     - {slug: "pr-bound-mission", text: "pr-bound mission", level: 3}
     - {slug: "start-branch", text: "start branch", level: 3}
     - {slug: "target-branch", text: "target branch", level: 3}
+    - {slug: "transition-gate", text: "transition gate", level: 3}
     - {slug: "tracker-connector", text: "Tracker Connector", level: 3}
     - {slug: "tracker-connector-boundary-alias", text: "Tracker Connector Boundary (Alias)", level: 3}
     - {slug: "primary-partition", text: "PRIMARY partition", level: 3}

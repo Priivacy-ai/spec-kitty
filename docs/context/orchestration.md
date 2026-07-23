@@ -410,7 +410,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [gate handler](#gate-handler), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate), [diff compliance gate](#diff-compliance-gate) |
+| **Related terms** | [gate handler](#gate-handler), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate) |
 
 ---
 
@@ -422,7 +422,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [gate binding](#gate-binding), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate), [dependency gate](#dependency-gate) |
+| **Related terms** | [gate binding](#gate-binding), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate) |
 
 ---
 
@@ -507,7 +507,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [gate handler](#gate-handler), [gate binding](#gate-binding), [branch strategy gate](#branch-strategy-gate), [dependency gate](#dependency-gate) |
+| **Related terms** | [gate handler](#gate-handler), [gate binding](#gate-binding), [branch strategy gate](#branch-strategy-gate) |
 
 ---
 

@@ -18,8 +18,8 @@ base commit ``e4ef6e850`` and NEVER regenerated from HEAD:
 **How to (re)capture** -- via a detached ``git worktree`` at the base commit
 (THE method, not a fallback)::
 
-    git worktree add --detach /tmp/base-e4ef6e850 e4ef6e850
-    cd /tmp/base-e4ef6e850
+    git worktree add --detach /path/to/base-e4ef6e850 e4ef6e850
+    cd /path/to/base-e4ef6e850
     PYTHONPATH=$(pwd)/src python \\
         <repo>/tests/review/fixtures/parity/_capture.py \\
         --out <repo>/tests/review/fixtures/parity

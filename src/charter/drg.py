@@ -70,7 +70,11 @@ from doctrine.drg.merge import (
     merge_three_layers,
 )
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_config import load_pack_registry
+from doctrine.drg.org_pack_config import (
+    OrgPackEnvVarUnsetError,
+    OrgPackSubdirEscapeError,
+    load_pack_registry,
+)
 from doctrine.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackMissingError,
@@ -95,7 +99,9 @@ __all__ = [
     "OrgDRGConflict",
     "OrgDRGConflictError",
     "OrgDRGFragment",
+    "OrgPackEnvVarUnsetError",
     "OrgPackMissingError",
+    "OrgPackSubdirEscapeError",
     "Relation",
     "ResolvedContext",
     "UnknownRelationError",

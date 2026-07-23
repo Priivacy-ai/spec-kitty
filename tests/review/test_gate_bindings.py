@@ -54,6 +54,8 @@ from specify_cli.review.gate_bindings import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+pytestmark = [pytest.mark.fast]
+
 _EDGE = "in_progress->for_review"
 _HANDLER = "spec-kitty-pre-review"
 _SOFTWARE_DEV = "software-dev"
@@ -298,7 +300,7 @@ def test_three_no_coverage_reasons_are_pairwise_distinct(tmp_path: Path) -> None
         pack_resolver=lambda root: _pack(["research"], root),
     )
     reasons = {no_contract.reason, no_binding.reason, not_activated.reason}
-    assert len(reasons) == 3, f"reasons must be pairwise distinct, got {reasons}"
+    assert len(reasons) == 3, f"reasons must be pairwise distinct, got {reasons}"  # golden-count: cardinality-is-contract
 
 
 # ---------------------------------------------------------------------------

@@ -1042,7 +1042,7 @@ def _scope_result_from_breakdown(
     empty_cone_dirs: set[str] = set()
     excluded_scope_files: list[str] = []
     for raw_file in changed_files:
-        changed_file = raw_file.replace("\\", "/")
+        changed_file = to_posix(raw_file)
         breakdown = scope_source.scope_breakdown(changed_file)
         targets.update(breakdown.test_targets)
         shard_groups.update(breakdown.matched_shard_groups)

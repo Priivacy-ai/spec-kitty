@@ -43,14 +43,19 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
+from kernel.paths import to_posix
 from specify_cli.review._interpreter import resolve_pytest_command
 
 if TYPE_CHECKING:
     from specify_cli.review.baseline import BaselineFailure
 
+# ``DeclaredCommandScopeSource`` (the portable, layout-agnostic impl) and
+# ``FileScopeBreakdown`` (the per-file breakdown dataclass) are not yet consumed
+# cross-module in half A: the activation-resolved wiring that would select the
+# portable source lands with #2873, and the breakdown is an internal detail of
+# the census path. Both stay importable by their unit tests; they are re-added
+# to ``__all__`` when a runtime caller wires them.
 __all__ = [
-    "DeclaredCommandScopeSource",
-    "FileScopeBreakdown",
     "GateCoverageScopeSource",
     "RawRunResult",
     "ScopeBreakdownSource",
@@ -195,8 +200,8 @@ def _resolve_excluded_catchall_groups(filter_groups: Mapping[str, tuple[str, ...
 
 def _glob_matches_file(glob_pattern: str, file_path: str) -> bool:
     """Private copy of ``pre_review_gate._glob_matches_file`` (FR-009)."""
-    pattern = glob_pattern.replace("\\", "/")
-    path = file_path.replace("\\", "/")
+    pattern = to_posix(glob_pattern)
+    path = to_posix(file_path)
     if pattern.endswith("/**"):
         prefix = pattern[: -len("/**")]
         return path == prefix or path.startswith(f"{prefix}/")
@@ -207,7 +212,7 @@ def _glob_matches_file(glob_pattern: str, file_path: str) -> bool:
 
 def _glob_to_pytest_target(glob_pattern: str) -> str:
     """Private copy of ``pre_review_gate._glob_to_pytest_target`` (FR-009)."""
-    normalized = glob_pattern.replace("\\", "/")
+    normalized = to_posix(glob_pattern)
     if normalized.endswith("/**"):
         return normalized[: -len("/**")]
     return normalized
@@ -368,7 +373,7 @@ class GateCoverageScopeSource:
         ``empty_cone_composite_dirs``). A file matching only catch-all groups (or
         no group) contributes nothing and reports ``contributes_scope=False``.
         """
-        changed_file = path.replace("\\", "/")
+        changed_file = to_posix(path)
         excluded_groups = _resolve_excluded_catchall_groups(self._filter_groups)
         focused_group_names = {
             name

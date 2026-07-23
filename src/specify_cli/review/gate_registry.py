@@ -37,8 +37,10 @@ if TYPE_CHECKING:
     from specify_cli.review.scope_source import ScopeSource
     from specify_cli.status.models import Lane
 
+# ``GATE_REGISTRY`` is the module-internal registry table; cross-module callers
+# reach handlers through ``get_gate_handler`` (the lookup facade), so the dict
+# itself is not exported. Its contents are still exercised directly by tests.
 __all__ = [
-    "GATE_REGISTRY",
     "GateHandler",
     "TransitionGateContext",
     "get_gate_handler",

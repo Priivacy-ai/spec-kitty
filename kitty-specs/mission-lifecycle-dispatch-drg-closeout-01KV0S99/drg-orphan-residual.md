@@ -106,6 +106,27 @@ The 10 rows above are the true standalone residual, left untouched for follow-up
 mission-type rows exist in this table: the wired `mission_type:*` nodes and their sequence actions post-date
 the WP05 snapshot and were never orphans recorded here.
 
+## 2026-07-23 — built-in mission_step_contract nodes accepted as edge-less residuals (doctrine-controlled-transition-gates, epic #2535 half A)
+
+The `doctrine-controlled-transition-gates` mission (epic #2535 half A) added 17 built-in
+`mission_step_contract:<mission>/<action>` DRG nodes — the per-action step contracts for the
+four built-in mission types:
+
+- `mission_step_contract:documentation/{accept,audit,design,discover,generate,publish,validate}` (7)
+- `mission_step_contract:research/{gathering,methodology,output,scoping,synthesis}` (5)
+- `mission_step_contract:software-dev/{implement,plan,review,specify,tasks}` (5)
+
+These nodes are **intentionally edge-less** (the MSC fragment ships `edges: []`). The
+declarative step-contract→gate binding join gates on the **node's presence**, not on graph
+edges — the activation engine resolves a contract by URN lookup, so no inbound/outbound edge is
+required for it to be wired into runtime. Deleting or artificially edging these nodes to shrink
+the metric is exactly what D-C2 / C-003 forbid.
+
+This raises the documented residual ceiling **14 → 29** (+15 relative to the historical ceiling;
+empirical count is now 29 with no slack). The ceiling constant lives in
+`tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py`
+(`DOCUMENTED_ORPHAN_RESIDUAL = 29`).
+
 ## Follow-up ticket (required — residual is non-empty, C-003)
 
 The residual set is non-empty, so per C-003 a curation follow-up ticket is required
@@ -115,5 +136,6 @@ bulk-edit organizing procedure is added that would naturally cite them). **No de
 is in scope for that follow-up unless an artifact is shown to be genuinely retired.
 
 > Orchestrator: file the curation follow-up ticket and record it in the #1863 issue-matrix
-> row at the merge/accept gate. The residual ceiling is pinned at **14** by
-> `test_shipped_graph_orphan_count_within_documented_residual`.
+> row at the merge/accept gate. The residual ceiling is pinned at **29** by
+> `test_shipped_graph_orphan_count_within_documented_residual` (raised from 14 by the
+> 2026-07-23 mission_step_contract entry above).

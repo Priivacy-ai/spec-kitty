@@ -36,12 +36,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from charter._drg_helpers import load_validated_graph
-from charter.drg import NodeKind, filter_graph_by_activation
-from charter.mission_steps import MissionStepContract, MissionStepContractRepository
-from doctrine.drg.org_pack_config import (
+from charter.drg import (
+    NodeKind,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
+    filter_graph_by_activation,
 )
+from charter.mission_steps import MissionStepContract, MissionStepContractRepository
 from specify_cli.mission_metadata import resolve_mission_identity
 
 if TYPE_CHECKING:
@@ -51,13 +52,13 @@ if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
     from doctrine.missions.step_contracts import GateBinding
 
+# Only names consumed cross-module (the transition-gate hook) are exported; the
+# resolution primitives (``resolve_active_gate_bindings``, ``load_gate_bindings``,
+# ``owning_contract_urn``, ``OWNING_ACTION_FOR_EDGE``, ``GateCoverage``) stay
+# module-internal — they are composed by ``resolve_gate_bindings_for_transition``
+# and exercised directly by unit tests, which do not need ``__all__`` membership.
 __all__ = [
-    "OWNING_ACTION_FOR_EDGE",
     "GateBindingResolution",
-    "GateCoverage",
-    "load_gate_bindings",
-    "owning_contract_urn",
-    "resolve_active_gate_bindings",
     "resolve_gate_bindings_for_transition",
     "resolve_mission_type",
 ]

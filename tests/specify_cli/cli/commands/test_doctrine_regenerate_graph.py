@@ -72,10 +72,15 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: D-C2 / C-003 forbid deleting valid orphans to shrink this metric. This ceiling
 #: is a regression guard against the count silently *growing* — a new orphan must
 #: either be wired or added to the documented residual (and this ceiling raised
-#: with a rationale). It is NOT a mandate to prune to reach a lower number. The
-#: ceiling stays at the historical 14 baseline (empirical 10 leaves 4 slack, by
-#: deliberate D-C2 choice — a growth guard, not a pin to the current count).
-DOCUMENTED_ORPHAN_RESIDUAL = 14
+#: with a rationale). It is NOT a mandate to prune to reach a lower number.
+#:
+#: Mission ``doctrine-controlled-transition-gates`` (epic #2535 half A) shipped the
+#: 17 built-in ``mission_step_contract:<mission>/<action>`` nodes as intentionally
+#: edge-less residuals: the MSC fragment ships ``edges: []`` because the activation
+#: join gates on the node's *presence*, not on edges. That raises the ceiling from
+#: the historical 14 baseline to 29 (empirical 29, no slack). Full narrative in
+#: ``drg-orphan-residual.md``.
+DOCUMENTED_ORPHAN_RESIDUAL = 29
 
 
 def _count_orphans(graph: DRGGraph) -> int:
