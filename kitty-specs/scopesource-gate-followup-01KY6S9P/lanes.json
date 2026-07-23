@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "mission_slug": "scopesource-gate-followup-01KY6S9P",
+  "mission_id": "01KY6S9P6T2N0SJ84YXYSJ4P3W",
+  "mission_branch": "kitty/mission-scopesource-gate-followup-01KY6S9P",
+  "target_branch": "fix/scopesource-gate-followup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/review/fixtures/parity/**",
+        "tests/review/test_pre_review_gate_sole_caller_audit.py",
+        "tests/review/test_transition_gate_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/development/review-gates.md",
+        "src/specify_cli/review/scope_source.py",
+        "tests/review/test_scope_source.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "ruff.toml",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/review/baseline.py",
+        "tests/review/test_baseline_anti_narrowing.py",
+        "tests/review/test_baseline_lifecycle.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "tests/review/test_baseline_head_parity.py",
+        "tests/review/test_pre_review_gate_source_mismatch.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_pre_review_scope_singlesource.py",
+        "tests/review/test_census_parity.py",
+        "tests/review/test_gate_coverage_census_topology.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/review/test_pre_review_gate_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-23T12:13:00.212480+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
