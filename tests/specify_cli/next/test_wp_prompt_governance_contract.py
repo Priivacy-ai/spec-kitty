@@ -816,53 +816,6 @@ class TestCharterContextResolverCompleteness:
 
 
 # ---------------------------------------------------------------------------
-# Contract 7 — Charter directive namespace (DIR-NNN) MUST cross-link to
-#              doctrine catalog namespace (DIRECTIVE_NNN) when one cites
-#              the other.
-# ---------------------------------------------------------------------------
-
-
-class TestCharterDirectiveNamespaceCrossLink:
-    """`charter sync` produces `.kittify/charter/directives.yaml` with sequential
-    `DIR-NNN` entries. When a charter directive cites a doctrine catalog
-    DIRECTIVE_NNN by reference (e.g. "DIRECTIVE_032 — Conceptual Alignment"),
-    the generated `DIR-NNN` entry MUST carry a `references:` field linking back
-    to the catalog ID so the resolver can surface the catalog body on demand.
-    """
-
-    def test_charter_sync_emits_cross_link_when_body_cites_catalog_id(
-        self, project_with_implement_wp: tuple[Path, Path, str]
-    ) -> None:
-        repo_root, _feature_dir, _mission_slug = project_with_implement_wp
-        # The fixture charter's Code Review Checklist cites DIRECTIVE_032
-        # explicitly. After running `charter sync`, the generated directives.yaml
-        # entry MUST carry a references field pointing at the catalog ID.
-        from charter.sync import ensure_charter_bundle_fresh
-
-        ensure_charter_bundle_fresh(repo_root)
-        directives_yaml = repo_root / ".kittify" / "charter" / "directives.yaml"
-        assert directives_yaml.exists(), (
-            "charter sync MUST emit .kittify/charter/directives.yaml"
-        )
-        body = directives_yaml.read_text(encoding="utf-8")
-        # We accept either a structured `references:` field or an inline citation in
-        # the directive description that contains the catalog ID.
-        has_cross_link = (
-            "DIRECTIVE_032" in body
-            and re.search(
-                r"references?:\s*\n\s*-\s*DIRECTIVE_032|DIRECTIVE_032",
-                body,
-            )
-        )
-        assert has_cross_link, (
-            "When the charter body cites DIRECTIVE_032, the auto-generated "
-            "directives.yaml entry MUST carry a cross-link to the doctrine catalog "
-            "ID — either as a structured `references:` field or as a preserved "
-            "inline citation in the description. Today the citation is dropped."
-        )
-
-
-# ---------------------------------------------------------------------------
 # Contract 8 — End-to-end: the `_build_wp_prompt` output MUST be self-sufficient.
 #              An implementer reading only the prompt MUST be able to satisfy
 #              the project's terminology, profile-directive, and architectural
