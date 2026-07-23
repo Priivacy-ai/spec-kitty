@@ -14,12 +14,20 @@ Stages (see issue #2262 §3.3):
 * WP-Y3 — :mod:`.synthesize`: turn a :class:`MissionScan` into the ordered,
   deterministic ``MissionCreated → WPCreated[] → WPStatusChanged[]`` envelope
   stream (INV-3 / INV-4).
+* WP-Y4 — :mod:`.identity`: resolve the ``(project_uuid, project_slug,
+  repo_slug)`` trio — real persisted UUID on ``--apply`` (INV-5), synthetic
+  offline UUID for dry-run, never persisting on the read path (INV-2).
 
 Later slices add PROVENANCE, PREFLIGHT, UPLOAD, and REPORT.
 """
 
 from __future__ import annotations
 
+from specify_cli.sync.history_import.identity import (
+    ImportIdentity,
+    ImportIdentityError,
+    resolve_import_identity,
+)
 from specify_cli.sync.history_import.scan import (
     MissionScan,
     PrefixSource,
@@ -34,10 +42,13 @@ from specify_cli.sync.history_import.synthesize import (
 )
 
 __all__ = [
+    "ImportIdentity",
+    "ImportIdentityError",
     "MissionScan",
     "PrefixSource",
     "ScannedWorkPackage",
     "dry_run_project_uuid",
+    "resolve_import_identity",
     "scan_mission",
     "scan_missions",
     "synthesize_mission_stream",
