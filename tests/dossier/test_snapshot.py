@@ -360,7 +360,9 @@ class TestParityHashAlgorithm:
         hash2 = compute_parity_hash_from_dossier(dossier)
 
         assert hash1 == hash2
-        assert len(hash1) == 64  # SHA256 is 64 hex characters  # golden-count: cardinality-is-contract
+        # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
+        assert hash1.startswith("sha256:")
+        assert len(hash1) == len("sha256:") + 64  # golden-count: cardinality-is-contract
 
     def test_parity_hash_order_independence(self) -> None:
         """Same artifacts in different order should produce same parity hash."""
@@ -934,7 +936,9 @@ class TestLargeSnapshot:
         assert snapshot.optional_artifacts == 15
         assert snapshot.optional_present == 8
         assert snapshot.completeness_status == "complete"
-        assert len(snapshot.parity_hash_sha256) == 64  # golden-count: cardinality-is-contract
+        # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
+        assert snapshot.parity_hash_sha256.startswith("sha256:")
+        assert len(snapshot.parity_hash_sha256) == len("sha256:") + 64  # golden-count: cardinality-is-contract
         assert len(snapshot.artifact_summaries) == 35  # golden-count: cardinality-is-contract
 
 

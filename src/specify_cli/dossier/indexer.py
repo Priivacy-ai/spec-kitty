@@ -16,16 +16,48 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP03-in
 
 import fnmatch
 import logging
+import re
 import uuid
 from datetime import datetime, UTC
 from pathlib import Path
 from collections.abc import Iterator
 
-from specify_cli.dossier.hasher import hash_file_with_validation
+from specify_cli.dossier.hasher import hash_file_with_validation, hash_wp_static_projection
 from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 logger = logging.getLogger(__name__)
+
+# A WP artifact is a ``WP##``-prefixed markdown file (e.g. ``tasks/WP01-foo.md``).
+# Its content hash is computed from the normalized WPMetadata static projection
+# rather than raw bytes (FR-002, C-004) so runtime-mutable frontmatter churn
+# (lane, agent, shell_pid, history, review_* …) does not move the dossier hash.
+_WP_FILENAME_RE = re.compile(r"^WP\d{2,}", re.IGNORECASE)
+
+
+def _is_wp_artifact(file_path: Path) -> bool:
+    """True if *file_path* is a ``WP##`` markdown work-package file."""
+    return file_path.suffix.lower() == ".md" and bool(_WP_FILENAME_RE.match(file_path.stem))
+
+
+def _hash_wp_projection(file_path: Path) -> tuple[str | None, str | None]:
+    """Hash a WP file's normalized static projection: ``(hash, error_reason)``.
+
+    Falls back to raw-byte content hashing when the frontmatter cannot be
+    parsed/validated (e.g. a stub ``WP##.md`` with no frontmatter) so indexing
+    degrades gracefully instead of failing the whole scan.
+    """
+    from pydantic import ValidationError
+
+    from specify_cli.frontmatter import FrontmatterError
+    from specify_cli.status import read_wp_frontmatter
+
+    try:
+        meta, _ = read_wp_frontmatter(file_path)
+    except (FrontmatterError, ValidationError, ValueError) as exc:
+        logger.debug("WP projection unavailable for %s (%s); using raw-byte hash", file_path, exc)
+        return hash_file_with_validation(file_path)
+    return hash_wp_static_projection(meta), None
 
 
 class Indexer:
@@ -137,8 +169,12 @@ class Indexer:
             artifact_class = "output"
 
         try:
-            # Try to read and hash
-            file_hash, error_reason = hash_file_with_validation(file_path)
+            # Try to read and hash. WP artifacts hash their normalized static
+            # projection (FR-002, C-004); everything else hashes raw bytes.
+            if _is_wp_artifact(file_path):
+                file_hash, error_reason = _hash_wp_projection(file_path)
+            else:
+                file_hash, error_reason = hash_file_with_validation(file_path)
 
             if error_reason:
                 # UTF-8 validation failed or I/O error
@@ -223,9 +259,7 @@ class Indexer:
         """
         # Strategy 1: Check manifest definitions (if manifest exists)
         if manifest:
-            for specs in (
-                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
-            ):
+            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
                 if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
                     return specs.artifact_class.value
 
@@ -359,9 +393,7 @@ class Indexer:
         manifest = self.manifest_registry.load_manifest(mission_type)
 
         if manifest:
-            for specs in (
-                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
-            ):
+            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
                 if self._matches_pattern(file_path, specs.path_pattern):
                     return specs.artifact_key
 

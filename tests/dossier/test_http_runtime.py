@@ -104,7 +104,9 @@ class TestDossierHTTPRuntime:
         assert isinstance(response, DossierOverviewResponse)
         assert response.mission_slug == "042-test-feature"
         assert response.completeness_status in ("complete", "incomplete", "unknown")
-        assert len(response.parity_hash_sha256) == 64  # SHA256 hex
+        # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
+        assert response.parity_hash_sha256.startswith("sha256:")
+        assert len(response.parity_hash_sha256) == len("sha256:") + 64
 
     def test_artifacts_endpoint_returns_full_list(self, temp_feature_dir):
         """Verify artifacts endpoint returns all artifacts."""

@@ -200,6 +200,11 @@ _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(r"^(?:\d{3}-[a-z0-9-]+|[a-z0-9]+(?:-[a-z0-9]+)*-[0-9A-HJKMNP-TV-Z]{8})$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
 _SHA256_HEX_RE = re.compile(r"^[a-f0-9]{64}$")
+# Canonical dossier snapshot-hash (WP01/FR-003): ``sha256:``-prefixed digest.
+# The bare 64-hex form is also accepted for backward compatibility with drift
+# baselines recorded before the one-time re-baseline (WP05); genuinely
+# malformed values are still rejected.
+_CANONICAL_SNAPSHOT_HASH_RE = re.compile(r"^(?:sha256:)?[a-f0-9]{64}$")
 
 
 def _is_datetime_string(value: Any) -> bool:
@@ -255,6 +260,16 @@ def _is_non_negative_number(value: Any) -> bool:
 
 def _is_sha256_hex(value: Any) -> bool:
     return isinstance(value, str) and bool(_SHA256_HEX_RE.match(value))
+
+
+def _is_canonical_snapshot_hash(value: Any) -> bool:
+    """Validate a canonical dossier snapshot hash (FR-008).
+
+    Accepts the canonical ``sha256:``-prefixed digest emitted after the
+    migration (WP02) and the bare 64-hex form still carried by drift baselines
+    recorded before the one-time re-baseline (WP05). Rejects any other shape.
+    """
+    return isinstance(value, str) and bool(_CANONICAL_SNAPSHOT_HASH_RE.match(value))
 
 
 def _is_probability(value: Any) -> bool:
@@ -726,7 +741,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"namespace", "snapshot_hash", "artifact_count", "anomaly_count", "computed_at"},
         "validators": {
             "namespace": _is_dict,
-            "snapshot_hash": _is_sha256_hex,
+            "snapshot_hash": _is_canonical_snapshot_hash,
             "artifact_count": lambda v: isinstance(v, int) and v >= 0,
             "anomaly_count": lambda v: isinstance(v, int) and v >= 0,
             "computed_at": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -738,8 +753,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"namespace", "expected_hash", "actual_hash", "drift_kind", "detected_at"},
         "validators": {
             "namespace": _is_dict,
-            "expected_hash": _is_sha256_hex,
-            "actual_hash": _is_sha256_hex,
+            "expected_hash": _is_canonical_snapshot_hash,
+            "actual_hash": _is_canonical_snapshot_hash,
             "drift_kind": lambda v: isinstance(v, str) and len(v) >= 1,
             "detected_at": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_ids_changed": lambda v: v is None or (isinstance(v, list) and all(isinstance(item, dict) for item in v)),

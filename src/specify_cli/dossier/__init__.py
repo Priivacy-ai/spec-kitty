@@ -1,7 +1,14 @@
 """Mission dossier system for artifact indexing, classification, and parity detection."""
 
 from .models import ArtifactRef, MissionDossier, MissionDossierSnapshot
-from .hasher import hash_file, hash_file_with_validation, Hasher
+from .hasher import (
+    WP_STATIC_PROJECTION_FIELDS,
+    compute_dossier_snapshot_hash,
+    hash_file,
+    hash_file_with_validation,
+    hash_wp_static_projection,
+    wp_static_projection,
+)
 from .manifest import (
     ArtifactClassEnum,
     ExpectedArtifactSpec,
@@ -36,7 +43,10 @@ __all__ = [
     "MissionDossierSnapshot",
     "hash_file",
     "hash_file_with_validation",
-    "Hasher",
+    "compute_dossier_snapshot_hash",
+    "wp_static_projection",
+    "hash_wp_static_projection",
+    "WP_STATIC_PROJECTION_FIELDS",
     "ArtifactClassEnum",
     "ExpectedArtifactSpec",
     "ExpectedArtifactManifest",
