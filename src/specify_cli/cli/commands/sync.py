@@ -1767,56 +1767,51 @@ def import_history(
     command emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``
     stream (INV-3) so historical work populates the projection.
 
-    WP-Y1 (this slice): the command + mission selection + the fail-closed
-    TeamSpace audit gate, reusing the migration helpers rather than
-    re-deriving them. Envelope synthesis and the pre-sync log re-drain
-    (§3.6b) land in the following slices.
+    Dry-run (default) runs the full read-only pipeline — SELECT → AUDIT
+    (fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope
+    stream that would be materialized. ``--apply`` (upload) lands in WP-Y5;
+    until then it is an honest non-zero stub.
     """
-    from specify_cli.migration.mission_state import (
-        MissionStateRepairError,
-        _select_mission_dirs,
-        _teamspace_audit_blockers,
+    from specify_cli.migration.mission_state import MissionStateRepairError
+    from specify_cli.sync.history_import import (
+        ImportAuditBlocked,
+        build_import_plan,
+        describe_plan,
     )
 
     if apply and dry_run:
         console.print("[red]Error:[/red] --apply and --dry-run are mutually exclusive.")
         raise typer.Exit(2)
 
+    if apply:
+        # WP-Y5 wires provenance + preflight + upload. Until then --apply must
+        # not claim a materialize it can't perform — no work, honest exit.
+        console.print(
+            "[yellow]--apply is not available yet.[/yellow] Run without --apply to preview the "
+            "plan; provenance + preflight + upload land in the next slice of #2262."
+        )
+        raise typer.Exit(3)
+
     repo_root = _require_active_checkout().repo_root
 
-    # Stage 1 — SELECT: which missions are in scope.
     try:
-        mission_dirs = _select_mission_dirs(repo_root, scan_root=None, mission=mission)
+        plan = build_import_plan(repo_root, mission=mission, apply=False)
     except MissionStateRepairError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
-    if not mission_dirs:
+    except ImportAuditBlocked as exc:
+        console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
+        for blocker in exc.blockers[:20]:
+            console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
+        raise typer.Exit(1) from exc
+
+    if plan.is_empty:
         console.print("[yellow]No missions found to import.[/yellow]")
         raise typer.Exit(0)
 
-    # Stage 2 — AUDIT (fail-closed): a mission with blocking findings must not
-    # be half-imported. `_teamspace_audit_blockers` already returns only genuine
-    # TeamSpace blockers — out-of-scope side logs are excluded at the source.
-    blockers = _teamspace_audit_blockers(repo_root, scan_root=None, mission_dirs=mission_dirs)
-    if blockers:
-        console.print(f"[red]Import blocked:[/red] {len(blockers)} audit finding(s) must be resolved first:")
-        for b in blockers[:20]:
-            console.print(f"  [yellow]•[/yellow] {b['mission_slug']}: {b['message']}")
-        raise typer.Exit(1)
-
-    console.print(f"[green]✓[/green] {len(mission_dirs)} mission(s) eligible for import; audit clean.")
-    for path in mission_dirs:
-        console.print(f"  • {path.name}")
-
-    if apply:
-        # WP-Y1 is fail-closed and honest: the synthesizer + pre-sync re-drain
-        # (§3.6a/b) are not built yet, so --apply must not claim a materialize
-        # it can't perform. Report the plan and exit non-zero until the next slice.
-        console.print(
-            "\n[yellow]--apply is not available yet.[/yellow] Envelope synthesis and the pre-sync "
-            "log re-drain land in the next slice of #2262. The selection + audit above is the plan."
-        )
-        raise typer.Exit(3)
+    for line in describe_plan(plan):
+        console.print(line)
+    console.print("\n[dim]Dry-run: nothing uploaded. Re-run with --apply to materialize.[/dim]")
 
 
 @app.command(name="workspace")
