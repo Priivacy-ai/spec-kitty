@@ -32,7 +32,7 @@ from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
-from typing import ClassVar, cast
+from typing import ClassVar
 
 import ulid as _ulid_mod
 
@@ -161,7 +161,7 @@ def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
     coord target (#1589). The canonical, NNN-stripping ``mission_dir_name`` is NOT
     used here.
     """
-    return cast(str, _seam_coord_mission_dir_name(mission_slug, mid8=mid8))
+    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
 def _validate_safe_segment(name: str, value: str) -> str:
@@ -172,7 +172,7 @@ def _validate_safe_segment(name: str, value: str) -> str:
     contract (C-001: migrate, don't wrap — no parallel mechanism).
     """
     try:
-        return cast(str, assert_safe_path_segment(value))
+        return assert_safe_path_segment(value)
     except ValueError as exc:
         raise BookkeepingError(f"{name} is not a safe path segment: {exc}") from exc
 

@@ -56,7 +56,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -567,19 +567,11 @@ def _resolve_type_key(mission_type: str | None, feature_dir: Path | None) -> str
     software-dev default.
     """
     if mission_type is not None:
-        # cast: pyproject.toml's [[tool.mypy.overrides]] sets
-        # `follow_imports = "skip"` for `charter.*` (a documented, repo-wide
-        # transitional quarantine — see the override's own comment), so a
-        # narrow ``mypy --strict`` invocation of THIS file alone loses
-        # ``canonical_mission_type_key``'s real ``str | None`` signature and
-        # infers ``Any``. The function is strictly typed at its own
-        # definition (charter/mission_type_key.py); this cast restores that
-        # signature at the call site rather than suppressing the check.
-        return cast(str | None, canonical_mission_type_key(mission_type))
+        return canonical_mission_type_key(mission_type)
     if feature_dir is None:
         return None
     raw = _read_meta_mission_type(feature_dir)
-    return cast(str | None, canonical_mission_type_key(raw))
+    return canonical_mission_type_key(raw)
 
 
 def _read_meta_mission_type(feature_dir: Path) -> str | None:
@@ -934,14 +926,7 @@ def _load_mission_type_profile(
     pydantic.ValidationError
         When a matching YAML is structurally malformed.
     """
-    # cast: see the analogous comment in `_resolve_type_key` — the repo-wide
-    # `follow_imports = "skip"` override for `charter.*` loses
-    # `MissionTypeProfileRepository.get`'s real `MissionTypeProfile | None`
-    # signature under a narrow, single-file `mypy --strict` invocation.
-    return cast(
-        MissionTypeProfile | None,
-        _mission_type_profile_repository(repo_root).get(mission_type),
-    )
+    return _mission_type_profile_repository(repo_root).get(mission_type)
 
 
 # ---------------------------------------------------------------------------

@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
@@ -443,10 +443,7 @@ def _resolve_feature_dir_for_staleness(main_repo_root: Path, mission_slug: str) 
         from mission_runtime import MissionArtifactKind
         from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
-        # cast: follow_imports=skip (specify_cli.* boundary) erases the imported
-        # function's real `-> Path` signature, turning the call site's inferred
-        # return type into `Any`; the cast is type-only, no behavior change.
-        return cast(Path, resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK))
+        return resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     except Exception:
         return None
 

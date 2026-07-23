@@ -13,7 +13,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import read_target_branch_from_meta
@@ -668,7 +668,7 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
         raise AcceptanceError(f"Status event log is corrupted for feature '{feature}': {exc}") from exc
     if not snapshot.work_packages:
         activity_issues.append(_missing_msg)
-    return cast(dict[str, dict[str, Any]], snapshot.work_packages)
+    return snapshot.work_packages
 
 
 def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -> Path:

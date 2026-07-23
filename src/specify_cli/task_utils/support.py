@@ -51,19 +51,17 @@ def find_repo_root(start: Path | None = None) -> Path:
 
     detected_root = locate_project_root(current)
     if detected_root is not None:
-        # cast: follow_imports=skip erases get_main_repo_root's -> Path signature
-        # at this specify_cli.* boundary; type-only, no behaviour change.
-        return cast(Path, get_main_repo_root(detected_root))
+        return get_main_repo_root(detected_root)
 
     # Fallback: support plain git repositories that do not contain .kittify yet.
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
         if git_path.is_dir():
-            return cast(Path, get_main_repo_root(candidate))
+            return get_main_repo_root(candidate)
 
         if git_path.is_file():
-            resolved = cast(Path, get_main_repo_root(candidate))
+            resolved = get_main_repo_root(candidate)
             if resolved != candidate:
                 return resolved
 

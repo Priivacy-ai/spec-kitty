@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -126,7 +126,7 @@ def _transaction_dir_name(mission_slug: str, mid8: str) -> str:
     routing stays byte-identical. The canonical, NNN-stripping ``mission_dir_name``
     is NOT used here.
     """
-    return cast(str, _seam_coord_mission_dir_name(mission_slug, mid8=mid8))
+    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
 def _transaction_topology_available(identity: _TransactionIdentity, mission_slug: str) -> bool:
@@ -142,12 +142,9 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
 
     from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
 
-    return cast(
-        bool,
-        _branch_exists(
-            identity.repo_root,
-            CoordinationWorkspace.branch_name(mission_slug, identity.mid8),
-        ),
+    return _branch_exists(
+        identity.repo_root,
+        CoordinationWorkspace.branch_name(mission_slug, identity.mid8),
     )
 
 
@@ -309,7 +306,7 @@ def _canonical_primary_feature_dir(
         # honoured downstream by ``_read_contract_from_transaction_target``.
         refusal_anchor: Path = exc.primary_candidate
         return refusal_anchor
-    return cast(Path, resolved.primary_anchor)
+    return resolved.primary_anchor
 
 
 def _resolve_write_target(

@@ -74,7 +74,7 @@ def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    return cast(Path, resolve_status_lock_root(feature_dir, repo_root))
+    return resolve_status_lock_root(feature_dir, repo_root)
 
 
 def _actor_key(actor: object | None) -> str | None:
