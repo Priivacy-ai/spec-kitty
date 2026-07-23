@@ -955,7 +955,11 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
         # imported by concrete name outside scope_source.py by design).
-        SymbolKey("DeclaredCommandScopeSource", "0ed7a0eef11d4d8eb249209fedd58c04dc833a9f9dc3ac6a71193f394bdb6142"),
+        # Content-hash re-pin (landing fold, mission scopesource-gate-followup):
+        # parse_mode/parse_results were stabilized to an outcome-invariant
+        # strategy label (SOURCE_MISMATCH fail-open fix), moving the class body
+        # hash 0ed7a0e -> fac6a9d. Symbol is still same-module-constructed only.
+        SymbolKey("DeclaredCommandScopeSource", "fac6a9dffbf00049014f5397114a40ed36ebc4be66a09a23028dd7422400e6b9"),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
         # of GateCoverageScopeSource.scope_breakdown(); consumed structurally
         # (attribute access) by pre_review_gate._scope_result_from_breakdown,
