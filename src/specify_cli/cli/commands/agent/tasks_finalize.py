@@ -346,9 +346,13 @@ def _do_finalize_tasks(
         # into finalize-tasks. `_coordination_doctor` (Cluster K) owns the
         # detector; `check_and_warn_coord_staleness` never raises on its own,
         # and `contextlib.suppress` is belt-and-braces so this can NEVER block
-        # finalize-tasks.
-        with contextlib.suppress(Exception):
-            check_and_warn_coord_staleness(st.primary_feature_dir, st.main_repo_root)
+        # finalize-tasks. Gated on human mode: the advisory WARN prints via
+        # `console.print` to stdout, which would corrupt the machine-readable
+        # `--json` payload (that leg is consumed by `json.loads`), so it is
+        # emitted only when NOT in `--json` mode.
+        if not st.json_output:
+            with contextlib.suppress(Exception):
+                check_and_warn_coord_staleness(st.primary_feature_dir, st.main_repo_root)
         _ft_validate(st)
         _ft_apply_writes(st)
         _ft_output(st)
