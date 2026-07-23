@@ -204,6 +204,64 @@ WP_STATIC_PROJECTION_FIELDS: tuple[str, ...] = (
     "phase",
 )
 
+# The complement of WP_STATIC_PROJECTION_FIELDS, authored here so the
+# exhaustiveness guard (tests/dossier/test_canonical_hash.py) can prove EVERY
+# WPMetadata field is consciously classified — a newly-authored field must be
+# placed in one of these sets, never silently dropped from the content hash
+# (#2883 item 1). Split into two sets for intent clarity.
+#
+# Runtime / review state: mutates during a mission (execution + review) and MUST
+# NOT move the content hash (AS-4).
+WP_RUNTIME_PROJECTION_FIELDS: frozenset[str] = frozenset(
+    {
+        "agent",
+        "agent_profile",
+        "model",
+        "role",
+        "assignee",
+        "lane",
+        "status",
+        "review_status",
+        "shell_pid",
+        "shell_pid_created_at",
+        "history",
+        "activity_log",
+        "review_feedback",
+        "review_feedback_file",
+        "reviewed_by",
+        "reviewer",
+        "reviewer_agent",
+        "reviewer_shell_pid",
+        "approved_by",
+    }
+)
+
+# Descriptive / structural / identity metadata: authored, but deliberately NOT
+# part of the WP's hashed content contract (branch+vcs config, mission identity,
+# free-form descriptive fields). Revisit membership if any becomes load-bearing
+# for content parity.
+WP_DESCRIPTIVE_PROJECTION_FIELDS: frozenset[str] = frozenset(
+    {
+        "base_branch",
+        "base_commit",
+        "branch_strategy",
+        "planning_base_branch",
+        "merge_target_branch",
+        "created_at",
+        "description",
+        "subtitle",
+        "estimated_duration",
+        "tags",
+        "feature_slug",
+        "mission_id",
+        "mission_number",
+        "mission_slug",
+        "phases",
+        "work_package_title",
+        "wp_code",
+    }
+)
+
 
 def wp_static_projection(meta: WPMetadata) -> dict[str, Any]:
     """Project a :class:`WPMetadata` onto its canonical static content fields.

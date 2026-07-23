@@ -181,6 +181,35 @@ class TestWPStaticProjection:
         ):
             assert runtime_field not in projection
 
+    def test_every_wp_metadata_field_is_consciously_classified(self):
+        """Exhaustiveness guard (#2883 item 1): every WPMetadata field must be in
+        exactly one of static / runtime / descriptive. A newly-authored field
+        fails here until classified — so it can never silently drop out of the
+        content hash (false PARITY). Unlike the shape test above, this enumerates
+        ``WPMetadata.model_fields``, so it is not tautological."""
+        from specify_cli.dossier.hasher import (
+            WP_DESCRIPTIVE_PROJECTION_FIELDS,
+            WP_RUNTIME_PROJECTION_FIELDS,
+        )
+        from specify_cli.status.wp_metadata import WPMetadata
+
+        static = set(WP_STATIC_PROJECTION_FIELDS)
+        all_fields = set(WPMetadata.model_fields)
+        classified = static | WP_RUNTIME_PROJECTION_FIELDS | WP_DESCRIPTIVE_PROJECTION_FIELDS
+
+        unclassified = all_fields - classified
+        assert not unclassified, (
+            f"Unclassified WPMetadata field(s): {sorted(unclassified)}. Add each to "
+            "WP_STATIC_PROJECTION_FIELDS (hashed authored content), "
+            "WP_RUNTIME_PROJECTION_FIELDS (runtime/review, excluded), or "
+            "WP_DESCRIPTIVE_PROJECTION_FIELDS (metadata, excluded) in dossier/hasher.py."
+        )
+        # No field is both hashed and excluded; nothing classified is stale.
+        assert static.isdisjoint(WP_RUNTIME_PROJECTION_FIELDS)
+        assert static.isdisjoint(WP_DESCRIPTIVE_PROJECTION_FIELDS)
+        assert WP_RUNTIME_PROJECTION_FIELDS.isdisjoint(WP_DESCRIPTIVE_PROJECTION_FIELDS)
+        assert classified <= all_fields, f"Stale classified field(s): {sorted(classified - all_fields)}"
+
     def test_projection_hash_is_64_hex(self):
         digest = hash_wp_static_projection(_make_wp())
         assert len(digest) == 64  # golden-count: cardinality-is-contract

@@ -122,6 +122,13 @@ class FrontmatterManager:
         except Exception as e:
             raise FrontmatterError(f"Invalid YAML in {file_path}: {e}") from e
 
+        # Frontmatter must be a mapping. A YAML list/scalar (structurally-malformed
+        # doc) would otherwise blow up the key access below with a TypeError that
+        # escapes this method's documented FrontmatterError-only contract and
+        # aborts callers mid-scan (#2883 item 4).
+        if not isinstance(frontmatter, dict):
+            raise FrontmatterError(f"Frontmatter is not a mapping in {file_path}: parsed as {type(frontmatter).__name__}")
+
         # Ensure dependencies field exists for WP files only (backward compatibility with pre-0.11.0)
         if file_path.name.startswith("WP") and "dependencies" not in frontmatter:
             frontmatter["dependencies"] = []

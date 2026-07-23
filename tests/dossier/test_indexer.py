@@ -645,3 +645,41 @@ class TestLargeScaleIndexing:
         # All should be present (no errors)
         present = [a for a in dossier.artifacts if a.is_present]
         assert len(present) == 35  # golden-count: cardinality-is-contract
+
+
+class TestUnparseableWPHandling:
+    """#2883 items 3/4: invalid WP frontmatter is handled without aborting the
+    scan, and only the churn-prone case (present-but-schema-invalid) fails
+    closed; a stub/malformed doc with no runtime mapping stays present."""
+
+    def test_list_frontmatter_wp_survives_scan(self, tmp_path):
+        """Item 4: a YAML-list frontmatter no longer aborts the scan with a
+        TypeError. No runtime mapping to churn, so it stays present via the
+        stable raw-byte fallback."""
+        (tmp_path / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        tasks = tmp_path / "tasks"
+        tasks.mkdir()
+        (tasks / "WP01.md").write_text("---\n- a\n- b\n---\nbody\n", encoding="utf-8")
+
+        # Previously raised TypeError out of index_feature; must now survive.
+        dossier = Indexer(ManifestRegistry()).index_feature(tmp_path, "software-dev")
+
+        wp = next(a for a in dossier.artifacts if a.relative_path.endswith("WP01.md"))
+        assert wp.is_present is True
+        assert wp.content_hash_sha256  # stable raw-byte hash
+
+    def test_schema_invalid_frontmatter_wp_fails_closed(self, tmp_path):
+        """Item 3: a present-but-schema-invalid WP (valid mapping, bad wp id)
+        fails closed rather than raw-byte hashing runtime-mutable frontmatter
+        that a lane transition would churn into a false DIVERGENCE."""
+        (tmp_path / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        tasks = tmp_path / "tasks"
+        tasks.mkdir()
+        (tasks / "WP01.md").write_text("---\nwork_package_id: NOT-A-WP\ntitle: x\ndependencies: []\n---\nbody\n", encoding="utf-8")
+
+        dossier = Indexer(ManifestRegistry()).index_feature(tmp_path, "software-dev")
+
+        wp = next(a for a in dossier.artifacts if a.relative_path.endswith("WP01.md"))
+        assert wp.is_present is False  # fail-closed, no churning raw-byte hash
+        assert wp.content_hash_sha256 == ""
+        assert wp.error_reason and "invalid" in wp.error_reason

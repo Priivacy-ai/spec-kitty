@@ -43,9 +43,20 @@ def _is_wp_artifact(file_path: Path) -> bool:
 def _hash_wp_projection(file_path: Path) -> tuple[str | None, str | None]:
     """Hash a WP file's normalized static projection: ``(hash, error_reason)``.
 
-    Falls back to raw-byte content hashing when the frontmatter cannot be
-    parsed/validated (e.g. a stub ``WP##.md`` with no frontmatter) so indexing
-    degrades gracefully instead of failing the whole scan.
+    Two failure modes, deliberately treated differently (#2883 items 3/4):
+
+    * **Present-but-schema-invalid frontmatter** (``ValidationError``): the
+      frontmatter parsed to a mapping but failed the ``WPMetadata`` schema, so it
+      carries runtime-mutable fields (lane / agent / history). Raw-byte hashing it
+      would fold those into the recorded hash, so a routine lane transition would
+      move the hash and manufacture a false DIVERGENCE (breaking AS-4). **Fail
+      closed** — return ``(None, reason)`` so the caller marks it non-present.
+    * **No parseable frontmatter** (``FrontmatterError`` / ``ValueError``: a stub
+      ``WP##.md``, malformed YAML, or a non-mapping list/scalar doc): there is no
+      runtime-field mapping to churn, so a raw-byte hash is stable — keep the
+      artifact present via the raw-byte fallback. Crucially this no longer aborts
+      the whole scan: a list/scalar doc now surfaces as ``FrontmatterError`` from
+      ``read`` rather than a ``TypeError`` (#2883 item 4).
     """
     from pydantic import ValidationError
 
@@ -54,8 +65,11 @@ def _hash_wp_projection(file_path: Path) -> tuple[str | None, str | None]:
 
     try:
         meta, _ = read_wp_frontmatter(file_path)
-    except (FrontmatterError, ValidationError, ValueError) as exc:
-        logger.debug("WP projection unavailable for %s (%s); using raw-byte hash", file_path, exc)
+    except ValidationError as exc:
+        logger.warning("WP %s frontmatter fails schema (%s); marking non-present (fail-closed)", file_path, exc)
+        return None, f"wp frontmatter invalid: {exc}"
+    except (FrontmatterError, ValueError) as exc:
+        logger.debug("WP projection unavailable for %s (%s); using stable raw-byte hash", file_path, exc)
         return hash_file_with_validation(file_path)
     return hash_wp_static_projection(meta), None
 
