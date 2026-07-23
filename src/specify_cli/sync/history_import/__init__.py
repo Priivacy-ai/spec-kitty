@@ -32,10 +32,21 @@ from specify_cli.sync.history_import.identity import (
     resolve_import_identity,
 )
 from specify_cli.sync.history_import.pipeline import (
+    ApplyResult,
     ImportAuditBlocked,
     ImportPlan,
+    apply_import,
     build_import_plan,
     describe_plan,
+)
+from specify_cli.sync.history_import.upload import (
+    PreflightRejected,
+    ProvenanceEntry,
+    UploadReport,
+    build_provenance_manifest,
+    run_import_upload,
+    run_server_preflight,
+    upload_envelopes,
 )
 from specify_cli.sync.history_import.scan import (
     MissionScan,
@@ -51,19 +62,28 @@ from specify_cli.sync.history_import.synthesize import (
 )
 
 __all__ = [
+    "ApplyResult",
     "ImportAuditBlocked",
     "ImportIdentity",
     "ImportIdentityError",
     "ImportPlan",
     "MissionScan",
     "PrefixSource",
+    "PreflightRejected",
+    "ProvenanceEntry",
     "ScannedWorkPackage",
+    "UploadReport",
+    "apply_import",
     "build_import_plan",
+    "build_provenance_manifest",
     "describe_plan",
     "dry_run_project_uuid",
     "resolve_import_identity",
+    "run_import_upload",
+    "run_server_preflight",
     "scan_mission",
     "scan_missions",
     "synthesize_mission_stream",
     "synthesize_streams",
+    "upload_envelopes",
 ]

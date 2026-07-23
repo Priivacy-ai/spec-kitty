@@ -14,6 +14,7 @@ needs no on-disk repo, no dossier, and no TeamSpace credentials.
 from __future__ import annotations
 
 import re
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -160,29 +161,61 @@ def test_audit_blockers_block_import_and_name_the_finding(tmp_path, monkeypatch)
     assert "{'mission_slug'" not in plain
 
 
-# ── --apply is an honest stub until the synthesizer lands ────────────────────
+# ── --apply: authed upload path (WP-Y5) ──────────────────────────────────────
 
 
-def test_apply_is_an_honest_nonzero_stub(tmp_path, monkeypatch):
-    """``--apply`` on a clean selection must not fake a materialize (exit 3)."""
-    dirs = [tmp_path / "demo-mission-01DDDD"]
+def test_apply_fails_closed_when_unauthenticated(monkeypatch):
+    """--apply refuses to upload without an access token (fail-closed)."""
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "")
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 1
+    assert "Not authenticated" in _strip_ansi(result.output)
+
+
+def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
+    """The wired --apply resolves the authed receiver, runs apply_import, and
+    reports the upload tally (exit 0). apply_import is stubbed with a canned
+    result here; its real behavior is covered in the pipeline/upload suites."""
+    import specify_cli.sync.history_import as history_import
+    from specify_cli.sync.history_import import ApplyResult, ImportIdentity, ImportPlan, UploadReport
+    from specify_cli.sync.history_import.scan import MissionScan, PrefixSource
+
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
+    monkeypatch.setattr(sync_command, "_open_event_sync_runtime", lambda: SimpleNamespace(target=object()))
+    monkeypatch.setattr(
+        sync_command,
+        "_load_event_sync_config",
+        lambda: SimpleNamespace(resolve_runtime_target=lambda: SimpleNamespace(resolved_server_url="http://x")),
+    )
+    monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *a, **k: SimpleNamespace(endpoint_url="http://x/batch"))
     _patch_checkout(monkeypatch, tmp_path)
-    _patch_selection(monkeypatch, mission_dirs=dirs, blockers=[])
+
+    scan = MissionScan(
+        mission_slug="m-1",
+        canonical_mission_id=None,
+        mission_number=None,
+        name="M One",
+        mission_type="software-dev",
+        purpose_tldr=None,
+        purpose_context=None,
+        target_branch="main",
+        created_at=None,
+        prefix_source=PrefixSource.SYNTHESIZED,
+        work_packages=(),
+        lane_transitions=(),
+    )
+    ident = ImportIdentity(
+        project_uuid=uuid.UUID("11111111-2222-3333-4444-555555555555"),
+        project_slug="m-1",
+        repo_slug="m-1",
+        is_synthetic=False,
+    )
+    plan = ImportPlan(identity=ident, scans=(scan,), envelopes=({"event_id": "e0", "event_type": "MissionCreated"},))
+    canned = ApplyResult(plan=plan, manifest=[], report=UploadReport(success=1))
+    monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
 
     result = runner.invoke(app, ["import-history", "--apply"])
-    assert result.exit_code == 3
-    assert "not available yet" in _strip_ansi(result.output)
-
-
-def test_apply_short_circuits_before_any_work(monkeypatch):
-    """Until WP-Y5 wires the upload, ``--apply`` is a pure honest stub: it does
-    no checkout resolution / selection / scan, so it can have no side effects.
-    (The audit-gate-on-apply returns with the real upload path.)"""
-
-    def _forbidden_checkout():
-        raise AssertionError("the --apply stub must not resolve a checkout")
-
-    monkeypatch.setattr(sync_command, "_require_active_checkout", _forbidden_checkout)
-    result = runner.invoke(app, ["import-history", "--apply"])
-    assert result.exit_code == 3
-    assert "not available yet" in _strip_ansi(result.output)
+    assert result.exit_code == 0
+    plain = _strip_ansi(result.output)
+    assert "Imported:" in plain
+    assert "1 created" in plain

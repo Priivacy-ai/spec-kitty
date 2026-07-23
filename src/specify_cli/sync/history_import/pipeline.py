@@ -18,9 +18,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.delivery.receivers import DeliveryReceiver, HttpPoster, _requests_post
 from specify_cli.sync.history_import.identity import ImportIdentity, resolve_import_identity
 from specify_cli.sync.history_import.scan import MissionScan, scan_missions
 from specify_cli.sync.history_import.synthesize import synthesize_streams
+from specify_cli.sync.history_import.upload import (
+    ProvenanceEntry,
+    UploadReport,
+    build_provenance_manifest,
+    run_import_upload,
+)
 
 
 class ImportAuditBlocked(RuntimeError):
@@ -113,6 +120,43 @@ def build_import_plan(repo_root: Path, *, mission: str | None, apply: bool) -> I
         )
     )
     return ImportPlan(identity=identity, scans=scans, envelopes=envelopes)
+
+
+@dataclass(frozen=True)
+class ApplyResult:
+    """The outcome of an ``--apply`` run: the plan, its provenance, the upload."""
+
+    plan: ImportPlan
+    manifest: list[ProvenanceEntry]
+    report: UploadReport
+
+
+def apply_import(
+    repo_root: Path,
+    *,
+    mission: str | None,
+    receiver: DeliveryReceiver,
+    server_url: str,
+    auth_token: str,
+    poster: HttpPoster = _requests_post,
+    chunk_size: int | None = None,
+) -> ApplyResult:
+    """Materialize: build the plan (real identity), then preflight + upload.
+
+    Raises :class:`ImportAuditBlocked` / ``MissionStateRepairError`` /
+    ``ImportIdentityError`` (from the plan) or ``PreflightRejected`` (from the
+    server preflight) — all fail-closed before or without a partial upload.
+    """
+    plan = build_import_plan(repo_root, mission=mission, apply=True)
+    if plan.is_empty:
+        return ApplyResult(plan=plan, manifest=[], report=UploadReport())
+
+    manifest = build_provenance_manifest(plan.envelopes)
+    upload_kwargs: dict[str, Any] = {"receiver": receiver, "server_url": server_url, "auth_token": auth_token, "poster": poster}
+    if chunk_size is not None:
+        upload_kwargs["chunk_size"] = chunk_size
+    report = run_import_upload(plan.envelopes, **upload_kwargs)
+    return ApplyResult(plan=plan, manifest=manifest, report=report)
 
 
 def describe_plan(plan: ImportPlan) -> list[str]:
