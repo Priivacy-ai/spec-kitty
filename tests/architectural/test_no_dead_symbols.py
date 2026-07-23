@@ -371,14 +371,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811"),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
         SymbolKey("load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c"),  # specify_cli.skills.manifest_store::load
         SymbolKey("save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172"),  # specify_cli.skills.manifest_store::save
-        SymbolKey("MISSION_CREATED", "cee8959200ec2e6304a1ff8d59dd8eb356bf76108ecdf4ba8210ff4522fbebdc"),  # specify_cli.status.lifecycle_events::MISSION_CREATED
         # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
         SymbolKey("MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9"),
         # specify_cli.status.lifecycle_events::PROJECT_EVENTS_FILENAME
         SymbolKey("PROJECT_EVENTS_FILENAME", "27f95adf27cd2fb348df3cd92afb8f6bd3c015697e237d232da23bfa900f74fe"),
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723"),
-        SymbolKey("WP_CREATED", "4f61af61cf1570deb1b34ef633f688e26483b680cc965d27f75415e188289732"),  # specify_cli.status.lifecycle_events::WP_CREATED
         # specify_cli.status.lifecycle_events::append_lifecycle_event
         SymbolKey("append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659"),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
@@ -1134,11 +1132,7 @@ def _record_module_attr_edges(
     ``M::NAME``, silently re-blinding the very gate this mission hardens.
     """
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id in alias_map
-        ):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in alias_map:
             resolved = alias_map[node.value.id]
             if resolved in known_modules:
                 per_symbol.setdefault(resolved, set()).add(node.attr)
@@ -1159,12 +1153,7 @@ def _record_getattr_str_edges(
     required to avoid re-blinding the gate via a symbol-path collision.
     """
     for node in ast.walk(tree):
-        if not (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "getattr"
-            and len(node.args) >= 2
-        ):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "getattr" and len(node.args) >= 2):
             continue
         obj, attr_arg = node.args[0], node.args[1]
         if not (isinstance(obj, ast.Name) and obj.id in alias_map):
@@ -1189,12 +1178,7 @@ def _find_facade_lazy_dict_name(tree: ast.Module) -> str | None:
             continue
         arg_id = node.args.args[0].arg
         for child in ast.walk(node):
-            if (
-                isinstance(child, ast.Subscript)
-                and isinstance(child.value, ast.Name)
-                and isinstance(child.slice, ast.Name)
-                and child.slice.id == arg_id
-            ):
+            if isinstance(child, ast.Subscript) and isinstance(child.value, ast.Name) and isinstance(child.slice, ast.Name) and child.slice.id == arg_id:
                 return child.value.id
     return None
 
@@ -1390,9 +1374,7 @@ def _record_dynamic_call_accessor_edges(
     for path, tree in path_to_tree.items():
         containing = _package_of(path)
         alias_map, str_consts = _build_alias_map_and_consts(tree, containing)
-        factories = find_module_factory_functions(
-            tree, alias_map, str_consts, containing, known_modules, _resolve_relative_module
-        )
+        factories = find_module_factory_functions(tree, alias_map, str_consts, containing, known_modules, _resolve_relative_module)
         if not factories:
             continue
         merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
@@ -1965,29 +1947,20 @@ def test_no_false_negative_call_accessor_detector_direct_chain() -> None:
     access would. Resolved generally (no name special-case for
     ``runtime_bridge`` anywhere in the resolver).
     """
-    src = (
-        "import importlib\n"
-        "def _factory():\n"
-        "    return importlib.import_module('target_mod')\n"
-        "_factory().Live\n"
-    )
+    src = "import importlib\ndef _factory():\n    return importlib.import_module('target_mod')\n_factory().Live\n"
     tree = ast.parse(src)
     alias_map, str_consts = _build_alias_map_and_consts(tree, "")
     known_modules = frozenset({"target_mod"})
-    factories = find_module_factory_functions(
-        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
-    )
+    factories = find_module_factory_functions(tree, alias_map, str_consts, "", known_modules, _resolve_relative_module)
     ps: dict[str, set[str]] = {}
     record_call_chain_attr_edges(tree, factories, ps)
     sub_idx = _submodule_index(ps)
 
     assert _symbol_has_caller("Live", "target_mod", ps, sub_idx), (
-        "target_mod::Live must be rescued by _factory().Live where _factory() "
-        "dynamically resolves target_mod via importlib.import_module"
+        "target_mod::Live must be rescued by _factory().Live where _factory() dynamically resolves target_mod via importlib.import_module"
     )
     assert not _symbol_has_caller("Live", "unrelated_mod", ps, sub_idx), (
-        "unrelated_mod::Live must NOT be rescued -- the resolver must not "
-        "widen liveness to any attribute access (contract anti-goal)"
+        "unrelated_mod::Live must NOT be rescued -- the resolver must not widen liveness to any attribute access (contract anti-goal)"
     )
 
 
@@ -1996,28 +1969,18 @@ def test_no_false_negative_call_accessor_detector_bound_local() -> None:
     actually used by the known ``_runtime_bridge_module()`` call sites in
     ``next_cmd.py`` (``bridge = _runtime_bridge_module(); bridge.attr``).
     """
-    src = (
-        "import importlib\n"
-        "def _factory():\n"
-        "    return importlib.import_module('target_mod')\n"
-        "bridge = _factory()\n"
-        "bridge.Live\n"
-    )
+    src = "import importlib\ndef _factory():\n    return importlib.import_module('target_mod')\nbridge = _factory()\nbridge.Live\n"
     tree = ast.parse(src)
     alias_map, str_consts = _build_alias_map_and_consts(tree, "")
     known_modules = frozenset({"target_mod"})
-    factories = find_module_factory_functions(
-        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
-    )
+    factories = find_module_factory_functions(tree, alias_map, str_consts, "", known_modules, _resolve_relative_module)
     merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
     ps: dict[str, set[str]] = {}
     _record_module_attr_edges(tree, merged_alias_map, ps, known_modules)
     sub_idx = _submodule_index(ps)
 
     assert _symbol_has_caller("Live", "target_mod", ps, sub_idx), (
-        "target_mod::Live must be rescued by bridge.Live where bridge = "
-        "_factory() and _factory() dynamically resolves target_mod via "
-        "importlib.import_module"
+        "target_mod::Live must be rescued by bridge.Live where bridge = _factory() and _factory() dynamically resolves target_mod via importlib.import_module"
     )
     assert not _symbol_has_caller("Live", "unrelated_mod", ps, sub_idx)
 
@@ -2039,9 +2002,7 @@ def test_no_false_negative_call_accessor_detector_unreferenced_stays_dead() -> N
     tree = ast.parse(src)
     alias_map, str_consts = _build_alias_map_and_consts(tree, "")
     known_modules = frozenset({"target_mod"})
-    factories = find_module_factory_functions(
-        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
-    )
+    factories = find_module_factory_functions(tree, alias_map, str_consts, "", known_modules, _resolve_relative_module)
     merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
     ps: dict[str, set[str]] = {}
     _record_module_attr_edges(tree, merged_alias_map, ps, known_modules)
@@ -2078,13 +2039,10 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
         "QueryModeValidationError",
     ):
         assert name in decls.get(mod_dotted, frozenset()), (
-            f"{mod_dotted}::{name} must still be declared in __all__ -- this "
-            "test targets the real live corpus, not a stale fixture"
+            f"{mod_dotted}::{name} must still be declared in __all__ -- this test targets the real live corpus, not a stale fixture"
         )
         assert _symbol_has_caller(name, mod_dotted, per_symbol, submodule_index), (
-            f"{mod_dotted}::{name} must be recognised-live via the "
-            "_runtime_bridge_module() dynamic accessor WITHOUT its allowlist "
-            "row (IC-01 / FR-001 / FR-002)"
+            f"{mod_dotted}::{name} must be recognised-live via the _runtime_bridge_module() dynamic accessor WITHOUT its allowlist row (IC-01 / FR-001 / FR-002)"
         )
 
 

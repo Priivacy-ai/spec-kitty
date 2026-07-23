@@ -31,6 +31,7 @@ does not validate, persist, or upload — WP-Y5 owns preflight/upload.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from collections.abc import Sequence
 from typing import Any
 
@@ -42,7 +43,7 @@ from specify_cli.migration.mission_state import (
     _status_event_to_teamspace_envelope,
     deterministic_ulid,
 )
-from specify_cli.status.lifecycle_events import MISSION_CREATED, WP_CREATED
+from specify_cli.status import MISSION_CREATED, WP_CREATED
 from specify_cli.sync.history_import.scan import MissionScan, ScannedWorkPackage
 
 # Envelope provenance. build_id/node_id are metadata the SaaS materializer does
@@ -203,7 +204,7 @@ def _wp_created_envelope(
         wp_path=wp.wp_path,
         depends_on=list(wp.depends_on),
         actor=_ACTOR,
-        created_at=wp.created_at,
+        created_at=_parse_timestamp(wp.created_at),
     ).model_dump(mode="json", exclude_none=False)
     return _envelope(
         event_id=deterministic_ulid(f"import:{scan.mission_slug}:WPCreated:{wp.wp_id}"),
@@ -229,9 +230,14 @@ def _envelope(
     timestamp: str,
     lamport: int,
     identity: _EnvelopeIdentity,
-) -> dict[str, Any]:
-    """Assemble a full TeamSpace envelope, matching the WPStatusChanged shape."""
-    return {
+) -> dict[str, Any]:  # canonical-producer-exempt: #2262 -- historical import-replay envelope builder
+    """Assemble a full TeamSpace envelope, matching the WPStatusChanged shape.
+
+    Mirrors the migration-replay builder ``_status_event_to_teamspace_envelope``
+    (itself #1198-exempt): a historical replay/synthesis producer, not a
+    live-path event emitter, so it assembles the envelope dict directly.
+    """
+    return {  # canonical-producer-exempt: #2262 -- see function-level comment
         "event_id": event_id,
         "event_type": event_type,
         "aggregate_id": aggregate_id,
@@ -264,6 +270,21 @@ def _rebrand_as_import(envelope: dict[str, Any], identity: _EnvelopeIdentity) ->
     envelope["node_id"] = _NODE_ID
     envelope["correlation_id"] = identity.correlation_id
     return envelope
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 string to ``datetime`` for the ``WPCreated`` payload.
+
+    The scan carries ``created_at`` as a string (on-disk) or ``None``
+    (synthesized), while ``WPCreatedPayload.created_at`` is typed ``datetime``.
+    An unparseable value degrades to ``None`` rather than aborting synthesis.
+    """
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _earliest_timestamp(scan: MissionScan) -> str:
