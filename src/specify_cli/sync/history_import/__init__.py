@@ -11,9 +11,11 @@ Stages (see issue #2262 §3.3):
 * WP-Y2 — :mod:`.scan`: the hybrid SCAN — read the on-disk lifecycle prefix
   where present, synthesize it from ``meta.json`` + ``tasks/WP*.md`` where
   absent, and drop local-only lifecycle events.
+* WP-Y3 — :mod:`.synthesize`: turn a :class:`MissionScan` into the ordered,
+  deterministic ``MissionCreated → WPCreated[] → WPStatusChanged[]`` envelope
+  stream (INV-3 / INV-4).
 
-Later slices add SYNTHESIZE (ordered deterministic envelope stream),
-PROVENANCE, PREFLIGHT, UPLOAD, and REPORT.
+Later slices add PROVENANCE, PREFLIGHT, UPLOAD, and REPORT.
 """
 
 from __future__ import annotations
@@ -25,11 +27,19 @@ from specify_cli.sync.history_import.scan import (
     scan_mission,
     scan_missions,
 )
+from specify_cli.sync.history_import.synthesize import (
+    dry_run_project_uuid,
+    synthesize_mission_stream,
+    synthesize_streams,
+)
 
 __all__ = [
     "MissionScan",
     "PrefixSource",
     "ScannedWorkPackage",
+    "dry_run_project_uuid",
     "scan_mission",
     "scan_missions",
+    "synthesize_mission_stream",
+    "synthesize_streams",
 ]
