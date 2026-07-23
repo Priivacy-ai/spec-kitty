@@ -316,3 +316,68 @@ class TestRebaselineBacklog:
         assert len(outcomes) == 1  # golden-count: cardinality-is-contract
         assert outcomes[0].changed is True
         assert snapshot_path.read_text(encoding="utf-8") == before
+
+
+# ── Fail-closed error branches (each returns error + changed=False, no write) ─
+
+
+class TestRebaselineErrorBranches:
+    """Every rebaseline failure is captured (error set, changed=False) and never
+    rewrites the recorded snapshot — the sweep must not abort or silently pass.
+    """
+
+    def test_unreadable_snapshot_is_error_and_left_untouched(self, tmp_path: Path) -> None:
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        dossier_dir = tmp_path / "042-broken" / ".kittify" / "dossiers" / "042-broken"
+        dossier_dir.mkdir(parents=True)
+        snapshot_path = dossier_dir / "snapshot-latest.json"
+        snapshot_path.write_text("{ this is not valid json", encoding="utf-8")
+        before = snapshot_path.read_text(encoding="utf-8")
+
+        outcome = rebaseline_snapshot_file(snapshot_path)
+
+        assert outcome.error == "unreadable_snapshot"
+        assert outcome.changed is False
+        assert snapshot_path.read_text(encoding="utf-8") == before  # not rewritten
+
+    def test_source_missing_is_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import specify_cli.dossier.rebaseline as rb
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        feature_dir = tmp_path / "042-example-mission"
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, "042-example-mission")
+        before = snapshot_path.read_text(encoding="utf-8")
+
+        # Simulate the source tree having vanished between discovery and re-index.
+        monkeypatch.setattr(rb, "_resolve_feature_dir", lambda _p: tmp_path / "gone")
+
+        outcome = rebaseline_snapshot_file(snapshot_path)
+
+        assert outcome.error == "source_missing"
+        assert outcome.changed is False
+        assert snapshot_path.read_text(encoding="utf-8") == before  # not rewritten
+
+    def test_reindex_failure_is_error_and_does_not_write(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import specify_cli.dossier.rebaseline as rb
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        feature_dir = tmp_path / "042-example-mission"
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, "042-example-mission")
+        before = snapshot_path.read_text(encoding="utf-8")
+
+        def _boom(_dossier):
+            raise RuntimeError("indexer exploded")
+
+        monkeypatch.setattr(rb, "compute_snapshot", _boom)
+
+        outcome = rebaseline_snapshot_file(snapshot_path)
+
+        assert outcome.error is not None
+        assert outcome.error.startswith("reindex_failed")
+        assert outcome.changed is False
+        assert snapshot_path.read_text(encoding="utf-8") == before  # not rewritten
