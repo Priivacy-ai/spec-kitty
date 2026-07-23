@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .feature_flags import is_saas_sync_enabled
+from .local_webhook import forward_event
 
 if TYPE_CHECKING:
     from .emitter import EventEmitter
@@ -192,6 +193,18 @@ def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None
         logger.debug("Sync daemon publish skipped: %s", exc)
 
 
+def _dispatch_emitted_event(event: dict[str, Any], repo_root: Path | None) -> None:
+    """Fan a freshly-emitted event out to all downstream sinks.
+
+    The SaaS sync sinks are gated by ``is_saas_sync_enabled()`` inside their
+    own helpers. The local webhook is deliberately independent of that flag so
+    external local tools can observe events even with hosted sync disabled.
+    """
+    _publish_event_via_sync_daemon(event, repo_root)
+    _request_dashboard_sync(repo_root)
+    forward_event(event)
+
+
 def _read_only_identity_requested(value: bool | None) -> bool:
     if value is not None:
         return value
@@ -323,8 +336,7 @@ def emit_wp_status_changed(
         occurred_at=occurred_at,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -352,8 +364,7 @@ def emit_wp_created(
         actor=actor,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -376,8 +387,7 @@ def emit_wp_assigned(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -410,8 +420,7 @@ def emit_mission_created(
         mission_id=mission_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -438,8 +447,7 @@ def emit_mission_closed(
         mission_type=mission_type,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -460,8 +468,7 @@ def emit_history_added(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -484,8 +491,7 @@ def emit_error_logged(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -504,8 +510,7 @@ def emit_dependency_resolved(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -545,8 +550,7 @@ def emit_token_usage_recorded(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -582,8 +586,7 @@ def emit_diff_summary_recorded(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
 
 
@@ -602,6 +605,5 @@ def emit_proof_event(
         causation_id=causation_id,
     )
     if event is not None:
-        _publish_event_via_sync_daemon(event, repo_root)
-        _request_dashboard_sync(repo_root)
+        _dispatch_emitted_event(event, repo_root)
     return event
