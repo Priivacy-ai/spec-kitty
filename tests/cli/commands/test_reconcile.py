@@ -166,7 +166,7 @@ class TestCli:
         slug = _seed_mission(feature_dir)
         (feature_dir / "plan.md").write_text("# Plan\n\nMUTATED\n", encoding="utf-8")
         result = self._run(["reconcile", "--mission", slug], monkeypatch, feature_dir)
-        assert result.exit_code != 0
+        assert result.exit_code == 1  # DIVERGENCE is exit 1, distinct from ERROR (2)
         assert "plan.md" in result.output  # divergence NAMES the artifact (NFR-004)
 
     def test_json_output_is_machine_readable(self, tmp_path, monkeypatch):
@@ -174,7 +174,7 @@ class TestCli:
         slug = _seed_mission(feature_dir)
         (feature_dir / "spec.md").write_text("# Spec\n\nMUTATED\n", encoding="utf-8")
         result = self._run(["reconcile", "--mission", slug, "--json"], monkeypatch, feature_dir)
-        assert result.exit_code != 0
+        assert result.exit_code == 1  # DIVERGENCE is exit 1
         payload = json.loads(result.stdout)
         assert payload["status"] == "divergence"
         assert "spec.md" in [d["artifact_path"] for d in payload["differing_artifacts"]]
@@ -184,7 +184,21 @@ class TestCli:
         feature_dir.mkdir(parents=True)
         (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
         result = self._run(["reconcile", "--mission", "demo-mission-01GGGG"], monkeypatch, feature_dir)
-        assert result.exit_code != 0  # no snapshot → fail-closed, non-zero
+        assert result.exit_code == 2  # ERROR (fail-closed) is exit 2, distinct from DIVERGENCE (1)
+
+    def test_exit_code_contract_is_zero_one_two(self):
+        """Pin the 0/1/2 exit-code contract so a value swap can't stay green.
+
+        CI distinguishes "content drifted" (1) from "could not compute" (2);
+        collapsing or swapping them silently breaks that signal (NFR-004 / FR-007).
+        """
+        from specify_cli.cli.commands.reconcile import (
+            _EXIT_DIVERGENCE,
+            _EXIT_ERROR,
+            _EXIT_PARITY,
+        )
+
+        assert (_EXIT_PARITY, _EXIT_DIVERGENCE, _EXIT_ERROR) == (0, 1, 2)
 
 
 # ── T018: NFR-002 — reconcile one mission dossier ≤ 2 s ──────────────────────
