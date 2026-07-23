@@ -13,8 +13,10 @@ from pathlib import Path
 import pytest
 
 import specify_cli.migration.mission_state as mission_state
+from specify_cli.delivery.receivers import StubReceiver
 from specify_cli.sync.history_import.pipeline import (
     ImportAuditBlocked,
+    apply_import,
     build_import_plan,
     describe_plan,
 )
@@ -106,3 +108,39 @@ def test_describe_empty_plan(tmp_path, monkeypatch):
     _patch_selection(monkeypatch, mission_dirs=[], blockers=[])
     plan = build_import_plan(tmp_path, mission=None, apply=False)
     assert describe_plan(plan) == ["No missions eligible for import."]
+
+
+# ── apply_import: plan → provenance → preflight → upload ──────────────────────
+
+
+class _AcceptingResponse:
+    status_code = 200
+
+    def json(self):
+        return {"accepted": True, "event_count": 0, "reconciliation": {}}
+
+
+def _accepting_poster(url, *, data, headers, timeout):
+    return _AcceptingResponse()
+
+
+@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
+def test_apply_import_uploads_every_envelope_under_the_real_uuid(tmp_path, monkeypatch):
+    (tmp_path / ".kittify").mkdir()  # a real (uninitialized) checkout → apply mints the UUID
+    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+    stub = StubReceiver()
+
+    result = apply_import(
+        tmp_path,
+        mission=None,
+        receiver=stub,
+        server_url="http://teamspace.test",
+        auth_token="tok",
+        poster=_accepting_poster,
+    )
+
+    assert result.plan.identity is not None and result.plan.identity.is_synthetic is False  # INV-5
+    assert result.report.ok
+    assert result.report.success == result.plan.total_events
+    assert set(stub.received_event_ids()) == {env["event_id"] for env in result.plan.envelopes}
+    assert len(result.manifest) == result.plan.total_events

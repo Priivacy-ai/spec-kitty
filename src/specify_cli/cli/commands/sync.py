@@ -1769,8 +1769,9 @@ def import_history(
 
     Dry-run (default) runs the full read-only pipeline — SELECT → AUDIT
     (fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope
-    stream that would be materialized. ``--apply`` (upload) lands in WP-Y5;
-    until then it is an honest non-zero stub.
+    stream that would be materialized. ``--apply`` additionally attaches
+    provenance, server-preflights the whole stream (fail-closed), and uploads it
+    in chunks to the SaaS projection under the real persisted project UUID.
     """
     from specify_cli.migration.mission_state import MissionStateRepairError
     from specify_cli.sync.history_import import (
@@ -1784,13 +1785,8 @@ def import_history(
         raise typer.Exit(2)
 
     if apply:
-        # WP-Y5 wires provenance + preflight + upload. Until then --apply must
-        # not claim a materialize it can't perform — no work, honest exit.
-        console.print(
-            "[yellow]--apply is not available yet.[/yellow] Run without --apply to preview the "
-            "plan; provenance + preflight + upload land in the next slice of #2262."
-        )
-        raise typer.Exit(3)
+        _run_import_apply(mission)
+        return
 
     repo_root = _require_active_checkout().repo_root
 
@@ -1812,6 +1808,75 @@ def import_history(
     for line in describe_plan(plan):
         console.print(line)
     console.print("\n[dim]Dry-run: nothing uploaded. Re-run with --apply to materialize.[/dim]")
+
+
+def _run_import_apply(mission: str | None) -> None:
+    """The ``import-history --apply`` path: preflight + upload under the real UUID.
+
+    Resolves the authed Teamspace receiver (fail-closed when unauthenticated /
+    unconfigured), then delegates to ``apply_import`` which builds the plan with
+    the real persisted project UUID, server-preflights the whole stream, and
+    uploads it. The server dedups on ``event_id`` so a re-run is idempotent.
+    """
+    from specify_cli.migration.mission_state import MissionStateRepairError
+    from specify_cli.sync.history_import import (
+        ImportAuditBlocked,
+        ImportIdentityError,
+        PreflightRejected,
+        apply_import,
+        describe_plan,
+    )
+
+    token = _event_sync_access_token()
+    if not token:
+        console.print(
+            "[red]Not authenticated.[/red] Run `spec-kitty auth login` before importing with --apply."
+        )
+        raise typer.Exit(1)
+
+    config = _load_event_sync_config()
+    runtime = _open_event_sync_runtime()
+    receiver = _resolve_active_receiver(runtime.target, config, auth_token=token)
+    if receiver is None or not getattr(receiver, "endpoint_url", ""):
+        console.print("[red]Event sync is not configured for this checkout.[/red] Cannot upload.")
+        raise typer.Exit(1)
+    server_url = config.resolve_runtime_target().resolved_server_url
+    repo_root = _require_active_checkout().repo_root
+
+    try:
+        result = apply_import(
+            repo_root, mission=mission, receiver=receiver, server_url=server_url, auth_token=token
+        )
+    except MissionStateRepairError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except ImportIdentityError as exc:
+        console.print(f"[red]Identity error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except ImportAuditBlocked as exc:
+        console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
+        for blocker in exc.blockers[:20]:
+            console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
+        raise typer.Exit(1) from exc
+    except PreflightRejected as exc:
+        console.print(f"[red]Server preflight rejected the import:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if result.plan.is_empty:
+        console.print("[yellow]No missions found to import.[/yellow]")
+        raise typer.Exit(0)
+
+    for line in describe_plan(result.plan):
+        console.print(line)
+    report = result.report
+    console.print(
+        f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
+        f"{report.pending} pending, {report.rejected} rejected ({report.total} total)."
+    )
+    if not report.ok:
+        for sample in report.rejected_samples:
+            console.print(f"  [red]✗[/red] {sample}")
+        raise typer.Exit(1)
 
 
 @app.command(name="workspace")
