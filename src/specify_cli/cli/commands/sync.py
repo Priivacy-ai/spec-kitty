@@ -1776,6 +1776,7 @@ def import_history(
     from specify_cli.migration.mission_state import MissionStateRepairError
     from specify_cli.sync.history_import import (
         ImportAuditBlocked,
+        MissionScanError,
         build_import_plan,
         describe_plan,
     )
@@ -1792,7 +1793,7 @@ def import_history(
 
     try:
         plan = build_import_plan(repo_root, mission=mission, apply=False)
-    except MissionStateRepairError as exc:
+    except (MissionStateRepairError, MissionScanError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
     except ImportAuditBlocked as exc:
@@ -1822,6 +1823,7 @@ def _run_import_apply(mission: str | None) -> None:
     from specify_cli.sync.history_import import (
         ImportAuditBlocked,
         ImportIdentityError,
+        MissionScanError,
         PreflightRejected,
         apply_import,
         describe_plan,
@@ -1847,7 +1849,7 @@ def _run_import_apply(mission: str | None) -> None:
         result = apply_import(
             repo_root, mission=mission, receiver=receiver, server_url=server_url, auth_token=token
         )
-    except MissionStateRepairError as exc:
+    except (MissionStateRepairError, MissionScanError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
     except ImportIdentityError as exc:
@@ -1877,6 +1879,15 @@ def _run_import_apply(mission: str | None) -> None:
         for sample in report.rejected_samples:
             console.print(f"  [red]✗[/red] {sample}")
         raise typer.Exit(1)
+    if report.pending:
+        # Pending = queued locally, not yet confirmed materialized. For a
+        # "did my history show up?" tool this is a distinct, non-final signal
+        # (not the same as confirmed success) — surface it plainly.
+        console.print(
+            f"[yellow]Note:[/yellow] {report.pending} event(s) are queued (pending), not yet "
+            "confirmed in the projection. They deliver on the next `spec-kitty sync now`; "
+            "re-check the dashboard after."
+        )
 
 
 @app.command(name="workspace")

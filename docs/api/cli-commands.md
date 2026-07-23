@@ -1058,21 +1058,32 @@ _Project health diagnostics_
  findings exit 0 but are still printed.
 
  With ``--fix``, automatically flattens missions that have a stale
- ``coordination_branch`` key (branch never created or already deleted)
- and re-derives topology. Safe to run on 100%-done missions before
- ``spec-kitty next`` or ``spec-kitty merge``.
+ ``coordination_branch`` key (branch never created or already deleted),
+ re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward
+ (FR-009) -- which fails loud with a unified diff and mutates nothing when
+ the coord branch has diverged or its worktree is dirty. Safe to run on
+ 100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
+
+ With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
+ staleness (FR-008) — non-blocking either way.
 
  Examples:
      spec-kitty doctor coordination
      spec-kitty doctor coordination --fix
      spec-kitty doctor coordination --json
+     spec-kitty doctor coordination --check-staleness
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix           Remove stale coordination_branch keys from meta.json for     │
-│                 missions whose coord branch was never created, then          │
-│                 re-derive topology via `migrate backfill-topology`.          │
-│ --json          Machine-readable JSON output                                 │
-│ --help          Show this message and exit.                                  │
+│ --fix                      Remove stale coordination_branch keys from        │
+│                            meta.json for missions whose coord branch was     │
+│                            never created, then re-derive topology via        │
+│                            `migrate backfill-topology`.                      │
+│ --json                     Machine-readable JSON output                      │
+│ --check-staleness          Also report coord-branch-vs-target-branch         │
+│                            staleness (Gap-1, FR-008): non-blocking, whether  │
+│                            the coord branch is behind or has diverged from   │
+│                            its mission's target_branch.                      │
+│ --help                     Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

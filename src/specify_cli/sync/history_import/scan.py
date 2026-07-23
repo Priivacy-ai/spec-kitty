@@ -20,7 +20,6 @@ turns a :class:`MissionScan` into the ordered, deterministic envelope stream
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -32,6 +31,7 @@ from pydantic import ValidationError
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.mission_metadata import load_meta_or_empty
 
 # Access the status subsystem only through its package facade (the
 # status-module-boundary gate forbids new deep submodule imports).
@@ -41,6 +41,7 @@ from specify_cli.status import (
     MISSION_REOPENED,
     WP_CREATED,
     StatusEvent,
+    StoreError,
     mission_event_log_path,
     read_authored_wp_frontmatter,
     read_events,
@@ -49,7 +50,6 @@ from specify_cli.status import (
 
 logger = logging.getLogger(__name__)
 
-_META_FILENAME = "meta.json"
 _TASKS_DIRNAME = "tasks"
 _DEFAULT_MISSION_TYPE = "software-dev"
 
@@ -60,6 +60,18 @@ _DEFAULT_MISSION_TYPE = "software-dev"
 # package while both types ARE in its model map — so relying on it would let
 # these hit strict validation and reject the whole batch.
 _LOCAL_ONLY_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+
+
+class MissionScanError(RuntimeError):
+    """A mission's on-disk state could not be read (e.g. a corrupt status log).
+
+    Fail-closed: raised so the CLI/pipeline can name the offending mission and
+    abort without uploading, rather than surfacing a raw ``StoreError`` traceback.
+    """
+
+    def __init__(self, mission_slug: str, detail: str) -> None:
+        self.mission_slug = mission_slug
+        super().__init__(f"{mission_slug}: {detail}")
 
 
 class PrefixSource(StrEnum):
@@ -109,7 +121,7 @@ class MissionScan:
 
 def scan_mission(mission_dir: Path) -> MissionScan:
     """Scan one mission directory into a normalized :class:`MissionScan`."""
-    meta = _load_meta(mission_dir)
+    meta = load_meta_or_empty(mission_dir)
     lifecycle = _read_importable_lifecycle(mission_dir)
 
     mc_payload = _first_payload(lifecycle, MISSION_CREATED)
@@ -120,7 +132,12 @@ def scan_mission(mission_dir: Path) -> MissionScan:
 
     work_packages = _wps_from_prefix(wp_payloads) if wp_payloads else _wps_from_task_files(mission_dir)
 
-    lane_transitions = tuple(read_events(mission_dir))
+    try:
+        lane_transitions = tuple(read_events(mission_dir))
+    except StoreError as exc:
+        # A corrupt status.events.jsonl must fail closed with the mission named,
+        # not surface as a raw traceback (matches the graceful WP-frontmatter skip).
+        raise MissionScanError(fields["mission_slug"], f"corrupt status log: {exc}") from exc
     work_packages = _ensure_wp_coverage(work_packages, lane_transitions)
 
     return MissionScan(
@@ -213,7 +230,7 @@ def _wps_from_task_files(mission_dir: Path) -> tuple[ScannedWorkPackage, ...]:
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
             metadata, _ = read_authored_wp_frontmatter(wp_file)
-        except (FrontmatterError, ValidationError, ValueError, TypeError, KeyError) as exc:
+        except (FrontmatterError, ValidationError, ValueError, TypeError, KeyError, OSError) as exc:
             # A malformed WP doc (bad YAML, non-dict frontmatter, invalid schema)
             # must never abort the whole scan. The catch is broadened past the
             # frontmatter/validation errors to the structural ones a malformed
@@ -296,20 +313,3 @@ def _payloads(lifecycle: Sequence[Mapping[str, Any]], event_type: str) -> list[d
 def _first_payload(lifecycle: Sequence[Mapping[str, Any]], event_type: str) -> dict[str, Any] | None:
     payloads = _payloads(lifecycle, event_type)
     return payloads[0] if payloads else None
-
-
-# ── meta.json ─────────────────────────────────────────────────────────────────
-
-
-def _load_meta(mission_dir: Path) -> dict[str, Any]:
-    """Read ``meta.json``; a missing or unreadable file yields ``{}``."""
-    meta_path = mission_dir / _META_FILENAME
-    try:
-        raw = meta_path.read_text(encoding="utf-8")
-    except OSError:
-        return {}
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return data if isinstance(data, dict) else {}

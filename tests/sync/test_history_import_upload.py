@@ -168,3 +168,20 @@ def test_run_import_upload_uploads_nothing_when_preflight_rejects():
         run_import_upload([_env("e0")], receiver=stub, server_url="http://x", auth_token="t", poster=poster)
     # Fail-closed: preflight ran before any delivery, so nothing was uploaded.
     assert not stub.received_event_ids()
+
+
+def test_run_import_upload_rejects_on_a_later_chunk_uploads_nothing():
+    """A rejection on the SECOND chunk still uploads nothing — every chunk is
+    preflighted before any chunk is delivered (not interleaved)."""
+    stub = StubReceiver()
+    calls = {"n": 0}
+
+    def _poster(url, *, data, headers, timeout):
+        calls["n"] += 1
+        accepted = calls["n"] == 1  # chunk 1 accepts, chunk 2 rejects
+        return _FakeResponse(200 if accepted else 400, {"accepted": accepted, "reconciliation": {}})
+
+    with pytest.raises(PreflightRejected):
+        run_import_upload([_env("e0"), _env("e1")], receiver=stub, server_url="http://x", auth_token="t", poster=_poster, chunk_size=1)
+    assert calls["n"] == 2  # both chunks preflighted...
+    assert not stub.received_event_ids()  # ...before any was delivered
