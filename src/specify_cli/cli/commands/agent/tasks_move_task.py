@@ -1286,7 +1286,21 @@ def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
     both diff against the SAME baseline artifact.
     """
     wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-    return BaselineTestResult.load(st.feature_dir / "tasks" / wp_slug / "baseline-tests.json")
+    # C-008 (coord-commit-integrity-01KY5JS8): baseline-tests.json is a
+    # WORK_PACKAGE_TASK-kind (PRIMARY-partition) artifact authored by
+    # implement_capture_baseline. Under coord topology ``st.feature_dir`` is the
+    # kind-blind coord husk where the PRIMARY-authored baseline does NOT exist —
+    # reading it there silently loses pre-existing-failure suppression. Route the
+    # READ through the SAME kind-aware seam the review gate uses (workflow.py
+    # ``_resolve_workflow_read_dir(kind=WORK_PACKAGE_TASK)``), not the husk.
+    from specify_cli.cli.commands.agent.workflow import _resolve_workflow_read_dir
+
+    baseline_read_dir = _resolve_workflow_read_dir(
+        repo_root=st.main_repo_root,
+        mission_slug=st.mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+    return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
 
 
 def _mt_build_transition_gate_context(st: _MoveTaskState, inputs: _TransitionGateInputs) -> TransitionGateContext:
@@ -1877,24 +1891,17 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
         transition_actor: str | dict[str, str | None] = hop_actor
         annotation_delta = None
         if binding_role is not None and st.resolved_binding is not None:
-            from specify_cli.status import build_resolved_actor, parse_agent_boundary_string
+            from specify_cli.status.emit import build_self_asserting_actor
 
-            # FR-005: parse the compact ``--agent`` boundary string into a bare
-            # tool + self-asserted profile/model — the whole compact string
-            # must never land in actor.tool, and an absent segment stays None.
-            parsed_tool: str | None = None
-            self_profile: str | None = None
-            self_model: str | None = None
-            if st.agent:
-                parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(
-                    st.agent
-                )
-            transition_actor = build_resolved_actor(
+            # FR-005: route the compact ``--agent`` value through the single
+            # self-asserting actor seam — only the parsed BARE tool reaches
+            # actor.tool, absent segments stay None, and the dispatch binding
+            # wins over the self-asserted parse.
+            transition_actor = build_self_asserting_actor(
                 role=binding_role,
-                tool=parsed_tool or hop_actor,
+                agent=st.agent,
+                fallback_tool=hop_actor,
                 binding=st.resolved_binding,
-                self_profile=self_profile,
-                self_model=self_model,
             )
             annotation_delta = st.resolved_binding.to_delta(role=binding_role)
         if target == Lane.CLAIMED and st.shell_pid:
