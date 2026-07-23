@@ -1012,6 +1012,14 @@ def _mt_pre_review_gate_with_override_scope(
     exclusion, so ``ScopeResult.describe_empty_reason()``'s catch-all/
     composite-dir wording would be misleading — this keeps its own literal
     "override test scope is empty" reason instead.
+
+    No ``SOURCE_MISMATCH`` here by design (#2894): this tier calls
+    ``evaluate_with_scope`` with ``scope_source=None``, so it runs the legacy
+    hardcoded pytest/JUnit path and never computes a ``source_identity`` to
+    compare against the baseline's. That is intentional — an operator-pinned
+    override IS the authoritative scope, so a baseline captured under a
+    different source is not a reason to distrust it; the tier fails toward
+    ``NEW_FAILURES``/``UNVERIFIED_BASELINE``, never a hard block.
     """
     scope = pre_review_gate.ScopeResult.from_override(test_targets)
     if scope.is_empty:
