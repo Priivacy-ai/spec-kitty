@@ -684,7 +684,7 @@ class TestCopyDelivery:
         assert mode == "copy"
         assert dest.read_text(encoding="utf-8") == "canonical\n"
         assert backup_root is not None
-        assert len(archived) == 1
+        assert len(archived) == 1  # golden-count: cardinality-is-contract
         assert archived[0].read_text(encoding="utf-8") == "user edited\n"
 
     def test_copy_preserves_read_only_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
