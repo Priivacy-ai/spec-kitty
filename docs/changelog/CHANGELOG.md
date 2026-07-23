@@ -45,24 +45,24 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   a consumer never reaches it, even under erroneous activation) **and #2330** (the
   pytest-layout papercut). Half B (executable gate assets, #2599) is out of scope.
 
-- **`ScopeSource` selection unified across baseline and head; `SOURCE_MISMATCH`
-  verdict added (#2873, epic #2535 half A follow-up).** `resolve_scope_source`
-  (config-driven: `review.test_command` set -> `DeclaredCommandScopeSource`, else
-  `GateCoverageScopeSource`) is now the SOLE construction point for both the
-  baseline-capture write side and the `for_review` head-side diff — closing the
-  false-mismatch bug where the head path stayed hardcoded to
-  `GateCoverageScopeSource` while a config-driven baseline used the selected
-  source. A new `GateOutcome.SOURCE_MISMATCH` (warn, fail-open by construction —
-  absent from `verdict_aggregation`'s terminal/block member allowlists) fires when
-  a completed head run's `scope_source_identity` disagrees with a KNOWN (captured)
-  baseline's; an unknown or missing baseline still degrades to
-  `UNVERIFIED_BASELINE`, never a mismatch. The ~450-LoC dead census-derivation
-  tier `pre_review_gate.py` inherited from before the `ScopeSource` port existed
-  (`derive_test_scope` and its glob/path helpers — the LIVE derivation has lived
-  exclusively in `scope_source.GateCoverageScopeSource`'s own private copy since
-  the port landed) is retired, along with the dead `_mt_pre_review_gate_verdict`
-  composition helper (no production call site — the live `for_review` path always
-  injects a `scope_source`).
+- **The pre-review test gate now works correctly for projects that use a custom
+  test command, not just pytest (#2873, follow-up to #2535 half A).** When a work
+  package moves to `for_review`, Spec Kitty runs the project's tests and flags any
+  failure the change *newly* introduced — comparing against a baseline captured
+  before the work started. Previously the baseline side and the review side could
+  run those tests two different ways, so a project configured with its own
+  `review.test_command` (anything other than pytest) got unreliable results: it
+  could be wrongly blocked on failures that were already there, or — worse — a
+  genuinely new test failure could slip through unflagged on a clean baseline. Now
+  both sides run and interpret the tests through one shared path, so the
+  comparison is apples-to-apples and a new failure is reliably caught. When the
+  two sides genuinely *can't* be compared (for example, the test command was
+  changed in between), the gate now says so with a clear, non-blocking warning
+  (shown as `SOURCE_MISMATCH`) instead of guessing — it never silently passes and
+  never hard-blocks on that case. The captured baseline is now always saved, so
+  review no longer gets stuck on an uncommitted baseline file. Internally, ~450
+  lines of dead, duplicated test-scoping code left over from an earlier design
+  were removed.
 
 - **WP runtime-state evicted into the append-only event log (#2684, #2093).**
   Runtime-mutable work-package state — `shell_pid`, subtask completion,
