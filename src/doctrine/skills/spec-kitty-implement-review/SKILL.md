@@ -119,17 +119,34 @@ halted:
 kill "$CAFFEINATE_PID" 2>/dev/null || true
 ```
 
-Linux has no default equivalent installed everywhere; if `systemd-inhibit` is
-available, prefer wrapping the outer orchestrating process invocation with it
-rather than backgrounding, since inhibitor scope is tied to the wrapped
-process's lifetime.
+**Linux (systemd distros — the large majority):** `systemd-inhibit` is the
+equivalent, and its `tail --pid` form self-releases when the process dies,
+mirroring `caffeinate -w` (no polling):
 
-**If `spec-kitty-orchestrator` is driving this run** (the standalone binary,
-not an agent-harness session following this skill), skip the above: the
-orchestrator already holds a macOS idle-sleep assertion for the duration of
+```bash
+systemd-inhibit --what=idle:sleep --why="spec-kitty implement-review" \
+  tail --pid $$ -f /dev/null &
+INHIBIT_PID=$!
+# release: kill "$INHIBIT_PID" 2>/dev/null || true
+```
+
+Non-systemd Linux (Alpine, minimal containers) has no standard primitive — it
+no-ops; rely on the host not sleeping.
+
+**Windows:** there is no shell one-liner. The keep-awake primitive is the Win32
+`SetThreadExecutionState` API (callable from `ctypes`, no extra dependency), so
+it must be held by a live process, not a command — run under
+`spec-kitty-orchestrator` (below), or accept that an unattended Windows session
+can sleep.
+
+**Canonical cross-platform home.** When `spec-kitty-orchestrator` (the standalone
+binary, not an agent-harness session following this skill) drives the run, skip
+all of the above: it holds the idle-sleep assertion for the duration of
 `orchestrate`/`resume` (on by default; `--no-caffeinate` to opt out — see its
-README). That coverage is internal to the binary and does not extend to an
-agent-harness session following this skill directly.
+README) behind a single no-op-safe `prevent_idle_sleep()` seam, which is the
+intended home for this handling across platforms. That coverage is internal to
+the binary and does not extend to an agent-harness session following this skill
+directly — which is exactly why the per-platform guidance above exists.
 
 ---
 
