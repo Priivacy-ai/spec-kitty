@@ -9,13 +9,17 @@ than hand-rolling HTTP:
 * **PREFLIGHT (stage 7):** POST each chunk to ``/api/v1/events/preflight/`` and
   gate on ``accepted`` — the server validates shape/ingress without mutating
   state. Every chunk is preflighted *before* any chunk uploads, so a *preflight*
-  rejection anywhere leaves the projection untouched (fail-closed, INV-6). A
-  mid-upload delivery failure can leave a partial, but it is a valid Lamport-
-  ordered prefix (never an orphan) and a re-run completes idempotently.
-* **UPLOAD (stage 8):** chunk the stream and hand each chunk to a
+  rejection anywhere leaves the projection untouched (fail-closed, INV-6).
+* **UPLOAD (stage 8):** chunk the stream mission-atomically (no mission ever
+  straddles a chunk boundary — see :func:`_chunked`) and hand each chunk to a
   :class:`DeliveryReceiver` (gzip + POST + response mapping + poison-batch
-  bisection all live there). The server dedups on ``event_id``, so a re-run is
-  idempotent (already-ingested events return ``duplicate``).
+  bisection all live there). Delivery stops at the first chunk that reports any
+  failure outcome, so a mid-upload delivery failure leaves at most a partial —
+  and because chunks are Lamport-ordered and mission-atomic, any delivered
+  prefix is a valid ordered prefix of whole missions (never an orphan). The
+  report flags that state (``UploadReport.partial``) and a re-run completes
+  idempotently: the server dedups on ``event_id``, so already-ingested events
+  return ``duplicate``.
 
 The transport is injectable: production passes an authed ``TeamspaceReceiver``
 and the default ``requests`` poster; tests pass a ``StubReceiver`` and a fake
@@ -39,12 +43,18 @@ from specify_cli.delivery.receivers import (
     OutboundEvent,
     _requests_post,
 )
+from specify_cli.status import MISSION_CREATED
 
 _PREFLIGHT_ENDPOINT_PATH = "/api/v1/events/preflight/"
 _PREFLIGHT_TIMEOUT_SECONDS = 60.0
 # Conservative per-request size: well under the server's 1000-event cap and its
 # 512 KiB decompressed byte ceiling. The receiver still auto-bisects on a 413.
 _IMPORT_CHUNK_SIZE = 500
+# The server's hard per-batch envelope cap. A single mission larger than
+# _IMPORT_CHUNK_SIZE is deliberately NOT split (mission-atomic chunking, see
+# _chunked) and becomes one oversized chunk — safe because the server accepts
+# up to this many events per batch, double our conservative budget.
+_SERVER_MAX_BATCH_SIZE = 1000
 _MAX_REJECTED_SAMPLES = 5
 
 Envelope = Mapping[str, Any]
@@ -124,13 +134,23 @@ def run_server_preflight(
 
 @dataclass
 class UploadReport:
-    """Tally of per-event delivery outcomes for one import run."""
+    """Tally of per-event delivery outcomes for one import run.
+
+    ``partial`` marks the distinct third state between success and total
+    failure: a chunk failed mid-run, delivery stopped there, and
+    ``undelivered_event_count`` events in later chunks were never attempted.
+    ``delivered_through_chunk`` counts the chunks that were delivered cleanly
+    before the stop.
+    """
 
     success: int = 0
     duplicate: int = 0
     pending: int = 0
     rejected: int = 0
     rejected_samples: list[str] = field(default_factory=list)
+    partial: bool = False
+    delivered_through_chunk: int = 0
+    undelivered_event_count: int = 0
 
     @property
     def total(self) -> int:
@@ -138,7 +158,7 @@ class UploadReport:
 
     @property
     def ok(self) -> bool:
-        return self.rejected == 0
+        return self.rejected == 0 and not self.partial
 
 
 def upload_envelopes(
@@ -147,12 +167,14 @@ def upload_envelopes(
     receiver: DeliveryReceiver,
     chunk_size: int = _IMPORT_CHUNK_SIZE,
 ) -> UploadReport:
-    """Chunk the stream and deliver each chunk through the receiver, tallying outcomes."""
+    """Chunk the stream (mission-atomically) and deliver, stopping on failure.
+
+    Same delivery semantics as :func:`run_import_upload` minus the preflight:
+    the first chunk with a failure outcome halts the run and the report records
+    the partial state.
+    """
     report = UploadReport()
-    for chunk in _chunked(envelopes, chunk_size):
-        outbound = [OutboundEvent(event_id=str(env["event_id"]), payload=env) for env in chunk]
-        for result in receiver.deliver(outbound):
-            _tally(report, result)
+    _deliver_chunks(list(_chunked(envelopes, chunk_size)), receiver, report)
     return report
 
 
@@ -165,33 +187,56 @@ def run_import_upload(
     poster: HttpPoster = _requests_post,
     chunk_size: int = _IMPORT_CHUNK_SIZE,
 ) -> UploadReport:
-    """Preflight every chunk, then (only if all pass) upload every chunk.
+    """Preflight every chunk, then (only if all pass) upload chunks in order.
 
     Preflighting the whole stream before delivering anything is the fail-closed
     ordering: a **preflight** rejection in any chunk raises
     :class:`PreflightRejected` and nothing is uploaded (INV-6).
 
-    A mid-upload *delivery* failure (after preflight passes) can leave a partial
-    upload, but that is still safe: chunks carry monotonic per-mission Lamport
-    clocks, so any delivered prefix is a valid ordered prefix (a WPStatusChanged
-    never lands before its WPCreated), never an orphan — and a re-run completes
-    idempotently (the server dedups on ``event_id``). Note the import-once
-    payload freeze: a fixed deterministic ``event_id`` means re-running after the
-    on-disk facts change re-sends the *same* id, so the updated payload is
-    dropped as a duplicate rather than overwriting.
+    A mid-upload *delivery* failure (after preflight passes) stops the run at
+    the failed chunk — later chunks are never attempted, and the report records
+    the partial state (``partial`` / ``delivered_through_chunk`` /
+    ``undelivered_event_count``). The partial is safe: chunks are
+    mission-atomic and carry monotonic per-mission Lamport clocks, so any
+    delivered prefix is a valid ordered prefix of whole missions (a
+    WPStatusChanged never lands before its WPCreated), never an orphan — and a
+    re-run completes idempotently (the server dedups on ``event_id``). Note the
+    import-once payload freeze: a fixed deterministic ``event_id`` means
+    re-running after the on-disk facts change re-sends the *same* id, so the
+    updated payload is dropped as a duplicate rather than overwriting.
     """
     chunks = list(_chunked(envelopes, chunk_size))
     for chunk in chunks:
         run_server_preflight(chunk, server_url=server_url, auth_token=auth_token, poster=poster)
     report = UploadReport()
-    for chunk in chunks:
-        outbound = [OutboundEvent(event_id=str(env["event_id"]), payload=env) for env in chunk]
-        for result in receiver.deliver(outbound):
-            _tally(report, result)
+    _deliver_chunks(chunks, receiver, report)
     return report
 
 
 # ── internals ─────────────────────────────────────────────────────────────────
+
+
+def _deliver_chunks(chunks: Sequence[Sequence[Envelope]], receiver: DeliveryReceiver, report: UploadReport) -> None:
+    """Deliver chunks in order, stopping at the first chunk with a failure.
+
+    A chunk whose delivery reports any outcome outside {success, duplicate,
+    pending} — i.e. REJECTED / TERMINAL_FAILED / TRANSIENT — halts the run:
+    subsequent chunks are never attempted and the report records the partial
+    state. Everything delivered before the stop is a valid ordered prefix of
+    whole missions (mission-atomic chunks, monotonic Lamport clocks), and a
+    re-run resumes idempotently (the server dedups on ``event_id``).
+    """
+    for index, chunk in enumerate(chunks):
+        outbound = [OutboundEvent(event_id=str(env["event_id"]), payload=env) for env in chunk]
+        failures_before = report.rejected
+        for result in receiver.deliver(outbound):
+            _tally(report, result)
+        if report.rejected > failures_before:
+            report.delivered_through_chunk = index
+            report.undelivered_event_count = sum(len(later) for later in chunks[index + 1 :])
+            report.partial = report.undelivered_event_count > 0
+            return
+        report.delivered_through_chunk = index + 1
 
 
 def _tally(report: UploadReport, result: DeliveryResult) -> None:
@@ -208,5 +253,52 @@ def _tally(report: UploadReport, result: DeliveryResult) -> None:
 
 
 def _chunked(items: Sequence[Envelope], size: int) -> Iterator[Sequence[Envelope]]:
-    for start in range(0, len(items), size):
-        yield items[start : start + size]
+    """Mission-atomic chunking: pack whole missions into chunks of ≤ *size* envelopes.
+
+    The ordered stream is grouped into contiguous mission units — each unit
+    starts at a ``MissionCreated`` and carries that mission's ``WPCreated[]`` +
+    ``WPStatusChanged[]``; envelopes arriving before the first
+    ``MissionCreated`` (synthetic/legacy streams) are singleton units. Units
+    are packed greedily up to the *size* budget and a unit is NEVER split: a
+    single mission larger than *size* becomes its own oversized chunk, which
+    the server still accepts (``_SERVER_MAX_BATCH_SIZE`` = 1000 events/batch
+    vs our conservative 500 budget).
+
+    Recorded assumption, verified server-side: SaaS ``/events/preflight/``
+    (apps/sync/views.py::preflight_sync_events →
+    apps/sync/cutover_contract.py::_validate_event_batch) validates each
+    envelope in isolation — schema/shape only, no cross-event
+    referential-completeness check — so chunk boundaries are not
+    correctness-bearing for preflight; mission-atomic chunking is
+    defense-in-depth for delivery-prefix semantics.
+    """
+    chunk: list[Envelope] = []
+    for unit in _mission_units(items):
+        if chunk and len(chunk) + len(unit) > size:
+            yield chunk
+            chunk = []
+        chunk.extend(unit)
+    if chunk:
+        yield chunk
+
+
+def _mission_units(items: Sequence[Envelope]) -> Iterator[list[Envelope]]:
+    """Group the ordered stream into contiguous per-mission units.
+
+    A unit opens at each ``MissionCreated`` and absorbs every envelope up to
+    the next one. Envelopes before the first ``MissionCreated`` have no mission
+    prefix to stay atomic with, so each is its own singleton unit (this also
+    preserves plain size-based packing for prefix-less synthetic streams).
+    """
+    unit: list[Envelope] = []
+    for env in items:
+        if env.get("event_type") == MISSION_CREATED:
+            if unit:
+                yield unit
+            unit = [env]
+        elif unit:
+            unit.append(env)
+        else:
+            yield [env]
+    if unit:
+        yield unit
