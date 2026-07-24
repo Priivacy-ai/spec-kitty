@@ -203,6 +203,38 @@ either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
 until it is ready. (See the `DRAFT_GATED_JOBS` note in
 [`.github/workflows/ci-quality.yml`](../../.github/workflows/ci-quality.yml).)
 
+## Shippable doctrine: built-in doctrine must work in a consumer repo
+
+**Built-in doctrine (anything under `src/doctrine/**/built-in/`) MUST be valid
+and actionable in a consumer repository that has activated the pack but has NO
+access to the spec-kitty source tree, CI, or tooling.** A doctrine pack is
+installed/activated as a *pack* in an arbitrary customer repo — it does not ship
+our `scripts/`, `.github/`, `src/`, or `tests/` directories, and never will.
+
+When reviewing (or authoring) a directive, styleguide, tactic, procedure,
+toolguide, or glossary pack, reject any of these:
+
+- **A reference to a spec-kitty repo-local file as if the consumer has it** —
+  e.g. naming `scripts/docs/<x>.py`, `.github/workflows/<y>.yml`,
+  `src/specify_cli/...`, or a `tests/...` path as the enforcement mechanism or a
+  resolvable artifact. The consumer repo has none of these. Mentioning our own
+  CI or code-repo paths in shipped doctrine is an inconsistency waiting to
+  happen (and, when the doctrine is activated in a customer repo, a dangling
+  reference).
+- **Consumer-facing logic (a lint, gate script, or other executable) that is
+  not shipped as part of the pack.** The canonical way to ship executable logic
+  or any blob to downstream repos is the **`asset` doctrine kind** (a sidecar
+  `*.asset.yaml` manifest + the blob under the pack's `assets/` tree — see
+  [`create-a-doctrine-artifact.md`](../doctrine/create-a-doctrine-artifact.md)
+  and [`doctrine-kinds.md`](../doctrine/doctrine-kinds.md)). Do **not** force
+  downstream customers to add executable scripts or CI to their own repos to
+  satisfy our doctrine.
+
+**Quick check:** `grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' src/doctrine/*/built-in/`
+should return nothing that a consumer is expected to *resolve or run*. Prose that
+merely describes an internal practice ("maintained by periodic review") is fine;
+a path presented as a live gate or resolvable artifact is not.
+
 ## See also
 
 - [`local-overrides.md`](local-overrides.md) -- developer-only workflow

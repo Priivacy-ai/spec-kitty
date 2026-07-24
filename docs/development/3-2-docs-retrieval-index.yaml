@@ -5717,6 +5717,7 @@ pages:
     - {slug: "running-the-ci-residual-selection-locally", text: "Running the CI residual selection locally", level: 2}
     - {slug: "pre-review-regression-gate-move-task-to-for-review", text: "Pre-review regression gate (`move-task --to for_review`)", level: 2}
     - {slug: "pr-draft-and-wip-title-conventions", text: "PR draft and WIP-title conventions", level: 2}
+    - {slug: "shippable-doctrine-built-in-doctrine-must-work-in-a-consumer-repo", text: "Shippable doctrine: built-in doctrine must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/run-mutation-tests.md"
     title: "Run Mutation Tests Locally"
