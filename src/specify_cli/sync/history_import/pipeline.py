@@ -50,6 +50,13 @@ class MissionSummary:
     prefix_source: str
     wp_count: int
     status_count: int
+    # Malformed-frontmatter WP files the scan skipped (fail-loud, B3/#2884):
+    # these MUST render in the report so skips never read as clean success.
+    skipped_wp_files: tuple[str, ...] = ()
+
+    @property
+    def skipped_wp_count(self) -> int:
+        return len(self.skipped_wp_files)
 
 
 @dataclass(frozen=True)
@@ -75,6 +82,11 @@ class ImportPlan:
     def total_events(self) -> int:
         return len(self.envelopes)
 
+    @property
+    def skipped_wp_total(self) -> int:
+        """Total malformed-frontmatter WP files skipped across all scans."""
+        return sum(len(scan.skipped_wp_files) for scan in self.scans)
+
     def event_type_counts(self) -> dict[str, int]:
         return dict(Counter(str(env["event_type"]) for env in self.envelopes))
 
@@ -85,6 +97,7 @@ class ImportPlan:
                 prefix_source=str(scan.prefix_source),
                 wp_count=len(scan.work_packages),
                 status_count=len(scan.lane_transitions),
+                skipped_wp_files=scan.skipped_wp_files,
             )
             for scan in self.scans
         ]
@@ -165,12 +178,18 @@ def describe_plan(plan: ImportPlan) -> list[str]:
         return ["No missions eligible for import."]
 
     identity_note = " (synthetic offline id — dry-run only)" if plan.identity.is_synthetic else ""
+    # Skips must be impossible to read past: they mark the summary line itself,
+    # not just a footnote (fail-loud, B3/#2884).
+    skipped_note = f" · {plan.skipped_wp_total} WP file(s) SKIPPED" if plan.skipped_wp_total else ""
     lines = [
         f"Import plan for project {plan.identity.project_slug} [{plan.identity.project_uuid}]{identity_note}",
-        f"{plan.mission_count} mission(s) → {plan.total_events} event(s):",
+        f"{plan.mission_count} mission(s) → {plan.total_events} event(s){skipped_note}:",
     ]
     for summary in plan.mission_summaries():
-        lines.append(f"  • {summary.mission_slug}  [{summary.prefix_source}]  {summary.wp_count} WP, {summary.status_count} status")
+        row = f"  • {summary.mission_slug}  [{summary.prefix_source}]  {summary.wp_count} WP, {summary.status_count} status"
+        if summary.skipped_wp_count:
+            row += f" · {summary.skipped_wp_count} WPs SKIPPED (malformed frontmatter: {', '.join(summary.skipped_wp_files)})"
+        lines.append(row)
     counts = plan.event_type_counts()
     breakdown = ", ".join(f"{count} {event_type}" for event_type, count in sorted(counts.items()))
     lines.append(f"events to materialize: {breakdown}")
