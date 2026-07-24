@@ -8,9 +8,10 @@ whitespace stripped): ``1``, ``true``, ``yes``, ``y``, ``on``. Everything else
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Mapping
 
-__all__ = ["first_set_sync_disable_env", "is_truthy"]
+__all__ = ["first_set_sync_disable_env", "is_interactive", "is_truthy"]
 
 # Private: the canonical truthy grammar is an implementation detail of
 # ``is_truthy`` — callers use the function, never the set (keeps a single public
@@ -31,6 +32,34 @@ def is_truthy(value: str | None) -> bool:
     if value is None:
         return False
     return value.strip().casefold() in _TRUTHY_VALUES
+
+
+def is_interactive() -> bool:
+    """Return True iff the caller may block on a human at the terminal.
+
+    The single authority for the non-interactive contract. Decision matrix,
+    highest priority first:
+
+      1. ``SPEC_KITTY_FORCE_INTERACTIVE`` truthy -> True (escape hatch).
+      2. ``SPEC_KITTY_NON_INTERACTIVE`` truthy   -> False (how agents/CI drive us).
+      3. Otherwise: ``sys.stdin.isatty()``.
+
+    Any surface that is about to prompt — ``typer.prompt``, ``input()``, a
+    keystroke read — must consult this first. Prompting when this returns False
+    is the #2876 class of defect: in an agent harness with an open-but-silent
+    stdin pipe, the prompt blocks forever.
+
+    Tests monkeypatch ``sys.stdin`` or ``os.environ`` rather than relying on the
+    real shell.
+    """
+    if is_truthy(os.environ.get("SPEC_KITTY_FORCE_INTERACTIVE")):
+        return True
+    if is_truthy(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
+        return False
+    try:
+        return bool(sys.stdin.isatty())
+    except (AttributeError, ValueError):  # pragma: no cover - defensive
+        return False
 
 
 def first_set_sync_disable_env(environ: Mapping[str, str] | None = None) -> str | None:

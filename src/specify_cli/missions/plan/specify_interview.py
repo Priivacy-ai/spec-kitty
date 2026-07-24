@@ -17,6 +17,7 @@ infrastructure already used by charter.py.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind
+from specify_cli.core.env import is_interactive
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import contextlib
@@ -24,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+from rich.markup import escape
 
 __all__ = ["run_specify_interview"]
 
@@ -94,8 +96,21 @@ def run_specify_interview(  # noqa: C901
     Returns:
         A dict mapping ``question_id`` to the owner's answer.  Empty string
         for questions that were widened (pending-external-input) or deferred.
+
+    Non-interactive contract (#2876): when :func:`is_interactive` is False --
+    ``SPEC_KITTY_NON_INTERACTIVE`` set, or stdin is not a TTY, which is how
+    agents and CI drive this tool -- the interview is skipped entirely and every
+    question comes back unanswered. Prompting there would block forever on an
+    open-but-silent stdin pipe.
     """
     import typer
+
+    if not is_interactive():
+        console.print(
+            "[dim]Non-interactive: skipping the specify interview; "
+            "all questions recorded as unanswered.[/dim]"
+        )
+        return dict.fromkeys((qid for qid, _ in questions), "")
 
     from specify_cli.decisions import service as _dm_service
     from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
@@ -193,7 +208,7 @@ def run_specify_interview(  # noqa: C901
             f"[enter]=accept default | [text]=type answer{widen_suffix}"
             " | [d]efer | [!cancel]"
         )
-        console.print(f"[dim]{hint_line}[/dim]")
+        console.print(f"[dim]{escape(hint_line)}[/dim]")
 
         # Prompt
         user_answer = ""
@@ -222,7 +237,7 @@ def run_specify_interview(  # noqa: C901
                 )
 
                 if result.action == WidenAction.CANCEL:
-                    console.print(f"[dim]{hint_line}[/dim]")
+                    console.print(f"[dim]{escape(hint_line)}[/dim]")
                     continue  # re-prompt
 
                 if result.action == WidenAction.BLOCK:

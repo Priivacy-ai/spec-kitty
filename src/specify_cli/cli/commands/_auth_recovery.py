@@ -25,11 +25,12 @@ test isolation tractable.
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from specify_cli.core.env import is_interactive as _env_is_interactive
 
 if TYPE_CHECKING:  # pragma: no cover - import only for typing
     from rich.console import Console
@@ -154,22 +155,15 @@ def _run_login_recovery(console: Console) -> RecoveryOutcome:
 def is_interactive() -> bool:
     """Return True iff the caller should run the interactive recovery prompt.
 
-    Decision matrix:
-      - ``SPEC_KITTY_FORCE_INTERACTIVE=1`` -> True (highest priority).
-      - ``SPEC_KITTY_NON_INTERACTIVE=1`` -> False.
-      - Otherwise: ``sys.stdin.isatty()``.
+    Thin alias over :func:`specify_cli.core.env.is_interactive`, which owns the
+    decision matrix (``SPEC_KITTY_FORCE_INTERACTIVE`` > ``SPEC_KITTY_NON_INTERACTIVE``
+    > ``sys.stdin.isatty()``). Kept as a module-local name because existing
+    callers and tests patch ``recovery.is_interactive``.
 
     Tests must monkeypatch ``sys.stdin`` or ``os.environ`` rather than relying
     on the real shell.
     """
-    if os.environ.get("SPEC_KITTY_FORCE_INTERACTIVE") == "1":
-        return True
-    if os.environ.get("SPEC_KITTY_NON_INTERACTIVE") == "1":
-        return False
-    try:
-        return bool(sys.stdin.isatty())
-    except (AttributeError, ValueError):  # pragma: no cover - defensive
-        return False
+    return _env_is_interactive()
 
 
 def _read_one_keystroke() -> str:
