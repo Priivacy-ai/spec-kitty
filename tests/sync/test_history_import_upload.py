@@ -15,7 +15,9 @@ import pytest
 
 from specify_cli.delivery.receivers import DeliveryOutcome, DeliveryResult, StubReceiver
 from specify_cli.sync.history_import.upload import (
+    _IMPORT_CHUNK_SIZE,
     PreflightRejected,
+    _chunked,
     build_provenance_manifest,
     envelope_sha256,
     run_import_upload,
@@ -148,6 +150,100 @@ def test_rejected_outcomes_are_tallied():
     assert report.rejected == 1
     assert not report.ok
     assert report.rejected_samples == ["e0: nope"]
+
+
+# ── mission-atomic chunking (B2, #2884) ───────────────────────────────────────
+
+
+def _mission_stream(mission: str, size: int) -> list[dict[str, Any]]:
+    """A contiguous mission unit: MissionCreated + (size-1) trailing events."""
+    # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
+    envs: list[dict[str, Any]] = [{"event_id": f"{mission}-mc", "event_type": "MissionCreated", "payload": {}}]
+    envs += [{"event_id": f"{mission}-e{i}", "event_type": "WPStatusChanged", "payload": {}} for i in range(size - 1)]
+    return envs
+
+
+def test_chunking_never_splits_a_mission():
+    """A mission bigger than the budget becomes ONE oversized chunk (never
+    split), and every chunk of a prefixed stream starts at a MissionCreated."""
+    stream = _mission_stream("a", 4) + _mission_stream("b", 2)
+    chunks = list(_chunked(stream, 3))
+    assert [len(chunk) for chunk in chunks] == [4, 2]
+    assert all(chunk[0]["event_type"] == "MissionCreated" for chunk in chunks)
+
+
+def test_chunking_packs_whole_missions_at_the_real_budget():
+    """At the real _IMPORT_CHUNK_SIZE: missions of 300+200 fill one chunk to
+    exactly 500 and the next mission starts the next chunk (501st event never
+    bleeds into the full chunk)."""
+    stream = _mission_stream("a", 300) + _mission_stream("b", 200) + _mission_stream("c", 1)
+    chunks = list(_chunked(stream, _IMPORT_CHUNK_SIZE))
+    assert [len(chunk) for chunk in chunks] == [_IMPORT_CHUNK_SIZE, 1]
+    assert chunks[1][0]["event_id"] == "c-mc"
+
+
+def test_single_mission_over_the_budget_is_one_oversized_chunk():
+    stream = _mission_stream("big", _IMPORT_CHUNK_SIZE + 1)
+    chunks = list(_chunked(stream, _IMPORT_CHUNK_SIZE))
+    assert [len(chunk) for chunk in chunks] == [_IMPORT_CHUNK_SIZE + 1]
+
+
+# ── stop-on-first-failure delivery (B1, #2884) ────────────────────────────────
+
+
+class _SelectiveReceiver:
+    """Succeeds every event except the ids in *bad* (rejected); records order."""
+
+    def __init__(self, bad: set[str]) -> None:
+        self.bad = bad
+        self.seen: list[str] = []
+
+    def deliver(self, batch):
+        results = []
+        for event in batch:
+            self.seen.append(event.event_id)
+            if event.event_id in self.bad:
+                results.append(DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.REJECTED, error="nope"))
+            else:
+                results.append(DeliveryResult(event_id=event.event_id, outcome=DeliveryOutcome.SUCCESS))
+        return results
+
+
+def test_upload_stops_at_the_first_failed_chunk_and_reports_partial():
+    receiver = _SelectiveReceiver(bad={"e1"})
+    report = upload_envelopes([_env(f"e{i}") for i in range(3)], receiver=receiver, chunk_size=1)
+
+    # e2's chunk was never attempted after e1's chunk failed.
+    assert receiver.seen == ["e0", "e1"]
+    assert report.success == 1 and report.rejected == 1
+    assert report.partial
+    assert report.delivered_through_chunk == 1  # only e0's chunk delivered cleanly
+    assert report.undelivered_event_count == 1  # e2
+    assert not report.ok
+
+
+def test_run_import_upload_stops_delivering_after_a_failed_chunk():
+    """The --apply path (preflight passes, delivery fails mid-run) stops at the
+    failed chunk: the remaining chunks are never handed to the receiver."""
+    receiver = _SelectiveReceiver(bad={"e1"})
+    poster = _fake_poster({"accepted": True, "event_count": 1, "reconciliation": {}})
+    report = run_import_upload([_env(f"e{i}") for i in range(4)], receiver=receiver, server_url="http://x", auth_token="t", poster=poster, chunk_size=1)
+
+    assert receiver.seen == ["e0", "e1"]
+    assert report.partial and report.undelivered_event_count == 2  # e2, e3 not attempted
+    assert report.success == 1 and report.rejected == 1
+
+
+def test_a_failure_in_the_final_chunk_is_not_partial():
+    """Total-attempt-with-failures is a distinct state from partial: nothing
+    was left unattempted, so partial stays False (rejected still counts)."""
+    receiver = _SelectiveReceiver(bad={"e2"})
+    report = upload_envelopes([_env(f"e{i}") for i in range(3)], receiver=receiver, chunk_size=1)
+
+    assert receiver.seen == ["e0", "e1", "e2"]
+    assert report.rejected == 1 and not report.partial
+    assert report.undelivered_event_count == 0
+    assert not report.ok
 
 
 # ── run_import_upload: preflight-all-then-upload (fail-closed) ─────────────────
