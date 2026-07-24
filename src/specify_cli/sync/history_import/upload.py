@@ -29,7 +29,6 @@ poster, so the whole stage runs with no network.
 from __future__ import annotations
 
 import gzip
-import hashlib
 import json
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -43,6 +42,7 @@ from specify_cli.delivery.receivers import (
     OutboundEvent,
     _requests_post,
 )
+from specify_cli.migration.envelope_seam import envelope_sha256
 from specify_cli.status import MISSION_CREATED
 
 _PREFLIGHT_ENDPOINT_PATH = "/api/v1/events/preflight/"
@@ -61,12 +61,10 @@ Envelope = Mapping[str, Any]
 
 
 # ── provenance (stage 6) ──────────────────────────────────────────────────────
-
-
-def envelope_sha256(envelope: Envelope) -> str:
-    """Canonical-JSON SHA-256 of an envelope (matches the dry-run row-mapping)."""
-    canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(canonical).hexdigest()  # noqa: TID251 - body checksum for the import provenance manifest
+#
+# The canonical-JSON SHA-256 recipe is shared with the migration dry-run's
+# row mapping — one owner (mission_state.envelope_sha256, re-exported through
+# the envelope_seam), so the two checksums cannot drift (#2884).
 
 
 @dataclass(frozen=True)

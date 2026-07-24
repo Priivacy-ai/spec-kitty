@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-import specify_cli.migration.mission_state as mission_state
+import specify_cli.migration.envelope_seam as envelope_seam
 from specify_cli.delivery.receivers import StubReceiver
 from specify_cli.sync.history_import.pipeline import (
     ImportAuditBlocked,
@@ -32,8 +32,10 @@ _FIXTURES = _LEGACY.is_dir() and _PREFIXED.is_dir()
 
 
 def _patch_selection(monkeypatch, *, mission_dirs, blockers):
-    monkeypatch.setattr(mission_state, "_select_mission_dirs", lambda root, *, scan_root, mission: list(mission_dirs))
-    monkeypatch.setattr(mission_state, "_teamspace_audit_blockers", lambda root, *, scan_root, mission_dirs: list(blockers))
+    # The pipeline binds these lazily from the envelope_seam surface, so the
+    # seam module is where stubs go (not mission_state's underscore internals).
+    monkeypatch.setattr(envelope_seam, "select_mission_dirs", lambda root, *, scan_root, mission: list(mission_dirs))
+    monkeypatch.setattr(envelope_seam, "teamspace_audit_blockers", lambda root, *, scan_root, mission_dirs: list(blockers))
 
 
 # ── happy path over real fixtures ─────────────────────────────────────────────
