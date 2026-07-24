@@ -23,8 +23,12 @@ trio currently imports from ``specify_cli.missions._read_path_resolver``
 FS-path-composing primitive -- a raw ``KITTY_SPECS_DIR`` constant, a
 different resolver function from ``_read_path_resolver.py``, or one of
 ``mission_runtime``'s lower-level placement building blocks
-(``resolve_placement_only`` / ``artifact_home_for`` / ``mission_context_for``
-/ ``kind_for_mission_file``) -- bypasses the seam and is a regression.
+(``resolve_placement_only`` / ``artifact_home_for`` / ``mission_context_for``)
+-- bypasses the seam and is a regression. ``kind_for_mission_file`` is a
+basename -> kind classifier, not a path-composing primitive, so it is not
+forbidden here (see ``_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES``'s
+docstring for the distinction); the accept gate's owner-routing classifier
+(WP17) imports it directly.
 
 The allowlist below pins the CURRENT, live set of blessed names (mirroring
 the ``_ALLOWLISTED_RAW_JOINS`` discipline in
@@ -152,6 +156,18 @@ _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
 #: building blocks (defined in ``mission_runtime.resolution`` /
 #: ``mission_runtime.artifacts``) that a trio caller could import to bypass
 #: ``placement_seam`` -- explicitly forbidden regardless of which trio file.
+#:
+#: ``kind_for_mission_file`` is deliberately NOT in this set. It is a pure
+#: basename -> :class:`~mission_runtime.artifacts.MissionArtifactKind`
+#: classifier (``mission_runtime/artifacts.py``) -- it takes no ``repo_root``
+#: and composes/resolves no filesystem location, unlike the three primitives
+#: below (each of which builds or resolves a concrete path/placement). The
+#: accept gate's dirty-tree owner-routing (``acceptance/__init__.py``'s
+#: ``_is_accept_pipeline_own_write``, WP17) imports it directly as the single
+#: canonical file-kind classifier; routing a classifier through
+#: ``placement_seam`` -- which requires a ``mission_slug`` + already-known
+#: ``MissionArtifactKind`` to project a path -- would be a semantic mismatch,
+#: not a bypass of path composition (this guard's actual target).
 _MISSION_RUNTIME_MODULE = "mission_runtime"
 _SEAM_ALLOWED_MISSION_RUNTIME_NAME = "placement_seam"
 _FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES: frozenset[str] = frozenset(
@@ -159,7 +175,6 @@ _FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES: frozenset[str] = frozenset(
         "resolve_placement_only",
         "artifact_home_for",
         "mission_context_for",
-        "kind_for_mission_file",
     }
 )
 
