@@ -47,8 +47,8 @@ steps:
       DRG freshness gate so the doctrine graph stays in sync, then the documentation
       gates delivered by the consolidation mission: the related: path validator
       (WP03), the page-inventory lockfile freshness gate (WP04), and
-      scripts/docs/docs_structural_lint.py (python -m scripts.docs.docs_structural_lint).
-      Treat any red gate as a blocker.
+      the common-docs-structural-lint doctrine asset (the structural lint
+      shipped with this pack). Treat any red gate as a blocker.
     examples:
       - "spec-kitty doctrine regenerate-graph --check returns exit 0 (DRG fresh)."
       - "docs_structural_lint is green: index completeness for curated-complete sections, no shared non-nav content basename across sections, and DIRECTIVE_042 resolves to a loaded directive."

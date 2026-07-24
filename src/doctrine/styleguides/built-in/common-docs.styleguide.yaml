@@ -76,18 +76,19 @@ anti_patterns:
 # styleguide a checkable artifact rather than narrative. The named gates are
 # delivered by sibling work packages of the Common Docs consolidation mission.
 tooling:
-  structure-single-root-13-section: "scripts/docs/docs_structural_lint.py (python -m scripts.docs.docs_structural_lint) — the durable successor to the retired ratchet. Its shadow_tree_basename check asserts no shared non-nav content basename across section subtrees; its self-test also asserts DIRECTIVE_042 resolves to a loaded directive. The single-root / all-13-sections-present structure itself remains subject to periodic bulk curation and review, not a per-PR mechanical count."
-  adr-era-layout: "scripts/docs/docs_structural_lint.py (python -m scripts.docs.docs_structural_lint) — its point_in_time_placement check allowlists adr/** (era-dated ADRs) so ADRs resolve under adr/<era>/ without churn; the living architecture/ being unversioned is maintained by periodic bulk curation and review."
-  naming-kebab-case: "Maintained by periodic bulk curation and review (the retired per-PR docs ratchet asserted this mechanically; scripts/docs/docs_structural_lint.py does not currently assert kebab-case naming)."
-  curation-delete-stale: "Maintained by periodic bulk curation and review; scripts/docs/docs_structural_lint.py's shadow_tree_basename and point_in_time_placement checks catch two concrete drift classes (duplicated non-nav basenames and misplaced dated/point-in-time files) but curation itself remains a review-time practice."
+  structure-single-root-13-section: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — the durable successor to the retired ratchet. Its shadow_tree_basename check asserts no shared non-nav content basename across section subtrees; its self-test also asserts DIRECTIVE_042 resolves to a loaded directive. The single-root / all-13-sections-present structure itself remains subject to periodic bulk curation and review, not a per-PR mechanical count."
+  adr-era-layout: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — its point_in_time_placement check allowlists adr/** (era-dated ADRs) so ADRs resolve under adr/<era>/ without churn; the living architecture/ being unversioned is maintained by periodic bulk curation and review."
+  naming-kebab-case: "Maintained by periodic bulk curation and review (the retired per-PR docs ratchet asserted this mechanically; the common-docs-structural-lint doctrine asset does not currently assert kebab-case naming)."
+  curation-delete-stale: "Maintained by periodic bulk curation and review; the common-docs-structural-lint doctrine asset's shadow_tree_basename and point_in_time_placement checks catch two concrete drift classes (duplicated non-nav basenames and misplaced dated/point-in-time files) but curation itself remains a review-time practice."
   frontmatter-doc-status: "WP04 page-inventory lockfile freshness gate reads frontmatter REPORT-ONLY (it regenerates the rollup FROM frontmatter and reds on drift). It does NOT yet assert the doc_status controlled vocabulary or reject a bare status key; that vocabulary enforcement is deferred to Mission B (lands with the frontmatter backfill)."
   frontmatter-ssot-lockfile: "WP04 page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
   frontmatter-seo-description: "WP04 page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
   related-resolvable-paths: "WP03 related: path validator (asserts every related: entry resolves to an existing repo-relative .md path)."
 
 quality_test: >
-  A documentation change satisfies this styleguide when: scripts/docs/docs_structural_lint.py
-  (python -m scripts.docs.docs_structural_lint) is green — index completeness for
+  A documentation change satisfies this styleguide when: the
+  common-docs-structural-lint doctrine asset (the structural lint shipped with
+  this pack) is green — index completeness for
   curated-complete sections (initially architecture/ only), point-in-time file
   placement under plans/** honoring the adr/**, plans/research/**, and
   plans/investigations/** allowlist, no shared non-nav content basename across
@@ -99,10 +100,10 @@ quality_test: >
   and the related: path validator (WP03) resolves every cross-reference.
 
 # Machine-parseable policy store the docs structural lint LOADS as its single
-# source of truth (FR-011, C-005). scripts/docs/docs_structural_lint.py reads
-# this exact block — the wrapper key structural_lint_config: is a pinned
-# interface contract with that module; do not rename it without updating the
-# lint. Plain YAML scalars/lists only — no anchors, no custom tags.
+# source of truth (FR-011, C-005). The common-docs-structural-lint doctrine
+# asset reads this exact block — the wrapper key structural_lint_config: is a
+# pinned interface contract with that asset; do not rename it without updating
+# the lint. Plain YAML scalars/lists only — no anchors, no custom tags.
 structural_lint_config:
   # Sections whose index.md is checked for completeness (index_completeness).
   # All other section indexes are landing pages and are exempt. Growing this

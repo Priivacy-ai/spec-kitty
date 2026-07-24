@@ -51,7 +51,8 @@ integrity_rules:
     Superseded).
   - Every `related:` entry must resolve to an existing repo-relative `.md` path.
 validation_criteria:
-  - scripts/docs/docs_structural_lint.py is the live mechanical gate that
+  - The common-docs-structural-lint doctrine asset (the structural lint
+    shipped with this pack) is the live mechanical gate that
     replaces the retired per-PR docs ratchet, enforcing
     index completeness for curated-complete sections (initially
     architecture/ only), point-in-time file placement under plans/** honoring

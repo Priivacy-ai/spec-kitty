@@ -47,8 +47,8 @@ steps:
     description: >
       If the chosen section did not exist before, create its index.md so every
       one of the 13 sections carries its own index, and seed that index.md with
-      the same frontmatter schema. scripts/docs/docs_structural_lint.py's
-      index_completeness check enforces this mechanically only for sections the
+      the same frontmatter schema. The common-docs-structural-lint doctrine
+      asset's index_completeness check enforces this mechanically only for sections the
       styleguide config marks curated-complete (initially architecture/ only) —
       a page missing from a curated-complete section's index.md fails the lint;
       the other 12 section indexes are landing pages, so seeding them promptly
