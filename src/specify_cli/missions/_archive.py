@@ -46,7 +46,7 @@ from specify_cli.acceptance.matrix import (
     read_acceptance_matrix,
 )
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.status.reducer import materialize_snapshot
+from specify_cli.status import materialize_snapshot
 
 # --- Terminal-state vocabulary (data-model.md ArchivedMission) -------------
 # The two terminal states that make archiving permissible. ``merged`` is
