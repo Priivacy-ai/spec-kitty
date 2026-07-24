@@ -487,9 +487,28 @@ def _collect_import_targets(
     return out
 
 
+def _is_asset_blob(path: Path) -> bool:
+    """True if *path* is a shipped doctrine ``asset`` blob, not a module.
+
+    An ``ArtifactKind.ASSET`` blob is packaged data/logic shipped with a
+    doctrine pack and loaded by file path (never imported), identified by a
+    sibling ``<name>.asset.yaml`` sidecar manifest. The dead-code gates must
+    not treat such a blob as an un-wired internal module.
+    """
+    return (path.parent / f"{path.name}.asset.yaml").is_file()
+
+
 def _iter_src_python_files() -> list[Path]:
-    """Yield every ``*.py`` file under ``src/`` (sorted, deterministic)."""
-    return sorted(p for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts)
+    """Yield every importable ``*.py`` under ``src/`` (sorted, deterministic).
+
+    Excludes doctrine ``asset`` blobs (shipped, loaded by path — see
+    :func:`_is_asset_blob`).
+    """
+    return sorted(
+        p
+        for p in _SRC_ROOT.rglob("*.py")
+        if "__pycache__" not in p.parts and not _is_asset_blob(p)
+    )
 
 
 def _has_caller(
