@@ -159,6 +159,7 @@ def _mission_stream(mission: str, size: int) -> list[dict[str, Any]]:
     """A contiguous mission unit: MissionCreated + (size-1) trailing events."""
     # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
     envs: list[dict[str, Any]] = [{"event_id": f"{mission}-mc", "event_type": "MissionCreated", "payload": {}}]
+    # canonical-event-exempt(exception-flow): minimal wire envelopes fed into the chunker under test
     envs += [{"event_id": f"{mission}-e{i}", "event_type": "WPStatusChanged", "payload": {}} for i in range(size - 1)]
     return envs
 
