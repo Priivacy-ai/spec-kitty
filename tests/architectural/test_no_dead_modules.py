@@ -388,6 +388,26 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
     }
 )
 
+# ---------- 8. Dispatched governed Ops (zero src/ coupling by design) ----------
+# ``acceptance.post_consolidation`` (mission lifecycle-gate-execution-context,
+# WP06/T031, FR-303 dead-symbol/module case, no new tracker ticket) is a plain
+# library module whose entry point (``verify_deferred_invariants``) is run as
+# an ordinary governed Op dispatched ad hoc via ``spec-kitty dispatch`` --
+# never imported from another ``src/`` module. This is a load-bearing design
+# constraint, not an oversight: the module docstring states "there is no new
+# CLI verb and no call-in from merge/executor.py" (zero `merge/` coupling,
+# contract C7), and the sibling CI enforcer
+# (``scripts/ci/check_dangling_deferrals.py``) is deliberately "zero-coupled
+# to src/specify_cli" (its own docstring) -- it duplicates the on-disk wire
+# value instead of importing this module. The real, documented caller is the
+# operator/agent following docs/guides/accept-and-merge.md
+# #deferred-invariants-and-the-post-consolidation-gate, not a static import.
+_CATEGORY_8_DISPATCHED_GOVERNED_OPS: frozenset[str] = frozenset(
+    {
+        "specify_cli.acceptance.post_consolidation",
+    }
+)
+
 
 # Aggregate of every per-category set. The existing
 # `test_no_new_dead_modules_under_src` check below treats this as the
@@ -402,6 +422,7 @@ _ALLOWLIST: frozenset[str] = (
     | _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS
     | _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS
     | _CATEGORY_7_GRANDFATHERED_ORPHANS
+    | _CATEGORY_8_DISPATCHED_GOVERNED_OPS
 )
 
 
