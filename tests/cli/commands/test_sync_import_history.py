@@ -49,19 +49,20 @@ def _patch_selection(
 ) -> None:
     """Stub the two migration seams the command reuses.
 
-    Patched on the source module so the command's local
-    ``from specify_cli.migration.mission_state import ...`` binds to the stubs.
+    Patched on ``migration.envelope_seam`` (the deliberate public surface) —
+    the pipeline's lazy ``from specify_cli.migration.envelope_seam import ...``
+    binds to the stubs at call time.
     """
-    import specify_cli.migration.mission_state as mission_state
+    import specify_cli.migration.envelope_seam as envelope_seam
 
     monkeypatch.setattr(
-        mission_state,
-        "_select_mission_dirs",
+        envelope_seam,
+        "select_mission_dirs",
         lambda repo_root, *, scan_root, mission: list(mission_dirs),
     )
     monkeypatch.setattr(
-        mission_state,
-        "_teamspace_audit_blockers",
+        envelope_seam,
+        "teamspace_audit_blockers",
         lambda repo_root, *, scan_root, mission_dirs: list(blockers),
     )
 
@@ -103,6 +104,7 @@ def test_no_missions_found_exits_zero(tmp_path, monkeypatch):
 
 def test_selection_repair_error_exits_one(tmp_path, monkeypatch):
     """A ``MissionStateRepairError`` from selection fails closed (exit 1)."""
+    import specify_cli.migration.envelope_seam as envelope_seam
     import specify_cli.migration.mission_state as mission_state
 
     _patch_checkout(monkeypatch, tmp_path)
@@ -110,7 +112,7 @@ def test_selection_repair_error_exits_one(tmp_path, monkeypatch):
     def _boom(repo_root, *, scan_root, mission):
         raise mission_state.MissionStateRepairError("selector could not resolve mission handle")
 
-    monkeypatch.setattr(mission_state, "_select_mission_dirs", _boom)
+    monkeypatch.setattr(envelope_seam, "select_mission_dirs", _boom)
     result = runner.invoke(app, ["import-history", "--mission", "does-not-resolve"])
     assert result.exit_code == 1
     assert "selector could not resolve mission handle" in _strip_ansi(result.output)

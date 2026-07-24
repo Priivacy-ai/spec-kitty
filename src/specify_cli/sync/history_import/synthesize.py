@@ -15,9 +15,10 @@ re-runs), while replayed ``WPStatusChanged`` envelopes keep their real on-disk
 Reuse (spec §3.3 stage 5):
 
 * ``WPStatusChanged`` envelopes are built by the existing
-  :func:`_status_event_to_teamspace_envelope`, so the lane back-fill and the
-  historical-evidence synthesis (required by the TeamSpace 5.0.0 contract on
-  ``approved``/``done``) are not re-implemented here.
+  :func:`~specify_cli.migration.envelope_seam.status_event_to_teamspace_envelope`
+  (via the deliberate ``migration.envelope_seam`` surface), so the lane
+  back-fill and the historical-evidence synthesis (required by the TeamSpace
+  5.0.0 contract on ``approved``/``done``) are not re-implemented here.
 * ``MissionCreated`` / ``WPCreated`` payloads are built by the canonical
   ``build_mission_created_payload`` and ``WPCreatedPayload`` so the wire shapes
   cannot drift from the producers the rest of the CLI uses.
@@ -38,10 +39,10 @@ from typing import Any
 from spec_kitty_events.project_lifecycle import WPCreatedPayload
 
 from specify_cli.core.mission_payload import build_mission_created_payload
-from specify_cli.migration.mission_state import (
+from specify_cli.migration.envelope_seam import (
     CANONICAL_ENVELOPE_SCHEMA_VERSION,
-    _status_event_to_teamspace_envelope,
     deterministic_ulid,
+    status_event_to_teamspace_envelope,
 )
 from specify_cli.status import MISSION_CREATED, WP_CREATED
 from specify_cli.sync.history_import.scan import MissionScan, ScannedWorkPackage
@@ -100,7 +101,7 @@ def synthesize_mission_stream(
 
     ordered_transitions = sorted(scan.lane_transitions, key=lambda event: (event.at, event.event_id))
     for status_event in ordered_transitions:
-        status_envelope = _status_event_to_teamspace_envelope(
+        status_envelope = status_event_to_teamspace_envelope(
             status_event,
             project_uuid=project_uuid,
             lamport_clock=lamport,
@@ -233,7 +234,7 @@ def _envelope(
 ) -> dict[str, Any]:  # canonical-producer-exempt: #2262 -- historical import-replay envelope builder
     """Assemble a full TeamSpace envelope, matching the WPStatusChanged shape.
 
-    Mirrors the migration-replay builder ``_status_event_to_teamspace_envelope``
+    Mirrors the migration-replay builder ``status_event_to_teamspace_envelope``
     (itself #1198-exempt): a historical replay/synthesis producer, not a
     live-path event emitter, so it assembles the envelope dict directly.
     """
@@ -259,7 +260,7 @@ def _envelope(
 def _rebrand_as_import(envelope: dict[str, Any], identity: _EnvelopeIdentity) -> dict[str, Any]:
     """Unify a reused status envelope's operation-identity fields.
 
-    ``_status_event_to_teamspace_envelope`` was written for the migration
+    ``status_event_to_teamspace_envelope`` was written for the migration
     dry-run, so it stamps its own ``build_id``/``node_id`` and a per-event
     ``teamspace-dry-run:`` correlation. In the import context the whole stream
     is one operation, so we re-stamp those three (non-load-bearing) fields to

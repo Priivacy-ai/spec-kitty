@@ -111,14 +111,15 @@ def build_import_plan(repo_root: Path, *, mission: str | None, apply: bool) -> I
     plan (no identity resolved) when nothing is eligible.
     """
     # Local import: the migration helpers pull a heavy dependency graph, and
-    # keeping the bind lazy lets tests patch the seams on the source module.
-    from specify_cli.migration.mission_state import _select_mission_dirs, _teamspace_audit_blockers
+    # keeping the bind lazy lets tests patch the seams on envelope_seam (the
+    # deliberate public surface over migration.mission_state's internals).
+    from specify_cli.migration.envelope_seam import select_mission_dirs, teamspace_audit_blockers
 
-    mission_dirs = _select_mission_dirs(repo_root, scan_root=None, mission=mission)
+    mission_dirs = select_mission_dirs(repo_root, scan_root=None, mission=mission)
     if not mission_dirs:
         return ImportPlan(identity=None, scans=(), envelopes=())
 
-    blockers = _teamspace_audit_blockers(repo_root, scan_root=None, mission_dirs=mission_dirs)
+    blockers = teamspace_audit_blockers(repo_root, scan_root=None, mission_dirs=mission_dirs)
     if blockers:
         raise ImportAuditBlocked(blockers)
 
