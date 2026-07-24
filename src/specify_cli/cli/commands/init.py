@@ -58,6 +58,13 @@ _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-
 # the same surfaces as the event-log driver.
 _META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
 _TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-traces"
+# C-006 (#2804): the coord gate artifacts are filled on the target at accept time
+# and scaffolded on the mission branch, so the squash integration needs a driver
+# to keep the filled side instead of letting `-X theirs` win.
+_ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = (
+    "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
+)
+_ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix"
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
@@ -176,6 +183,8 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
         _EVENT_LOG_GITATTRIBUTES_ENTRY,
         _META_GITATTRIBUTES_ENTRY,
         _TRACES_GITATTRIBUTES_ENTRY,
+        _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY,
+        _ISSUE_MATRIX_GITATTRIBUTES_ENTRY,
         *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES,
     )
     missing = [entry for entry in required_entries if entry not in lines]

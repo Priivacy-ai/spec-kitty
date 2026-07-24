@@ -222,6 +222,12 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="merge-driver-event-log", hidden=True)(merge_driver_module.merge_driver_event_log)
     app.command(name="merge-driver-meta", hidden=True)(merge_driver_module.merge_driver_meta)
     app.command(name="merge-driver-traces", hidden=True)(merge_driver_module.merge_driver_traces)
+    app.command(name="merge-driver-acceptance-matrix", hidden=True)(
+        merge_driver_module.merge_driver_acceptance_matrix
+    )
+    app.command(name="merge-driver-issue-matrix", hidden=True)(
+        merge_driver_module.merge_driver_issue_matrix
+    )
     app.add_typer(migrate_module.app, name="migrate")
     app.add_typer(mission_module.app, name="mission")
     app.command(name="next")(next_cmd_module.next_step)
