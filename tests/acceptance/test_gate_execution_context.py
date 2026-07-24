@@ -445,6 +445,70 @@ def test_gec2_primary_ref_drift_gate_refuses_instead_of_passing(
     assert not any("verdict is" in issue for issue in activity_issues)
 
 
+def test_gec2_real_cross_checkout_branch_drift_gate_refuses(
+    flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path
+) -> None:
+    """GEC-2 / C5, the REAL production trigger: two genuinely divergent checkouts.
+
+    ``test_gec2_primary_ref_drift_gate_refuses_instead_of_passing`` proves the
+    wiring with a *synthetic* ``branch="stale-observed-branch"`` — a value
+    ``_evaluate_branch_gate`` would itself reject before the matrix is ever
+    reached, the inverse of the real production drift. This test drives the
+    trigger production actually reaches: ``branch`` is resolved by the caller
+    (``_resolve_git_context`` in ``specify_cli.acceptance``) as the HEAD checked
+    out at the *invocation* ``repo_root`` — but ``resolve_artifact_surface``
+    finds the PRIMARY surface via ``get_main_repo_root``, which is
+    CWD-invariant and does NOT depend on which checkout invoked it (C-CTX-2). So
+    an accept run invoked from a linked git *worktree* genuinely checked out on
+    the mission branch, while the canonical main checkout sits on a different
+    branch, makes ``context.ref`` (the mission branch) and the surface's real
+    HEAD (the main checkout's actual branch, ``main``) disagree for real — no
+    synthetic string, no monkeypatch, no direct construction of the mismatch.
+
+    ``branch`` here is the mission branch, a genuine member of
+    ``{target_branch, mission_branch}`` — exactly the set
+    ``_evaluate_branch_gate`` allows — so this path does NOT bypass that gate
+    with an invalid value; the branch gate would legitimately let it through.
+    """
+    ctx = flat_topology_mission
+    mission_branch = f"kitty/mission-{ctx.slug}"
+    # A real branch, not yet checked out anywhere, cut from the SAME commit the
+    # main checkout (still on "main") sits at.
+    ctf._git(ctx.repo, "branch", mission_branch)
+    # A genuine linked worktree — a second, real checkout of the SAME repo,
+    # actually checked out on the mission branch. The main checkout is
+    # untouched: still on "main".
+    linked_worktree = tmp_path / "linked-worktree"
+    ctf._git(ctx.repo, "worktree", "add", str(linked_worktree), mission_branch)
+
+    # A PASS matrix on the genuine primary surface: WITHOUT GEC-2 this is read
+    # and judged, silently ignoring the real cross-checkout drift.
+    _seed_matrix(
+        ctx.primary_feature_dir, verdict="pass", marker="CROSS-CHECKOUT-DRIFT-PASS"
+    )
+
+    activity_issues: list[str] = []
+    skipped: list[AcceptanceCheckDiagnostic] = []
+    blocked: list[AcceptanceCheckDiagnostic] = []
+    _evaluate_acceptance_matrix(
+        linked_worktree,
+        ctx.primary_feature_dir,
+        activity_issues,
+        skipped,
+        blocked,
+        mutate_matrix=False,
+        branch=mission_branch,
+    )
+
+    assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
+    assert any("GATE_SURFACE_REF_MISMATCH" in issue for issue in activity_issues), activity_issues
+    # Names both real sides of the drift: expected the mission branch, found "main".
+    assert any(mission_branch in issue for issue in activity_issues), activity_issues
+    assert any("'main'" in issue for issue in activity_issues), activity_issues
+    # It is NOT a verdict — no pass/fail verdict issue was recorded.
+    assert not any("verdict is" in issue for issue in activity_issues)
+
+
 def test_gec2_primary_ref_agreement_still_judges(
     flat_topology_mission: ctf.FlatTopologyContext,
 ) -> None:
