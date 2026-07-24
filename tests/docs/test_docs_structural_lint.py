@@ -28,36 +28,67 @@ and the WP02 task prompt's explicit **timing boundary**:
 from __future__ import annotations
 
 import dataclasses
+import importlib.util
 import json
 import sys
 import time
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
 from ruamel.yaml import YAML
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs.docs_structural_lint import (  # noqa: E402 (sys.path bootstrap above)
-    STYLEGUIDE_RELATIVE_PATH,
-    ConfigError,
-    LintConfig,
-    PointInTimeMarker,
-    check_frontmatter_contract,
-    check_index_completeness,
-    check_point_in_time_placement,
-    check_shadow_tree_basename,
-    load_config,
-    main,
-    run,
-)
-
 pytestmark = pytest.mark.architectural
 
-STYLEGUIDE_PATH = _REPO_ROOT / STYLEGUIDE_RELATIVE_PATH
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+#: The structural lint now ships as the ``common-docs-structural-lint``
+#: doctrine asset — its single canonical copy. It lives outside any importable
+#: package, so we load it by file path rather than importing ``scripts.docs.*``
+#: (which no longer exists) or ``specify_cli.*``.
+_LINT_ASSET_PATH = (
+    _REPO_ROOT / "src/doctrine/assets/built-in/docs_structural_lint.py"
+)
+
+#: In THIS repo the styleguide carrying the ``structural_lint_config:`` block
+#: is still the built-in common-docs styleguide. The asset itself no longer
+#: hard-codes this path — it is supplied explicitly (``--styleguide`` /
+#: ``SPEC_KITTY_STYLEGUIDE``), which is what makes it consumable elsewhere.
+STYLEGUIDE_PATH = (
+    _REPO_ROOT / "src/doctrine/styleguides/built-in/common-docs.styleguide.yaml"
+)
+
+
+def _load_lint_module() -> ModuleType:
+    """Load the structural-lint asset by file path (it is not a package)."""
+    spec = importlib.util.spec_from_file_location(
+        "docs_structural_lint_asset", _LINT_ASSET_PATH
+    )
+    if spec is None or spec.loader is None:  # pragma: no cover - defensive
+        raise RuntimeError(f"cannot load lint asset from {_LINT_ASSET_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    # Register before exec: the module defines ``@dataclass(slots=True)`` types,
+    # and dataclasses resolves their string annotations via
+    # ``sys.modules[cls.__module__]`` — which must already be present.
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_lint = _load_lint_module()
+
+ConfigError = _lint.ConfigError
+LintConfig = _lint.LintConfig
+PointInTimeMarker = _lint.PointInTimeMarker
+check_frontmatter_contract = _lint.check_frontmatter_contract
+check_index_completeness = _lint.check_index_completeness
+check_point_in_time_placement = _lint.check_point_in_time_placement
+check_shadow_tree_basename = _lint.check_shadow_tree_basename
+load_config = _lint.load_config
+main = _lint.main
+run = _lint.run
+_resolve_styleguide = _lint._resolve_styleguide
 
 
 # --- Shared fixture helpers --------------------------------------------------
@@ -77,7 +108,7 @@ def _write(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _fixture_config() -> LintConfig:
+def _fixture_config() -> Any:
     """A deterministic config mirroring the real styleguide block's shape.
 
     Decoupled from the real, evolving styleguide (per WP02 task guidance)
@@ -362,7 +393,16 @@ def test_main_json_output_matches_contract_shape(tmp_path: Path, capsys: pytest.
     """``--json`` emits ``{violations, checked}`` and exits 0 on a clean fixture."""
     docs = _build_post_move_fixture(tmp_path)
 
-    exit_code = main([str(docs), "--repo-root", str(tmp_path), "--json"])
+    exit_code = main(
+        [
+            str(docs),
+            "--repo-root",
+            str(tmp_path),
+            "--styleguide",
+            str(STYLEGUIDE_PATH),
+            "--json",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
@@ -383,7 +423,7 @@ def test_main_json_output_matches_contract_shape(tmp_path: Path, capsys: pytest.
 
 def test_live_adr_era_dated_files_do_not_trip_point_in_time() -> None:
     """The 132 era-dated adr/** files are allowlisted, not point-in-time violations."""
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     adr_files = [
         p
@@ -399,7 +439,7 @@ def test_live_adr_era_dated_files_do_not_trip_point_in_time() -> None:
 
 def test_live_plans_research_and_investigations_pass_clean() -> None:
     """The plans/{research,investigations}/** STAY subtrees are allowlisted."""
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     cohort = [
         p
@@ -415,7 +455,7 @@ def test_live_plans_research_and_investigations_pass_clean() -> None:
 
 def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
     """The 38 index.md / 38 README.md nav basenames never trip shadow_tree."""
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     md_files = sorted(docs_root.rglob("*.md"))
     index_count = sum(1 for p in md_files if p.name == "index.md")
@@ -432,7 +472,7 @@ def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
 
 def test_live_adr_readmes_do_not_trip_frontmatter_contract() -> None:
     """The 3 frontmatter-less docs/adr/{1.x,2.x,3.x}/README.md are allowlisted (#2227)."""
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     adr_readmes = [docs_root / "adr" / era / "README.md" for era in ("1.x", "2.x", "3.x")]
     for readme in adr_readmes:
@@ -450,7 +490,7 @@ def test_live_adr_bodies_do_not_trip_frontmatter_contract() -> None:
     ``adr/**`` in ``frontmatter_in_scope_exclusions`` keeps the whole cohort —
     not just the README landing pages — out of scope on the live tree.
     """
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     adr_bodies = [
         p
@@ -472,7 +512,7 @@ def test_live_redirect_stub_not_flagged_as_shadow_basename() -> None:
     across sections by design; the config-declared redirect-stub signal keeps
     the pair off shadow_tree_basename on the live tree.
     """
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
     stub = docs_root / "retrospective-learning-loop.md"
     assert stub.is_file()  # guards against the stub being deleted
@@ -493,7 +533,7 @@ def test_live_real_tree_is_zero_violation_post_move() -> None:
     frontmatter, redirect stub) + backfilled the one real gap, the full lint
     over the real ``docs/`` tree is clean.
     """
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
 
     report = run(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
@@ -510,7 +550,7 @@ def test_lint_completes_within_five_seconds_on_real_tree() -> None:
     This intentionally does NOT assert zero violations (see module docstring)
     — only the timing budget.
     """
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
 
     start = time.monotonic()
@@ -532,7 +572,7 @@ def test_load_config_matches_styleguide_block() -> None:
         raw = yaml.load(handle)
     block = raw["structural_lint_config"]
 
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
 
     assert config.curated_complete_sections == tuple(block["curated_complete_sections"])
     assert config.point_in_time_patterns == tuple(block["point_in_time_patterns"])
@@ -571,17 +611,54 @@ def test_load_config_rejects_malformed_block(tmp_path: Path) -> None:
         load_config(styleguide_path=stub)
 
 
-def test_load_config_resolves_from_repo_root_regardless_of_cwd(
+def test_load_config_resolves_absolute_path_regardless_of_cwd(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The styleguide path is anchored off the module, not the CWD."""
+    """An absolute styleguide path resolves the same regardless of the CWD."""
     subdir = tmp_path / "somewhere" / "else"
     subdir.mkdir(parents=True)
     monkeypatch.chdir(subdir)
 
-    config = load_config()
+    config = load_config(STYLEGUIDE_PATH)
 
     assert "architecture" in config.curated_complete_sections
+
+
+def test_resolve_styleguide_prefers_cli_arg(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--styleguide`` wins over the environment variable."""
+    monkeypatch.setenv("SPEC_KITTY_STYLEGUIDE", "/from/env.yaml")
+
+    assert _resolve_styleguide("/from/arg.yaml") == Path("/from/arg.yaml")
+
+
+def test_resolve_styleguide_falls_back_to_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no CLI arg, the ``SPEC_KITTY_STYLEGUIDE`` env var is used."""
+    monkeypatch.setenv("SPEC_KITTY_STYLEGUIDE", "/from/env.yaml")
+
+    assert _resolve_styleguide(None) == Path("/from/env.yaml")
+
+
+def test_resolve_styleguide_errors_when_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No CLI arg and no env var is a hard, loud ConfigError naming both knobs."""
+    monkeypatch.delenv("SPEC_KITTY_STYLEGUIDE", raising=False)
+
+    with pytest.raises(ConfigError, match="--styleguide"):
+        _resolve_styleguide(None)
+
+
+def test_main_exits_2_when_styleguide_unconfigured(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``main`` returns exit code 2 when no styleguide can be resolved."""
+    monkeypatch.delenv("SPEC_KITTY_STYLEGUIDE", raising=False)
+    docs = _build_post_move_fixture(tmp_path)
+
+    exit_code = main([str(docs), "--repo-root", str(tmp_path)])
+
+    assert exit_code == 2
+    assert "--styleguide" in capsys.readouterr().err
 
 
 def test_index_completeness_reads_config_not_a_constant(tmp_path: Path) -> None:

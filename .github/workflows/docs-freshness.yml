@@ -35,14 +35,17 @@ jobs:
           PYTHONPATH: .
         run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root .
       # Structural docs lint (FR-008): index completeness, point-in-time
-      # placement, shadow-tree basenames, frontmatter contract. Policy is loaded
-      # from the common-docs styleguide's structural_lint_config: block (FR-011).
-      # Exits non-zero on any violation. Deferred here by WP02 until the
-      # docs-structural-sanity move/fold landed post-move-clean (WP03/WP04/WP05).
+      # placement, shadow-tree basenames, frontmatter contract. Now shipped as
+      # the `common-docs-structural-lint` doctrine asset (its single canonical
+      # copy). Policy is loaded from the common-docs styleguide's
+      # structural_lint_config: block (FR-011), passed explicitly via
+      # --styleguide. Exits non-zero on any violation. Deferred here by WP02
+      # until the docs-structural-sanity move/fold landed post-move-clean
+      # (WP03/WP04/WP05).
       - name: Structural docs lint (FR-008)
-        env:
-          PYTHONPATH: .
-        run: uv run python scripts/docs/docs_structural_lint.py
+        run: >-
+          uv run python src/doctrine/assets/built-in/docs_structural_lint.py
+          --styleguide src/doctrine/styleguides/built-in/common-docs.styleguide.yaml
       - name: Check CHANGELOG sync (canonical → root)
         run: uv run python scripts/docs/sync_changelog.py --check
       - name: Check CONTRIBUTING sync (canonical → root)
