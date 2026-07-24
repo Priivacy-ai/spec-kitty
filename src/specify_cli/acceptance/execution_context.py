@@ -269,14 +269,36 @@ def declared_home_surface(
 SurfaceHeadResolver = Callable[[Path], str]
 
 
+_DETACHED_HEAD_SENTINEL = "HEAD"
+
+
 def _git_head_of(surface: Path) -> str:
-    """Resolve the git HEAD sha of the checkout containing ``surface`` (GEC-2)."""
+    """Resolve the short branch name checked out at ``surface`` (GEC-2 / C5).
+
+    Mirrors ``safe_commit``'s own HEAD-vs-destination assert
+    (``specify_cli.git.commit_helpers._read_worktree_head``): a short branch name
+    via ``git symbolic-ref``, never a raw commit sha. A ``ref`` supplied to
+    :meth:`GateExecutionContext.assert_at_ref` is always a branch-shaped
+    identifier (the caller-observed checked-out branch, or the mission's target
+    branch, or the literal ``"HEAD"`` fallback — see
+    ``gates_core._acceptance_gate_context``), so the actual-side of the
+    comparison must be branch-shaped too; a sha would never agree with a branch
+    name and the assertion would refuse on every real invocation, not merely a
+    drifted one. A detached checkout (``symbolic-ref`` fails) resolves to the
+    same ``"HEAD"`` sentinel the caller falls back to when it has no branch to
+    assert against, so "no expectation" on either side compares equal.
+    """
     from specify_cli.task_utils import run_git
 
-    # ``run_git(...).stdout`` widens to ``Any`` across the subprocess boundary; bind
+    result = run_git(
+        ["symbolic-ref", "--short", "HEAD"], cwd=surface, check=False
+    )
+    if result.returncode != 0:
+        return _DETACHED_HEAD_SENTINEL
+    # ``result.stdout`` widens to ``Any`` across the subprocess boundary; bind
     # explicitly so the declared ``-> str`` return narrows back.
-    head: str = run_git(["rev-parse", "HEAD"], cwd=surface, check=True).stdout.strip()
-    return head
+    branch: str = result.stdout.strip()
+    return branch
 
 
 def build_gate_execution_context(

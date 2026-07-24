@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from mission_runtime import TopologySurface
+from specify_cli.acceptance.execution_context import GateSurfaceRefMismatch
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
 from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.task_utils import run_git
@@ -231,7 +233,9 @@ def _evaluate_branch_gate(
     return True
 
 
-def _acceptance_gate_context(repo_root: Path, feature_dir: Path) -> GateExecutionContext:
+def _acceptance_gate_context(
+    repo_root: Path, feature_dir: Path, *, branch: str | None = None
+) -> GateExecutionContext:
     """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
 
     The ONE gate-context construction door for the acceptance-matrix gate (GEC-1 /
@@ -241,9 +245,10 @@ def _acceptance_gate_context(repo_root: Path, feature_dir: Path) -> GateExecutio
     (C3 fail-loud), ``EMPTY`` / ``UNMATERIALIZED`` stamp ``PRIMARY`` (the create
     window), ``MATERIALIZED`` stamps ``COORD``. The gate is then handed the surface
     (never an ambient ``repo_root`` / cwd), and every verdict/refusal it emits names
-    the returned ``surface_kind`` + ``ref`` (C6). The ``ref`` is the mission target
-    branch — a resolvable identifier (C6/NFR-003) — falling back to the ``HEAD``
-    symbolic ref when no target branch is recorded.
+    the returned ``surface_kind`` + ``ref`` (C6). ``ref`` prefers the caller-observed
+    currently-checked-out ``branch`` (GEC-2 / C5's reference point — see
+    :func:`_assert_ref_agreement`), falling back to the mission target branch, then
+    the ``HEAD`` symbolic ref when neither is available.
 
     ``feature_dir.name`` (not the raw operator handle) keys the resolver: the caller
     threads the ``PRIMARY_METADATA`` read dir, whose ``.name`` is a materialized
@@ -262,7 +267,7 @@ def _acceptance_gate_context(repo_root: Path, feature_dir: Path) -> GateExecutio
     # namespace at call time (not a top-level import) so the WP01 characterization
     # monkeypatch of ``read_target_branch_from_meta`` stays visible — see the module
     # docstring's cross-module note.
-    ref = _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
+    ref = branch or _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
     return build_gate_execution_context(
         repo_root,
         feature_dir.name,
@@ -270,6 +275,72 @@ def _acceptance_gate_context(repo_root: Path, feature_dir: Path) -> GateExecutio
         phase=LifecyclePhase.ACCEPT,
         ref=ref,
     )
+
+
+def _assert_ref_agreement(context: GateExecutionContext) -> GateSurfaceRefMismatch | None:
+    """GEC-2 / C5: refuse rather than judge a surface that drifted from its ref.
+
+    Ref-agreement is asserted only for a ``PRIMARY``-stamped surface. ``context.ref``
+    names the branch this evaluation resolved as its reference point — the
+    caller-observed currently-checked-out branch when available, else the mission's
+    target branch (:func:`_acceptance_gate_context`) — and a ``PRIMARY`` surface
+    lives in that SAME checkout, so the two must agree absent a race between when
+    ``branch`` was read and when this gate runs (mirroring the ``safe_commit``
+    HEAD-vs-destination assert this method is built on).
+
+    A ``COORD``-stamped surface is a genuinely different worktree on its OWN
+    coordination branch — ``ref`` was never meant to name that branch (C6 pins it to
+    the mission's target/observed branch even for a coord-topology mission,
+    ``test_c6_recorded_judgement_names_surface_and_ref``), so asserting branch
+    identity there would be a category error: it would refuse every legitimate
+    coordination-topology run, not merely a drifted one, which is precisely the
+    topology-neutrality GEC-4/C7 forbids. That surface's structural validity is
+    already guarded by GEC-3's total resolution (``CoordinationBranchDeleted``) and
+    GEC-5's create-window check (:func:`_matrix_surface_cannot_hold`); this method
+    does not duplicate those with an inapplicable branch comparison.
+
+    Also a no-op when ``context.surface`` does not exist on disk: a surface with
+    nothing checked out there has no branch to have drifted FROM (there is no git
+    worktree to read), and the WP18 unit-level deferral tests
+    (``tests/integration/test_deferral_enforcement_and_disclosure.py``, "no git
+    shelling required" by design) drive this function against a synthetic,
+    never-created ``tmp_path`` surface -- a distinct absence already reported
+    honestly elsewhere (e.g. "acceptance-matrix.json ... not found"), not a
+    ref-agreement refusal to invent here.
+    """
+    if context.surface_kind is not TopologySurface.PRIMARY:
+        return None
+    if not context.surface.exists():
+        return None
+    try:
+        context.assert_at_ref()
+    except GateSurfaceRefMismatch as exc:
+        return exc
+    return None
+
+
+def _record_ref_mismatch_cannot_evaluate(
+    exc: GateSurfaceRefMismatch,
+    activity_issues: list[str],
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+) -> None:
+    """Record the C5 ref-mismatch refusal, naming the surface + expected/actual ref (C6).
+
+    Mirrors :func:`_record_matrix_cannot_evaluate`'s shape: a blocking diagnostic and
+    the matching skipped-checks fan-out, never a pass/fail verdict.
+    """
+    detail = (
+        f"Acceptance matrix cannot be evaluated ({exc.error_code}): surface "
+        f"(stamped {exc.surface_kind.value}) is at {exc.actual_ref!r} but the gate "
+        f"expected it at {exc.expected_ref!r} [surface={exc.surface_kind.value} "
+        f"ref={exc.expected_ref}]"
+    )
+    activity_issues.append(detail)
+    blocked_checks.append(
+        AcceptanceCheckDiagnostic(check="acceptance_matrix_cannot_evaluate", detail=detail)
+    )
+    _append_skipped_lane_checks(skipped_checks, reason=exc.error_code)
 
 
 def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
@@ -352,14 +423,18 @@ def _evaluate_acceptance_matrix(
     blocked_checks: list[AcceptanceCheckDiagnostic],
     *,
     mutate_matrix: bool,
+    branch: str | None = None,
 ) -> None:
     """Read/enforce/validate the acceptance matrix once the branch gate passed.
 
     The matrix is judged strictly from the gate context's surface (C1) — the WP02
     total resolver picks coord vs primary; this gate never re-reads an ambient
-    ``repo_root`` / cwd. GEC-5 (C2) short-circuits to cannot-evaluate when the
-    coord-homed matrix would be judged against a create-window PRIMARY substitution,
-    rather than silently passing on an empty surface (#2885).
+    ``repo_root`` / cwd. GEC-2 (C5) refuses rather than judges when a ``PRIMARY``
+    surface has drifted from the branch this evaluation resolved as its reference
+    point (:func:`_assert_ref_agreement`). GEC-5 (C2) short-circuits to
+    cannot-evaluate when the coord-homed matrix would be judged against a
+    create-window PRIMARY substitution, rather than silently passing on an empty
+    surface (#2885).
     """
     from specify_cli.acceptance.matrix import (
         VERDICT_PASS_PENDING_CONSOLIDATION,
@@ -369,7 +444,14 @@ def _evaluate_acceptance_matrix(
         write_acceptance_matrix,
     )
 
-    context = _acceptance_gate_context(repo_root, feature_dir)
+    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch)
+    ref_mismatch = _assert_ref_agreement(context)
+    if ref_mismatch is not None:
+        _record_ref_mismatch_cannot_evaluate(
+            ref_mismatch, activity_issues, skipped_checks, blocked_checks
+        )
+        return
+
     cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir)
     if cannot is not None:
         _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
@@ -457,7 +539,13 @@ def _check_lane_gates(
         return
 
     _evaluate_acceptance_matrix(
-        repo_root, feature_dir, activity_issues, skipped_checks, blocked_checks, mutate_matrix=mutate_matrix
+        repo_root,
+        feature_dir,
+        activity_issues,
+        skipped_checks,
+        blocked_checks,
+        mutate_matrix=mutate_matrix,
+        branch=branch,
     )
 
 

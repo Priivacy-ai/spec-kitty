@@ -414,6 +414,61 @@ def test_gec5_create_window_gate_refuses_instead_of_passing(tmp_path: Path) -> N
     assert not any("verdict is" in issue for issue in activity_issues)
 
 
+def test_gec2_primary_ref_drift_gate_refuses_instead_of_passing(
+    flat_topology_mission: ctf.FlatTopologyContext,
+) -> None:
+    """GEC-2 / C5 end to end: a drifted PRIMARY surface refuses, not judges.
+
+    The real gate resolves ``ref`` from the caller-observed currently-checked-out
+    ``branch`` (:func:`_acceptance_gate_context`). A PASS matrix is seeded on the
+    genuine primary surface, but the caller asserts a ``branch`` that does NOT match
+    what is actually checked out (simulating drift between when ``branch`` was
+    captured and when this gate runs — WITHOUT GEC-2 the gate would read the seeded
+    PASS matrix and judge it, silently ignoring the drift). GEC-2 refuses: a
+    ``GATE_SURFACE_REF_MISMATCH`` cannot-evaluate naming the surface + expected/actual
+    ref, and NO pass/fail verdict.
+    """
+    ctx = flat_topology_mission
+    _seed_matrix(ctx.primary_feature_dir, verdict="pass", marker="DRIFTED-REF-PASS")
+
+    activity_issues: list[str] = []
+    skipped: list[AcceptanceCheckDiagnostic] = []
+    blocked: list[AcceptanceCheckDiagnostic] = []
+    _evaluate_acceptance_matrix(
+        ctx.repo, ctx.primary_feature_dir, activity_issues, skipped, blocked,
+        mutate_matrix=False, branch="stale-observed-branch",
+    )
+
+    assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
+    assert any("GATE_SURFACE_REF_MISMATCH" in issue for issue in activity_issues), activity_issues
+    # It is NOT a verdict — no pass/fail verdict issue was recorded.
+    assert not any("verdict is" in issue for issue in activity_issues)
+
+
+def test_gec2_primary_ref_agreement_still_judges(
+    flat_topology_mission: ctf.FlatTopologyContext,
+) -> None:
+    """GEC-2 happy path: a PRIMARY surface genuinely at its ref still judges (C5).
+
+    The caller-observed ``branch`` matches what is actually checked out (the
+    ordinary, undrifted case) — ref-agreement holds, so the gate proceeds to a real
+    verdict instead of refusing.
+    """
+    ctx = flat_topology_mission
+    _seed_matrix(ctx.primary_feature_dir, verdict="fail", marker="AT-REF-FAIL")
+
+    activity_issues: list[str] = []
+    skipped: list[AcceptanceCheckDiagnostic] = []
+    blocked: list[AcceptanceCheckDiagnostic] = []
+    _evaluate_acceptance_matrix(
+        ctx.repo, ctx.primary_feature_dir, activity_issues, skipped, blocked,
+        mutate_matrix=False, branch="main",
+    )
+
+    assert not any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
+    assert any("verdict is 'fail'" in issue for issue in activity_issues), activity_issues
+
+
 # ===========================================================================
 # C7 — topology neutrality: identical defect → identical outcome (coord and flat)
 # ===========================================================================

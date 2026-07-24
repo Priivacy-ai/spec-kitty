@@ -983,19 +983,29 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 
 # ---------- C. lifecycle-gate-execution-context (#1834/#2885/#2795/#2882) forward seams ----------
 # Mission ``lifecycle-gate-execution-context`` (FR-303 dead-symbol case, no new
-# tracker ticket) landed two deliberately not-yet-wired surfaces:
+# tracker ticket) landed some surfaces still awaiting a real cross-module caller:
 #
-# * ``acceptance/execution_context.py`` GEC-2 ref-agreement
-#   (``GateExecutionContext.assert_at_ref`` / ``GateSurfaceRefMismatch`` /
-#   ``SurfaceHeadResolver``) and ``CannotEvaluateReason`` (the PH-1
-#   ``BELOW_MINIMUM_PHASE`` member is only ever produced by
-#   ``not_applicable_below``, itself uncalled) are building blocks a gate calls
-#   "when it needs ref agreement" (module docstring) -- WP03/T017 implements the
-#   capability and pins it under direct unit test
-#   (``tests/acceptance/test_gate_execution_context.py``), but no gate in this
-#   mission's scope declares a phase floor or asserts ref agreement yet. A
-#   future gate is the intended caller; wiring one in now to satisfy this gate
-#   would be inventing a call site the design does not yet need.
+# * ``acceptance/execution_context.py::SurfaceHeadResolver`` is a ``Callable[[Path],
+#   str]`` type alias used ONLY as the annotation on
+#   ``GateExecutionContext.assert_at_ref``'s ``head_of`` parameter -- the C5
+#   ref-agreement gate (``gates_core._assert_ref_agreement``, wired into the
+#   ACCEPT-phase acceptance-matrix gate) calls ``assert_at_ref()`` with the default
+#   resolver and never needs to inject a substitute in production, so this alias is
+#   exercised only by the direct unit tests that inject a fake ``head_of`` for
+#   ``tests/acceptance/test_gate_execution_context.py``'s isolated-method cases. A
+#   type alias consumed purely as a signature annotation is never a ``from ... import``
+#   site by construction.
+# * ``acceptance/execution_context.py::CannotEvaluateReason`` -- its
+#   ``SURFACE_CANNOT_HOLD_FACT`` member is produced by ``surface_cannot_hold`` (wired
+#   into the acceptance-matrix gate via ``gates_core._matrix_surface_cannot_hold``) and
+#   its ``BELOW_MINIMUM_PHASE`` member by ``not_applicable_below`` (still genuinely
+#   unwired -- no gate in this mission's scope declares a phase floor yet). Both
+#   producing methods return the enum member as an attribute of the ``CannotEvaluate``
+#   they build; ``gates_core.py`` reads ``cannot.reason.value`` structurally off that
+#   instance (mirrored by the C5 path, which reads ``exc.error_code`` off the raised
+#   ``GateSurfaceRefMismatch`` the same way) rather than importing the enum type by
+#   name, so the type itself has no cross-module import site even though its members
+#   are live.
 # * ``acceptance/post_consolidation.py`` (``verify_deferred_invariants`` /
 #   ``PostConsolidationResult`` / ``PostConsolidationViolation`` /
 #   ``InvariantViolation``) is WP06/T031's Op, dispatched ad hoc via
@@ -1017,8 +1027,6 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
     {
         # specify_cli.acceptance.execution_context::CannotEvaluateReason
         SymbolKey("CannotEvaluateReason", "169f6e0b84cc22cc54ed339999b26191c66ce24fb4b8c4f4d9e87ba82852c55d"),
-        # specify_cli.acceptance.execution_context::GateSurfaceRefMismatch
-        SymbolKey("GateSurfaceRefMismatch", "8e02a491000f2633aab60f93db9f85d9a2c3dc94f65f4418d8dd9c9e21a0950e"),
         # specify_cli.acceptance.execution_context::SurfaceHeadResolver
         SymbolKey("SurfaceHeadResolver", "1b5124eac062ce4ebeec680cbd3d867d602747896eab7ae166162f65427653a2"),
         # specify_cli.acceptance.post_consolidation::InvariantViolation
