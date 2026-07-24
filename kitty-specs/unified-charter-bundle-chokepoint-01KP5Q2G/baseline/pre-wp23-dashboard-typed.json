@@ -122,7 +122,9 @@
         "mission_id": "01HXBASELINEDEMO000000000Z",
         "mission_number": 1
       },
+      "mission_status": "active",
       "name": "Demo Feature",
+      "next_action": null,
       "path": "kitty-specs/001-demo-feature",
       "workflow": {
         "implement": "in_progress",

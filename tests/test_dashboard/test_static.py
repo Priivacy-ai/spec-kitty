@@ -68,7 +68,7 @@ def test_dashboard_overview_mission_copy_uses_text_nodes():
     assert "titleEl.textContent = `Mission Run: ${feature.name}`;" in source
     assert "introEl.textContent = purposeTldr;" in source
     assert "contextEl.textContent = purposeContext;" in source
-    assert "overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);" in source
+    assert "overviewContent.replaceChildren(...overviewChildren);" in source
     assert "overviewContent.innerHTML" not in source
     assert "<h3>Mission Run: ${feature.name}" not in source
     assert "${purposeTldr}</p>" not in source
