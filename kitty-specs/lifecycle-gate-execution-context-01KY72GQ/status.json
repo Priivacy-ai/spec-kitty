@@ -1,0 +1,211 @@
+{
+  "event_count": 157,
+  "last_event_id": "01KYAKQYXDXVHWA2AW6ZFH8QHB",
+  "materialized_at": "2026-07-24T17:46:04.077165+00:00",
+  "mission_number": "",
+  "mission_slug": "lifecycle-gate-execution-context-01KY72GQ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 19,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKM6YNQF66WBC0Q840VVJE",
+      "last_transition_at": "2026-07-24T17:44:01.237985+00:00",
+      "shell_pid": 1810414,
+      "shell_pid_created_at": "1784862235.6"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKMDMC3MGTP36P825NFHK2",
+      "last_transition_at": "2026-07-24T17:44:08.076245+00:00",
+      "shell_pid": 1834748,
+      "shell_pid_created_at": "1784863385.39"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKMV0KJMDBAA2C8MFHS5QX",
+      "last_transition_at": "2026-07-24T17:44:21.779039+00:00",
+      "shell_pid": 1959964,
+      "shell_pid_created_at": "1784866559.79"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKN8D6PTS1NWH64DWPS9WE",
+      "last_transition_at": "2026-07-24T17:44:35.494692+00:00",
+      "shell_pid": 2062801,
+      "shell_pid_created_at": "1784869922.2"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKNWEPPQC2SXQ4HBS6EB2N",
+      "last_transition_at": "2026-07-24T17:44:56.022667+00:00",
+      "shell_pid": 2215380,
+      "shell_pid_created_at": "1784874356.37"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKP31JBAXND9AYETWZGZDC",
+      "last_transition_at": "2026-07-24T17:45:02.770610+00:00",
+      "shell_pid": 2151016,
+      "shell_pid_created_at": "1784872601.46"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKNF41NFWJ9HG27M1B3PK0",
+      "last_transition_at": "2026-07-24T17:44:42.369677+00:00",
+      "shell_pid": 2140955,
+      "shell_pid_created_at": "1784872269.02"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKMMAVGM226XT1Y9HDGBBT",
+      "last_transition_at": "2026-07-24T17:44:14.939935+00:00",
+      "shell_pid": 1974545,
+      "shell_pid_created_at": "1784866894.75"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKN1PR6FCM4T0A38QVC592",
+      "last_transition_at": "2026-07-24T17:44:28.632669+00:00",
+      "shell_pid": 2084109,
+      "shell_pid_created_at": "1784870522.2"
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKNNT1CRTMEM2Y2CFTY48M",
+      "last_transition_at": "2026-07-24T17:44:49.217189+00:00",
+      "shell_pid": 2298022,
+      "shell_pid_created_at": "1784875324.36"
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKP9NPFA2R5ECA0HXAPHGK",
+      "last_transition_at": "2026-07-24T17:45:09.558336+00:00",
+      "shell_pid": 2383061,
+      "shell_pid_created_at": "1784878291.37"
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKQ4BKXCZSKRWXM1720ZG2",
+      "last_transition_at": "2026-07-24T17:45:36.883211+00:00",
+      "shell_pid": 2611389,
+      "shell_pid_created_at": "1784883760.33"
+    },
+    "WP13": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKQHJA15ZK4B48EGCX4RZ7",
+      "last_transition_at": "2026-07-24T17:45:50.410390+00:00",
+      "shell_pid": 2688652,
+      "shell_pid_created_at": "1784886769.24"
+    },
+    "WP14": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKQYXDXVHWA2AW6ZFH8QHB",
+      "last_transition_at": "2026-07-24T17:46:04.077165+00:00",
+      "shell_pid": 2884764,
+      "shell_pid_created_at": "1784891761.41"
+    },
+    "WP15": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKPG786NDY6MT77EKG432P",
+      "last_transition_at": "2026-07-24T17:45:16.264820+00:00",
+      "shell_pid": 2390534,
+      "shell_pid_created_at": "1784878624.77"
+    },
+    "WP16": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYAKPPXMFVG0N7GYF56Y8G42",
+      "last_transition_at": "2026-07-24T17:45:23.124422+00:00",
+      "shell_pid": 2397825,
+      "shell_pid_created_at": "1784878958.34"
+    },
+    "WP17": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKQR922A6PN77YB64G2992",
+      "last_transition_at": "2026-07-24T17:45:57.282215+00:00",
+      "shell_pid": 2695356,
+      "shell_pid_created_at": "1784887103.04"
+    },
+    "WP18": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKQAXE0H7SR93E784BZKV0",
+      "last_transition_at": "2026-07-24T17:45:43.598543+00:00",
+      "shell_pid": 2327429,
+      "shell_pid_created_at": "1784876313.87"
+    },
+    "WP19": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAKPXNHSX8S9H8D4KXKGEHK",
+      "last_transition_at": "2026-07-24T17:45:30.033207+00:00",
+      "shell_pid": 2267890,
+      "shell_pid_created_at": "1784874915.96"
+    }
+  }
+}
