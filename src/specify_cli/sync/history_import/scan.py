@@ -134,8 +134,9 @@ def scan_mission(mission_dir: Path) -> MissionScan:
     prefix_source = PrefixSource.ON_DISK if mc_payload is not None else PrefixSource.SYNTHESIZED
     fields = _resolve_mission_fields(mission_dir, meta, mc_payload)
 
+    skipped_wp_files: tuple[str, ...] = ()
     if wp_payloads:
-        work_packages, skipped_wp_files = _wps_from_prefix(wp_payloads), ()
+        work_packages = _wps_from_prefix(wp_payloads)
     else:
         work_packages, skipped_wp_files = _wps_from_task_files(mission_dir)
 
