@@ -1,6 +1,6 @@
 ---
 title: Architecture notes
-description: 'Full page index for docs/architecture/: living C4 model and vision, per-version (1.x/2.x/3.x) history, explanation pages, calibration reports, assessments, connector/installation notes, and reference templates.'
+description: 'Page index for docs/architecture/: living C4 model and vision, per-version (1.x/2.x/3.x) history, explanations, assessments, connector/installation notes, and reference templates.'
 doc_status: active
 updated: '2026-07-22'
 related:
