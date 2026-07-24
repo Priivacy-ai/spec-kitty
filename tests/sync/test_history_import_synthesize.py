@@ -182,8 +182,10 @@ def test_multi_mission_stream_event_ids_are_unique():
         **kwargs,
     )
 
+    # 2 × (MissionCreated + 2 WPCreated), in order — the content contract.
+    assert [env["event_type"] for env in stream] == ["MissionCreated", "WPCreated", "WPCreated"] * 2
+
     ids = [env["event_id"] for env in stream]
-    assert len(ids) == 6  # 2 × (MissionCreated + 2 WPCreated)
     assert len(set(ids)) == len(ids), f"duplicate event_ids in the synthesized stream: {ids}"
 
 
