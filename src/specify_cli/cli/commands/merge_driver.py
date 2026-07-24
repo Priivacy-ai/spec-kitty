@@ -23,6 +23,7 @@ mission branch.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,7 @@ from specify_cli.acceptance import (
     ACCEPTANCE_HISTORY_FIELD,
     ACCEPTANCE_PROVENANCE_FIELDS,
 )
+from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER
 from specify_cli.status import EventLogMergeError, merge_event_log_files
 
 # meta.json serialization identical to ``mission_metadata.write_meta`` so the
@@ -213,3 +215,116 @@ def merge_driver_traces(
     theirs = Path(theirs_path)
     theirs_text = theirs.read_text(encoding="utf-8") if theirs.exists() else ""
     ours.write_text(union_trace_texts(ours_text, theirs_text), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Coordination gate artifacts: keep the filled side (#2804)
+# ---------------------------------------------------------------------------
+#
+# ``acceptance-matrix.json`` and ``issue-matrix.md`` are filled on the TARGET at
+# accept time and left as placeholder scaffolds on the mission branch. Under
+# ``-X theirs`` the mission branch's scaffold wins, so the merged record loses
+# the very evidence the done-gate just consumed (#2804). These drivers pick the
+# more-filled side instead of a fixed side, which is also correct in the reverse
+# ordering (fill authored in a lane, target still scaffold). Ties resolve to
+# ``ours`` — the target, where accept happened.
+
+
+#: The scaffold's undecided verdict token, shared by ``overall_verdict`` and each
+#: criterion's ``pass_fail`` cell. Named rather than inlined so the fill score
+#: reads as verdict logic (and so ruff stops reading ``pass_fail != "..."`` as a
+#: hardcoded credential comparison).
+_UNDECIDED_VERDICT = "pending"
+
+
+def _acceptance_matrix_fill_score(text: str) -> int:
+    """Return how much real acceptance evidence ``text`` carries.
+
+    Counts a decided ``overall_verdict`` plus every criterion that has moved off
+    the scaffold (a non-pending verdict, real evidence, or a description that is
+    no longer the scaffold TODO). Unparseable text scores -1 so a valid document
+    always beats a corrupt one.
+    """
+    try:
+        data = json.loads(text) if text.strip() else {}
+    except json.JSONDecodeError:
+        return -1
+    if not isinstance(data, dict):
+        return -1
+
+    score = 0
+    verdict = data.get("overall_verdict")
+    if isinstance(verdict, str) and verdict.strip() and verdict != _UNDECIDED_VERDICT:
+        score += 1
+
+    criteria = data.get("criteria")
+    if isinstance(criteria, list):
+        for criterion in criteria:
+            if not isinstance(criterion, dict):
+                continue
+            pass_fail = criterion.get("pass_fail")
+            if isinstance(pass_fail, str) and pass_fail.strip() and pass_fail != _UNDECIDED_VERDICT:
+                score += 1
+            if criterion.get("evidence"):
+                score += 1
+            description = criterion.get("description")
+            if isinstance(description, str) and SCAFFOLD_TODO_MARKER not in description:
+                score += 1
+    return score
+
+
+def _issue_matrix_fill_score(text: str) -> int:
+    """Return how many decided issue-matrix rows ``text`` carries.
+
+    A row counts when its verdict cell is a real verdict other than the
+    scaffold's ``unknown``, and again when its title cell is no longer the
+    ``<fill ...>`` placeholder. Non-table lines are ignored.
+    """
+    score = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        title, verdict = cells[1], cells[2]
+        if verdict and verdict not in {"unknown", "Verdict"} and not verdict.startswith("-"):
+            score += 1
+        if title and not title.startswith("<") and title != "Title":
+            score += 1
+    return score
+
+
+def _write_more_filled_side(
+    ours_path: str,
+    theirs_path: str,
+    score: Callable[[str], int],
+) -> None:
+    """Write whichever of ours/theirs scores higher to the ``ours`` (``%A``) path."""
+    ours = Path(ours_path)
+    ours_text = ours.read_text(encoding="utf-8") if ours.exists() else ""
+    theirs = Path(theirs_path)
+    theirs_text = theirs.read_text(encoding="utf-8") if theirs.exists() else ""
+    if score(theirs_text) > score(ours_text):
+        ours.write_text(theirs_text, encoding="utf-8")
+
+
+def merge_driver_acceptance_matrix(
+    base_path: str = typer.Argument(..., metavar="BASE"),
+    ours_path: str = typer.Argument(..., metavar="OURS"),
+    theirs_path: str = typer.Argument(..., metavar="THEIRS"),
+) -> None:
+    """Keep the filled ``acceptance-matrix.json`` side; write result to ``ours`` (#2804)."""
+    _ = base_path  # %O ancestor: git always passes it, but the choice is 2-way.
+    _write_more_filled_side(ours_path, theirs_path, _acceptance_matrix_fill_score)
+
+
+def merge_driver_issue_matrix(
+    base_path: str = typer.Argument(..., metavar="BASE"),
+    ours_path: str = typer.Argument(..., metavar="OURS"),
+    theirs_path: str = typer.Argument(..., metavar="THEIRS"),
+) -> None:
+    """Keep the filled ``issue-matrix.md`` side; write result to ``ours`` (#2804)."""
+    _ = base_path  # %O ancestor: git always passes it, but the choice is 2-way.
+    _write_more_filled_side(ours_path, theirs_path, _issue_matrix_fill_score)

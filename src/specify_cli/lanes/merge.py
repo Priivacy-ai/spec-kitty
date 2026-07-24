@@ -76,6 +76,18 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
         command="spec-kitty merge-driver-traces %O %A %B",
         pattern="kitty-specs/**/traces/*.md",
     ),
+    _MergeDriverSpec(
+        config_key="spec-kitty-acceptance-matrix",
+        name="Spec Kitty acceptance matrix filled-side merge",
+        command="spec-kitty merge-driver-acceptance-matrix %O %A %B",
+        pattern="kitty-specs/**/acceptance-matrix.json",
+    ),
+    _MergeDriverSpec(
+        config_key="spec-kitty-issue-matrix",
+        name="Spec Kitty issue matrix filled-side merge",
+        command="spec-kitty merge-driver-issue-matrix %O %A %B",
+        pattern="kitty-specs/**/issue-matrix.md",
+    ),
 )
 
 
