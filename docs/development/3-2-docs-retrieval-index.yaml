@@ -3884,7 +3884,7 @@ pages:
   - path: "docs/architecture/index.md"
     title: "Architecture notes"
     divio_type: "none"
-    abstract: "Full page index for docs/architecture/: living C4 model and vision, per-version (1.x/2.x/3.x) history, explanation pages, calibration reports, assessments, connector/installation notes, and reference templates."
+    abstract: "Page index for docs/architecture/: living C4 model and vision, per-version (1.x/2.x/3.x) history, explanations, assessments, connector/installation notes, and reference templates."
     anchors:
     - {slug: "living-architecture-current-forward", text: "Living architecture (current + forward)", level: 2}
     - {slug: "versioned-history-3-x", text: "Versioned history — 3.x", level: 2}
@@ -8662,7 +8662,7 @@ pages:
   - path: "docs/plans/engineering-notes/common-docs-section-audit.md"
     title: "Common-Docs section audit (docs-wide structural concern baseline)"
     divio_type: "none"
-    abstract: "Post-#2851 docs-wide concern-bucket audit of every docs/ section (excl. development/ + guides/): misfiled files, redistribution tally, follow-up ticket proposals, and the durable ratchet-replacement recommendation for #2302."
+    abstract: "Post-#2851 concern-bucket audit of every docs/ section: misfiled files, redistribution tally, follow-up proposals, and the durable ratchet-replacement recommendation (#2302)."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "headline-finding", text: "Headline finding", level: 2}
