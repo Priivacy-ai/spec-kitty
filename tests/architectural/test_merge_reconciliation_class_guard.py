@@ -52,8 +52,12 @@ from specify_cli.upgrade.migrations import (
     m_3_1_1_event_log_merge_driver as _event_log_migration,
 )
 from specify_cli.upgrade.migrations import (
-    m_3_2_6_meta_traces_merge_drivers as _meta_traces_migration,
+    auto_discover_migrations as _auto_discover_migrations,
 )
+from specify_cli.upgrade.migrations._merge_driver_seeding import (
+    MergeDriverSeedingMigration as _MergeDriverSeedingMigration,
+)
+from specify_cli.upgrade.registry import MigrationRegistry as _MigrationRegistry
 
 pytestmark = [pytest.mark.architectural]
 
@@ -315,12 +319,20 @@ def _init_seed_attribute_lines() -> set[str]:
 def _migration_seed_attribute_lines() -> set[str]:
     """Every gitattributes ``merge=`` line the upgrade migrations seed.
 
-    The migration surface is split by version: the event-log driver ships in
-    ``m_3_1_1`` (``_ATTRIBUTES_ENTRY``) and the meta/traces drivers in ``m_3_2_6``
-    (``_DRIVERS``). Their UNION is the upgraded-repo seed surface.
+    Discovered, not enumerated: every registered migration deriving from
+    ``MergeDriverSeedingMigration`` contributes its ``drivers``, plus the legacy
+    single-entry event-log migration (``m_3_1_1``, predates the shared base).
+    Their UNION is the upgraded-repo seed surface.
+
+    Discovery matters here: an enumeration listing specific modules goes stale
+    the moment a new driver migration lands, and this guard then passes a driver
+    that no migration actually seeds — the exact failure it exists to catch.
     """
     lines = {_event_log_migration._ATTRIBUTES_ENTRY}
-    lines.update(driver.attributes_entry for driver in _meta_traces_migration._DRIVERS)
+    _auto_discover_migrations()  # registration fires on import; discovery is lazy
+    for migration in _MigrationRegistry.get_all():
+        if isinstance(migration, _MergeDriverSeedingMigration):
+            lines.update(driver.attributes_entry for driver in migration.drivers)
     return lines
 
 
