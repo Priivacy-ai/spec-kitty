@@ -46,6 +46,7 @@ sweep did and lets a reviewer re-run ``--dry-run`` to verify completeness.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
@@ -57,8 +58,14 @@ import yaml
 # Defaults                                                                     #
 # --------------------------------------------------------------------------- #
 
-DEFAULT_OCCURRENCE_MAP = (
-    "kitty-specs/common-docs-structural-move-01KW3SBK/occurrence_map.yaml"
+# No longer hard-pinned to one mission: the ``SPEC_KITTY_OCCURRENCE_MAP`` env
+# var overrides, and the literal below is only a last-resort fallback that keeps
+# the symbol defined + resolvable for importing callers (relative_link_fixer).
+# Every mission step passes an explicit ``--occurrence-map``, so this default is
+# consumed only by ad-hoc invocations (FR-010 / C-007 un-pin).
+DEFAULT_OCCURRENCE_MAP = os.environ.get(
+    "SPEC_KITTY_OCCURRENCE_MAP",
+    "kitty-specs/common-docs-structural-move-01KW3SBK/occurrence_map.yaml",
 )
 DEFAULT_ROOTS: tuple[str, ...] = ("src", "tests", "docs")
 TEXT_SUFFIXES = frozenset({".py", ".md", ".txt", ".rst", ".yaml", ".yml"})
