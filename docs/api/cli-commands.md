@@ -87,6 +87,58 @@ For non-obvious runtime behaviour an operator may encounter:
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty archive
+
+_Archive a terminal mission (operator-invoked only)._
+
+```
+ Usage: spec-kitty archive [OPTIONS] COMMAND [ARGS]...
+
+ Archive a terminal mission (operator-invoked only).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ create  Archive a terminal mission (AM-1..AM-5).                             │
+│ list    Enumerate archived missions (AM-3).                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty archive create
+
+```
+ Usage: spec-kitty archive create [OPTIONS] MISSION
+
+ Archive a terminal mission (AM-1..AM-5).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission      TEXT  Mission selector (slug or mission_id). [required]    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --by            TEXT  Operator identity performing the archive            │
+│                          (required).                                         │
+│                          [required]                                          │
+│ *  --reason        TEXT  Why the mission is being archived (required).       │
+│                          [required]                                          │
+│    --json                Emit the archive record as JSON.                    │
+│    --help                Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty archive list
+
+```
+ Usage: spec-kitty archive list [OPTIONS]
+
+ Enumerate archived missions (AM-3).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Emit the archive registry as JSON.                           │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty auth
 
 _Authentication commands_
@@ -2256,6 +2308,59 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --mission        SLUG  Scope to a single mission slug (e.g. 083-foo-bar).    │
 │                        Omit to process all.                                  │
 │ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-provenance
+
+```
+ Usage: spec-kitty migrate backfill-provenance [OPTIONS]
+
+ FR-014: backfill provenance onto legacy acceptance-matrix.json invariants.
+
+ Walks every ``kitty-specs/*/acceptance-matrix.json`` and, for each negative
+ invariant whose ``result`` is not ``pending`` and lacks ``provenance_origin``,
+ stamps the ``legacy_unrecorded`` sentinel (data-model.md NI-1 / contract
+ ``negative-invariant-provenance.md`` C1). ``verified_ref`` and
+ ``verified_surface_kind`` are left null for those rows — the sentinel means
+ the surface a pre-schema judgement was established against is genuinely
+ unknowable, not empty by omission.
+
+ This migration is **idempotent** (NI-2 / C3): re-running it on an
+ already-migrated corpus is a no-op — a row already carrying
+ ``provenance_origin`` (``recorded`` or ``legacy_unrecorded``) is never
+ re-stamped.
+
+ The whole-corpus write is enrolled in a commit-or-revert transaction: on
+ any failure partway through, every file already written in that run is
+ restored to its pre-migration bytes — no partial migration state is left
+ on disk.
+
+ AM-4: this migration never auto-archives. A matrix it cannot parse is
+ reported as an error and skipped; it never routes into an archive
+ operation.
+
+ Exit codes:
+
+ - ``0`` — every matrix migrated cleanly (or needed no change)
+ - ``1`` — one or more matrices could not be parsed (see the reported errors)
+
+ Examples:
+
+     spec-kitty migrate backfill-provenance --dry-run
+
+     spec-kitty migrate backfill-provenance --json
+
+     spec-kitty migrate backfill-provenance
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run                  Report what would be stamped without writing any  │
+│                            files. The JSON shape is identical to a live run. │
+│ --json                     Emit a JSON-stable summary report on stdout.      │
+│ --project-root        DIR  Root of the Spec Kitty project (default: current  │
+│                            working directory).                               │
+│                            [default: .]                                      │
+│ --help                     Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

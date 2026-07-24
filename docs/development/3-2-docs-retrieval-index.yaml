@@ -2632,6 +2632,9 @@ pages:
     - {slug: "command-internals", text: "Command Internals", level: 2}
     - {slug: "schema-references", text: "Schema references", level: 2}
     - {slug: "spec-kitty-accept", text: "spec-kitty accept", level: 2}
+    - {slug: "spec-kitty-archive", text: "spec-kitty archive", level: 2}
+    - {slug: "spec-kitty-archive-create", text: "spec-kitty archive create", level: 2}
+    - {slug: "spec-kitty-archive-list", text: "spec-kitty archive list", level: 2}
     - {slug: "spec-kitty-auth", text: "spec-kitty auth", level: 2}
     - {slug: "spec-kitty-auth-doctor", text: "spec-kitty auth doctor", level: 2}
     - {slug: "spec-kitty-auth-login", text: "spec-kitty auth login", level: 2}
@@ -2716,6 +2719,7 @@ pages:
     - {slug: "spec-kitty-merge", text: "spec-kitty merge", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
+    - {slug: "spec-kitty-migrate-backfill-provenance", text: "spec-kitty migrate backfill-provenance", level: 2}
     - {slug: "spec-kitty-migrate-backfill-runtime-state", text: "spec-kitty migrate backfill-runtime-state", level: 2}
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
     - {slug: "spec-kitty-migrate-charter-encoding", text: "spec-kitty migrate charter-encoding", level: 2}
