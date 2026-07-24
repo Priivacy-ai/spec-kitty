@@ -1,0 +1,4 @@
+id: common-docs-structural-lint
+mime: text/x-python
+path: built-in/docs_structural_lint.py
+title: Common Docs structural lint (ratchet successor)

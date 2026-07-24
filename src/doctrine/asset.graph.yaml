@@ -1,0 +1,8 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: drg-migration-v1
+nodes:
+- urn: asset:common-docs-structural-lint
+  kind: asset
+  label: Common Docs structural lint (ratchet successor)
+edges: []
