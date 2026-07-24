@@ -667,8 +667,12 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1"),
         # specify_cli.merge.ordering::_mark_mission_number_baked
         SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b"),
-        # specify_cli.merge.ordering::_write_mission_number_to_branch
-        SymbolKey("_write_mission_number_to_branch", "8b14e54dc72bee11b21227f863c1baf4017f1e174e429b0b2185c74a427cfc1a"),
+        # specify_cli.merge.ordering::_write_mission_number_to_branch (body_hash
+        # refreshed lifecycle-gate-execution-context: body edited, key is
+        # content-tier and body-sensitive by design -- see _symbol_key.py
+        # "Body-sensitivity" note; still a seam-internal helper, zero cross-file
+        # src/ caller)
+        SymbolKey("_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2"),
         SymbolKey("check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460"),  # specify_cli.merge.push_preflight::check_push_safety
         SymbolKey("_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934"),  # specify_cli.merge.resolve::_extract_mission_slug
         # specify_cli.merge.resolve::_iter_merge_states_for_slug
@@ -977,6 +981,62 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. lifecycle-gate-execution-context (#1834/#2885/#2795/#2882) forward seams ----------
+# Mission ``lifecycle-gate-execution-context`` (FR-303 dead-symbol case, no new
+# tracker ticket) landed two deliberately not-yet-wired surfaces:
+#
+# * ``acceptance/execution_context.py`` GEC-2 ref-agreement
+#   (``GateExecutionContext.assert_at_ref`` / ``GateSurfaceRefMismatch`` /
+#   ``SurfaceHeadResolver``) and ``CannotEvaluateReason`` (the PH-1
+#   ``BELOW_MINIMUM_PHASE`` member is only ever produced by
+#   ``not_applicable_below``, itself uncalled) are building blocks a gate calls
+#   "when it needs ref agreement" (module docstring) -- WP03/T017 implements the
+#   capability and pins it under direct unit test
+#   (``tests/acceptance/test_gate_execution_context.py``), but no gate in this
+#   mission's scope declares a phase floor or asserts ref agreement yet. A
+#   future gate is the intended caller; wiring one in now to satisfy this gate
+#   would be inventing a call site the design does not yet need.
+# * ``acceptance/post_consolidation.py`` (``verify_deferred_invariants`` /
+#   ``PostConsolidationResult`` / ``PostConsolidationViolation`` /
+#   ``InvariantViolation``) is WP06/T031's Op, dispatched ad hoc via
+#   ``spec-kitty dispatch`` -- by design "there is no new CLI verb and no
+#   call-in from merge/executor.py" (module docstring; zero ``merge/``
+#   coupling is a load-bearing contract constraint, C7) and
+#   ``scripts/ci/check_dangling_deferrals.py`` is deliberately "zero-coupled to
+#   src/specify_cli" (its own docstring) so it duplicates the wire value
+#   instead of importing this module. A plain library function with a real,
+#   documented caller (docs/guides/accept-and-merge.md
+#   #deferred-invariants-and-the-post-consolidation-gate) that is never a
+#   static ``src/`` import by design.
+# * ``cli/commands/archive.py`` (``create`` / ``list_archives``) are Typer
+#   command callbacks registered by the ``@app.command(...)`` decorator; the
+#   real runtime caller is Typer's own dispatch against ``archive_module.app``
+#   (wired in ``cli/commands/__init__.py``), never a ``from ... import create``
+#   site.
+_CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.acceptance.execution_context::CannotEvaluateReason
+        SymbolKey("CannotEvaluateReason", "169f6e0b84cc22cc54ed339999b26191c66ce24fb4b8c4f4d9e87ba82852c55d"),
+        # specify_cli.acceptance.execution_context::GateSurfaceRefMismatch
+        SymbolKey("GateSurfaceRefMismatch", "8e02a491000f2633aab60f93db9f85d9a2c3dc94f65f4418d8dd9c9e21a0950e"),
+        # specify_cli.acceptance.execution_context::SurfaceHeadResolver
+        SymbolKey("SurfaceHeadResolver", "1b5124eac062ce4ebeec680cbd3d867d602747896eab7ae166162f65427653a2"),
+        # specify_cli.acceptance.post_consolidation::InvariantViolation
+        SymbolKey("InvariantViolation", "2ef6e1e24afd16c2e6d0ea942a09f82189f61f7c4e081d33e2bb7f4fcb513f2d"),
+        # specify_cli.acceptance.post_consolidation::PostConsolidationResult
+        SymbolKey("PostConsolidationResult", "d657817ba43238e2bbae83261e6acb8eb65a28de60a15496087166021594fb30"),
+        # specify_cli.acceptance.post_consolidation::PostConsolidationViolation
+        SymbolKey("PostConsolidationViolation", "6e97a633cce0f4ed58dcbc805cbf9ceb4aed0884f4b137e7362cf52f4d6f99cb"),
+        # specify_cli.acceptance.post_consolidation::verify_deferred_invariants
+        SymbolKey("verify_deferred_invariants", "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d"),
+        # specify_cli.cli.commands.archive::create
+        SymbolKey("create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba"),
+        # specify_cli.cli.commands.archive::list_archives
+        SymbolKey("list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1006,6 +1066,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_URN_RESOLUTION_LANE
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
     | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
+    | _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841
 )
 
 
