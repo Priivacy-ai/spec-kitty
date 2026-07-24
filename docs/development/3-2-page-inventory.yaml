@@ -1040,18 +1040,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/architecture/883-mission-type-authority-brief.md
-  tag: current
-  divio_type: explanation
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/883-research-synthesis.md
-  tag: current
-  divio_type: explanation
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/architecture/ARCHITECTURE_DOCS_GUIDE.md
   tag: current
   divio_type: none
@@ -1101,48 +1089,6 @@
   current_target: true
   notes: null
 - path: docs/architecture/assessments/code-as-a-crime-scene-overview.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-11-findings-vs-issues-update.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-11-issue-992-984-audit-comments.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-822-crosscheck.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-caacs-meta-assessment.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-phase3-f1-knowledge-capture-plan.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-phase3-issue-drafts-and-triage.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/audits/2026-05-spec-kitty-caacs.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2828,6 +2774,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/883-mission-type-authority-brief.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/883-research-synthesis.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/agent-knowledge-canonical-homes.md
   tag: current
   divio_type: none
@@ -2841,6 +2799,54 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/architectural-review/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-11-findings-vs-issues-update.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-11-issue-992-984-audit-comments.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-caacs-meta-assessment.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-phase3-f1-knowledge-capture-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-phase3-issue-drafts-and-triage.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/common-docs-section-audit.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3465,30 +3471,6 @@
   current_target: true
   notes: null
 - path: docs/plans/next-mission-mappings/issue-plan-mission-next-mapping.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/notes/README.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/notes/adr-connector-auth-binding-separation.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/notes/feature-detection.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/notes/gap-analysis-connector-installation-model.md
   tag: current
   divio_type: none
   owning_workstream: none

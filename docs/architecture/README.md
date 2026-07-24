@@ -71,7 +71,7 @@ living top level, which keeps the top-level surface honestly "current" over time
 | `architecture/2.x/` | Prior track (2.x) — frozen snapshot incl. the 2.x C4 and `adr/ vision/ research/` |
 | `architecture/1.x/` | Legacy track (1.x) — frozen, incl. 1.x ADRs and notes |
 | `docs/adr/3.x/` | Backward-compatibility links to moved 1.x ADR files (legacy compat shim) |
-| `docs/architecture/audits/` | Architecture audits and assessments |
+| `docs/plans/engineering-notes/architecture-audits/` | Architecture audits (relocated point-in-time forensic records) |
 | `docs/architecture/calibration/` | Per-mission-type calibration notes |
 | `docs/architecture/assessments/` | Code-as-a-crime-scene and similar assessments |
 | `docs/architecture/adr-template.md` | Shared ADR template used by all tracks |

@@ -15,7 +15,7 @@ related:
 This brief captures the intent, operator guidance, research, and adversarial
 review that shaped mission #883 **before** the spec stage, so maintainers can
 review the reasoning that produced
-[ADR 2026-07-14-2](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
+[ADR 2026-07-14-2](../../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
 It is a decision record and hand-off, not a design spec.
 
 > Status at time of writing: pre-spec. The ADR is Accepted; `/spec-kitty.specify`

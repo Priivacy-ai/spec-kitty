@@ -52,6 +52,12 @@ Durable records of profile-loaded pre-spec research squads, captured so a parked
 resume without re-running the squad:
 
 - [DRG completeness (#2843 / #2847) — pre-spec research squad findings](drg-completeness-2843-research.md) — convergent 4-lens findings on the #2833 residue: relation-description parity, the activation-gate latent bug, and the anti-pattern corpus promotion split.
+## Docs governance
+
+Docs-wide structural baselines and concern audits — the durable record of where each doc kind
+belongs and what has drifted, replacing the retired anti-sprawl ratchet:
+
+- [Common-Docs section audit (docs-wide structural concern baseline)](common-docs-section-audit.md) — post-#2851 concern-bucket audit of every `docs/` section (excl. `development/` + `guides/`): misfiled files, redistribution tally, follow-up ticket proposals under #2314 bucket C, and the taxonomy recommendation for #2302.
 
 ## Design notes
 
