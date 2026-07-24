@@ -295,14 +295,18 @@ class TestNoRegressionForExistingKinds:
         # First-wins: pack_a's node survives (declared first in org_fragments).
         assert directive_node.label == "Pack A's Referenced Policy"
 
-    def test_builtin_graph_still_reports_only_the_pre_mission_asset_free_kinds(
+    def test_builtin_graph_reports_the_first_shipped_asset_only(
         self,
     ) -> None:
-        """The real shipped graph has zero `asset:` nodes (ASSET is new in
-        this mission) and its `template:` population is untouched."""
+        """The real shipped graph now carries exactly one `asset:` node — the
+        first shipped built-in ASSET, the common-docs structural lint — and its
+        `template:`/`directive:` populations are untouched."""
         built_in = _built_in_graph()
         kinds_present = {node.kind for node in built_in.nodes}
+        asset_urns = {
+            node.urn for node in built_in.nodes if node.kind == NodeKind.ASSET
+        }
 
-        assert NodeKind.ASSET not in kinds_present
+        assert asset_urns == {"asset:common-docs-structural-lint"}
         assert NodeKind.TEMPLATE in kinds_present
         assert NodeKind.DIRECTIVE in kinds_present

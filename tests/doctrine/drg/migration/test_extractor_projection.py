@@ -91,9 +91,14 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     each edge-less (the MSC fragment ships ``edges: []``): +17 nodes / +0 edges
 #:     / +17 orphans.
 #: Composed: 285/755/13 + 1/2/0 + 17/0/17 = 303/757/30.
-_EXPECTED_NODE_COUNT = 303
+#: (3) Mission ship-structural-lint-as-asset: the common-docs structural lint is
+#:     relocated into ``assets/built-in`` as the first shipped doctrine ASSET,
+#:     so the extractor mints one edge-less ``asset:common-docs-structural-lint``
+#:     node (the asset fragment ships ``edges: []``): +1 node / +0 edges /
+#:     +1 orphan. Composed: 303/757/30 + 1/0/1 = 304/757/31.
+_EXPECTED_NODE_COUNT = 304
 _EXPECTED_EDGE_COUNT = 757
-_EXPECTED_ORPHAN_COUNT = 30
+_EXPECTED_ORPHAN_COUNT = 31
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).
