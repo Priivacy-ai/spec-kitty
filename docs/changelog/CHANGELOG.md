@@ -19,6 +19,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Opt-in local event webhook (`SPEC_KITTY_EVENT_WEBHOOK`).** Set the variable to an HTTP(S) URL to receive every sync event envelope as a best-effort JSON POST, independent of SaaS sync. This is a generic observability seam for external local tools - it fires even when hosted sync is disabled, and is a single cheap check with zero network cost when the variable is unset.
 - **Fork packaging hooks (entry-point plugins + `DistributionProfile`).**
   Renamed / private-index forks can customize CLI package identity, upgrade
   providers (including built-in PEP 503 `SimpleIndexProvider`), remediation
