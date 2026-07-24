@@ -174,14 +174,8 @@ def test_apply_fails_closed_when_unauthenticated(monkeypatch):
     assert "Not authenticated" in _strip_ansi(result.output)
 
 
-def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
-    """The wired --apply resolves the authed receiver, runs apply_import, and
-    reports the upload tally (exit 0). apply_import is stubbed with a canned
-    result here; its real behavior is covered in the pipeline/upload suites."""
-    import specify_cli.sync.history_import as history_import
-    from specify_cli.sync.history_import import ApplyResult, ImportIdentity, ImportPlan, UploadReport
-    from specify_cli.sync.history_import.scan import MissionScan, PrefixSource
-
+def _wire_apply_seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Wire the auth/config/receiver seams so --apply reaches apply_import."""
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
     monkeypatch.setattr(sync_command, "_open_event_sync_runtime", lambda: SimpleNamespace(target=object()))
     monkeypatch.setattr(
@@ -191,6 +185,12 @@ def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *a, **k: SimpleNamespace(endpoint_url="http://x/batch"))
     _patch_checkout(monkeypatch, tmp_path)
+
+
+def _canned_apply_result(report):
+    """A one-mission, one-envelope ApplyResult carrying the given report."""
+    from specify_cli.sync.history_import import ApplyResult, ImportIdentity, ImportPlan
+    from specify_cli.sync.history_import.scan import MissionScan, PrefixSource
 
     scan = MissionScan(
         mission_slug="m-1",
@@ -213,7 +213,18 @@ def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
         is_synthetic=False,
     )
     plan = ImportPlan(identity=ident, scans=(scan,), envelopes=({"event_id": "e0", "event_type": "MissionCreated"},))
-    canned = ApplyResult(plan=plan, manifest=[], report=UploadReport(success=1))
+    return ApplyResult(plan=plan, manifest=[], report=report)
+
+
+def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
+    """The wired --apply resolves the authed receiver, runs apply_import, and
+    reports the upload tally (exit 0). apply_import is stubbed with a canned
+    result here; its real behavior is covered in the pipeline/upload suites."""
+    import specify_cli.sync.history_import as history_import
+    from specify_cli.sync.history_import import UploadReport
+
+    _wire_apply_seams(monkeypatch, tmp_path)
+    canned = _canned_apply_result(UploadReport(success=1))
     monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
 
     result = runner.invoke(app, ["import-history", "--apply"])
@@ -221,3 +232,129 @@ def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
     plain = _strip_ansi(result.output)
     assert "Imported:" in plain
     assert "1 created" in plain
+
+
+# ── --apply: the five except branches (T3, #2884) ─────────────────────────────
+
+
+def _invoke_apply_raising(tmp_path, monkeypatch, exc: BaseException):
+    """Wire the seams, make apply_import raise *exc*, invoke --apply."""
+    import specify_cli.sync.history_import as history_import
+
+    _wire_apply_seams(monkeypatch, tmp_path)
+
+    def _boom(*args, **kwargs):
+        raise exc
+
+    monkeypatch.setattr(history_import, "apply_import", _boom)
+    return runner.invoke(app, ["import-history", "--apply"])
+
+
+def test_apply_renders_audit_blockers(tmp_path, monkeypatch):
+    from specify_cli.sync.history_import import ImportAuditBlocked
+
+    exc = ImportAuditBlocked([{"mission_slug": "m-bad", "message": "spec.md failed schema validation"}])
+    result = _invoke_apply_raising(tmp_path, monkeypatch, exc)
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Import blocked" in plain
+    assert "m-bad" in plain and "spec.md failed schema validation" in plain
+
+
+def test_apply_renders_preflight_rejection(tmp_path, monkeypatch):
+    from specify_cli.sync.history_import import PreflightRejected
+
+    result = _invoke_apply_raising(tmp_path, monkeypatch, PreflightRejected({"reconciliation": {"reason": "bad shape"}}))
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Server preflight rejected the import" in plain
+    assert "bad shape" in plain
+
+
+def test_apply_renders_identity_error(tmp_path, monkeypatch):
+    from specify_cli.sync.history_import import ImportIdentityError
+
+    result = _invoke_apply_raising(tmp_path, monkeypatch, ImportIdentityError("no persisted project UUID"))
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Identity error" in plain
+    assert "no persisted project UUID" in plain
+
+
+def test_apply_renders_mission_scan_error(tmp_path, monkeypatch):
+    from specify_cli.sync.history_import import MissionScanError
+
+    result = _invoke_apply_raising(tmp_path, monkeypatch, MissionScanError("m-corrupt", "corrupt status log: bad row"))
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Error:" in plain
+    assert "m-corrupt" in plain and "corrupt status log" in plain
+
+
+def test_apply_renders_mission_state_repair_error(tmp_path, monkeypatch):
+    from specify_cli.migration.mission_state import MissionStateRepairError
+
+    result = _invoke_apply_raising(tmp_path, monkeypatch, MissionStateRepairError("Mission not found: 'nope'"))
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Error:" in plain
+    assert "Mission not found" in plain
+
+
+# ── --apply: report-state rendering (rejected / pending / partial) ────────────
+
+
+def _invoke_apply_with_report(tmp_path, monkeypatch, report):
+    import specify_cli.sync.history_import as history_import
+
+    _wire_apply_seams(monkeypatch, tmp_path)
+    canned = _canned_apply_result(report)
+    monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
+    return runner.invoke(app, ["import-history", "--apply"])
+
+
+def test_apply_renders_rejected_tally_and_samples(tmp_path, monkeypatch):
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(success=1, rejected=2, rejected_samples=["e1: nope", "e2: bad payload"])
+    result = _invoke_apply_with_report(tmp_path, monkeypatch, report)
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "2 rejected" in plain
+    assert "e1: nope" in plain and "e2: bad payload" in plain
+    assert "not attempted" not in plain  # total failure is NOT the partial state
+
+
+def test_apply_renders_pending_tally_as_non_final(tmp_path, monkeypatch):
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(success=1, pending=3)
+    result = _invoke_apply_with_report(tmp_path, monkeypatch, report)
+    assert result.exit_code == 0  # pending is non-final, not a failure
+    plain = _strip_ansi(result.output)
+    assert "3 pending" in plain
+    assert "queued (pending)" in plain
+    assert "not yet" in plain  # explicitly distinct from confirmed success
+
+
+def test_apply_renders_partial_upload_as_distinct_state(tmp_path, monkeypatch):
+    """B1: a mid-run delivery failure renders the explicit partial state — a
+    safe ordered prefix was delivered, N events never attempted — distinct
+    from success and from total failure, and exits non-zero."""
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(
+        success=2,
+        rejected=1,
+        rejected_samples=["e2: nope"],
+        partial=True,
+        delivered_through_chunk=1,
+        undelivered_event_count=5,
+    )
+    result = _invoke_apply_with_report(tmp_path, monkeypatch, report)
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Partial upload" in plain
+    assert "safe ordered" in plain and "prefix" in plain
+    assert "5 event(s) not attempted" in plain
+    assert "e2: nope" in plain

@@ -125,6 +125,68 @@ def test_stream_is_ordered_creation_before_status():
             assert created_clock[wp_id] < env["lamport_clock"]
 
 
+def test_status_order_is_sorted_by_at_then_event_id_not_input_order():
+    """Ordering witness (T1, #2884): the transitions arrive deliberately OUT of
+    ``(at, event_id)`` order — including an ``at`` tie that only the
+    ``event_id`` tie-break resolves — so deleting the ``sorted(...)`` in
+    ``synthesize_mission_stream`` makes this test fail."""
+    import dataclasses
+
+    scan = dataclasses.replace(
+        _demo_scan(),
+        lane_transitions=(
+            # input order: 09 (tied at), 01 (earliest), 05 (tied at, lower id)
+            _status_event("WP02", "planned", "claimed", "2026-02-05T00:00:00Z", "01HZ0000000000000000000009"),
+            _status_event("WP01", "planned", "claimed", "2026-02-02T00:00:00Z", "01HZ0000000000000000000001"),
+            _status_event("WP02", "claimed", "in_progress", "2026-02-05T00:00:00Z", "01HZ0000000000000000000005"),
+        ),
+    )
+    stream = synthesize_mission_stream(scan, project_uuid=_PROJECT_UUID, project_slug="spec-kitty", repo_slug="acme/spec-kitty")
+
+    status_ids = [env["event_id"] for env in stream if env["event_type"] == "WPStatusChanged"]
+    assert status_ids == [
+        "01HZ0000000000000000000001",  # earliest at
+        "01HZ0000000000000000000005",  # at-tie broken by event_id ...
+        "01HZ0000000000000000000009",  # ... not by input position
+    ]
+
+
+def test_multi_mission_stream_event_ids_are_unique():
+    """Stream-wide id uniqueness (T2, #2884): two missions × two WPs each, with
+    the same wp_ids repeating across missions. A seed regression that dropped
+    ``wp.wp_id`` collides the two WPCreated ids WITHIN a mission; one that
+    dropped the mission identity collides WP01 ACROSS missions."""
+    kwargs = {"project_uuid": _PROJECT_UUID, "project_slug": "p", "repo_slug": "p"}
+
+    def _scan(mission_id: str, slug: str) -> MissionScan:
+        return MissionScan(
+            mission_slug=slug,
+            canonical_mission_id=mission_id,
+            mission_number=None,
+            name=slug,
+            mission_type="software-dev",
+            purpose_tldr=None,
+            purpose_context=None,
+            target_branch="main",
+            created_at="2026-02-01T00:00:00+00:00",
+            prefix_source=PrefixSource.SYNTHESIZED,
+            work_packages=(
+                ScannedWorkPackage("WP01", "First WP", (), None, None, PrefixSource.SYNTHESIZED),
+                ScannedWorkPackage("WP02", "Second WP", (), None, None, PrefixSource.SYNTHESIZED),
+            ),
+            lane_transitions=(),
+        )
+
+    stream = synthesize_streams(
+        [_scan("01AAAAAAAAAAAAAAAAAAAAAAAA", "m-a"), _scan("01BBBBBBBBBBBBBBBBBBBBBBBB", "m-b")],
+        **kwargs,
+    )
+
+    ids = [env["event_id"] for env in stream]
+    assert len(ids) == 6  # 2 × (MissionCreated + 2 WPCreated)
+    assert len(set(ids)) == len(ids), f"duplicate event_ids in the synthesized stream: {ids}"
+
+
 def test_aggregate_conventions():
     stream = synthesize_mission_stream(_demo_scan(), project_uuid=_PROJECT_UUID, project_slug="spec-kitty", repo_slug="acme/spec-kitty")
     mission_created = stream[0]
