@@ -149,17 +149,24 @@ def load_moves(occurrence_map_path: Path) -> list[tuple[str, str]]:
 def resolve_destination(old: str, to: str, repo_root: Path) -> str:
     """Resolve the *real* on-disk destination for a moved ``old`` path.
 
-    The map's ``to`` is the destination root; the landing may preserve the
-    subtree as a subdir, rename it (``_`` ↔ ``-``), or — for explicit
-    disambiguations — land it under an overridden name.  Falls back to the bare
-    ``to`` (flattened landing) when no subdir variant exists.
+    The map's ``to`` is normally the destination *root*; the landing may
+    preserve the subtree as a subdir, rename it (``_`` ↔ ``-``), or — for
+    explicit disambiguations — land it under an overridden name.  Falls back to
+    the bare ``to`` (flattened landing) when no subdir variant exists.
+
+    For a file-level move, ``to`` may instead be the full destination *file*
+    path (an occurrence_map that maps ``old`` file → ``new`` file directly). In
+    that case ``to`` is used verbatim; appending ``old``'s basename would double
+    the filename (``…/x.md/x.md``).
     """
 
     if old in DEST_OVERRIDES:
         return DEST_OVERRIDES[old]
     base = old.rsplit("/", 1)[-1]
     if _is_file_path(old):
-        return f"{to}/{base}"
+        # `to` is either the destination directory root (append the basename)
+        # or the full destination file path (use verbatim — no doubling).
+        return to if _is_file_path(to) else f"{to}/{base}"
     candidates = [base]
     if "_" in base:
         candidates.append(base.replace("_", "-"))
