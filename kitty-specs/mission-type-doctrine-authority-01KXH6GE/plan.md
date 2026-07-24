@@ -2,7 +2,7 @@
 
 **Branch**: `mission/883-mission-type-governance-profiles` | **Date**: 2026-07-14 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `kitty-specs/mission-type-doctrine-authority-01KXH6GE/spec.md`
-**Design authority**: [ADR 2026-07-14-2](../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) · [mission brief](../../docs/architecture/883-mission-type-authority-brief.md) · [research dossier](../../docs/architecture/883-research-synthesis.md)
+**Design authority**: [ADR 2026-07-14-2](../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) · [mission brief](../../docs/plans/engineering-notes/883-mission-type-authority-brief.md) · [research dossier](../../docs/plans/engineering-notes/883-research-synthesis.md)
 
 ## Summary
 
