@@ -47,6 +47,7 @@ __all__ = [
     "coord_dir_name",
     "coord_mission_dir_name",
     "coord_reconstruct_branch",
+    "mid8_from_slug",
     "mission_branch_name_required",
     "mission_dir_name",
     "reset_legacy_failover_warning",
