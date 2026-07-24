@@ -1875,6 +1875,16 @@ def _run_import_apply(mission: str | None) -> None:
         f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
         f"{report.pending} pending, {report.rejected} rejected ({report.total} total)."
     )
+    if report.partial:
+        # Distinct third state: neither success nor total failure. Delivery
+        # stopped at the first failed chunk, so everything delivered is a safe
+        # ordered prefix of whole missions; the rest was never attempted.
+        console.print(
+            f"[yellow]Partial upload:[/yellow] delivery stopped at a failed chunk — a safe ordered "
+            f"prefix was delivered ({report.delivered_through_chunk} full chunk(s)); "
+            f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
+            "--apply: the server dedups on event_id, so the re-run resumes idempotently."
+        )
     if not report.ok:
         for sample in report.rejected_samples:
             console.print(f"  [red]✗[/red] {sample}")
