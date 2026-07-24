@@ -60,6 +60,34 @@ class TestStyleguide:
         assert sg.quality_test is not None
         assert set(sg.references) == {"docs/testing.md"}
 
+    def test_structural_lint_config_defaults_to_none(
+        self, sample_styleguide_data: dict[str, object]
+    ) -> None:
+        sg = Styleguide.model_validate(sample_styleguide_data)
+        assert sg.structural_lint_config is None
+
+    def test_structural_lint_config_round_trips(
+        self, sample_styleguide_data: dict[str, object]
+    ) -> None:
+        data = {
+            **sample_styleguide_data,
+            "structural_lint_config": {
+                "curated_complete_sections": ["architecture"],
+                "point_in_time_allowlist": ["adr/**", "plans/research/**"],
+                "point_in_time_markers": [
+                    {"frontmatter_field": "doc_status", "frontmatter_value": "closeout"}
+                ],
+            },
+        }
+        sg = Styleguide.model_validate(data)
+        assert sg.structural_lint_config == {
+            "curated_complete_sections": ["architecture"],
+            "point_in_time_allowlist": ["adr/**", "plans/research/**"],
+            "point_in_time_markers": [
+                {"frontmatter_field": "doc_status", "frontmatter_value": "closeout"}
+            ],
+        }
+
     def test_frozen_model(self, sample_styleguide_data: dict) -> None:
         sg = Styleguide.model_validate(sample_styleguide_data)
         with pytest.raises(ValidationError):

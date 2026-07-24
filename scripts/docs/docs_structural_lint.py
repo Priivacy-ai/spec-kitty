@@ -1,0 +1,612 @@
+"""Structural docs lint (FR-007/008/011) — successor to the retired ratchet.
+
+The retired anti-sprawl ratchet (removed by PR #2855) mechanically checked
+index *existence* and an absolute basename-uniqueness count. Both proved too
+blunt: every section index is not curated (most are landing pages), and a
+single global "no duplicate basename" count cannot express "these two
+sections legitimately both have a ``README.md``". This module is the durable
+mechanical successor — four independently-testable checks, each **scoped so
+the current clean tree passes** (NFR-003):
+
+1. ``index_completeness`` — a non-index page in a **curated-complete**
+   section (config-declared; initially ``architecture/`` only) is absent from
+   that section's ``index.md``. Every other section index is a landing page
+   and is exempt.
+2. ``point_in_time_placement`` — a file that is dated (basename pattern) or
+   self-declares point-in-time/closeout (frontmatter marker) lives outside
+   ``plans/**`` and is not allowlisted (``adr/**``, ``plans/research/**``,
+   ``plans/investigations/**``).
+3. ``shadow_tree_basename`` — the same non-nav content basename exists under
+   two distinct section subtrees (nav basenames, sanctioned era files, and
+   config-declared redirect stubs are exempt). A content-duplicate check, not
+   an absolute-uniqueness count.
+4. ``frontmatter_contract`` — an in-scope page (section ``README.md`` landing
+   pages excluded) lacks a required frontmatter field.
+
+**Config SSOT (FR-011, C-005)**: every section list, pattern, allowlist,
+required-field list, and exemption list is LOADED from the extended
+``common-docs`` styleguide's ``structural_lint_config:`` block
+(``src/doctrine/styleguides/built-in/common-docs.styleguide.yaml``) — nothing
+here hard-codes policy that could diverge from that doctrine. A missing or
+malformed block is a hard, loud error (:class:`ConfigError`); there is no
+silent fallback to an inline default.
+
+Invocation::
+
+    python -m scripts.docs.docs_structural_lint [--json] [DOCS_ROOT=docs]
+
+Exit ``0`` when no violations; exit ``1`` when any violation exists; exit
+``2`` when the styleguide config cannot be loaded. ``--json`` emits::
+
+    {"violations": [{"rule_id": str, "path": str, "message": str}, ...],
+     "checked": int}
+
+where ``checked`` is the total number of ``.md`` pages walked under
+``DOCS_ROOT`` (so a "0 violations" result can never silently mean "0
+checked"). Completes in under 5 seconds on the current tree (NFR-003).
+
+This module never mutates ``docs/`` — it only inspects, classifies, and
+reports (mirrors the report-only rulers in this package).
+"""
+
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import json
+import re
+import sys
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Final
+
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+from scripts.docs._inventory import parse_frontmatter
+
+__all__ = [
+    "STYLEGUIDE_RELATIVE_PATH",
+    "ConfigError",
+    "LintConfig",
+    "LintReport",
+    "PointInTimeMarker",
+    "Violation",
+    "build_parser",
+    "check_frontmatter_contract",
+    "check_index_completeness",
+    "check_point_in_time_placement",
+    "check_shadow_tree_basename",
+    "load_config",
+    "main",
+    "run",
+]
+
+DEFAULT_DOCS_ROOT: Final[str] = "docs"
+
+#: Anchored off this module's own location, NOT ``os.getcwd()`` — the
+#: styleguide must resolve regardless of the invoking CWD.
+_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+
+#: The pinned interface contract with the ``common-docs`` styleguide (FR-011).
+#: Renaming this wrapper key requires updating both the styleguide and here.
+STYLEGUIDE_RELATIVE_PATH: Final[str] = (
+    "src/doctrine/styleguides/built-in/common-docs.styleguide.yaml"
+)
+_CONFIG_KEY: Final[str] = "structural_lint_config"
+
+_MD_LINK_RE: Final[re.Pattern[str]] = re.compile(r"\]\(([^)]+)\)")
+
+
+# --- Result shapes -----------------------------------------------------------
+
+
+@dataclass(slots=True, frozen=True)
+class Violation:
+    """One structural-lint finding: ``{rule_id, path, message}`` (data-model.md)."""
+
+    rule_id: str
+    path: str
+    message: str
+
+    def as_dict(self) -> dict[str, str]:
+        """Serialize to the contract's ``{rule_id, path, message}`` shape."""
+        return {"rule_id": self.rule_id, "path": self.path, "message": self.message}
+
+
+@dataclass(slots=True, frozen=True)
+class LintReport:
+    """Result of a full structural-lint run."""
+
+    checked: int = 0
+    violations: list[Violation] = field(default_factory=list)
+
+    def as_dict(self) -> dict[str, object]:
+        """Serialize to the contract's JSON shape."""
+        return {
+            "violations": [v.as_dict() for v in self.violations],
+            "checked": self.checked,
+        }
+
+
+# --- Config (FR-011 SSOT) ----------------------------------------------------
+
+
+@dataclass(slots=True, frozen=True)
+class PointInTimeMarker:
+    """A frontmatter ``field: value`` signal a page self-declares point-in-time."""
+
+    frontmatter_field: str
+    frontmatter_value: str
+
+
+@dataclass(slots=True, frozen=True)
+class LintConfig:
+    """Typed view of the styleguide's ``structural_lint_config:`` block."""
+
+    curated_complete_sections: tuple[str, ...]
+    concern_bucket_to_section: dict[str, str]
+    point_in_time_patterns: tuple[str, ...]
+    point_in_time_markers: tuple[PointInTimeMarker, ...]
+    point_in_time_allowlist: tuple[str, ...]
+    frontmatter_required_fields: tuple[str, ...]
+    frontmatter_in_scope_exclusions: tuple[str, ...]
+    shadow_tree_nav_exemptions: tuple[str, ...]
+    redirect_stub_description_prefix: str
+    guides_boundary: str
+
+
+class ConfigError(Exception):
+    """Raised when ``structural_lint_config:`` is missing or malformed.
+
+    Fail LOUD (C-005): this is never converted to an inline default — a
+    missing/malformed block is a hard error naming exactly what is wrong.
+    """
+
+
+_REQUIRED_STR_LIST_KEYS: Final[tuple[str, ...]] = (
+    "curated_complete_sections",
+    "point_in_time_patterns",
+    "point_in_time_allowlist",
+    "frontmatter_required_fields",
+    "frontmatter_in_scope_exclusions",
+    "shadow_tree_nav_exemptions",
+)
+
+
+def load_config(styleguide_path: Path | None = None) -> LintConfig:
+    """Load the lint's policy from the ``common-docs`` styleguide (FR-011).
+
+    Parameters
+    ----------
+    styleguide_path:
+        Override for tests. Defaults to the repo-root-anchored built-in
+        ``common-docs.styleguide.yaml`` — anchored off ``__file__``, not the
+        CWD, so the lint resolves the same policy regardless of invocation
+        directory.
+
+    Raises
+    ------
+    ConfigError
+        If the file is missing, malformed YAML, or lacks a well-formed
+        ``structural_lint_config:`` block. Never falls back to a hard-coded
+        default (C-005).
+    """
+    path = styleguide_path or (_REPO_ROOT / STYLEGUIDE_RELATIVE_PATH)
+    if not path.is_file():
+        raise ConfigError(
+            f"Styleguide not found at {path} — cannot load '{_CONFIG_KEY}:' "
+            "(FR-011)."
+        )
+
+    yaml = YAML(typ="safe")
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            raw: Any = yaml.load(handle)
+    except YAMLError as exc:
+        raise ConfigError(f"Malformed YAML in {path}: {exc}") from exc
+
+    if not isinstance(raw, dict) or _CONFIG_KEY not in raw:
+        raise ConfigError(
+            f"{path} has no '{_CONFIG_KEY}:' block. The lint refuses to fall "
+            "back to a hard-coded default policy (C-005) — add the block to "
+            "the common-docs styleguide."
+        )
+    block = raw[_CONFIG_KEY]
+    if not isinstance(block, dict):
+        raise ConfigError(f"{path}: '{_CONFIG_KEY}:' must be a mapping")
+    return _build_config(block, path)
+
+
+def _build_config(block: Mapping[str, Any], source: Path) -> LintConfig:
+    """Validate + assemble :class:`LintConfig` from the raw config mapping."""
+    values = {key: _require_str_list(block, key, source) for key in _REQUIRED_STR_LIST_KEYS}
+    return LintConfig(
+        curated_complete_sections=values["curated_complete_sections"],
+        point_in_time_patterns=values["point_in_time_patterns"],
+        point_in_time_markers=_require_markers(block, source),
+        point_in_time_allowlist=values["point_in_time_allowlist"],
+        frontmatter_required_fields=values["frontmatter_required_fields"],
+        frontmatter_in_scope_exclusions=values["frontmatter_in_scope_exclusions"],
+        shadow_tree_nav_exemptions=values["shadow_tree_nav_exemptions"],
+        concern_bucket_to_section=_require_str_dict(
+            block, "concern_bucket_to_section", source
+        ),
+        redirect_stub_description_prefix=_require_str(
+            block, "redirect_stub_description_prefix", source
+        ),
+        guides_boundary=_require_str(block, "guides_boundary", source),
+    )
+
+
+def _require_str_list(block: Mapping[str, Any], key: str, source: Path) -> tuple[str, ...]:
+    raw = block.get(key)
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+        raise ConfigError(f"{source}: '{_CONFIG_KEY}.{key}' must be a list of strings")
+    return tuple(raw)
+
+
+def _require_str(block: Mapping[str, Any], key: str, source: Path) -> str:
+    raw = block.get(key)
+    if not isinstance(raw, str) or not raw:
+        raise ConfigError(f"{source}: '{_CONFIG_KEY}.{key}' must be a non-empty string")
+    return raw
+
+
+def _require_str_dict(block: Mapping[str, Any], key: str, source: Path) -> dict[str, str]:
+    raw = block.get(key)
+    if not isinstance(raw, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in raw.items()
+    ):
+        raise ConfigError(f"{source}: '{_CONFIG_KEY}.{key}' must be a mapping of str to str")
+    return dict(raw)
+
+
+def _require_markers(block: Mapping[str, Any], source: Path) -> tuple[PointInTimeMarker, ...]:
+    raw = block.get("point_in_time_markers")
+    if not isinstance(raw, list):
+        raise ConfigError(f"{source}: '{_CONFIG_KEY}.point_in_time_markers' must be a list")
+    markers: list[PointInTimeMarker] = []
+    for index, entry in enumerate(raw):
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("frontmatter_field"), str)
+            or not isinstance(entry.get("frontmatter_value"), str)
+        ):
+            raise ConfigError(
+                f"{source}: '{_CONFIG_KEY}.point_in_time_markers[{index}]' must "
+                "have string 'frontmatter_field' and 'frontmatter_value' keys"
+            )
+        markers.append(
+            PointInTimeMarker(
+                frontmatter_field=entry["frontmatter_field"],
+                frontmatter_value=entry["frontmatter_value"],
+            )
+        )
+    return tuple(markers)
+
+
+# --- Glob matching (supports leading/trailing ``**`` segments) --------------
+
+
+def _match_segments(pattern_segments: list[str], path_segments: list[str]) -> bool:
+    """Match path segments against glob segments, with ``**`` = "0+ segments"."""
+    if not pattern_segments:
+        return not path_segments
+    head, *rest_pattern = pattern_segments
+    if head == "**":
+        if not rest_pattern:
+            return True
+        return any(
+            _match_segments(rest_pattern, path_segments[i:])
+            for i in range(len(path_segments) + 1)
+        )
+    if not path_segments:
+        return False
+    if not _fnmatch_segment(path_segments[0], head):
+        return False
+    return _match_segments(rest_pattern, path_segments[1:])
+
+
+def _fnmatch_segment(name: str, pattern: str) -> bool:
+    """Single-segment ``fnmatch``-style match (``*``/``?`` wildcards)."""
+    return fnmatch.fnmatchcase(name, pattern)
+
+
+def _glob_match(candidate: str, pattern: str) -> bool:
+    """Match a ``/``-joined ``candidate`` against a limited glob ``pattern``."""
+    return _match_segments(pattern.split("/"), candidate.split("/"))
+
+
+def _glob_match_any(candidate: str, patterns: tuple[str, ...]) -> bool:
+    return any(_glob_match(candidate, pattern) for pattern in patterns)
+
+
+# --- Shared helpers -----------------------------------------------------------
+
+
+def _read_text(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _repo_relative(path: Path, base: Path) -> str:
+    """Render ``path`` as a POSIX path relative to ``base`` (best-effort)."""
+    try:
+        return path.resolve().relative_to(base.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+# --- Check 1: index_completeness --------------------------------------------
+
+
+def _linked_targets(index_path: Path) -> set[Path]:
+    """Resolved absolute targets of every relative markdown link in ``index_path``."""
+    text = _read_text(index_path)
+    if text is None:
+        return set()
+    targets: set[Path] = set()
+    for match in _MD_LINK_RE.finditer(text):
+        raw = match.group(1).strip().split("#", 1)[0].strip()
+        if not raw or "://" in raw or raw.startswith("mailto:"):
+            continue
+        targets.add((index_path.parent / raw).resolve())
+    return targets
+
+
+def check_index_completeness(
+    docs_root: Path, repo_root: Path, config: LintConfig
+) -> list[Violation]:
+    """Flag pages in a curated-complete section absent from its ``index.md``.
+
+    Recurses into the section's subdirectories (a page under
+    ``architecture/assessments/...`` must be enumerated in
+    ``architecture/index.md`` too). Sections not in
+    ``config.curated_complete_sections`` are never walked — their indexes are
+    landing pages, exempt by design.
+    """
+    violations: list[Violation] = []
+    for section in config.curated_complete_sections:
+        section_dir = docs_root / section
+        index_path = section_dir / "index.md"
+        if not section_dir.is_dir() or not index_path.is_file():
+            continue
+        linked = _linked_targets(index_path)
+        for page in sorted(section_dir.rglob("*.md")):
+            if page.name == "index.md" or page.resolve() in linked:
+                continue
+            page_rel = _repo_relative(page, repo_root)
+            violations.append(
+                Violation(
+                    rule_id="index_completeness",
+                    path=page_rel,
+                    message=(
+                        f"{page_rel} is missing from "
+                        f"{_repo_relative(index_path, repo_root)}"
+                    ),
+                )
+            )
+    return violations
+
+
+# --- Check 2: point_in_time_placement ---------------------------------------
+
+
+def _is_point_in_time(md_path: Path, config: LintConfig) -> bool:
+    """A file is point-in-time if its basename is dated or self-declares it."""
+    basename = md_path.name
+    if any(re.match(pattern, basename) for pattern in config.point_in_time_patterns):
+        return True
+    frontmatter = parse_frontmatter(_read_text(md_path) or "")
+    return any(
+        frontmatter.get(marker.frontmatter_field) == marker.frontmatter_value
+        for marker in config.point_in_time_markers
+    )
+
+
+def check_point_in_time_placement(
+    md_files: list[Path], docs_root: Path, repo_root: Path, config: LintConfig
+) -> list[Violation]:
+    """Flag point-in-time files living outside their canonical ``plans/**`` home."""
+    violations: list[Violation] = []
+    for md_path in md_files:
+        rel_to_docs = _repo_relative(md_path, docs_root)
+        if _glob_match_any(rel_to_docs, config.point_in_time_allowlist):
+            continue
+        if not _is_point_in_time(md_path, config):
+            continue
+        page_rel = _repo_relative(md_path, repo_root)
+        violations.append(
+            Violation(
+                rule_id="point_in_time_placement",
+                path=page_rel,
+                message=(
+                    f"{page_rel} is a point-in-time document; its canonical "
+                    "home is plans/** (e.g. plans/engineering-notes/)."
+                ),
+            )
+        )
+    return violations
+
+
+# --- Check 3: shadow_tree_basename -------------------------------------------
+
+
+def _is_redirect_stub(md_path: Path, config: LintConfig) -> bool:
+    """True when a page self-declares as a redirect stub via its description.
+
+    A redirect stub is a legitimate old-path placeholder retained so existing
+    links/URLs keep resolving; it deliberately shares the moved file's basename
+    with its canonical relocated twin, so it must NOT be flagged as duplicated
+    content. The signal is config-declared (``redirect_stub_description_prefix``)
+    — the lint hard-codes no marker (FR-011/C-005).
+    """
+    prefix = config.redirect_stub_description_prefix
+    if not prefix:
+        return False
+    frontmatter = parse_frontmatter(_read_text(md_path) or "")
+    description = frontmatter.get("description")
+    return isinstance(description, str) and description.startswith(prefix)
+
+
+def check_shadow_tree_basename(
+    md_files: list[Path], docs_root: Path, repo_root: Path, config: LintConfig
+) -> list[Violation]:
+    """Flag a non-nav content basename duplicated across section subtrees.
+
+    A content-duplicate check, not an absolute basename-uniqueness count
+    (NFR-005): two files sharing a basename within the SAME section subtree
+    are not flagged, only across DISTINCT top-level section subtrees.
+    """
+    groups: dict[str, list[tuple[str, str]]] = {}
+    for md_path in md_files:
+        basename = md_path.name
+        if _glob_match_any(basename, config.shadow_tree_nav_exemptions):
+            continue
+        if _is_redirect_stub(md_path, config):
+            continue
+        rel_to_docs = _repo_relative(md_path, docs_root)
+        section = rel_to_docs.split("/", 1)[0]
+        groups.setdefault(basename, []).append(
+            (section, _repo_relative(md_path, repo_root))
+        )
+
+    violations: list[Violation] = []
+    for basename, entries in sorted(groups.items()):
+        sections = {section for section, _ in entries}
+        if len(sections) < 2:
+            continue
+        paths = sorted(path for _, path in entries)
+        violations.append(
+            Violation(
+                rule_id="shadow_tree_basename",
+                path=paths[0],
+                message=(
+                    f"basename '{basename}' is duplicated non-nav content "
+                    f"across section subtrees: {', '.join(paths)}"
+                ),
+            )
+        )
+    return violations
+
+
+# --- Check 4: frontmatter_contract -------------------------------------------
+
+
+def check_frontmatter_contract(
+    md_files: list[Path], docs_root: Path, repo_root: Path, config: LintConfig
+) -> list[Violation]:
+    """Flag in-scope pages missing a required frontmatter field.
+
+    "In-scope" excludes section ``README.md`` landing pages (config
+    ``frontmatter_in_scope_exclusions``) — a page with no frontmatter block
+    at all is treated as missing every required field, unless excluded.
+    """
+    violations: list[Violation] = []
+    for md_path in md_files:
+        rel_to_docs = _repo_relative(md_path, docs_root)
+        if _glob_match_any(rel_to_docs, config.frontmatter_in_scope_exclusions):
+            continue
+        frontmatter = parse_frontmatter(_read_text(md_path) or "")
+        missing = [
+            required_field
+            for required_field in config.frontmatter_required_fields
+            if not frontmatter.get(required_field)
+        ]
+        if not missing:
+            continue
+        page_rel = _repo_relative(md_path, repo_root)
+        violations.append(
+            Violation(
+                rule_id="frontmatter_contract",
+                path=page_rel,
+                message=(
+                    f"{page_rel} is missing required frontmatter field(s): "
+                    f"{', '.join(missing)}"
+                ),
+            )
+        )
+    return violations
+
+
+# --- Aggregation + CLI --------------------------------------------------------
+
+
+def run(*, docs_root: Path, repo_root: Path, config: LintConfig) -> LintReport:
+    """Run all four checks over ``docs_root`` and return the aggregate report."""
+    if not docs_root.exists() or not docs_root.is_dir():
+        return LintReport(checked=0, violations=[])
+
+    md_files = sorted(docs_root.rglob("*.md"))
+    violations: list[Violation] = []
+    violations.extend(check_index_completeness(docs_root, repo_root, config))
+    violations.extend(check_point_in_time_placement(md_files, docs_root, repo_root, config))
+    violations.extend(check_shadow_tree_basename(md_files, docs_root, repo_root, config))
+    violations.extend(check_frontmatter_contract(md_files, docs_root, repo_root, config))
+    violations.sort(key=lambda v: (v.rule_id, v.path))
+    return LintReport(checked=len(md_files), violations=violations)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the structural-lint CLI parser."""
+    parser = argparse.ArgumentParser(
+        prog="docs_structural_lint",
+        description=(
+            "Structural docs lint (FR-007/008/011) — the durable successor to "
+            "the retired anti-sprawl ratchet. Exits non-zero on any violation."
+        ),
+    )
+    parser.add_argument(
+        "docs_root",
+        nargs="?",
+        type=Path,
+        default=Path(DEFAULT_DOCS_ROOT),
+        help=f"Docs tree to scan (default: {DEFAULT_DOCS_ROOT}).",
+    )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Base for rendering repo-relative paths (default: cwd).",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the report as JSON instead of a human summary.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point. Returns the process exit code (0/1/2)."""
+    args = build_parser().parse_args(argv)
+    try:
+        config = load_config()
+    except ConfigError as exc:
+        sys.stderr.write(f"docs_structural_lint: {exc}\n")
+        return 2
+    report = run(docs_root=args.docs_root, repo_root=args.repo_root, config=config)
+    _emit(report, as_json=args.json)
+    return 1 if report.violations else 0
+
+
+def _emit(report: LintReport, *, as_json: bool) -> None:
+    """Print the report — JSON payload or a human-readable summary."""
+    if as_json:
+        sys.stdout.write(json.dumps(report.as_dict(), indent=2, sort_keys=True) + "\n")
+        return
+
+    sys.stdout.write(
+        f"docs_structural_lint: checked {report.checked} page(s); "
+        f"{len(report.violations)} violation(s).\n"
+    )
+    for violation in report.violations:
+        sys.stdout.write(f"  [{violation.rule_id}] {violation.path}: {violation.message}\n")
+
+
+if __name__ == "__main__":  # pragma: no cover - module-level CLI guard
+    raise SystemExit(main())

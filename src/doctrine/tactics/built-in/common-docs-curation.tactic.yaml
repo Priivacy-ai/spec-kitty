@@ -46,16 +46,17 @@ steps:
       Verify the live gates rather than asserting compliance narratively. Run the
       DRG freshness gate so the doctrine graph stays in sync, then the documentation
       gates delivered by the consolidation mission: the related: path validator
-      (WP03), the page-inventory lockfile freshness gate (WP04), and the
-      anti-sprawl structure ratchet (WP05). Treat any red gate as a blocker.
+      (WP03), the page-inventory lockfile freshness gate (WP04), and
+      scripts/docs/docs_structural_lint.py (python -m scripts.docs.docs_structural_lint).
+      Treat any red gate as a blocker.
     examples:
       - "spec-kitty doctrine regenerate-graph --check returns exit 0 (DRG fresh)."
-      - "The structure ratchet (WP05) is green: a single 13-section root, no shadow tree, and DIRECTIVE_042 resolves to a loaded directive."
+      - "docs_structural_lint is green: index completeness for curated-complete sections, no shared non-nav content basename across sections, and DIRECTIVE_042 resolves to a loaded directive."
 failure_modes:
   - "A page is added under a second documentation root or a per-version shadow tree, re-creating the split-brain."
   - "Frontmatter uses a bare status key, colliding with the work-package lane status model."
   - "A related: entry points at a path that does not resolve, so the cross-reference silently rots."
-  - "Compliance is asserted in prose without running the related-path validator, the lockfile freshness gate, or the structure ratchet."
+  - "Compliance is asserted in prose without running the related-path validator, the lockfile freshness gate, or docs_structural_lint."
 references:
   - name: Common Docs Documentation Standard
     type: directive
