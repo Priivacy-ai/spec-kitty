@@ -1,0 +1,34 @@
+{
+  "accept_commit": "52bd4b5c5772f7983aa2dfc8a5db295442a1b2fd",
+  "acceptance_history": [
+    {
+      "accept_commit": "52bd4b5c5772f7983aa2dfc8a5db295442a1b2fd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-24T17:24:00.218273+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "11981db222afe30a97852a9dfcd1c884af1c8442"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-24T17:24:00.218273+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "11981db222afe30a97852a9dfcd1c884af1c8442",
+  "baseline_merge_commit": "8d18ffaf27a48e3c9bfa1acc1c05d21cb164c3a6",
+  "change_mode": "bulk_edit",
+  "coordination_branch": "kitty/mission-docs-structural-sanity-01KY53KJ",
+  "created_at": "2026-07-22T14:27:50.596547+00:00",
+  "flattened": false,
+  "friendly_name": "Docs Structural Sanity & Concern Guard",
+  "mission_id": "01KY53KJ63D2QGQMM36KEGSKBQ",
+  "mission_number": null,
+  "mission_slug": "docs-structural-sanity-01KY53KJ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Post-#2851 the anti-sprawl ratchet that kept docs/ structured was retired, and a docs-wide concern audit found point-in-time artifacts, a split-brain shadow tree, and an incomplete section index misfiled across the tree. This mission redistributes the misfiled subset to canonical concern-homes and codifies the concern taxonomy as doctrine plus a scripts/docs lint that replaces the retired ratchet, so docs stay legible to contributors and maintainers without mechanical drift.",
+  "purpose_tldr": "Make docs/ structurally sane — every file in its canonical concern-home — and add a durable guard so it stays that way.",
+  "slug": "docs-structural-sanity-01KY53KJ",
+  "target_branch": "docs/common-docs-section-audit",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T16:58:28.966957+00:00"
+}

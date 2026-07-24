@@ -1,0 +1,119 @@
+{
+  "mission_slug": "docs-structural-sanity-01KY53KJ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Redistribute the 9 firm point-in-time architecture/ artifacts (audits\u00d77 + 883 research/brief\u00d72) to docs/plans/engineering-notes/ with in-repo referrers repointed.",
+      "proof_type": "artifact_inspection",
+      "evidence": "WP03 approved (lane-c): 8 renames to plans/engineering-notes/ + audits/ subtree; docs_structural_lint point_in_time_placement=0 on post-move tree; closes #2864.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Adjudicate the 2 borderline artifacts (920-closeout, code-as-a-crime-scene-overview), defaulting to STAYS unless verified point-in-time; record each decision.",
+      "proof_type": "manual_review",
+      "evidence": "920-closeout STAYS (verified present at docs/migrations/); code-as-a-crime-scene-overview stays with referrers repointed (WP05). Decisions recorded in WP03/WP05 activity logs.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Retire the plans/notes/ 1.x shadow tree; reconcile the 3 drifted duplicates against canonical copies (architecture/ + adr/3.x/).",
+      "proof_type": "artifact_inspection",
+      "evidence": "WP04 approved (lane-d): 4 files deleted, canonical twins hold equal-or-fuller content; docs_structural_lint shadow_tree_basename=0; closes #2866.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Refresh architecture/index.md to enumerate every file in the section (completeness).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: index.md enumerates 57 links; docs_structural_lint index_completeness=0 for the curated-complete architecture/ section; closes #2865.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Adjudicate migrations/ mission-closeout evidence (default STAYS); a verified MOVE is escalated to operator (920-closeout URL is baseline-published, would 404).",
+      "proof_type": "manual_review",
+      "evidence": "920-closeout STAYS at docs/migrations/ (baseline-published URL preserved, no silent move, redirect_baseline_urls.json byte-untouched); closes #2867.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Extend DIRECTIVE_042 + the common-docs styleguide with the concern-bucket\u2192section map + point-in-time allowlist (no new directive minted).",
+      "proof_type": "artifact_inspection",
+      "evidence": "WP01 approved (lane-a): DIRECTIVE_042 validation_criteria cites the lint; styleguide gained structural_lint_config block; 2 tactics reconciled; satisfies #2302 doctrine half; test_models.py 12 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Implement scripts/docs/docs_structural_lint.py with 4 checks scoped so the current clean tree passes (NFR-003).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (lane-b): 4 checks (index_completeness/point_in_time_placement/shadow_tree_basename/frontmatter_contract); 18 unit tests + live-cohort assertions; exit 0 on post-move tree (0 violations, ~0.9s).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Wire the lint into the docs CI surface (.github/workflows/docs-freshness.yml).",
+      "proof_type": "artifact_inspection",
+      "evidence": "WP05 approved (lane-e): 'Structural docs lint (FR-008)' step added to docs-freshness.yml, nonzero exit fails the job (enabled post-move, per WP02\u2192WP05 timing boundary).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "For every moved/removed path, ensure every in-repo referrer resolves; regenerate page-inventory in place; keep check_docs_freshness --ci green; do NOT regenerate redirect_map.yaml.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: relative_link_fixer --check \u2192 0 dead links; no old-path referrers remain; page-inventory + retrieval-index regenerated canonically; check_docs_freshness --ci exit 0; redirect_map.yaml/redirect_baseline_urls.json byte-untouched.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Drive relative_link_fixer + bulk_ref_rewrite against THIS mission's occurrence_map via --occurrence-map, and safely parametrize the shared DEFAULT_OCCURRENCE_MAP OR file an upstream gap.",
+      "proof_type": "manual_review",
+      "evidence": "WP05: all link commands passed explicit --occurrence-map (no foreign default consumed, C-007). The parametrize half satisfied via the sanctioned 'OR file an upstream gap' clause \u2014 T022 deferred + bulk_ref_rewrite file-move path-doubling bug both recorded as upstream gaps in the WP05 activity log.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The extended common-docs styleguide gains a machine-parseable config block (SSOT) the lint loads its policy from.",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP02 approved: structural_lint_config block is the single policy source; lint load_config() reads it (fail-loud on missing/malformed); test_load_config_matches_styleguide_block + 'reads config not a constant' assert the SSOT binding.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-24T17:23:45+00:00",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": []
+}

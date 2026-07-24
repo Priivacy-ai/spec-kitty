@@ -1,0 +1,71 @@
+{
+  "event_count": 35,
+  "last_event_id": "01KYAJHJZQKPBC8V30WRS0Z6QG",
+  "materialized_at": "2026-07-24T17:25:06.679754+00:00",
+  "mission_number": "",
+  "mission_slug": "docs-structural-sanity-01KY53KJ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:sonnet:doctrine-daphne:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAJHFMHSCCVW5F8YJ9CEEG6",
+      "last_transition_at": "2026-07-24T17:25:03.249851+00:00",
+      "shell_pid": 3352732,
+      "shell_pid_created_at": "1784739504.65"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAJHJ6886082BMS1467KR67",
+      "last_transition_at": "2026-07-24T17:25:05.864657+00:00",
+      "shell_pid": 2745383,
+      "shell_pid_created_at": "1784888606.89"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:sonnet:curator-carla:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAJHGKR2MXRQR4BZH87P7GN",
+      "last_transition_at": "2026-07-24T17:25:04.248944+00:00",
+      "shell_pid": 3356247,
+      "shell_pid_created_at": "1784739534.86"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:sonnet:curator-carla:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAJHHCYA4KSDH9TXV5MS0P9",
+      "last_transition_at": "2026-07-24T17:25:05.054593+00:00",
+      "shell_pid": 3356247,
+      "shell_pid_created_at": "1784739534.86"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:sonnet:curator-carla:implementer",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYAJHJZQKPBC8V30WRS0Z6QG",
+      "last_transition_at": "2026-07-24T17:25:06.679754+00:00",
+      "shell_pid": 2788283,
+      "shell_pid_created_at": "1784889852.43"
+    }
+  }
+}
