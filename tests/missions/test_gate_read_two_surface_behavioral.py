@@ -17,13 +17,15 @@ contract demands; it does NOT re-prove the per-site red-first repros (those live
 in the WP suites) — it asserts the BOTH-surface PROPERTY holds simultaneously
 across the gate commands on one fixture.
 
-``record_analysis`` is asserted via its STATUS / self-bookkeeping ALLOWLIST
-behavior (G-5), NOT a vacuous ``planning==primary`` cell: after WP04's
-behavior-neutral double-resolution collapse it has no observable planning-read
-delta to assert (that collapse is fenced by WP04's AST dedup guard + WP06's
-ratchet). Here we assert its observable STATUS behavior — the preflight does NOT
-block on ``meta.json`` / provenance churn but STILL blocks on a stale primary
-``spec.md`` (G-5 "real dirt").
+``record_analysis``'s read is a PLANNING cell, not a STATUS one: its
+``analysis_report`` kind is a PRIMARY-partition artifact kind
+(``is_primary_artifact_kind(ANALYSIS_REPORT) is True`` — an analysis report is
+produced by ``/analyze`` and lands on the primary partition alongside
+spec/plan/tasks), so its read resolves the PRIMARY ``target_branch`` dir like
+every other planning cell. Separately, its self-bookkeeping ALLOWLIST behavior
+(G-5) is asserted via ``test_record_analysis_allowlist_and_g5_dirt`` — the write
+preflight does NOT block on ``meta.json`` / provenance churn but STILL blocks on
+a stale primary ``spec.md`` (G-5 "real dirt").
 
 Identity is production-shaped: a real 26-char Crockford-base32 ULID, the uppercase
 8-char mid8, and the on-disk composed ``<slug>-<mid8>`` layout (NFR-002 / NFR-005)
@@ -88,6 +90,10 @@ _COMMAND_PLANNING_KINDS: dict[str, MissionArtifactKind] = {
     "accept(tasks)": MissionArtifactKind.TASKS_INDEX,
     "map_requirements(wp_task)": MissionArtifactKind.WORK_PACKAGE_TASK,
     "finalize_tasks(lane_state)": MissionArtifactKind.LANE_STATE,
+    # coord-trust-2841: analysis-report is a primary planning artifact
+    # (`is_primary_artifact_kind(ANALYSIS_REPORT) is True`); the prior
+    # status-group placement below was stale.
+    "record_analysis(analysis_report)": MissionArtifactKind.ANALYSIS_REPORT,
 }
 
 # The gate-command STATUS reads — every one is a STATUS/placement-partition kind
@@ -95,7 +101,6 @@ _COMMAND_PLANNING_KINDS: dict[str, MissionArtifactKind] = {
 _COMMAND_STATUS_KINDS: dict[str, MissionArtifactKind] = {
     "accept(status_state)": MissionArtifactKind.STATUS_STATE,
     "accept(acceptance_matrix)": MissionArtifactKind.ACCEPTANCE_MATRIX,
-    "record_analysis(analysis_report)": MissionArtifactKind.ANALYSIS_REPORT,
 }
 
 _STATUS_EVENT = {
