@@ -1836,6 +1836,7 @@ def build_review_prompt_lines(
     review_ctx: dict[str, object],
     main_repo_root: Path,
     review_feedback_path: Path,
+    status_feature_dir: Path,
 ) -> list[str]:
     """Assemble the full ``REVIEW: <wp>`` prompt body."""
     lines: list[str] = []
@@ -1864,7 +1865,9 @@ def build_review_prompt_lines(
     try:
         from specify_cli.core.worktree_topology import materialize_worktree_topology, render_topology_json
 
-        topology = materialize_worktree_topology(repo_root, mission_slug)
+        topology = materialize_worktree_topology(
+            repo_root, mission_slug, status_feature_dir=status_feature_dir
+        )
         if topology.has_stacking:
             lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
             lines.append("")

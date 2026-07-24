@@ -127,7 +127,9 @@ def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | 
     return None
 
 
-def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
+def materialize_worktree_topology(
+    repo_root: Path, mission_slug: str, *, status_feature_dir: Path | None = None
+) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
     from mission_runtime import MissionArtifactKind
     from specify_cli.lanes.branch_naming import lane_branch_name
@@ -145,6 +147,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     feature_dir = resolve_planning_read_dir(
         main_repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
     )
+    status_dir = status_feature_dir or feature_dir
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
@@ -202,7 +205,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
                     )
                 ),
                 dependencies=graph.get(wp_id, []),
-                lane=_read_canonical_lane_or_default(feature_dir, wp_id),
+                lane=_read_canonical_lane_or_default(status_dir, wp_id),
                 worktree_exists=worktree_exists,
                 commits_ahead_of_base=commits_ahead,
             )
