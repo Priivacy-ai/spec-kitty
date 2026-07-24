@@ -5771,6 +5771,14 @@ pages:
     - {slug: "release-and-ci-policy", text: "Release and CI policy", level: 2}
     - {slug: "non-page-artifacts", text: "Non-page artifacts", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/known-friction-points.md"
+    title: "Known Current Friction Points"
+    divio_type: "reference"
+    abstract: "A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics."
+    anchors:
+    - {slug: "the-friction-points", text: "The friction points", level: 2}
+    - {slug: "maintaining-this-page", text: "Maintaining this page", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/local-overrides.md"
     title: "Local Overrides for Cross-Package Development"
     divio_type: "how-to"
@@ -5795,6 +5803,14 @@ pages:
     - {slug: "native-type-is-the-kind-carrier", text: "Native type is the kind carrier", level: 3}
     - {slug: "priority-and-what-makes-a-p0", text: "Priority, and what makes a P0", level: 3}
     - {slug: "a-p0-bug-should-carry-a-failing-reproduction-test", text: "A P0 bug should carry a failing reproduction test", level: 3}
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/onboarding-run.md"
+    title: "Onboarding Run: Priming a Co-Maintainer Mission Session"
+    divio_type: "how-to"
+    abstract: "A reusable priming prompt and 12-step cadence for running a full Spec-Driven Development mission the way this team runs them — for onboarding prospective co-maintainers."
+    anchors:
+    - {slug: "how-to-use-it", text: "How to use it", level: 2}
+    - {slug: "the-priming-prompt", text: "The priming prompt", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/pr-landing.md"
     title: "Landing Contributor PRs: The Maintainer Runbook"

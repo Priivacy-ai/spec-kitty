@@ -28,6 +28,8 @@ no contributor-only page is reachable from end-user navigation.
 Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not general contributors.
 
 - [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
+- [Onboarding run](onboarding-run.md) — a reusable priming prompt and 12-step SDD cadence for onboarding a prospective co-maintainer.
+- [Known current friction points](known-friction-points.md) — the fast-drifting list of current repo/tooling gotchas an agent hits mid-mission.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
 
 ## Testing the Spec Kitty codebase

@@ -1730,6 +1730,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/known-friction-points.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/local-overrides.md
   tag: current
   divio_type: how-to
@@ -1737,6 +1743,12 @@
   current_target: true
   notes: null
 - path: docs/development/manage-issue-tracker.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/onboarding-run.md
   tag: current
   divio_type: how-to
   owning_workstream: none
