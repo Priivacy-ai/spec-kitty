@@ -11,6 +11,60 @@ required:
 - scope
 - principles
 definitions:
+  point_in_time_marker:
+    type: object
+    additionalProperties: false
+    required:
+    - frontmatter_field
+    - frontmatter_value
+    properties:
+      frontmatter_field:
+        type: string
+        minLength: 1
+      frontmatter_value:
+        type: string
+        minLength: 1
+  structural_lint_config:
+    type: object
+    description: Machine-parseable policy block a companion lint script LOADS
+      as its single source of truth (e.g. common-docs' docs_structural_lint.py
+      config, FR-011). Plain scalars/lists/mappings only.
+    additionalProperties: false
+    properties:
+      curated_complete_sections:
+        type: array
+        items:
+          type: string
+      concern_bucket_to_section:
+        type: object
+        additionalProperties:
+          type: string
+      point_in_time_patterns:
+        type: array
+        items:
+          type: string
+      point_in_time_markers:
+        type: array
+        items:
+          $ref: '#/definitions/point_in_time_marker'
+      point_in_time_allowlist:
+        type: array
+        items:
+          type: string
+      frontmatter_required_fields:
+        type: array
+        items:
+          type: string
+      frontmatter_in_scope_exclusions:
+        type: array
+        items:
+          type: string
+      shadow_tree_nav_exemptions:
+        type: array
+        items:
+          type: string
+      guides_boundary:
+        type: string
   anti_pattern:
     type: object
     additionalProperties: false
@@ -110,3 +164,5 @@ properties:
     type: array
     items:
       type: string
+  structural_lint_config:
+    $ref: '#/definitions/structural_lint_config'

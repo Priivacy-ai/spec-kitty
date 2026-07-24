@@ -51,10 +51,16 @@ integrity_rules:
     Superseded).
   - Every `related:` entry must resolve to an existing repo-relative `.md` path.
 validation_criteria:
-  - The single-root / 13-section structure and the no-shadow-tree rule are
-    maintained by periodic bulk curation and review (the per-PR anti-sprawl
-    structure ratchet was retired); a second root or per-version shadow tree
-    remains a red-line violation caught at review time.
+  - scripts/docs/docs_structural_lint.py is the live mechanical gate that
+    replaces the retired per-PR docs ratchet, enforcing
+    index completeness for curated-complete sections (initially
+    architecture/ only), point-in-time file placement under plans/** honoring
+    the adr/**, plans/research/**, and plans/investigations/** allowlist, the
+    no-shadow-tree rule (no shared non-nav content basename across section
+    subtrees), and required frontmatter on in-scope pages. The single-root /
+    13-section structure's continued existence remains maintained by periodic
+    bulk curation and review; a second root or per-version shadow tree is a
+    red-line violation caught both at review time and by the lint.
   - The page-inventory lockfile freshness gate confirms the rollup matches a fresh
     regeneration from frontmatter.
   - No documentation frontmatter uses a bare `status` key for the doc lifecycle

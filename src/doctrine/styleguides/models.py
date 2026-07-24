@@ -89,6 +89,16 @@ class Styleguide(BaseModel):
     quality_test: str | None = None
     applies_to_languages: list[str] = Field(default_factory=list)
     references: list[str] = Field(default_factory=list)
+    structural_lint_config: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Optional machine-parseable policy block a companion lint script "
+            "LOADS as its single source of truth (e.g. the common-docs "
+            "styleguide's docs_structural_lint.py config — FR-011). Plain "
+            "nested scalars/lists/mappings only; a styleguide with no "
+            "companion lint omits this field."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod

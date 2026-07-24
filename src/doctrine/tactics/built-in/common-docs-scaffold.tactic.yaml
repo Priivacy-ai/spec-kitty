@@ -47,17 +47,20 @@ steps:
     description: >
       If the chosen section did not exist before, create its index.md so every
       one of the 13 sections carries its own index, and seed that index.md with
-      the same frontmatter schema. The structure ratchet expects all 13 sections
-      present with an index per directory; a section without an index.md fails the
-      ratchet.
+      the same frontmatter schema. scripts/docs/docs_structural_lint.py's
+      index_completeness check enforces this mechanically only for sections the
+      styleguide config marks curated-complete (initially architecture/ only) —
+      a page missing from a curated-complete section's index.md fails the lint;
+      the other 12 section indexes are landing pages, so seeding them promptly
+      is still required by this directive but is not (yet) lint-enforced.
     examples:
-      - "Creating the first file under integrations/ also creates integrations/index.md with doc_status: active."
-      - "Adding migrations/ for the first time seeds migrations/index.md so the 13-section ratchet stays green."
+      - "Creating the first file under integrations/ also creates integrations/index.md with doc_status: active (a directive requirement, not currently lint-checked)."
+      - "Adding a page under architecture/ (curated-complete) without listing it in architecture/index.md fails docs_structural_lint's index_completeness check."
 failure_modes:
   - "The new file is dropped under a second documentation root or a per-version shadow tree, re-creating the split-brain."
   - "The concern is scattered across two sections instead of being owned by exactly one."
   - "Frontmatter is seeded with a bare status key, colliding with the work-package lane status model."
-  - "A new section is created without its index.md, so the 13-section structure ratchet goes red."
+  - "A new curated-complete section (architecture/) gains a page missing from its index.md, failing docs_structural_lint's index_completeness check; for the other 12 sections a missing index.md is a review-time gap, not yet caught mechanically."
   - "The description is seeded outside the 50-180 character band and fails the lockfile freshness gate."
 references:
   - name: Common Docs Documentation Standard

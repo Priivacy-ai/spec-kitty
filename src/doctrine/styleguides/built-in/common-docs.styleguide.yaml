@@ -76,23 +76,106 @@ anti_patterns:
 # styleguide a checkable artifact rather than narrative. The named gates are
 # delivered by sibling work packages of the Common Docs consolidation mission.
 tooling:
-  structure-single-root-13-section: "WP05 anti-sprawl structure ratchet (asserts a single Common Docs root, all 13 sections present, no shadow tree; self-test also asserts DIRECTIVE_042 resolves to a loaded directive)."
-  adr-era-layout: "WP05 anti-sprawl structure ratchet (asserts ADRs resolve under adr/<era>/ and the living architecture/ is unversioned)."
-  naming-kebab-case: "WP05 anti-sprawl structure ratchet (asserts documentation file/dir names are lowercase kebab-case)."
-  curation-delete-stale: "WP05 anti-sprawl structure ratchet (asserts no orphaned/shadow documentation accumulates outside the single root)."
+  structure-single-root-13-section: "scripts/docs/docs_structural_lint.py (python -m scripts.docs.docs_structural_lint) — the durable successor to the retired ratchet. Its shadow_tree_basename check asserts no shared non-nav content basename across section subtrees; its self-test also asserts DIRECTIVE_042 resolves to a loaded directive. The single-root / all-13-sections-present structure itself remains subject to periodic bulk curation and review, not a per-PR mechanical count."
+  adr-era-layout: "scripts/docs/docs_structural_lint.py (python -m scripts.docs.docs_structural_lint) — its point_in_time_placement check allowlists adr/** (era-dated ADRs) so ADRs resolve under adr/<era>/ without churn; the living architecture/ being unversioned is maintained by periodic bulk curation and review."
+  naming-kebab-case: "Maintained by periodic bulk curation and review (the retired per-PR docs ratchet asserted this mechanically; scripts/docs/docs_structural_lint.py does not currently assert kebab-case naming)."
+  curation-delete-stale: "Maintained by periodic bulk curation and review; scripts/docs/docs_structural_lint.py's shadow_tree_basename and point_in_time_placement checks catch two concrete drift classes (duplicated non-nav basenames and misplaced dated/point-in-time files) but curation itself remains a review-time practice."
   frontmatter-doc-status: "WP04 page-inventory lockfile freshness gate reads frontmatter REPORT-ONLY (it regenerates the rollup FROM frontmatter and reds on drift). It does NOT yet assert the doc_status controlled vocabulary or reject a bare status key; that vocabulary enforcement is deferred to Mission B (lands with the frontmatter backfill)."
   frontmatter-ssot-lockfile: "WP04 page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
   frontmatter-seo-description: "WP04 page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
   related-resolvable-paths: "WP03 related: path validator (asserts every related: entry resolves to an existing repo-relative .md path)."
 
 quality_test: >
-  A documentation change satisfies this styleguide when: the structure ratchet
-  (WP05) is green for a single 13-section root with no shadow tree; the
+  A documentation change satisfies this styleguide when: scripts/docs/docs_structural_lint.py
+  (python -m scripts.docs.docs_structural_lint) is green — index completeness for
+  curated-complete sections (initially architecture/ only), point-in-time file
+  placement under plans/** honoring the adr/**, plans/research/**, and
+  plans/investigations/** allowlist, no shared non-nav content basename across
+  section subtrees, and required frontmatter on in-scope pages; the
   page-inventory lockfile freshness gate (WP04) is green — the rollup regenerates
   FROM frontmatter with no drift, and every description is within 50-180
   characters (the doc_status controlled vocabulary and the bare-status rejection
   are read REPORT-ONLY in Mission A; that enforcement is deferred to Mission B);
   and the related: path validator (WP03) resolves every cross-reference.
+
+# Machine-parseable policy store the docs structural lint LOADS as its single
+# source of truth (FR-011, C-005). scripts/docs/docs_structural_lint.py reads
+# this exact block — the wrapper key structural_lint_config: is a pinned
+# interface contract with that module; do not rename it without updating the
+# lint. Plain YAML scalars/lists only — no anchors, no custom tags.
+structural_lint_config:
+  # Sections whose index.md is checked for completeness (index_completeness).
+  # All other section indexes are landing pages and are exempt. Growing this
+  # list beyond architecture/ is a future extension, not implied by this block.
+  curated_complete_sections:
+    - architecture
+  # Concern-bucket -> canonical section home (data-model.md "Canonical section").
+  concern_bucket_to_section:
+    how_to: development/
+    reference_policy: development/
+    point_in_time: plans/engineering-notes/
+    ops_runbook: operations/
+    generated_nav: pinned  # stays at its pinned path (e.g. 3-2-page-inventory.yaml, toc.yml); C-004
+    doctrine_artifact: src/doctrine/
+  # Dated-filename patterns identifying a point-in-time document
+  # (point_in_time_placement). Regex, matched against the file basename.
+  point_in_time_patterns:
+    - "^\\d{4}-\\d{2}"
+  # Machine-checkable signals a file self-declares point-in-time/closeout even
+  # when its basename does not match point_in_time_patterns (e.g. the 883-*
+  # dossiers). Each entry is a frontmatter field:value pair OR an exact
+  # description-substring the lint can match against the file's frontmatter.
+  point_in_time_markers:
+    - frontmatter_field: doc_status
+      frontmatter_value: point_in_time
+    - frontmatter_field: doc_status
+      frontmatter_value: closeout
+  # Path globs exempt from point_in_time_placement even though they live
+  # outside plans/engineering-notes/ — the lint's allow-zone is plans/**
+  # broadly, plus these STAY subtrees.
+  point_in_time_allowlist:
+    - "adr/**"
+    - "plans/research/**"
+    - "plans/investigations/**"
+    - "plans/**"
+  # Frontmatter fields every in-scope page must carry (frontmatter_contract).
+  # Mirrors what this directive/styleguide already binds — no new fields.
+  frontmatter_required_fields:
+    - doc_status
+    - updated
+  # Pages excluded from frontmatter_required_fields even though they are
+  # otherwise in-scope: section README.md landing pages (the 3
+  # frontmatter-less docs/adr/{1.x,2.x,3.x}/README.md are deferred to #2227).
+  frontmatter_in_scope_exclusions:
+    - "**/README.md"
+    # DIRECTIVE_042 MADR exemption (directive 042 lines 49-50): "ADR frontmatter
+    # is exempt — it uses `status` for the MADR decision status (Proposed /
+    # Accepted / Deprecated / Superseded)". ADR bodies carry MADR `status`/`date`,
+    # NOT `doc_status`/`updated`, so they are out-of-scope for frontmatter_contract.
+    # Backfilling doc_status/updated onto an ADR would VIOLATE the directive — the
+    # correct fix is this exclusion, not a backfill. (WP01 only excluded README.md;
+    # WP05 reconciles the full ADR cohort here — see the WP05 activity log.)
+    - "adr/**"
+  # Basenames exempt from shadow_tree_basename because they are navigation
+  # scaffolding or sanctioned era files, not duplicated content.
+  shadow_tree_nav_exemptions:
+    - index.md
+    - README.md
+    - toc.yml
+    - "README-*.x.md"
+    - 00-SYNTHESIS.md
+  # A page whose frontmatter `description` begins with this prefix is a REDIRECT
+  # STUB: a legitimate old-path placeholder retained at the pre-move location so
+  # existing links/URLs keep resolving, whose body points at the file's canonical
+  # relocated home. A stub SHARES the moved file's basename by design, so
+  # shadow_tree_basename must skip it rather than flag the stub + its canonical
+  # twin as duplicated content. Deleting the stub would break old-path continuity;
+  # the correct fix is this config-declared signal. (e.g.
+  # docs/retrospective-learning-loop.md -> docs/architecture/retrospective-learning-loop.md.)
+  redirect_stub_description_prefix: "Redirect stub:"
+  # C-001 restated as a machine-checkable boundary: nothing relocates into
+  # docs/guides/ under this mission's redistribution work.
+  guides_boundary: "docs/guides/ is not a relocation target for how_to or reference_policy content moved by this mission."
 
 references:
   - src/doctrine/directives/built-in/042-common-docs.directive.yaml
