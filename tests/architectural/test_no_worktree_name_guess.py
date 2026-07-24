@@ -589,16 +589,22 @@ def _iter_shortid_source_files() -> list[Path]:
     return files
 
 
-# The two permanent sanctioned slice HOMES, skipped at FILE level (the
+# The three permanent sanctioned slice HOMES, skipped at FILE level (the
 # ``_SEAM_REL`` home-skip pattern). ``mission_id[:8]`` is legitimate ONLY here:
-#   * branch_naming.py — ``_mid8`` / ``resolve_mid8`` are THE single-derivation
-#     primitive + its failover-aware public door.
+#   * mission_runtime/identity.py — ``resolve_mid8``'s single-derivation
+#     primitive now lives here (relocated out of ``branch_naming.py`` by the
+#     coord-trust-2841 layer-boundary follow-up); its failover-aware ``[:8]``
+#     slice is THE canonical derivation every consumer routes through.
+#   * branch_naming.py — retained as a re-export site for ``resolve_mid8`` /
+#     ``mid8_from_slug`` (back-compat import surface) and still hosts its own
+#     private ``_mid8`` primitive plus ``resolve_transaction_mid8``'s slice.
 #   * mission_runtime/context.py — ``IdentityFragment`` computes the mid8
 #     "here and nowhere else" (its own docstring) and self-checks the invariant.
 _SHORTID_HOME_FILES: frozenset[str] = frozenset(
     {
         "src/specify_cli/lanes/branch_naming.py",
         "src/mission_runtime/context.py",
+        "src/mission_runtime/identity.py",
     }
 )
 
@@ -679,9 +685,13 @@ _SHORTID_ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
 # raw count BEFORE home/allow-list filtering), pinned as a committed literal so
 # "the consumer class is empty" is an OBJECTIVE, diff-checkable claim rather
 # than a re-derivation of the live tree. Composition (verified at WP02 land;
-# doctor sites collapsed 2→1 by the coord-trust Surface D fold):
-#   branch_naming.py:146/199/415  (3, HOME)
-#   mission_runtime/context.py:99/112  (2, HOME)
+# doctor sites collapsed 2→1 by the coord-trust Surface D fold; re-verified
+# after the coord-trust-2841 relocation of ``resolve_mid8`` into
+# ``mission_runtime/identity.py``):
+#   mission_runtime/identity.py:84  (1, HOME — ``resolve_mid8``'s derivation,
+#       post-relocation)
+#   branch_naming.py:146/363  (2, HOME — ``_mid8`` + ``resolve_transaction_mid8``)
+#   mission_runtime/context.py:152/165  (2, HOME)
 #   cli/commands/_coordination_doctor.py  (1, allow-listed tolerance in the
 #       shared ``_resolve_coord_short`` helper; was 2 byte-identical sites
 #       before the coord-trust Surface D dedup)
@@ -790,11 +800,14 @@ def test_no_mission_shortid_slice_or_failover_bypass_outside_seam() -> None:
     """No mission-identity ``mid8`` short-id may be hand-derived outside the seam.
 
     The mission-identity CONSUMER class must be EMPTY: every consumer routes its
-    mid8 through ``resolve_mid8`` (FR-004 / FR-010). The two sanctioned
-    derivation homes (``branch_naming.py``, ``mission_runtime/context.py``) are
-    skipped at file level; ``invocation_id[:8]`` is a different identity domain
-    excluded by name; the doctor diagnostic-tolerance ``or mission_id[:8]`` is a
-    single justified allow-list entry. Anything else is a real missed route.
+    mid8 through ``resolve_mid8`` (FR-004 / FR-010). The three sanctioned
+    derivation homes (``mission_runtime/identity.py`` — ``resolve_mid8``'s
+    single-derivation slice, relocated here by the coord-trust-2841
+    layer-boundary follow-up — plus ``branch_naming.py`` and
+    ``mission_runtime/context.py``) are skipped at file level;
+    ``invocation_id[:8]`` is a different identity domain excluded by name; the
+    doctor diagnostic-tolerance ``or mission_id[:8]`` is a single justified
+    allow-list entry. Anything else is a real missed route.
     """
     offenders = _iter_shortid_offenders()
     if offenders:
