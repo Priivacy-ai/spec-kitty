@@ -65,6 +65,8 @@ definitions:
           type: string
       guides_boundary:
         type: string
+      redirect_stub_description_prefix:
+        type: string
   anti_pattern:
     type: object
     additionalProperties: false

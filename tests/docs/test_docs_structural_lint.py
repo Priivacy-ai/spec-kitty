@@ -606,3 +606,26 @@ def test_index_completeness_reads_config_not_a_constant(tmp_path: Path) -> None:
     assert len(violations) == 1
     assert violations[0].rule_id == "index_completeness"
     assert violations[0].path == "docs/guides/onboarding.md"
+
+
+def test_schema_properties_match_lintconfig_fields() -> None:
+    """The styleguide schema's ``structural_lint_config`` properties must match
+    the lint's :class:`LintConfig` dataclass fields exactly.
+
+    Regression guard: ``redirect_stub_description_prefix`` was added to the
+    styleguide config block and the lint loader but not to the schema, whose
+    ``additionalProperties: false`` then reddened ``test_artifact_compliance``.
+    The config shape lives in three places (schema, dataclass, YAML data); this
+    keeps schema↔dataclass from silently drifting when a future exemption key is
+    added.
+    """
+    yaml = YAML(typ="safe")
+    schema_path = _REPO_ROOT / "src/doctrine/schemas/styleguide.schema.yaml"
+    with schema_path.open(encoding="utf-8") as handle:
+        schema = yaml.load(handle)
+    props = set(schema["definitions"]["structural_lint_config"]["properties"])
+    fields = {field.name for field in dataclasses.fields(LintConfig)}
+    assert props == fields, (
+        f"schema/LintConfig drift — only-in-schema={props - fields}, "
+        f"only-in-dataclass={fields - props}"
+    )
