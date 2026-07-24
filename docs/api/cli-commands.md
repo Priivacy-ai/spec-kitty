@@ -1058,21 +1058,32 @@ _Project health diagnostics_
  findings exit 0 but are still printed.
 
  With ``--fix``, automatically flattens missions that have a stale
- ``coordination_branch`` key (branch never created or already deleted)
- and re-derives topology. Safe to run on 100%-done missions before
- ``spec-kitty next`` or ``spec-kitty merge``.
+ ``coordination_branch`` key (branch never created or already deleted),
+ re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward
+ (FR-009) -- which fails loud with a unified diff and mutates nothing when
+ the coord branch has diverged or its worktree is dirty. Safe to run on
+ 100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
+
+ With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
+ staleness (FR-008) — non-blocking either way.
 
  Examples:
      spec-kitty doctor coordination
      spec-kitty doctor coordination --fix
      spec-kitty doctor coordination --json
+     spec-kitty doctor coordination --check-staleness
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix           Remove stale coordination_branch keys from meta.json for     │
-│                 missions whose coord branch was never created, then          │
-│                 re-derive topology via `migrate backfill-topology`.          │
-│ --json          Machine-readable JSON output                                 │
-│ --help          Show this message and exit.                                  │
+│ --fix                      Remove stale coordination_branch keys from        │
+│                            meta.json for missions whose coord branch was     │
+│                            never created, then re-derive topology via        │
+│                            `migrate backfill-topology`.                      │
+│ --json                     Machine-readable JSON output                      │
+│ --check-staleness          Also report coord-branch-vs-target-branch         │
+│                            staleness (Gap-1, FR-008): non-blocking, whether  │
+│                            the coord branch is behind or has diverged from   │
+│                            its mission's target_branch.                      │
+│ --help                     Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3824,26 +3835,29 @@ _Synchronization commands_
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ routes     Show where the current checkout sends data and which teams it is  │
-│            shared with.                                                      │
-│ share      Share the current repository from Private Teamspace into a team.  │
-│ unshare    Stop sharing the current repository from this developer to one    │
-│            team.                                                             │
-│ opt-out    Disable SaaS sync for this checkout and purge its pending         │
-│            uploads.                                                          │
-│ opt-in     Enable SaaS sync for this checkout.                               │
-│ workspace  Synchronize workspace with upstream changes.                      │
-│ server     Show or set sync server URL.                                      │
-│ now        Trigger immediate sync of all queued events.                      │
-│ gc         Purge event payloads delivered to all known targets (explicit,    │
-│            destructive).                                                     │
-│ archive    Archive retained event payloads (explicit, non-destructive).      │
-│ migrate    Migrate legacy hash-scoped queue DBs into the append-only event   │
-│            journal.                                                          │
-│ mode       Show or set the event-sync retention x delivery mode.             │
-│ status     Show sync queue status, connection state, and auth info.          │
-│ diagnose   Validate queued events locally against the event schema.          │
-│ doctor     Diagnose sync health: queue, auth, and server connectivity.       │
+│ routes          Show where the current checkout sends data and which teams   │
+│                 it is shared with.                                           │
+│ share           Share the current repository from Private Teamspace into a   │
+│                 team.                                                        │
+│ unshare         Stop sharing the current repository from this developer to   │
+│                 one team.                                                    │
+│ opt-out         Disable SaaS sync for this checkout and purge its pending    │
+│                 uploads.                                                     │
+│ opt-in          Enable SaaS sync for this checkout.                          │
+│ import-history  Materialize existing local mission/WP history into the SaaS  │
+│                 projection (#2262).                                          │
+│ workspace       Synchronize workspace with upstream changes.                 │
+│ server          Show or set sync server URL.                                 │
+│ now             Trigger immediate sync of all queued events.                 │
+│ gc              Purge event payloads delivered to all known targets          │
+│                 (explicit, destructive).                                     │
+│ archive         Archive retained event payloads (explicit, non-destructive). │
+│ migrate         Migrate legacy hash-scoped queue DBs into the append-only    │
+│                 event journal.                                               │
+│ mode            Show or set the event-sync retention x delivery mode.        │
+│ status          Show sync queue status, connection state, and auth info.     │
+│ diagnose        Validate queued events locally against the event schema.     │
+│ doctor          Diagnose sync health: queue, auth, and server connectivity.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3926,6 +3940,37 @@ _Synchronization commands_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync import-history
+
+```
+ Usage: spec-kitty sync import-history [OPTIONS]
+
+ Materialize existing local mission/WP history into the SaaS projection
+ (#2262).
+
+ A first sync registers a remote project/build but leaves it with zero
+ materialized missions — the SaaS materializer deliberately refuses to
+ fabricate a WorkPackage from a status event with no prior create. This
+ command emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``
+ stream (INV-3) so historical work populates the projection.
+
+ Dry-run (default) runs the full read-only pipeline — SELECT → AUDIT
+ (fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope
+ stream that would be materialized. ``--apply`` additionally attaches
+ provenance, server-preflights the whole stream (fail-closed), and uploads it
+ in chunks to the SaaS projection under the real persisted project UUID.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --apply                Materialize the selected missions into the SaaS       │
+│                        projection (default is a dry-run plan).               │
+│ --dry-run              Preview what would be imported without emitting       │
+│                        anything (this is the default).                       │
+│ --mission        TEXT  Import only this mission (slug / mid8 / ULID);        │
+│                        default imports all eligible missions.                │
+│ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

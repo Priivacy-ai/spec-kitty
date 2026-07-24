@@ -371,14 +371,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811"),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
         SymbolKey("load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c"),  # specify_cli.skills.manifest_store::load
         SymbolKey("save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172"),  # specify_cli.skills.manifest_store::save
-        SymbolKey("MISSION_CREATED", "cee8959200ec2e6304a1ff8d59dd8eb356bf76108ecdf4ba8210ff4522fbebdc"),  # specify_cli.status.lifecycle_events::MISSION_CREATED
         # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
         SymbolKey("MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9"),
         # specify_cli.status.lifecycle_events::PROJECT_EVENTS_FILENAME
         SymbolKey("PROJECT_EVENTS_FILENAME", "27f95adf27cd2fb348df3cd92afb8f6bd3c015697e237d232da23bfa900f74fe"),
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723"),
-        SymbolKey("WP_CREATED", "4f61af61cf1570deb1b34ef633f688e26483b680cc965d27f75415e188289732"),  # specify_cli.status.lifecycle_events::WP_CREATED
         # specify_cli.status.lifecycle_events::append_lifecycle_event
         SymbolKey("append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659"),
         # specify_cli.status.lifecycle_events::has_lifecycle_event

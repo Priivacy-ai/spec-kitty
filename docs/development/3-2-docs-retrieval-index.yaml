@@ -2746,6 +2746,7 @@ pages:
     - {slug: "spec-kitty-sync-diagnose", text: "spec-kitty sync diagnose", level: 2}
     - {slug: "spec-kitty-sync-doctor", text: "spec-kitty sync doctor", level: 2}
     - {slug: "spec-kitty-sync-gc", text: "spec-kitty sync gc", level: 2}
+    - {slug: "spec-kitty-sync-import-history", text: "spec-kitty sync import-history", level: 2}
     - {slug: "spec-kitty-sync-migrate", text: "spec-kitty sync migrate", level: 2}
     - {slug: "spec-kitty-sync-mode", text: "spec-kitty sync mode", level: 2}
     - {slug: "spec-kitty-sync-now", text: "spec-kitty sync now", level: 2}

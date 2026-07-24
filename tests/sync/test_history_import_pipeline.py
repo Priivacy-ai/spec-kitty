@@ -1,0 +1,190 @@
+"""Tests for the import-history orchestration — ``build_import_plan`` (#2262).
+
+Drives the whole read-only pipeline (SELECT → AUDIT → SCAN → IDENTITY →
+SYNTHESIZE) end to end: real fixtures for the happy path, patched migration
+seams for the empty/blocked branches, and the apply path to prove the real
+project UUID is threaded onto every envelope (INV-5).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+import specify_cli.migration.envelope_seam as envelope_seam
+from specify_cli.delivery.receivers import StubReceiver
+from specify_cli.sync.history_import.pipeline import (
+    ImportAuditBlocked,
+    apply_import,
+    build_import_plan,
+    describe_plan,
+)
+
+pytestmark = pytest.mark.fast
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SPECS = _REPO_ROOT / "kitty-specs"
+_LEGACY = _SPECS / "032-identity-aware-cli-event-sync"
+_PREFIXED = _SPECS / "single-mission-surface-resolver-01KVGCE8"
+
+_FIXTURES = _LEGACY.is_dir() and _PREFIXED.is_dir()
+
+
+def _patch_selection(monkeypatch, *, mission_dirs, blockers):
+    # The pipeline binds these lazily from the envelope_seam surface, so the
+    # seam module is where stubs go (not mission_state's underscore internals).
+    monkeypatch.setattr(envelope_seam, "select_mission_dirs", lambda root, *, scan_root, mission: list(mission_dirs))
+    monkeypatch.setattr(envelope_seam, "teamspace_audit_blockers", lambda root, *, scan_root, mission_dirs: list(blockers))
+
+
+# ── happy path over real fixtures ─────────────────────────────────────────────
+
+
+@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
+def test_build_plan_over_real_fixtures(tmp_path, monkeypatch):
+    _patch_selection(monkeypatch, mission_dirs=[_LEGACY, _PREFIXED], blockers=[])
+
+    plan = build_import_plan(tmp_path, mission=None, apply=False)
+
+    assert not plan.is_empty
+    assert plan.mission_count == 2
+    assert plan.identity is not None and plan.identity.is_synthetic  # uninitialized dry-run
+    counts = plan.event_type_counts()
+    assert counts.get("MissionCreated") == 2
+    assert counts.get("WPCreated", 0) >= 6
+    assert counts.get("WPStatusChanged", 0) >= 1
+    assert plan.total_events == sum(counts.values())
+
+
+# ── empty / blocked branches ──────────────────────────────────────────────────
+
+
+def test_empty_selection_yields_empty_plan(tmp_path, monkeypatch):
+    _patch_selection(monkeypatch, mission_dirs=[], blockers=[])
+    plan = build_import_plan(tmp_path, mission=None, apply=False)
+    assert plan.is_empty
+    assert plan.identity is None
+    assert plan.envelopes == ()
+
+
+def test_audit_blockers_raise_before_synthesis(tmp_path, monkeypatch):
+    blockers = [{"mission_slug": "m-01", "message": "bad row"}]
+    _patch_selection(monkeypatch, mission_dirs=[tmp_path / "m-01"], blockers=blockers)
+    with pytest.raises(ImportAuditBlocked) as excinfo:
+        build_import_plan(tmp_path, mission=None, apply=False)
+    assert excinfo.value.blockers == blockers
+
+
+# ── apply threads the real UUID (INV-5) ───────────────────────────────────────
+
+
+@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
+def test_apply_plan_threads_the_real_uuid(tmp_path, monkeypatch):
+    (tmp_path / ".kittify").mkdir()  # a real (uninitialized) checkout
+    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+
+    plan = build_import_plan(tmp_path, mission=None, apply=True)
+
+    assert plan.identity is not None and plan.identity.is_synthetic is False
+    assert plan.envelopes
+    assert all(env["project_uuid"] == str(plan.identity.project_uuid) for env in plan.envelopes)
+
+
+# ── describe_plan rendering ───────────────────────────────────────────────────
+
+
+@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
+def test_describe_plan_lists_missions_and_breakdown(tmp_path, monkeypatch):
+    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+    plan = build_import_plan(tmp_path, mission=None, apply=False)
+
+    lines = describe_plan(plan)
+    text = "\n".join(lines)
+    assert "032-identity-aware-cli-event-sync" in text
+    assert "MissionCreated" in text
+    assert "event(s)" in text
+
+
+def test_describe_plan_makes_skipped_wps_impossible_to_miss():
+    """A scan with malformed-frontmatter skips must mark BOTH the summary line
+    and the mission row — a skip can never read as clean success (B3, #2884)."""
+    import uuid
+
+    from specify_cli.sync.history_import.identity import ImportIdentity
+    from specify_cli.sync.history_import.pipeline import ImportPlan
+    from specify_cli.sync.history_import.scan import MissionScan, PrefixSource
+
+    scan = MissionScan(
+        mission_slug="m-skips",
+        canonical_mission_id=None,
+        mission_number=None,
+        name="M Skips",
+        mission_type="software-dev",
+        purpose_tldr=None,
+        purpose_context=None,
+        target_branch="main",
+        created_at=None,
+        prefix_source=PrefixSource.SYNTHESIZED,
+        work_packages=(),
+        lane_transitions=(),
+        skipped_wp_files=("WP07.md", "WP11.md"),
+    )
+    identity = ImportIdentity(
+        project_uuid=uuid.UUID("11111111-2222-3333-4444-555555555555"),
+        project_slug="p",
+        repo_slug="p",
+        is_synthetic=True,
+    )
+    plan = ImportPlan(
+        identity=identity,
+        scans=(scan,),
+        # canonical-event-exempt(exception-flow): minimal wire-envelope fixture for report rendering
+        envelopes=({"event_id": "e0", "event_type": "MissionCreated"},),
+    )
+
+    text = "\n".join(describe_plan(plan))
+    assert "2 WP file(s) SKIPPED" in text  # the summary line itself is marked
+    assert "2 WPs SKIPPED (malformed frontmatter: WP07.md, WP11.md)" in text  # the mission row names them
+
+
+def test_describe_empty_plan(tmp_path, monkeypatch):
+    _patch_selection(monkeypatch, mission_dirs=[], blockers=[])
+    plan = build_import_plan(tmp_path, mission=None, apply=False)
+    assert describe_plan(plan) == ["No missions eligible for import."]
+
+
+# ── apply_import: plan → provenance → preflight → upload ──────────────────────
+
+
+class _AcceptingResponse:
+    status_code = 200
+
+    def json(self):
+        return {"accepted": True, "event_count": 0, "reconciliation": {}}
+
+
+def _accepting_poster(url, *, data, headers, timeout):
+    return _AcceptingResponse()
+
+
+@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
+def test_apply_import_uploads_every_envelope_under_the_real_uuid(tmp_path, monkeypatch):
+    (tmp_path / ".kittify").mkdir()  # a real (uninitialized) checkout → apply mints the UUID
+    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+    stub = StubReceiver()
+
+    result = apply_import(
+        tmp_path,
+        mission=None,
+        receiver=stub,
+        server_url="http://teamspace.test",
+        auth_token="tok",
+        poster=_accepting_poster,
+    )
+
+    assert result.plan.identity is not None and result.plan.identity.is_synthetic is False  # INV-5
+    assert result.report.ok
+    assert result.report.success == result.plan.total_events
+    assert set(stub.received_event_ids()) == {env["event_id"] for env in result.plan.envelopes}
+    assert len(result.manifest) == result.plan.total_events

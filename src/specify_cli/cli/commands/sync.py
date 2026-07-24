@@ -1741,6 +1741,165 @@ def _git_repair(workspace_path: Path) -> bool:
         return False
 
 
+@app.command(name="import-history")
+def import_history(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Materialize the selected missions into the SaaS projection (default is a dry-run plan).",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview what would be imported without emitting anything (this is the default).",
+    ),
+    mission: str | None = typer.Option(
+        None,
+        "--mission",
+        help="Import only this mission (slug / mid8 / ULID); default imports all eligible missions.",
+    ),
+) -> None:
+    """Materialize existing local mission/WP history into the SaaS projection (#2262).
+
+    A first sync registers a remote project/build but leaves it with zero
+    materialized missions — the SaaS materializer deliberately refuses to
+    fabricate a WorkPackage from a status event with no prior create. This
+    command emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``
+    stream (INV-3) so historical work populates the projection.
+
+    Dry-run (default) runs the full read-only pipeline — SELECT → AUDIT
+    (fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope
+    stream that would be materialized. ``--apply`` additionally attaches
+    provenance, server-preflights the whole stream (fail-closed), and uploads it
+    in chunks to the SaaS projection under the real persisted project UUID.
+    """
+    from specify_cli.migration.mission_state import MissionStateRepairError
+    from specify_cli.sync.history_import import (
+        ImportAuditBlocked,
+        MissionScanError,
+        build_import_plan,
+        describe_plan,
+    )
+
+    if apply and dry_run:
+        console.print("[red]Error:[/red] --apply and --dry-run are mutually exclusive.")
+        raise typer.Exit(2)
+
+    if apply:
+        _run_import_apply(mission)
+        return
+
+    repo_root = _require_active_checkout().repo_root
+
+    try:
+        plan = build_import_plan(repo_root, mission=mission, apply=False)
+    except (MissionStateRepairError, MissionScanError) as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except ImportAuditBlocked as exc:
+        console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
+        for blocker in exc.blockers[:20]:
+            console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
+        raise typer.Exit(1) from exc
+
+    if plan.is_empty:
+        console.print("[yellow]No missions found to import.[/yellow]")
+        raise typer.Exit(0)
+
+    for line in describe_plan(plan):
+        console.print(line)
+    console.print("\n[dim]Dry-run: nothing uploaded. Re-run with --apply to materialize.[/dim]")
+
+
+def _run_import_apply(mission: str | None) -> None:
+    """The ``import-history --apply`` path: preflight + upload under the real UUID.
+
+    Resolves the authed Teamspace receiver (fail-closed when unauthenticated /
+    unconfigured), then delegates to ``apply_import`` which builds the plan with
+    the real persisted project UUID, server-preflights the whole stream, and
+    uploads it. The server dedups on ``event_id`` so a re-run is idempotent.
+    """
+    from specify_cli.migration.mission_state import MissionStateRepairError
+    from specify_cli.sync.history_import import (
+        ImportAuditBlocked,
+        ImportIdentityError,
+        MissionScanError,
+        PreflightRejected,
+        apply_import,
+        describe_plan,
+    )
+
+    token = _event_sync_access_token()
+    if not token:
+        console.print(
+            "[red]Not authenticated.[/red] Run `spec-kitty auth login` before importing with --apply."
+        )
+        raise typer.Exit(1)
+
+    config = _load_event_sync_config()
+    runtime = _open_event_sync_runtime()
+    receiver = _resolve_active_receiver(runtime.target, config, auth_token=token)
+    if receiver is None or not getattr(receiver, "endpoint_url", ""):
+        console.print("[red]Event sync is not configured for this checkout.[/red] Cannot upload.")
+        raise typer.Exit(1)
+    server_url = config.resolve_runtime_target().resolved_server_url
+    repo_root = _require_active_checkout().repo_root
+
+    try:
+        result = apply_import(
+            repo_root, mission=mission, receiver=receiver, server_url=server_url, auth_token=token
+        )
+    except (MissionStateRepairError, MissionScanError) as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except ImportIdentityError as exc:
+        console.print(f"[red]Identity error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except ImportAuditBlocked as exc:
+        console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
+        for blocker in exc.blockers[:20]:
+            console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
+        raise typer.Exit(1) from exc
+    except PreflightRejected as exc:
+        console.print(f"[red]Server preflight rejected the import:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if result.plan.is_empty:
+        console.print("[yellow]No missions found to import.[/yellow]")
+        raise typer.Exit(0)
+
+    for line in describe_plan(result.plan):
+        console.print(line)
+    report = result.report
+    console.print(
+        f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
+        f"{report.pending} pending, {report.rejected} rejected ({report.total} total)."
+    )
+    if report.partial:
+        # Distinct third state: neither success nor total failure. Delivery
+        # stopped at the first failed chunk, so everything delivered is a safe
+        # ordered prefix of whole missions; the rest was never attempted.
+        console.print(
+            f"[yellow]Partial upload:[/yellow] delivery stopped at a failed chunk — a safe ordered "
+            f"prefix was delivered ({report.delivered_through_chunk} full chunk(s)); "
+            f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
+            "--apply: the server dedups on event_id, so the re-run resumes idempotently."
+        )
+    if not report.ok:
+        for sample in report.rejected_samples:
+            console.print(f"  [red]✗[/red] {sample}")
+        raise typer.Exit(1)
+    if report.pending:
+        # Pending = queued locally, not yet confirmed materialized. For a
+        # "did my history show up?" tool this is a distinct, non-final signal
+        # (not the same as confirmed success) — surface it plainly.
+        console.print(
+            f"[yellow]Note:[/yellow] {report.pending} event(s) are queued (pending), not yet "
+            "confirmed in the projection. They deliver on the next `spec-kitty sync now`; "
+            "re-check the dashboard after."
+        )
+
+
 @app.command(name="workspace")
 def sync_workspace(  # noqa: C901
     repair: bool = typer.Option(

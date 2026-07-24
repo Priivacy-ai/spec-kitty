@@ -481,6 +481,18 @@ def deterministic_ulid(seed: bytes | str) -> str:
     return "".join(reversed(chars))
 
 
+def envelope_sha256(envelope: Mapping[str, Any]) -> str:
+    """Canonical-JSON SHA-256 of a TeamSpace envelope (single recipe owner).
+
+    Both the migration dry-run's ``TeamspaceDryRunRowMapping.envelope_sha256``
+    and the import-history provenance manifest (#2262, via
+    :mod:`specify_cli.migration.envelope_seam`) hash envelopes with this exact
+    shape; hoisted here so the two recipes cannot drift (#2884).
+    """
+    canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()  # noqa: TID251 - production raw SHA-256 owner (canonical envelope body checksum)
+
+
 def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
     """Re-anchor the invocation root to the canonical PRIMARY main-checkout.
 
@@ -653,9 +665,7 @@ def teamspace_dry_run(
                         if row_location is not None
                         else None
                     ),
-                    envelope_sha256=hashlib.sha256(  # noqa: TID251 - production raw SHA-256 owner
-                        json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
-                    ).hexdigest(),
+                    envelope_sha256=envelope_sha256(envelope),
                 )
             )
             try:
@@ -1973,6 +1983,12 @@ __all__ = [
     # MissionEventRebuildResult, RepairReport, TeamspaceDryRunRowMapping,
     # deterministic_ulid: demoted — migration-internal; no cross-module
     # src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # The ONE sanctioned cross-module surface is migration/envelope_seam.py
+    # (#2262/#2884), which re-exports the shared subset (envelope constants,
+    # deterministic_ulid, envelope_sha256, the status-envelope builder, and the
+    # selection/audit seams) under public names for the import-history
+    # pipeline. Any new cross-module consumer must go through that seam, not
+    # import these internals directly.
     "MissionStateDryRunError",
     "MissionStateRepairError",
     "TeamspaceDryRunReport",
