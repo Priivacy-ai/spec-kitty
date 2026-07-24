@@ -50,6 +50,11 @@ _SEMANTIC_CONSTRUCTOR_FILES = {
     Path("src/specify_cli/coordination/surface_resolver.py"),
     Path("src/specify_cli/coordination/status_transition.py"),
     Path("src/specify_cli/coordination/transaction.py"),
+    # WP08 campsite split (behaviour-free): transaction.py's legacy-mission
+    # meta reads (the `KITTY_SPECS_DIR / <slug>-<mid8>` feature-dir construction)
+    # moved verbatim into legacy_resolution.py. Code follows the move — same
+    # sanctioned constructor, new home.
+    Path("src/specify_cli/coordination/legacy_resolution.py"),
     Path("src/specify_cli/events/decision_log.py"),
     # missions/feature_dir_resolver.py retired in WP07 (FR-007); its raw-slug
     # primary anchor relocated into missions/_read_path_resolver.py, which is

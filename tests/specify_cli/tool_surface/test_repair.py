@@ -10,7 +10,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.repair import RepairResult, SurfaceRepairService
@@ -21,7 +21,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def _definition(kind: SurfaceKind) -> SurfaceDefinition:
+def _definition(kind: ToolSurfaceKind) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
@@ -34,7 +34,7 @@ def _definition(kind: SurfaceKind) -> SurfaceDefinition:
     )
 
 
-def _status(kind: SurfaceKind, name: str) -> SurfaceStatus:
+def _status(kind: ToolSurfaceKind, name: str) -> SurfaceStatus:
     inst = SurfaceInstance(
         definition=_definition(kind),
         path=Path("/proj") / name,
@@ -48,7 +48,7 @@ def _status(kind: SurfaceKind, name: str) -> SurfaceStatus:
 class _RecordingProvider:
     provider_key = "p"
 
-    def __init__(self, kind: SurfaceKind) -> None:
+    def __init__(self, kind: ToolSurfaceKind) -> None:
         self._kind = kind
         self.received: list[SurfaceStatus] = []
 
@@ -82,43 +82,43 @@ class _RecordingProvider:
 
 def test_no_provider_records_failure_not_raise() -> None:
     service = SurfaceRepairService([])
-    result = service.repair(Path("/proj"), [_status(SurfaceKind.COMMAND_SKILL, "a")])
+    result = service.repair(Path("/proj"), [_status(ToolSurfaceKind.COMMAND_SKILL, "a")])
     assert isinstance(result, RepairResult)
     assert len(result.failed) == 1
     assert result.repaired == ()
 
 
 def test_delegates_to_provider() -> None:
-    provider = _RecordingProvider(SurfaceKind.COMMAND_SKILL)
+    provider = _RecordingProvider(ToolSurfaceKind.COMMAND_SKILL)
     service = SurfaceRepairService([provider])
-    status = _status(SurfaceKind.COMMAND_SKILL, "a")
+    status = _status(ToolSurfaceKind.COMMAND_SKILL, "a")
     result = service.repair(Path("/proj"), [status])
     assert provider.received == [status]
     assert len(result.repaired) == 1
 
 
 def test_takes_status_objects_and_preserves_instance() -> None:
-    provider = _RecordingProvider(SurfaceKind.COMMAND_SKILL)
+    provider = _RecordingProvider(ToolSurfaceKind.COMMAND_SKILL)
     service = SurfaceRepairService([provider])
-    status = _status(SurfaceKind.COMMAND_SKILL, "a")
+    status = _status(ToolSurfaceKind.COMMAND_SKILL, "a")
     service.repair(Path("/proj"), [status])
     # The provider received the original SurfaceStatus, carrying its instance.
     assert provider.received[0].instance is status.instance
 
 
 def test_kind_filter_selects_subset() -> None:
-    provider = _RecordingProvider(SurfaceKind.COMMAND_SKILL)
+    provider = _RecordingProvider(ToolSurfaceKind.COMMAND_SKILL)
     service = SurfaceRepairService([provider])
-    skill = _status(SurfaceKind.COMMAND_SKILL, "a")
-    other = _status(SurfaceKind.COMMAND_FILE, "b")
-    service.repair(Path("/proj"), [skill, other], kinds={SurfaceKind.COMMAND_SKILL})
+    skill = _status(ToolSurfaceKind.COMMAND_SKILL, "a")
+    other = _status(ToolSurfaceKind.COMMAND_FILE, "b")
+    service.repair(Path("/proj"), [skill, other], kinds={ToolSurfaceKind.COMMAND_SKILL})
     assert provider.received == [skill]
 
 
 def test_dry_run_passed_through() -> None:
-    provider = _RecordingProvider(SurfaceKind.COMMAND_SKILL)
+    provider = _RecordingProvider(ToolSurfaceKind.COMMAND_SKILL)
     service = SurfaceRepairService([provider])
     result = service.repair(
-        Path("/proj"), [_status(SurfaceKind.COMMAND_SKILL, "a")], dry_run=True
+        Path("/proj"), [_status(ToolSurfaceKind.COMMAND_SKILL, "a")], dry_run=True
     )
     assert result.dry_run is True

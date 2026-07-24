@@ -151,6 +151,7 @@ def register_commands(app: typer.Typer) -> None:
 
     from . import accept as accept_module
     from . import agent as agent_module
+    from . import archive as archive_module
     from . import auth as auth_module
     from . import plugin as plugin_module
     from . import charter as charter_module
@@ -200,6 +201,7 @@ def register_commands(app: typer.Typer) -> None:
 
     app.command()(accept_module.accept)
     app.add_typer(agent_module.app, name="agent")
+    app.add_typer(archive_module.app, name="archive", help="Archive a terminal mission (operator-invoked only).")
     app.command()(config_cmd_module.config)
     app.add_typer(auth_module.app, name="auth", help="Authentication commands")
     app.add_typer(charter_module.app, name="charter")

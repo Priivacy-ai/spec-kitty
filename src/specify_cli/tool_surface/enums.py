@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-class SurfaceKind(StrEnum):
+class ToolSurfaceKind(StrEnum):
     """The kind of surface a definition describes.
 
     ``session_presence`` is intentionally **not** a member: it is a *provider*

@@ -11,9 +11,9 @@ from mission_runtime import (
     MissionArtifactKind,
     MissionTopology,
     artifact_home_for,
-    is_coordination_artifact_residue_path,
 )
 from mission_runtime.artifacts import kind_is_coordination_residue
+from specify_cli.coordination.coherence import is_coord_residue_churn
 
 
 def test_placement_artifact_home_carries_ref_only_placement() -> None:
@@ -29,9 +29,12 @@ def test_placement_artifact_home_carries_ref_only_placement() -> None:
     home = artifact_home_for(MissionArtifactKind.ISSUE_MATRIX, placement)
 
     assert home.commit_target == placement
-    assert home.read_surface == "placement"
-    assert home.write_surface == "placement"
-    assert home.ignores_primary_coord_residue is True
+    assert home.read_surface == "coord"
+    assert home.write_surface == "coord"
+    # The dead ``ignores_primary_coord_residue`` field was retired (IC-07g /
+    # WP17, zero external consumers) — the real residue authority is
+    # ``kind_is_coordination_residue``, asserted directly against the owner.
+    assert kind_is_coordination_residue(MissionArtifactKind.ISSUE_MATRIX, MissionTopology.COORD) is True
 
 
 def test_coordination_residue_path_filter_is_specific_to_coord_artifacts() -> None:
@@ -46,33 +49,33 @@ def test_coordination_residue_path_filter_is_specific_to_coord_artifacts() -> No
     residue authority now matches the COORD partition only: issue-matrix, status
     events, acceptance-matrix.
     """
-    assert is_coordination_artifact_residue_path(
+    assert is_coord_residue_churn(
         "kitty-specs/demo/issue-matrix.md", mission_slug="demo"
     )
-    assert is_coordination_artifact_residue_path(
+    assert is_coord_residue_churn(
         "kitty-specs/demo/status.events.jsonl", mission_slug="demo"
     )
-    assert is_coordination_artifact_residue_path(
+    assert is_coord_residue_churn(
         "kitty-specs/demo/acceptance-matrix.json", mission_slug="demo"
     )
     # The re-partitioned PRIMARY kinds are NOT coordination residue (the WP01
     # correctness change + the FR-003 analysis-report re-home): their home is the
     # primary surface.
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/demo/analysis-report.md", mission_slug="demo"
     )
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/demo/plan.md", mission_slug="demo"
     )
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/demo/tasks/WP01.md", mission_slug="demo"
     )
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/demo/spec.md", mission_slug="demo"
     )
     # Mission-isolation negative control (still valid): another mission's residue
     # never counts as this mission's residue.
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/other/issue-matrix.md", mission_slug="demo"
     )
 
@@ -94,7 +97,7 @@ def test_planning_source_docs_are_not_coordination_residue() -> None:
         "kitty-specs/demo/checklists/",
         "kitty-specs/demo/tasks/",
     ):
-        assert not is_coordination_artifact_residue_path(
+        assert not is_coord_residue_churn(
             primary_path, mission_slug="demo"
         ), primary_path
 
@@ -102,13 +105,13 @@ def test_planning_source_docs_are_not_coordination_residue() -> None:
     #  - a real source edit is never mission residue
     #  - an unknown mission file is not in the residue authority
     #  - another mission's coord doc is not THIS mission's residue
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "src/specify_cli/foo.py", mission_slug="demo"
     )
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/demo/notes-scratch.md", mission_slug="demo"
     )
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         "kitty-specs/other/issue-matrix.md", mission_slug="demo"
     )
 
@@ -152,8 +155,8 @@ def test_kind_is_coordination_residue_primary_metadata_never_residue() -> None:
     """PRIMARY_METADATA is never residue even under coord topology (kind negative control).
 
     The kind axis of the differential: PRIMARY_METADATA lives on the primary
-    checkout (``ignores_primary_coord_residue=False``), so its stale copy is a real
-    dirty-tree blocker, never coordination residue — even under ``COORD``. Pairs the
+    checkout (not a ``_PLACEMENT_ARTIFACT_KINDS`` member), so its stale copy is a
+    real dirty-tree blocker, never coordination residue — even under ``COORD``. Pairs the
     topology negative control above with a kind negative control so neither axis can
     be silently widened.
     """

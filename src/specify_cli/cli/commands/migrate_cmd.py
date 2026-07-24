@@ -7,6 +7,9 @@ Subcommands:
   any ``meta.json`` that lacks one.  Idempotent and non-destructive.
 - ``spec-kitty migrate charter-encoding`` — Scan charter content for non-UTF-8
   encodings; normalize-or-fail-loud. Implements FR-026, FR-027, NFR-006.
+- ``spec-kitty migrate backfill-provenance`` — Stamp the ``legacy_unrecorded``
+  provenance sentinel onto non-``pending`` negative invariants recorded before
+  the provenance schema existed. Implements FR-014.
 - ``spec-kitty migrate rewrite-opposed-by`` — Rewrite a downstream/org pack's
   legacy ``opposed_by`` entries into ``in_tension_with``/``rejects`` DRG
   edges. Implements FR-015.
@@ -18,6 +21,7 @@ Usage examples::
     spec-kitty migrate backfill-identity --mission 083-foo-bar
     spec-kitty migrate charter-encoding --dry-run
     spec-kitty migrate charter-encoding --yes --json
+    spec-kitty migrate backfill-provenance --dry-run --json
     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
 """
 
@@ -505,6 +509,123 @@ def charter_encoding(
     )
     if exit_code != 0:
         raise typer.Exit(exit_code)
+
+
+@app.command(name="backfill-provenance")
+def backfill_provenance(
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Report what would be stamped without writing any files. "
+                "The JSON shape is identical to a live run."
+            ),
+        ),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
+    ] = False,
+    project_root: Annotated[
+        Path,
+        typer.Option(
+            "--project-root",
+            help="Root of the Spec Kitty project (default: current working directory).",
+            metavar="DIR",
+        ),
+    ] = Path("."),
+) -> None:
+    """FR-014: backfill provenance onto legacy acceptance-matrix.json invariants.
+
+    Walks every ``kitty-specs/*/acceptance-matrix.json`` and, for each negative
+    invariant whose ``result`` is not ``pending`` and lacks ``provenance_origin``,
+    stamps the ``legacy_unrecorded`` sentinel (data-model.md NI-1 / contract
+    ``negative-invariant-provenance.md`` C1). ``verified_ref`` and
+    ``verified_surface_kind`` are left null for those rows — the sentinel means
+    the surface a pre-schema judgement was established against is genuinely
+    unknowable, not empty by omission.
+
+    This migration is **idempotent** (NI-2 / C3): re-running it on an
+    already-migrated corpus is a no-op — a row already carrying
+    ``provenance_origin`` (``recorded`` or ``legacy_unrecorded``) is never
+    re-stamped.
+
+    The whole-corpus write is enrolled in a commit-or-revert transaction: on
+    any failure partway through, every file already written in that run is
+    restored to its pre-migration bytes — no partial migration state is left
+    on disk.
+
+    AM-4: this migration never auto-archives. A matrix it cannot parse is
+    reported as an error and skipped; it never routes into an archive
+    operation.
+
+    Exit codes:
+
+    - ``0`` — every matrix migrated cleanly (or needed no change)
+    - ``1`` — one or more matrices could not be parsed (see the reported errors)
+
+    Examples:
+
+        spec-kitty migrate backfill-provenance --dry-run
+
+        spec-kitty migrate backfill-provenance --json
+
+        spec-kitty migrate backfill-provenance
+    """
+    from specify_cli.cli.commands.migrate.backfill_provenance import (  # noqa: PLC0415
+        run_backfill_provenance_migration,
+    )
+
+    summary = run_backfill_provenance_migration(project_root.resolve(), dry_run=dry_run)
+
+    if json_output:
+        payload = {
+            "dry_run": summary.dry_run,
+            "result": summary.result,
+            "summary": {
+                "files_inspected": summary.files_inspected,
+                "migrated": len(summary.migrated),
+                "unchanged": len(summary.unchanged),
+                "errors": len(summary.errors),
+                "invariants_stamped": summary.stamped_total,
+            },
+            "migrated": [
+                {"path": str(record.path), "invariants_stamped": record.invariants_stamped}
+                for record in summary.migrated
+            ],
+            "errors": [
+                {"path": str(error.path), "message": error.message}
+                for error in summary.errors
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]backfill-provenance summary[/bold]")
+        console.print(f"  Matrices scanned   : {summary.files_inspected}")
+        console.print(f"  Migrated (files)   : {len(summary.migrated)}")
+        console.print(f"  Invariants stamped : {summary.stamped_total}")
+        console.print(f"  Unchanged          : {len(summary.unchanged)}")
+        console.print(f"  Errors             : {len(summary.errors)}")
+
+        if summary.errors:
+            console.print("\n[red]Errors:[/red]")
+            for error in summary.errors:
+                console.print(f"  [red]{error.path}:[/red] {error.message}")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+        elif summary.migrated:
+            console.print(
+                f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) "
+                "received the legacy_unrecorded sentinel."
+            )
+        else:
+            console.print("\n[green]Done.[/green] Corpus already carries provenance.")
+
+    if summary.errors:
+        raise typer.Exit(1)
 
 
 @app.command(name="normalize-lifecycle")

@@ -14,7 +14,7 @@ from .enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 
 
@@ -27,7 +27,7 @@ class SurfaceDefinition:
     how to expand, probe, and repair it.
     """
 
-    kind: SurfaceKind
+    kind: ToolSurfaceKind
     source_kind: SourceKind
     install_scope: InstallScope
     path_pattern: str

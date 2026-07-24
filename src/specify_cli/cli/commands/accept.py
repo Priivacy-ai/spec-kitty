@@ -83,23 +83,34 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
     (mirrors the leniency ``_status_read_feature_dir`` already applies).
     Never creates the worktree (a dirty-tree scan must not have side effects).
 
-    Consumes the ONE shared coord-read seam
-    (:func:`mission_runtime.coord_read_dir_for`, coord-commit-integrity SURFACE A
-    #5) — the SAME seam ``gates_core._acceptance_matrix_read_dir`` consumes — so
-    the topology+existence guard is expressed once (Directive-044).
+    Consumes the ONE affirmative surface→filesystem seam
+    (:func:`mission_runtime.resolve_artifact_surface`,
+    lifecycle-gate-execution-context WP02 — the schema root). The seam's
+    :class:`~mission_runtime.TopologySurface` stamp IS the "coord or not" signal: a
+    ``COORD`` stamp yields the materialised coordination mission dir (its worktree
+    root is then found via ``git rev-parse``); every other stamp (the affirmative
+    PRIMARY home for coord-less / ``EMPTY`` / ``UNMATERIALIZED``) means "nothing to
+    reconcile" → ``None``. A ``DELETED`` coordination branch raises
+    :class:`CoordinationBranchDeleted` (C3 "fail loud"): a deleted coord branch at
+    accept-time carries unmerged status — accept must refuse, not silently scan a
+    stale primary.
     """
-    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+    from mission_runtime import (
+        MissionArtifactKind,
+        TopologySurface,
+        resolve_artifact_surface,
+    )
 
-    coord_feature_dir = coord_read_dir_for(
+    resolved = resolve_artifact_surface(
         repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX
     )
-    if coord_feature_dir is None:
+    if resolved.surface_kind is not TopologySurface.COORD:
         return None
 
     try:
         worktree_root = Path(
             run_git(
-                ["rev-parse", "--show-toplevel"], cwd=coord_feature_dir, check=True
+                ["rev-parse", "--show-toplevel"], cwd=resolved.path, check=True
             ).stdout.strip()
         )
     except TaskCliError:

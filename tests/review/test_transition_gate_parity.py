@@ -124,7 +124,6 @@ def _actual_tuple(aggregate: AggregateVerdict, verdict: GateVerdict, *, block_en
         block_enabled=block_enabled,
         blocked=blocked,
         force_bypassed=force_bypassed,
-        new_checkout_paths=(),
     )
     if terminal:
         metadata["transition_applied"] = False

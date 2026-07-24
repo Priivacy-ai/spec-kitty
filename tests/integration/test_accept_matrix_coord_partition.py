@@ -406,11 +406,13 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
     """Simulates a partition-classifier defect and shows the seam's guard is real.
 
     Post-#2650 (WP05) ``_group_files_by_partition`` decides membership via
-    ``is_coordination_artifact_residue_path`` — the retired ``kind_for_mission_file``
-    per-file classifier no longer drives the split (patching it is a no-op now).
-    To keep this falsifiability check valid against the CURRENT classifier, monkeypatch
-    the residue predicate to always return ``False`` — collapsing EVERY file (including
-    the COORD-residue ``acceptance-matrix.json``) into the PRIMARY bucket. Committing the
+    ``is_coord_residue_churn`` (WP12 retired the former ``mission_runtime``
+    ``is_coordination_artifact_residue_path`` predicate onto this owner leg) —
+    the retired ``kind_for_mission_file`` per-file classifier no longer drives
+    the split (patching it is a no-op now). To keep this falsifiability check
+    valid against the CURRENT classifier, monkeypatch the residue predicate to
+    always return ``False`` — collapsing EVERY file (including the
+    COORD-residue ``acceptance-matrix.json``) into the PRIMARY bucket. Committing the
     matrix with the SPEC-commit's nominal ``kind=SPEC`` under this patched router must then
     land it on the PRIMARY target branch instead of coord — proving that
     ``test_matrix_lands_on_coord_via_all_three_write_paths_no_stale_copy``'s
@@ -420,7 +422,7 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
     slug = result.mission_slug
 
     monkeypatch.setattr(
-        commit_router_mod, "is_coordination_artifact_residue_path", lambda *_a, **_kw: False
+        commit_router_mod, "is_coord_residue_churn", lambda *_a, **_kw: False
     )
 
     matrix_path = write_acceptance_matrix(

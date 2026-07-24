@@ -33,13 +33,13 @@ from typing import Final, Literal, Protocol, runtime_checkable
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
     kind_for_mission_file,
     resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.git import safe_commit
 
 
@@ -83,8 +83,8 @@ _STATUS_COMMITTED: Final = "committed"
 _STATUS_UNCHANGED: Final = "unchanged"
 
 # FR-003 (coord-commit-integrity): the re-homed PRIMARY analysis-report basename.
-# Named once so the coord-staging skip (mirroring COORD_OWNED_STATUS_FILES) does
-# not restate the raw literal.
+# Named once so the coord-staging skip (mirroring the STATUS_STATE-kind skip,
+# WP13-retired ``COORD_OWNED_STATUS_FILES``) does not restate the raw literal.
 _ANALYSIS_REPORT_FILENAME: Final = "analysis-report.md"
 _STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
 _STATUS_ERROR: Final = "error"
@@ -335,11 +335,13 @@ def _commit_partition_group(
     # so it now advances ``target_branch`` to a STATUS/bookkeeping-only coord HEAD
     # (write-surface-coherence WP05 / FR-005): planning no longer transits coord,
     # so the coord HEAD never mixes planning+status. The
-    # ``coord_owned_filenames=COORD_OWNED_STATUS_FILES`` exclusion in
-    # ``_try_advance_ref`` still matches exactly what a status-only coord write
-    # produces — no behaviour change for status writes; the planning case is gone.
+    # ``is_residue=is_toolchain_generated_churn`` exclusion in
+    # ``_try_advance_ref`` (WP13 retired the former ``coord_owned_filenames``
+    # param onto the single canonical churn owner) still matches exactly what a
+    # status-only coord write produces — no behaviour change for status writes;
+    # the planning case is gone.
     if use_coord and target_branch:
-        _try_advance_ref(repo_root, target_branch, worktree_root)
+        _try_advance_ref(repo_root, target_branch, worktree_root, mission_slug=mission_slug)
 
     return CommitRouterResult(
         status=_STATUS_COMMITTED,
@@ -361,7 +363,7 @@ def _commit_partition_group(
 #  matter: ``resolve_placement_only`` resolves the IDENTICAL ref for any kind
 #  sharing a partition (see the module docstring below). A COORD bucket never
 #  needs this fallback in practice — every coord-residue path already carries
-#  a recognised kind by construction (``is_coordination_artifact_residue_path``
+#  a recognised kind by construction (``is_coord_residue_churn``
 #  requires a non-``None`` classification to return True) — but a fallback is
 #  still supplied defensively so the helper never raises on a malformed input.
 _FALLBACK_PRIMARY_KIND: Final = MissionArtifactKind.SPEC
@@ -390,7 +392,7 @@ def _representative_kind_for_bucket(
     classifier and their partitions are disjoint and exhaustive — but is
     cheap to guard) could otherwise mislabel the bucket's ref-resolution kind
     without ever touching MEMBERSHIP (that is decided exclusively by
-    :func:`~mission_runtime.is_coordination_artifact_residue_path` in
+    :func:`~specify_cli.coordination.coherence.is_coord_residue_churn` in
     :func:`_group_files_by_partition`, never by this helper).
     """
     for file in files:
@@ -413,7 +415,7 @@ def _group_files_by_partition(
     decided by the SAME absolute authority the read-side (``implement_cores.
     py::resolve_precondition_ref``) and write-side cli
     (``implement.py::_partition_files_for_commit``) sites already use —
-    :func:`~mission_runtime.is_coordination_artifact_residue_path` — instead
+    :func:`~specify_cli.coordination.coherence.is_coord_residue_churn` — instead
     of the divergent ``kind_for_mission_file(file) or kind`` classifier this
     helper used before. A ``None`` classification (``meta.json``, an
     unrecognised path) is NOT coord-residue, so it now routes PRIMARY
@@ -465,7 +467,7 @@ def _group_files_by_partition(
     primary_files: list[Path] = []
     coord_files: list[Path] = []
     for file in files:
-        if is_coordination_artifact_residue_path(file, mission_slug=mission_slug):
+        if is_coord_residue_churn(file, mission_slug=mission_slug):
             coord_files.append(file)
         else:
             primary_files.append(file)
@@ -682,25 +684,35 @@ def _stage_artifacts_in_coord_worktree(
     ``mission.py::_stage_finalize_artifacts_in_coord_worktree`` near-duplicate into
     this one function; the old name survives only as a backward-compat alias at the
     bottom of this module). Behaviour:
-    - Skipping ``COORD_OWNED_STATUS_FILES`` — STATUS-partition files authored
-      directly in the coord worktree, never copied from a stale primary (#1589).
+    - Skipping ``MissionArtifactKind.STATUS_STATE`` files (WP13 retired the former
+      ``COORD_OWNED_STATUS_FILES`` frozenset onto this single-source kind check) —
+      STATUS-partition files authored directly in the coord worktree, never copied
+      from a stale primary (#1589).
     - Skipping the re-homed ``analysis-report.md`` (FR-003) — see the loop body.
     - Skipping worktrees-nested paths (#FR-035).
     - Residue cleanup for ``primary_paths_created_this_invocation`` (R6 / #1814).
     """
     from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
-    from specify_cli.status import COORD_OWNED_STATUS_FILES
 
     coord_files: list[Path] = []
     staged_sources: list[tuple[Path, Path]] = []
 
     for src in files:
-        if src.name in COORD_OWNED_STATUS_FILES:
+        rel = src.relative_to(repo_root)
+        # WP13 (IC-07c): single-source through the canonical file→kind classifier
+        # instead of a locally-duplicated ``{"status.events.jsonl", "status.json"}``
+        # literal. Narrow ON PURPOSE (STATUS_STATE only, not the full
+        # ``is_coord_residue_churn`` union): ``acceptance-matrix.json`` /
+        # ``issue-matrix.md`` (``ACCEPTANCE_MATRIX`` / ``ISSUE_MATRIX``) STAY COORD
+        # and must continue to be staged below — only the status log/snapshot are
+        # authored directly in the coord worktree and must never be copied from a
+        # stale primary.
+        if kind_for_mission_file(rel) is MissionArtifactKind.STATUS_STATE:
             continue
         # FR-003 (coord-commit-integrity): ``analysis-report.md`` was re-homed
         # COORD→PRIMARY — it lands on the primary ``target_branch`` and is NEVER
         # a second copy on the coordination worktree. Skip its copy2 staging path
-        # (mirroring the COORD_OWNED_STATUS_FILES skip above) so a coord commit that
+        # (mirroring the STATUS_STATE skip above) so a coord commit that
         # happens to sweep it makes no coord residue. ``acceptance-matrix.json`` /
         # ``issue-matrix.md`` STAY COORD and continue to be staged below.
         #
@@ -719,7 +731,6 @@ def _stage_artifacts_in_coord_worktree(
         # the narrow, behaviour-correct analysis-report skip.
         if src.name == _ANALYSIS_REPORT_FILENAME:
             continue
-        rel = src.relative_to(repo_root)
         if is_under_worktrees_segment(rel):
             try:
                 coord_rel = src.resolve().relative_to(coord_worktree.resolve())
@@ -911,18 +922,24 @@ def _try_advance_ref(
     repo_root: Path,
     primary_branch: str,
     coord_worktree: Path,
+    *,
+    mission_slug: str | None = None,
 ) -> None:
     """Best-effort fast-forward of *primary_branch* to the coord HEAD (#1878).
 
     ``advance_branch_ref`` advances the ref to a *SHA* (it does not accept a
     worktree path), so resolve the coordination worktree's HEAD here first.
-    Coordination status residue on the primary checkout is legitimate after a
-    coord-branch write, so exclude it from the dirty gate
-    (#1878 / FR-012) — mirrors the merge-pipeline call sites.
+    Toolchain-generated churn (coordination status residue, spec-kitty's own
+    bookkeeping) on the primary checkout is legitimate after a coord-branch
+    write, so exclude it from the dirty gate via the single canonical churn
+    owner (#1878 / #2795 / FR-012 / WP13-IC-07c) — mirrors the merge-pipeline
+    call sites.
     """
     try:
+        import functools
+
+        from specify_cli.coordination.coherence import is_toolchain_generated_churn
         from specify_cli.git.ref_advance import advance_branch_ref
-        from specify_cli.status import COORD_OWNED_STATUS_FILES
 
         head = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -936,7 +953,7 @@ def _try_advance_ref(
             repo_root,
             primary_branch,
             head,
-            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+            is_residue=functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug),
         )
     except Exception:  # noqa: BLE001  # best-effort only
         logger.debug(

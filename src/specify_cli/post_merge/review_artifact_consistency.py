@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 import re
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
 from specify_cli.status import materialize
 from specify_cli.status import ReviewOverride
@@ -54,39 +55,58 @@ class ReviewArtifactSchemaFinding:
 ReviewArtifactFinding = RejectedReviewArtifactFinding | ReviewArtifactSchemaFinding
 
 
-def _resolve_review_cycle_read_dir(feature_dir: Path) -> Path:
-    """Resolve the PRIMARY mission dir the merge gate reads review-cycle artifacts from.
+def _resolve_partition_read_dir(feature_dir: Path, kind: MissionArtifactKind) -> Path:
+    """Resolve the mission dir that OWNS ``kind`` for ``feature_dir``'s mission.
 
-    FR-001 (coord-commit-integrity, #2646/#2275): ``review-cycle-N.md`` is a
-    ``WORK_PACKAGE_TASK`` artifact — a PRIMARY-partition kind — so it lands under
-    ``tasks/<wp>/`` on the primary ``target_branch``, NOT the coordination husk. The
-    real-merge caller (``merge/executor.py``) hands this gate the coord STATUS husk
-    ``feature_dir`` (correct for the ``materialize`` status read, which stays on that
-    surface), but the review-cycle files no longer live there. This resolves the
-    PRIMARY home for the artifact read so the gate reads WHERE THE WRITE NOW LANDS —
-    converging the real-merge gate with the dry-run forecast + review lane gates,
-    which already resolve PRIMARY (``resolve_planning_read_dir`` / the primary walk).
+    FR-006 / gate-execution-context C1 (#2885): the review-artifact gate needs two
+    facts that live in two different partitions — a WP's **lane state**
+    (``STATUS_STATE``, coordination-branch-owned for a coord-topology mission) and
+    its **review-cycle artifacts** (``WORK_PACKAGE_TASK``, PRIMARY-partition for
+    every topology). Each MUST resolve from its own declared home; a single
+    caller-supplied directory is correct for at most one of the two. Routed through
+    the ONE affirmative surface→filesystem seam (lifecycle-gate-execution-context
+    WP02): a PRIMARY-partition kind resolves the primary mission dir for every
+    topology, a COORD-partition kind resolves the coordination husk when its
+    worktree is materialised.
 
-    Idempotent for a caller that already passes the PRIMARY dir (forecast /
-    lane-gate) and for coord-less topologies (``feature_dir`` IS primary). Degrades
-    to ``feature_dir`` unchanged when the repo root cannot be derived (a bare
-    non-git test fixture), preserving pre-existing behaviour.
+    ``feature_dir.name`` is the mission slug for every caller — the primary
+    ``kitty-specs/<slug>`` and the coord husk ``…-coord/kitty-specs/<slug>`` both
+    end in ``<slug>`` — so the resolved partition is IDENTICAL no matter which
+    surface the caller passed. That is precisely why the dry-run preview (handed a
+    primary dir) and the real consolidation (handed the coord husk) now AGREE
+    (SC-002): each re-resolves both partitions from the mission identity rather than
+    trusting the dir it was handed.
+
+    When no workspace root can be derived (a bare non-git test fixture with no
+    coordination worktree), the mission directory IS its own sole partition and is
+    returned unchanged. This is the flat self-home answer, NOT the coord degradation
+    that produced #2885 — that defect was reading LANE STATE off a caller dir that
+    pointed at the PRIMARY partition (empty status log → every WP stateless → gate
+    passed a rejected review by default); resolving lane state from its own
+    ``STATUS_STATE`` home is what removes it. ``resolve_artifact_surface`` is typed
+    but widened to ``Any`` across the ``follow_imports=skip`` boundary on
+    ``specify_cli.*``; bind the ``.path`` result explicitly so the declared ``Path``
+    narrows back.
     """
-    from mission_runtime import MissionArtifactKind
+    from mission_runtime import resolve_artifact_surface
     from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
     try:
         repo_root = resolve_canonical_root(feature_dir)
     except WorkspaceRootNotFound:
         return feature_dir
-    # ``resolve_planning_read_dir`` is typed ``-> Path`` but mypy widens it to
-    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
-    # bind explicitly so the declared ``Path`` return narrows back.
-    primary_dir: Path = resolve_planning_read_dir(
-        repo_root, feature_dir.name, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-    )
-    return primary_dir
+    resolved: Path = resolve_artifact_surface(repo_root, feature_dir.name, kind).path
+    return resolved
+
+
+def _resolve_lane_state_read_dir(feature_dir: Path) -> Path:
+    """Resolve the ``STATUS_STATE`` home (coord husk for a materialised coord mission)."""
+    return _resolve_partition_read_dir(feature_dir, MissionArtifactKind.STATUS_STATE)
+
+
+def _resolve_review_cycle_read_dir(feature_dir: Path) -> Path:
+    """Resolve the ``WORK_PACKAGE_TASK`` home (PRIMARY mission dir for every topology)."""
+    return _resolve_partition_read_dir(feature_dir, MissionArtifactKind.WORK_PACKAGE_TASK)
 
 
 def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
@@ -164,16 +184,23 @@ def find_rejected_review_artifact_conflicts(
     feature_dir: Path,
     wp_ids: list[str] | None = None,
 ) -> list[ReviewArtifactFinding]:
-    """Return review artifact findings that block merge readiness."""
-    snapshot = materialize(feature_dir)
+    """Return review artifact findings that block merge readiness.
+
+    Two facts, two partitions (FR-006 / #2885). Neither is trusted from the single
+    ``feature_dir`` the caller happened to pass — that trust WAS #2885: the dry-run
+    preview handed a PRIMARY dir, so ``materialize`` read an empty status log (a
+    coord mission keeps its authoritative log on the coordination husk), every WP
+    looked stateless, and the gate passed a rejected review by default while the
+    real consolidation — handed the coord husk — refused. The **lane snapshot** now
+    resolves from its ``STATUS_STATE`` home and the **review-cycle artifacts** from
+    their ``WORK_PACKAGE_TASK`` home, so both callers resolve the same two surfaces
+    and AGREE (SC-002).
+    """
+    lane_state_dir = _resolve_lane_state_read_dir(feature_dir)
+    review_cycle_dir = _resolve_review_cycle_read_dir(feature_dir)
+    snapshot = materialize(lane_state_dir)
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
     findings: list[ReviewArtifactFinding] = []
-
-    # FR-001: the status snapshot above stays on the caller-supplied ``feature_dir``
-    # (the COORD status surface for a coord mission), but review-cycle artifacts are
-    # PRIMARY-partition — resolve their read home to PRIMARY so the gate reads where
-    # the write now lands (#2646/#2275).
-    review_cycle_dir = _resolve_review_cycle_read_dir(feature_dir)
 
     for wp_id in selected_wp_ids:
         state = snapshot.work_packages.get(wp_id)

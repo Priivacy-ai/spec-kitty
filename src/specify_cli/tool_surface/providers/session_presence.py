@@ -3,16 +3,16 @@
 Wraps :mod:`specify_cli.session_presence.writers.registry` as a reporting-layer
 :class:`~specify_cli.tool_surface.providers.protocol.ReportingSurfaceProvider`.
 
-``session_presence`` is a *provider name*, not a :class:`SurfaceKind`. The
+``session_presence`` is a *provider name*, not a :class:`ToolSurfaceKind`. The
 provider expands a tool's session-presence writer into one
 :class:`SurfaceInstance` per managed artefact, tagging each with the distinct
-:class:`SurfaceKind` it represents:
+:class:`ToolSurfaceKind` it represents:
 
-* :data:`SurfaceKind.CONTEXT_FILE` -- always-on orientation files
+* :data:`ToolSurfaceKind.CONTEXT_FILE` -- always-on orientation files
   (``.claude/CLAUDE.md``, ``AGENTS.md``, ``GEMINI.md``, copilot instructions).
-* :data:`SurfaceKind.RULE` -- path/glob-activated rules and steering files
+* :data:`ToolSurfaceKind.RULE` -- path/glob-activated rules and steering files
   (``.cursor/rules/spec-kitty.mdc``, ``.kiro/steering/spec-kitty.md``).
-* :data:`SurfaceKind.HOOK` -- tool lifecycle event handlers
+* :data:`ToolSurfaceKind.HOOK` -- tool lifecycle event handlers
   (``.claude/settings.json`` ``SessionStart`` / ``Stop`` entries).
 
 The provider never reimplements writer logic: ``expand`` asks the writer which
@@ -50,7 +50,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     CONTEXT_FILE_MISSING,
@@ -80,9 +80,9 @@ _RESEARCH_GAP_SENTINEL = "<unsupported>"
 # a provider name and is deliberately absent from this set.
 _SESSION_PRESENCE_KINDS = frozenset(
     {
-        SurfaceKind.CONTEXT_FILE,
-        SurfaceKind.HOOK,
-        SurfaceKind.RULE,
+        ToolSurfaceKind.CONTEXT_FILE,
+        ToolSurfaceKind.HOOK,
+        ToolSurfaceKind.RULE,
     }
 )
 
@@ -92,16 +92,16 @@ _SESSION_PRESENCE_KINDS = frozenset(
 _RULE_PATH_MARKERS = ("/rules/", "/steering/", ".mdc")
 
 
-def _definition_for(kind: SurfaceKind) -> SurfaceDefinition:
+def _definition_for(kind: ToolSurfaceKind) -> SurfaceDefinition:
     """Return the session-presence :class:`SurfaceDefinition` for ``kind``."""
     activation = (
         ActivationMode.EVENT
-        if kind == SurfaceKind.HOOK
+        if kind == ToolSurfaceKind.HOOK
         else ActivationMode.GLOB
-        if kind == SurfaceKind.RULE
+        if kind == ToolSurfaceKind.RULE
         else ActivationMode.ALWAYS
     )
-    repair_hint = _HOOK_REPAIR_HINT if kind == SurfaceKind.HOOK else _REPAIR_HINT
+    repair_hint = _HOOK_REPAIR_HINT if kind == ToolSurfaceKind.HOOK else _REPAIR_HINT
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
@@ -116,25 +116,25 @@ def _definition_for(kind: SurfaceKind) -> SurfaceDefinition:
 
 def context_file_definition() -> SurfaceDefinition:
     """Return the built-in ``context_file`` :class:`SurfaceDefinition`."""
-    return _definition_for(SurfaceKind.CONTEXT_FILE)
+    return _definition_for(ToolSurfaceKind.CONTEXT_FILE)
 
 
 def hook_definition() -> SurfaceDefinition:
     """Return the built-in ``hook`` :class:`SurfaceDefinition`."""
-    return _definition_for(SurfaceKind.HOOK)
+    return _definition_for(ToolSurfaceKind.HOOK)
 
 
 def rule_definition() -> SurfaceDefinition:
     """Return the built-in ``rule`` :class:`SurfaceDefinition`."""
-    return _definition_for(SurfaceKind.RULE)
+    return _definition_for(ToolSurfaceKind.RULE)
 
 
-def _markdown_kind(rules_path: str) -> SurfaceKind:
+def _markdown_kind(rules_path: str) -> ToolSurfaceKind:
     """Classify a MarkdownRulesWriter target as ``RULE`` or ``CONTEXT_FILE``."""
     lowered = rules_path.lower()
     if any(marker in lowered for marker in _RULE_PATH_MARKERS):
-        return SurfaceKind.RULE
-    return SurfaceKind.CONTEXT_FILE
+        return ToolSurfaceKind.RULE
+    return ToolSurfaceKind.CONTEXT_FILE
 
 
 class SessionPresenceProvider:
@@ -143,7 +143,7 @@ class SessionPresenceProvider:
     provider_key = PROVIDER_KEY
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        # ``session_presence`` is a PROVIDER NAME, not a SurfaceKind. This
+        # ``session_presence`` is a PROVIDER NAME, not a ToolSurfaceKind. This
         # provider handles the context_file, hook, and rule kinds it expands to.
         return definition.kind in _SESSION_PRESENCE_KINDS
 
@@ -220,15 +220,15 @@ class SessionPresenceProvider:
     @staticmethod
     def _missing_status(instance: SurfaceInstance) -> SurfaceStatus:
         kind = instance.definition.kind
-        if kind == SurfaceKind.CONTEXT_FILE:
+        if kind == ToolSurfaceKind.CONTEXT_FILE:
             code = CONTEXT_FILE_MISSING
             message = f"Always-on context file missing for {instance.owner}: {instance.path}"
             hint = _REPAIR_HINT
         else:
             code = SESSION_PRESENCE_INCOMPLETE
-            label = "hook entry" if kind == SurfaceKind.HOOK else "rule file"
+            label = "hook entry" if kind == ToolSurfaceKind.HOOK else "rule file"
             message = f"Session-presence {label} missing for {instance.owner}: {instance.path}"
-            hint = _HOOK_REPAIR_HINT if kind == SurfaceKind.HOOK else _REPAIR_HINT
+            hint = _HOOK_REPAIR_HINT if kind == ToolSurfaceKind.HOOK else _REPAIR_HINT
         return SurfaceStatus(
             instance=instance,
             state=STATE_MISSING,
@@ -314,7 +314,7 @@ class SessionPresenceProvider:
 
 def _managed_surfaces(
     writer: object, project_root: Path
-) -> list[tuple[Path, SurfaceKind]]:
+) -> list[tuple[Path, ToolSurfaceKind]]:
     """Return the ``(absolute_path, kind)`` artefacts ``writer`` manages.
 
     Knowledge of which writer manages which artefacts lives here rather than in
@@ -323,14 +323,14 @@ def _managed_surfaces(
     Markdown-family writers manage a single context-or-rule file classified by
     its target path.
     """
-    surfaces: list[tuple[Path, SurfaceKind]] = []
+    surfaces: list[tuple[Path, ToolSurfaceKind]] = []
     if isinstance(writer, ClaudeCodeWriter):
         surfaces.append(
-            (project_root / writer.rules_path, SurfaceKind.CONTEXT_FILE)
+            (project_root / writer.rules_path, ToolSurfaceKind.CONTEXT_FILE)
         )
         settings = project_root / ".claude" / "settings.json"
-        surfaces.append((settings, SurfaceKind.HOOK))
-        surfaces.append((settings, SurfaceKind.HOOK))
+        surfaces.append((settings, ToolSurfaceKind.HOOK))
+        surfaces.append((settings, ToolSurfaceKind.HOOK))
         return surfaces
     if isinstance(writer, MarkdownRulesWriter):
         surfaces.append(
@@ -348,7 +348,7 @@ def _instance_present(instance: SurfaceInstance) -> bool:
     """
     writer = get_writer(instance.owner)
     kind = instance.definition.kind
-    if kind == SurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
+    if kind == ToolSurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
         root = _project_root_from(instance.path, Path(".claude/settings.json"))
         return root is not None and _claude_hooks_present(root)
     if isinstance(writer, MarkdownRulesWriter):
@@ -368,7 +368,7 @@ def _project_root_from(path: Path, rel: Path) -> Path | None:
 def _artefact_present(
     writer: object,
     path: Path,
-    kind: SurfaceKind,
+    kind: ToolSurfaceKind,
     project_root: Path,
 ) -> bool:
     """Return whether the specific artefact at ``path`` is currently installed.
@@ -379,7 +379,7 @@ def _artefact_present(
     ``--kind context_file`` probe must report the file's own state regardless of
     whether the sibling hooks happen to be present.
     """
-    if kind == SurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
+    if kind == ToolSurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
         return _claude_hooks_present(project_root)
     if isinstance(writer, MarkdownRulesWriter):
         return _orientation_section_present(project_root / writer.rules_path)
@@ -462,10 +462,10 @@ SurfaceProviderRegistry.register(
             rule_definition(),
         ),
         kind_tokens={
-            "context-file": SurfaceKind.CONTEXT_FILE,
-            "context_file": SurfaceKind.CONTEXT_FILE,
-            "hook": SurfaceKind.HOOK,
-            "rule": SurfaceKind.RULE,
+            "context-file": ToolSurfaceKind.CONTEXT_FILE,
+            "context_file": ToolSurfaceKind.CONTEXT_FILE,
+            "hook": ToolSurfaceKind.HOOK,
+            "rule": ToolSurfaceKind.RULE,
         },
         order=20,
     )

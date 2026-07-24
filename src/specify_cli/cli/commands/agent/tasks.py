@@ -473,6 +473,11 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_dispatch_transition_gates as _mt_dispatch_transition_gates,
     _mt_emit_skipped_gate as _mt_emit_skipped_gate,
     _mt_emit_transition_gate_effect as _mt_emit_transition_gate_effect,
+    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
+    # dirty-path byproduct diff now enrols into the tool-artifact owner
+    # compensator — a native move-task seam def joining the surface like
+    # every other (the compat guard's superset invariant requires it).
+    _mt_enrol_gate_byproducts as _mt_enrol_gate_byproducts,
     _mt_fail_open_gate as _mt_fail_open_gate,
     _mt_gate_representative as _mt_gate_representative,
     _mt_resolve_active_gate_bindings as _mt_resolve_active_gate_bindings,

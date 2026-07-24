@@ -9,7 +9,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import (
     NativeAgentProfile,
@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _definition() -> SurfaceDefinition:
     return SurfaceDefinition(
-        kind=SurfaceKind.COMMAND_SKILL,
+        kind=ToolSurfaceKind.COMMAND_SKILL,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=".agents/skills/spec-kitty.{command}/SKILL.md",

@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .enums import ActivationMode, RequiredPolicy, SurfaceKind
+from .enums import ActivationMode, RequiredPolicy, ToolSurfaceKind
 from .findings import SurfaceFinding
 from .providers.protocol import ReportingSurfaceProvider
 from .status import (
@@ -78,7 +78,7 @@ class SurfaceRepairService:
         project_root: Path,
         statuses: Sequence[SurfaceStatus],
         *,
-        kinds: set[SurfaceKind] | None = None,
+        kinds: set[ToolSurfaceKind] | None = None,
         dry_run: bool = False,
     ) -> RepairResult:
         """Repair the supplied statuses, grouped by owning provider."""
@@ -97,7 +97,7 @@ class SurfaceRepairService:
     @staticmethod
     def _select(
         statuses: Sequence[SurfaceStatus],
-        kinds: set[SurfaceKind] | None,
+        kinds: set[ToolSurfaceKind] | None,
     ) -> list[SurfaceStatus]:
         if kinds is None:
             return list(statuses)
@@ -264,7 +264,7 @@ def _is_init_upgrade_auto_repairable(status: SurfaceStatus) -> bool:
     if definition.activation_mode == ActivationMode.DISABLED:
         return False
     return not (
-        definition.kind == SurfaceKind.AGENT_PROFILE
+        definition.kind == ToolSurfaceKind.AGENT_PROFILE
         and status.instance.owner in _AMAZON_Q_TOOL_KEYS
     )
 

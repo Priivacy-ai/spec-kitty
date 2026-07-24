@@ -52,7 +52,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     GENERATED_SURFACE_MISSING,
@@ -109,7 +109,7 @@ class _RepairProto(Protocol):
 def managed_skill_definition() -> SurfaceDefinition:
     """Return the built-in doctrine-skill :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.DOCTRINE_SKILL,
+        kind=ToolSurfaceKind.DOCTRINE_SKILL,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=_PATH_PATTERN,
@@ -150,7 +150,7 @@ class ManagedSkillsProvider:
         )
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind is SurfaceKind.DOCTRINE_SKILL
+        return definition.kind is ToolSurfaceKind.DOCTRINE_SKILL
 
     def expand(
         self,
@@ -409,7 +409,7 @@ def doctrine_skill_entries(
 
 def _managed_surface_id(tool_key: str, entry: ManagedFileEntry) -> str:
     safe_path = entry.source_file.replace("/", ".").replace("\\", ".")
-    return f"{tool_key}.{SurfaceKind.DOCTRINE_SKILL}.{entry.skill_name}.{safe_path}"
+    return f"{tool_key}.{ToolSurfaceKind.DOCTRINE_SKILL}.{entry.skill_name}.{safe_path}"
 
 
 def _manifest_owns(project_root: Path, instance: SurfaceInstance) -> bool:
@@ -436,7 +436,7 @@ SurfaceProviderRegistry.register(
     SurfaceRegistration(
         provider_class=ManagedSkillsProvider,
         definitions=(managed_skill_definition(),),
-        kind_tokens={"doctrine-skill": SurfaceKind.DOCTRINE_SKILL},
+        kind_tokens={"doctrine-skill": ToolSurfaceKind.DOCTRINE_SKILL},
         order=40,
     )
 )

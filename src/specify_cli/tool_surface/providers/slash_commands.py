@@ -21,7 +21,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     GENERATED_SURFACE_MISSING,
@@ -54,7 +54,7 @@ _RESEARCH_GAP_SENTINEL = "<unsupported>"
 def slash_command_definition() -> SurfaceDefinition:
     """Return the built-in slash-command :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.COMMAND_FILE,
+        kind=ToolSurfaceKind.COMMAND_FILE,
         source_kind=SourceKind.USER_GLOBAL,
         install_scope=InstallScope.USER_GLOBAL,
         path_pattern=_PATH_PATTERN,
@@ -71,7 +71,7 @@ class SlashCommandsProvider:
     provider_key = PROVIDER_KEY
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.COMMAND_FILE
+        return definition.kind == ToolSurfaceKind.COMMAND_FILE
 
     def expand(
         self,
@@ -279,7 +279,7 @@ SurfaceProviderRegistry.register(
     SurfaceRegistration(
         provider_class=SlashCommandsProvider,
         definitions=(slash_command_definition(),),
-        kind_tokens={"command-file": SurfaceKind.COMMAND_FILE},
+        kind_tokens={"command-file": ToolSurfaceKind.COMMAND_FILE},
         order=10,
     )
 )

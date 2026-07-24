@@ -74,14 +74,10 @@ class TestAcceptGateKittyOps:
         """
         # Porcelain v1 format: two status chars + space + path
         raw_lines = [f" M {p}" for p in dirty_paths]
-        feature_dir = tmp_path / "kitty-specs" / _FEATURE
         return _accept_dirty_gate(
             raw_lines,
             repo_root=tmp_path,
             feature=_FEATURE,
-            feature_dir=feature_dir,
-            read_feature_dir=feature_dir,
-            status_feature_dir=feature_dir,
         )
 
     def test_kitty_ops_orphan_does_not_block_accept_gate(
@@ -108,6 +104,82 @@ class TestAcceptGateKittyOps:
         result = self._call_accept_gate(tmp_path, [non_ulid])
         assert len(result) == 1, (
             f"Accept gate must block on non-ULID kitty-ops path; got {result!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Accept-owned-write scoping (WP17 IC-07g; review-cycle-1 BLOCKER 1 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestAcceptGateOwnWriteScoping:
+    """``_is_accept_pipeline_own_write`` must exempt ONLY its own two writes.
+
+    Red-first regression pin for review-cycle-1 BLOCKER 1: a predicate that
+    routes on the coarse ``STATUS_STATE`` kind (instead of the specific
+    ``status.json`` basename) incorrectly benigns ``status.events.jsonl`` too
+    — that kind also carries the append-only lane-state log
+    (``mission_runtime/artifacts.py``'s ``_MISSION_FILE_KIND_BY_BASENAME``).
+    The accept pipeline only READS ``status.events.jsonl``; it never appends to
+    it (the writer is ``status/store.py`` via ``move-task`` / ``mark-status``),
+    so a dirty one under a FLAT mission is genuine, uncommitted lane-state and
+    MUST still block (C6 / C-010). Reverting the ``_is_accept_pipeline_own_write``
+    fix to ``kind in (ACCEPTANCE_MATRIX, STATUS_STATE)`` reddens
+    ``test_status_events_jsonl_still_blocks_accept_gate_under_flat_topology``
+    below (verified red-then-green during implementation).
+    """
+
+    def _call_accept_gate(self, tmp_path: Path, dirty_paths: list[str]) -> list[str]:
+        """Same fixture shape as ``TestAcceptGateKittyOps`` (flat / SINGLE_BRANCH).
+
+        No ``meta.json`` under ``tmp_path`` → topology degrades to
+        ``SINGLE_BRANCH``, so the coordination-residue filter (arm 3) is a
+        no-op and only the accept-owned-write arm (arm 1) can exempt a path —
+        isolating exactly the behaviour BLOCKER 1 was about.
+        """
+        raw_lines = [f" M {p}" for p in dirty_paths]
+        return _accept_dirty_gate(
+            raw_lines,
+            repo_root=tmp_path,
+            feature=_FEATURE,
+        )
+
+    def test_status_events_jsonl_still_blocks_accept_gate_under_flat_topology(
+        self, tmp_path: Path
+    ) -> None:
+        """RED-FIRST: a dirty ``status.events.jsonl`` is NOT an accept own-write."""
+        path = f"kitty-specs/{_FEATURE}/status.events.jsonl"
+        result = self._call_accept_gate(tmp_path, [path])
+        assert len(result) == 1, (
+            f"Accept gate must still block a dirty status.events.jsonl under a "
+            f"flat mission (it is read-only for the accept pipeline, not an "
+            f"own-write); got {result!r}"
+        )
+
+    def test_status_json_is_still_accept_owned(self, tmp_path: Path) -> None:
+        """Counter-contract: the daemon-materialized ``status.json`` IS an own-write."""
+        path = f"kitty-specs/{_FEATURE}/status.json"
+        result = self._call_accept_gate(tmp_path, [path])
+        assert result == [], (
+            f"status.json is an accept-pipeline own-write and must stay benign; "
+            f"got {result!r}"
+        )
+
+    def test_acceptance_matrix_json_is_still_accept_owned(self, tmp_path: Path) -> None:
+        """Counter-contract: ``acceptance-matrix.json`` IS an own-write."""
+        path = f"kitty-specs/{_FEATURE}/acceptance-matrix.json"
+        result = self._call_accept_gate(tmp_path, [path])
+        assert result == [], (
+            f"acceptance-matrix.json is an accept-pipeline own-write and must "
+            f"stay benign; got {result!r}"
+        )
+
+    def test_unrelated_mission_status_json_still_blocks(self, tmp_path: Path) -> None:
+        """Counter-contract: another mission's status.json is NOT this pipeline's write."""
+        path = "kitty-specs/other-mission/status.json"
+        result = self._call_accept_gate(tmp_path, [path])
+        assert len(result) == 1, (
+            f"Another mission's status.json must still block; got {result!r}"
         )
 
 

@@ -14,6 +14,14 @@ Conflating the two sets is the failure mode this suite pins.
 
 Both arms drive the REAL preflight entry point (``_enforce_analysis_report_write_preflight``)
 on a real git repo with production-shaped fixtures (26-char ULID ``mission_id``).
+
+lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the standalone
+``mission_runtime.artifacts.is_self_bookkeeping_path`` mechanism this suite pinned is
+retired onto the canonical churn owner's self-bookkeeping leg
+(:func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`) — the pure-
+predicate arm below now asserts on that owner/classifier behaviour instead of the
+retired mechanism (T062); the real-preflight arm was already behaviour-level and is
+unchanged.
 """
 
 from __future__ import annotations
@@ -24,7 +32,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from mission_runtime.artifacts import is_self_bookkeeping_path
+from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 from specify_cli.cli.commands.agent.mission import (
     _enforce_analysis_report_write_preflight,
 )
@@ -84,19 +92,19 @@ def _seed_committed_mission(repo_root: Path) -> Path:
 
 class TestSelfBookkeepingPredicate:
     def test_meta_json_is_self_bookkeeping(self) -> None:
-        assert is_self_bookkeeping_path(f"kitty-specs/{_MISSION_SLUG}/meta.json")
+        assert is_self_bookkeeping_churn(f"kitty-specs/{_MISSION_SLUG}/meta.json")
 
     def test_provenance_jsonl_is_self_bookkeeping(self) -> None:
-        assert is_self_bookkeeping_path(".kittify/encoding-provenance/global.jsonl")
+        assert is_self_bookkeeping_churn(".kittify/encoding-provenance/global.jsonl")
 
     def test_primary_spec_is_not_self_bookkeeping(self) -> None:
         # G-5 invariant: a stale primary spec.md is planning dirt, NOT bookkeeping.
-        assert not is_self_bookkeeping_path(f"kitty-specs/{_MISSION_SLUG}/spec.md")
+        assert not is_self_bookkeeping_churn(f"kitty-specs/{_MISSION_SLUG}/spec.md")
 
     def test_unrelated_global_jsonl_is_not_over_allowlisted(self) -> None:
         # Suffix match is anchored on the provenance path, so a bare global.jsonl
         # elsewhere must NOT be over-allowlisted.
-        assert not is_self_bookkeeping_path("some/other/dir/global.jsonl")
+        assert not is_self_bookkeeping_churn("some/other/dir/global.jsonl")
 
     # ------------------------------------------------------------------
     # FR-001 / #2251 — kitty-ops Op-record arm
@@ -105,33 +113,33 @@ class TestSelfBookkeepingPredicate:
     def test_kitty_ops_ulid_jsonl_is_self_bookkeeping(self) -> None:
         """A ``kitty-ops/<26-char-ULID>.jsonl`` Op-record is bookkeeping (#2251)."""
         # Production-shaped: 26-char Crockford base32 ULID, no I/L/O/U.
-        assert is_self_bookkeeping_path("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl")
+        assert is_self_bookkeeping_churn("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl")
 
     def test_kitty_ops_ulid_jsonl_with_leading_prefix_is_self_bookkeeping(
         self,
     ) -> None:
         """Repo-relative prefix before ``kitty-ops/`` is handled (path component)."""
-        assert is_self_bookkeeping_path(
+        assert is_self_bookkeeping_churn(
             "some/prefix/kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl"
         )
 
     def test_kitty_ops_non_ulid_basename_is_not_self_bookkeeping(self) -> None:
         """G-5: ``kitty-ops/notes.txt`` (non-ULID) is NOT self-bookkeeping."""
-        assert not is_self_bookkeeping_path("kitty-ops/notes.txt")
+        assert not is_self_bookkeeping_churn("kitty-ops/notes.txt")
 
     def test_kitty_ops_ops_index_is_not_self_bookkeeping(self) -> None:
         """G-5: ``kitty-ops/ops-index.jsonl`` is NOT a ULID Op-record — must block."""
-        assert not is_self_bookkeeping_path("kitty-ops/ops-index.jsonl")
+        assert not is_self_bookkeeping_churn("kitty-ops/ops-index.jsonl")
 
     def test_kitty_ops_short_ulid_is_not_self_bookkeeping(self) -> None:
         """G-5: a filename shorter than 26 chars + .jsonl is NOT matched."""
         # 8-char mid8 only — too short.
-        assert not is_self_bookkeeping_path("kitty-ops/01KWD0V5.jsonl")
+        assert not is_self_bookkeeping_churn("kitty-ops/01KWD0V5.jsonl")
 
     def test_kitty_ops_long_ulid_is_not_self_bookkeeping(self) -> None:
         """G-5: a filename longer than 26 chars + .jsonl is NOT matched."""
         # 27 chars.
-        assert not is_self_bookkeeping_path("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTVX.jsonl")
+        assert not is_self_bookkeeping_churn("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTVX.jsonl")
 
 
 # ---------------------------------------------------------------------------

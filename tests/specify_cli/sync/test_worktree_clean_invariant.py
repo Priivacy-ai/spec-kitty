@@ -62,11 +62,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from mission_runtime.artifacts import (
-    _SELF_BOOKKEEPING_FILENAMES,
-    _SELF_BOOKKEEPING_SUFFIXES,
-    is_self_bookkeeping_path,
-)
+from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 from specify_cli.identity.project import load_identity
 from specify_cli.sync.events import emit_wp_status_changed, reset_emitter
 
@@ -661,24 +657,29 @@ def test_record_analysis_allowlist_excludes_config_yaml() -> None:
     """T018 / C-001: the self-bookkeeping allowlist must NOT contain config.yaml.
 
     The fix REMOVED the read-path write; it did NOT allowlist ``config.yaml`` to
-    paper over a residual write. We introspect the allowlist constants directly:
-    ``config.yaml`` must be absent from both the filename set and the suffix
-    tuple, and the public predicate must reject it.
+    paper over a residual write. ``config.yaml`` must be rejected by the public
+    owner predicate.
+
+    lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the retired
+    ``mission_runtime.artifacts._SELF_BOOKKEEPING_FILENAMES`` /
+    ``_SELF_BOOKKEEPING_SUFFIXES`` module-level literals this test used to
+    introspect directly no longer exist anywhere in ``src/`` (C5) — the
+    equivalent literals are now function-local inside
+    :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`
+    precisely so the R-014 exemption-registry scan does not treat them as a NEW
+    per-gate filename collection (C9). This test therefore asserts on the
+    owner/classifier BEHAVIOUR instead of the retired mechanism's internals
+    (T062).
     """
-    assert "config.yaml" not in _SELF_BOOKKEEPING_FILENAMES, (
-        "config.yaml leaked into the record-analysis self-bookkeeping filename "
-        "allowlist — C-001 forbids allowlisting it; the write must be removed, "
-        "not masked"
+    assert not is_self_bookkeeping_churn(f"kitty-specs/{_MISSION_SLUG}/.kittify/config.yaml"), (
+        "config.yaml must NOT be classified as self-bookkeeping churn — C-001 "
+        "forbids allowlisting it; the write must be removed, not masked"
     )
-    assert not any("config.yaml" in suffix for suffix in _SELF_BOOKKEEPING_SUFFIXES), (
-        "config.yaml leaked into the self-bookkeeping suffix allowlist (C-001)"
-    )
-    assert not is_self_bookkeeping_path(f"kitty-specs/{_MISSION_SLUG}/.kittify/config.yaml")
-    assert not is_self_bookkeeping_path(".kittify/config.yaml")
+    assert not is_self_bookkeeping_churn(".kittify/config.yaml")
     # Sanity: the predicate DOES still recognize the genuine bookkeeping files, so
     # the negative assertions above are not vacuously true on a broken predicate.
-    assert is_self_bookkeeping_path("kitty-specs/x/meta.json")
-    assert is_self_bookkeeping_path(".kittify/encoding-provenance/global.jsonl")
+    assert is_self_bookkeeping_churn("kitty-specs/x/meta.json")
+    assert is_self_bookkeeping_churn(".kittify/encoding-provenance/global.jsonl")
 
 
 def test_read_command_does_not_invoke_doctor_autofix(

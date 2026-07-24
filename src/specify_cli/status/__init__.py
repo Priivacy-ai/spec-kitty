@@ -235,12 +235,14 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
 
     return str(_uninitialized_status_error(mission_slug, wp_id, feature_dir))
 
-# The canonical status artifacts (event log + snapshot). On coordination-topology
-# missions these are owned by the transactional status emitter on the coordination
-# branch; the primary checkout's copies are stale and must not clobber the seed
-# during finalize/implement (#1589). Single source for both commit paths
-# (finalize in agent/mission.py and implement.py) — review M7.
-COORD_OWNED_STATUS_FILES = frozenset({EVENTS_FILENAME, SNAPSHOT_FILENAME})
+# WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES`` -- the canonical status
+# artifacts (event log + snapshot) frozenset -- onto the single canonical churn
+# owner (``coordination.coherence.is_toolchain_generated_churn`` /
+# ``mission_runtime.MissionArtifactKind.STATUS_STATE``, FR-012). Consumers that
+# used to import this frozenset now classify by kind/path through that owner
+# instead of a locally-duplicated basename set. ``EVENTS_FILENAME`` /
+# ``SNAPSHOT_FILENAME`` remain -- only the derived exemption frozenset (and its
+# 8 consumer call sites) was retired.
 
 __all__ = [
     "ActiveWPStatus",
@@ -268,7 +270,6 @@ __all__ = [
     "read_event_stream",
     "read_event_stream_from_text",
     "read_authored_wp_frontmatter",
-    "COORD_OWNED_STATUS_FILES",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
     "FeatureStatusLockTimeoutError",

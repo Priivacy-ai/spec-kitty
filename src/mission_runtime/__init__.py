@@ -43,21 +43,25 @@ from mission_runtime.context import (
 from mission_runtime.artifacts import (
     MissionArtifactHome,
     MissionArtifactKind,
+    TopologySurface,
     artifact_home_for,
-    is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
-    is_self_bookkeeping_path,
     kind_for_mission_file,
+    kind_is_coordination_residue,
 )
 from mission_runtime.resolution import (
     ActionContextError,
     PlacementSeam,
+    ResolvedSurface,
+    SurfaceLocations,
     coord_read_dir_for,
     mission_context_for,
     placement_seam,
     resolve_action_context,
+    resolve_artifact_surface,
     resolve_placement_only,
     resolve_topology,
+    translate_surface,
 )
 from mission_runtime.mission_resolver_port import MissionResolver
 
@@ -76,21 +80,25 @@ __all__ = [
     "MissionResolver",
     "MissionTopology",
     "PlacementSeam",
+    "ResolvedSurface",
     "StatusSurfaceFragment",
+    "SurfaceLocations",
+    "TopologySurface",
     "WorkspaceFragment",
     "artifact_home_for",
     "classify_topology",
     "coord_read_dir_for",
-    "is_coordination_artifact_residue_path",
     "is_primary_artifact_kind",
-    "is_self_bookkeeping_path",
     "kind_for_mission_file",
+    "kind_is_coordination_residue",
     "mission_context_for",
     "placement_seam",
     "resolve_action_context",
+    "resolve_artifact_surface",
     "resolve_placement_only",
     "resolve_topology",
     "routes_through_coordination",
+    "translate_surface",
 ]
 
 _COMPAT_ATTRS = frozenset(

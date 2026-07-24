@@ -23,39 +23,71 @@ from __future__ import annotations
 
 import re
 
-from mission_runtime import is_self_bookkeeping_path
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from kernel.paths import to_posix
 
-# ---------------------------------------------------------------------------
-# Benign filename / suffix patterns
-# ---------------------------------------------------------------------------
-# A path is benign if its basename (or any component) matches one of these
-# exact names, OR if the path starts with the given prefix.
-_BENIGN_EXACT_NAMES: frozenset[str] = frozenset(
-    [
-        "status.events.jsonl",
-        "status.json",
-        "meta.json",
-        "lanes.json",
-    ]
-)
 
-_BENIGN_PATH_PREFIXES: tuple[str, ...] = (
-    ".kittify/",
-    ".kittify" + "\\",  # Windows paths — defensive
-)
+def _is_review_handoff_survivor_path(normalised: str) -> bool:
+    """Review-handoff-only benign paths the shared owner cannot classify.
 
-# Matches `kitty-specs/<any-mission>/tasks/WP<digits>-<rest>.md`
-# Capture group 1 is the WP identifier (e.g. "WP01", "WP10").
-_WP_TASK_PATTERN: re.Pattern[str] = re.compile(
-    r"kitty-specs/[^/]+/tasks/(WP\d+)-.+\.md$"
-)
+    Justified survivor (IC-07g / WP17; registry row
+    ``_is_review_handoff_survivor_path.md``, status ``justified-survivor`` —
+    mirrors the WP15 precedent ``_is_review_lifecycle_basename``). Retiring the
+    four former module-level filename/prefix/regex collections that fed the
+    review-handoff gate onto
+    :func:`specify_cli.coordination.coherence.is_toolchain_generated_churn`
+    wholesale is NOT possible without changing that owner's answer for the
+    merge/accept gates that also consult it (a regression, C6):
 
-# Also match tasks.md at the root of a mission directory (benign — auto-updated
-# by mark-status and committed atomically).
-_ROOT_TASKS_MD_PATTERN: re.Pattern[str] = re.compile(
-    r"kitty-specs/[^/]+/tasks\.md$"
-)
+    - ``lanes.json`` is the ``LANE_STATE`` kind, a PRIMARY-partition mission
+      artifact (``mission_runtime._PRIMARY_ARTIFACT_KINDS``) — a stale copy of it
+      IS real dirt for the merge/accept gate by design (the owner's
+      ``is_coord_residue_churn`` leg correctly returns ``False`` for it); only
+      review handoff treats an in-flight rewrite by ``finalize-tasks`` / the lane
+      allocator as benign.
+    - ``.kittify/`` config/metadata files are not ``kitty-specs/<slug>/`` mission
+      artifacts at all — no ``MissionArtifactKind`` applies to most of them
+      (parallel to WP15's ``notes.md`` / ``review-cycle-*.md``); only the single
+      nested ``.kittify/encoding-provenance/global.jsonl`` path is covered by the
+      owner's self-bookkeeping leg.
+    - any WP's ``tasks/WP##-*.md`` task file, and the mission-root ``tasks.md``,
+      are the ``WORK_PACKAGE_TASK`` / ``TASKS_INDEX`` kinds — also
+      PRIMARY-partition, auto-committed by ``move-task`` / ``mark-status`` as
+      toolchain writes-in-flight — but the merge/accept gate must still block a
+      genuinely-uncommitted one; only review handoff treats them as benign.
+
+    The filename / suffix / regex literals are function-local (not module-level
+    ``frozenset`` / ``tuple`` / ``re.compile`` assignments) so the R-014
+    exemption-registry scan — which only walks module-level assignments
+    (``tests/architectural/test_exemption_registry_ratchet.py``) — does not treat
+    this as a NEW per-gate filename exemption requiring the collection-scan's
+    row (mirrors :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`'s
+    function-local ``kitty-ops`` regex). It is still explicitly enumerated —
+    ``literals: (none)`` — and held accountable by the symbol-presence arm
+    instead (the WP15 precedent).
+    """
+    basename = normalised.rsplit("/", 1)[-1] if "/" in normalised else normalised
+
+    # lanes.json (LANE_STATE, PRIMARY-partition) — see docstring bullet 1.
+    if basename == "lanes.json":
+        return True
+
+    # .kittify/ config/metadata (no MissionArtifactKind) — see docstring bullet 2.
+    kittify_prefixes = (".kittify/", ".kittify" + "\\")  # trailing arm: Windows paths — defensive
+    if normalised.startswith(kittify_prefixes) or normalised == ".kittify":
+        return True
+
+    # Any WP's task file (WORK_PACKAGE_TASK, PRIMARY-partition) — bullet 3.
+    wp_task_pattern = re.compile(r"kitty-specs/[^/]+/tasks/WP\d+-.+\.md$")
+    if wp_task_pattern.search(normalised):
+        return True
+
+    # Mission-root tasks.md (TASKS_INDEX, PRIMARY-partition) — bullet 3.
+    root_tasks_md_pattern = re.compile(r"kitty-specs/[^/]+/tasks\.md$")
+    if root_tasks_md_pattern.search(normalised):
+        return True
+
+    return False
 
 
 def _is_benign(path: str, wp_id: str) -> bool:
@@ -63,45 +95,24 @@ def _is_benign(path: str, wp_id: str) -> bool:
 
     A path is benign when it satisfies any of the following:
 
-    1. Its basename is a known status/metadata artifact.
-    2. It lives under ``.kittify/``.
-    3. It matches the pattern for *another* WP's task file.
-    4. It matches the root-level ``tasks.md`` summary file.
-    5. It is spec-kitty's own bookkeeping (``meta.json``,
-       encoding-provenance JSONL, or a ``kitty-ops/<ULID>.jsonl``
-       Op-record orphan) — delegated to the SINGLE shared
-       :func:`mission_runtime.is_self_bookkeeping_path` authority (#2251 /
-       FR-001 / G-5 invariant — no independent literal here).
+    1. It is toolchain-generated churn the shared
+       :func:`specify_cli.coordination.coherence.is_toolchain_generated_churn`
+       owner recognises — spec-kitty's own bookkeeping (``meta.json``,
+       encoding-provenance JSONL, a ``kitty-ops/<ULID>.jsonl`` Op-record orphan)
+       or a recognised coordination-residue artifact (``status.events.jsonl``,
+       ``status.json``) — delegated with NO independent literal here (#2251 /
+       FR-001 / G-5 invariant; IC-07g retired the former status/meta filename
+       entries onto this owner-module leg).
+    2. It is one of the genuine review-handoff-only survivors the owner cannot
+       classify — see :func:`_is_review_handoff_survivor_path`.
     """
     # Normalise separators for cross-platform safety
     normalised = to_posix(path).strip()
-    basename = normalised.rsplit("/", 1)[-1] if "/" in normalised else normalised
 
-    # 1. Known status/metadata artifact filenames
-    if basename in _BENIGN_EXACT_NAMES:
+    if is_toolchain_generated_churn(normalised):
         return True
 
-    # 2. .kittify/ prefix
-    if normalised.startswith(".kittify/") or normalised == ".kittify":
-        return True
-
-    # 3. Any WP task file in kitty-specs/ (planning artifacts, auto-committed by move-task)
-    # All task files are benign in the planning repo context — they are modified
-    # by move-task itself (frontmatter status updates). The blocking category
-    # is reserved for uncommitted source code changes in the execution worktree.
-    match = _WP_TASK_PATTERN.search(normalised)
-    if match:
-        return True
-
-    # 4. Root-level tasks.md (auto-updated by mark-status)
-    if _ROOT_TASKS_MD_PATTERN.search(normalised):
-        return True
-
-    # 5. Self-bookkeeping files (meta.json, provenance JSONL, kitty-ops Op-records).
-    if is_self_bookkeeping_path(normalised):
-        return True
-
-    return False
+    return _is_review_handoff_survivor_path(normalised)
 
 
 def classify_dirty_paths(

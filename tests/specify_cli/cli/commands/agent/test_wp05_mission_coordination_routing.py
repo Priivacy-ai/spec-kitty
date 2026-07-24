@@ -27,7 +27,7 @@ from specify_cli.cli.commands.agent import mission as mission_mod
 
 # #2056 WP04 (Seam A): record-analysis + its dirty-tree preflight relocated to
 # ``mission_record_analysis``. The preflight resolves its mutable dependencies
-# (is_git_repo / _git_dirty_paths / is_coordination_artifact_residue_path /
+# (is_git_repo / _git_dirty_paths / is_coord_residue_churn /
 # resolve_topology) from the seam module's namespace, so the preflight tests
 # patch the seam.
 from specify_cli.cli.commands.agent import mission_record_analysis as record_seam
@@ -176,7 +176,7 @@ def test_analysis_preflight_coordination_drops_residue(
     )
     # Treat the residue path as coord-owned residue so it is dropped → no dirty set.
     monkeypatch.setattr(
-        record_seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        record_seam, "is_coord_residue_churn", lambda _p, *, mission_slug=None: True
     )
     _patch_seam_topology(monkeypatch, coord=True)
 
@@ -197,7 +197,7 @@ def test_analysis_preflight_primary_keeps_residue_and_gates(
     )
     # Even if the path WOULD qualify as residue, a non-coord placement skips the drop.
     monkeypatch.setattr(
-        record_seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        record_seam, "is_coord_residue_churn", lambda _p, *, mission_slug=None: True
     )
     _patch_seam_topology(monkeypatch, coord=False)
 
@@ -241,7 +241,7 @@ def test_no_direct_kind_is_coordination_decision_reads_remain() -> None:
 # ---------------------------------------------------------------------------
 #
 # WP01 moved SPEC/DATA_MODEL/RESEARCH/CHECKLIST into _PRIMARY_ARTIFACT_KINDS, so
-# ``is_coordination_artifact_residue_path`` now returns False for a primary
+# ``is_coord_residue_churn`` now returns False for a primary
 # ``spec.md`` — those files LIVE on primary, so a stale primary copy is the REAL
 # artifact, not droppable coordination residue. The preflight dirty-filter (which
 # uses the REAL residue predicate, not a stub) must therefore NO LONGER silently
@@ -258,7 +258,7 @@ def test_analysis_preflight_real_residue_filter_keeps_stale_primary_spec(
 ) -> None:
     """The REAL residue filter no longer drops a stale primary ``spec.md`` (T022 ripple).
 
-    Uses the genuine ``is_coordination_artifact_residue_path`` (NOT a stub) under a
+    Uses the genuine ``is_coord_residue_churn`` (NOT a stub) under a
     coord topology. Post-WP01 SPEC is a PRIMARY kind, so the predicate returns False
     for ``kitty-specs/<slug>/spec.md`` and the preflight keeps it in the dirty set →
     the record-analysis preflight gates (raises ``typer.Exit``). This is the
@@ -272,7 +272,7 @@ def test_analysis_preflight_real_residue_filter_keeps_stale_primary_spec(
         "_git_dirty_paths",
         lambda _root: ["kitty-specs/001-demo/spec.md"],
     )
-    # NOTE: deliberately NOT patching ``is_coordination_artifact_residue_path`` —
+    # NOTE: deliberately NOT patching ``is_coord_residue_churn`` —
     # the real predicate (post-WP01) must return False for a primary spec.md.
     _patch_seam_topology(monkeypatch, coord=True)
 

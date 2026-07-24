@@ -2,7 +2,7 @@
 
 Wires :class:`~specify_cli.tool_surface.profiles.projection.ProfileProjector`
 and :class:`~specify_cli.tool_surface.profiles.manifest.ProfileManifest` into a
-reporting-layer provider for :data:`SurfaceKind.AGENT_PROFILE`.
+reporting-layer provider for :data:`ToolSurfaceKind.AGENT_PROFILE`.
 
 Behavioural contract (FR-012/013/014):
 
@@ -31,7 +31,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     NATIVE_AGENT_PROFILE_DRIFT,
@@ -76,7 +76,7 @@ _DIAGNOSTICS_SENTINEL = "<profile-diagnostics>"
 def agent_profile_definition() -> SurfaceDefinition:
     """Return the built-in agent-profile :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.AGENT_PROFILE,
+        kind=ToolSurfaceKind.AGENT_PROFILE,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=_PATH_PATTERN,
@@ -108,7 +108,7 @@ class AgentProfilesProvider:
         self._manifest = manifest
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return bool(definition.kind == SurfaceKind.AGENT_PROFILE)
+        return bool(definition.kind == ToolSurfaceKind.AGENT_PROFILE)
 
     def _projector_for(self, project_root: Path) -> ProfileProjector:
         return self._projector or _build_projector(project_root)
@@ -490,7 +490,7 @@ SurfaceProviderRegistry.register(
     SurfaceRegistration(
         provider_class=AgentProfilesProvider,
         definitions=(agent_profile_definition(),),
-        kind_tokens={"agent-profile": SurfaceKind.AGENT_PROFILE},
+        kind_tokens={"agent-profile": ToolSurfaceKind.AGENT_PROFILE},
         order=50,
     )
 )

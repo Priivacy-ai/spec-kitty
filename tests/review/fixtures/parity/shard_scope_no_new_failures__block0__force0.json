@@ -15,7 +15,6 @@
       "matched_shard_groups": [
         "status"
       ],
-      "new_checkout_paths": [],
       "new_failure_count": 0,
       "new_failure_nodeids": [],
       "outcome": "no_new_failures",

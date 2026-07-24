@@ -26,11 +26,11 @@ import pytest
 
 from mission_runtime import (
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
     kind_for_mission_file,
 )
 from mission_runtime.artifacts import assert_partition_invariant
+from specify_cli.coordination.coherence import is_coord_residue_churn
 
 from tests.integration.coord_topology_fixture import _build_coord_topology
 
@@ -63,11 +63,11 @@ def test_analysis_report_is_primary_partition_and_not_coord_residue() -> None:
     stays disjoint-and-total.
     """
     assert is_primary_artifact_kind(MissionArtifactKind.ANALYSIS_REPORT)
-    assert not is_coordination_artifact_residue_path(
+    assert not is_coord_residue_churn(
         f"kitty-specs/demo-01ABCDEF/{_ANALYSIS_REPORT}", mission_slug="demo-01ABCDEF"
     )
     # A still-COORD kind remains residue — proves the re-home was narrow.
-    assert is_coordination_artifact_residue_path(
+    assert is_coord_residue_churn(
         "kitty-specs/demo-01ABCDEF/acceptance-matrix.json", mission_slug="demo-01ABCDEF"
     )
     assert_partition_invariant()

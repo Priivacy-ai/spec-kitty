@@ -38,10 +38,10 @@ import pytest
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
 )
 from specify_cli.coordination import commit_router
+from specify_cli.coordination.coherence import is_coord_residue_churn
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -152,7 +152,7 @@ class TestDisagreementSetRoutesPrimaryOnResidueButCoordUnderCommitRouter:
 
     @pytest.mark.parametrize("kind_none_path", [_META_PATH, _UNRECOGNIZED_PATH])
     def test_residue_authority_routes_kind_none_to_primary(self, kind_none_path: str) -> None:
-        assert is_coordination_artifact_residue_path(kind_none_path) is False, (
+        assert is_coord_residue_churn(kind_none_path) is False, (
             f"{kind_none_path!r} is kind=None (not in the coord-residue kind "
             f"set) -- the residue authority must route it PRIMARY"
         )

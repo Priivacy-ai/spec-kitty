@@ -19,7 +19,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.repair import (
@@ -50,7 +50,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _definition(
-    kind: SurfaceKind = SurfaceKind.COMMAND_SKILL,
+    kind: ToolSurfaceKind = ToolSurfaceKind.COMMAND_SKILL,
     *,
     install_scope: InstallScope = InstallScope.PROJECT,
     required_policy: RequiredPolicy = RequiredPolicy.REPAIRABLE_REQUIRED,
@@ -269,7 +269,7 @@ class TestRunSurfaceRepairRules:
     def test_optional_disabled_missing_surface_is_not_auto_created(self) -> None:
         """Optional disabled surfaces remain explicit doctor/build work."""
         plugin_def = _definition(
-            SurfaceKind.PLUGIN_MANIFEST,
+            ToolSurfaceKind.PLUGIN_MANIFEST,
             install_scope=InstallScope.PLUGIN_BUNDLE,
             required_policy=RequiredPolicy.OPTIONAL,
             activation_mode=ActivationMode.DISABLED,
@@ -293,7 +293,7 @@ class TestRunSurfaceRepairRules:
 
     def test_amazon_q_profiles_are_not_auto_created_in_home(self) -> None:
         """Amazon Q user-global profile writes require explicit repair intent."""
-        profile_def = _definition(SurfaceKind.AGENT_PROFILE)
+        profile_def = _definition(ToolSurfaceKind.AGENT_PROFILE)
         missing = SurfaceStatus(
             instance=SurfaceInstance(
                 definition=profile_def,

@@ -250,6 +250,13 @@ jobs:
               # Routed to the misc shard below, matching its cross-cutting
               # accept/implement/workflow scope.
               - 'tests/characterization/**'
+              # lifecycle-gate-execution-context-01KY72GQ WP03: tests/acceptance/
+              # (the Gate Execution Context behavioural contract) is a new test
+              # directory routed to the misc shard (which now owns it in the pytest
+              # `paths` list below), so its git_repo/integration-marked tests are
+              # selected by a CI gate rather than tripping
+              # test_no_new_orphan_surfaces (C-006 gate-coverage registration).
+              - 'tests/acceptance/**'
             e2e:
               - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
@@ -422,6 +429,29 @@ jobs:
           else
             echo "unmatched=false" >> "$GITHUB_OUTPUT"
           fi
+
+  # ---------------------------------------------------------------------------
+  # deferral-consistency-check: FR-016 (mission
+  # lifecycle-gate-execution-context-01KY72GQ, WP18 / ADR 2026-07-23-2). Fails
+  # any PR still carrying a negative invariant recorded
+  # `deferred_to_consolidation` — the mission loop's ONE acceptance-matrix
+  # reader (`acceptance/gates_core.py`) runs pre-consolidation, so it cannot
+  # enforce this itself (that would be circular: it is the gate that CREATES
+  # the deferral). This is the external enforcer the ADR requires; it runs
+  # unconditionally (no `changes` filter group — a dangling deferral in
+  # kitty-specs/**/acceptance-matrix.json is not scoped to any one path
+  # family) and is a `quality-gate.needs` member so a violation blocks merge.
+  # ---------------------------------------------------------------------------
+  deferral-consistency-check:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v6
+
+      - name: "[ENFORCED] FR-016 — fail on dangling deferred_to_consolidation invariants"
+        run: |
+          python3 scripts/ci/check_dangling_deferrals.py --root kitty-specs
 
   lint:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -1706,6 +1736,7 @@ jobs:
             paths: >-
               tests/_factories
               tests/_support
+              tests/acceptance
               tests/calibration
               tests/characterization
               tests/ci
@@ -3851,6 +3882,7 @@ jobs:
   quality-gate:
     needs:
       - changes
+      - deferral-consistency-check
       - lint
       - diff-coverage
       - kernel-tests

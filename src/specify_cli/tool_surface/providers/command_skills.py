@@ -19,7 +19,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     CONFIGURED_TOOL_SURFACE_UNINSTALLED,
@@ -54,7 +54,7 @@ _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind command-skill --fix"
 def command_skill_definition() -> SurfaceDefinition:
     """Return the built-in command-skill :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.COMMAND_SKILL,
+        kind=ToolSurfaceKind.COMMAND_SKILL,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=_PATH_PATTERN,
@@ -72,7 +72,7 @@ def _rel_path(command: str) -> str:
 def _surface_id_for_rel(tool_key: str, rel_path: str) -> str:
     safe = rel_path.removeprefix(".agents/skills/")
     safe = safe.replace("/", ".").replace("\\", ".")
-    return f"{tool_key}.{SurfaceKind.COMMAND_SKILL}.{safe}"
+    return f"{tool_key}.{ToolSurfaceKind.COMMAND_SKILL}.{safe}"
 
 
 class CommandSkillsProvider:
@@ -87,7 +87,7 @@ class CommandSkillsProvider:
         self._installer = installer if installer is not None else command_installer
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.COMMAND_SKILL
+        return definition.kind == ToolSurfaceKind.COMMAND_SKILL
 
     def expand(
         self,
@@ -113,7 +113,7 @@ class CommandSkillsProvider:
                     exists=abs_path.exists(),
                     file_hash=entry.content_hash if entry is not None else None,
                     owner=tool_key,
-                    surface_id=f"{tool_key}.{SurfaceKind.COMMAND_SKILL}.{rel.removeprefix('.agents/skills/').removesuffix('/SKILL.md')}",
+                    surface_id=f"{tool_key}.{ToolSurfaceKind.COMMAND_SKILL}.{rel.removeprefix('.agents/skills/').removesuffix('/SKILL.md')}",
                 )
             )
         try:
@@ -348,7 +348,7 @@ SurfaceProviderRegistry.register(
     SurfaceRegistration(
         provider_class=CommandSkillsProvider,
         definitions=(command_skill_definition(),),
-        kind_tokens={"command-skill": SurfaceKind.COMMAND_SKILL},
+        kind_tokens={"command-skill": ToolSurfaceKind.COMMAND_SKILL},
         order=0,
     )
 )

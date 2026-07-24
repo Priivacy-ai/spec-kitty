@@ -1228,6 +1228,24 @@ def _report_parallelization_risk(
         raise typer.Exit(1)
 
 
+def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path) -> Path:
+    """Resolve the acceptance matrix's declared home dir (FR-010 / C8 single-home).
+
+    Reuses the gate's canonical read-dir resolver so the scaffolder's single-home
+    check consults exactly where the accept gate will read the matrix from. A
+    ``DELETED`` coordination branch (fail-loud) has no readable home, so we fall
+    back to the primary ``planning_dir`` — the scaffold is a convenience artifact
+    and must never fail finalize.
+    """
+    from specify_cli.acceptance.gates_core import _acceptance_matrix_read_dir
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    try:
+        return _acceptance_matrix_read_dir(repo_root, planning_dir)
+    except CoordinationBranchDeleted:
+        return planning_dir
+
+
 def _scaffold_acceptance_matrix_if_lane_based(
     planning_dir: Path,
     repo_root: Path,
@@ -1244,8 +1262,17 @@ def _scaffold_acceptance_matrix_if_lane_based(
     try:
         from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
 
+        # FR-010 / C8: resolve the matrix's DECLARED HOME through the same surface
+        # resolver the accept gate reads from, so the scaffolder's idempotency check
+        # sees an existing coord-homed matrix and never authors a divergent second
+        # primary copy (#2882). A deleted coord branch (fail-loud) falls back to the
+        # primary planning dir — the scaffold is a convenience artifact, never a gate.
+        home_dir = _resolve_acceptance_matrix_home(repo_root, planning_dir)
         acceptance_matrix_path = scaffold_acceptance_matrix(
-            planning_dir, mission_slug, requirement_ids=sorted(functional_spec_requirement_ids)
+            planning_dir,
+            mission_slug,
+            requirement_ids=sorted(functional_spec_requirement_ids),
+            home_dir=home_dir,
         )
     except Exception as acc_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
         if not json_output:

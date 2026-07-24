@@ -49,9 +49,9 @@ from specify_cli.merge.conflict_classifier import (
     validate_resolution,
 )
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
+from specify_cli.coordination.coherence import is_coord_residue_churn
 from mission_runtime import (
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     kind_for_mission_file,
 )
 
@@ -71,9 +71,10 @@ RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
 #
 #   1. *Surface residue* — "is a stale PRIMARY-checkout copy of this file mere
 #      residue of a coordination-owned artifact?" Answered by the single authority
-#      ``mission_runtime.is_coordination_artifact_residue_path`` (imported above so
-#      this consumer still draws residue recognition from that authority — WP13 /
-#      FR-012). Post write-surface-coherence (#2090) the COORD-partition members
+#      ``specify_cli.coordination.coherence.is_coord_residue_churn`` (imported
+#      above so this consumer still draws residue recognition from that authority
+#      — WP12 retired the former ``mission_runtime`` predicate onto this owner
+#      leg; FR-012). Post write-surface-coherence (#2090) the COORD-partition members
 #      (``issue-matrix.md`` / ``analysis-report.md`` / ``acceptance-matrix.json``)
 #      are residue, while ``plan.md`` / ``tasks.md`` / ``lanes.json`` /
 #      ``tasks/WP*.md`` moved to the PRIMARY partition and are NO LONGER residue
@@ -207,7 +208,7 @@ def _is_coordination_owned_artifact(rel_path: str) -> bool:
     :data:`_AUTO_REBASE_MANAGED_LAYOUT_KINDS` for the full rationale):
 
     1. *Surface residue* — drawn from the single authority
-       :func:`mission_runtime.is_coordination_artifact_residue_path`
+       :func:`specify_cli.coordination.coherence.is_coord_residue_churn`
        (``issue-matrix.md`` / ``acceptance-matrix.json``).
     2. *Mission-owned planning LAYOUT* — ``lanes.json`` (``LANE_STATE``),
        ``tasks/WP*.md`` (``WORK_PACKAGE_TASK``), and ``analysis-report.md``
@@ -221,7 +222,7 @@ def _is_coordination_owned_artifact(rel_path: str) -> bool:
     ``plan.md`` / ``tasks.md`` and the planning SOURCE docs are intentionally in
     NEITHER arm — their conflicts surface as Manual halts.
     """
-    if is_coordination_artifact_residue_path(rel_path):
+    if is_coord_residue_churn(rel_path):
         return True
     kind = kind_for_mission_file(rel_path)
     return kind is not None and kind in _AUTO_REBASE_MANAGED_LAYOUT_KINDS

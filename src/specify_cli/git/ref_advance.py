@@ -26,9 +26,23 @@ pipeline must hold an equivalent serialization guarantee.
 
 from __future__ import annotations
 
+import json
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# Keys written by ``specify_cli.mission_metadata.set_vcs_lock`` -- the canonical
+# claim-time VCS-lock writer, which mutates *only* these two ``meta.json`` keys.
+# Inlined (not imported) on purpose: this module is git plumbing and must not
+# depend on ``specify_cli``. A ``meta.json`` whose only diff against HEAD is a
+# subset of these fields is a regenerable claim stamp, not operator data -- the
+# resync ``git reset --hard`` legitimately discards it and the next claim
+# regenerates it (behaviour-preserving), so it must not block a ref advance.
+_VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
+
+# Basename of the mission metadata file whose VCS-lock-only changes are tolerated.
+_META_FILENAME: str = "meta.json"
 
 
 class RefAdvanceError(RuntimeError):
@@ -164,13 +178,86 @@ def _path_obstructs_target_tree(path: str, target_paths: set[str]) -> bool:
     return any(target == path or target.startswith(prefix) for target in target_paths)
 
 
+def _parse_meta_object(text: str) -> dict[str, object] | None:
+    """Parse ``text`` as a JSON object; ``None`` when malformed or non-object."""
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def _committed_meta_object(
+    worktree: Path,
+    path: str,
+    env: dict[str, str] | None,
+) -> dict[str, object]:
+    """Return the ``meta.json`` object committed at ``HEAD:<path>``.
+
+    An empty dict is returned when the file is absent at HEAD (a newly added
+    ``meta.json``) or the committed blob is not a JSON object -- so every
+    working-copy key is treated as changed and a real file exceeds the lock set.
+    """
+    result = _run_git(worktree, ["show", f"HEAD:{path}"], env=env)
+    if result.returncode != 0:
+        return {}
+    parsed = _parse_meta_object(result.stdout)
+    return parsed if parsed is not None else {}
+
+
+def _is_vcs_lock_only_meta_change(
+    worktree_meta: dict[str, object],
+    committed_meta: dict[str, object],
+) -> bool:
+    """True IFF the changed keys are a non-empty subset of the VCS-lock fields.
+
+    Empty diff -> ``False`` (nothing to tolerate). Any changed key outside
+    :data:`_VCS_LOCK_META_FIELDS` -> ``False`` (a genuine meta edit still blocks;
+    no false-open). A newly added ``meta.json`` (``committed_meta == {}``)
+    compares every key, so a real file exceeds the lock set and still blocks.
+    """
+    changed = {
+        key
+        for key in worktree_meta.keys() | committed_meta.keys()
+        if worktree_meta.get(key) != committed_meta.get(key)
+    }
+    if not changed:
+        return False
+    return changed <= _VCS_LOCK_META_FIELDS
+
+
+def _meta_change_is_vcs_lock_only(
+    worktree: Path,
+    path: str,
+    env: dict[str, str] | None,
+) -> bool:
+    """Whether the tracked-modified ``meta.json`` at ``path`` is a lock stamp.
+
+    Reads the working-copy object and the committed object and compares them.
+    A malformed working copy (or a deletion) is treated as genuine dirt
+    (``False``) so it still blocks the advance.
+    """
+    meta_path = worktree / path
+    try:
+        worktree_text = meta_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    worktree_meta = _parse_meta_object(worktree_text)
+    if worktree_meta is None:
+        return False
+    committed_meta = _committed_meta_object(worktree, path, env)
+    return _is_vcs_lock_only_meta_change(worktree_meta, committed_meta)
+
+
 def _dirty_entries(
     worktree: Path,
     env: dict[str, str] | None,
     *,
     new_sha: str,
     target_paths: set[str],
-    excluded_filenames: frozenset[str] | None = None,
+    is_residue: Callable[[str], bool] | None = None,
 ) -> list[str]:
     """Return porcelain entries that a ``reset --hard`` would destroy.
 
@@ -180,13 +267,27 @@ def _dirty_entries(
     state and refuse before moving the ref (NFR-002).
 
     Everything staged or unstaged against tracked paths is also unique local
-    state and blocks the resync.
+    state and blocks the resync -- UNLESS ``is_residue`` recognizes it (see
+    below), closing the #2795 / FR-012 cross-gate disagreement: a tracked
+    entry used to have only the narrow ``_META_FILENAME`` vcs-lock escape, so
+    a general toolchain-generated churn path (coordination-branch status
+    residue, spec-kitty's own bookkeeping) was fatal here while every other
+    churn-classifying gate (``merge/git_probes.py``,
+    ``review/dirty_classifier.py``) already exempted it -- same file, opposite
+    verdict. Consulting ``is_residue`` first, for BOTH tracked and untracked
+    entries, makes this gate agree with the others (WP13 / IC-07c).
 
     Args:
-        excluded_filenames: Basenames to exclude from the dirty check.  Used
-            to suppress coord-owned residue (e.g. ``status.events.jsonl``,
-            ``status.json``) that is legitimately present on the primary
-            checkout after a coordination-branch write (#1878 / T041).
+        is_residue: Predicate returning True for a repo-relative path that is
+            toolchain-generated churn (coordination-branch status/matrix
+            residue, spec-kitty's own bookkeeping such as ``meta.json``) a
+            caller wants excluded from the dirty check, for both untracked and
+            tracked entries (#1878 / #2795 / FR-012). Pass
+            :func:`specify_cli.coordination.coherence.is_toolchain_generated_churn`
+            (this module stays git-plumbing and does not import it itself --
+            the caller injects the classifier). ``None`` disables the
+            exemption entirely (git-plumbing default: nothing is toolchain
+            churn without an injected classifier).
     """
     result = _run_git(worktree, ["status", "--porcelain", "--ignored"], env=env)
     if result.returncode != 0:
@@ -199,13 +300,21 @@ def _dirty_entries(
         if not line.strip():
             continue
         path = _porcelain_path(line)
+        if is_residue is not None and is_residue(path):
+            continue
         if line.startswith(("??", "!!")):
-            if excluded_filenames and Path(path).name in excluded_filenames:
-                continue
             if _path_obstructs_target_tree(path, target_paths):
                 dirty.append(
                     f"{line} (would be overwritten by reset --hard to {new_sha[:12]})"
                 )
+            continue
+        # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
+        # VCS lock is a regenerable stamp, not destructive local state: the
+        # resync discards it and the next claim rewrites it (#2795 / C-010). A
+        # genuine meta edit still falls through and blocks (no false-open).
+        if Path(path).name == _META_FILENAME and _meta_change_is_vcs_lock_only(
+            worktree, path, env
+        ):
             continue
         dirty.append(line)
     return dirty
@@ -217,7 +326,7 @@ def advance_branch_ref(
     new_sha: str,
     *,
     env: dict[str, str] | None = None,
-    coord_owned_filenames: frozenset[str] | None = None,
+    is_residue: Callable[[str], bool] | None = None,
 ) -> None:
     """Advance ``refs/heads/<branch>`` to ``new_sha`` and resync checkouts.
 
@@ -237,12 +346,16 @@ def advance_branch_ref(
         new_sha: Commit SHA the branch ref advances to.
         env: Optional subprocess environment (merge pipeline passes its
             ``_make_merge_env()`` result through).
-        coord_owned_filenames: Basenames that are legitimately present as
-            residue on the primary checkout after a coordination-branch write
-            (e.g. ``status.events.jsonl``, ``status.json``).  These are
-            excluded from the dirty-file check so they do not abort a
-            post-write ff-advance (#1878 / T041).  Pass
-            ``COORD_OWNED_STATUS_FILES`` from ``specify_cli.status`` here.
+        is_residue: Optional predicate excluding toolchain-generated-churn
+            paths (coordination-branch status/matrix residue, e.g.
+            ``status.events.jsonl`` / ``status.json``; spec-kitty's own
+            bookkeeping, e.g. ``meta.json``) from the dirty-file check --
+            for BOTH untracked and tracked entries -- so they do not abort a
+            post-write ff-advance (#1878 / #2795 / FR-012). Pass
+            ``specify_cli.coordination.coherence.is_toolchain_generated_churn``
+            (this module is git plumbing and does not import that classifier
+            itself -- the caller injects it, keeping the dependency direction
+            one-way).
 
     Raises:
         RefAdvanceDirtyWorktreeError: a worktree with ``branch`` checked out
@@ -289,7 +402,7 @@ def advance_branch_ref(
             env,
             new_sha=new_sha,
             target_paths=target_paths,
-            excluded_filenames=coord_owned_filenames,
+            is_residue=is_residue,
         )
         if dirty:
             raise RefAdvanceDirtyWorktreeError(

@@ -254,7 +254,11 @@ def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
 
 _EXECUTOR_PATH = Path(ex.__file__)
 _PRIMITIVE = "_restore_and_guard_coord_coherence"
-_RAW_RESTORE = "_restore_final_bookkeeping_snapshots"
+# WP09 (T048 / TAO-3): the final-bookkeeping restore compensator was retired to the
+# SINGLE owner compensator ``restore_generated_artifact_snapshots``; the FR-008
+# class-closer invariant (exactly one raw restore call, inside the marking
+# primitive) is preserved under the new name.
+_RAW_RESTORE = "restore_generated_artifact_snapshots"
 _RECORD_DONE_PHASE = "_phase_record_done_and_project"
 _DONE_GATE_TOKEN = "done_marked_before_target"
 _RECORD_DONE_CALLEE = "_record_merged_wps_done_for_merge"

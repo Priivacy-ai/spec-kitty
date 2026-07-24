@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..enums import SurfaceKind
+from ..enums import ToolSurfaceKind
 from ..model import SurfacePlan
 from .claude import _validate_bundle
 from .model import (
@@ -34,19 +34,19 @@ from .projection import (
 # at root (NOT under ``hooks/``), and ``.mcp.json`` at root.
 _MANIFEST_NAME = "plugin.json"
 
-_COPILOT_LAYOUT: dict[SurfaceKind, str] = {
-    SurfaceKind.COMMAND_SKILL: "skills",
-    SurfaceKind.DOCTRINE_SKILL: "skills",
-    SurfaceKind.AGENT_PROFILE: "agents",
-    SurfaceKind.HOOK: "",
-    SurfaceKind.NATIVE_CONFIG: "",
+_COPILOT_LAYOUT: dict[ToolSurfaceKind, str] = {
+    ToolSurfaceKind.COMMAND_SKILL: "skills",
+    ToolSurfaceKind.DOCTRINE_SKILL: "skills",
+    ToolSurfaceKind.AGENT_PROFILE: "agents",
+    ToolSurfaceKind.HOOK: "",
+    ToolSurfaceKind.NATIVE_CONFIG: "",
 }
 
-_REQUIRED_KINDS: frozenset[SurfaceKind] = frozenset(
+_REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
-        SurfaceKind.COMMAND_SKILL,
-        SurfaceKind.DOCTRINE_SKILL,
-        SurfaceKind.AGENT_PROFILE,
+        ToolSurfaceKind.COMMAND_SKILL,
+        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.AGENT_PROFILE,
     }
 )
 
@@ -62,7 +62,7 @@ class CopilotBundleProjector:
     distribution_target = TARGET_COPILOT
     # Copilot / VS Code keep the manifest at the package root.
     manifest_relative_path = _MANIFEST_NAME
-    layout: dict[SurfaceKind, str] = _COPILOT_LAYOUT
+    layout: dict[ToolSurfaceKind, str] = _COPILOT_LAYOUT
 
     def project(
         self,
@@ -89,7 +89,7 @@ class CopilotBundleProjector:
     def validate(
         self,
         bundle: PluginBundle,
-        required_surface_kinds: set[SurfaceKind] | None = None,
+        required_surface_kinds: set[ToolSurfaceKind] | None = None,
     ) -> BundleValidationResult:
         """Validate that every required surface kind is present in ``bundle``."""
         required = (

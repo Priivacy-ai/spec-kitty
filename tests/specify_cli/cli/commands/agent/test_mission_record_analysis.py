@@ -109,7 +109,7 @@ def test_preflight_coord_drops_residue(monkeypatch: pytest.MonkeyPatch, tmp_path
     monkeypatch.setattr(seam, "is_git_repo", lambda _root: True)
     monkeypatch.setattr(seam, "_git_dirty_paths", lambda _root: ["kitty-specs/001-demo/spec.md"])
     monkeypatch.setattr(
-        seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        seam, "is_coord_residue_churn", lambda _p, *, mission_slug=None: True
     )
     monkeypatch.setattr(seam, "resolve_topology", lambda _r, _s: MissionTopology.COORD)
     # Residue dropped → empty dirty set → no gate.
@@ -127,7 +127,7 @@ def test_preflight_non_coord_keeps_residue_and_gates(
     monkeypatch.setattr(seam, "is_git_repo", lambda _root: True)
     monkeypatch.setattr(seam, "_git_dirty_paths", lambda _root: ["kitty-specs/001-demo/spec.md"])
     monkeypatch.setattr(
-        seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        seam, "is_coord_residue_churn", lambda _p, *, mission_slug=None: True
     )
     monkeypatch.setattr(seam, "resolve_topology", lambda _r, _s: MissionTopology.SINGLE_BRANCH)
     with pytest.raises(typer.Exit):

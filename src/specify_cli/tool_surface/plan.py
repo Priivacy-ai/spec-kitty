@@ -13,7 +13,7 @@ from pathlib import Path
 
 from specify_cli.core.time_utils import now_utc_iso
 
-from .enums import SurfaceKind
+from .enums import ToolSurfaceKind
 from .model import SurfaceDefinition, SurfaceInstance, SurfacePlan
 from .providers.protocol import ReportingSurfaceProvider
 from .registry import ToolSurfaceRegistry
@@ -34,7 +34,7 @@ class SurfacePlanBuilder:
         self,
         configured_tool_keys: Sequence[str],
         project_root: Path,
-        surface_kind_filter: SurfaceKind | None = None,
+        surface_kind_filter: ToolSurfaceKind | None = None,
     ) -> list[SurfacePlan]:
         """Build one :class:`SurfacePlan` for each configured tool key."""
         computed_at = now_utc_iso()
@@ -47,7 +47,7 @@ class SurfacePlanBuilder:
         self,
         tool_key: str,
         project_root: Path,
-        surface_kind_filter: SurfaceKind | None,
+        surface_kind_filter: ToolSurfaceKind | None,
         computed_at: str,
     ) -> SurfacePlan:
         instances: list[SurfaceInstance] = []

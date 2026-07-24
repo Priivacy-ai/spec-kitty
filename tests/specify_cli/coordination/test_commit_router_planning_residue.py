@@ -11,7 +11,9 @@ relocation must be behavior-preserving:
 * ``tasks.py`` imports them FROM commit_router,
 * ``mission`` re-exports them so historical patch targets keep resolving,
 * a PRIMARY artifact kind never transits the coordination worktree,
-* the reconciled staging helper still skips ``COORD_OWNED_STATUS_FILES`` (#1589)
+* the reconciled staging helper still skips the status-log/snapshot files
+  (``MissionArtifactKind.STATUS_STATE``, formerly ``COORD_OWNED_STATUS_FILES``,
+  retired onto the owner in WP13) (#1589)
   and is the single source (no forked second copy).
 
 INV-8: commit_router carries no ``from specify_cli.cli`` import (covered directly
@@ -27,7 +29,6 @@ import pytest
 
 from mission_runtime import CommitTarget, MissionArtifactKind
 from specify_cli.coordination import commit_router
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -227,7 +228,7 @@ def test_staging_skips_coord_owned_status_files(tmp_path: Path) -> None:
     feature.mkdir(parents=True)
     coord.mkdir()
 
-    status_file = feature / next(iter(COORD_OWNED_STATUS_FILES))
+    status_file = feature / "status.events.jsonl"
     status_file.write_text("events", encoding="utf-8")
     plain = feature / "tasks.md"
     plain.write_text("tasks", encoding="utf-8")
@@ -237,7 +238,7 @@ def test_staging_skips_coord_owned_status_files(tmp_path: Path) -> None:
     )
 
     # The coord-owned status file is skipped; tasks.md is copied across.
-    assert all(p.name not in COORD_OWNED_STATUS_FILES for p in staged)
+    assert all(p.name not in {"status.events.jsonl", "status.json"} for p in staged)
     assert (coord / "kitty-specs" / "001-m" / "tasks.md") in staged
     assert (coord / "kitty-specs" / "001-m" / "tasks.md").exists()
 

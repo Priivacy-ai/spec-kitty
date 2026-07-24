@@ -13,7 +13,6 @@
       "force_bypassed": false,
       "matched_composite_dirs": [],
       "matched_shard_groups": [],
-      "new_checkout_paths": [],
       "new_failure_count": 0,
       "new_failure_nodeids": [],
       "outcome": "cancelled",

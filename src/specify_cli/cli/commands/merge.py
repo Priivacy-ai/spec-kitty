@@ -147,13 +147,15 @@ from specify_cli.merge.executor import (
 # module. Re-imported here (and re-exported via __all__) so test-imported trust /
 # snapshot / projection symbols keep importing from the shim with zero edits
 # (FR-006, INV-6). One-way import: the seam never imports this shim.
+# WP09 (T048 / TAO-3): the final-bookkeeping snapshot/restore compensator and its
+# merge-side trust helper were retired from ``bookkeeping_projection`` — the merge
+# executor now enrols those bytes with the single owner compensator in
+# ``coordination.atomic_write``. Only the surviving trust + projection symbols are
+# re-exported through this shim.
 from specify_cli.merge.bookkeeping_projection import (
-    _assert_bookkeeping_snapshot_path_is_trusted,
     _assert_status_path_within_target_surface,
     _assert_status_surface_path_is_trusted,
-    _capture_bookkeeping_snapshots,
     _project_status_bookkeeping_to_target,
-    _restore_final_bookkeeping_snapshots,
     _target_bookkeeping_status_paths,
     _target_branch_still_at_baseline,
     _validate_mission_slug_path_segment,
@@ -567,9 +569,6 @@ __all__ = [
     "_target_bookkeeping_status_paths",
     "_assert_status_path_within_target_surface",
     "_assert_status_surface_path_is_trusted",
-    "_assert_bookkeeping_snapshot_path_is_trusted",
-    "_capture_bookkeeping_snapshots",
-    "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
     "_load_merge_state_for_mission",
     "_load_or_create_merge_state",

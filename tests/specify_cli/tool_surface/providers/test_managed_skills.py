@@ -22,7 +22,7 @@ from specify_cli.skills.manifest import (
     load_manifest,
 )
 from specify_cli.skills.registry import CanonicalSkill
-from specify_cli.tool_surface.enums import SurfaceKind
+from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
     CommandSkillsProvider,
     command_skill_definition,
@@ -95,14 +95,14 @@ def test_provider_satisfies_reporting_protocol() -> None:
 def test_managed_skills_provider_can_handle_doctrine_skill() -> None:
     provider = ManagedSkillsProvider()
     definition = managed_skill_definition()
-    assert definition.kind == SurfaceKind.DOCTRINE_SKILL
+    assert definition.kind == ToolSurfaceKind.DOCTRINE_SKILL
     assert provider.can_handle(definition) is True
 
 
 def test_managed_skills_provider_cannot_handle_command_skill() -> None:
     provider = ManagedSkillsProvider()
     other = command_skill_definition()
-    assert other.kind == SurfaceKind.COMMAND_SKILL
+    assert other.kind == ToolSurfaceKind.COMMAND_SKILL
     assert provider.can_handle(other) is False
 
 
@@ -150,7 +150,7 @@ def test_managed_skills_expand_returns_per_tool_skills(tmp_path: Path) -> None:
     instances = provider.expand(managed_skill_definition(), "codex", tmp_path)
     assert len(instances) == 2
     assert all(i.owner == "codex" for i in instances)
-    assert all(i.definition.kind == SurfaceKind.DOCTRINE_SKILL for i in instances)
+    assert all(i.definition.kind == ToolSurfaceKind.DOCTRINE_SKILL for i in instances)
 
 
 def test_doctrine_skill_entries_helper(tmp_path: Path) -> None:
@@ -507,8 +507,8 @@ def test_doctrine_vs_command_skill_in_doctor_output(
     )
     outcome = run_tool_surfaces(tmp_path, ["codex"])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}
-    assert SurfaceKind.DOCTRINE_SKILL in kinds
-    assert SurfaceKind.COMMAND_SKILL in kinds
+    assert ToolSurfaceKind.DOCTRINE_SKILL in kinds
+    assert ToolSurfaceKind.COMMAND_SKILL in kinds
     payload = outcome.to_json()
     surface_kinds = {entry["kind"] for entry in payload["surfaces"]}  # type: ignore[index]
     assert "doctrine_skill" in surface_kinds
@@ -531,7 +531,7 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(
     monkeypatch.setattr(
         svc,
         "_KIND_TOKENS",
-        {"doctrine-skill": SurfaceKind.DOCTRINE_SKILL},
+        {"doctrine-skill": ToolSurfaceKind.DOCTRINE_SKILL},
     )
 
     h1 = _write_skill_file(tmp_path, ".agents/skills/a/SKILL.md")
@@ -543,7 +543,7 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(
         json.dumps({"schema_version": 1, "entries": []}), encoding="utf-8"
     )
     kind = svc.surface_kind_from_token("doctrine-skill")
-    assert kind == SurfaceKind.DOCTRINE_SKILL
+    assert kind == ToolSurfaceKind.DOCTRINE_SKILL
     outcome = run_tool_surfaces(tmp_path, ["codex"], kinds=[kind])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}
-    assert kinds == {SurfaceKind.DOCTRINE_SKILL}
+    assert kinds == {ToolSurfaceKind.DOCTRINE_SKILL}

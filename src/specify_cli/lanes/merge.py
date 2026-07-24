@@ -24,8 +24,8 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -677,7 +677,7 @@ def _merge_branch_into(
                 target_branch,
                 rebased_sha,
                 env=_env,
-                coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+                is_residue=is_toolchain_generated_churn,
             )
             return True  # early return — ref already updated
         else:
@@ -712,6 +712,6 @@ def _merge_branch_into(
             target_branch,
             merge_commit,
             env=_env,
-            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+            is_residue=is_toolchain_generated_churn,
         )
         return True

@@ -1,9 +1,17 @@
 """WP13 / FR-012 (#1887): merge-path residue gates converge on one authority.
 
+NOTE: this file's "WP13" label is from the ORIGINAL (#1887 / mission #2057)
+FR-012 convergence work, predating and unrelated to
+``lifecycle-gate-execution-context-01KY72GQ``'s WP13 (IC-07c), which retired
+the ``coord_owned_filenames`` param this file originally exercised onto the
+single canonical churn owner (``is_toolchain_generated_churn``) — the
+call-site kwarg below was updated accordingly; the observable contracts
+(raises / does-not-raise) are unchanged.
+
 Three observable-contract cells, each paired with a negative control:
 
 * **T025** — the ``advance_branch_ref`` callers exclude coordination status
-  residue from the dirty gate (``coord_owned_filenames=COORD_OWNED_STATUS_FILES``).
+  residue from the dirty gate (``is_residue=is_toolchain_generated_churn``).
   A post-write ff-advance with an obstructing ``status.events.jsonl`` / ``status.json``
   copy on the checked-out worktree does **not** raise
   ``RefAdvanceDirtyWorktreeError``; an obstructing **non-residue** file (an
@@ -39,13 +47,13 @@ import pytest
 # coordination<->status import-order cycle when a test imports merge directly.
 import specify_cli.status  # noqa: F401  # import-order guard
 
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
     advance_branch_ref,
 )
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
 from specify_cli.lanes.models import ExecutionLane
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -148,7 +156,7 @@ def test_ff_advance_ignores_obstructing_coordination_status_residue(
 ) -> None:
     """T025: a post-write ff-advance does NOT raise when an obstructing
     coordination status copy is present on the checked-out worktree, because
-    the caller passes ``coord_owned_filenames=COORD_OWNED_STATUS_FILES``."""
+    the caller passes ``is_residue=is_toolchain_generated_churn``."""
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     branch = "kitty/mission-coord"
@@ -161,9 +169,9 @@ def test_ff_advance_ignores_obstructing_coordination_status_residue(
     obstruction.parent.mkdir(parents=True, exist_ok=True)
     obstruction.write_text("stale primary residue\n", encoding="utf-8")
 
-    # With the residue allow-list, the gate does not abort the advance.
+    # With the residue predicate, the gate does not abort the advance.
     advance_branch_ref(
-        repo, branch, new_sha, coord_owned_filenames=COORD_OWNED_STATUS_FILES
+        repo, branch, new_sha, is_residue=is_toolchain_generated_churn
     )
 
     assert _rev_parse(repo, branch) == new_sha
@@ -190,7 +198,7 @@ def test_ff_advance_still_raises_on_obstructing_non_residue_file(
 
     with pytest.raises(RefAdvanceDirtyWorktreeError) as excinfo:
         advance_branch_ref(
-            repo, branch, new_sha, coord_owned_filenames=COORD_OWNED_STATUS_FILES
+            repo, branch, new_sha, is_residue=is_toolchain_generated_churn
         )
 
     # Atomic refusal: nothing reset, the operator's bytes survive untouched.
@@ -209,7 +217,10 @@ _REF_ADVANCE_CALLERS = (
     "src/specify_cli/merge/ordering.py",
     "src/specify_cli/lanes/merge.py",
 )
-_COORD_OWNED_KWARG = "coord_owned_filenames"
+# lifecycle-gate-execution-context-01KY72GQ WP13 (IC-07c): retired the former
+# ``coord_owned_filenames`` frozenset param onto the single canonical churn
+# owner; every caller now injects the classifier via ``is_residue`` instead.
+_COORD_OWNED_KWARG = "is_residue"
 
 
 def _advance_branch_ref_calls(tree: ast.AST) -> list[ast.Call]:
@@ -230,7 +241,7 @@ def _advance_branch_ref_calls(tree: ast.AST) -> list[ast.Call]:
 @pytest.mark.parametrize("rel_path", _REF_ADVANCE_CALLERS)
 def test_ref_advance_callers_pass_coord_owned_filenames(rel_path: str) -> None:
     """T025: every ``advance_branch_ref`` call in the merge-path modules passes
-    ``coord_owned_filenames`` so the post-write ff-advance excludes coordination
+    ``is_residue`` so the post-write ff-advance excludes coordination
     residue from the dirty gate. Pre-fix these callers omitted the kwarg; this
     AST cell is red-by-construction against the un-wired callers."""
     tree = ast.parse((REPO_ROOT / rel_path).read_text(encoding="utf-8"))
@@ -414,10 +425,20 @@ def test_take_theirs_does_not_swallow_primary_planning_conflict(
 
 # The single residue authority symbols. A merge-path consumer must reference the
 # predicate (or the filename set) and must NOT redeclare its own residue literal.
-_RESIDUE_AUTHORITY_PREDICATE = "is_coordination_artifact_residue_path"
+#
+# lifecycle-gate-execution-context-01KY72GQ WP12 (IC-07b): the former
+# ``mission_runtime.is_coordination_artifact_residue_path`` predicate was
+# retired onto the canonical churn owner's residue leg
+# (``specify_cli.coordination.coherence.is_coord_residue_churn``) — a merge-path
+# consumer now imports EITHER that leg alone or the full
+# ``is_toolchain_generated_churn`` union (``merge/executor.py``'s route, which
+# already includes the residue leg) — both are accepted "single authority"
+# imports.
+_RESIDUE_AUTHORITY_PREDICATE = "is_coord_residue_churn"
+_RESIDUE_AUTHORITY_UNION = "is_toolchain_generated_churn"
 _RESIDUE_AUTHORITY_FILENAMES = "_MISSION_FILE_KIND_BY_BASENAME"
 _RESIDUE_AUTHORITY_NAMES = frozenset(
-    {_RESIDUE_AUTHORITY_PREDICATE, _RESIDUE_AUTHORITY_FILENAMES}
+    {_RESIDUE_AUTHORITY_PREDICATE, _RESIDUE_AUTHORITY_UNION, _RESIDUE_AUTHORITY_FILENAMES}
 )
 
 # The drifting literal members that USED to live inline in the merge gates. A

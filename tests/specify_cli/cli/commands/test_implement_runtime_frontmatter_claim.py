@@ -7,8 +7,10 @@ cutover, so the claim rides the event log / ``policy_metadata`` sidecar only and
 the WP prompt file is **byte-identical across the claim** (NFR-003 / SC-004).
 
 Section A (unchanged) drives the pure dirty-tree-guard cores
-(``_is_runtime_frontmatter_only_wp_diff``, ``_drop_runtime_frontmatter_only_wp``)
-directly against a real git repo. That guard is still load-bearing: a
+(``_is_runtime_frontmatter_only_wp_diff``, and -- since WP14 / IC-07d merged
+``_drop_runtime_frontmatter_only_wp`` and its vcs-lock structural twin into
+one predicate -- ``_is_self_write_only_diff``) directly against a real git
+repo. That guard is still load-bearing: a
 runtime-field-only WP##.md diff from ANY writer (e.g. ``move-task``, or a
 migration repair) is excluded from the guard ONLY when every differing
 frontmatter key is in the ONE canonical
@@ -40,9 +42,10 @@ import typer
 from ruamel.yaml import YAML
 
 from specify_cli.cli.commands.implement import (
-    _drop_runtime_frontmatter_only_wp,
     _is_runtime_frontmatter_only_wp_diff,
+    _is_self_write_only_diff,
     implement,
+    resolve_planning_artifact_staging,
 )
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -129,9 +132,9 @@ def test_drop_helper_drops_single_runtime_field_change(tmp_path: Path, field: st
     working[field] = f"{base[field]}-changed"
     wp_path.write_text(_render_wp(working), encoding="utf-8")
 
-    kept = _drop_runtime_frontmatter_only_wp(tmp_path, [repo_rel], None, auto_commit=False)
+    dropped = _is_self_write_only_diff(tmp_path, repo_rel, None)
 
-    assert kept == [], f"a runtime-only change to {field!r} must be dropped"
+    assert dropped is True, f"a runtime-only change to {field!r} must be dropped"
 
 
 def test_drop_helper_drops_multiple_runtime_fields_changed_together(tmp_path: Path) -> None:
@@ -142,20 +145,15 @@ def test_drop_helper_drops_multiple_runtime_fields_changed_together(tmp_path: Pa
     working = {key: (f"{value}-changed" if key in WP_RUNTIME_FIELDS else value) for key, value in base.items()}
     wp_path.write_text(_render_wp(working), encoding="utf-8")
 
-    kept = _drop_runtime_frontmatter_only_wp(tmp_path, [repo_rel], None, auto_commit=False)
-
-    assert kept == []
+    assert _is_self_write_only_diff(tmp_path, repo_rel, None) is True
 
 
 def test_ignores_non_wp_filenames(tmp_path: Path) -> None:
-    """The exclusion is scoped strictly to ``WP##[-slug].md`` paths -- a
-    similarly-runtime-shaped diff on any other path (e.g. ``meta.json``) is
-    never dropped by THIS helper."""
-    kept = _drop_runtime_frontmatter_only_wp(
-        tmp_path, ["kitty-specs/demo/meta.json"], None, auto_commit=False
-    )
-
-    assert kept == ["kitty-specs/demo/meta.json"]
+    """The runtime-frontmatter leg is scoped strictly to ``WP##[-slug].md``
+    paths -- a path that is neither ``meta.json`` (the sibling vcs-lock leg)
+    nor WP##.md-shaped is never dropped by this predicate, even if it does
+    not exist on disk (the defensive existence check short-circuits first)."""
+    assert _is_self_write_only_diff(tmp_path, "kitty-specs/demo/tasks.md", None) is False
 
 
 # ---------------------------------------------------------------------------
@@ -178,9 +176,9 @@ def test_body_change_alongside_runtime_field_still_blocks(tmp_path: Path) -> Non
         encoding="utf-8",
     )
 
-    kept = _drop_runtime_frontmatter_only_wp(tmp_path, [repo_rel], None, auto_commit=False)
+    dropped = _is_self_write_only_diff(tmp_path, repo_rel, None)
 
-    assert kept == [repo_rel], (
+    assert dropped is False, (
         "a body edit must still block even alongside a runtime-only frontmatter change"
     )
 
@@ -195,25 +193,34 @@ def test_non_runtime_frontmatter_change_still_blocks(tmp_path: Path) -> None:
     working["title"] = "WP01 retitled by an operator"
     wp_path.write_text(_render_wp(working), encoding="utf-8")
 
-    kept = _drop_runtime_frontmatter_only_wp(tmp_path, [repo_rel], None, auto_commit=False)
+    dropped = _is_self_write_only_diff(tmp_path, repo_rel, None)
 
-    assert kept == [repo_rel], "a non-runtime frontmatter key change must still block"
+    assert dropped is False, "a non-runtime frontmatter key change must still block"
 
 
 def test_auto_commit_true_is_byte_identical_noop(tmp_path: Path) -> None:
     """NFR-001: under ``auto_commit=True`` the exclusion is a byte-identical
-    no-op -- a WP##.md path stays in the guard's commit set even when its only
-    diff is runtime fields, so the default path's commit semantics never
-    change."""
+    no-op -- a WP##.md path stays in the staging plan's commit set even when
+    its only diff is runtime fields, so the default path's commit semantics
+    never change.
+
+    WP14 / IC-07d: the ``auto_commit`` gate moved from the retired
+    ``_drop_runtime_frontmatter_only_wp`` helper itself to its caller
+    (:func:`resolve_planning_artifact_staging` applies :func:`_drop_if` only
+    when ``not auto_commit``), so this is now exercised at the staging-plan
+    level rather than the bare predicate.
+    """
     base = _base_wp_frontmatter()
     wp_path, repo_rel = _init_repo_with_wp(tmp_path, base)
     working = dict(base)
     working["shell_pid"] = "999999"
     wp_path.write_text(_render_wp(working), encoding="utf-8")
 
-    kept = _drop_runtime_frontmatter_only_wp(tmp_path, [repo_rel], None, auto_commit=True)
+    plan = resolve_planning_artifact_staging(
+        tmp_path, tmp_path / "kitty-specs" / _MISSION_SLUG, None, [], auto_commit=True
+    )
 
-    assert kept == [repo_rel], "auto_commit=True must be a byte-identical no-op (NFR-001)"
+    assert repo_rel in plan.files_to_commit, "auto_commit=True must be a byte-identical no-op (NFR-001)"
 
 
 # ---------------------------------------------------------------------------

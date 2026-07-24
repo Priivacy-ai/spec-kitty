@@ -439,7 +439,8 @@ class TestEvaluateAcceptanceMatrix:
         write_calls: list[Any] = []
         monkeypatch.setattr(
             "specify_cli.acceptance.matrix.enforce_negative_invariants",
-            lambda _repo, invariants: enforce_calls.append(invariants) or invariants,
+            # ``context`` is the WP04 gate-context kwarg (deferral + provenance).
+            lambda _repo, invariants, **_kw: enforce_calls.append(invariants) or invariants,
         )
         monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, m: write_calls.append(m))
 

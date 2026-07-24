@@ -53,9 +53,9 @@ intentional I/O call sites (their own module docstrings say so explicitly):
   the same reason).
 * ``implement_cores.py``'s ``_SubprocessGitPort`` class is, by its own
   docstring, "the ONE git-subprocess I/O boundary in this module -- a thin
-  adapter, not decision logic"; its two working-tree ``Path.read_bytes()``
-  comparison reads (``_drop_vcs_lock_only_meta`` / ``_files_changed_vs_ref``)
-  are the injected-``GitPort`` pattern's filesystem twin.
+  adapter, not decision logic"; its working-tree comparison reads
+  (``_is_self_write_only_diff`` / ``_files_changed_vs_ref``) are the
+  injected-``GitPort`` pattern's filesystem twin.
 
 These five sites are allowlisted below with a content-anchored composite key
 (DIR-041 discipline -- never a raw ``file.py:NNN`` locator) and an explicit
@@ -518,26 +518,28 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
     ),
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
-        qualname="_drop_vcs_lock_only_meta",
+        qualname="_is_self_write_only_diff",
         token_substring="source . read_bytes ( )",
         occurrence=None,
         rationale=(
-            "_drop_vcs_lock_only_meta reads the CALLER-supplied working-tree "
-            "meta.json path to compare it against the committed baseline (via "
-            "the injected GitPort) -- the filesystem twin of the GitPort pattern "
-            "above, not a subprocess/worktree/placement decision."
+            "_is_self_write_only_diff (WP14 / IC-07d merge of the retired "
+            "_drop_vcs_lock_only_meta / _drop_runtime_frontmatter_only_wp "
+            "twins) reads the CALLER-supplied working-tree meta.json path to "
+            "compare it against the committed baseline (via the injected "
+            "GitPort) -- the filesystem twin of the GitPort pattern above, not "
+            "a subprocess/worktree/placement decision."
         ),
     ),
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
-        qualname="_drop_runtime_frontmatter_only_wp",
+        qualname="_is_self_write_only_diff",
         token_substring="source . read_text ( encoding =",
         occurrence=None,
         rationale=(
-            "_drop_runtime_frontmatter_only_wp reads the CALLER-supplied "
-            "working-tree WP##.md path to compare its frontmatter against the "
+            "_is_self_write_only_diff's WP##.md leg reads the CALLER-supplied "
+            "working-tree path to compare its frontmatter against the "
             "committed baseline (via the injected GitPort) -- the exact "
-            "filesystem twin of _drop_vcs_lock_only_meta above (WP01/#2570.1), "
+            "filesystem twin of its own meta.json leg above (WP01/#2570.1), "
             "same lightweight already-scoped read, not a subprocess/worktree/"
             "placement decision."
         ),
@@ -550,7 +552,7 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
         rationale=(
             "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
             "to test idempotency against the committed ref (via the injected "
-            "GitPort) -- same rationale as _drop_vcs_lock_only_meta above."
+            "GitPort) -- same rationale as _is_self_write_only_diff above."
         ),
     ),
 )

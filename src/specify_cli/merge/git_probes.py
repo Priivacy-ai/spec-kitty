@@ -139,19 +139,24 @@ def _classify_porcelain_lines(
     these are coordination-owned planning/status artifacts whose stale primary
     copies are legitimate residue after a coordination-topology merge (FR-012 /
     #1878).  The predicate is the single residue authority
-    (:func:`mission_runtime.is_coordination_artifact_residue_path`) — no second
-    residue literal is carried here.
+    (:func:`specify_cli.coordination.coherence.is_coord_residue_churn` — WP12
+    retired the former ``mission_runtime`` predicate onto this owner leg) — no
+    second residue literal is carried here.
 
-    Lines whose path is recognized by :func:`mission_runtime.is_self_bookkeeping_path`
-    are also dropped: these are spec-kitty's own bookkeeping files (``meta.json``,
+    Lines whose path is recognized by
+    :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn` are also
+    dropped: these are spec-kitty's own bookkeeping files (``meta.json``,
     encoding-provenance JSONL, ``kitty-ops/<ULID>.jsonl`` Op-record orphans) that
     must not block dirty-tree gates (#2251 / FR-001 / G-5 invariant).  The
     delegation mirrors the ``residue_predicate`` pattern — no second literal here.
+    (WP11 retired the former ``mission_runtime`` self-bookkeeping predicate onto
+    this owner-module leg; only the self-bookkeeping check moved, not the residue
+    leg — callers still supply their own topology-aware ``residue_predicate``.)
 
     Lines that do not match porcelain v1 shape (two status chars + space + path)
     are silently ignored to avoid false positives from mocked test output.
     """
-    from mission_runtime import is_self_bookkeeping_path
+    from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 
     offending: list[str] = []
     skipped_untracked = 0
@@ -170,7 +175,7 @@ def _classify_porcelain_lines(
             continue
         if residue_predicate is not None and residue_predicate(path_part):
             continue
-        if is_self_bookkeeping_path(path_part):
+        if is_self_bookkeeping_churn(path_part):
             continue
         offending.append(line)
     return offending, skipped_untracked

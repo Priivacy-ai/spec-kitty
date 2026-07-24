@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .docs import DocsLinter, DocsLintFinding
-from .enums import SurfaceKind
+from .enums import ToolSurfaceKind
 from .model import SurfacePlan
 from .plan import SurfacePlanBuilder
 from .providers._discovery import _PROVIDERS  # noqa: F401 — imported for side-effects (registration)
@@ -24,12 +24,12 @@ from .registry import ToolSurfaceRegistry
 from .repair import RepairResult, SurfaceRepairService
 from .status import SurfaceReport, SurfaceStatusService
 
-# Operator-facing ``--kind`` tokens are kebab-case; map them to SurfaceKind.
+# Operator-facing ``--kind`` tokens are kebab-case; map them to ToolSurfaceKind.
 # Session-presence kinds also accept the underscore wire value so operators can
 # pass ``--kind context_file`` (matching the JSON ``surface_kind``) directly.
 # Built from registered provider kind_tokens dicts; populated after _discovery
 # fires all module-level SurfaceProviderRegistry.register() calls (WP04+).
-_KIND_TOKENS: dict[str, SurfaceKind] = SurfaceProviderRegistry.build_kind_tokens()
+_KIND_TOKENS: dict[str, ToolSurfaceKind] = SurfaceProviderRegistry.build_kind_tokens()
 
 # Representative tool keys whose surfaces feed bundle projection: skills-invocable
 # agents supply command + doctrine skills, ``claude`` supplies native agent
@@ -53,8 +53,8 @@ class UnknownSurfaceKind(ValueError):
     """Raised when an operator passes an unrecognized ``--kind`` token."""
 
 
-def surface_kind_from_token(token: str) -> SurfaceKind:
-    """Map a kebab-case ``--kind`` token to a :class:`SurfaceKind`."""
+def surface_kind_from_token(token: str) -> ToolSurfaceKind:
+    """Map a kebab-case ``--kind`` token to a :class:`ToolSurfaceKind`."""
     try:
         return _KIND_TOKENS[token]
     except KeyError as exc:
@@ -123,7 +123,7 @@ def run_tool_surfaces(
     configured_tools: Sequence[str],
     *,
     tool_filter: str | None = None,
-    kinds: Sequence[SurfaceKind] | None = None,
+    kinds: Sequence[ToolSurfaceKind] | None = None,
     fix: bool = False,
 ) -> ToolSurfaceOutcome:
     """Build a plan, collect status, and optionally repair."""
@@ -172,7 +172,7 @@ def _selected_tools(
 
 
 def _filter_plans_by_kinds(
-    plans: Sequence[SurfacePlan], kind_set: set[SurfaceKind]
+    plans: Sequence[SurfacePlan], kind_set: set[ToolSurfaceKind]
 ) -> list[SurfacePlan]:
     filtered: list[SurfacePlan] = []
     for plan in plans:

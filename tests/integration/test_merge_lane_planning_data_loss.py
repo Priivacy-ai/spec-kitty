@@ -555,10 +555,18 @@ class TestLegacyPlanningOnlyMetaInvariant:
         """Prove meta.json tolerance in the merge invariant is load-bearing.
 
         Post-WP01 (#2251) the merge dirty-tree classifier ``_classify_porcelain_lines``
-        converged onto the single ``mission_runtime.is_self_bookkeeping_path`` authority,
-        which independently recognizes ``meta.json``. meta.json is therefore now tolerated
-        by TWO mechanisms: the F2 ``expected_paths`` membership AND that unified
+        converged onto a single self-bookkeeping authority, which independently
+        recognizes ``meta.json``. meta.json is therefore now tolerated by TWO
+        mechanisms: the F2 ``expected_paths`` membership AND that unified
         self-bookkeeping check (the F2 membership is now redundant belt-and-suspenders).
+
+        lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the retired
+        ``mission_runtime.is_self_bookkeeping_path`` authority this test patched is
+        folded onto the canonical churn owner's self-bookkeeping leg
+        (:func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`),
+        which ``_classify_porcelain_lines`` now imports function-locally each call —
+        so patching the attribute on ``coordination.coherence`` (the module the
+        fresh import resolves against) is the equivalent seam (T062).
 
         To prove the invariant genuinely exercises meta.json — and would flag it absent
         ALL tolerance — this strips BOTH: it drops the F2 membership from
@@ -569,7 +577,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
         """
         # WP10 (#2057): the post-merge porcelain invariant runs in the executor
         # seam, reading _classify_porcelain_lines from its own module binding.
-        import mission_runtime
+        import specify_cli.coordination.coherence as coherence_mod
         import specify_cli.merge.executor as merge_mod
 
         slug = "legacy-planning-only-meta-loadbearing"
@@ -578,7 +586,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
         meta_rel = f"kitty-specs/{slug}/meta.json"
 
         real_classify = merge_mod._classify_porcelain_lines
-        real_is_self_bookkeeping = mission_runtime.is_self_bookkeeping_path
+        real_is_self_bookkeeping_churn = coherence_mod.is_self_bookkeeping_churn
         classified_lines: list[str] = []
 
         def classify_without_meta_membership(
@@ -590,14 +598,15 @@ class TestLegacyPlanningOnlyMetaInvariant:
             classified_lines.extend(lines)
             return real_classify(lines, expected_paths - {meta_rel}, **kwargs)
 
-        def is_self_bookkeeping_without_meta(path: object) -> bool:
-            # WP01 (#2251) folded is_self_bookkeeping_path into the classifier;
-            # neutralize it for THIS meta.json only so the tolerance is fully
-            # stripped and the invariant must fall back to catching the dirtied
-            # meta.json (the load-bearing behavior this test proves).
+        def is_self_bookkeeping_churn_without_meta(path: object) -> bool:
+            # WP01 (#2251) folded is_self_bookkeeping_path into the classifier
+            # (WP11 further folded it onto the canonical owner); neutralize it for
+            # THIS meta.json only so the tolerance is fully stripped and the
+            # invariant must fall back to catching the dirtied meta.json (the
+            # load-bearing behavior this test proves).
             if str(path).endswith("meta.json"):
                 return False
-            return real_is_self_bookkeeping(path)
+            return real_is_self_bookkeeping_churn(path)
 
         with (
             _real_invariant_external_mocks(tmp_path),
@@ -607,9 +616,9 @@ class TestLegacyPlanningOnlyMetaInvariant:
                 side_effect=classify_without_meta_membership,
             ),
             patch.object(
-                mission_runtime,
-                "is_self_bookkeeping_path",
-                side_effect=is_self_bookkeeping_without_meta,
+                coherence_mod,
+                "is_self_bookkeeping_churn",
+                side_effect=is_self_bookkeeping_churn_without_meta,
             ),
             pytest.raises(typer.Exit),
         ):

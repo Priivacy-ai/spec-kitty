@@ -19,22 +19,13 @@ C-013, NFR-001, NFR-008, NFR-010.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
-from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.mission_metadata import load_meta
-import errno
 import logging
-import os
 import subprocess
-import sys
-import threading
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
-from typing import ClassVar
-
-import ulid as _ulid_mod
 
 from specify_cli.coordination.policy import (
     WorkflowMutationPolicy,
@@ -54,7 +45,6 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.lanes.branch_naming import coord_mission_dir_name as _seam_coord_mission_dir_name
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import (
@@ -69,75 +59,50 @@ from specify_cli.status.locking import (
 )
 from specify_cli.status.models import InnerStateChanged, StatusEvent
 
+# WP08 campsite split (behaviour-free): the error hierarchy, the legacy-mission
+# resolution helpers, and the confined-atomic-write leaf primitives now live in
+# sibling modules. They are re-exported here so existing
+# ``from specify_cli.coordination.transaction import <name>`` imports (and the
+# ``transaction_module.<name>`` monkeypatch surfaces used by the oracle) keep
+# resolving to the same objects.
+from specify_cli.coordination.transaction_errors import (
+    BookkeepingCommitFailed,
+    BookkeepingDoubleEventId,
+    BookkeepingError,
+    BookkeepingLegacyResolutionFailed,
+    BookkeepingLockTimeout,
+    BookkeepingPolicyRefused,
+    BookkeepingWorktreeMissing,
+)
+from specify_cli.coordination.legacy_resolution import (
+    _coordination_branch_from_meta,
+    _emit_legacy_warning_once,
+    _is_legacy_mission,
+    _mission_specs_dir_name,
+    _resolve_legacy_lane_destination,
+    _validate_safe_segment,
+    _warrants_legacy_warning,
+)
+from specify_cli.coordination.legacy_resolution import (
+    _legacy_warning_marker_path as _legacy_warning_marker_path,
+)
+# WP09 (T052 / C-010): the confined-artifact orchestration helpers moved to
+# ``coordination.atomic_write`` behind a dependency-injection ``resolve`` seam so
+# ``transaction.py`` lands ≤ 1000 LOC even after the owner gains its new
+# capabilities. ``_resolve_confined_artifact_path`` is re-imported under the same
+# name so the campsite oracle's symlink-swap-on-resolve confinement attack stays
+# exercisable through ``transaction._resolve_confined_artifact_path``; the thin
+# write/unlink wrappers below inject that module-level resolver so a monkeypatch on
+# THIS module's name governs the internal write-path resolves.
+from specify_cli.coordination.atomic_write import (
+    _confine_path_to_worktree,
+    _resolve_confined_artifact_path,
+    _unlink_confined_artifact_path as _aw_unlink_confined_artifact_path,
+    _write_confined_artifact_bytes as _aw_write_confined_artifact_bytes,
+    restore_generated_artifact_snapshots,
+)
+
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Error hierarchy
-# ---------------------------------------------------------------------------
-
-
-class BookkeepingError(Exception):
-    """Base for all BookkeepingTransaction failures.
-
-    Subclasses carry a stable ``error_code`` class attribute so callers
-    can route on the code without string parsing (NFR-007).
-    """
-
-    error_code: ClassVar[str] = "BOOKKEEPING_ERROR"
-
-
-class BookkeepingPolicyRefused(BookkeepingError):
-    """The pre-flight policy gate refused the would-be commit.
-
-    Carries the underlying :class:`Refused` verdict so callers can
-    surface the structured diagnostic.
-    """
-
-    error_code: ClassVar[str] = "BOOKKEEPING_POLICY_REFUSED"
-
-    def __init__(self, verdict: Refused) -> None:
-        self.verdict = verdict
-        super().__init__(
-            f"Bookkeeping refused: {verdict.error_code}: {verdict.message}"
-        )
-
-
-class BookkeepingLockTimeout(BookkeepingError):
-    """The feature status lock could not be acquired within the timeout."""
-
-    error_code: ClassVar[str] = "BOOKKEEPING_LOCK_TIMEOUT"
-
-
-class BookkeepingWorktreeMissing(BookkeepingError):
-    """Worktree resolution found neither a coord nor a valid lane worktree."""
-
-    error_code: ClassVar[str] = "BOOKKEEPING_WORKTREE_MISSING"
-
-
-class BookkeepingCommitFailed(BookkeepingError):
-    """``safe_commit()`` raised; rollback ran; the original error is chained."""
-
-    error_code: ClassVar[str] = "BOOKKEEPING_COMMIT_FAILED"
-
-
-class BookkeepingDoubleEventId(BookkeepingError):
-    """The same event_id was appended twice in one transaction."""
-
-    error_code: ClassVar[str] = "BOOKKEEPING_DOUBLE_EVENT_ID"
-
-
-class BookkeepingLegacyResolutionFailed(BookkeepingError):
-    """Legacy mission detected but the lane worktree could not be resolved.
-
-    Stable error code ``BOOKKEEPING_LEGACY_RESOLUTION_FAILED``.  Raised
-    when ``meta.json`` lacks ``coordination_branch`` (legacy mission)
-    but the operator's current working directory does not sit inside a
-    recognisable lane worktree, so we cannot determine which branch is
-    the legitimate write target for this mission's bookkeeping.
-    """
-
-    error_code: ClassVar[str] = "BOOKKEEPING_LEGACY_RESOLUTION_FAILED"
 
 
 # ---------------------------------------------------------------------------
@@ -149,400 +114,22 @@ _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
 
 
-def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
-    """Return the kitty-specs sub-directory name for this mission.
-
-    Delegates to the seam's VERBATIM coordination primitive
-    (``lanes.branch_naming.coord_mission_dir_name``, FR-010) so there is exactly
-    ONE algorithm for the coordination ``<slug>-<mid8>`` grammar, reconstructed
-    byte-identical to the prior hand-rolled body. This transaction path consumes
-    ``meta.json.mission_slug`` VERBATIM (including any legacy ``NNN-`` prefix); the
-    seam primitive does NOT strip it, so the kitty-specs dir matches the on-disk
-    coord target (#1589). The canonical, NNN-stripping ``mission_dir_name`` is NOT
-    used here.
-    """
-    return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
-
-
-def _validate_safe_segment(name: str, value: str) -> str:
-    """Return a single safe path segment or raise a bookkeeping error.
-
-    Delegates to the canonical ``assert_safe_path_segment`` (FR-001 / WP01) and
-    re-raises any ``ValueError`` as a ``BookkeepingError`` to preserve the call-site
-    contract (C-001: migrate, don't wrap — no parallel mechanism).
-    """
-    try:
-        return assert_safe_path_segment(value)
-    except ValueError as exc:
-        raise BookkeepingError(f"{name} is not a safe path segment: {exc}") from exc
-
-
-def _generate_ulid() -> str:
-    """Generate a new ULID string (same convention as status.emit)."""
-    if hasattr(_ulid_mod, "new"):
-        return str(_ulid_mod.new().str)
-    return str(_ulid_mod.ULID())
-
-
-# ---------------------------------------------------------------------------
-# Legacy mission helpers (WP08 T035–T036, FR-017 / FR-027 / SC-11)
-# ---------------------------------------------------------------------------
-#
-# Missions created before the coordination-branch topology landed do not
-# carry ``coordination_branch`` in their ``meta.json``.  For those, the
-# bookkeeping write target is the operator's current LANE worktree + its
-# checked-out branch.  Every other invariant of the transaction
-# (pre-flight policy gate, lock, surgical truncate rollback, outbound
-# deferral) applies uniformly.  Only ``worktree_root`` and
-# ``destination_ref`` differ.
-
-
-def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:
-    """Return ``True`` when ``meta.json`` exists and lacks ``coordination_branch``.
-
-    Detection rule (per WP08 reviewer guidance):
-
-    * ``meta.json`` is **present** but does not carry the
-      ``coordination_branch`` key → legacy mission.
-    * ``meta.json`` is **absent** → treat as new-topology mission.  This
-      is the case for synthetic test fixtures and very early mission
-      lifecycle states; defaulting to new-topology preserves the
-      existing test surface and matches the contract that any
-      well-formed post-WP03 mission has its meta written before the
-      first ``acquire()``.
-    * A missing/manually deleted coord branch does **not** make a
-      mission legacy — FR-018 idempotency re-creates it.  Only the
-      ``meta.json`` field is consulted.
-    """
-    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
-    # A malformed meta.json is not our problem to repair here; if a caller
-    # hits this they will surface it through other validators. Treat as
-    # new-topology so we do not silently route legacy.
-    data = load_meta(feature_dir, on_malformed="none")
-    if data is None:
-        return False
-    return not data.get("coordination_branch")
-
-
-def _coordination_branch_from_meta(
-    repo_root: Path, mission_slug: str, mid8: str,
-) -> str | None:
-    """Return explicit ``coordination_branch`` from meta.json, if trustworthy."""
-    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
-    data = load_meta(feature_dir, on_malformed="none")
-    if data is None:
-        return None
-    raw_branch = data.get("coordination_branch")
-    if not isinstance(raw_branch, str):
-        return None
-    branch = raw_branch.strip()
-    return branch or None
-
-
-def _warrants_legacy_warning(repo_root: Path, mission_slug: str, mid8: str) -> bool:
-    """Return ``True`` when the once-per-mission legacy-topology warning
-    should fire (#2351).
-
-    Deliberately SEPARATE from :func:`_is_legacy_mission` (C-005): that
-    predicate keys on ``coordination_branch`` absence alone and continues to
-    drive worktree routing (below) and write-contract selection unchanged.
-    This classifier additionally reads the stored ``MissionTopology`` (via
-    the non-deriving :func:`stored_topology_from_meta`, C-001) and the
-    ``flattened`` provenance flag, so a mission whose coordination-less shape
-    was **chosen at creation** (``single_branch``/``lanes``) or that is
-    ``flattened`` does not draw a warning meant for genuinely pre-SSOT
-    missions (FR-001..FR-004).
-
-    Warn iff ``coordination_branch`` is falsy AND the stored topology is
-    ``None`` (absent or malformed — the reader's fail-closed default, so an
-    unrecognised value warns rather than silently passing) AND the mission
-    is not ``flattened``.
-    """
-    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
-    meta = load_meta(feature_dir, on_malformed="none")
-    if meta is None:
-        return False
-    # belt-and-suspenders: call site sits inside `if legacy_mode:` (which requires
-    # no coordination_branch), but guard is kept for future direct callers.
-    if meta.get("coordination_branch"):
-        return False
-    if meta.get("flattened"):
-        return False
-    from specify_cli.missions._read_path_resolver import stored_topology_from_meta
-
-    return stored_topology_from_meta(meta) is None
-
-
-def _resolve_legacy_lane_destination(
-    _repo_root: Path,
-) -> tuple[Path, str]:
-    """Resolve the operator's current lane worktree + its checked-out branch.
-
-    Returns ``(worktree_root, branch_short_name)``.
-
-    Algorithm:
-
-    1. Take ``Path.cwd()`` and walk ancestors until a ``.git`` entry is
-       found.  A ``.git`` *file* indicates a linked worktree; a ``.git``
-       *directory* indicates the main checkout.  Either is acceptable as
-       a legacy write target — pre-coord-topology bookkeeping ran in
-       whichever checkout the operator stood in.
-    2. Read ``git symbolic-ref HEAD`` from that worktree to obtain the
-       branch name and strip ``refs/heads/`` so it is comparable to the
-       short-form refs used elsewhere in the transaction.
-
-    Raises :class:`BookkeepingLegacyResolutionFailed` when no ``.git``
-    marker is found or HEAD is detached.
-    """
-    cwd = Path.cwd().resolve()
-    worktree_root: Path | None = None
-    for ancestor in [cwd, *cwd.parents]:
-        marker = ancestor / ".git"
-        if marker.exists():
-            worktree_root = ancestor
-            break
-    if worktree_root is None:
-        raise BookkeepingLegacyResolutionFailed(
-            f"Legacy mission detected but no git worktree found above {cwd}",
-        )
-    try:
-        head = subprocess.check_output(
-            ["git", "-C", str(worktree_root), "symbolic-ref", "HEAD"],
-            text=True,
-            stderr=subprocess.PIPE,
-        ).strip()
-    except subprocess.CalledProcessError as exc:
-        raise BookkeepingLegacyResolutionFailed(
-            f"Legacy mission detected at {worktree_root} but HEAD is detached "
-            f"or symbolic-ref failed: {exc.stderr or exc}"
-        ) from exc
-    branch = head.removeprefix("refs/heads/")
-    if not branch:
-        raise BookkeepingLegacyResolutionFailed(
-            f"Legacy mission detected at {worktree_root} but HEAD resolves to "
-            f"an empty branch name"
-        )
-    # Defensive: discourage running legacy bookkeeping against repo_root
-    # if that happens to be the main checkout sitting on `main`.  We do
-    # not refuse here — the pre-flight policy gate in `acquire()` will
-    # catch protected-ref writes via the same machinery used for the
-    # coord topology (SC-11 behaviour parity).
-    return worktree_root, branch
-
-
-def _legacy_warning_marker_path(repo_root: Path, mission_id: str) -> Path:
-    """Path of the per-mission once-only deprecation warning marker."""
-    safe_mission_id = _validate_safe_segment("mission_id", mission_id)
-    return repo_root / ".kittify" / f"legacy-warning-shown-{safe_mission_id}"
-
-
-def _emit_legacy_warning_once(
-    repo_root: Path, mission_id: str, mission_slug: str,
-) -> None:
-    """Emit a one-line stderr deprecation warning, at most once per mission.
-
-    Idempotent: subsequent invocations within the same project see the
-    marker file and no-op.  The marker lives under ``.kittify/`` so it
-    is project-scoped (per-mission ID) and survives across invocations.
-    """
-    marker = _legacy_warning_marker_path(repo_root, mission_id)
-    if marker.exists():
-        return
-    try:
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text("", encoding="utf-8")
-    except OSError as exc:
-        # Marker write failure is non-fatal: we still emit the warning
-        # (worst case: warning repeats next invocation).
-        logger.debug(
-            "BookkeepingTransaction: failed to write legacy-warning "
-            "marker %s: %s",
-            marker,
-            exc,
-        )
-    print(
-        f"warning: mission {mission_slug!r} uses the legacy topology "
-        f"(no coordination branch). New atomicity invariants apply, "
-        f"but consider migrating: see "
-        f"docs/migrations/legacy-to-coordination.md "
-        f"or run `spec-kitty migrate backfill-topology` to persist the "
-        f"stored shape.",
-        file=sys.stderr,
-    )
-
-
-def _confine_path_to_worktree(worktree_root: Path, path: Path) -> Path:
-    """Resolve ``path`` relative to ``worktree_root`` and reject escapes."""
-    candidate = path if path.is_absolute() else worktree_root / path
-    try:
-        resolved_worktree = worktree_root.resolve()
-        resolved_candidate = candidate.resolve(strict=False)
-    except OSError as exc:
-        raise ValueError(
-            f"Path {candidate} could not be resolved under worktree {worktree_root}: {exc}"
-        ) from exc
-    if not resolved_candidate.is_relative_to(resolved_worktree):
-        raise ValueError(
-            f"Path {candidate} resolves outside worktree {worktree_root}: "
-            f"{resolved_candidate}"
-        )
-    return candidate
-
-
-def _resolve_confined_artifact_path(worktree_root: Path, path: Path) -> Path:
-    """Return a canonical artifact path that remains inside ``worktree_root``."""
-    candidate = _confine_path_to_worktree(worktree_root, path)
-    resolved_worktree = worktree_root.resolve()
-    resolved_path = candidate.resolve(strict=False)
-    if resolved_path == resolved_worktree:
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(target is worktree root): "
-            f"{path}"
-        )
-    if not resolved_path.is_relative_to(resolved_worktree):
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(outside worktree): "
-            f"{resolved_path}"
-        )
-    return resolved_path
-
-
 def _write_confined_artifact_bytes(
     worktree_root: Path,
     path: Path,
     content: bytes,
 ) -> Path:
-    """Write bytes after revalidating containment at the I/O boundary."""
-    resolved_path = _resolve_confined_artifact_path(worktree_root, path)
-    resolved_path.parent.mkdir(parents=True, exist_ok=True)
-    resolved_path = _resolve_confined_artifact_path(worktree_root, resolved_path)
-    if resolved_path.exists() and not resolved_path.is_file():
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(target is not a regular file): "
-            f"{resolved_path}"
-        )
-    existing_mode = (
-        resolved_path.stat().st_mode & 0o777
-        if resolved_path.exists()
-        else None
+    """Write bytes, injecting this module's resolver (oracle-patchable)."""
+    return _aw_write_confined_artifact_bytes(
+        worktree_root, path, content, resolve=_resolve_confined_artifact_path
     )
-
-    parent_fd: int | None = None
-    tmp_name = f".spec-kitty-{_generate_ulid()}.tmp"
-    try:
-        parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)
-        _write_and_replace_via_parent_fd(
-            parent_fd=parent_fd,
-            target_name=resolved_path.name,
-            tmp_name=tmp_name,
-            content=content,
-            existing_mode=existing_mode,
-        )
-    except OSError as exc:
-        if exc.errno in {errno.ELOOP, errno.ENOENT, errno.ENOTDIR}:
-            raise ValueError(
-                "Refusing to write artifact outside coordination worktree "
-                "(unsafe path changed during write): "
-                f"{resolved_path}"
-            ) from exc
-        raise
-    finally:
-        if parent_fd is not None:
-            try:
-                os.unlink(tmp_name, dir_fd=parent_fd)
-            except FileNotFoundError:
-                pass
-            except OSError:
-                logger.debug(
-                    "BookkeepingTransaction: failed to remove temp artifact %s/%s",
-                    resolved_path.parent,
-                    tmp_name,
-                )
-            os.close(parent_fd)
-    return resolved_path
-
-
-def _open_confined_parent_fd(worktree_root: Path, path: Path) -> int:
-    """Open ``path.parent`` component-by-component without following symlinks."""
-    if not (
-        os.open in os.supports_dir_fd
-        and hasattr(os, "O_DIRECTORY")
-        and hasattr(os, "O_NOFOLLOW")
-    ):
-        raise ValueError(
-            "Refusing to write artifact outside coordination worktree "
-            "(fd-relative no-follow writes unsupported on this platform): "
-            f"{path}"
-        )
-
-    resolved_worktree = worktree_root.resolve()
-    relative_parent = path.parent.relative_to(resolved_worktree)
-    dir_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-    fd = os.open(resolved_worktree, dir_flags)
-    try:
-        for part in relative_parent.parts:
-            next_fd = os.open(part, dir_flags, dir_fd=fd)
-            os.close(fd)
-            fd = next_fd
-    except Exception:
-        os.close(fd)
-        raise
-    return fd
-
-
-def _write_and_replace_via_parent_fd(
-    *,
-    parent_fd: int,
-    target_name: str,
-    tmp_name: str,
-    content: bytes,
-    existing_mode: int | None,
-) -> None:
-    """Create temp file and replace target relative to an already-open parent."""
-    tmp_fd = os.open(
-        tmp_name,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-        0o600,
-        dir_fd=parent_fd,
-    )
-    try:
-        if existing_mode is not None:
-            os.fchmod(tmp_fd, existing_mode)
-        remaining = memoryview(content)
-        while remaining:
-            written = os.write(tmp_fd, remaining)
-            remaining = remaining[written:]
-    finally:
-        os.close(tmp_fd)
-    os.replace(tmp_name, target_name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
 
 
 def _unlink_confined_artifact_path(worktree_root: Path, path: Path) -> None:
-    """Unlink an artifact relative to a verified no-follow parent directory."""
-    resolved_path = _resolve_confined_artifact_path(worktree_root, path)
-    parent_fd: int | None = None
-    try:
-        parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)
-        os.unlink(resolved_path.name, dir_fd=parent_fd)
-    except FileNotFoundError:
-        pass
-    except OSError as exc:
-        if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
-            raise ValueError(
-                "Refusing to unlink artifact outside coordination worktree "
-                "(unsafe path changed during unlink): "
-                f"{resolved_path}"
-            ) from exc
-        raise
-    finally:
-        if parent_fd is not None:
-            os.close(parent_fd)
+    """Unlink an artifact, injecting this module's resolver (oracle-patchable)."""
+    _aw_unlink_confined_artifact_path(
+        worktree_root, path, resolve=_resolve_confined_artifact_path
+    )
 
 
 # WP06 swap: the canonical builder now lives in ``status.emit`` so the
@@ -623,6 +210,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # Snapshot of every artifact ever written via write_artifact().
         # None ⇒ file did not exist pre-write (rollback unlinks it).
         self._snapshots: dict[Path, bytes | None] = {}
+        # Snapshot of every subprocess byproduct enrolled via
+        # enroll_subprocess_byproducts() (C3). None ⇒ absent pre-transaction, so
+        # rollback unlinks the child-created file instead of abandoning it.
+        self._byproduct_snapshots: dict[Path, bytes | None] = {}
         # Snapshot of status.json pre-emit (used to restore exact bytes
         # on rollback, NOT re-materialise — keeps SHA-256 identical).
         self._pre_emit_snapshot_existed: bool | None = None
@@ -1067,6 +658,35 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         if resolved_path not in self._staged_paths:
             self._staged_paths.append(resolved_path)
 
+    def enroll_subprocess_byproducts(
+        self, *paths: Path, stage: bool = True
+    ) -> None:
+        """Enrol bytes a spec-kitty-spawned child process creates/modifies (C3/TAO-1).
+
+        Call this **before** spawning the child (a gate's pytest run) with the
+        paths it may create or modify. The pre-transaction bytes are snapshotted
+        (``None`` when the path does not yet exist), so on a successful step the
+        bytes are committed (``stage=True`` adds them to the changeset) and on an
+        aborted step the single compensator restores them — a created byproduct is
+        unlinked, a modified one is reverted. This replaces the "detected, warned,
+        and abandoned" behaviour that manufactured the very orphan a later gate then
+        had to be taught to ignore.
+
+        Rollback restores these alongside :meth:`write_artifact` paths through the
+        one compensator (TAO-3). Confinement matches :meth:`write_artifact`.
+        """
+        for path in paths:
+            confined = _confine_path_to_worktree(self.worktree_root, path)
+            resolved_path = _resolve_confined_artifact_path(
+                self.worktree_root, confined
+            )
+            if resolved_path not in self._byproduct_snapshots:
+                self._byproduct_snapshots[resolved_path] = (
+                    resolved_path.read_bytes() if resolved_path.exists() else None
+                )
+            if stage and resolved_path not in self._staged_paths:
+                self._staged_paths.append(resolved_path)
+
     def stage_path(self, path: Path) -> None:
         """Add ``path`` to the commit changeset without snapshot tracking.
 
@@ -1302,20 +922,24 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                     exc,
                 )
 
-        # 3. Snapshot-restore each tracked write_artifact path.
-        for path, prev in self._snapshots.items():
-            try:
-                if prev is None:
-                    _unlink_confined_artifact_path(self.worktree_root, path)
-                else:
-                    _write_confined_artifact_bytes(self.worktree_root, path, prev)
-            except (OSError, ValueError) as exc:
-                logger.error(
-                    "BookkeepingTransaction rollback: restore of %s "
-                    "failed: %s",
-                    path,
-                    exc,
-                )
+        # 3. Snapshot-restore each tracked write_artifact path AND every enrolled
+        # subprocess byproduct (C3), through the single compensator (TAO-3). The
+        # confined fd-relative write/unlink is injected so restore stays inside the
+        # worktree (C-009: no ``git checkout --``).
+        restore_generated_artifact_snapshots(
+            {**self._snapshots, **self._byproduct_snapshots},
+            write=lambda path, prev: _write_confined_artifact_bytes(
+                self.worktree_root, path, prev
+            ),
+            unlink=lambda path: _unlink_confined_artifact_path(
+                self.worktree_root, path
+            ),
+            on_error=lambda path, exc: logger.error(
+                "BookkeepingTransaction rollback: restore of %s failed: %s",
+                path,
+                exc,
+            ),
+        )
 
     def _run_deferred_outbound(self) -> None:
         """Run deferred outbound side effects. Individual failures log only."""
@@ -1337,9 +961,3 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 "BookkeepingTransaction: lock release failed: %s",
                 exc,
             )
-
-
-# A small re-entrancy sentinel so nested-lock detection happens at the
-# same granularity as feature_status_lock(). This is intentionally
-# thread-local: the existing locking.py is thread-aware too.
-_active_transactions = threading.local()

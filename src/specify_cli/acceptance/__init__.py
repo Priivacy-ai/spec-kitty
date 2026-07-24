@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
@@ -104,17 +105,6 @@ PRIMARY_ARTIFACT_FILES = (
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
 
-# Paths written by the accept pipeline itself.  These must be excluded from the
-# git-dirty gate so that a second accept run on unchanged mission state produces
-# the same pass/fail verdict as the first (convergence / idempotency guarantee).
-# ``status.json`` is a daemon-materialized view; ``acceptance-matrix.json`` is
-# written by ``_check_lane_gates`` when ``mutate_matrix=True``.
-ACCEPT_OWNED_PATHS = frozenset(
-    {
-        "acceptance-matrix.json",
-        "status.json",
-    }
-)
 _LEGACY_NOT_DONE_LANES = ("planned", "claimed", "doing", "in_progress", "for_review")
 _ACTIONABLE_LANE_BLOCKER_HINTS = {
     "in_review": "review is still in progress; complete the review and move the work package to approved or done",
@@ -131,17 +121,51 @@ def _porcelain_dirty_path(line: str) -> str:
     return path
 
 
-def _accept_owned_dirty_paths(repo_root: Path, *feature_dirs: Path) -> set[str]:
-    """Return repo-relative accept-owned paths for the current mission only."""
-    owned: set[str] = set()
-    for feature_dir in feature_dirs:
-        try:
-            feature_rel = feature_dir.resolve().relative_to(repo_root.resolve()).as_posix()
-        except ValueError:
-            continue
-        for filename in ACCEPT_OWNED_PATHS:
-            owned.add(f"{feature_rel}/{filename}")
-    return owned
+def _is_accept_pipeline_own_write(path: str, *, mission_slug: str) -> bool:
+    """True when *path* is one of the accept pipeline's own convergence writes.
+
+    Retires the former accept-owned-paths filename frozenset (IC-07g / R-014)
+    onto the shared :func:`mission_runtime.kind_for_mission_file` owner
+    classifier. The accept pipeline itself writes exactly two mission-artifact
+    files — ``acceptance-matrix.json`` (the ``ACCEPTANCE_MATRIX`` kind, written
+    by ``_check_lane_gates`` when ``mutate_matrix=True``) and ``status.json``
+    (the daemon-materialized view) — and must ignore its own writes,
+    UNCONDITIONALLY (every topology, not only under coordination), for the
+    accept ∘ accept convergence guarantee to hold (#1883).
+
+    ``status.json`` is deliberately matched by its OWN basename, not by the
+    coarse ``STATUS_STATE`` kind: that kind also carries ``status.events.jsonl``
+    (the append-only lane-state log, ``mission_runtime/artifacts.py``'s
+    ``_MISSION_FILE_KIND_BY_BASENAME``). The accept pipeline only *reads*
+    ``status.events.jsonl`` — it never appends to it (the writer is
+    ``status/store.py`` via ``move-task`` / ``mark-status``) — so it is NOT an
+    accept-pipeline own-write, and a dirty one is real, uncommitted lane-state
+    the accept gate must still block (review-cycle-1 BLOCKER 1; the retired
+    accept-owned-paths filename set never contained it either). Matching the
+    coarse kind here would silently widen the exemption past what was ever
+    excluded and reintroduce exactly the false pass this retirement must not
+    make (C6).
+
+    Also deliberately NOT the wider ``is_toolchain_generated_churn`` union:
+    that union's coord-residue leg is hardcoded to project against
+    ``MissionTopology.COORD``, so calling it unconditionally here would ALSO
+    make ``issue-matrix.md`` (the third ``ACCEPTANCE_MATRIX``-adjacent
+    placement kind, ``ISSUE_MATRIX``) benign on a FLAT mission — the same class
+    of widening, one level up. The wider, topology-gated ``ISSUE_MATRIX``
+    residue exclusion stays exactly where it was:
+    :func:`_filter_coordination_residue` below. ``mission_slug`` scopes the
+    match to the CURRENT mission only — another mission's ``status.json`` is
+    not this pipeline's own write and must still block.
+    """
+    from mission_runtime import MissionArtifactKind, kind_for_mission_file
+
+    kind = kind_for_mission_file(path, mission_slug=mission_slug)
+    if kind is MissionArtifactKind.ACCEPTANCE_MATRIX:
+        return True
+    if kind is MissionArtifactKind.STATUS_STATE:
+        basename = to_posix(path).rsplit("/", 1)[-1]
+        return basename == "status.json"
+    return False
 
 
 def _mission_routes_through_coordination(repo_root: Path, feature: str) -> bool:
@@ -173,46 +197,45 @@ def _accept_dirty_gate(
     *,
     repo_root: Path,
     feature: str,
-    feature_dir: Path,
-    read_feature_dir: Path,
-    status_feature_dir: Path,
 ) -> list[str]:
     """Compute the accept dirty set: accept-owned exclusion + FR-008 coord residue.
 
     Three filters compose:
 
     1. **Accept-owned convergence (#1883):** the accept gate's own writes
-       (``acceptance-matrix.json`` + ``status.json``) are scoped to this
-       mission's primary anchor dir, the coord-aware read dir, and the canonical
-       status-read dir. Excluding all three absorbs accept-owned residue left
-       dirty by a prior ``--no-commit`` / diagnose run, so ``accept ∘ accept``
-       converges in every mode.
+       (``acceptance-matrix.json`` + ``status.json``) are excluded via
+       :func:`_is_accept_pipeline_own_write`, the shared
+       :func:`mission_runtime.kind_for_mission_file` owner classifier scoped to
+       exactly those two kinds (IC-07g retired the former accept-owned-paths
+       filename frozenset onto it) — unconditionally, every topology, so
+       ``accept ∘ accept`` converges in every mode.
     2. **Self-bookkeeping exclusion (#2251):** spec-kitty's own bookkeeping
        files (``meta.json``, encoding-provenance JSONL, and ``kitty-ops/<ULID>.jsonl``
        Op-record orphans) are excluded via the SINGLE shared
-       :func:`mission_runtime.is_self_bookkeeping_path` authority — no independent
-       literal carried here (G-5 invariant / #1914 framing).
+       :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`
+       authority — no independent literal carried here (G-5 invariant / #1914
+       framing; WP11 retired the former ``mission_runtime`` self-bookkeeping predicate
+       onto this owner-module leg).
     3. **FR-008 topology-aware residue:** under coordination topology the
        recognized coordination residue (stale primary copies of artifacts owned
        by the coordination branch) is excluded via the SAME per-ref pattern the
        record-analysis preflight uses (:func:`routes_through_coordination` + the
-       WP04 :func:`is_coordination_artifact_residue_path` predicate). A flat
-       mission routes through PRIMARY, so its real primary artifacts STILL block.
-       ``ACCEPT_OWNED_PATHS`` is NOT widened.
+       :func:`specify_cli.coordination.coherence.is_coord_residue_churn` residue
+       leg -- WP12 retired the former ``mission_runtime`` predicate onto this
+       owner leg). A flat mission routes through PRIMARY, so its real primary
+       artifacts STILL block. The accept-owned exclusion (1) is NOT widened to
+       this leg's ``ISSUE_MATRIX`` kind (see :func:`_is_accept_pipeline_own_write`).
 
     Non-accept-owned, non-self-bookkeeping, non-residue dirt is preserved verbatim
     (fail-closed, NFR-003).
     """
-    from mission_runtime import is_self_bookkeeping_path
+    from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 
-    accept_owned_dirty_paths = _accept_owned_dirty_paths(
-        repo_root,
-        feature_dir,
-        read_feature_dir,
-        status_feature_dir,
-    )
     git_dirty = [
-        line for line in git_dirty_raw if _porcelain_dirty_path(line) not in accept_owned_dirty_paths and not is_self_bookkeeping_path(_porcelain_dirty_path(line))
+        line
+        for line in git_dirty_raw
+        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature)
+        and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(git_dirty, repo_root=repo_root, feature=feature)
 
@@ -227,19 +250,21 @@ def _filter_coordination_residue(
 
     FR-008 convergence on the ``mission.py`` reference pattern: only when
     :func:`routes_through_coordination` holds does
-    :func:`is_coordination_artifact_residue_path` (the WP04 stored-topology
-    residue authority — flat→``False``) get to exclude a path. The predicate is
-    NOT a widening of ``ACCEPT_OWNED_PATHS``: it is the per-ref coordination gate
-    applied to recognized coordination-owned artifacts (spec / plan / tasks /
-    lanes / status / matrices / checklists) left stale on the primary checkout.
-    Real source edits, unknown mission scratch files, and another mission's
-    artifacts are not recognized residue, so they still block.
+    :func:`specify_cli.coordination.coherence.is_coord_residue_churn` (the
+    stored-topology residue authority — flat→``False``; WP12 retired the former
+    ``mission_runtime`` predicate onto this owner leg) get to exclude a path.
+    The predicate is NOT a widening of the accept-owned exclusion
+    (:func:`_is_accept_pipeline_own_write`): it is the per-ref
+    coordination gate applied to recognized coordination-owned artifacts (spec /
+    plan / tasks / lanes / status / matrices / checklists) left stale on the
+    primary checkout. Real source edits, unknown mission scratch files, and
+    another mission's artifacts are not recognized residue, so they still block.
     """
-    from mission_runtime import is_coordination_artifact_residue_path
+    from specify_cli.coordination.coherence import is_coord_residue_churn
 
     if not _mission_routes_through_coordination(repo_root, feature):
         return dirty_lines
-    return [line for line in dirty_lines if not is_coordination_artifact_residue_path(_porcelain_dirty_path(line), mission_slug=feature)]
+    return [line for line in dirty_lines if not is_coord_residue_churn(_porcelain_dirty_path(line), mission_slug=feature)]
 
 
 class AcceptanceError(TaskCliError):
@@ -905,9 +930,6 @@ def collect_feature_summary(
         git_dirty_raw,
         repo_root=repo_root,
         feature=feature,
-        feature_dir=feature_dir,
-        read_feature_dir=read_feature_dir,
-        status_feature_dir=status_feature_dir,
     )
 
     lanes: dict[str, list[str]] = {lane: [] for lane in LANES}

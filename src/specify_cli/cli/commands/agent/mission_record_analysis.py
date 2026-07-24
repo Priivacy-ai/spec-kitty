@@ -28,11 +28,10 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
-    is_self_bookkeeping_path,
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.core.paths import (
@@ -179,7 +178,12 @@ def _enforce_analysis_report_write_preflight(
     # This runs regardless of topology because these files are spec-kitty's own
     # metadata, not coordination residue. The G-5 invariant holds: a stale primary
     # ``spec.md`` is NOT in the allowlist, so it survives this filter as "real dirt".
-    dirty_paths = [path for path in dirty_paths if not is_self_bookkeeping_path(path)]
+    # WP11 retired the former ``mission_runtime`` self-bookkeeping predicate onto
+    # the canonical owner's self-bookkeeping-only leg (deliberately NOT the full
+    # ``is_toolchain_generated_churn`` union — the residue leg below is already
+    # applied separately, topology-gated; folding it in here would unconditionally
+    # widen the residue drop).
+    dirty_paths = [path for path in dirty_paths if not is_self_bookkeeping_churn(path)]
     # FR-005 / FR-001b: drop coord-owned residue only under a coordination
     # topology, read from the WP02 STORED topology via the ONE canonical predicate
     # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
@@ -193,7 +197,7 @@ def _enforce_analysis_report_write_preflight(
         dirty_paths = [
             path
             for path in dirty_paths
-            if not is_coordination_artifact_residue_path(path, mission_slug=mission_slug)
+            if not is_coord_residue_churn(path, mission_slug=mission_slug)
         ]
     if dirty_paths:
         payload = {

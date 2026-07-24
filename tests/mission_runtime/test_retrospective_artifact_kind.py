@@ -20,11 +20,11 @@ import pytest
 
 from mission_runtime import (
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
     kind_for_mission_file,
 )
 from mission_runtime.artifacts import _PRIMARY_ARTIFACT_KINDS
+from specify_cli.coordination.coherence import is_coord_residue_churn
 
 # Schema/partition-membership guard (enum + classifier invariants). Selected by
 # the `misc` integration shard's `(git_repo or integration or architectural)`
@@ -66,4 +66,4 @@ def test_retrospective_yaml_is_not_coordination_residue() -> None:
     """
     path = f"kitty-specs/{_MISSION_SLUG}/retrospective.yaml"
 
-    assert is_coordination_artifact_residue_path(path) is False
+    assert is_coord_residue_churn(path) is False

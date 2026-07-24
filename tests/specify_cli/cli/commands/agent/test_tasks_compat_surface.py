@@ -246,6 +246,10 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
+    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
+    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
+    # created paths into the tool-artifact owner compensator.
+    "_mt_enrol_gate_byproducts",
     "_mt_pre_review_gate_metadata",
     "_mt_pre_review_gate_console_warning",
     "_mt_pre_review_gate_block_message",
@@ -478,5 +482,11 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     (WP04, #2873) then retired ``_mt_pre_review_gate_verdict`` — the census-derived
     composition helper had no production call site (the sole live ``for_review``
     path always injects a ``scope_source``, never omits it) — and its ``tasks.py``
-    compat re-export (tasks_move_task 76 -> 75): 157 -> 156."""
-    assert len(SYMBOL_TO_MODULE) == 156  # golden-count: cardinality-is-contract
+    compat re-export (tasks_move_task 76 -> 75): 157 -> 156. WP16
+    (lifecycle-gate-execution-context-01KY72GQ, IC-07f) retired
+    ``new_checkout_paths`` and added ``_mt_enrol_gate_byproducts`` — the gate
+    subprocess's created-path diff now enrols into the tool-artifact owner
+    compensator (commit-on-pass via no-op, revert-on-abort via
+    ``restore_generated_artifact_snapshots``) instead of being detected and
+    warned about (tasks_move_task 75 -> 76): 156 -> 157."""
+    assert len(SYMBOL_TO_MODULE) == 157  # golden-count: cardinality-is-contract

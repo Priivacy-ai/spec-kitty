@@ -466,9 +466,12 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
 
     def _terminal_eval(*args: object, **kwargs: object) -> pre_review_gate.GateVerdict:
         del args, kwargs
-        # The scoped run (inside the bound handler) writes a test-owned file, then
-        # is interrupted terminally — the gate must preserve that residue and NOT
-        # apply the transition.
+        # The scoped run (inside the bound handler) writes a test-owned
+        # (subprocess-created) byproduct, then is interrupted terminally.
+        # IC-07f (WP16): a terminal interruption is an abort, so the owner
+        # compensator must revert this created byproduct (unlink it) —
+        # genuinely reverted, not "preserved without cleanup" (the retired
+        # behaviour) and not left as an unaccounted-for orphan either.
         sentinel.write_text("test-owned", encoding="utf-8")
         return pre_review_gate.GateVerdict(
             outcome=outcome,
@@ -492,13 +495,19 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
         # WP09: the lane has no commits ahead of its base, so the changed-files
         # SSOT is empty and the gate would cheap-skip; pin a non-empty changed set
         # so the bound handler actually dispatches (dirty-path detection below
-        # stays REAL — the sentinel proves new_checkout_paths preservation). The
-        # handler resolves the scope through the ScopeSource, so the terminal run
-        # is injected at ``evaluate_with_scope`` (the ScopeSource path routes past
+        # stays REAL — the sentinel proves the byproduct is enrolled in the
+        # tool-artifact owner, WP16/IC-07f). The handler resolves the scope
+        # through the ScopeSource, so the terminal run is injected at
+        # ``evaluate_with_scope`` (the ScopeSource path routes past
         # ``run_scoped_tests_at_head`` via ``_evaluate_via_scope_source``).
         patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
         patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_terminal_eval),
+        patch.object(
+            tasks_move_task,
+            "enroll_subprocess_byproducts",
+            wraps=tasks_move_task.enroll_subprocess_byproducts,
+        ) as enrol_spy,
     ):
         result = CliRunner().invoke(
             app,
@@ -518,7 +527,10 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
     payload = json.loads(result.stdout)
     assert "pre_review_gate" in payload, payload
     assert payload["pre_review_gate"]["outcome"] == outcome.value
-    assert payload["pre_review_gate"]["new_checkout_paths"] == [sentinel.name]
+    # IC-07f (WP16): the retired ``new_checkout_paths`` metadata key is gone —
+    # the byproduct is enrolled in the tool-artifact owner instead of being
+    # detected and warned about.
+    assert "new_checkout_paths" not in payload["pre_review_gate"]
     assert payload["transition_applied"] is False
     assert router.status_calls == []
     assert event_path.read_bytes() == before["event"]
@@ -529,11 +541,19 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
     assert wp_path.read_bytes() == before["wp"]
     assert _git_snapshot(primary) == before["primary_git"]
     assert _git_snapshot(coordination) == before["coord_git"]
-    lane_after = _git_snapshot(lane)
-    lane_before = before["lane_git"]
-    assert lane_after[:2] == lane_before[:2]
-    assert set(lane_after[2]) - {f"?? {sentinel.name}"} == set(lane_before[2])
-    assert sentinel.read_text(encoding="utf-8") == "test-owned"
+    # PRIMARY assertion (byte effect, DIR-041): a terminal interruption is an
+    # abort, so the owner compensator must have REVERTED the subprocess-created
+    # byproduct — genuinely unlinked, not merely detected-and-abandoned. The
+    # lane's git snapshot is therefore back to its pre-gate state with NO
+    # carve-out for the sentinel (it no longer exists at all).
+    assert not sentinel.exists()
+    assert _git_snapshot(lane) == before["lane_git"]
+    # SECONDARY (spy) check: the owner was genuinely invoked for this path,
+    # not merely happened to leave it alone.
+    enrol_spy.assert_called_once()
+    (enrolled_paths,) = enrol_spy.call_args.args
+    assert {Path(p).name for p in enrolled_paths} == {sentinel.name}
+    assert enrol_spy.call_args.kwargs["trusted_roots"] == (lane,)
 
 
 def test_keyboard_interrupt_at_gate_seam_is_a_local_cancellation(tmp_path: Path) -> None:
@@ -648,10 +668,15 @@ def test_successful_auto_commit_occurs_only_after_gate(
 
 
 @pytest.mark.parametrize("json_mode", [False, True])
-def test_gate_created_path_is_preserved_and_surfaced(
+def test_gate_created_path_is_reverted_on_terminal_block(
     tmp_path: Path,
     json_mode: bool,
 ) -> None:
+    """IC-07f (WP16): a TIMED_OUT/terminal gate is an abort, so the owner
+    compensator must REVERT the subprocess-created byproduct (unlink it) —
+    genuinely reverted, never "preserved without cleanup" (the retired
+    behaviour) and never silently left as an unaccounted-for orphan either.
+    """
     ports, router = _build_command_fixture(tmp_path)
     sentinel = tmp_path / "test-owned-sentinel.txt"
 
@@ -697,18 +722,105 @@ def test_gate_created_path_is_preserved_and_surfaced(
         patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
         patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_controlled_timeout),
+        patch.object(
+            tasks_move_task,
+            "enroll_subprocess_byproducts",
+            wraps=tasks_move_task.enroll_subprocess_byproducts,
+        ) as enrol_spy,
     ):
         result = CliRunner().invoke(app, args)
 
     assert result.exit_code == 1
-    assert sentinel.read_text(encoding="utf-8") == "preserve me"
     assert router.status_calls == []
+    # PRIMARY assertion (byte effect, DIR-041): the terminal/abort path
+    # reverts the subprocess-created byproduct through the owner compensator
+    # — genuinely unlinked, not "preserve me" (that assertion pinned the bug:
+    # a terminal block must NOT leave the created byproduct behind).
+    assert not sentinel.exists()
+    # SECONDARY (spy) check: the owner was genuinely invoked for this path.
+    enrol_spy.assert_called_once()
+    (enrolled_paths,) = enrol_spy.call_args.args
+    assert {Path(p).name for p in enrolled_paths} == {sentinel.name}
+    assert enrol_spy.call_args.kwargs["trusted_roots"] == (tmp_path,)
     if json_mode:
         payload = json.loads(result.stdout)
-        assert payload["pre_review_gate"]["new_checkout_paths"] == [sentinel.name]
+        assert "new_checkout_paths" not in payload["pre_review_gate"]
     else:
-        assert "preserved without cleanup" in result.output
-        assert sentinel.name in result.output
+        assert "preserved without cleanup" not in result.output
+
+
+def test_gate_created_path_is_committed_on_pass(tmp_path: Path) -> None:
+    """IC-07f (WP16): a PASSING gate (no terminal, no block) leaves the
+    subprocess-created byproduct COMMITTED — the owner enrols a snapshot but
+    only an abort restores it, so a passing gate's created byproduct simply
+    stays on disk (the mirror case of the abort/revert path above).
+    """
+    ports, router = _build_command_fixture(tmp_path)
+    sentinel = tmp_path / "test-owned-sentinel.txt"
+
+    def _controlled_pass(
+        *args: object,
+        **kwargs: object,
+    ) -> pre_review_gate.GateVerdict:
+        sentinel.write_text("byproduct", encoding="utf-8")
+        return pre_review_gate.GateVerdict(
+            outcome=pre_review_gate.GateOutcome.NO_NEW_FAILURES,
+            scope=pre_review_gate.ScopeResult.from_override(("tests/example",)),
+            reason="controlled pass",
+            run_state=pre_review_gate.HeadRunState.COMPLETED,
+        )
+
+    def _dirty_paths(path: Path) -> tuple[str, ...]:
+        del path
+        return (sentinel.name,) if sentinel.exists() else ()
+
+    with (
+        setup_mocked_env(
+            tmp_path,
+            mission_slug=_MISSION,
+            extra_patches={
+                "_validate_ready_for_review": (True, []),
+                "_check_unchecked_subtasks": [],
+            },
+        ),
+        patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
+        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_controlled_pass),
+        patch.object(
+            tasks_move_task,
+            "enroll_subprocess_byproducts",
+            wraps=tasks_move_task.enroll_subprocess_byproducts,
+        ) as enrol_spy,
+    ):
+        result = CliRunner().invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--mission",
+                _MISSION,
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    # PRIMARY assertion (byte effect, DIR-041): a passing gate commits the
+    # byproduct — the enrolled snapshot is never restored, so the
+    # subprocess-created file survives.
+    assert sentinel.read_text(encoding="utf-8") == "byproduct"
+    payload = json.loads(result.stdout)
+    assert "new_checkout_paths" not in payload["pre_review_gate"]
+    # SECONDARY (spy) check: the owner was genuinely invoked for this path.
+    enrol_spy.assert_called_once()
+    (enrolled_paths,) = enrol_spy.call_args.args
+    assert {Path(p).name for p in enrolled_paths} == {sentinel.name}
+    assert enrol_spy.call_args.kwargs["trusted_roots"] == (tmp_path,)
 
 
 # --------------------------------------------------------------------------- #
@@ -745,7 +857,7 @@ def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path
     from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
 
     inputs = tmt._TransitionGateInputs(
-        worktree_path=None, dirty_before=(), changed_files=("src/example.py",), gate_repo_root=tmp_path
+        worktree_path=None, changed_files=("src/example.py",), gate_repo_root=tmp_path
     )
     not_activated = GateBindingResolution(
         coverage=GateCoverage.NOT_ACTIVATED,
@@ -1018,8 +1130,11 @@ def test_deprecation_warn_under_filterwarnings_error_folds_into_envelope(tmp_pat
     tasks_move_task._pre_review_test_command_deprecation_emitted = False
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        inputs, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(st, tasks_stub)
+        inputs, dirty_before, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(
+            st, tasks_stub
+        )
     assert inputs is None
+    assert dirty_before == ()
     assert len(verdicts) == 1  # golden-count: cardinality-is-contract
     assert verdicts[0].outcome is pre_review_gate.GateOutcome.NO_COVERAGE
     assert "unverified" in (verdicts[0].reason or "").lower()

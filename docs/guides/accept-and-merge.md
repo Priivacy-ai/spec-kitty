@@ -84,6 +84,43 @@ live** against the working tree at accept time — it does not trust a stored
   lane branch (see `NegativeInvariant.scope`) or express it as a `custom_command`
   that is meaningful pre-merge.
 
+### Deferred Invariants and the Post-Consolidation Gate
+
+A scoped `grep_absence` invariant whose subject does not exist yet — because it
+is added only by consolidating the mission's lane branches — cannot be honestly
+judged at `accept` time. Rather than report a false "still present" or a false
+"pass", accept records that invariant's result as `deferred_to_consolidation`
+and the mission's `overall_verdict` as `pass_pending_consolidation`: acceptance
+is **not blocked**, but the mission cannot reach `done` while the deferral is
+outstanding.
+
+**What this means for you as the operator:**
+
+- **The mission loop does not verify a deferred invariant.** `spec-kitty accept`
+  is the acceptance matrix's only pre-consolidation reader, and it is the gate
+  that *creates* the deferral — it cannot also be the thing that resolves it.
+  When `spec-kitty accept` assigns `deferred_to_consolidation` it discloses this
+  immediately, in the same run, as a `negative_invariants_deferred` entry under
+  "Skipped checks" — look for it in the console output or the JSON summary.
+- **What verifies it instead** is the **post-consolidation verification op** —
+  dispatched after `spec-kitty merge` (lane consolidation) completes, against
+  the consolidated mission tree. It re-judges every `deferred_to_consolidation`
+  invariant on that tree and records a terminal result
+  (`confirmed_absent` / `still_present` / `verification_error`) stamped with the
+  `CONSOLIDATED` surface. A violation fails **that verification op**, not the
+  already-completed consolidation — see
+  [post-consolidation / `CONSOLIDATED`](../context/orchestration.md#topology-surface)
+  in the terminology glossary for how this surface relates to `spec-kitty
+  merge`'s three overloaded "merge" senses.
+- **What your repository needs**: a CI check on the pull request that fails when
+  any `kitty-specs/*/acceptance-matrix.json` still carries an unresolved
+  `deferred_to_consolidation` invariant. This project's own gate is
+  `scripts/ci/check_dangling_deferrals.py`, wired into `ci-quality.yml`'s
+  `deferral-consistency-check` job. **A repository without an equivalent check
+  never verifies the deferral** — the disclosure above exists precisely so that
+  gap is visible rather than silently assumed away (ADR
+  [2026-07-23-2](../adr/3.x/2026-07-23-2-post-consolidation-deferral-and-external-enforcement.md)).
+
 ## Merge to the target branch
 
 In your agent:

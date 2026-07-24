@@ -26,7 +26,7 @@ from pathlib import Path
 
 import typer
 
-from ..enums import SurfaceKind
+from ..enums import ToolSurfaceKind
 from ..findings import (
     BUNDLE_COMPONENT_MISSING,
     SEVERITY_ERROR,
@@ -60,20 +60,20 @@ _MANIFEST_DIR = ".claude-plugin"
 _MANIFEST_NAME = "plugin.json"
 
 # Per-kind destination prefix inside the Claude Code bundle package.
-_CLAUDE_LAYOUT: dict[SurfaceKind, str] = {
-    SurfaceKind.COMMAND_SKILL: "skills",
-    SurfaceKind.DOCTRINE_SKILL: "skills",
-    SurfaceKind.AGENT_PROFILE: "agents",
-    SurfaceKind.HOOK: "hooks",
-    SurfaceKind.NATIVE_CONFIG: "",
+_CLAUDE_LAYOUT: dict[ToolSurfaceKind, str] = {
+    ToolSurfaceKind.COMMAND_SKILL: "skills",
+    ToolSurfaceKind.DOCTRINE_SKILL: "skills",
+    ToolSurfaceKind.AGENT_PROFILE: "agents",
+    ToolSurfaceKind.HOOK: "hooks",
+    ToolSurfaceKind.NATIVE_CONFIG: "",
 }
 
 # Required surface kinds a complete Claude Code bundle must carry.
-_REQUIRED_KINDS: frozenset[SurfaceKind] = frozenset(
+_REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
-        SurfaceKind.COMMAND_SKILL,
-        SurfaceKind.DOCTRINE_SKILL,
-        SurfaceKind.AGENT_PROFILE,
+        ToolSurfaceKind.COMMAND_SKILL,
+        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.AGENT_PROFILE,
     }
 )
 
@@ -120,7 +120,7 @@ class ClaudeCodeBundleProjector:
     def validate(
         self,
         bundle: PluginBundle,
-        required_surface_kinds: set[SurfaceKind] | None = None,
+        required_surface_kinds: set[ToolSurfaceKind] | None = None,
     ) -> BundleValidationResult:
         """Validate that every required surface kind is present in ``bundle``."""
         required = (
@@ -133,7 +133,7 @@ class ClaudeCodeBundleProjector:
 
 def _validate_bundle(
     bundle: PluginBundle,
-    required: frozenset[SurfaceKind],
+    required: frozenset[ToolSurfaceKind],
 ) -> BundleValidationResult:
     """Shared validation: report a finding for every missing required kind."""
     present = bundle.kinds()

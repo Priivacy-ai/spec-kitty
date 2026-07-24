@@ -24,8 +24,11 @@ from specify_cli.cli.commands.merge import (
     _mark_wp_merged_done,
     _project_status_bookkeeping_to_target,
     _record_baseline_merge_commit,
-    _restore_final_bookkeeping_snapshots,
 )
+
+# WP09 (T048 / TAO-3): the merge-side restore compensator was retired to the single
+# owner compensator; the byte-restore/unlink round-trip below re-points onto it.
+from specify_cli.coordination.atomic_write import restore_generated_artifact_snapshots
 
 pytestmark = pytest.mark.fast
 
@@ -976,7 +979,7 @@ def test_final_bookkeeping_rollback_restores_status_meta_and_state(tmp_path: Pat
     target_meta.write_text('{"mission_slug": "m", "baseline_merge_commit": "HEAD~1"}\n', encoding="utf-8")
     state_path.write_text('{"completed_wps": ["WP01"]}\n', encoding="utf-8")
 
-    _restore_final_bookkeeping_snapshots(snapshots)
+    restore_generated_artifact_snapshots(snapshots)
 
     assert coord_events.read_bytes() == b"approved-event\n"
     assert coord_status.read_bytes() == b'{"WP01": "approved"}\n'
@@ -990,6 +993,6 @@ def test_final_bookkeeping_rollback_trusts_legacy_merge_state_path(tmp_path: Pat
     """Legacy merge state remains a trusted rollback snapshot target."""
     legacy_state_path = tmp_path / ".kittify" / "merge-state.json"
 
-    _restore_final_bookkeeping_snapshots({legacy_state_path: b'{"completed_wps": []}\n'})
+    restore_generated_artifact_snapshots({legacy_state_path: b'{"completed_wps": []}\n'})
 
     assert legacy_state_path.read_bytes() == b'{"completed_wps": []}\n'

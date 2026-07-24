@@ -1,12 +1,14 @@
-"""Status-surface trust + snapshot/restore + projection for the merge seam.
+"""Status-surface trust + coord→target status projection for the merge seam.
 
 Mission #2057 (decompose ``cli/commands/merge.py``) — IC-09 / WP09.
 
-The security-sensitive path-trust assertions, the final-bookkeeping snapshot
-capture/restore, and the coord→target status projection moved out of the command
-shim verbatim. ``_restore_final_bookkeeping_snapshots`` keeps its exact signature
-and behavior because the executor (WP10) calls it at the ~6 restore-on-exception
-sites (INV-6). One-way import: this module never imports the command shim.
+The security-sensitive path-trust assertions and the coord→target status
+projection moved out of the command shim verbatim. The final-bookkeeping
+snapshot/restore compensator that once lived here has been RETIRED by the
+lifecycle-gate-execution-context mission (T048 / TAO-3): the merge executor now
+enrols its bytes with the single owner compensator in
+``coordination.atomic_write`` instead of a second implementation in this package.
+One-way import: this module never imports the command shim.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
-from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
@@ -175,62 +177,15 @@ def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
     path.write_bytes(original)
 
 
-def _assert_bookkeeping_snapshot_path_is_trusted(
-    *,
-    repo_root: Path,
-    candidate: Path,
-) -> Path:
-    """Reject rollback snapshot paths outside merge bookkeeping roots.
-
-    Delegates multi-root containment + exact-file allowlist to ``ensure_within_any``
-    (FR-006 / T017).  The trusted set (3 dirs + the exact file) is preserved exactly —
-    no set change (NFR-001 / C-007).
-    """
-    repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    trusted_snapshot: Path = ensure_within_any(
-        candidate,
-        roots=[
-            (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False),
-            (repo_resolved / WORKTREES_DIR).resolve(strict=False),
-            (repo_resolved / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
-        ],
-        files=[repo_resolved / KITTIFY_DIR / "merge-state.json"],
-    )
-    return trusted_snapshot
-
-
-def _capture_bookkeeping_snapshots(
-    repo_root: Path,
-    *candidates: Path,
-) -> dict[Path, bytes | None]:
-    """Capture rollback bytes for repo-derived bookkeeping paths only."""
-    snapshots: dict[Path, bytes | None] = {}
-    for candidate in candidates:
-        trusted_path = _assert_bookkeeping_snapshot_path_is_trusted(
-            repo_root=repo_root,
-            candidate=candidate,
-        )
-        snapshots[trusted_path] = _read_optional_bytes(trusted_path)
-    return snapshots
-
-
-def _restore_final_bookkeeping_snapshots(
-    snapshots: dict[Path, bytes | None],
-) -> None:
-    """Best-effort restore for final merge bookkeeping rollback.
-
-    Snapshot paths are validated at capture time (``_capture_bookkeeping_snapshots``
-    → ``_assert_bookkeeping_snapshot_path_is_trusted``), so restore trusts the dict
-    keys and only needs to tolerate transient I/O failures.
-
-    INV-6: signature + behavior are stable — the executor (WP10) calls this at the
-    ~6 restore-on-exception sites.
-    """
-    for path, original in snapshots.items():
-        try:
-            _restore_optional_bytes(path, original)
-        except OSError:
-            continue
+# WP09 (T048 / C4b / TAO-3): the merge-side snapshot-trust helper and the
+# final-bookkeeping snapshot/restore compensator that used to live here are
+# RETIRED. The compensator is no longer a second implementation in the ``merge/``
+# package: the merge executor now enrols its primary-checkout (non-coord)
+# bookkeeping bytes with the SINGLE owner compensator in
+# ``coordination.atomic_write`` (capture + restore), which also owns the
+# trusted-root containment these helpers used to carry. The projection helpers
+# below (``_project_status_bookkeeping_to_target`` and its trust/reconcile
+# support) survive — they are the coord→target projection, not a compensator.
 
 
 def _target_branch_still_at_baseline(
@@ -369,9 +324,6 @@ __all__ = [
     "_assert_status_path_within_target_surface",
     "_assert_status_surface_path_is_trusted",
     "_assert_status_surface_file_path_is_trusted",
-    "_assert_bookkeeping_snapshot_path_is_trusted",
-    "_capture_bookkeeping_snapshots",
-    "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
     "_project_status_bookkeeping_to_target",
 ]

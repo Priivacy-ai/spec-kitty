@@ -268,9 +268,9 @@ def test_phase_bake_pre_target_done_restores_on_record_failure(tmp_path: Path) -
     restored: list[dict[Path, bytes | None]] = []
     with (
         patch.object(ex, "_bake_mission_number_into_mission_branch", return_value=None),
-        patch.object(ex, "_capture_bookkeeping_snapshots", return_value={tmp_path / "x": b"o"}),
+        patch.object(ex, "_capture_merge_snapshots", return_value={tmp_path / "x": b"o"}),
         patch.object(ex, "_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="boom"),
     ):
         ex._phase_bake_and_pre_target_done(run)
@@ -281,7 +281,7 @@ def test_phase_bake_pre_target_done_success_records(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     with (
         patch.object(ex, "_bake_mission_number_into_mission_branch", return_value=None),
-        patch.object(ex, "_capture_bookkeeping_snapshots", return_value={}),
+        patch.object(ex, "_capture_merge_snapshots", return_value={}),
         patch.object(ex, "_record_merged_wps_done_for_merge") as record_mock,
     ):
         ex._phase_bake_and_pre_target_done(run)
@@ -365,7 +365,7 @@ def test_restore_pre_target_restores_only_when_at_baseline(tmp_path: Path) -> No
     restored: list[object] = []
     with (
         patch.object(ex, "_target_branch_still_at_baseline", return_value=True),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
     ):
         ex._restore_pre_target_if_at_baseline(run)
     assert restored == [{tmp_path / "x": b"o"}]
@@ -375,7 +375,7 @@ def test_restore_pre_target_noop_when_target_advanced(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     with (
         patch.object(ex, "_target_branch_still_at_baseline", return_value=False),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._restore_pre_target_if_at_baseline(run)
     restore_mock.assert_not_called()
@@ -390,7 +390,7 @@ def test_phase_record_done_restores_on_record_failure(tmp_path: Path) -> None:
     restored: list[object] = []
     with (
         patch.object(ex, "_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="boom"),
     ):
         ex._phase_record_done_and_project(run)
@@ -403,7 +403,7 @@ def test_phase_record_done_restores_on_project_failure(tmp_path: Path) -> None:
     restored: list[object] = []
     with (
         patch.object(ex, "_project_status_bookkeeping_to_target", side_effect=RuntimeError("proj")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="proj"),
     ):
         ex._phase_record_done_and_project(run)
@@ -427,7 +427,7 @@ def test_phase_porcelain_skips_when_git_status_fails(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     with (
         patch.object(ex, "_raw_porcelain_status", return_value=(1, "")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._phase_porcelain_invariant(run)
     restore_mock.assert_not_called()
@@ -438,7 +438,7 @@ def test_phase_porcelain_clean_tree_passes(tmp_path: Path) -> None:
     with (
         patch.object(ex, "_raw_porcelain_status", return_value=(0, "")),
         patch.object(ex, "_classify_porcelain_lines", return_value=([], 0)),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._phase_porcelain_invariant(run)
     restore_mock.assert_not_called()
@@ -489,7 +489,7 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
     with (
         patch.object(ex, "_paths_have_status_changes", return_value=True),
         patch.object(ex, "commit_merge_bookkeeping", side_effect=recovered),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
         pytest.raises(ex.SafeCommitRecoveryFailed),
     ):
         ex._phase_commit_and_assert(run)

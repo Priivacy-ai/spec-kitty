@@ -70,7 +70,16 @@ _PUBLIC_SURFACE = sorted(
         # (this surface list is not a WP01 owned file, but every new
         # mission_runtime public symbol must be pinned here).
         "PlacementSeam",
+        # lifecycle-gate-execution-context-01KY72GQ WP02 (IC-11): the stamped
+        # output + input bundle of the surface→filesystem translation seam — the
+        # true schema root. Package-root public symbols, so pinned here.
+        "ResolvedSurface",
         "StatusSurfaceFragment",
+        "SurfaceLocations",
+        # WP02: the surface-vocabulary enum (``surface`` Sense 2), now a package-
+        # root public symbol because ``ResolvedSurface.surface_kind`` stamps it and
+        # consumers read the stamp.
+        "TopologySurface",
         "WorkspaceFragment",
         "artifact_home_for",
         "classify_topology",
@@ -78,19 +87,35 @@ _PUBLIC_SURFACE = sorted(
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
         # worktree_root consume — a package-root public symbol, so it is pinned here.
         "coord_read_dir_for",
-        "is_coordination_artifact_residue_path",
         "is_primary_artifact_kind",
-        # gate-read-surface-completion WP05 (FR-003): the self-bookkeeping allowlist
-        # predicate is a package-root public symbol consumed by the record-analysis
-        # dirty-tree preflight (DISJOINT from the coord-residue partition, G-5).
-        "is_self_bookkeeping_path",
+        # lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the
+        # self-bookkeeping allowlist predicate ``is_self_bookkeeping_path`` (gate-
+        # read-surface-completion WP05 / FR-003) was retired onto the canonical
+        # churn owner (``specify_cli.coordination.coherence.is_self_bookkeeping_churn``
+        # / ``is_toolchain_generated_churn``, C5/C9) — it no longer lives on this
+        # package-root surface.
         "kind_for_mission_file",
+        # lifecycle-gate-execution-context-01KY72GQ WP12 (IC-07b): the residue
+        # predicate ``is_coordination_artifact_residue_path`` was retired onto the
+        # canonical churn owner's residue leg
+        # (``specify_cli.coordination.coherence.is_coord_residue_churn`` /
+        # ``is_toolchain_generated_churn``, C5/C9) — it no longer lives on this
+        # package-root surface. ``kind_is_coordination_residue`` (the lower-level
+        # kind+topology authority the retired predicate composed) is now exported
+        # instead, since the owner leg is built from it via the package root
+        # (MR-1/MR-2 forbid ``coherence.py`` reaching into the
+        # ``mission_runtime.artifacts`` submodule directly).
+        "kind_is_coordination_residue",
         "mission_context_for",
         "placement_seam",
         "resolve_action_context",
+        # WP02: the affirmative, stamped surface→filesystem seam (the true schema
+        # root) + its total member→path translation.
+        "resolve_artifact_surface",
         "resolve_placement_only",
         "resolve_topology",
         "routes_through_coordination",
+        "translate_surface",
     ]
 )
 

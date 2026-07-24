@@ -34,15 +34,14 @@ from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     placement_seam,
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.coordination.coherence import is_coord_residue_churn, is_status_state_path
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status import TransitionError
 from specify_cli.status import Lane, TransitionRequest
 from specify_cli.status import (
@@ -61,13 +60,12 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 # staging-decision core (_ensure_planning_artifacts_committed_git, T016).
 from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-export
     _committed_meta_mapping,
-    _drop_runtime_frontmatter_only_wp,
-    _drop_vcs_lock_only_meta,
-    _exclude_coord_owned,
+    _drop_if,
     _feature_dir_status_entries,
     detect_structural_planning_changes,
     _files_changed_vs_ref,
     _is_runtime_frontmatter_only_wp_diff,
+    _is_self_write_only_diff,
     _is_vcs_lock_only_meta_diff,
     _parse_meta_mapping,
     _parse_wp_frontmatter,
@@ -721,17 +719,18 @@ def _partition_files_for_commit(files_to_commit: list[str]) -> tuple[list[str], 
 
     Mirrors ``commit_router._group_files_by_partition``: classifies each
     repo-relative path with the same
-    :func:`~mission_runtime.is_coordination_artifact_residue_path` predicate
-    WP01 wired into the read-side ``resolve_precondition_ref`` -- one
-    authority (NFR-004), no new partition literal. Everything NOT explicitly
-    COORD-residue (PRIMARY kinds, ``meta.json``, unrecognized paths) defaults
-    to the PRIMARY group -- the same fail-safe-toward-primary direction as
-    the read side.
+    :func:`~specify_cli.coordination.coherence.is_coord_residue_churn`
+    predicate WP01 wired into the read-side ``resolve_precondition_ref`` --
+    one authority (NFR-004), no new partition literal (WP12 retired the
+    former ``mission_runtime`` predicate onto this owner leg). Everything NOT
+    explicitly COORD-residue (PRIMARY kinds, ``meta.json``, unrecognized paths)
+    defaults to the PRIMARY group -- the same fail-safe-toward-primary
+    direction as the read side.
     """
     primary_files: list[str] = []
     coord_files: list[str] = []
     for path_str in files_to_commit:
-        if is_coordination_artifact_residue_path(path_str):
+        if is_coord_residue_churn(path_str):
             coord_files.append(path_str)
         else:
             primary_files.append(path_str)
@@ -1375,11 +1374,16 @@ def _commit_wp_claim_status(
     # #1887 ``SafeCommitPathPolicyError`` guard — which the former broad
     # ``except`` swallowed as an "Auto-commit skipped" warning, leaving
     # the feature branch dirty (the surviving #2155 residual). The
-    # canonical ``COORD_OWNED_STATUS_FILES`` partition drops those files
-    # on coord topology only; on a flat/legacy mission they ARE canonical
-    # on PRIMARY and stay in the bundle.
+    # canonical ``MissionArtifactKind.STATUS_STATE`` check (WP13 retired the
+    # former ``COORD_OWNED_STATUS_FILES`` frozenset onto this single-source
+    # kind classifier) drops those files on coord topology only; on a
+    # flat/legacy mission they ARE canonical on PRIMARY and stay in the bundle.
     if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir) if path.name not in COORD_OWNED_STATUS_FILES]
+        status_paths = [
+            path.resolve()
+            for path in _collect_status_artifacts(feature_dir)
+            if not is_status_state_path(path)
+        ]
     else:
         status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir)]
     files_to_commit = [wp_file.resolve(), *status_paths]

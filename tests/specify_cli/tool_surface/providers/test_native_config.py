@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.tool_surface.enums import SurfaceKind
+from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
@@ -37,7 +37,7 @@ def test_can_handle_native_config_only() -> None:
 
 
 def test_definition_kind_is_native_config() -> None:
-    assert native_config_definition().kind == SurfaceKind.NATIVE_CONFIG
+    assert native_config_definition().kind == ToolSurfaceKind.NATIVE_CONFIG
 
 
 def test_expand_vibe_yields_config_instance(tmp_path: Path) -> None:

@@ -31,11 +31,17 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
 from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.task_utils import run_git
+
+if TYPE_CHECKING:
+    from specify_cli.acceptance.execution_context import (
+        CannotEvaluate,
+        GateExecutionContext,
+    )
 
 # Mirrors ``specify_cli.acceptance._ACCEPTED_READY_LANES``. Duplicated here
 # (rather than imported) because it is a tiny, immutable, non-monkeypatched
@@ -225,6 +231,47 @@ def _evaluate_branch_gate(
     return True
 
 
+def _acceptance_gate_context(repo_root: Path, feature_dir: Path) -> GateExecutionContext:
+    """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
+
+    The ONE gate-context construction door for the acceptance-matrix gate (GEC-1 /
+    T017): it resolves the surface through the WP02 total resolver
+    (:func:`mission_runtime.resolve_artifact_surface`) so the four ``CoordState``
+    answers are total by construction — ``DELETED`` raises ``CoordinationBranchDeleted``
+    (C3 fail-loud), ``EMPTY`` / ``UNMATERIALIZED`` stamp ``PRIMARY`` (the create
+    window), ``MATERIALIZED`` stamps ``COORD``. The gate is then handed the surface
+    (never an ambient ``repo_root`` / cwd), and every verdict/refusal it emits names
+    the returned ``surface_kind`` + ``ref`` (C6). The ``ref`` is the mission target
+    branch — a resolvable identifier (C6/NFR-003) — falling back to the ``HEAD``
+    symbolic ref when no target branch is recorded.
+
+    ``feature_dir.name`` (not the raw operator handle) keys the resolver: the caller
+    threads the ``PRIMARY_METADATA`` read dir, whose ``.name`` is a materialized
+    primary dir name the resolver canonicalizes — mirroring
+    ``collect_feature_summary``'s own ``primary_slug = feature_dir.name`` (C-002).
+    """
+    from mission_runtime import MissionArtifactKind
+
+    from specify_cli import acceptance as _acceptance_pkg
+    from specify_cli.acceptance.execution_context import (
+        LifecyclePhase,
+        build_gate_execution_context,
+    )
+
+    # ``_target_branch_for_feature`` is resolved off the live ``specify_cli.acceptance``
+    # namespace at call time (not a top-level import) so the WP01 characterization
+    # monkeypatch of ``read_target_branch_from_meta`` stays visible — see the module
+    # docstring's cross-module note.
+    ref = _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
+    return build_gate_execution_context(
+        repo_root,
+        feature_dir.name,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+        phase=LifecyclePhase.ACCEPT,
+        ref=ref,
+    )
+
+
 def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     """Resolve the dir the acceptance-matrix must be READ from for this mission.
 
@@ -238,26 +285,63 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     reports a false "acceptance-matrix.json not found" for a coord-topology
     mission whose matrix correctly lives on coord.
 
-    Consumes the ONE shared coord-read seam
-    (:func:`mission_runtime.coord_read_dir_for`, coord-commit-integrity SURFACE A
-    #5) — the SAME seam ``accept.py::_coord_worktree_root`` consumes — so the
-    topology+existence guard is expressed once (Directive-044, never a hand-rolled
-    ``-coord`` path). It routes to the coord surface ONLY when the mission's stored
-    topology routes through coordination AND that surface is materialised on disk;
-    otherwise it falls back to ``feature_dir`` so flat / ``SINGLE_BRANCH`` /
-    ``LANES`` missions read exactly where they do today (regression-preserving).
+    Thin projection of the surface off :func:`_acceptance_gate_context` (the ONE
+    gate-context door) — the ``.surface`` of the resolved
+    :class:`GateExecutionContext`. The seam resolves the coord surface ONLY when the
+    mission's stored topology routes through coordination AND that surface is
+    materialised (``MATERIALIZED``); otherwise it resolves the primary mission dir
+    AFFIRMATIVELY (AH-2) — so flat / ``SINGLE_BRANCH`` / ``LANES`` and the ``EMPTY``
+    / ``UNMATERIALIZED`` create window read exactly where they do today
+    (regression-preserving). A ``DELETED`` coordination branch raises
+    :class:`CoordinationBranchDeleted` (C3 "fail loud"): a deleted coord branch
+    carries unmerged acceptance state, so accept must refuse, not silently pass on a
+    stale surface.
     """
-    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+    return _acceptance_gate_context(repo_root, feature_dir).surface
 
-    # ``feature_dir.name`` (not the raw ``feature`` operator handle) keys the
-    # resolver here: the caller threads the PRIMARY_METADATA read dir, whose
-    # ``.name`` is a materialized primary dir name the resolver accepts and
-    # canonicalizes — mirroring ``collect_feature_summary``'s own
-    # ``primary_slug = feature_dir.name`` (C-002).
-    resolved = coord_read_dir_for(
+
+def _matrix_surface_cannot_hold(
+    context: GateExecutionContext, repo_root: Path, feature_dir: Path
+) -> CannotEvaluate | None:
+    """GEC-5 / C2: refuse when the coord-homed matrix is judged on a PRIMARY stamp.
+
+    A stamp is not permission: when the acceptance matrix's declared home is
+    ``COORD`` (a coordination-routing mission) but the resolved surface came back
+    stamped ``PRIMARY`` — the ``EMPTY`` / ``UNMATERIALIZED`` create-window
+    substitution — the coordination surface is not materialised, so the primary
+    surface cannot hold the coord-homed matrix. Returns the distinguishable
+    cannot-evaluate outcome (naming its surface + ref) rather than reading an empty
+    primary and passing by default (#2885). Returns ``None`` for flat /
+    ``SINGLE_BRANCH`` / ``LANES`` (declared home IS primary, AH-2) and for a
+    materialised coord surface — both can legitimately hold the fact (C7 neutrality:
+    the flat and coord-materialised cases behave identically).
+    """
+    from specify_cli.acceptance.execution_context import declared_home_surface
+
+    from mission_runtime import MissionArtifactKind
+
+    home = declared_home_surface(
         repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX
     )
-    return resolved if resolved is not None else feature_dir
+    return context.surface_cannot_hold(home)
+
+
+def _record_matrix_cannot_evaluate(
+    cannot: CannotEvaluate,
+    activity_issues: list[str],
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+) -> None:
+    """Record the cannot-evaluate outcome, naming the surface + ref it refused on (C6)."""
+    detail = (
+        f"Acceptance matrix cannot be evaluated ({cannot.reason.value}): "
+        f"{cannot.detail} [surface={cannot.surface_kind.value} ref={cannot.ref}]"
+    )
+    activity_issues.append(detail)
+    blocked_checks.append(
+        AcceptanceCheckDiagnostic(check="acceptance_matrix_cannot_evaluate", detail=detail)
+    )
+    _append_skipped_lane_checks(skipped_checks, reason=cannot.reason.value)
 
 
 def _evaluate_acceptance_matrix(
@@ -269,15 +353,29 @@ def _evaluate_acceptance_matrix(
     *,
     mutate_matrix: bool,
 ) -> None:
-    """Read/enforce/validate the acceptance matrix once the branch gate passed."""
+    """Read/enforce/validate the acceptance matrix once the branch gate passed.
+
+    The matrix is judged strictly from the gate context's surface (C1) — the WP02
+    total resolver picks coord vs primary; this gate never re-reads an ambient
+    ``repo_root`` / cwd. GEC-5 (C2) short-circuits to cannot-evaluate when the
+    coord-homed matrix would be judged against a create-window PRIMARY substitution,
+    rather than silently passing on an empty surface (#2885).
+    """
     from specify_cli.acceptance.matrix import (
+        VERDICT_PASS_PENDING_CONSOLIDATION,
         enforce_negative_invariants,
         read_acceptance_matrix,
         validate_matrix_evidence,
         write_acceptance_matrix,
     )
 
-    matrix_dir = _acceptance_matrix_read_dir(repo_root, feature_dir)
+    context = _acceptance_gate_context(repo_root, feature_dir)
+    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir)
+    if cannot is not None:
+        _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
+        return
+
+    matrix_dir = context.surface
     acc_matrix = read_acceptance_matrix(matrix_dir)
     if acc_matrix is None:
         message = (
@@ -295,7 +393,13 @@ def _evaluate_acceptance_matrix(
         return
 
     if acc_matrix.negative_invariants and mutate_matrix:
-        acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants)
+        # WP04 T023: hand the gate context to the enforcer so a pending invariant
+        # whose subject cannot exist on this surface defers (NI-3/C4) instead of
+        # reporting a false still_present, and a freshly judged result is stamped
+        # with the surface + ref it was established against (NI-1 provenance).
+        acc_matrix.negative_invariants = enforce_negative_invariants(
+            repo_root, acc_matrix.negative_invariants, context=context
+        )
         write_acceptance_matrix(matrix_dir, acc_matrix)
     elif acc_matrix.negative_invariants:
         skipped_checks.append(
@@ -313,6 +417,22 @@ def _evaluate_acceptance_matrix(
         activity_issues.append("Acceptance matrix verdict is 'fail' — negative invariants or criteria not satisfied")
     elif verdict == "pending":
         activity_issues.append("Acceptance matrix verdict is 'pending' — criteria or invariants have not been verified")
+    elif verdict == VERDICT_PASS_PENDING_CONSOLIDATION:
+        # NI-5 (C5): deferral does NOT block acceptance — this is deliberately a
+        # skipped-check (informational), never an activity issue. NI-7: disclose to
+        # the operator that the mission loop will not verify the deferral (it has a
+        # single pre-consolidation reader) — the post-consolidation verification op
+        # / PR CI is the enforcer, and the mission cannot reach ``done`` until then.
+        skipped_checks.append(
+            AcceptanceCheckDiagnostic(
+                check="negative_invariants_deferred",
+                detail=(
+                    "One or more negative invariants are deferred to post-consolidation "
+                    "verification; acceptance is not blocked, but this loop does not verify "
+                    "them — the post-consolidation op (or PR CI) must, before the mission is done."
+                ),
+            )
+        )
 
 
 def _check_lane_gates(

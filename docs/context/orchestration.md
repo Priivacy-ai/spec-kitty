@@ -2,7 +2,7 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-06-13'
+updated: '2026-07-23'
 related:
 - docs/context/doctrine.md
 - docs/context/identity.md
@@ -539,12 +539,12 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the COORD partition that holds lifecycle/status surfaces (status, notes, trace, issue-matrix, `move-task`). A partition is an artifact-kind *routing* concept: it decides which surface an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
+| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the [COORD partition](#coord-partition) that holds the lifecycle artifacts (status, notes, trace, issue-matrix, `move-task`). A partition is an artifact-kind *routing* concept: it decides which [topology surface](#topology-surface) an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). Never write bare "primary" for the partition; always say "PRIMARY partition". |
-| **Related terms** | [primary branch](#primary-branch), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [target branch](#target-branch) |
+| **Do NOT use when** | The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). The concept is the physical tree the routed artifact lands in — use [Topology Surface](#topology-surface). Never write bare "primary" for the partition; always say "PRIMARY partition". |
+| **Related terms** | [primary branch](#primary-branch), [COORD partition](#coord-partition), [Topology Surface](#topology-surface), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [target branch](#target-branch) |
 
 ---
 
@@ -570,7 +570,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. |
-| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge target branch](#merge-target-branch), [Lane](#lane) |
+| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge target branch](#merge-target-branch), [Lane](#lane), [Topology Surface](#topology-surface) |
 
 ---
 
@@ -597,3 +597,32 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
 | **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [primary branch](#primary-branch) |
+
+---
+
+### COORD partition
+
+| | |
+|---|---|
+| **Definition** | The artifact-kind partition that holds a mission's lifecycle/coordination artifacts — status events, notes, trace, issue-matrix, acceptance-matrix, review cycles, `move-task` — as distinct from the [PRIMARY partition](#primary-partition) that holds stable planning artifacts. Like PRIMARY it is an artifact-kind *routing* concept, **not** a git branch and **not** a directory: it decides which surface a kind is written to. Only missions whose stored topology routes through coordination (`COORD` / `LANES_WITH_COORD`) have a materialised COORD surface; `SINGLE_BRANCH` / `LANES` missions route every kind to PRIMARY. Realized in code as the `_PLACEMENT_ARTIFACT_KINDS` frozenset in `mission_runtime/artifacts.py`, whose partition-invariant P-1 (disjoint and jointly exhaustive with `_PRIMARY_ARTIFACT_KINDS`) is asserted at the placement seam. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is the physical tree an artifact resolves to — use [Topology Surface](#topology-surface). The concept is a coordination *branch* or *worktree* — say "coord branch" / "coord worktree" explicitly. Never write bare "coord" for the partition; always say "COORD partition". |
+| **Related terms** | [PRIMARY partition](#primary-partition), [Topology Surface](#topology-surface), [Lane](#lane), [Mission](#mission) |
+
+---
+
+### Topology Surface
+
+| | |
+|---|---|
+| **Definition** | The physical tree (working copy / checkout location) that a mission artifact resolves to for reading and writing. This is `surface` **Sense 2** — the mission-topology sense. Modelled by the `TopologySurface` enum in `src/mission_runtime/artifacts.py`, carried on `MissionArtifactHome` as `read_surface` / `write_surface`, and returned by `artifact_home_for`. Live members today: `PRIMARY` — the repository-root planning tree; `COORD` — the mission's coordination tree. Planned members, landing together with the surface→filesystem translation seam that makes each resolvable: `LANE` — a per-work-package lane worktree under `.worktrees/`; `CONSOLIDATED` — the tree after lane branches have been consolidated into the mission branch; `TEMP` — an ephemeral scratch tree with no durable home. The three planned members are deliberately **not** declared ahead of that seam: a member no caller can translate to a location is a phantom, and the seam's totality test exists precisely to catch that. Renamed from `Surface` (whose members were `PRIMARY` \| `PLACEMENT`, with a `str` mixin and an `ArtifactSurface` back-compat alias, both retired) per ADR [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md). |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Note** | A topology surface is a *location*; a partition is a *routing rule over artifact kinds*. The two vocabularies coincide only on the `PRIMARY` and `COORD` values — the [PRIMARY partition](#primary-partition) routes its kinds to the `PRIMARY` topology surface and the [COORD partition](#coord-partition) to the `COORD` topology surface. `LANE`, `CONSOLIDATED`, and `TEMP` are locations with no partition of their own. Prose also uses "surface" as an ungoverned generic modifier ("command surface", "API surface", "doc surface") meaning "the outward face of X"; that usage is not governed here, but it must always carry its modifier — bare "surface" always means one of the two governed senses. |
+| **Note (naming vs conditioning)** | Naming a surface `COORD` does **not** violate the rule against conditioning behaviour on topology. Naming a real surface is correct; *branching* on it — `if surface is COORD: ...` in place of a resolved read/write path — is what is forbidden. The prior member name `PLACEMENT` avoided the *word* while keeping the *concept*; explicitness is preferred. |
+| **Note (`CONSOLIDATED`, not `MERGED`)** | The post-consolidation surface is named `CONSOLIDATED` because `merge` is itself a three-sense overloaded term in this codebase — [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), and [Publish to origin/main](#publish-to-originmain). A member named `MERGED` would not say which of the three had happened. `CONSOLIDATED` names exactly one: the surface that exists after [Lane Consolidation](#lane-consolidation). This is the same disambiguation discipline already applied to `primary` / `main` / `base`. |
+| **Do NOT use when** | The concept is a tool-visible artifact or configuration entry Spec Kitty installs for a concrete execution tool — use [Tool Surface](./execution.md#tool-surface) (`surface` **Sense 1**). The concept is the artifact-kind routing rule rather than the location — use [PRIMARY partition](#primary-partition) or [COORD partition](#coord-partition). The concept is the repository-root working copy versus a lane worktree as an operator-facing checkout — use [repository root checkout](./execution.md#repository-root-checkout). Never write bare "surface" in governed prose; name the sense ("topology surface" / "tool surface"). |
+| **Related terms** | [Tool Surface](./execution.md#tool-surface), [PRIMARY partition](#primary-partition), [COORD partition](#coord-partition), [Lane](#lane), [Lane Consolidation](#lane-consolidation), [repository root checkout](./execution.md#repository-root-checkout) |

@@ -106,6 +106,14 @@ _MISSION_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str] = frozenset(
     {
         "coordination",      # resolution.py: CoordinationWorkspace, surface_resolver
         "core",              # artifacts.py + resolution.py: constants, paths, dependency_graph
+        # lifecycle-gate-execution-context (WP02, the surface->filesystem
+        # translation seam): resolution.py's coord-state branch resolves the
+        # mid8 branch/worktree disambiguator via ``lanes.branch_naming.resolve_mid8``
+        # to build the COORD coordination-branch name (GEC-3 / contract C3). This
+        # is a sanctioned upward edge; the purer follow-up is to relocate the pure
+        # ``resolve_mid8`` identity helper into mission_runtime (or a shared
+        # identity module) so the seam needs no specify_cli.lanes crossing at all.
+        "lanes",             # resolution.py: branch_naming.resolve_mid8 (WP02 seam)
         "migration",         # resolution.py: backfill_topology.read_topology
         "mission",           # resolution.py: get_mission_type
         "mission_metadata",  # resolution.py: load_meta

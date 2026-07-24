@@ -58,7 +58,7 @@ def test_provider_satisfies_reporting_protocol() -> None:
 
 
 def test_can_handle_only_command_skill() -> None:
-    from specify_cli.tool_surface.enums import SurfaceKind
+    from specify_cli.tool_surface.enums import ToolSurfaceKind
     from specify_cli.tool_surface.providers.slash_commands import (
         slash_command_definition,
     )
@@ -66,7 +66,7 @@ def test_can_handle_only_command_skill() -> None:
     provider = CommandSkillsProvider()
     assert provider.can_handle(command_skill_definition()) is True
     other = slash_command_definition()
-    assert other.kind == SurfaceKind.COMMAND_FILE
+    assert other.kind == ToolSurfaceKind.COMMAND_FILE
     assert provider.can_handle(other) is False
 
 

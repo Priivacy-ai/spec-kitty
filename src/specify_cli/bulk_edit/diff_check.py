@@ -29,6 +29,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from specify_cli.bulk_edit.occurrence_map import OccurrenceMap
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 
 # ---------------------------------------------------------------------------
 # Path-to-category heuristics
@@ -231,25 +232,43 @@ def _fnmatch_recursive(path: str, pattern: str) -> bool:
 # Runtime-state gate exemption (FR-007, C-004)
 # ---------------------------------------------------------------------------
 
-# NAMED allowlist of the mission's own bookkeeping basenames (data-model.md
-# "runtime-state allowlist" entity). Deliberately narrow — spec.md/plan.md/
-# tasks.md are NOT here, so they stay reviewable. Basenames double as glob
-# patterns (a literal basename is just a pattern with no wildcards), so a
-# single `_glob_match` call handles both the exact names and the
-# `review-cycle-N.md` family.
-RUNTIME_STATE_ALLOWLIST: tuple[str, ...] = (
-    "status.events.jsonl",
-    "status.json",
-    "review-cycle-*.md",
-    "issue-matrix.md",
-    "acceptance-matrix.json",
-    "notes.md",
-)
+# IC-07e retirement (WP15, C-010): the former named-tuple runtime-state
+# allowlist mechanism is gone. Its basenames split into two genuinely
+# different concerns:
+#
+# * ``status.events.jsonl`` / ``status.json`` / ``issue-matrix.md`` /
+#   ``acceptance-matrix.json`` are COORD-partition mission artifacts —
+#   toolchain-generated churn a dirty-state gate must ignore. That
+#   classification already has ONE canonical owner,
+#   :func:`specify_cli.coordination.coherence.is_toolchain_generated_churn`
+#   (FR-012); duplicating its basenames here was exactly the "ninth list" the
+#   registry (WP10) forbids, so this exemption now delegates to it instead of
+#   restating the basenames.
+# * ``review-cycle-*.md`` / ``notes.md`` are the running mission's own
+#   human-authored review/handoff commentary — NOT toolchain churn (the owner
+#   deliberately has no opinion on them: neither has a ``MissionArtifactKind``,
+#   and empirically ``is_toolchain_generated_churn`` returns ``False`` for
+#   both). Routing them onto the owner would either pollute its boundary with
+#   a review-commentary kind it has no business knowing about, or silently
+#   drop the exemption and reintroduce a false block (a C-010 regression).
+#   This is a genuine, justified must-keep (plan.md L233-235) — NOT a silent
+#   survivor: it is registered as an explicit ``justified-survivor`` row,
+#   ``tests/architectural/tool_artifact_enrolment/registry/
+#   _is_review_lifecycle_basename.md``, so it stays visible to any audit of
+#   unowned filename exemptions.
 
 
-def _is_runtime_state_basename(basename: str) -> bool:
-    """Return ``True`` if *basename* is one of the mission's own bookkeeping files."""
-    return any(_glob_match(basename, pattern) for pattern in RUNTIME_STATE_ALLOWLIST)
+def _is_review_lifecycle_basename(basename: str) -> bool:
+    """Return ``True`` for the mission's own review/handoff commentary files.
+
+    A registered survivor mechanism (registry row
+    ``_is_review_lifecycle_basename.md``, ``status: justified-survivor``): these
+    two patterns are bulk-edit-review-specific domain knowledge that is
+    genuinely outside :func:`is_toolchain_generated_churn`'s toolchain-generated-
+    write scope, so it is kept here rather than grown onto the owner — see the
+    registry row for the full C-010 justification.
+    """
+    return basename == "notes.md" or _glob_match(basename, "review-cycle-*.md")
 
 
 def _under_feature_dir(posix: str, feature_dir_rel: str) -> bool:
@@ -260,14 +279,15 @@ def _under_feature_dir(posix: str, feature_dir_rel: str) -> bool:
     return posix == anchor or posix.startswith(f"{anchor}/")
 
 
-def _runtime_state_exemption(path: str, feature_dir_rel: str | None) -> FileAssessment | None:
+def _own_bookkeeping_exemption(path: str, feature_dir_rel: str | None) -> FileAssessment | None:
     """Return an exemption verdict when *path* is the RUNNING mission's own runtime state.
 
     Anchored to *feature_dir_rel* — the running mission's OWN feature_dir,
     repo-root-relative — so this can only exempt paths under the mission
-    currently being reviewed (C-004). ``None`` (no *feature_dir_rel*, or the
-    path is outside it, or the basename is not in the allowlist) means "not
-    exempt here"; the caller falls through to the ordinary classifier.
+    currently being reviewed (C-004). ``None`` (no *feature_dir_rel*, the path
+    is outside it, or the path is neither toolchain-generated churn nor a
+    review-lifecycle file) means "not exempt here"; the caller falls through
+    to the ordinary classifier.
     """
     if not feature_dir_rel:
         return None
@@ -275,7 +295,10 @@ def _runtime_state_exemption(path: str, feature_dir_rel: str | None) -> FileAsse
     if not _under_feature_dir(posix, feature_dir_rel):
         return None
     basename = Path(posix).name
-    if not _is_runtime_state_basename(basename):
+    mission_slug = Path(feature_dir_rel).name or None
+    if not is_toolchain_generated_churn(
+        path, mission_slug=mission_slug
+    ) and not _is_review_lifecycle_basename(basename):
         return None
     return FileAssessment(
         path=path,
@@ -370,7 +393,7 @@ def assess_file(
     # 3) Runtime-state gate exemption (FR-007, C-004). Fires BEFORE the
     #    path-heuristic classifier, mirroring the move/exception exemptions
     #    above — but only for the RUNNING mission's own bookkeeping files.
-    runtime_state = _runtime_state_exemption(path, feature_dir_rel)
+    runtime_state = _own_bookkeeping_exemption(path, feature_dir_rel)
     if runtime_state is not None:
         return runtime_state
 

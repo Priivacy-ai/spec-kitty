@@ -41,8 +41,6 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.merge import (
-    _assert_bookkeeping_snapshot_path_is_trusted,
-    _capture_bookkeeping_snapshots,
     _assert_merged_wps_reached_done,
     _assert_status_path_within_target_surface,
     _assert_status_surface_path_is_trusted,
@@ -51,6 +49,13 @@ from specify_cli.cli.commands.merge import (
     _validate_mission_slug_path_segment,
     merge,
 )
+
+# WP09 (T048): the merge-side snapshot-trust helper + capture were retired; the
+# executor now enrols through the single owner compensator. ``_capture_merge_snapshots``
+# is the executor's thin adapter that supplies the identical merge trusted-set
+# (3 dirs + merge-state.json) to the owner's containment, so the T017 containment
+# regressions below re-point onto it (same accept/reject semantics).
+from specify_cli.merge.executor import _capture_merge_snapshots
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -747,7 +752,12 @@ def test_assert_status_path_within_target_surface_accepts_inside(tmp_path: Path)
 
 
 # ---------------------------------------------------------------------------
-# WP04 / T017: _assert_bookkeeping_snapshot_path_is_trusted trusted-set pin
+# WP04 / T017 (WP09 T048 re-point): merge snapshot trusted-set + capture pin.
+# The retired ``_assert_bookkeeping_snapshot_path_is_trusted`` /
+# ``_capture_bookkeeping_snapshots`` folded into the executor's
+# ``_capture_merge_snapshots`` adapter, which supplies the SAME trusted set to the
+# owner's ``ensure_within_any`` containment. Accept = the resolved key is captured;
+# reject = ValueError. Same accept/reject semantics, no set change.
 # ---------------------------------------------------------------------------
 
 
@@ -755,32 +765,32 @@ def test_bookkeeping_snapshot_trusted_set_accepts_kitty_specs(tmp_path: Path) ->
     """T017: path under kitty-specs is accepted."""
     from specify_cli.core.constants import KITTY_SPECS_DIR
     candidate = tmp_path / KITTY_SPECS_DIR / "some-mission" / "file.json"
-    result = _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
-    assert result == candidate.resolve(strict=False)
+    snapshots = _capture_merge_snapshots(tmp_path, candidate)
+    assert candidate.resolve(strict=False) in snapshots
 
 
 def test_bookkeeping_snapshot_trusted_set_accepts_worktrees(tmp_path: Path) -> None:
     """T017: path under .worktrees is accepted."""
     from specify_cli.core.constants import WORKTREES_DIR
     candidate = tmp_path / WORKTREES_DIR / "some-branch" / "file.json"
-    result = _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
-    assert result == candidate.resolve(strict=False)
+    snapshots = _capture_merge_snapshots(tmp_path, candidate)
+    assert candidate.resolve(strict=False) in snapshots
 
 
 def test_bookkeeping_snapshot_trusted_set_accepts_kittify_runtime_merge(tmp_path: Path) -> None:
     """T017: path under .kittify/runtime/merge is accepted."""
     from specify_cli.core.constants import KITTIFY_DIR
     candidate = tmp_path / KITTIFY_DIR / "runtime" / "merge" / "some-id" / "state.json"
-    result = _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
-    assert result == candidate.resolve(strict=False)
+    snapshots = _capture_merge_snapshots(tmp_path, candidate)
+    assert candidate.resolve(strict=False) in snapshots
 
 
 def test_bookkeeping_snapshot_trusted_set_accepts_exact_merge_state_json(tmp_path: Path) -> None:
     """T017: exact .kittify/merge-state.json file is accepted via files= allowlist."""
     from specify_cli.core.constants import KITTIFY_DIR
     candidate = tmp_path / KITTIFY_DIR / "merge-state.json"
-    result = _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
-    assert result == candidate.resolve(strict=False)
+    snapshots = _capture_merge_snapshots(tmp_path, candidate)
+    assert candidate.resolve(strict=False) in snapshots
 
 
 def test_bookkeeping_snapshot_trusted_set_rejects_outside_all(tmp_path: Path) -> None:
@@ -790,7 +800,7 @@ def test_bookkeeping_snapshot_trusted_set_rejects_outside_all(tmp_path: Path) ->
     """
     outside = tmp_path / "completely-outside" / "file.json"
     with pytest.raises(ValueError):
-        _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=outside)
+        _capture_merge_snapshots(tmp_path, outside)
 
 
 def test_bookkeeping_snapshot_trusted_set_rejects_kittify_root_not_exact_file(
@@ -801,7 +811,7 @@ def test_bookkeeping_snapshot_trusted_set_rejects_kittify_root_not_exact_file(
     # .kittify/config.yaml is NOT in the trusted set
     candidate = tmp_path / KITTIFY_DIR / "config.yaml"
     with pytest.raises(ValueError):
-        _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
+        _capture_merge_snapshots(tmp_path, candidate)
 
 
 def test_capture_bookkeeping_snapshots_resolves_only_trusted_paths(tmp_path: Path) -> None:
@@ -812,7 +822,7 @@ def test_capture_bookkeeping_snapshots_resolves_only_trusted_paths(tmp_path: Pat
     candidate.parent.mkdir(parents=True, exist_ok=True)
     candidate.write_bytes(b"payload")
 
-    snapshots = _capture_bookkeeping_snapshots(tmp_path, candidate)
+    snapshots = _capture_merge_snapshots(tmp_path, candidate)
 
     assert snapshots == {candidate.resolve(strict=False): b"payload"}
 
@@ -822,7 +832,7 @@ def test_capture_bookkeeping_snapshots_rejects_untrusted_paths(tmp_path: Path) -
     outside = tmp_path / "completely-outside" / "file.json"
 
     with pytest.raises(ValueError):
-        _capture_bookkeeping_snapshots(tmp_path, outside)
+        _capture_merge_snapshots(tmp_path, outside)
 
 
 def test_capture_bookkeeping_snapshots_rejects_dotdot_traversal(tmp_path: Path) -> None:
@@ -839,10 +849,7 @@ def test_capture_bookkeeping_snapshots_rejects_dotdot_traversal(tmp_path: Path) 
     assert not traversal.resolve(strict=False).is_relative_to(tmp_path.resolve(strict=False))
 
     with pytest.raises(ValueError):
-        _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=traversal)
-
-    with pytest.raises(ValueError):
-        _capture_bookkeeping_snapshots(tmp_path, traversal)
+        _capture_merge_snapshots(tmp_path, traversal)
 
 
 def test_capture_bookkeeping_snapshots_rejects_symlink_escape(tmp_path: Path) -> None:
@@ -877,10 +884,7 @@ def test_capture_bookkeeping_snapshots_rejects_symlink_escape(tmp_path: Path) ->
     )
 
     with pytest.raises(ValueError):
-        _assert_bookkeeping_snapshot_path_is_trusted(repo_root=tmp_path, candidate=candidate)
-
-    with pytest.raises(ValueError):
-        _capture_bookkeeping_snapshots(tmp_path, candidate)
+        _capture_merge_snapshots(tmp_path, candidate)
 
 
 # ---------------------------------------------------------------------------

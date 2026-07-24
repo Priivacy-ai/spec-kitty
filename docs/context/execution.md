@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-06-14'
+updated: '2026-07-23'
 related:
 - docs/context/governance.md
 - docs/context/identity.md
@@ -29,14 +29,14 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | A tool-visible artifact or configuration entry that Spec Kitty installs, verifies, repairs, or packages for a concrete execution tool. |
+| **Definition** | A tool-visible artifact or configuration entry that Spec Kitty installs, verifies, repairs, or packages for a concrete execution tool. This is `surface` **Sense 1** — the tool-facing sense, one of two unrelated domains that share the word. Realized in code by the `ToolSurfaceKind` enum in `src/specify_cli/tool_surface/enums.py` (members `COMMAND_SKILL`, `DOCTRINE_SKILL`, `CONTEXT_FILE`, `RULE`, `HOOK`, `AGENT_PROFILE`, `PLUGIN_MANIFEST`, `NATIVE_CONFIG`, `COMMAND_FILE`), renamed from the bare `SurfaceKind` per ADR [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md). |
 | **Context** | Execution |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
 | **Examples** | slash command file, skill directory, custom agent profile file, hook config, MCP config, plugin manifest |
 | **Use when** | Describing install/config/doctor/plugin ownership for Claude Code, Codex, Copilot, Cursor, Windsurf, Kiro, or another concrete tool. |
-| **Do NOT use when** | Describing logical collaborator identity, assignment, handoff, or role; use [Agent](./identity.md#agent) or [Agent Profile](./identity.md#agent-profile) instead. |
-| **Related terms** | [Tool](#tool), [Slash Command](#slash-command), [Agent](./identity.md#agent) |
+| **Do NOT use when** | Describing logical collaborator identity, assignment, handoff, or role; use [Agent](./identity.md#agent) or [Agent Profile](./identity.md#agent-profile) instead. The concept is the physical tree a mission artifact resolves to — use [Topology Surface](./orchestration.md#topology-surface) (`surface` **Sense 2**). Never write bare "surface" in governed prose; name the sense ("tool surface" / "topology surface"). |
+| **Related terms** | [Tool](#tool), [Slash Command](#slash-command), [Agent](./identity.md#agent), [Topology Surface](./orchestration.md#topology-surface) |
 
 ---
 

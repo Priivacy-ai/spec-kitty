@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..enums import SurfaceKind
+from ..enums import ToolSurfaceKind
 from ..findings import SurfaceFinding
 
 # Stable distribution-target keys. These are inert label values used to tag a
@@ -24,7 +24,7 @@ TARGET_VSCODE = "vscode_extension"
 class BundleEntry:
     """One surface included in a plugin bundle."""
 
-    surface_kind: SurfaceKind
+    surface_kind: ToolSurfaceKind
     source_path: Path
     bundle_relative_path: str
 
@@ -43,7 +43,7 @@ class PluginBundle:
     entries: tuple[BundleEntry, ...]
     manifest_path: Path | None
 
-    def kinds(self) -> frozenset[SurfaceKind]:
+    def kinds(self) -> frozenset[ToolSurfaceKind]:
         """Return the set of surface kinds present in the bundle."""
         return frozenset(entry.surface_kind for entry in self.entries)
 

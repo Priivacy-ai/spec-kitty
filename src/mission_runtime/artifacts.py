@@ -7,7 +7,6 @@ symbols from the package root.
 from __future__ import annotations
 
 import enum
-import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -20,26 +19,44 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from kernel.paths import to_posix
 
 
-class Surface(enum.StrEnum):
-    """The two placement surfaces a mission artifact kind resolves to (S1192).
+class TopologySurface(enum.StrEnum):
+    """A physical tree a mission artifact resolves to — ``surface`` Sense 2.
 
-    Placement-seam campsite (coord-primary-partition-lock WP01): the
-    ``"primary"`` / ``"placement"`` literals used to be restated at each
-    :func:`artifact_home_for` return arm; this hoists them to one named constant.
-    The ``str`` mixin keeps every pre-existing ``== "primary"`` /
-    ``== "placement"`` comparison (production and the pinned partition tests)
-    working unchanged — a literal-to-constant hoist, not a behavior or wire-shape
-    change (C-002).
+    Named ``TopologySurface`` (not bare ``Surface``) because ``surface`` is a
+    governed overloaded term: Sense 1 is the agent-facing *tool* surface
+    (:class:`specify_cli.tool_surface.enums.ToolSurfaceKind`). See
+    ``docs/context/orchestration.md`` and ADR ``2026-07-23-1``.
+
+    ``COORD`` replaces the former ``PLACEMENT`` member: the old name avoided the
+    *word* rather than the *concept*. Naming a surface ``COORD`` does NOT breach
+    the rule against conditioning behaviour on topology — the label is this
+    seam's OUTPUT vocabulary, never a per-call-site branching input. A
+    ``if surface is COORD: <inline path derivation>`` at a call site stays
+    forbidden.
+
+    The ``str`` mixin keeps ``== "primary"`` comparisons working. Note the
+    ``"placement"`` wire value is retired with the member; it was never
+    persisted to any mission artifact, so no data migration is implied.
+
+    ``LANE`` / ``CONSOLIDATED`` / ``TEMP`` are declared **with** the
+    surface→filesystem translation seam that makes each resolvable
+    (:func:`mission_runtime.resolution.translate_surface` — data-model.md
+    "TopologySurface", IC-11): every member maps to a real location, so none is a
+    phantom. They have no production caller yet — ``CONSOLIDATED`` is wired by the
+    consolidation flow (IC-04), ``LANE`` / ``TEMP`` by later work — but the
+    seam's totality test (:func:`assert_surface_totality`) exercises every member,
+    which is what "declared with the seam, not before it" means.
+
+    ``CONSOLIDATED`` is only meaningful from ``LifecyclePhase.POST_CONSOLIDATION``
+    onward (data-model.md); the phase gate belongs to the consolidation consumer,
+    not to this vocabulary enum.
     """
 
     PRIMARY = "primary"
-    PLACEMENT = "placement"
-
-
-# Back-compat type alias: historical name for the surface type. ``Surface`` is
-# the named constant this campsite hoists to; the alias keeps any external type
-# annotation referencing the old name valid (no behavior implication).
-ArtifactSurface = Surface
+    COORD = "coord"
+    LANE = "lane"
+    CONSOLIDATED = "consolidated"
+    TEMP = "temp"
 
 
 class MissionArtifactKind(enum.Enum):
@@ -75,10 +92,9 @@ class MissionArtifactHome:
     """Resolved read/write/commit home for one mission artifact kind."""
 
     kind: MissionArtifactKind
-    read_surface: ArtifactSurface
-    write_surface: ArtifactSurface
+    read_surface: TopologySurface
+    write_surface: TopologySurface
     commit_target: CommitTarget | None
-    ignores_primary_coord_residue: bool
 
 
 def kind_is_coordination_residue(
@@ -95,7 +111,7 @@ def kind_is_coordination_residue(
     coord-less cells (``SINGLE_BRANCH`` / ``LANES``) have no primary↔coordination
     split, so nothing is residue there (the flat→False cell). The placement ref the
     home carries is irrelevant to the routing decision — only the kind's
-    ``ignores_primary_coord_residue`` classification and the stored topology matter.
+    :data:`_PLACEMENT_ARTIFACT_KINDS` membership and the stored topology matter.
     """
     if not routes_through_coordination(topology):
         return False
@@ -193,38 +209,6 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     "checklists": MissionArtifactKind.CHECKLIST,
 }
 
-# FR-003 (#2102) / data-model.md "Self-bookkeeping allowlist" / contract G-5:
-# spec-kitty's OWN bookkeeping files. These classify ``kind=None`` against the
-# mission-artifact partition above, so the record-analysis dirty-tree preflight
-# used to treat their churn as "real dirt" and FALSELY block the write. This set
-# is DISJOINT from the coord-residue partition (``_MISSION_FILE_KIND_BY_BASENAME`` /
-# ``_PLACEMENT_ARTIFACT_KINDS``) and from the planning kinds: it contains ONLY
-# spec-kitty's own metadata, NEVER a planning artifact. The G-5 invariant — a
-# stale primary ``spec.md`` remains non-allowlisted "real dirt" — holds precisely
-# because ``spec.md`` is a planning kind and is NOT a member here.
-#
-# ``meta.json`` matches by bare filename (it can live under any mission dir).
-# ``global.jsonl`` is matched by its FULL relative path SUFFIX so an unrelated
-# ``global.jsonl`` elsewhere is not over-allowlisted (FR-003 over-allowlist hazard).
-_SELF_BOOKKEEPING_FILENAMES: frozenset[str] = frozenset({"meta.json"})
-_SELF_BOOKKEEPING_SUFFIXES: tuple[str, ...] = (
-    ".kittify/encoding-provenance/global.jsonl",
-)
-
-# FR-001 (#2251): ``kitty-ops/<ULID>.jsonl`` Op-record orphans are spec-kitty's
-# own invocation audit trail — NOT mission planning artifacts.  A stale record
-# left from a previous ``spec-kitty dispatch`` session must not block dirty-tree
-# gates.  The match is TIGHT: exactly ``kitty-ops/`` segment + 26-char Crockford
-# base32 ULID + ``.jsonl``.  A non-ULID basename (e.g. ``notes.txt``) is NOT
-# matched — it remains real dirt (G-5 invariant).  Note: ``ops-index.jsonl``
-# is a non-ULID basename too, but as of #2341 it is a gitignored LOCAL_RUNTIME
-# cache (``op_invocation_index`` surface), so it never reaches this classifier
-# in a correctly-migrated project — it is not "real dirt" here.
-# Crockford base32 alphabet: digits 0–9 plus uppercase A–Z MINUS I, L, O, U.
-_KITTY_OPS_OP_RECORD_RE: re.Pattern[str] = re.compile(
-    r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$"
-)
-
 
 def artifact_home_for(
     kind: MissionArtifactKind,
@@ -234,10 +218,9 @@ def artifact_home_for(
     if kind is MissionArtifactKind.PRIMARY_METADATA:
         return MissionArtifactHome(
             kind=kind,
-            read_surface=Surface.PRIMARY,
-            write_surface=Surface.PRIMARY,
+            read_surface=TopologySurface.PRIMARY,
+            write_surface=TopologySurface.PRIMARY,
             commit_target=None,
-            ignores_primary_coord_residue=False,
         )
 
     # FR-002 / FR-004: planning + identity kinds resolve to the PRIMARY surface.
@@ -249,19 +232,17 @@ def artifact_home_for(
     if kind in _PRIMARY_ARTIFACT_KINDS:
         return MissionArtifactHome(
             kind=kind,
-            read_surface=Surface.PRIMARY,
-            write_surface=Surface.PRIMARY,
+            read_surface=TopologySurface.PRIMARY,
+            write_surface=TopologySurface.PRIMARY,
             commit_target=placement_ref,
-            ignores_primary_coord_residue=False,
         )
 
     if kind in _PLACEMENT_ARTIFACT_KINDS:
         return MissionArtifactHome(
             kind=kind,
-            read_surface=Surface.PLACEMENT,
-            write_surface=Surface.PLACEMENT,
+            read_surface=TopologySurface.COORD,
+            write_surface=TopologySurface.COORD,
             commit_target=placement_ref,
-            ignores_primary_coord_residue=True,
         )
 
     raise ValueError(f"Unhandled mission artifact kind: {kind!r}")
@@ -298,33 +279,38 @@ def assert_partition_invariant() -> None:
         )
 
 
-def is_coordination_artifact_residue_path(
-    path: str | Path,
-    *,
-    mission_slug: str | None = None,
-) -> bool:
-    """Return True for primary-checkout residue owned by a coord placement.
+def assert_surface_totality(handled: frozenset[TopologySurface]) -> None:
+    """Guard: the translation seam handles every :class:`TopologySurface` member.
 
-    The predicate is path-specific and partition-aware (write-surface-coherence
-    WP01-04): only COORD-partition artifacts (the append-only status log/snapshot,
-    ``acceptance-matrix.json`` / ``issue-matrix.md``) are committed to the
-    coordination branch under coordination topology, so ONLY their stale primary
-    copies are ignored. Planning SOURCE + finalized + identity docs (``spec.md`` /
-    ``plan.md`` / ``tasks.md`` / ``tasks/WP*.md`` / ``data-model.md`` /
-    ``research.md`` / ``checklists/`` / ``lanes.json``) — and, after the FR-003
-    re-home, ``analysis-report.md`` — are PRIMARY-partition kinds that live on
-    ``target_branch``; their stale primary copies are REAL dirt, NOT residue.
-    Unknown mission files and another mission's artifacts still block dirty-tree
-    gates.
+    The anti-phantom totality guard for the surface→filesystem translation seam
+    (data-model.md "TopologySurface" — the three planned members are declared
+    *with* the seam, never before it; a member no caller can resolve is a
+    phantom). It mirrors :func:`assert_partition_invariant`: pure in-memory set
+    arithmetic, cheap enough to run on every :func:`translate_surface` call, so a
+    future member added to :class:`TopologySurface` without a translation entry
+    fails LOUD at the seam boundary rather than surfacing as a silent miss.
+
+    ``handled`` is the set of members the caller's translation map covers. It must
+    equal the full :class:`TopologySurface` membership exactly — neither a missing
+    member (a phantom the seam cannot locate) nor a surplus member (a translation
+    for a value the enum does not define).
+
+    Raises:
+        AssertionError: When ``handled`` is not exactly the enum membership.
     """
-    artifact_kind = _artifact_kind_for_path(path, mission_slug=mission_slug)
-    if artifact_kind is None:
-        return False
-    # #2090-clean: derive coord-routing from the STORED topology via the SINGLE
-    # routing predicate, NOT a fabricated ``CommitTarget(kind=COORDINATION)`` shim.
-    # This predicate is the coordination-residue question, so it projects the
-    # ``COORD`` topology cell; the coord-less cells return False (no residue).
-    return kind_is_coordination_residue(artifact_kind, MissionTopology.COORD)
+    all_surfaces = frozenset(TopologySurface)
+    missing = all_surfaces - handled
+    if missing:
+        raise AssertionError(
+            "Phantom TopologySurface member(s) with no translation: "
+            f"{sorted(member.value for member in missing)}"
+        )
+    surplus = handled - all_surfaces
+    if surplus:
+        raise AssertionError(
+            "Translation entry for non-member surface(s): "
+            f"{sorted(str(member) for member in surplus)}"
+        )
 
 
 def is_primary_artifact_kind(kind: MissionArtifactKind) -> bool:
@@ -389,34 +375,3 @@ def _artifact_kind_for_path(
         return _MISSION_FILE_KIND_BY_BASENAME.get(name) or _COORD_RESIDUE_DIRS.get(name)
 
     return _COORD_RESIDUE_DIRS.get(mission_rel_parts[0])
-
-
-def is_self_bookkeeping_path(path: str | Path) -> bool:
-    """Return True for spec-kitty's OWN bookkeeping files (FR-003 allowlist).
-
-    The self-bookkeeping allowlist authority (#2102 / data-model.md / contract
-    G-5): ``meta.json`` (mission identity metadata), the encoding-provenance
-    ``.kittify/encoding-provenance/global.jsonl``, and ``kitty-ops/<ULID>.jsonl``
-    Op-record orphans (#2251) are spec-kitty's own bookkeeping, not mission
-    planning artifacts. The record-analysis dirty-tree preflight consults this
-    predicate to drop their churn from the dirty set so it stops falsely blocking
-    — regardless of topology (these are not coord residue).
-
-    This allowlist is DISJOINT from the coord-residue partition and from the
-    planning kinds: a stale primary ``spec.md`` is a PRIMARY-partition planning
-    artifact, is NOT a member here, and therefore remains "real dirt" that blocks
-    (the G-5 invariant). ``meta.json`` matches by bare filename; ``global.jsonl``
-    matches by full relative-path SUFFIX; ``kitty-ops/<ULID>.jsonl`` matches by
-    the tight ``_KITTY_OPS_OP_RECORD_RE`` pattern (26-char Crockford ULID only —
-    a non-ULID ``kitty-ops/notes.txt`` is NOT matched and therefore still blocks).
-
-    This is the SINGLE authority for all four dirty-tree gates (accept, merge,
-    review, record-analysis).  See #1914 (no-op-stable gates) for the umbrella
-    framing — the full no-op-stable rework is out of scope here.
-    """
-    normalized = to_posix(path).rstrip("/")
-    if PurePosixPath(normalized).name in _SELF_BOOKKEEPING_FILENAMES:
-        return True
-    if any(normalized.endswith(suffix) for suffix in _SELF_BOOKKEEPING_SUFFIXES):
-        return True
-    return bool(_KITTY_OPS_OP_RECORD_RE.search(normalized))

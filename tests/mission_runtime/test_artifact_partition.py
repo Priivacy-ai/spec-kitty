@@ -34,9 +34,11 @@ import pytest
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
+    MissionTopology,
     artifact_home_for,
     resolve_placement_only,
 )
+from mission_runtime.artifacts import kind_is_coordination_residue
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -105,7 +107,9 @@ def test_artifact_home_for_spec_is_primary() -> None:
     # The commit target for a primary kind is the resolved primary ref, not the
     # coordination ref the caller happened to pass.
     assert home.commit_target == placement_ref
-    assert home.ignores_primary_coord_residue is False
+    # The dead ``ignores_primary_coord_residue`` field was retired (IC-07g /
+    # WP17, zero external consumers) — assert the real residue authority instead.
+    assert kind_is_coordination_residue(MissionArtifactKind.SPEC, MissionTopology.COORD) is False
 
 
 def test_artifact_home_for_status_state_stays_placement() -> None:
@@ -113,10 +117,10 @@ def test_artifact_home_for_status_state_stays_placement() -> None:
 
     home = artifact_home_for(MissionArtifactKind.STATUS_STATE, placement_ref)
 
-    assert home.read_surface == "placement"
-    assert home.write_surface == "placement"
+    assert home.read_surface == "coord"
+    assert home.write_surface == "coord"
     assert home.commit_target == placement_ref
-    assert home.ignores_primary_coord_residue is True
+    assert kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, MissionTopology.COORD) is True
 
 
 def test_artifact_home_for_primary_metadata_unchanged() -> None:

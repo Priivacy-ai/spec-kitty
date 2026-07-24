@@ -86,6 +86,11 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     build_transition_plan,
     override_persist_signal,
 )
+from specify_cli.coordination.atomic_write import (
+    enroll_subprocess_byproducts,
+    restore_generated_artifact_snapshots,
+    subprocess_created_paths,
+)
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import first_set_sync_disable_env
@@ -1073,7 +1078,6 @@ def _mt_pre_review_gate_metadata(
     block_enabled: bool,
     blocked: bool,
     force_bypassed: bool,
-    new_checkout_paths: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """The FR-004 transition-evidence payload recorded via ``policy_metadata``."""
     scope = verdict.scope
@@ -1091,7 +1095,6 @@ def _mt_pre_review_gate_metadata(
         "blocked": blocked,
         "force_bypassed": force_bypassed,
         "run_state": verdict.run_state.value,
-        "new_checkout_paths": list(new_checkout_paths),
     }
 
 
@@ -1172,14 +1175,16 @@ def _mt_pre_review_gate_block_message(verdict: pre_review_gate.GateVerdict) -> s
 class _TransitionGateInputs:
     """The shared, per-transition I/O the gate resolves once before dispatch.
 
-    The changed-files SSOT (``_mt_pre_review_changed_files`` → ``:927``) and the
-    dirty-path bookkeeping (for ``new_checkout_paths``) are resolved here, then
-    handed to the doctrine-resolved dispatch and the aggregation. Reused, never
-    re-derived (contract "What the hook does NOT change").
+    The changed-files SSOT (``_mt_pre_review_changed_files`` → ``:927``) is
+    resolved here, then handed to the doctrine-resolved dispatch and the
+    aggregation. Reused, never re-derived (contract "What the hook does NOT
+    change"). The dirty-path baseline used to enrol subprocess byproducts
+    (:func:`_mt_resolve_transition_gate_verdicts`) is resolved alongside these
+    inputs but returned separately — it is transient bookkeeping, not part of
+    the shared per-transition surface.
     """
 
     worktree_path: Path | None
-    dirty_before: tuple[str, ...]
     changed_files: tuple[str, ...]
     gate_repo_root: Path
 
@@ -1416,8 +1421,16 @@ def _mt_collect_transition_gate_verdicts(
     return _mt_dispatch_transition_gates(list(resolution.active), ctx)
 
 
-def _mt_resolve_transition_gate_inputs(st: _MoveTaskState) -> _TransitionGateInputs:
-    """Resolve the workspace, dirty-path baseline, and changed-files SSOT (unchanged)."""
+def _mt_resolve_transition_gate_inputs(
+    st: _MoveTaskState,
+) -> tuple[_TransitionGateInputs, tuple[str, ...]]:
+    """Resolve the workspace, dirty-path baseline, and changed-files SSOT (unchanged).
+
+    Returns ``(inputs, dirty_before)``: ``dirty_before`` is the transient
+    pre-dispatch dirty-path snapshot used later to enrol whatever a gate's
+    subprocess creates (:func:`_mt_run_transition_gates`) — it is not part of
+    the shared :class:`_TransitionGateInputs` surface.
+    """
     worktree_path = _mt_resolve_pre_review_workspace(st)
     dirty_before = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
     changed_files = (
@@ -1425,17 +1438,17 @@ def _mt_resolve_transition_gate_inputs(st: _MoveTaskState) -> _TransitionGateInp
         if worktree_path is not None
         else ()
     )
-    return _TransitionGateInputs(
+    inputs = _TransitionGateInputs(
         worktree_path=worktree_path,
-        dirty_before=dirty_before,
         changed_files=changed_files,
         gate_repo_root=worktree_path or st.main_repo_root,
     )
+    return inputs, dirty_before
 
 
 def _mt_resolve_transition_gate_verdicts(
     st: _MoveTaskState, _tasks: Any
-) -> tuple[_TransitionGateInputs | None, list[pre_review_gate.GateVerdict]]:
+) -> tuple[_TransitionGateInputs | None, tuple[str, ...], list[pre_review_gate.GateVerdict]]:
     """Run the pre-dispatch resolution phase under the SAME fail-open as :func:`_mt_fail_open_gate`.
 
     The incumbent (base ``e4ef6e850``) degraded a *resolution* fault to a
@@ -1453,19 +1466,20 @@ def _mt_resolve_transition_gate_verdicts(
     graph, malformed ``meta.json``/``"pending"`` sentinel, or ``warnings.warn``
     under ``-W error``) → exactly one visible ``NO_COVERAGE`` warn and PROCEED.
 
-    Returns ``(inputs, verdicts)``; ``inputs`` is ``None`` when resolution raised
-    before the workspace inputs were built (no changed/dirty paths to reconcile).
+    Returns ``(inputs, dirty_before, verdicts)``; ``inputs`` is ``None`` when
+    resolution raised before the workspace inputs were built (no changed/dirty
+    paths to reconcile), in which case ``dirty_before`` is empty.
     """
     try:
         _mt_warn_pre_review_test_command_deprecated(st.main_repo_root)
-        inputs = _mt_resolve_transition_gate_inputs(st)
-        return inputs, _mt_collect_transition_gate_verdicts(st, inputs, _tasks)
+        inputs, dirty_before = _mt_resolve_transition_gate_inputs(st)
+        return inputs, dirty_before, _mt_collect_transition_gate_verdicts(st, inputs, _tasks)
     except KeyboardInterrupt:
-        return None, [_mt_cancelled_verdict()]
+        return None, (), [_mt_cancelled_verdict()]
     except pre_review_gate.GateAuthoritiesUnavailable as exc:
-        return None, [_mt_empty_scope_verdict(f"gate authorities unavailable — unverified: {exc}")]
+        return None, (), [_mt_empty_scope_verdict(f"gate authorities unavailable — unverified: {exc}")]
     except Exception as exc:  # noqa: BLE001 — FR-013 fail-open over resolution (never break move-task)
-        return None, [_mt_empty_scope_verdict(f"pre-review gate resolution failed — unverified: {exc}")]
+        return None, (), [_mt_empty_scope_verdict(f"pre-review gate resolution failed — unverified: {exc}")]
 
 
 def _mt_gate_representative(
@@ -1491,7 +1505,6 @@ def _mt_translate_gate_verdicts(
     *,
     block_enabled: bool,
     force: bool,
-    new_checkout_paths: tuple[str, ...] = (),
 ) -> _TransitionGateEffect:
     """Aggregate the per-handler verdicts and render the observable effect (FR-014).
 
@@ -1511,7 +1524,6 @@ def _mt_translate_gate_verdicts(
         block_enabled=block_enabled,
         blocked=blocked,
         force_bypassed=force_bypassed,
-        new_checkout_paths=new_checkout_paths,
     )
     if terminal:
         metadata["transition_applied"] = False
@@ -1542,18 +1554,12 @@ def _mt_emit_skipped_gate(st: _MoveTaskState, _tasks: Any, skip_reason: str) -> 
 def _mt_emit_transition_gate_effect(
     st: _MoveTaskState,
     effect: _TransitionGateEffect,
-    new_checkout_paths: tuple[str, ...],
     _tasks: Any,
 ) -> None:
     """Emit console + perform the two hard-stops (T041) from the aggregate effect."""
     if not st.json_output:
         for line in effect.console_lines:
             _tasks.console.print(line)
-        if new_checkout_paths:
-            _tasks.console.print(
-                "[yellow]Pre-review tests created or changed additional paths; "
-                f"preserved without cleanup: {', '.join(new_checkout_paths)}[/yellow]"
-            )
     if effect.terminal:
         outcome_value = effect.representative.outcome.value
         _tasks._output_error(
@@ -1603,17 +1609,59 @@ def _mt_run_transition_gates(st: _MoveTaskState) -> None:
         return
 
     assert st.wp is not None
-    inputs, verdicts = _mt_resolve_transition_gate_verdicts(st, _tasks)
-    dirty_before = inputs.dirty_before if inputs is not None else ()
+    inputs, dirty_before, verdicts = _mt_resolve_transition_gate_verdicts(st, _tasks)
     worktree_path = inputs.worktree_path if inputs is not None else None
-    dirty_after = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
-    new_checkout_paths = tuple(sorted(set(dirty_after) - set(dirty_before)))
+    byproduct_snapshots = _mt_enrol_gate_byproducts(worktree_path, dirty_before)
     block_enabled = _mt_pre_review_block_enabled(st.main_repo_root)
-    effect = _mt_translate_gate_verdicts(
-        verdicts, block_enabled=block_enabled, force=st.force, new_checkout_paths=new_checkout_paths
-    )
+    effect = _mt_translate_gate_verdicts(verdicts, block_enabled=block_enabled, force=st.force)
+    # IC-07f (WP16): the enrolment above is the compensator's snapshot leg
+    # (``{path: None}`` for a subprocess-created path — the pre-transaction
+    # state the compensator restores to). Committed on success means simply
+    # NOT restoring: the created bytes stay put. On the two hard-stops
+    # (terminal interruption, opt-in block) the step aborts, so the SAME
+    # single restore path the merge executor and the coordination transaction
+    # use (:func:`restore_generated_artifact_snapshots`) unlinks them —
+    # genuinely reverted, not merely detected-and-abandoned.
+    if byproduct_snapshots and effect.should_exit:
+        restore_generated_artifact_snapshots(byproduct_snapshots)
     st.pre_review_gate_metadata = effect.metadata
-    _mt_emit_transition_gate_effect(st, effect, new_checkout_paths, _tasks)
+    _mt_emit_transition_gate_effect(st, effect, _tasks)
+
+
+def _mt_enrol_gate_byproducts(
+    worktree_path: Path | None, dirty_before: tuple[str, ...]
+) -> dict[Path, bytes | None]:
+    """Enrol any path a bound gate's subprocess created into the owner (C3).
+
+    A gate handler may spawn a scoped pytest run that creates cache/coverage
+    byproducts inside the WP's own worktree. Diffing the post-dispatch dirty
+    set against ``dirty_before`` (captured pre-dispatch) yields exactly the
+    paths the subprocess created (:func:`subprocess_created_paths`, the SAME
+    owner helper the merge executor and the coordination transaction use).
+    Enrolling them (:func:`enroll_subprocess_byproducts`) snapshots their
+    absent pre-transaction state and returns it — the caller (
+    :func:`_mt_run_transition_gates`) routes that snapshot through the single
+    restore compensator on the abort/block path, so the byproduct is
+    genuinely committed on success and reverted on abort, never merely
+    detected and abandoned.
+    """
+    if worktree_path is None:
+        return {}
+    dirty_after = _mt_pre_review_dirty_paths(worktree_path)
+    created = subprocess_created_paths(
+        (worktree_path / rel for rel in dirty_before),
+        (worktree_path / rel for rel in dirty_after),
+    )
+    if not created:
+        return {}
+    # Annotated local: mypy runs with ``follow_imports = "skip"`` on this
+    # quarantined module, so the cross-module call surfaces as ``Any`` here;
+    # pinning it re-establishes the known concrete return type without a
+    # suppression (mirrors ``_mt_resolve_pre_review_workspace``'s own idiom).
+    snapshots: dict[Path, bytes | None] = enroll_subprocess_byproducts(
+        created, trusted_roots=(worktree_path,)
+    )
+    return snapshots
 
 
 def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:

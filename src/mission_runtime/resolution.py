@@ -25,10 +25,11 @@ from typing import Any, Literal, cast, get_args
 
 from mission_runtime.artifacts import (
     MissionArtifactKind,
-    Surface,
+    TopologySurface,
     _PRIMARY_ARTIFACT_KINDS,
     artifact_home_for,
     assert_partition_invariant,
+    assert_surface_totality,
     is_primary_artifact_kind,
 )
 from mission_runtime.context import (
@@ -67,13 +68,18 @@ __all__ = [
     "ActionContextError",
     "ActionName",
     "PlacementSeam",
+    "ResolvedSurface",
+    "SurfaceLocations",
+    "TopologySurface",
     "coord_read_dir_for",
     "mission_context_for",
     "placement_seam",
     "resolve_action_context",
+    "resolve_artifact_surface",
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "resolve_placement_only",
+    "translate_surface",
 ]
 
 
@@ -926,12 +932,12 @@ def mission_context_for(
         home = artifact_home_for(kind, placement_ref)
         read_dir = (
             primary_read_dir
-            if home.read_surface == Surface.PRIMARY
+            if home.read_surface == TopologySurface.PRIMARY
             else status_surface.status_read_dir
         )
         write_dir = (
             primary_read_dir
-            if home.write_surface == Surface.PRIMARY
+            if home.write_surface == TopologySurface.PRIMARY
             else status_surface.status_write_dir
         )
         artifacts.append(
@@ -1421,6 +1427,220 @@ class PlacementSeam:
         return read_dir
 
 
+@dataclass(frozen=True)
+class SurfaceLocations:
+    """The candidate filesystem locations a mission's surfaces map to.
+
+    The input bundle to :func:`translate_surface`: one optional path per
+    :class:`TopologySurface` member. ``primary`` is always known (its declared
+    home exists for every topology); the others are populated only when the caller
+    has resolved that surface (``coord`` once the coordination worktree is
+    materialised; ``lane`` / ``consolidated`` / ``temp`` by their respective
+    flows). A member whose location is ``None`` has no resolved home for this call,
+    and :func:`translate_surface` refuses it rather than guessing.
+    """
+
+    primary: Path
+    coord: Path | None = None
+    lane: Path | None = None
+    consolidated: Path | None = None
+    temp: Path | None = None
+
+
+# The ONE surface→field translation map (data-model.md "TopologySurface", IC-11).
+# Keyed by EVERY :class:`TopologySurface` member so :func:`assert_surface_totality`
+# proves no member is a phantom: a member added to the enum without an entry here
+# fails LOUD inside :func:`translate_surface`.
+_SURFACE_LOCATION_FIELD: dict[TopologySurface, str] = {
+    TopologySurface.PRIMARY: "primary",
+    TopologySurface.COORD: "coord",
+    TopologySurface.LANE: "lane",
+    TopologySurface.CONSOLIDATED: "consolidated",
+    TopologySurface.TEMP: "temp",
+}
+
+
+def translate_surface(surface: TopologySurface, locations: SurfaceLocations) -> Path:
+    """Translate a :class:`TopologySurface` member to its filesystem location.
+
+    The ONE **total** surface→filesystem translation (data-model.md
+    "TopologySurface", IC-11 — the true schema root). It is total over the enum:
+    every member has a translation entry, asserted by
+    :func:`~mission_runtime.artifacts.assert_surface_totality` on every call (the
+    anti-phantom guard — a member added to :class:`TopologySurface` without an
+    entry fails LOUD here rather than resolving to nothing). ``locations`` supplies
+    the concrete path for the requested member; a member with no resolved location
+    for this call raises rather than fabricating one.
+
+    Raises:
+        AssertionError: When the enum has a member with no translation entry.
+        ValueError: When ``locations`` carries no path for ``surface``.
+    """
+    assert_surface_totality(frozenset(_SURFACE_LOCATION_FIELD))
+    location: Path | None = getattr(locations, _SURFACE_LOCATION_FIELD[surface])
+    if location is None:
+        raise ValueError(
+            f"No resolved location for surface {surface.value!r}; the caller must "
+            "supply it in SurfaceLocations before translating."
+        )
+    return location
+
+
+@dataclass(frozen=True)
+class ResolvedSurface:
+    """A resolved surface plus the stamp naming which physical tree it is (C6).
+
+    The output of :func:`resolve_artifact_surface`: ``path`` is where the artifact
+    is read/written; ``surface_kind`` is the :class:`TopologySurface` stamp a
+    recorded judgement names (NFR-003 / contract GEC-3). Per GEC-5 a ``PRIMARY``
+    stamp on a *substituted* surface (the ``EMPTY`` / ``UNMATERIALIZED`` create
+    window) is visible, not authoritative — the consuming gate decides whether the
+    stamped surface can hold the fact.
+    """
+
+    path: Path
+    surface_kind: TopologySurface
+
+
+def _classify_artifact_surface(
+    primary_root: Path,
+    canonical_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    primary_dir: Path,
+    resolver: MissionResolver | None,
+) -> tuple[TopologySurface, Path | None]:
+    """Classify the affirmative surface for ``kind`` (the four-CoordState answer).
+
+    Returns the :class:`TopologySurface` stamp and — for a ``COORD`` stamp — the
+    coordination mission dir. Consumes the EXISTING
+    :func:`~specify_cli.missions._read_path_resolver.probe_coord_state` /
+    :class:`CoordState` classifier; it writes no classifier beside it (GEC-3).
+    """
+    # AH-1/AH-3: a PRIMARY-partition kind lives on the primary surface for EVERY
+    # topology and coord state — it never transits coordination, so a deleted
+    # coord branch cannot affect reading it (no probe, no raise).
+    if is_primary_artifact_kind(kind):
+        return TopologySurface.PRIMARY, None
+
+    # AH-2: flat / SINGLE_BRANCH / LANES resolve AFFIRMATIVELY to primary — their
+    # declared home — gated on the STORED topology through the ONE canonical
+    # predicate, never an on-disk ``-coord`` husk stat (C-004 / #2062).
+    topology = resolve_topology(primary_root, canonical_slug, resolver=resolver)
+    if not routes_through_coordination(topology):
+        return TopologySurface.PRIMARY, None
+
+    # Coord-routing topology + coord-partition kind: consume the four-state
+    # classifier (GEC-3 / contract C3). ``coordination_branch`` (read from the
+    # primary ``meta.json``) is what splits UNMATERIALIZED from DELETED inside the
+    # probe's single ``git rev-parse`` arm.
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+    from specify_cli.lanes.branch_naming import resolve_mid8
+    from specify_cli.missions._read_path_resolver import (
+        CoordState,
+        coord_feature_dir,
+        probe_coord_state,
+    )
+
+    coordination_branch = _resolve_coordination_branch(
+        primary_root, canonical_slug, resolver=resolver
+    )
+    mission_id = _resolve_mission_id(primary_root, canonical_slug, resolver=resolver)
+    mid8 = resolve_mid8(canonical_slug, mission_id=mission_id)
+    coord_state = probe_coord_state(
+        primary_root, canonical_slug, mid8, coordination_branch=coordination_branch
+    )
+
+    if coord_state is CoordState.DELETED:
+        # C3 "fail loud" (#1848 data-loss): a declared coord branch deleted from
+        # git carries unmerged status — raise the SAME canonical exception the read
+        # path raises, never a silent primary fallback.
+        raise CoordinationBranchDeleted(
+            repo_root=primary_root,
+            mission_slug=canonical_slug,
+            mid8=mid8,
+            coordination_branch=coordination_branch or "",
+            coord_candidate=coord_feature_dir(primary_root, canonical_slug, mid8),
+            primary_candidate=primary_dir,
+        )
+    if coord_state is CoordState.MATERIALIZED:
+        return TopologySurface.COORD, coord_feature_dir(
+            primary_root, canonical_slug, mid8
+        )
+    # EMPTY / UNMATERIALIZED / NONE → primary + PRIMARY stamp (GEC-3): a DECLARED
+    # answer the returned stamp names, NOT an undeclared fallback (NFR-001). GEC-5
+    # governs whether the consuming gate may treat the stamped surface as
+    # authoritative.
+    return TopologySurface.PRIMARY, None
+
+
+def resolve_artifact_surface(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    resolver: MissionResolver | None = None,
+) -> ResolvedSurface:
+    """Resolve the affirmative read/write surface for a mission artifact ``kind``.
+
+    The stamped face of the surface→filesystem seam (data-model.md "ArtifactHome"
+    AH-1/AH-2, contract GEC-3 / C3 — the four-``CoordState`` answer set). Consumes
+    the EXISTING
+    :func:`~specify_cli.missions._read_path_resolver.probe_coord_state` /
+    :class:`CoordState` classifier — never a new one beside it. It is TOTAL: every
+    topology and coord state has a DECLARED answer named by the returned
+    ``surface_kind`` stamp (NFR-001 forbids only *undeclared* fallbacks):
+
+    * a PRIMARY-partition kind resolves the primary mission dir, stamped PRIMARY,
+      for EVERY topology and coord state (AH-1/AH-3 — it never transits coord);
+    * a coord-partition kind on flat / ``SINGLE_BRANCH`` / ``LANES`` resolves the
+      primary dir AFFIRMATIVELY (AH-2 — its declared home, not a fallback), stamped
+      PRIMARY;
+    * a coord-partition kind on coord-routing topology consumes the four-state
+      classifier: ``DELETED`` raises :class:`CoordinationBranchDeleted` (C3 "fail
+      loud"); ``MATERIALIZED`` resolves the coord dir, stamped COORD; ``EMPTY`` /
+      ``UNMATERIALIZED`` resolve the primary dir, stamped PRIMARY.
+
+    The final path goes through :func:`translate_surface` so the ONE total
+    translation is the production path, not merely a tested one. CWD-invariant: the
+    canonical primary root is resolved first, so the answer is identical from any
+    checkout (C-CTX-2).
+
+    Raises:
+        CoordinationBranchDeleted: When the declared coordination branch has been
+            deleted from git (C3 fail-loud).
+        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
+            (propagated from handle canonicalization — no silent pick).
+    """
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    primary_root = get_main_repo_root(repo_root)
+    # The affirmative PRIMARY home (canonicalized handle → ``<slug>-<mid8>`` dir).
+    # ``resolve_planning_read_dir`` is typed ``-> Path`` but the
+    # ``follow_imports=skip`` boundary on ``specify_cli.*`` widens it to ``Any``;
+    # bind explicitly so the declared return narrows back.
+    primary_dir: Path = resolve_planning_read_dir(
+        primary_root,
+        mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
+    )
+    canonical_slug = primary_dir.name
+    surface_kind, coord_dir = _classify_artifact_surface(
+        primary_root,
+        canonical_slug,
+        kind,
+        primary_dir=primary_dir,
+        resolver=resolver,
+    )
+    locations = SurfaceLocations(primary=primary_dir, coord=coord_dir)
+    return ResolvedSurface(
+        path=translate_surface(surface_kind, locations),
+        surface_kind=surface_kind,
+    )
+
+
 def coord_read_dir_for(
     repo_root: Path,
     mission_slug: str,
@@ -1439,38 +1659,39 @@ def coord_read_dir_for(
     reconcile"). Never materialises the worktree (a read/scan must not have side
     effects).
 
-    Extracted from the two byte-for-byte guards that each admitted "Mirrors the
-    other exactly":
-    :func:`specify_cli.acceptance.gates_core._acceptance_matrix_read_dir` and
-    :func:`specify_cli.cli.commands.accept._coord_worktree_root`. Both now consume
-    this single seam (Directive-044) instead of restating the topology+existence
-    check — routing every coord-read decision through the ONE
-    :func:`routes_through_coordination` predicate + the ONE
-    :class:`PlacementSeam` (T-1).
+    Now a THIN ``Path | None`` projection of the affirmative seam
+    :func:`resolve_artifact_surface` (WP02 — the surface→filesystem schema root):
+    it keeps the ``None``-signal contract its remaining consumers rely on
+    (``status.doctor`` / ``cli.commands.review`` — "nothing to reconcile") by
+    projecting the stamp: a ``COORD`` stamp yields the coord dir, every other stamp
+    yields ``None``. The affirmative-vs-``None`` split lives in the ONE seam; this
+    is only its narrowing projection (Directive-044).
 
     Fail-soft (post-merge safety): a mission whose stored topology still declares
-    coordination but whose coordination worktree has already been consolidated
-    away (e.g. a post-merge mission-review read) makes the underlying read
-    resolver refuse fail-closed (``StatusReadPathNotFound``) or report an
-    ambiguous handle. Those refusals mean "there is no coordination surface to
-    read from" — exactly the ``None`` case — so they are absorbed here and the
-    caller falls back to its own primary read dir.
+    coordination but whose coordination worktree has already been consolidated away
+    (a post-merge review read), an ambiguous handle, or a DELETED coordination
+    branch all mean "there is no coordination surface to read from" for a
+    ``None``-returning guard — so :class:`CoordinationBranchDeleted` (a
+    :class:`StatusReadPathNotFound` subclass), the fail-closed refusals, and
+    ambiguity are absorbed to ``None`` here. Callers that need the loud C3
+    fail-closed behaviour on ``DELETED`` (the accept-path gates) consume
+    :func:`resolve_artifact_surface` directly.
     """
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         StatusReadPathNotFound,
     )
 
-    topology = resolve_topology(repo_root, mission_slug)
-    if not routes_through_coordination(topology):
-        return None
     try:
-        resolved = placement_seam(repo_root, mission_slug).read_dir(kind)
+        resolved = resolve_artifact_surface(repo_root, mission_slug, kind)
     except (StatusReadPathNotFound, MissionSelectorAmbiguous, ActionContextError):
+        # ``CoordinationBranchDeleted`` subclasses ``StatusReadPathNotFound``, so it
+        # is absorbed here too — preserving this guard's historical ``None``-for-
+        # deleted behaviour for its non-accept consumers.
         return None
-    if not resolved.exists():
+    if resolved.surface_kind is not TopologySurface.COORD:
         return None
-    return resolved
+    return resolved.path
 
 
 def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:

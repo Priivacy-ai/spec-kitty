@@ -13,15 +13,51 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 
+if TYPE_CHECKING:
+    from specify_cli.acceptance.execution_context import GateExecutionContext
+
 CRITERION_VERDICTS = frozenset({"pass", "fail", "pending"})
-NEGATIVE_INVARIANT_RESULTS = frozenset({"confirmed_absent", "still_present", "pending", "verification_error"})
+
+# The negative-invariant results that represent an *actual, established
+# judgement* (data-model.md Result state machine). Membership in this set is the
+# NI-2 preservation guard: a terminal result is never re-judged or overwritten
+# (C3). ``deferred_to_consolidation`` is deliberately EXCLUDED — it is a
+# scheduled-not-yet-judged state (NI-4), so freezing it here would make its
+# post-consolidation verification (C6) impossible.
+TERMINAL_INVARIANT_RESULTS = frozenset({"confirmed_absent", "still_present", "verification_error"})
+
+# The fourth Result value (NI / data-model.md): a ``pending`` invariant whose
+# subject cannot exist on the current surface defers here rather than reporting a
+# false ``still_present`` (FR-003 / C4).
+DEFERRED_TO_CONSOLIDATION = "deferred_to_consolidation"
+
+NEGATIVE_INVARIANT_RESULTS = TERMINAL_INVARIANT_RESULTS | {"pending", DEFERRED_TO_CONSOLIDATION}
+
+# Provenance origin vocabulary (data-model.md NI-1). ``recorded`` requires full
+# provenance; ``legacy_unrecorded`` is the FR-014 sentinel for results captured
+# before provenance existed and permits null provenance for THAT origin only.
+# ``legacy_unrecorded`` is a ``provenance_origin`` value, NEVER a
+# ``TopologySurface`` member (the surface enum's anti-phantom rule).
+PROVENANCE_RECORDED = "recorded"
+PROVENANCE_LEGACY_UNRECORDED = "legacy_unrecorded"
+PROVENANCE_ORIGINS = frozenset({PROVENANCE_RECORDED, PROVENANCE_LEGACY_UNRECORDED})
+
+# The fourth ``overall_verdict`` value (NI-5): deferral contributes neither a
+# ``fail`` nor a silent ``pass`` — acceptance is not blocked, but the mission
+# cannot reach ``done`` while any invariant is still deferred.
+VERDICT_PASS_PENDING_CONSOLIDATION = "pass_pending_consolidation"  # noqa: S105  # verdict name, not a secret
+
+# The phase name a deferred invariant is scheduled to be judged at (NI-4 / C4).
+# Stored as the ``LifecyclePhase.POST_CONSOLIDATION`` member NAME (a plain string)
+# so the matrix serialises without importing the phase enum into its storage.
+POST_CONSOLIDATION_PHASE_NAME = "POST_CONSOLIDATION"
 
 
 def _is_allowed_value(value: Any, allowed: frozenset[str]) -> bool:
@@ -75,7 +111,7 @@ class NegativeInvariant:
     description: str
     verification_method: str  # "grep_absence" | "route_check" | "custom_command"
     verification_command: str | None = None
-    result: str = "pending"  # "confirmed_absent" | "still_present" | "pending" | "verification_error"
+    result: str = "pending"  # see NEGATIVE_INVARIANT_RESULTS (incl. deferred_to_consolidation)
     evidence: str | None = None
     # Optional path-scope for ``grep_absence``: whitespace-separated repo-relative
     # search root(s). When set, the grep runs only under these paths instead of
@@ -83,6 +119,27 @@ class NegativeInvariant:
     # mentions does not false-positive as "still_present" (#1834). Default
     # (``None``) preserves the whole-repo search (unchanged behaviour).
     scope: str | None = None
+    # --- Provenance (data-model.md NI-1 / contract C1-C2). A judgement states
+    # the surface and ref it was established against so it is attributable and
+    # never silently re-judged from a surface that cannot hold it. ---
+    # The git ref the outcome was established against (null until judged).
+    verified_ref: str | None = None
+    # The ``TopologySurface`` value (e.g. ``"primary"`` / ``"coord"`` /
+    # ``"consolidated"``) that established the outcome. Stored as the plain enum
+    # VALUE, never the sentinel ``legacy_unrecorded`` (which is a
+    # ``provenance_origin``, not a surface — the anti-phantom rule).
+    verified_surface_kind: str | None = None
+    # Why judgement was postponed, when ``result == deferred_to_consolidation``.
+    deferred_reason: str | None = None
+    # The ``LifecyclePhase`` NAME the deferral will be judged at (NI-4).
+    deferred_to_phase: str | None = None
+    # ``recorded`` requires full provenance; ``legacy_unrecorded`` (the FR-014
+    # sentinel) permits null provenance for pre-schema results. The default is
+    # ``legacy_unrecorded`` so an existing on-disk matrix — which predates these
+    # fields — round-trips through ``validate_matrix_evidence`` unchanged (its
+    # terminal results carry no provenance yet, and the FR-014 backfill has not
+    # run). The gate stamps ``recorded`` explicitly when it judges an invariant.
+    provenance_origin: str = PROVENANCE_LEGACY_UNRECORDED
     extras: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -93,10 +150,23 @@ class NegativeInvariant:
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         extras = data.pop("extras", {}) or {}
-        # Omit an unset ``scope`` so existing matrices are not rewritten with a
-        # ``scope: null`` key on their next serialization.
-        if data.get("scope") is None:
-            data.pop("scope", None)
+        # Omit unset optional keys so existing matrices are not rewritten with a
+        # ``null`` key on their next serialization (byte-stability across the
+        # ~160 tracked matrices). C2 round-trip is preserved: an omitted key
+        # restores to its ``None`` default via ``from_dict``.
+        for key in (
+            "scope",
+            "verified_ref",
+            "verified_surface_kind",
+            "deferred_reason",
+            "deferred_to_phase",
+        ):
+            if data.get(key) is None:
+                data.pop(key, None)
+        # ``legacy_unrecorded`` is the default; omit it so pre-schema matrices
+        # stay byte-stable. A ``recorded`` origin is always emitted.
+        if data.get("provenance_origin") == PROVENANCE_LEGACY_UNRECORDED:
+            data.pop("provenance_origin", None)
         data.update(extras)
         return data
 
@@ -134,6 +204,13 @@ class AcceptanceMatrix:
             return "fail"
         if any(v == "pending" for v in criterion_results + invariant_results):
             return "pending"
+        # NI-5: a deferred invariant is neither a failure nor a silent pass. It
+        # yields the fourth verdict — acceptance is NOT blocked (C5), but the
+        # verdict is distinguishable from a clean ``pass`` so the mission cannot
+        # reach ``done`` while a deferral is outstanding. Checked AFTER ``pending``
+        # so an unverified criterion still dominates.
+        if any(v == DEFERRED_TO_CONSOLIDATION for v in invariant_results):
+            return VERDICT_PASS_PENDING_CONSOLIDATION
         return "pass"
 
     def to_dict(self) -> dict[str, Any]:
@@ -216,6 +293,8 @@ def scaffold_acceptance_matrix(
     feature_dir: Path,
     mission_slug: str,
     requirement_ids: list[str] | None = None,
+    *,
+    home_dir: Path | None = None,
 ) -> Path | None:
     """Author a minimal, schema-valid ``acceptance-matrix.json`` for a feature.
 
@@ -227,6 +306,17 @@ def scaffold_acceptance_matrix(
     The scaffold is **idempotent**: an existing ``acceptance-matrix.json`` is
     never overwritten, so operator-curated criteria survive re-runs.
 
+    **FR-010 / C8 / AH-3 — single authoritative home.** The idempotency check
+    consults the matrix's DECLARED HOME (``home_dir``, when supplied by the
+    caller from the same surface resolver the gate reads through), not merely the
+    ``feature_dir`` staging location. Under coordination topology the authoritative
+    matrix lives on the coord surface; without this check a re-finalize would find
+    no matrix at the primary ``feature_dir`` and scaffold a *second*, divergent
+    primary copy alongside the real coord one (#2882). Consulting the declared home
+    means exactly one copy is ever authored, so the provenance fields cannot
+    diverge across copies. When ``home_dir`` is omitted the check falls back to
+    ``feature_dir`` (the flat/create-window case, where primary IS the home).
+
     When ``requirement_ids`` are supplied (e.g. functional requirement ids from
     ``spec.md``), one ``pending`` criterion is derived per requirement. When no
     requirement ids are available, a single placeholder criterion carrying
@@ -234,13 +324,23 @@ def scaffold_acceptance_matrix(
     awaiting real content.
 
     Args:
-        feature_dir: The ``kitty-specs/<slug>/`` directory for the mission.
+        feature_dir: The ``kitty-specs/<slug>/`` directory for the mission (the
+            staging location the finalize flow collects and routes from).
         mission_slug: Feature slug (e.g. ``010-lane-only-runtime``).
         requirement_ids: Optional functional requirement ids to seed criteria.
+        home_dir: The matrix's declared home directory, when the caller has
+            resolved it. Used for the single-home idempotency check.
 
     Returns:
         Path to the scaffolded (or pre-existing) ``acceptance-matrix.json``.
     """
+    home = home_dir if home_dir is not None else feature_dir
+    home_path = home / MATRIX_FILENAME
+    if home_path.exists():
+        # C8 / AH-3: the single declared home already holds the matrix — never
+        # author a second (primary-scaffold) copy that could diverge on the new
+        # provenance fields.
+        return home_path
     path = feature_dir / MATRIX_FILENAME
     if path.exists():
         # Respect operator-curated content; idempotent re-runs must not clobber.
@@ -313,9 +413,43 @@ def validate_matrix_evidence(matrix: AcceptanceMatrix) -> list[str]:
             errors.append(f"{criterion.criterion_id}: pass_fail must be one of {allowed}; got {criterion.pass_fail!r}")
         errors.extend(validate_manual_evidence(criterion))
     for invariant in matrix.negative_invariants:
-        if not _is_allowed_value(invariant.result, NEGATIVE_INVARIANT_RESULTS):
-            allowed = ", ".join(sorted(NEGATIVE_INVARIANT_RESULTS))
-            errors.append(f"{invariant.invariant_id}: result must be one of {allowed}; got {invariant.result!r}")
+        errors.extend(_validate_invariant_provenance(invariant))
+    return errors
+
+
+def _validate_invariant_provenance(invariant: NegativeInvariant) -> list[str]:
+    """NI-1: enforce provenance on a recorded judgement, with the legacy escape.
+
+    A ``recorded`` TERMINAL result must carry both ``verified_ref`` and
+    ``verified_surface_kind``; a provenance-less ``recorded`` terminal result is a
+    validation error (C1). A ``legacy_unrecorded`` result may carry null
+    provenance — that origin, and only that origin, permits the absence (the
+    FR-014 sentinel for pre-schema results). ``pending`` and
+    ``deferred_to_consolidation`` are scheduled-not-yet-judged states and are
+    exempt: they have no surface to attribute a judgement to.
+    """
+    errors: list[str] = []
+    result = invariant.result
+    if not _is_allowed_value(result, NEGATIVE_INVARIANT_RESULTS):
+        allowed = ", ".join(sorted(NEGATIVE_INVARIANT_RESULTS))
+        errors.append(f"{invariant.invariant_id}: result must be one of {allowed}; got {result!r}")
+        return errors
+    if not _is_allowed_value(invariant.provenance_origin, PROVENANCE_ORIGINS):
+        allowed = ", ".join(sorted(PROVENANCE_ORIGINS))
+        errors.append(
+            f"{invariant.invariant_id}: provenance_origin must be one of {allowed}; "
+            f"got {invariant.provenance_origin!r}"
+        )
+        return errors
+    if (
+        result in TERMINAL_INVARIANT_RESULTS
+        and invariant.provenance_origin == PROVENANCE_RECORDED
+        and (invariant.verified_ref is None or invariant.verified_surface_kind is None)
+    ):
+        errors.append(
+            f"{invariant.invariant_id}: a recorded {result!r} result requires both "
+            "verified_ref and verified_surface_kind (NI-1)"
+        )
     return errors
 
 
@@ -327,6 +461,8 @@ def validate_matrix_evidence(matrix: AcceptanceMatrix) -> list[str]:
 def enforce_negative_invariants(
     repo_root: Path,
     invariants: list[NegativeInvariant],
+    *,
+    context: GateExecutionContext | None = None,
 ) -> list[NegativeInvariant]:
     """Run all negative invariant checks. Returns updated invariants.
 
@@ -334,26 +470,108 @@ def enforce_negative_invariants(
     - grep_absence: Run grep for pattern in repo; exit code 1 means absent.
     - custom_command: Run a command, check exit code (0 = absent/pass).
 
-    A negative invariant that already carries a recorded, non-``pending``
-    ``result`` (``confirmed_absent`` / ``still_present`` / ``verification_error``)
-    is NOT re-verified: it is preserved as-is. Re-verification only happens for
-    invariants still ``pending``.
+    **NI-2 / C3 (preservation).** A negative invariant that already carries a
+    TERMINAL ``result`` (``confirmed_absent`` / ``still_present`` /
+    ``verification_error``) is NOT re-verified: it is preserved verbatim, provenance
+    included. The guard keys on TERMINAL-SET MEMBERSHIP, not ``result != "pending"``
+    — so the fourth value ``deferred_to_consolidation`` is *not* frozen (it must
+    remain re-judgeable at ``POST_CONSOLIDATION`` per NI-4), while a recorded
+    judgement stays immutable. This matters because the gate runs both during per-WP
+    review (from the integrated lane worktree, where mission-added files exist) and
+    again at ``accept`` (from the pre-merge primary root, where they do not — they
+    land only via ``spec-kitty merge``); re-running a recorded invariant against the
+    pre-merge tree would clobber an honest ``confirmed_absent`` with a false
+    ``still_present`` (#1834).
 
-    This matters because this gate is invoked both during per-WP review — from
-    the integrated lane worktree, where mission-added files/tests exist — and
-    again at ``accept`` time, from the pre-merge primary repo root, where they
-    do not exist yet (they land only via ``spec-kitty merge``). Re-running an
-    already-recorded invariant against the pre-merge primary tree would clobber
-    an honest ``confirmed_absent`` with a false ``still_present`` (#1834).
+    **NI-3 / C4 / C9 (deferral).** When a ``context`` is supplied and a ``pending``
+    invariant's subject cannot exist on the current surface (a ``grep_absence``
+    scoped to a source dir that is absent pre-consolidation), it transitions to
+    ``deferred_to_consolidation`` with a ``deferred_reason`` and
+    ``deferred_to_phase = POST_CONSOLIDATION`` — never to a false ``still_present``.
+    An unscoped grep, or a scoped grep whose dir already exists (C9), is judged
+    normally. A freshly judged terminal result is stamped ``recorded`` with the
+    context's surface + ref (NI-1 provenance). Without a ``context`` the legacy
+    behaviour is preserved (judge ``pending``, no provenance stamp, no deferral).
     """
     results: list[NegativeInvariant] = []
     for ni in invariants:
-        if ni.result != "pending":
+        if ni.result in TERMINAL_INVARIANT_RESULTS:
+            results.append(ni)  # NI-2 / C3: a recorded judgement is never overwritten.
+            continue
+        if ni.result == DEFERRED_TO_CONSOLIDATION:
+            # NI-4: not terminal, but judged by the post-consolidation op (C6),
+            # not re-judged here pre-consolidation. Left intact.
             results.append(ni)
             continue
+        # ``pending`` — the scaffolded default, so this is the common path.
+        if context is not None and _should_defer(repo_root, ni, context):
+            results.append(_defer_invariant(ni, context))
+            continue
         updated = _check_invariant(repo_root, ni)
-        results.append(updated)
+        results.append(_stamp_provenance(updated, context))
     return results
+
+
+def _should_defer(
+    repo_root: Path, ni: NegativeInvariant, context: GateExecutionContext
+) -> bool:
+    """NI-3 / C9: does this ``pending`` invariant's subject exist on the surface?
+
+    Only a ``grep_absence`` SCOPED to a source directory can defer: if any of its
+    scoped roots is absent under ``repo_root`` (the tree the grep runs against),
+    the subject cannot yet exist, so the invariant defers rather than reporting a
+    false ``still_present`` (FR-003). A scoped root that already exists (C9) or an
+    unscoped whole-repo grep is judgeable now. Deferral only applies before
+    ``POST_CONSOLIDATION`` — at/after that phase the consolidated tree holds the
+    subject and it is judged (C6).
+    """
+    if context.phase.name == POST_CONSOLIDATION_PHASE_NAME:
+        return False
+    if ni.verification_method != "grep_absence" or not ni.scope:
+        return False
+    return any(not (repo_root / root).exists() for root in ni.scope.split())
+
+
+def _defer_invariant(
+    ni: NegativeInvariant, context: GateExecutionContext
+) -> NegativeInvariant:
+    """Transition a ``pending`` invariant to ``deferred_to_consolidation`` (C4)."""
+    surface = context.surface_kind.value
+    return replace(
+        ni,
+        result=DEFERRED_TO_CONSOLIDATION,
+        evidence=(
+            f"Scoped subject {ni.scope!r} is absent on the {surface} surface "
+            f"pre-consolidation; deferred to post-consolidation verification."
+        ),
+        deferred_reason=(
+            f"Scoped path(s) {ni.scope!r} do not exist on the {surface} surface at "
+            f"ref {context.ref!r}; judging here would report a false still_present "
+            "(FR-003). Deferred to the post-consolidation verification op."
+        ),
+        deferred_to_phase=POST_CONSOLIDATION_PHASE_NAME,
+    )
+
+
+def _stamp_provenance(
+    ni: NegativeInvariant, context: GateExecutionContext | None
+) -> NegativeInvariant:
+    """NI-1: stamp a freshly judged result with the surface + ref it was established against.
+
+    A terminal result gets ``provenance_origin = recorded`` plus the context's
+    surface and ref, so it satisfies NI-1 and is attributable. A result that stays
+    ``pending`` (unknown method / missing command) is left unstamped — provenance
+    attaches to judgements, not to unjudged rows. Without a ``context`` (legacy
+    callers) nothing is stamped.
+    """
+    if context is None or ni.result not in TERMINAL_INVARIANT_RESULTS:
+        return ni
+    return replace(
+        ni,
+        provenance_origin=PROVENANCE_RECORDED,
+        verified_ref=context.ref,
+        verified_surface_kind=context.surface_kind.value,
+    )
 
 
 def _check_invariant(repo_root: Path, ni: NegativeInvariant) -> NegativeInvariant:

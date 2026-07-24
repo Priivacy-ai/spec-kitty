@@ -1,7 +1,7 @@
 """Plugin bundle surface provider.
 
 Wires the plugin bundle projectors (Claude Code, Copilot CLI, VS Code) into a
-reporting-layer provider for :data:`SurfaceKind.PLUGIN_MANIFEST`. The provider
+reporting-layer provider for :data:`ToolSurfaceKind.PLUGIN_MANIFEST`. The provider
 *delegates* all projection to the projectors and only translates their results
 into surface-contract types -- it never reimplements bundle layout logic.
 
@@ -26,7 +26,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     BUNDLE_COMPONENT_MISSING,
@@ -81,14 +81,14 @@ class BundleProjector(Protocol):
     def validate(
         self,
         bundle: PluginBundle,
-        required_surface_kinds: set[SurfaceKind] | None = None,
+        required_surface_kinds: set[ToolSurfaceKind] | None = None,
     ) -> BundleValidationResult: ...
 
 
 def plugin_manifest_definition() -> SurfaceDefinition:
     """Return the built-in plugin-manifest :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.PLUGIN_MANIFEST,
+        kind=ToolSurfaceKind.PLUGIN_MANIFEST,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PLUGIN_BUNDLE,
         path_pattern=_PATH_PATTERN,
@@ -124,7 +124,7 @@ class PluginBundleProvider:
         self._output_subdir = output_subdir
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.PLUGIN_MANIFEST
+        return definition.kind == ToolSurfaceKind.PLUGIN_MANIFEST
 
     def _output_dir(self, project_root: Path, target: str) -> Path:
         return project_root / self._output_subdir / target
@@ -318,7 +318,7 @@ def _descriptor_from_staged(output_dir: Path, target: str) -> PluginBundle:
         for skill in sorted(skills_dir.rglob("SKILL.md")):
             entries.append(
                 BundleEntry(
-                    surface_kind=SurfaceKind.COMMAND_SKILL,
+                    surface_kind=ToolSurfaceKind.COMMAND_SKILL,
                     source_path=skill,
                     bundle_relative_path=str(skill.relative_to(output_dir)),
                 )
@@ -327,7 +327,7 @@ def _descriptor_from_staged(output_dir: Path, target: str) -> PluginBundle:
         # under ``skills/`` in every supported layout.
         entries.append(
             BundleEntry(
-                surface_kind=SurfaceKind.DOCTRINE_SKILL,
+                surface_kind=ToolSurfaceKind.DOCTRINE_SKILL,
                 source_path=skills_dir,
                 bundle_relative_path="skills",
             )
@@ -336,7 +336,7 @@ def _descriptor_from_staged(output_dir: Path, target: str) -> PluginBundle:
     if agents_dir.is_dir() and any(agents_dir.iterdir()):
         entries.append(
             BundleEntry(
-                surface_kind=SurfaceKind.AGENT_PROFILE,
+                surface_kind=ToolSurfaceKind.AGENT_PROFILE,
                 source_path=agents_dir,
                 bundle_relative_path="agents",
             )
@@ -364,8 +364,8 @@ SurfaceProviderRegistry.register(
         provider_class=PluginBundleProvider,
         definitions=(plugin_manifest_definition(),),
         kind_tokens={
-            "plugin-manifest": SurfaceKind.PLUGIN_MANIFEST,
-            "plugin_manifest": SurfaceKind.PLUGIN_MANIFEST,
+            "plugin-manifest": ToolSurfaceKind.PLUGIN_MANIFEST,
+            "plugin_manifest": ToolSurfaceKind.PLUGIN_MANIFEST,
         },
         synthetic_key=PLUGIN_BUNDLE_TOOL_KEY,
         order=60,

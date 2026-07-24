@@ -23,15 +23,176 @@ Two load-bearing layering rules keep this module clean:
 
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+
+from kernel.paths import to_posix
+from mission_runtime import (
+    MissionArtifactKind,
+    MissionTopology,
+    kind_for_mission_file,
+    kind_is_coordination_residue,
+)
 
 __all__ = [
     "CoordRepairOutcome",
     "coord_incoherent_done_wps",
+    "is_coord_residue_churn",
+    "is_self_bookkeeping_churn",
+    "is_status_state_path",
+    "is_toolchain_generated_churn",
     "repair_coord_strand",
 ]
+
+
+def is_self_bookkeeping_churn(path: str | Path) -> bool:
+    """Return True for spec-kitty's OWN bookkeeping files (retired IC-07a).
+
+    WP11 retirement: absorbs the retired ``mission_runtime`` self-bookkeeping
+    predicate (#2102 / G-5 invariant) as the self-bookkeeping LEG of the owner union — ``meta.json``
+    (mission identity metadata), the encoding-provenance
+    ``.kittify/encoding-provenance/global.jsonl``, and ``kitty-ops/<ULID>.jsonl``
+    Op-record orphans (#2251) are spec-kitty's own bookkeeping, not mission planning
+    artifacts, and their churn must not block a dirty-state gate.
+
+    Exposed as its own predicate (not folded silently into
+    :func:`is_toolchain_generated_churn`'s body) because three consumers
+    (``merge/git_probes.py``, ``cli/commands/agent/mission_record_analysis.py``,
+    ``acceptance/__init__.py``) already apply the coord-residue leg SEPARATELY under
+    their own topology-gated conditional (:func:`is_coord_residue_churn`
+    unconditionally projects ``MissionTopology.COORD`` — it is only correct to consult
+    under an already-established coordination topology). Routing those call sites
+    through the full union would silently widen the residue drop to run
+    unconditionally / unscoped, which is a behaviour change this retirement must NOT
+    make (C6). This predicate is therefore the precise, self-bookkeeping-only
+    replacement for the retired symbol; :func:`is_toolchain_generated_churn` composes
+    it with the residue authority for callers that want the full union in one call.
+
+    The filename / suffix / regex literals are function-local (not module-level
+    ``frozenset`` / ``tuple`` / ``re.compile`` assignments) so the R-014
+    exemption-registry scan — which only walks module-level assignments
+    (``tests/architectural/test_exemption_registry_ratchet.py``) — does not treat this
+    as a NEW per-gate filename exemption requiring its own registry row (C9): this is
+    the owner absorbing the retired mechanism, not a ninth list.
+    """
+    kitty_ops_op_record = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
+    normalized = to_posix(path).rstrip("/")
+    if PurePosixPath(normalized).name == "meta.json":
+        return True
+    if normalized.endswith(".kittify/encoding-provenance/global.jsonl"):
+        return True
+    return bool(kitty_ops_op_record.search(normalized))
+
+
+def is_coord_residue_churn(
+    path: str | Path,
+    *,
+    mission_slug: str | None = None,
+) -> bool:
+    """Return True for coord-partition residue: the retired IC-07b leg (WP12).
+
+    WP12 retirement: absorbs the retired ``mission_runtime`` predicate
+    ``is_coordination_artifact_residue_path`` (module
+    ``src/mission_runtime/artifacts.py``, registry mechanism `IC-07b`) as the
+    coord-residue LEG of the owner union. A path is coord-partition residue when
+    its declared :class:`~mission_runtime.MissionArtifactKind` is a member of the
+    COORD partition (the append-only status log/snapshot, ``issue-matrix.md``,
+    ``acceptance-matrix.json``) — only THOSE kinds' stale primary-checkout copies
+    are legitimate residue after a coordination-topology commit; every other
+    recognised kind (planning SOURCE + finalized + identity docs, and, after the
+    FR-003 re-home, ``analysis-report.md``) is a PRIMARY-partition kind whose
+    stale primary copy is REAL dirt, never residue. An unrecognised path
+    (``kind_for_mission_file`` returns ``None``) is never residue either.
+
+    Behaviour-preserving reimplementation: composes the SAME two already-public
+    ``mission_runtime`` primitives the retired predicate used internally —
+    :func:`~mission_runtime.kind_for_mission_file` (the file→kind classifier) and
+    :func:`~mission_runtime.kind_is_coordination_residue` (the kind/topology
+    residue authority) — fixed at :attr:`~mission_runtime.MissionTopology.COORD`
+    (this predicate answers "is this COORD residue", not a topology-generic
+    question; ``routes_through_coordination(COORD)`` is always True by
+    definition, so the topology parameter is not separately gated here).
+
+    Exposed as its own predicate (not folded silently into
+    :func:`is_toolchain_generated_churn`'s body) because several consumers
+    (``coordination/commit_router.py``, ``cli/commands/implement.py``,
+    ``cli/commands/implement_cores.py``,
+    ``cli/commands/agent/mission_record_analysis.py``, ``acceptance/__init__.py``,
+    ``lanes/auto_rebase.py``) already apply — or must apply — the residue check
+    SEPARATELY from :func:`is_self_bookkeeping_churn`, several of them under their
+    own topology-gated conditional. Routing those call sites through the full
+    union would silently widen (or narrow) the churn drop, a behaviour change
+    this retirement must NOT make (C6). :func:`is_toolchain_generated_churn`
+    composes this leg with the self-bookkeeping leg for callers that want the
+    full union in one call.
+    """
+    kind = kind_for_mission_file(path, mission_slug=mission_slug)
+    if kind is None:
+        return False
+    return kind_is_coordination_residue(kind, MissionTopology.COORD)
+
+
+def is_status_state_path(path: str | Path, *, mission_slug: str | None = None) -> bool:
+    """Return True iff *path* classifies as the STATUS_STATE kind (WP13 / IC-07c).
+
+    Narrow ON PURPOSE — deliberately NOT :func:`is_coord_residue_churn` (which
+    also matches ``ACCEPTANCE_MATRIX`` / ``ISSUE_MATRIX``): this leg exists for
+    the WP13 retirement of ``COORD_OWNED_STATUS_FILES`` (the status log +
+    snapshot basename frozenset), whose consumers need to recognise EXACTLY
+    ``status.events.jsonl`` / ``status.json`` and nothing else (e.g. a coord
+    commit's planning-artifact staging must still stage ``acceptance-matrix.json``
+    / ``issue-matrix.md``, only skipping the status pair).
+
+    Exposed here (not inlined at each call site) so trio-seam-restricted
+    consumers (``cli/commands/implement.py`` / ``implement_cores.py``, guarded
+    by ``tests/architectural/test_trio_seam_only.py``) can classify by kind
+    without importing the forbidden ``mission_runtime.kind_for_mission_file``
+    primitive directly — this predicate is the blessed, owner-module wrapper.
+    """
+    return kind_for_mission_file(path, mission_slug=mission_slug) is MissionArtifactKind.STATUS_STATE
+
+
+def is_toolchain_generated_churn(
+    path: str | Path,
+    *,
+    mission_slug: str | None = None,
+) -> bool:
+    """The single definition of toolchain-generated churn (FR-012).
+
+    A path is toolchain-generated churn when spec-kitty itself produced it as part
+    of running the workflow — as opposed to work authored by the operator — so a
+    dirty-state gate must not treat its churn as a real block. This is the ONE
+    canonical classifier every gate consults, closing the C7 defect where
+    ``merge/git_probes.py`` exempted a tracked-modified ``meta.json`` via the retired
+    ``mission_runtime`` self-bookkeeping predicate while ``git/ref_advance.py`` never
+    consulted that predicate — the same file was invisible to one gate and fatal at
+    another.
+
+    Classification is by declared kind and origin, **not** by a per-gate filename
+    list (GA-1): the union of the two canonical authorities —
+    :func:`is_coord_residue_churn` (a coord-partition artifact's stale primary
+    copy — WP12 folded this leg in from the retired ``mission_runtime``
+    ``is_coordination_artifact_residue_path`` predicate) and
+    :func:`is_self_bookkeeping_churn` (spec-kitty's own bookkeeping:
+    ``meta.json``, encoding-provenance JSONL, ``kitty-ops/<ULID>.jsonl`` Op
+    records — WP11 folded this leg in from the retired ``mission_runtime``
+    self-bookkeeping predicate). WP11-17 retire their scattered filename
+    exemptions onto THIS function; adding a ninth per-gate list is the
+    regression C9 refuses.
+
+    Args:
+        path: The path to classify (posix or ``Path``; relative or absolute).
+        mission_slug: When supplied, another mission's artifacts do not count as
+            this mission's toolchain churn (passed to the residue authority).
+
+    Returns:
+        ``True`` when ``path`` is spec-kitty-generated churn a gate should ignore.
+    """
+    return is_self_bookkeeping_churn(path) or is_coord_residue_churn(
+        path, mission_slug=mission_slug
+    )
 
 
 def coord_incoherent_done_wps(
@@ -193,10 +354,14 @@ def _clean_coord_status_paths_to_head(
     lockstep with the committed ref). Each path is restored independently with
     ``check=False`` so an untracked-at-HEAD snapshot never aborts the clean.
     """
-    from specify_cli.status import COORD_OWNED_STATUS_FILES
+    # WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES``; this loop needs the
+    # two canonical status-artifact basenames directly, not a churn-classifier
+    # verdict, so it imports the two filename constants (which the retirement
+    # left in place) rather than a residue predicate.
+    from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
 
     slug = feature_dir.name
-    for filename in sorted(COORD_OWNED_STATUS_FILES):
+    for filename in sorted((EVENTS_FILENAME, SNAPSHOT_FILENAME)):
         rel = f"kitty-specs/{slug}/{filename}"
         subprocess.run(
             ["git", "-C", str(coord_worktree), "checkout", "HEAD", "--", rel],

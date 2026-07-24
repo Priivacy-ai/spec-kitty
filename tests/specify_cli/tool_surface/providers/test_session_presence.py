@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.tool_surface.enums import SurfaceKind
+from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
@@ -53,11 +53,11 @@ def test_cannot_handle_command_skill() -> None:
 
 
 def test_definitions_use_distinct_kinds() -> None:
-    assert context_file_definition().kind == SurfaceKind.CONTEXT_FILE
-    assert hook_definition().kind == SurfaceKind.HOOK
-    assert rule_definition().kind == SurfaceKind.RULE
-    # session_presence is a provider name, never a SurfaceKind value.
-    assert "session_presence" not in {k.value for k in SurfaceKind}
+    assert context_file_definition().kind == ToolSurfaceKind.CONTEXT_FILE
+    assert hook_definition().kind == ToolSurfaceKind.HOOK
+    assert rule_definition().kind == ToolSurfaceKind.RULE
+    # session_presence is a provider name, never a ToolSurfaceKind value.
+    assert "session_presence" not in {k.value for k in ToolSurfaceKind}
 
 
 def test_session_presence_is_provider_key_not_a_kind() -> None:
@@ -78,7 +78,7 @@ def test_expand_claude_context_file(tmp_path: Path) -> None:
     )
     assert len(instances) == 1
     inst = instances[0]
-    assert inst.definition.kind == SurfaceKind.CONTEXT_FILE
+    assert inst.definition.kind == ToolSurfaceKind.CONTEXT_FILE
     assert inst.path == tmp_path / ".claude" / "CLAUDE.md"
     assert inst.owner == "claude"
 
@@ -89,7 +89,7 @@ def test_expand_claude_hooks_two_entries(tmp_path: Path) -> None:
     instances = provider.expand(hook_definition(), "claude", tmp_path)
     # SessionStart and Stop -> two hook instances.
     assert len(instances) == 2
-    assert all(i.definition.kind == SurfaceKind.HOOK for i in instances)
+    assert all(i.definition.kind == ToolSurfaceKind.HOOK for i in instances)
     assert all(i.path.name == "settings.json" for i in instances)
 
 
@@ -98,7 +98,7 @@ def test_expand_filters_to_requested_kind(tmp_path: Path) -> None:
     (tmp_path / ".claude").mkdir()
     provider = SessionPresenceProvider()
     ctx = provider.expand(context_file_definition(), "claude", tmp_path)
-    assert all(i.definition.kind == SurfaceKind.CONTEXT_FILE for i in ctx)
+    assert all(i.definition.kind == ToolSurfaceKind.CONTEXT_FILE for i in ctx)
 
 
 def test_expand_cursor_yields_rule(tmp_path: Path) -> None:
@@ -106,7 +106,7 @@ def test_expand_cursor_yields_rule(tmp_path: Path) -> None:
     provider = SessionPresenceProvider()
     instances = provider.expand(rule_definition(), "cursor", tmp_path)
     assert len(instances) == 1
-    assert instances[0].definition.kind == SurfaceKind.RULE
+    assert instances[0].definition.kind == ToolSurfaceKind.RULE
     assert instances[0].path.name.endswith(".mdc")
 
 
@@ -115,7 +115,7 @@ def test_expand_codex_context_file_is_agents_md(tmp_path: Path) -> None:
     instances = provider.expand(context_file_definition(), "codex", tmp_path)
     assert len(instances) == 1
     assert instances[0].path == tmp_path / "AGENTS.md"
-    assert instances[0].definition.kind == SurfaceKind.CONTEXT_FILE
+    assert instances[0].definition.kind == ToolSurfaceKind.CONTEXT_FILE
 
 
 def test_expand_per_tool_paths_differ(tmp_path: Path) -> None:

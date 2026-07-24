@@ -150,13 +150,13 @@ EXPECTED_SURFACE_KINDS = frozenset(
 
 
 def test_doctor_surface_kinds_are_known_enum_members() -> None:
-    """Every frozen surface kind must remain a valid ``SurfaceKind`` value."""
-    from specify_cli.tool_surface.enums import SurfaceKind
+    """Every frozen surface kind must remain a valid ``ToolSurfaceKind`` value."""
+    from specify_cli.tool_surface.enums import ToolSurfaceKind
 
-    valid = {kind.value for kind in SurfaceKind}
+    valid = {kind.value for kind in ToolSurfaceKind}
     missing = EXPECTED_SURFACE_KINDS - valid
     assert not missing, (
-        f"frozen surface kinds no longer exist in SurfaceKind enum: {missing}"
+        f"frozen surface kinds no longer exist in ToolSurfaceKind enum: {missing}"
     )
 
 
@@ -177,9 +177,9 @@ def test_doctor_emits_agent_profile_kind(tmp_path: Path) -> None:
         "doctor tool-surfaces must report the agent_profile surface kind"
     )
     # Additive-only: nothing emitted may be an unknown kind.
-    from specify_cli.tool_surface.enums import SurfaceKind
+    from specify_cli.tool_surface.enums import ToolSurfaceKind
 
-    valid = {kind.value for kind in SurfaceKind}
+    valid = {kind.value for kind in ToolSurfaceKind}
     assert actual_kinds <= valid, (
         f"doctor emitted unknown surface kinds: {actual_kinds - valid}"
     )

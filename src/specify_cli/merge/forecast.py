@@ -32,7 +32,7 @@ from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, resolve_artifact_surface
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
     ReviewArtifactPreflightResult,
@@ -167,15 +167,25 @@ def run_dry_run_forecast(
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
 
-    # FR-001 (#2185): the review-artifact consistency preflight reads ``tasks/``
-    # review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY-partition) and the
-    # ``would_assign_mission_number`` scan reads ``meta.json`` — both live on the
-    # PRIMARY checkout. Resolve by the WP-task kind so neither lands on the husk.
-    feature_dir_for_preview = resolve_planning_read_dir(
+    # FR-006 (#2885): the review-artifact consistency preflight needs facts from
+    # TWO partitions — WP lane state (STATUS_STATE, the coord husk for a coord
+    # mission) and review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY) — and it now
+    # resolves each from its OWN declared home internally (see
+    # ``find_rejected_review_artifact_conflicts``) rather than judging both off one
+    # dir this caller supplies. The prior single ``feature_dir_for_preview`` handed
+    # the gate a PRIMARY dir, whose empty status log made every WP look stateless so
+    # the preview passed a rejected review while real merge — reading the coord husk
+    # — refused: preview and consolidation disagreed. Below stays PRIMARY because it
+    # ALSO drives the ``would_assign_mission_number`` scan (``meta.json`` is a
+    # PRIMARY-partition fact for every topology); passing it into the preflight only
+    # supplies the mission slug (``.name``), which the preflight re-resolves both
+    # homes from. Routed through the ONE affirmative surface→filesystem seam
+    # (lifecycle-gate-execution-context WP02).
+    feature_dir_for_preview = resolve_artifact_surface(
         get_main_repo_root(repo_root),
         resolved_feature,
-        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-    )
+        MissionArtifactKind.WORK_PACKAGE_TASK,
+    ).path
 
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
     # that real merge runs (issue #991). When a rejected review-cycle

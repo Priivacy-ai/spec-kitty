@@ -2404,6 +2404,44 @@ pages:
     - {slug: "rejected-option-2-promote-a-gate-artifactkind", text: "Rejected: Option 2 (promote a `gate` `ArtifactKind`)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "related-adrs", text: "Related ADRs", level: 2}
+  - path: "docs/adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md"
+    title: "`surface` names two unrelated domains — split the vocabulary, rename to `ToolSurfaceKind` and `TopologySurface`"
+    divio_type: "none"
+    abstract: "**Status:** Accepted"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "the-two-vocabulary-distinction", text: "The two-vocabulary distinction", level: 3}
+    - {slug: "the-rename-decisions", text: "The rename decisions", level: 3}
+    - {slug: "placement-coord", text: "`PLACEMENT` → `COORD`", level: 3}
+    - {slug: "consolidated-not-merged", text: "`CONSOLIDATED`, not `MERGED`", level: 3}
+    - {slug: "naming-a-surface-coord-is-not-conditioning-on-topology", text: "Naming a surface `COORD` is not conditioning on topology", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-split-the-vocabulary-rename-both-sides", text: "Option 1 — split the vocabulary, rename both sides", level: 3}
+    - {slug: "option-2-leave-both-named-surface-disambiguate-by-import-path", text: "Option 2 — leave both named `Surface*`, disambiguate by import path", level: 3}
+    - {slug: "option-3-rename-only-the-topology-side", text: "Option 3 — rename only the topology side", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-23-2-post-consolidation-deferral-and-external-enforcement.md"
+    title: "Post-Consolidation Deferral and External Enforcement of Negative Invariants"
+    divio_type: "none"
+    abstract: "ADR [2026-04-03-3](./2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md) decided that *\"Feature QA and `accept` MUST happen on the mission integration branch\"*, and specified the negative-invariant verifier model down to its result vocabulary."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "core-decision", text: "Core Decision", level: 3}
+    - {slug: "why-enforcement-cannot-live-in-the-loop-measured", text: "Why enforcement cannot live in the loop — measured", level: 3}
+    - {slug: "why-disclosure-is-a-requirement-not-a-courtesy", text: "Why disclosure is a requirement, not a courtesy", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -5593,6 +5631,8 @@ pages:
     - {slug: "lane-consolidation", text: "Lane Consolidation", level: 3}
     - {slug: "branch-integration-git-merge", text: "Branch Integration / Git Merge", level: 3}
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
+    - {slug: "coord-partition", text: "COORD partition", level: 3}
+    - {slug: "topology-surface", text: "Topology Surface", level: 3}
   - path: "docs/context/planning-and-tracking.md"
     title: "Context: Planning & Tracking"
     divio_type: "none"
@@ -6024,6 +6064,7 @@ pages:
     - {slug: "accept-the-mission", text: "Accept the Mission", level: 2}
     - {slug: "what-accept-checks", text: "What Accept Checks", level: 3}
     - {slug: "negative-invariants-that-assert-the-merged-post-state", text: "Negative Invariants That Assert the Merged Post-State", level: 3}
+    - {slug: "deferred-invariants-and-the-post-consolidation-gate", text: "Deferred Invariants and the Post-Consolidation Gate", level: 3}
     - {slug: "merge-to-the-target-branch", text: "Merge to the target branch", level: 2}
     - {slug: "when-local-main-is-not-publishable", text: "When Local `main` Is Not Publishable", level: 3}
     - {slug: "after-merge", text: "After Merge", level: 2}

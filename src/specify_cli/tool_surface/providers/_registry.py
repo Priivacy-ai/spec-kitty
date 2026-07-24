@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..enums import SurfaceKind
+    from ..enums import ToolSurfaceKind
     from ..model import SurfaceDefinition
     from ..registry import ToolSurfaceRegistry
     from .protocol import ReportingSurfaceProvider
@@ -29,7 +29,7 @@ class SurfaceRegistration:
         definitions: Pre-built :class:`SurfaceDefinition` instances declared by
             this provider.  Stored as a tuple so the dataclass remains hashable.
         kind_tokens: Operator-facing ``--kind`` token strings mapped to their
-            :class:`SurfaceKind` values.  A single provider may declare multiple
+            :class:`ToolSurfaceKind` values.  A single provider may declare multiple
             tokens (e.g. both ``"context-file"`` and ``"context_file"``).
         synthetic_key: When set, definitions are registered once under this key
             instead of being fanned out across every configured tool key.  Used
@@ -40,7 +40,7 @@ class SurfaceRegistration:
 
     provider_class: type[ReportingSurfaceProvider]
     definitions: tuple[SurfaceDefinition, ...]
-    kind_tokens: dict[str, SurfaceKind]
+    kind_tokens: dict[str, ToolSurfaceKind]
     synthetic_key: str | None = None
     order: int = 0
 
@@ -77,13 +77,13 @@ class SurfaceProviderRegistry:
         return sorted(cls._registrations, key=lambda r: r.order)
 
     @classmethod
-    def build_kind_tokens(cls) -> dict[str, SurfaceKind]:
+    def build_kind_tokens(cls) -> dict[str, ToolSurfaceKind]:
         """Merge all provider kind-token dicts, sorted by registration order.
 
         Later registrations (higher ``order``) overwrite earlier ones for
         any token key they share.
         """
-        result: dict[str, SurfaceKind] = {}
+        result: dict[str, ToolSurfaceKind] = {}
         for reg in cls._sorted():
             result.update(reg.kind_tokens)
         return result

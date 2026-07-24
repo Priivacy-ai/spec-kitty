@@ -18,20 +18,20 @@ import json
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from ..enums import SurfaceKind
+from ..enums import ToolSurfaceKind
 from ..model import SurfacePlan
 from .model import BundleEntry
 
 # Surface kinds that belong in a plugin bundle. Session-presence kinds
 # (CONTEXT_FILE, RULE) are deliberately excluded -- they are project-install
 # surfaces, not bundle components (see WP09 task spec).
-BUNDLE_SURFACE_KINDS: frozenset[SurfaceKind] = frozenset(
+BUNDLE_SURFACE_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
-        SurfaceKind.COMMAND_SKILL,
-        SurfaceKind.DOCTRINE_SKILL,
-        SurfaceKind.AGENT_PROFILE,
-        SurfaceKind.HOOK,
-        SurfaceKind.NATIVE_CONFIG,
+        ToolSurfaceKind.COMMAND_SKILL,
+        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.AGENT_PROFILE,
+        ToolSurfaceKind.HOOK,
+        ToolSurfaceKind.NATIVE_CONFIG,
     }
 )
 
@@ -41,19 +41,19 @@ _MANIFEST_VERSION = "0.0.0"
 
 
 def _bundle_relative_path(
-    kind: SurfaceKind,
+    kind: ToolSurfaceKind,
     source_path: Path,
-    layout: dict[SurfaceKind, str],
+    layout: dict[ToolSurfaceKind, str],
     agent_filename: Callable[[str], str],
 ) -> str | None:
     """Compute the in-bundle relative path for a surface, or ``None`` to skip."""
     prefix = layout.get(kind)
     if prefix is None:
         return None
-    if kind == SurfaceKind.AGENT_PROFILE:
+    if kind == ToolSurfaceKind.AGENT_PROFILE:
         leaf = agent_filename(source_path.stem)
         return f"{prefix}/{leaf}" if prefix else leaf
-    if kind == SurfaceKind.COMMAND_SKILL or kind == SurfaceKind.DOCTRINE_SKILL:
+    if kind == ToolSurfaceKind.COMMAND_SKILL or kind == ToolSurfaceKind.DOCTRINE_SKILL:
         # Command/doctrine skills are ``.../<name>/SKILL.md``; preserve the
         # skill directory name inside the bundle's ``skills/`` tree.
         leaf = source_path.parent.name
@@ -66,9 +66,9 @@ def bundle_entries_for_plans(
     plans: Sequence[SurfacePlan],
     project_root: Path,
     *,
-    layout: dict[SurfaceKind, str],
+    layout: dict[ToolSurfaceKind, str],
     agent_filename: Callable[[str], str],
-    bundle_kinds: frozenset[SurfaceKind],
+    bundle_kinds: frozenset[ToolSurfaceKind],
 ) -> tuple[BundleEntry, ...]:
     """Project the bundleable surfaces of ``plans`` into ``BundleEntry`` tuples.
 

@@ -12,7 +12,7 @@ preserves, byte-for-byte:
   bookkeeping-commit, in ``_phase_capture_and_baseline``) → bookkeeping
   ``safe_commit`` → baseline ASSERT (post-commit) — the commit and the assert
   run in ``_phase_commit_and_assert`` in exactly that order.
-* INV-6 — the ``_restore_final_bookkeeping_snapshots(...)``-then-reraise rollback
+* INV-6 — the ``restore_generated_artifact_snapshots(...)``-then-reraise rollback
   sites, each with identical exception-class scoping.
 
 Lazy imports inside the phases stay lazy (C-007). One-way import: this module
@@ -34,10 +34,15 @@ if TYPE_CHECKING:
     from specify_cli.lanes.models import LanesManifest
 
 from specify_cli.cli.console import console
-from specify_cli.core.constants import KITTIFY_DIR
+from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.coordination.atomic_write import (
+    capture_generated_artifact_snapshots,
+    restore_generated_artifact_snapshots,
+)
 from specify_cli.coordination.coherence import (
     CoordRepairOutcome,
     coord_incoherent_done_wps,
+    is_toolchain_generated_churn,
     repair_coord_strand,
 )
 from specify_cli.coordination.surface_resolver import (
@@ -58,9 +63,7 @@ from specify_cli.merge.baseline import (
     record_baseline_merge_commit as _record_baseline_merge_commit,
 )
 from specify_cli.merge.bookkeeping_projection import (
-    _capture_bookkeeping_snapshots,
     _project_status_bookkeeping_to_target,
-    _restore_final_bookkeeping_snapshots,
     _target_bookkeeping_status_paths,
     _target_branch_still_at_baseline,
 )
@@ -115,9 +118,44 @@ from mission_runtime import MissionArtifactKind, resolve_placement_only
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-from mission_runtime import is_coordination_artifact_residue_path
 
 _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
+
+
+def _merge_snapshot_roots(main_repo: Path) -> list[Path]:
+    """Trusted roots for the merge executor's non-coord (primary-checkout) surface.
+
+    The owner (``atomic_write.capture_generated_artifact_snapshots``) enforces
+    containment against these; the executor declares WHICH primary-checkout roots
+    hold its generated bookkeeping bytes. Preserves the exact trusted set the
+    retired merge-side snapshot-trust helper guarded (3 dirs).
+    """
+    repo = get_main_repo_root(main_repo).resolve(strict=False)
+    return [
+        (repo / KITTY_SPECS_DIR).resolve(strict=False),
+        (repo / WORKTREES_DIR).resolve(strict=False),
+        (repo / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
+    ]
+
+
+def _merge_snapshot_files(main_repo: Path) -> list[Path]:
+    """Trusted exact-file allowlist for the merge snapshot surface (merge-state.json)."""
+    repo = get_main_repo_root(main_repo).resolve(strict=False)
+    return [(repo / KITTIFY_DIR / "merge-state.json").resolve(strict=False)]
+
+
+def _capture_merge_snapshots(main_repo: Path, *paths: Path) -> dict[Path, bytes | None]:
+    """Capture pre-transaction bytes of merge bookkeeping paths through the owner.
+
+    Thin adapter over the single owner compensator's capture: supplies this
+    non-coord surface's trusted roots/files so the containment that used to live in
+    the ``merge/`` package is enforced by the owner instead.
+    """
+    return capture_generated_artifact_snapshots(
+        *paths,
+        trusted_roots=_merge_snapshot_roots(main_repo),
+        trusted_files=_merge_snapshot_files(main_repo),
+    )
 
 
 def _emit_merge_diff_summary(
@@ -398,7 +436,7 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
         assert run.canonical_status_path is not None
         assert run.merge_state_path is not None
         run.pre_target_bookkeeping_snapshots.update(
-            _capture_bookkeeping_snapshots(
+            _capture_merge_snapshots(
                 run.main_repo,
                 run.canonical_events_path,
                 run.canonical_status_path,
@@ -674,7 +712,7 @@ def _restore_and_guard_coord_coherence(
 ) -> None:
     """Restore primitive (FR-008 structural): byte-restore + coord-coherence guard.
 
-    Co-locates the coherence mark/heal AT the ``_restore_final_bookkeeping_snapshots``
+    Co-locates the coherence mark/heal AT the ``restore_generated_artifact_snapshots``
     seam so a future restore site cannot strand silently — EVERY restore call-site
     routes through here (the primary marking mechanism; the hand-picked marks are
     reached THROUGH it, no double-mark). Inner-only (not the INV-5 phase-driver
@@ -683,7 +721,7 @@ def _restore_and_guard_coord_coherence(
     a resume, heals it via the strand-gated coordination primitive. Off the coord
     path (``done_marked_before_target`` False) it is a pure byte-restore.
     """
-    _restore_final_bookkeeping_snapshots(snapshots)
+    restore_generated_artifact_snapshots(snapshots)
     if not run.done_marked_before_target:
         return
     _persist_coord_reconcile_marker(run, error)
@@ -805,7 +843,7 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     assert run.merge_state_path is not None
     if not run.done_marked_before_target:
         run.final_bookkeeping_snapshots.update(
-            _capture_bookkeeping_snapshots(
+            _capture_merge_snapshots(
                 run.main_repo,
                 run.canonical_events_path,
                 run.canonical_status_path,
@@ -819,7 +857,7 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     )
     target_meta_path = run.target_feature_dir / "meta.json"
     run.final_bookkeeping_snapshots.update(
-        _capture_bookkeeping_snapshots(
+        _capture_merge_snapshots(
             run.main_repo,
             target_events_path,
             target_status_path,
@@ -903,9 +941,9 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
         expected_paths.add(str(run.mission_number_meta_path.relative_to(run.main_repo)))
 
     def _is_coord_residue(path_part: str) -> bool:
-        return is_coordination_artifact_residue_path(
-            path_part, mission_slug=run.mission_slug
-        )
+        # FR-012: consult the single canonical toolchain-churn classifier so this
+        # gate agrees with every other gate on what is spec-kitty-generated churn.
+        return is_toolchain_generated_churn(path_part, mission_slug=run.mission_slug)
 
     offending_lines, _skipped_untracked = _classify_porcelain_lines(
         (_out_status or "").splitlines(),

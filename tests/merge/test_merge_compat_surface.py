@@ -109,14 +109,15 @@ _DONE_BOOKKEEPING_SYMBOLS: tuple[str, ...] = (
     "_resolve_merge_actor",
 )
 
+# WP09 (T048 / TAO-3): the final-bookkeeping snapshot/restore compensator and its
+# merge-side trust helper were retired from ``bookkeeping_projection`` (the executor
+# now enrols through the single owner compensator in ``coordination.atomic_write``),
+# so those three symbols left this shim's re-export surface.
 _BOOKKEEPING_PROJECTION_SYMBOLS: tuple[str, ...] = (
     "_validate_mission_slug_path_segment",
     "_target_bookkeeping_status_paths",
     "_assert_status_path_within_target_surface",
     "_assert_status_surface_path_is_trusted",
-    "_assert_bookkeeping_snapshot_path_is_trusted",
-    "_capture_bookkeeping_snapshots",
-    "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
     "_project_status_bookkeeping_to_target",
 )
@@ -155,7 +156,7 @@ def test_map_has_no_duplicate_source_symbol() -> None:
         f"duplicate symbol across seam batteries: "
         f"{sorted({n for n in all_names if all_names.count(n) > 1})}"
     )
-    assert len(all_names) == len(SYMBOL_RESIDUAL_MAP) == 54
+    assert len(all_names) == len(SYMBOL_RESIDUAL_MAP) == 51
 
 
 # ===========================================================================
@@ -219,14 +220,12 @@ _RETIRED_BATTERY_UNION: frozenset[str] = frozenset(
         "_reconcile_completed_wps_for_resume",
         "_has_transition_to",
         "_resolve_merge_actor",
-        # test_bookkeeping_projection_seam.py SHIM_REEXPORTED (9)
+        # test_bookkeeping_projection_seam.py SHIM_REEXPORTED (6; WP09 T048 retired
+        # the 3 snapshot/restore-compensator symbols to the owner compensator)
         "_validate_mission_slug_path_segment",
         "_target_bookkeeping_status_paths",
         "_assert_status_path_within_target_surface",
         "_assert_status_surface_path_is_trusted",
-        "_assert_bookkeeping_snapshot_path_is_trusted",
-        "_capture_bookkeeping_snapshots",
-        "_restore_final_bookkeeping_snapshots",
         "_target_branch_still_at_baseline",
         "_project_status_bookkeeping_to_target",
         # test_forecast_seam.py -- no identity battery (none retired).
@@ -243,7 +242,7 @@ def test_consolidated_map_is_superset_of_retired_batteries() -> None:
     # sets; this pins the union produced no accidental duplicate-symbol
     # collisions across the 8 retired per-seam batteries (a count invariant,
     # not a membership one -- membership is pinned by the literals themselves).
-    assert len(_RETIRED_BATTERY_UNION) == 54  # golden-count: cardinality-is-contract
+    assert len(_RETIRED_BATTERY_UNION) == 51  # golden-count: cardinality-is-contract
     missing = _RETIRED_BATTERY_UNION - set(SYMBOL_RESIDUAL_MAP)
     assert not missing, f"consolidated guard dropped symbols: {sorted(missing)}"
     assert set(SYMBOL_RESIDUAL_MAP) >= _RETIRED_BATTERY_UNION

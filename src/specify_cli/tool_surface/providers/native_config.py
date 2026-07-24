@@ -2,7 +2,7 @@
 
 Handles tool-specific config *glue* -- the entries that wire a harness up to
 discover Spec Kitty's shared skills, distinct from the orientation/context files
-owned by :mod:`session_presence`. These are :data:`SurfaceKind.NATIVE_CONFIG`
+owned by :mod:`session_presence`. These are :data:`ToolSurfaceKind.NATIVE_CONFIG`
 surfaces.
 
 Currently the only verified native-config glue is Mistral Vibe's ``skill_paths``
@@ -29,7 +29,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     NATIVE_CONFIG_MISSING,
@@ -62,7 +62,7 @@ _VIBE_TOOL_KEY = "vibe"
 def native_config_definition() -> SurfaceDefinition:
     """Return the built-in ``native_config`` :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.NATIVE_CONFIG,
+        kind=ToolSurfaceKind.NATIVE_CONFIG,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=_VIBE_CONFIG_REL,
@@ -79,7 +79,7 @@ class NativeConfigProvider:
     provider_key = PROVIDER_KEY
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.NATIVE_CONFIG
+        return definition.kind == ToolSurfaceKind.NATIVE_CONFIG
 
     def expand(
         self,
@@ -241,8 +241,8 @@ SurfaceProviderRegistry.register(
         provider_class=NativeConfigProvider,
         definitions=(native_config_definition(),),
         kind_tokens={
-            "native-config": SurfaceKind.NATIVE_CONFIG,
-            "native_config": SurfaceKind.NATIVE_CONFIG,
+            "native-config": ToolSurfaceKind.NATIVE_CONFIG,
+            "native_config": ToolSurfaceKind.NATIVE_CONFIG,
         },
         order=30,
     )

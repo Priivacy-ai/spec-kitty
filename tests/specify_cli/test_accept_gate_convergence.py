@@ -8,8 +8,12 @@ Before the fix, ``_check_lane_gates`` wrote ``acceptance-matrix.json`` during
 the first run.  The second run then saw that file as a dirty-tree change,
 causing a false "dirty tree" failure — a non-convergent result.  The fix:
 
-1. ``ACCEPT_OWNED_PATHS`` excludes those files from the git-dirty gate so
-   accept-owned artifacts do not count as unexpected dirt.
+1. The accept pipeline's own writes (``acceptance-matrix.json`` + ``status.json``)
+   are excluded from the git-dirty gate — via
+   ``specify_cli.acceptance._is_accept_pipeline_own_write`` (IC-07g retired the
+   former ``ACCEPT_OWNED_PATHS`` filename frozenset onto the shared
+   ``mission_runtime.kind_for_mission_file`` owner classifier) — so accept-owned
+   artifacts do not count as unexpected dirt.
 2. ``mutate_matrix`` is gated on ``not no_commit`` so ``--no-commit`` mode is
    truly read-only.
 """
@@ -184,14 +188,16 @@ def test_accept_gate_second_run_no_unexpected_dirty_files(tmp_path: Path) -> Non
     # The working tree may have accept-owned artifacts written (expected), but
     # the second summary's git_dirty gate must not flag them — verified above by
     # the convergence test.  Here we check the raw porcelain count does not
-    # include files outside the accept-owned set.
-    from specify_cli.acceptance import ACCEPT_OWNED_PATHS
+    # include files outside the accept-owned set. ``ACCEPT_OWNED_PATHS`` was
+    # retired (IC-07g); this basename pair is the test's own oracle, not an
+    # import of production exemption state.
+    accept_owned_basenames = ("acceptance-matrix.json", "status.json")
 
     unexpected_dirty = [
         line
         for line in dirty_after
         if line not in dirty_before
-        and not any(line.endswith(owned) for owned in ACCEPT_OWNED_PATHS)
+        and not any(line.endswith(owned) for owned in accept_owned_basenames)
     ]
     assert unexpected_dirty == [], (
         f"Unexpected dirty files after two accept runs: {unexpected_dirty}"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.tool_surface.enums import SurfaceKind
+from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.bundles.claude import ClaudeCodeBundleProjector
 
 from ._support import full_plans, skills_only_plans
@@ -70,8 +70,8 @@ def test_claude_code_bundle_validate_fails_when_skills_missing(
     missing_kinds = {
         f.message.rsplit(": ", 1)[-1] for f in result.missing_surfaces
     }
-    assert str(SurfaceKind.AGENT_PROFILE) in missing_kinds
-    assert str(SurfaceKind.DOCTRINE_SKILL) in missing_kinds
+    assert str(ToolSurfaceKind.AGENT_PROFILE) in missing_kinds
+    assert str(ToolSurfaceKind.DOCTRINE_SKILL) in missing_kinds
 
 
 def test_claude_code_bundle_excludes_session_presence(tmp_path: Path) -> None:
@@ -92,7 +92,7 @@ def test_claude_code_bundle_excludes_session_presence(tmp_path: Path) -> None:
         tool_key="all",
         instances=(
             SurfaceInstance(
-                definition=_definition(SurfaceKind.CONTEXT_FILE),
+                definition=_definition(ToolSurfaceKind.CONTEXT_FILE),
                 path=claude_md,
                 exists=True,
                 file_hash=None,
@@ -125,7 +125,7 @@ def test_claude_code_bundle_excludes_out_of_tree_sources(tmp_path: Path) -> None
         tool_key="all",
         instances=(
             SurfaceInstance(
-                definition=_definition(SurfaceKind.COMMAND_SKILL),
+                definition=_definition(ToolSurfaceKind.COMMAND_SKILL),
                 path=outside,
                 exists=True,
                 file_hash=None,

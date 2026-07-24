@@ -10,7 +10,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.plan import SurfacePlanBuilder
@@ -23,7 +23,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def _definition(kind: SurfaceKind, provider_key: str) -> SurfaceDefinition:
+def _definition(kind: ToolSurfaceKind, provider_key: str) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
@@ -41,7 +41,7 @@ class _FakeProvider:
 
     provider_key = "fake"
 
-    def __init__(self, kind: SurfaceKind) -> None:
+    def __init__(self, kind: ToolSurfaceKind) -> None:
         self._kind = kind
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
@@ -80,7 +80,7 @@ class _FakeProvider:
 
 
 def test_empty_plan_for_tool_with_no_definitions(tmp_path: Path) -> None:
-    builder = SurfacePlanBuilder(ToolSurfaceRegistry(), [_FakeProvider(SurfaceKind.COMMAND_SKILL)])
+    builder = SurfacePlanBuilder(ToolSurfaceRegistry(), [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)])
     plans = builder.build(["codex"], tmp_path)
     assert len(plans) == 1
     assert plans[0].tool_key == "codex"
@@ -89,8 +89,8 @@ def test_empty_plan_for_tool_with_no_definitions(tmp_path: Path) -> None:
 
 def test_build_expands_definitions(tmp_path: Path) -> None:
     registry = ToolSurfaceRegistry()
-    registry.register_definition("codex", _definition(SurfaceKind.COMMAND_SKILL, "fake"))
-    builder = SurfacePlanBuilder(registry, [_FakeProvider(SurfaceKind.COMMAND_SKILL)])
+    registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "fake"))
+    builder = SurfacePlanBuilder(registry, [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)])
     plans = builder.build(["codex"], tmp_path)
     assert len(plans[0].instances) == 1
     assert plans[0].instances[0].owner == "codex"
@@ -98,17 +98,17 @@ def test_build_expands_definitions(tmp_path: Path) -> None:
 
 def test_kind_filter_excludes_other_kinds(tmp_path: Path) -> None:
     registry = ToolSurfaceRegistry()
-    registry.register_definition("codex", _definition(SurfaceKind.COMMAND_SKILL, "fake"))
-    registry.register_definition("codex", _definition(SurfaceKind.COMMAND_FILE, "other"))
-    builder = SurfacePlanBuilder(registry, [_FakeProvider(SurfaceKind.COMMAND_SKILL)])
-    plans = builder.build(["codex"], tmp_path, SurfaceKind.COMMAND_FILE)
+    registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_SKILL, "fake"))
+    registry.register_definition("codex", _definition(ToolSurfaceKind.COMMAND_FILE, "other"))
+    builder = SurfacePlanBuilder(registry, [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)])
+    plans = builder.build(["codex"], tmp_path, ToolSurfaceKind.COMMAND_FILE)
     # Filter keeps only COMMAND_FILE definitions, but no provider handles them.
     assert plans[0].instances == ()
 
 
 def test_no_provider_yields_no_instances(tmp_path: Path) -> None:
     registry = ToolSurfaceRegistry()
-    registry.register_definition("codex", _definition(SurfaceKind.AGENT_PROFILE, "none"))
-    builder = SurfacePlanBuilder(registry, [_FakeProvider(SurfaceKind.COMMAND_SKILL)])
+    registry.register_definition("codex", _definition(ToolSurfaceKind.AGENT_PROFILE, "none"))
+    builder = SurfacePlanBuilder(registry, [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)])
     plans = builder.build(["codex"], tmp_path)
     assert plans[0].instances == ()
