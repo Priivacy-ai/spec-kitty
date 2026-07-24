@@ -204,14 +204,24 @@ def test_corrupt_status_log_raises_named_mission_scan_error(tmp_path):
 def test_malformed_wp_frontmatter_is_skipped_not_fatal(tmp_path):
     """A WP file whose frontmatter parses to a list (not a dict) raises a
     structural TypeError inside the reader. The scan must skip it, not abort —
-    otherwise one bad legacy doc sinks the whole import."""
+    otherwise one bad legacy doc sinks the whole import. The skip is fail-LOUD:
+    the scan result carries the skipped file names so the report can surface
+    them (B3, #2884 review)."""
     mission_dir = tmp_path / "synthetic-malformed-01FFFF"
     tasks = mission_dir / "tasks"
     tasks.mkdir(parents=True)
     (tasks / "WP01-bad.md").write_text("---\n- a\n- b\n---\nbody\n", encoding="utf-8")
+    (tasks / "WP02-good.md").write_text(
+        "---\nwork_package_id: WP02\ntitle: Good WP\ndependencies: []\n---\nbody\n",
+        encoding="utf-8",
+    )
 
     scan = scan_mission(mission_dir)  # must not raise
-    assert scan.work_packages == ()  # the malformed WP is skipped, scan survives
+
+    # The skip is counted AND named — never silent.
+    assert scan.skipped_wp_files == ("WP01-bad.md",)
+    # The good sibling still scans (skip is per-file, not per-mission).
+    assert [wp.wp_id for wp in scan.work_packages] == ["WP02"]
 
 
 def test_malformed_wp_referenced_by_a_lane_transition_is_backfilled_no_orphan(tmp_path):
