@@ -408,7 +408,7 @@ class TestCheckLaneGates:
         enforce_calls: list[Any] = []
         write_calls: list[Any] = []
 
-        def _fake_enforce(_repo: Path, invariants: list[Any]) -> list[Any]:
+        def _fake_enforce(_repo: Path, invariants: list[Any], *, context: Any = None) -> list[Any]:
             enforce_calls.append(invariants)
             return invariants
 
