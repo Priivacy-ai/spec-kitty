@@ -309,7 +309,8 @@ def test_frontmatter_contract_exempts_adr_bodies_via_config(tmp_path: Path) -> N
     without_adr = _fixture_config()
     assert without_adr.frontmatter_in_scope_exclusions == ("**/README.md",)
     flagged = check_frontmatter_contract([adr], docs, tmp_path, without_adr)
-    assert len(flagged) == 1  # control: not excluded -> flagged
+    # control: an unexcluded ADR is flagged (assert the rule, not just the count)
+    assert [v.rule_id for v in flagged] == ["frontmatter_contract"]
 
     with_adr = dataclasses.replace(
         without_adr,
