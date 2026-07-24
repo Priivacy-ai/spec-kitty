@@ -804,6 +804,8 @@ class MissionStatus:
         # existed for mid8-era missions). ``mission_id`` is guaranteed present
         # by the guard above, so this always resolves the mid8-era branch.
         from specify_cli.lanes.branch_naming import mission_branch_name_required
+        from specify_cli.status.reducer import SNAPSHOT_FILENAME
+        from specify_cli.status.store import EVENTS_FILENAME
 
         destination_ref = self.coordination_branch or mission_branch_name_required(
             self.mission_slug, self.mission_id
@@ -817,7 +819,7 @@ class MissionStatus:
             destination_ref=destination_ref,
             operation=operation,
         ) as txn:
-            for artifact_name in ("status.events.jsonl", "status.json"):
+            for artifact_name in (EVENTS_FILENAME, SNAPSHOT_FILENAME):
                 artifact = txn.feature_dir / artifact_name
                 if artifact.exists():
                     txn.stage_path(artifact)

@@ -24,7 +24,7 @@ from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
-from specify_cli.status import EVENTS_FILENAME, StoreError
+from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError
 
 from specify_cli.task_utils import (
     LANES,
@@ -164,7 +164,14 @@ def _is_accept_pipeline_own_write(path: str, *, mission_slug: str) -> bool:
         return True
     if kind is MissionArtifactKind.STATUS_STATE:
         basename = to_posix(path).rsplit("/", 1)[-1]
-        return basename == "status.json"
+        # Explicit ``bool`` annotation re-narrows the comparison: under this
+        # project's ``follow_imports = "skip"`` mypy config,
+        # ``SNAPSHOT_FILENAME`` (imported from the cross-module status facade)
+        # is seen as ``Any``, and ``str == Any`` types as ``Any`` rather than
+        # ``bool`` — the same cross-module-boundary pattern documented on
+        # ``mission_runtime.resolution.PlacementSeam.read_dir``.
+        is_status_snapshot: bool = basename == SNAPSHOT_FILENAME
+        return is_status_snapshot
     return False
 
 
