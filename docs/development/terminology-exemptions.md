@@ -104,11 +104,10 @@ scanned as a normal live doc.
 
 ### What is excluded
 
-Three subdirectories under `docs/plans/` are excluded from the live-doc scan:
+Two subdirectories under `docs/plans/` are excluded from the live-doc scan:
 
 - `docs/plans/engineering-notes/`
 - `docs/plans/initiatives/`
-- `docs/plans/notes/`
 
 ### Why it is exempt
 
