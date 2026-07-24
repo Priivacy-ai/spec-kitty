@@ -147,6 +147,14 @@ _LEGACY_WALKER_ALLOWLIST: frozenset[str] = frozenset(
         # Charter corpus scan (`kitty-specs/*/charter/*.{yaml,md,txt}`) --
         # a different artifact kind than mission identity.
         "src/specify_cli/cli/commands/migrate/charter_encoding.py",
+        # FR-014 one-time provenance backfill migration (lifecycle-gate-
+        # execution-context WP05): walks the WHOLE acceptance-matrix corpus
+        # across every mission under kitty-specs/ (a corpus-wide schema
+        # backfill), not a single-mission identity resolution -- and per
+        # C-004, migration-time code must not depend on the runtime
+        # resolver's post-migration assumptions. Same rationale/sibling file
+        # as charter_encoding.py in this directory.
+        "src/specify_cli/cli/commands/migrate/backfill_provenance.py",
         # Partial-match handle-to-dir fallback scan (pre-dates the resolver;
         # a candidate for folding in a later #2173 phase, not this one).
         "src/specify_cli/retrospective/generator.py",
