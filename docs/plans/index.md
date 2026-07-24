@@ -57,6 +57,5 @@ document, the roadmap itself follows the distil-then-retire lifecycle.
 - **[User journeys](user_journey/README.md)** — end-to-end user-journey docs.
 - **Research** — research deliverables (era spikes/explorations):
   [1.x](research/README-1.x.md), [2.x](research/README-2.x.md).
-- **[Notes](notes/README.md)** — legacy (1.x) design notes.
 - **[Next-mission mappings](next-mission-mappings/README.md)** — mapping
   notes for the mission-next compatibility surface.

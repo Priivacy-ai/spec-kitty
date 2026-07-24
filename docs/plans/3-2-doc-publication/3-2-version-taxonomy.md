@@ -287,7 +287,7 @@ git ls-files docs/ architecture/ README.md \
 | `docs/2x/` | 9 | All `archival` — move to `docs/archive/2x/` per WP09 |
 | `docs/` (root files) | 8 | Mostly index pages and top-level explanation |
 | `docs/guides/` | 8 | Mostly `current` (3.2 first-mission tutorial lives here) |
-| `docs/architecture/audits/` | 7 | Internal — audit records |
+| `docs/plans/engineering-notes/architecture-audits/` | 7 | Internal — audit records |
 | `docs/1x/` | 6 | All `archival` — move to `docs/archive/1x/` per WP09 |
 | `architecture/` (root files) | 5 | Internal — index pages |
 | `docs/architecture/calibration/` | 5 | Internal — calibration notes |

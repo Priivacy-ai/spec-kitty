@@ -6,7 +6,7 @@ type: explanation
 updated: '2026-07-14'
 related:
 - docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
-- docs/architecture/883-mission-type-authority-brief.md
+- docs/plans/engineering-notes/883-mission-type-authority-brief.md
 ---
 
 # Issue #883 — Pre-spec research synthesis (4-lens squad)
@@ -18,7 +18,7 @@ related:
 > leak anchors here point at code later found dead; the real leak is
 > `_load_action_doctrine_bundle` at `context.py:865`), and a spec-stage interview
 > resolved Q1–Q4. **Where this dossier and the
-> [ADR](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md)
+> [ADR](../../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md)
 > or the [mission brief](883-mission-type-authority-brief.md) differ, the ADR and
 > brief are authoritative.** Read this for the evidence trail, not the final design.
 

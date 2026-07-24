@@ -33,10 +33,10 @@ updated: '2026-05-19'
 ## Methodology
 
 The five core CaaCS recipes from the
-[`forensic-repository-audit`](../../../src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml)
+[`forensic-repository-audit`](../../../../src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml)
 tactic were executed verbatim against `src/`, with the exclusion list above
 applied. The procedure
-[`legacy-codebase-triage`](../../../src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml)
+[`legacy-codebase-triage`](../../../../src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml)
 specifies the additional steps (temporal coupling, complexity overlay, DDD-tentative
 classification, Eisenhower triage). The exact commands run are:
 
@@ -769,7 +769,7 @@ woven into the buckets below; the original buckets are otherwise preserved.
 ## Multi-window refactor-candidate synthesis (2026-05-11)
 
 This section executes the new tactic step
-([`forensic-repository-audit`](../../../src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml),
+([`forensic-repository-audit`](../../../../src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml),
 "Compile a multi-window refactor-candidate list") that was added to the
 tactic after the 2026-05-09 re-run. The recipe runs two passes — full
 history and a velocity-adjusted recent window — over the
@@ -1144,9 +1144,9 @@ above were modified or added.
 ---
 
 *Generated 2026-05-08 by researcher subagent following the
-[forensic-repository-audit](../../../src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml)
+[forensic-repository-audit](../../../../src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml)
 tactic and
-[legacy-codebase-triage](../../../src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml)
+[legacy-codebase-triage](../../../../src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml)
 procedure on branch `feat/caacs-doctrine` at commit
 `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`. Scope-expansion re-run on
 2026-05-09 at commit `81883352240c3f8e0249b78875f7fa140700418f` extended the
