@@ -76,6 +76,10 @@ edges:
   target: tactic:domain-event-capture
   relation: suggests
 - source: styleguide:common-docs
+  target: asset:common-docs-structural-lint
+  relation: requires
+  reason: "The common-docs styleguide's tooling rows and quality_test name the structural lint as their enforcing gate, and its structural_lint_config: block is the policy the asset loads; activating the styleguide requires the shipped lint asset."
+- source: styleguide:common-docs
   target: directive:DIRECTIVE_042
   relation: suggests
 - source: styleguide:common-docs

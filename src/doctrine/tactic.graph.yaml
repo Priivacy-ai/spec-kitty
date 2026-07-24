@@ -634,6 +634,10 @@ edges:
   relation: suggests
   when: Applying the intent-first review philosophy that this tactic adds incremental discipline to
 - source: tactic:common-docs-curation
+  target: asset:common-docs-structural-lint
+  relation: requires
+  reason: The common-docs curation tactic directs the agent to run the structural lint as one of the live gates; activating the tactic requires the shipped lint asset.
+- source: tactic:common-docs-curation
   target: directive:DIRECTIVE_042
   relation: suggests
   when: Consult throughout placement, frontmatter authoring, and ADR migration to apply the binding documentation rules.
@@ -649,6 +653,10 @@ edges:
   target: styleguide:common-docs
   relation: suggests
   when: Consult to read the frontmatter fields (section, doc_status, related:) the lockfile and DRG expose for resolution.
+- source: tactic:common-docs-scaffold
+  target: asset:common-docs-structural-lint
+  relation: requires
+  reason: The common-docs scaffold tactic relies on the structural lint's index_completeness check to enforce section-index scaffolding; activating the tactic requires the shipped lint asset.
 - source: tactic:common-docs-scaffold
   target: directive:DIRECTIVE_042
   relation: suggests

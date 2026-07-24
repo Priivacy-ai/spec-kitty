@@ -189,6 +189,10 @@ edges:
   target: tactic:tdd-red-green-refactor
   relation: suggests
 - source: directive:DIRECTIVE_042
+  target: asset:common-docs-structural-lint
+  relation: requires
+  reason: DIRECTIVE_042 names the common-docs structural lint as the live mechanical gate that enforces it; activating the directive requires the shipped lint asset to be present.
+- source: directive:DIRECTIVE_042
   target: styleguide:common-docs
   relation: suggests
 - source: directive:DIRECTIVE_042
