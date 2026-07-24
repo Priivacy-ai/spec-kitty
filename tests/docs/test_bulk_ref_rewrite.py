@@ -274,10 +274,20 @@ def test_resolve_destination_variants(tmp_path: Path) -> None:
         resolve_destination("docs/engineering_notes", "docs/plans", tmp_path)
         == "docs/plans/engineering-notes"
     )
-    # file move -> to/basename
+    # file move, `to` is a directory root -> to/basename
     assert (
         resolve_destination("architecture/2.x/shim-registry.yaml", "docs/migrations", tmp_path)
         == "docs/migrations/shim-registry.yaml"
+    )
+    # file move, `to` is the full destination FILE path -> used verbatim
+    # (regression: appending the basename doubled it, e.g. …/x.md/x.md)
+    assert (
+        resolve_destination(
+            "docs/architecture/feature-detection.md",
+            "docs/plans/engineering-notes/feature-detection.md",
+            tmp_path,
+        )
+        == "docs/plans/engineering-notes/feature-detection.md"
     )
 
 
