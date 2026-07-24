@@ -114,6 +114,10 @@ class MissionScan:
     prefix_source: PrefixSource
     work_packages: tuple[ScannedWorkPackage, ...]
     lane_transitions: tuple[StatusEvent, ...]
+    # WP files skipped for malformed/unreadable frontmatter (file names).
+    # Fail-loud, not fail-closed: the scan survives, but the skips MUST reach
+    # the operator-facing report so a partial import never reads as clean.
+    skipped_wp_files: tuple[str, ...] = ()
 
 
 # ── public API ───────────────────────────────────────────────────────────────
@@ -130,7 +134,10 @@ def scan_mission(mission_dir: Path) -> MissionScan:
     prefix_source = PrefixSource.ON_DISK if mc_payload is not None else PrefixSource.SYNTHESIZED
     fields = _resolve_mission_fields(mission_dir, meta, mc_payload)
 
-    work_packages = _wps_from_prefix(wp_payloads) if wp_payloads else _wps_from_task_files(mission_dir)
+    if wp_payloads:
+        work_packages, skipped_wp_files = _wps_from_prefix(wp_payloads), ()
+    else:
+        work_packages, skipped_wp_files = _wps_from_task_files(mission_dir)
 
     try:
         lane_transitions = tuple(read_events(mission_dir))
@@ -144,6 +151,7 @@ def scan_mission(mission_dir: Path) -> MissionScan:
         prefix_source=prefix_source,
         work_packages=work_packages,
         lane_transitions=lane_transitions,
+        skipped_wp_files=skipped_wp_files,
         **fields,
     )
 
@@ -216,17 +224,21 @@ def _wps_from_prefix(wp_payloads: Sequence[Mapping[str, Any]]) -> tuple[ScannedW
     return tuple(wps)
 
 
-def _wps_from_task_files(mission_dir: Path) -> tuple[ScannedWorkPackage, ...]:
+def _wps_from_task_files(mission_dir: Path) -> tuple[tuple[ScannedWorkPackage, ...], tuple[str, ...]]:
     """Synthesize WPs from ``tasks/WP*.md`` frontmatter (canonical, §3.4/§6).
 
-    Files with unreadable or invalid frontmatter are skipped here; any WP a
-    lane transition still references is back-filled minimally by
+    Returns ``(work_packages, skipped_wp_files)``. Files with unreadable or
+    invalid frontmatter are skipped — but never silently: the skipped file
+    names are returned so the scan result carries them into the operator-facing
+    report (fail-loud, the #2884 review's chosen design over fail-closed). Any
+    WP a lane transition still references is back-filled minimally by
     :func:`_ensure_wp_coverage`, so INV-3 coverage holds regardless.
     """
     tasks_dir = mission_dir / _TASKS_DIRNAME
     if not tasks_dir.is_dir():
-        return ()
+        return (), ()
     wps: list[ScannedWorkPackage] = []
+    skipped: list[str] = []
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
             metadata, _ = read_authored_wp_frontmatter(wp_file)
@@ -236,9 +248,11 @@ def _wps_from_task_files(mission_dir: Path) -> tuple[ScannedWorkPackage, ...]:
             # frontmatter/validation errors to the structural ones a malformed
             # doc can raise before validation (e.g. a YAML-list frontmatter →
             # TypeError) — the #2883 items 3/4 concern, applied to this reader.
-            # Skip here; _ensure_wp_coverage back-fills any WP a lane transition
-            # still references, so INV-3 coverage holds.
+            # Skip here (recorded, surfaced in the report); _ensure_wp_coverage
+            # back-fills any WP a lane transition still references, so INV-3
+            # coverage holds.
             logger.warning("import-history: skipping unreadable WP file %s: %s", wp_file, exc)
+            skipped.append(wp_file.name)
             continue
         wps.append(
             ScannedWorkPackage(
@@ -250,7 +264,7 @@ def _wps_from_task_files(mission_dir: Path) -> tuple[ScannedWorkPackage, ...]:
                 source=PrefixSource.SYNTHESIZED,
             )
         )
-    return tuple(wps)
+    return tuple(wps), tuple(skipped)
 
 
 def _ensure_wp_coverage(
