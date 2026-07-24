@@ -45,6 +45,7 @@ from mission_runtime.context import (
     WorkspaceFragment,
     routes_through_coordination,
 )
+from mission_runtime.identity import resolve_mid8
 from mission_runtime.mission_resolver_port import MissionResolver
 
 
@@ -1535,7 +1536,6 @@ def _classify_artifact_surface(
     # primary ``meta.json``) is what splits UNMATERIALIZED from DELETED inside the
     # probe's single ``git rev-parse`` arm.
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-    from specify_cli.lanes.branch_naming import resolve_mid8
     from specify_cli.missions._read_path_resolver import (
         CoordState,
         coord_feature_dir,

@@ -106,12 +106,20 @@ _PUBLIC_SURFACE = sorted(
         # (MR-1/MR-2 forbid ``coherence.py`` reaching into the
         # ``mission_runtime.artifacts`` submodule directly).
         "kind_is_coordination_residue",
+        # coord-trust-2841 layer-boundary follow-up: the pure mid8 identity
+        # helpers relocated from ``specify_cli.lanes.branch_naming`` so
+        # mission_runtime (the lower layer) owns them outright, closing the
+        # ``lanes`` allow-row in ``_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI``
+        # (tests/architectural/test_layer_rules.py). ``branch_naming``
+        # re-exports both names verbatim.
+        "mid8_from_slug",
         "mission_context_for",
         "placement_seam",
         "resolve_action_context",
         # WP02: the affirmative, stamped surface→filesystem seam (the true schema
         # root) + its total member→path translation.
         "resolve_artifact_surface",
+        "resolve_mid8",
         "resolve_placement_only",
         "resolve_topology",
         "routes_through_coordination",

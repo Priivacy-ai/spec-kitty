@@ -49,6 +49,7 @@ from mission_runtime.artifacts import (
     kind_for_mission_file,
     kind_is_coordination_residue,
 )
+from mission_runtime.identity import mid8_from_slug, resolve_mid8
 from mission_runtime.resolution import (
     ActionContextError,
     PlacementSeam,
@@ -91,10 +92,12 @@ __all__ = [
     "is_primary_artifact_kind",
     "kind_for_mission_file",
     "kind_is_coordination_residue",
+    "mid8_from_slug",
     "mission_context_for",
     "placement_seam",
     "resolve_action_context",
     "resolve_artifact_surface",
+    "resolve_mid8",
     "resolve_placement_only",
     "resolve_topology",
     "routes_through_coordination",

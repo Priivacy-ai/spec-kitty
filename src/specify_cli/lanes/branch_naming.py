@@ -33,6 +33,7 @@ import warnings
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from mission_runtime import mid8_from_slug, resolve_mid8
 from specify_cli.core.errors import StructuredError
 
 # Public surface for the fail-closed branch-identity seam introduced by FR-006
@@ -77,7 +78,6 @@ _PLAIN_LEGACY_LANE_RE = re.compile(r"^kitty/mission-(.+)-(lane-[a-z])$")
 
 # New regex: <human-slug>-<mid8>[-lane-<id>]
 # Mid8 = exactly 8 uppercase alphanumeric characters (ULID character set)
-_MID8_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{8}$")  # Crockford base32, exactly 8 chars
 _NEW_LANE_RE = re.compile(r"^kitty/mission-(.+)-([0-9A-HJKMNP-TV-Z]{8})-(lane-[a-z])$")
 _NEW_MISSION_RE = re.compile(r"^kitty/mission-(.+)-([0-9A-HJKMNP-TV-Z]{8})$")
 
@@ -146,65 +146,13 @@ def _mid8(mission_id: str) -> str:
     return mission_id[:8]
 
 
-def mid8_from_slug(slug: str) -> str:
-    """Best-effort HEURISTIC detector of a mid8 tail — NEVER authoritative (#1918).
-
-    Recognises the 8-character Crockford base32 tail appended to mission slugs
-    by the mission-identity system (e.g. ``my-feature-01KT3YBD`` → ``01KT3YBD``).
-
-    .. warning::
-        This is a *heuristic*: it cannot tell a genuine mid8 from a coincidental
-        8-Crockford-char hyphen segment, because it has no ``mission_id`` to
-        confirm against. It is retained ONLY as a final, best-effort fallback for
-        topology consumers (``resolve_transaction_mid8`` /
-        ``surface_resolver._coord_mid8``) that have already exhausted every
-        declared source. For any correctness path, use the authoritative
-        :func:`resolve_mid8`, which derives the mid8 from a declared ``mission_id``
-        and declines a coincidental tail when none is available.
-
-    The check is ``_MID8_RE`` (exactly 8 Crockford base32 chars) so that all-digit
-    tails (valid in ULID base32) are accepted correctly.
-    """
-    if "-" not in slug:
-        return ""
-    tail = slug.rsplit("-", 1)[-1]
-    if _MID8_RE.match(tail):
-        return tail
-    return ""
-
-
-def resolve_mid8(mission_slug: str, *, mission_id: str | None) -> str:
-    """Authoritative mid8 resolver for correctness paths (#1918, FR-004).
-
-    Unlike the heuristic :func:`mid8_from_slug`, this derives the mid8 from the
-    *declared* ``mission_id`` and trusts the slug's embedded tail only when it
-    **provably matches** that declared identity. When no ``mission_id`` is
-    available it DECLINES (returns ``""``) on an embedded 8-char tail rather than
-    mis-resolving a coincidental segment — the name proposes, authority disposes.
-
-    Resolution:
-      - ``mission_id`` present (>= 8 chars), slug embeds NO tail or a *matching*
-        tail → ``mission_id[:8]`` (authoritative, provable-match cross-checked).
-      - ``mission_id`` present but the slug embeds a *divergent* tail → still
-        ``mission_id[:8]``: the declared identity governs; the stale slug tail
-        never wins (NFR-003).
-      - ``mission_id`` absent → the embedded tail cannot be confirmed against a
-        declared identity, so it is NOT trusted: DECLINE (``""``).
-
-    Returns:
-        The 8-char mid8 when it can be authoritatively derived, else ``""``.
-    """
-    embedded = mid8_from_slug(mission_slug)
-    if mission_id is not None and len(mission_id) >= 8:
-        declared = mission_id[:8]
-        if embedded and embedded != declared:
-            # Slug carries a stale/foreign mid8 tail; declared identity governs.
-            return declared
-        # No tail, or a tail that provably matches the declared identity.
-        return declared
-    # No declared identity to confirm a (possibly coincidental) 8-char tail
-    # against: decline rather than mis-resolve (#1918).
-    return ""
+# coord-trust-2841 (layer-boundary follow-up): ``mid8_from_slug`` and
+# ``resolve_mid8`` are pure (regex-only) and now live in
+# ``mission_runtime.identity`` — the lower layer owns the identity primitive
+# outright instead of ``mission_runtime.resolution`` reaching upward into this
+# module for it. Both names are imported at module top (see above) and
+# re-exported verbatim so every existing importer of either name from this
+# module keeps working unchanged.
 
 
 def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
