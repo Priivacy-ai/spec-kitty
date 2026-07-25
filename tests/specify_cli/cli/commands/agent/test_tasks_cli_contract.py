@@ -48,6 +48,7 @@ from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.cli.commands import _apply_short_help_options
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
@@ -58,6 +59,11 @@ from tests.mocked_env import setup_mocked_env
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+# This standalone characterization app is the same singleton registered under
+# the root CLI. Apply the root's help policy explicitly so the golden contract
+# is deterministic regardless of test collection/import order.
+_apply_short_help_options(app)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "tasks_cli"
 HELP_FIXTURES = FIXTURES / "help"
