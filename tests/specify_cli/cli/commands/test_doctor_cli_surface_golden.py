@@ -16,15 +16,18 @@ It pins, independently of the implementation source:
   (``skills``, ``restart-daemon``, ``sparse-checkout``) that ``compat`` safety
   predicates and ``__init__`` argv fast-paths key on (I-7).
 
-The help snapshots are normalized (box-drawing stripped, lines trimmed, blanks
-dropped) so they are deterministic across terminal widths while still failing
-on any usage/description/flag/help-text drift.
+The help snapshots are captured through :func:`force_wide_help_console`, which
+pins Typer's Rich help console to a fixed wide, colourless size so no line ever
+wraps, then normalized (box-drawing stripped, lines trimmed, blanks dropped,
+internal whitespace collapsed) so each option/usage entry is one logical line.
+That makes the snapshot genuinely deterministic across terminal widths — local
+wide terminals, CI's TTY-less 80-column fallback, ``COLUMNS`` set or unset —
+while still failing on any usage/description/flag/help-text drift.
 """
 
 from __future__ import annotations
 
 import os
-import re
 
 import click
 import pytest
@@ -33,6 +36,10 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app
 from specify_cli.cli.commands import _apply_short_help_options
+from tests.specify_cli.cli.commands._help_snapshot import (
+    force_wide_help_console,
+    normalize_help,
+)
 
 pytestmark = [pytest.mark.fast]
 
@@ -165,8 +172,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor workspaces --fix',
         'spec-kitty doctor workspaces --json',
         'Options',
-        '--fix Remove husks that are NOT registered in `git worktree',
-        'list` (registered worktrees are never removed)',
+        '--fix Remove husks that are NOT registered in `git worktree list` (registered worktrees are never removed)',
         '--json Machine-readable JSON output',
         '--help -h Show this message and exit.',
     ],
@@ -189,9 +195,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'Options',
         '--json Emit structured JSON output (suitable for CI)',
         '--mission TEXT Scope report to a single mission slug',
-        '--fail-on TEXT Exit non-zero if any mission is in the given',
-        'state(s). Comma-separated list of: assigned,',
-        'pending, legacy, orphan.',
+        '--fail-on TEXT Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan.',
         '--help -h Show this message and exit.',
     ],
     'topology': [
@@ -224,8 +228,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor sparse-checkout',
         'spec-kitty doctor sparse-checkout --fix',
         'Options',
-        '--fix Apply remediation (disable sparse-checkout on primary +',
-        'worktrees).',
+        '--fix Apply remediation (disable sparse-checkout on primary + worktrees).',
         '--help -h Show this message and exit.',
     ],
     'shim-registry': [
@@ -287,10 +290,8 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'List orphan Op records; --close-stale sweeps stale ones closed as abandoned.',
         'Options',
         '--json Machine-readable JSON output',
-        '--close-stale Close open Ops older than --threshold as',
-        'abandoned (closed_by=doctor_sweep)',
-        '--threshold FLOAT Staleness threshold in hours (default 24; 0',
-        'closes all). Requires --close-stale.',
+        '--close-stale Close open Ops older than --threshold as abandoned (closed_by=doctor_sweep)',
+        '--threshold FLOAT Staleness threshold in hours (default 24; 0 closes all). Requires --close-stale.',
         '--help -h Show this message and exit.',
     ],
     'orphan-daemons': [
@@ -335,22 +336,16 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'Usage: doctor mission-state [OPTIONS]',
         'Audit, repair, or TeamSpace-validate mission-state shapes.',
         'Options',
-        '--audit Run mission-state audit (required to',
-        'proceed)',
-        '--fix Repair mission-state artifacts in place',
-        'and write a migration manifest',
-        '--teamspace-dry-run Synthesize canonical TeamSpace envelopes',
-        'from local state and validate them',
+        '--audit Run mission-state audit (required to proceed)',
+        '--fix Repair mission-state artifacts in place and write a migration manifest',
+        '--teamspace-dry-run Synthesize canonical TeamSpace envelopes from local state and validate them',
         '--json Emit JSON report to stdout',
         '--mission TEXT Scope to a single mission handle',
-        '--fail-on TEXT Exit 1 if findings meet a gate',
-        '(error|warning|info|teamspace-blocker)',
+        '--fail-on TEXT Exit 1 if findings meet a gate (error|warning|info|teamspace-blocker)',
         '--fixture-dir PATH Override scan root (for testing)',
-        '--include-fixtures Audit the bundled mission-state survey',
-        'fixtures',
+        '--include-fixtures Audit the bundled mission-state survey fixtures',
         '--manifest-path PATH Path for --fix migration manifest',
-        '--allow-dirty Allow --fix when relevant git paths are',
-        'already dirty',
+        '--allow-dirty Allow --fix when relevant git paths are already dirty',
         '--help -h Show this message and exit.',
     ],
     'doctrine': [
@@ -402,29 +397,16 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor coordination --json',
         'spec-kitty doctor coordination --check-staleness',
         'Options',
-        '--fix Remove stale coordination_branch keys from',
-        'meta.json for missions whose coord branch was',
-        'never created, then re-derive topology via',
+        '--fix Remove stale coordination_branch keys from meta.json for missions '
+        'whose coord branch was never created, then re-derive topology via '
         '`migrate backfill-topology`.',
         '--json Machine-readable JSON output',
-        '--check-staleness Also report coord-branch-vs-target-branch',
-        'staleness (Gap-1, FR-008): non-blocking,',
-        'whether the coord branch is behind or has',
+        '--check-staleness Also report coord-branch-vs-target-branch staleness '
+        '(Gap-1, FR-008): non-blocking, whether the coord branch is behind or has '
         "diverged from its mission's target_branch.",
         '--help -h Show this message and exit.',
     ],
 }
-
-
-def _normalize_help(text: str) -> list[str]:
-    """Strip box-drawing chars and blank lines so help is terminal-width robust."""
-    out: list[str] = []
-    for line in text.splitlines():
-        cleaned = re.sub(r"[│╭╮╰╯─]", "", line).strip()
-        cleaned = re.sub(r"\s+", " ", cleaned)
-        if cleaned:
-            out.append(cleaned)
-    return out
 
 
 @pytest.fixture(scope="module")
@@ -434,10 +416,13 @@ def runner() -> CliRunner:
 
 @pytest.fixture(autouse=True)
 def _fixed_terminal_width(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin terminal width so ``--help`` wrapping is deterministic in the snapshot."""
-    monkeypatch.setenv("COLUMNS", "100")
-    monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setenv("TERM", "dumb")
+    """Force wrap-free, colourless ``--help`` rendering for deterministic snapshots.
+
+    Replaces the old ``COLUMNS=100`` pin, which CI ignored on the Rich help path
+    (no TTY → 80-column fallback), with a genuine width-invariant render so the
+    snapshot is identical on any machine regardless of the ambient terminal.
+    """
+    force_wide_help_console(monkeypatch)
 
 
 # --- T001: names + per-subcommand params ------------------------------------
@@ -495,8 +480,8 @@ def test_subcommand_option_contract(name: str) -> None:
 def test_subcommand_help_snapshot(name: str, runner: CliRunner) -> None:
     result = runner.invoke(app, [name, "--help"])
     assert result.exit_code == 0
-    expected = _normalize_help("\n".join(EXPECTED_HELP[name]))
-    assert _normalize_help(result.output) == expected
+    expected = normalize_help("\n".join(EXPECTED_HELP[name]))
+    assert normalize_help(result.output) == expected
 
 
 # --- T003: exit-code contracts + load-bearing names --------------------------

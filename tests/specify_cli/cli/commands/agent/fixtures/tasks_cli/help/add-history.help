@@ -1,21 +1,13 @@
-                                                                                
- Usage: tasks add-history [OPTIONS] TASK_ID                                     
-                                                                                
- Append history entry to task activity log.                                     
-                                                                                
- Examples:                                                                      
- spec-kitty agent tasks add-history WP01 --note "Completed implementation"      
- --json                                                                         
-                                                                                
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --note               TEXT  History note [required]                        │
-│    --mission            TEXT  Mission slug                                   │
-│    --agent              TEXT  Agent name                                     │
-│    --shell-pid          TEXT  Shell PID                                      │
-│    --json                     Output JSON format                             │
-│    --help       -h            Show this message and exit.                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-
+Usage: tasks add-history [OPTIONS] TASK_ID
+Append history entry to task activity log.
+Examples:
+spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
+Arguments
+* task_id TEXT Task ID (e.g., WP01) [required]
+Options
+* --note TEXT History note [required]
+--mission TEXT Mission slug
+--agent TEXT Agent name
+--shell-pid TEXT Shell PID
+--json Output JSON format
+--help -h Show this message and exit.
