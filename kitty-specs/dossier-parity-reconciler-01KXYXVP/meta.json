@@ -12,6 +12,7 @@
   "purpose_context": "Delivers the parity foundation for provable historical materialization (#2262): one canonical snapshot-hash definition computed identically by CLI and server, plus a DossierReconciler that verifies a rebuilt dossier is byte-identical to source and fails loud on divergence. A #1091 launch-gate dependency.",
   "purpose_tldr": "Unify the dossier snapshot hash across CLI and server and build a reconciler that proves a rebuilt projection matches source.",
   "slug": "dossier-parity-reconciler-01KXYXVP",
+  "status_phase": "1",
   "target_branch": "feat/dossier-parity-reconciler",
   "topology": "coord"
 }

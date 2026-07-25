@@ -12,6 +12,7 @@
   "purpose_context": "Spec Kitty lifecycle gates currently inherit whatever working tree their caller stood in, so a gate can evaluate a fact against a tree where that fact cannot be true and emit a confident wrong verdict. Separately, no component owns the bookkeeping files the toolchain itself generates, so each gate that trips over them has been taught a one-off exemption. This mission gives gates an explicit execution context they must be handed, and gives generated artifacts a lifecycle owner, so wrong verdicts and exemption lists both stop accumulating.",
   "purpose_tldr": "Gates judge the surface they are handed, and the toolchain owns the files it writes.",
   "slug": "lifecycle-gate-execution-context-01KY72GQ",
+  "status_phase": "1",
   "target_branch": "remediation/coord-lifecycle-gates",
   "topology": "coord",
   "vcs": "git",

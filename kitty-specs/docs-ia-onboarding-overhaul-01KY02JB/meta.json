@@ -50,6 +50,7 @@
   "purpose_context": "docs.spec-kitty.ai currently buries its best onboarding content and opens with governance jargon instead of explaining who Spec Kitty is for and what it is good for. This mission restructures the site's information architecture with strict end-user/contributor segregation, restores a single discoverable discover-to-first-mission path, and fully documents previously-thin concepts (Ops vs Missions, mission types, Charter, and all doctrine artifact kinds). It also activates the published glossary by auto-linking canonical terms across docs with tooltips and click-through, backed by a doctrine-style check that flags non-canonical term usage.",
   "purpose_tldr": "Restructure docs.spec-kitty.ai's IA to restore a clear discover-to-install-to-wow path, fully document core governance concepts, and activate the canonical glossary across docs.",
   "slug": "docs-ia-onboarding-overhaul-01KY02JB",
+  "status_phase": "1",
   "target_branch": "feat/docs-ia-onboarding-overhaul",
   "topology": "coord",
   "vcs": "git",

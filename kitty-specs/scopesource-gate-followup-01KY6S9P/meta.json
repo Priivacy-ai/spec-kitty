@@ -26,6 +26,7 @@
   "purpose_context": "The doctrine-controlled transition gates (half A, #2871) shipped with three deliberately-deferred follow-ups (#2873): a fully-duplicated dead census-derivation tier, a port contract that welds two orthogonal concerns onto one type check, and — most importantly — an unrealized 'one command authority for baseline and head' promise that mis-reports every review as failing the moment a consumer uses a non-pytest test command or half B adds a second command source. This mission retires the dead code, decouples the port, and closes the baseline-head correctness split so the gate is correct and clean before half B (#2599).",
   "purpose_tldr": "Retire dead code and close a latent baseline-comparison bug in the doctrine-controlled review gate, before its executable-assets successor (half B) builds on it.",
   "slug": "scopesource-gate-followup-01KY6S9P",
+  "status_phase": "1",
   "target_branch": "fix/scopesource-gate-followup",
   "topology": "coord"
 }

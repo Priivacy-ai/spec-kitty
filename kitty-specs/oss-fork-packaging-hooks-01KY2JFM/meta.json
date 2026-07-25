@@ -26,6 +26,7 @@
   "purpose_context": "Fork packagers who publish Spec Kitty under a different distribution name or private PyPI-compatible index currently overlay core files before build. This mission adds packager hooks (entry points and a distribution profile) so upgrade channel, package identity, remediation commands, and version banner follow the fork without modifying stock specify_cli sources at publish time. Stock public-PyPI installs keep current behaviour when no hooks are registered.",
   "purpose_tldr": "Let renamed and private-index forks customize upgrade checks and package identity via entry points instead of rewriting core source at publish time.",
   "slug": "oss-fork-packaging-hooks-01KY2JFM",
+  "status_phase": "1",
   "target_branch": "feat/oss-fork-packaging-hooks",
   "topology": "coord"
 }
