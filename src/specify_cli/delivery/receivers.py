@@ -254,6 +254,12 @@ def _requests_post(
     return requests.post(url, data=data, headers=dict(headers), timeout=timeout)
 
 
+# Public name for the default poster. Cross-package callers (e.g.
+# ``sync.history_import``) bind this rather than reaching for the
+# underscore-private ``_requests_post`` across a package boundary (#2884).
+default_http_poster: HttpPoster = _requests_post
+
+
 # -- The shared result mapper (one mapper, reused by all three receivers) -------
 
 
@@ -724,6 +730,7 @@ __all__ = [
     "BATCH_ENDPOINT_PATH",
     "BATCH_TIMEOUT_SECONDS",
     "STUB_ENDPOINT_URL",
+    "default_http_poster",
     "DeliveryOutcome",
     "OutboundEvent",
     "DeliveryResult",

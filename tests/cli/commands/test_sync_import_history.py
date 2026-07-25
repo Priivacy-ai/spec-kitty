@@ -212,8 +212,11 @@ def _canned_apply_result(report):
         repo_slug="m-1",
         is_synthetic=False,
     )
+    from specify_cli.sync.history_import.upload import ImportProvenanceEntry
+
     plan = ImportPlan(identity=ident, scans=(scan,), envelopes=({"event_id": "e0", "event_type": "MissionCreated"},))
-    return ApplyResult(plan=plan, manifest=[], report=report)
+    manifest = [ImportProvenanceEntry(event_id="e0", event_type="MissionCreated", envelope_sha256="deadbeef")]
+    return ApplyResult(plan=plan, manifest=manifest, report=report)
 
 
 def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
@@ -232,9 +235,11 @@ def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
     plain = _strip_ansi(result.output)
     assert "Imported:" in plain
     assert "1 created" in plain
+    # The provenance manifest is surfaced, not silently discarded (#2884).
+    assert "Provenance: 1 envelope(s) hashed" in plain
 
 
-# ── --apply: the five except branches (T3, #2884) ─────────────────────────────
+# ── --apply: the except branches (T3, #2884) ─────────────────────────────────
 
 
 def _invoke_apply_raising(tmp_path, monkeypatch, exc: BaseException):
@@ -299,6 +304,19 @@ def test_apply_renders_mission_state_repair_error(tmp_path, monkeypatch):
     plain = _strip_ansi(result.output)
     assert "Error:" in plain
     assert "Mission not found" in plain
+
+
+def test_apply_renders_envelope_contract_violation(tmp_path, monkeypatch):
+    """The offline envelope contract gate (raised from apply_import) fails
+    closed with a clear message and exit 1, not a traceback (#2884)."""
+    from specify_cli.core.contract_gate import ContractViolationError
+
+    exc = ContractViolationError(field="from_lane", context="envelope", reason="forbidden field 'from_lane' present")
+    result = _invoke_apply_raising(tmp_path, monkeypatch, exc)
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "Envelope contract violation" in plain
+    assert "from_lane" in plain
 
 
 # ── --apply: report-state rendering (rejected / pending / partial) ────────────

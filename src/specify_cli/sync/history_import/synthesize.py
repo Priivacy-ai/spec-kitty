@@ -65,6 +65,13 @@ _UNKNOWN_TIMESTAMP = "1970-01-01T00:00:00+00:00"
 
 _ACTOR = "spec-kitty sync import-history"
 
+# The dedicated deterministic-id namespace for the synthesized creation prefix.
+# Load-bearing: it MUST stay distinct from the migration dry-run's
+# ``teamspace-dry-run:`` seeds (INV-4), so it is a single named constant — a
+# typo in one of its three call sites would silently split the id namespace and
+# break cross-run dedup.
+_IMPORT_ID_NAMESPACE = "import:"
+
 
 def synthesize_mission_stream(
     scan: MissionScan,
@@ -81,7 +88,7 @@ def synthesize_mission_stream(
     change can never carry a lower clock than its work package's creation.
     """
     mission_ts = _earliest_timestamp(scan)
-    correlation_id = deterministic_ulid(f"import:{_identity_key(scan)}:correlation")
+    correlation_id = deterministic_ulid(f"{_IMPORT_ID_NAMESPACE}{_identity_key(scan)}:correlation")
     identity = _EnvelopeIdentity(
         project_uuid=str(project_uuid),
         project_slug=project_slug,
@@ -179,7 +186,7 @@ def _mission_created_envelope(
         created_at=mission_ts,
     )
     return _envelope(
-        event_id=deterministic_ulid(f"import:{_identity_key(scan)}:MissionCreated"),
+        event_id=deterministic_ulid(f"{_IMPORT_ID_NAMESPACE}{_identity_key(scan)}:MissionCreated"),
         event_type=MISSION_CREATED,
         aggregate_id=scan.canonical_mission_id or scan.mission_slug,
         aggregate_type=_AGG_MISSION,
@@ -208,7 +215,7 @@ def _wp_created_envelope(
         created_at=_parse_timestamp(wp.created_at),
     ).model_dump(mode="json", exclude_none=False)
     return _envelope(
-        event_id=deterministic_ulid(f"import:{_identity_key(scan)}:WPCreated:{wp.wp_id}"),
+        event_id=deterministic_ulid(f"{_IMPORT_ID_NAMESPACE}{_identity_key(scan)}:WPCreated:{wp.wp_id}"),
         event_type=WP_CREATED,
         aggregate_id=wp.wp_id,
         aggregate_type=_AGG_WORK_PACKAGE,

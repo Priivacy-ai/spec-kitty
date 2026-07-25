@@ -4091,6 +4091,12 @@ _Synchronization commands_
  provenance, server-preflights the whole stream (fail-closed), and uploads it
  in chunks to the SaaS projection under the real persisted project UUID.
 
+ Import is once-and-frozen: each event carries a deterministic id, so
+ re-running after the on-disk facts change (e.g. after fixing a malformed WP
+ the dry-run flagged as skipped) re-sends the same id and the server drops the
+ updated payload as a duplicate rather than overwriting. Resolve any skipped
+ or incomplete missions the dry-run reports before the first ``--apply``.
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --apply                Materialize the selected missions into the SaaS       │
 │                        projection (default is a dry-run plan).               │

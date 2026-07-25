@@ -739,8 +739,8 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd"),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
         SymbolKey("init_ledger", "95d75b9f2c0c5692072a02c2145128f9fe47e82e9a47120235d5c77bfae3f4ec"),  # specify_cli.delivery.ledger::init_ledger
         SymbolKey("BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644"),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
-        # specify_cli.delivery.receivers::BATCH_TIMEOUT_SECONDS
-        SymbolKey("BATCH_TIMEOUT_SECONDS", "b369a7d782ba7ef5f063929fda2b130c0a53b2044621b8d19dd3afe495d3d226"),
+        # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
+        # imports it (reusing the canonical delivery timeout, #2884).
         SymbolKey("GateDecision", "63e6f6d31d87a0baa8128896db70bcd1a281aef33f9cdc64dc7a4fc1f825dd99"),  # specify_cli.delivery.receivers::GateDecision
         SymbolKey("GateKind", "5b6ccac48cf9723e99c997a1f70c7af1f481e819abb62e251d9b3814fd71d05e"),  # specify_cli.delivery.receivers::GateKind
         SymbolKey("HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935"),  # specify_cli.delivery.receivers::HttpResponse

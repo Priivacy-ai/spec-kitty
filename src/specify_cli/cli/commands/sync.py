@@ -1772,6 +1772,12 @@ def import_history(
     stream that would be materialized. ``--apply`` additionally attaches
     provenance, server-preflights the whole stream (fail-closed), and uploads it
     in chunks to the SaaS projection under the real persisted project UUID.
+
+    Import is once-and-frozen: each event carries a deterministic id, so
+    re-running after the on-disk facts change (e.g. after fixing a malformed WP
+    the dry-run flagged as skipped) re-sends the same id and the server drops the
+    updated payload as a duplicate rather than overwriting. Resolve any skipped
+    or incomplete missions the dry-run reports before the first ``--apply``.
     """
     from specify_cli.migration.mission_state import MissionStateRepairError
     from specify_cli.sync.history_import import (
@@ -1819,6 +1825,7 @@ def _run_import_apply(mission: str | None) -> None:
     the real persisted project UUID, server-preflights the whole stream, and
     uploads it. The server dedups on ``event_id`` so a re-run is idempotent.
     """
+    from specify_cli.core.contract_gate import ContractViolationError
     from specify_cli.migration.mission_state import MissionStateRepairError
     from specify_cli.sync.history_import import (
         ImportAuditBlocked,
@@ -1860,6 +1867,11 @@ def _run_import_apply(mission: str | None) -> None:
         for blocker in exc.blockers[:20]:
             console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
         raise typer.Exit(1) from exc
+    except ContractViolationError as exc:
+        # The offline outbound-envelope gate refused a synthesized envelope
+        # before any upload — fail closed with the contract detail (#2884).
+        console.print(f"[red]Envelope contract violation:[/red] {exc}")
+        raise typer.Exit(1) from exc
     except PreflightRejected as exc:
         console.print(f"[red]Server preflight rejected the import:[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -1870,6 +1882,10 @@ def _run_import_apply(mission: str | None) -> None:
 
     for line in describe_plan(result.plan):
         console.print(line)
+    console.print(
+        f"[dim]Provenance: {len(result.manifest)} envelope(s) hashed into the sha256 import "
+        "audit manifest.[/dim]"
+    )
     report = result.report
     console.print(
         f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "

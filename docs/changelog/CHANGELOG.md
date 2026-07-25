@@ -33,6 +33,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     every subcommand.
   - **The root `--help` command list is now sorted alphabetically**, and a bare
     `spec-kitty` invocation renders the same ordered help.
+- **`spec-kitty sync import-history` materializes existing local mission history
+  into the SaaS projection (#2262).** A first sync registers a remote
+  project/build but leaves it with zero materialized missions — the SaaS
+  materializer refuses to fabricate a work package from a status event with no
+  prior create. The new command synthesizes the missing
+  `MissionCreated → WPCreated[] → WPStatusChanged[]` prefix (INV-3) from local
+  history so historical work populates the projection. `--dry-run` (default)
+  runs the whole read-only pipeline and previews the stream; `--apply` attaches
+  a sha256 provenance manifest, runs the offline envelope contract gate, then
+  server-preflights the entire stream before uploading anything (fail-closed —
+  a rejection leaves the projection untouched) and uploads in chunks.
+  Deterministic event ids make re-runs idempotent (the server dedups on
+  `event_id`). Buildable slices Y1–Y5 ship here; Y6/Y7/Y8 remain gated.
 - **Doctrine packs can now ship supporting files to consumer repos — the first
   is a docs structural-lint that keeps a project's documentation organized
   (#2302, #2864–#2867).** A doctrine pack can now carry an arbitrary
