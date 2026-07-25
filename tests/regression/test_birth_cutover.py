@@ -657,3 +657,116 @@ def test_two_target_spine_defaults_status_dir_to_feature_dir(tmp_path: Path) -> 
     assert (feature_dir / "status.events.jsonl").exists()
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta.get("status_phase") == "1"
+
+
+# ---------------------------------------------------------------------------
+# F1/F2/F3 (PR #2920 review) — the coord seed-events commit, driven against a
+# REAL coord worktree + REAL safe_commit. Before the fold this path committed a
+# COORD-partition artifact through the PRIMARY-only commit_merge_bookkeeping
+# seam (-> SafeCommitHeadMismatch, unwrapped, aborting the merge) and gated on
+# the per-run seeded_count (-> stranded on resume). No prior test drove it.
+# ---------------------------------------------------------------------------
+
+_SEED_EVENT_LINE = (
+    '{"event_id":"01JSEEDBIRTHCUTOVER0000000","at":"2026-07-25T00:00:00+00:00",'
+    '"wp_id":"WP01","from_lane":"planned","to_lane":"claimed","actor":"migration"}\n'
+)
+
+
+def _coord_seed_run(tmp_path: Path):
+    """Build a real main repo + a real coord worktree on a coord branch, with an
+    UNCOMMITTED status.events.jsonl seeded in the coord partition. Returns a
+    duck-typed run carrying only the attributes ``_commit_coord_seed_events``
+    reads (``main_repo``, ``mission_slug``, ``pre_target_coord_ref``,
+    ``canonical_events_path``), plus the coord worktree + events path.
+    """
+    import types
+    from typing import cast
+
+    from specify_cli.merge.executor import _MergeRunState
+
+    slug = "coord-seed-mission-01KYCF83TEST00000000000000"
+    main_repo = tmp_path / "repo"
+    main_repo.mkdir()
+    _git(main_repo, "init", "-b", "main")
+    _git(main_repo, "config", "user.email", "t@example.com")
+    _git(main_repo, "config", "user.name", "T")
+    (main_repo / "seed.txt").write_text("x\n", encoding="utf-8")
+    _git(main_repo, "add", "-A")
+    _git(main_repo, "commit", "-m", "init")
+    coord_branch = f"kitty/mission-{slug}-coord"
+    _git(main_repo, "branch", coord_branch)
+    coord_worktree = main_repo / ".worktrees" / f"{slug}-coord"
+    _git(main_repo, "worktree", "add", str(coord_worktree), coord_branch)
+
+    status_feature_dir = coord_worktree / "kitty-specs" / slug
+    status_feature_dir.mkdir(parents=True)
+    events_path = status_feature_dir / "status.events.jsonl"
+    events_path.write_text(_SEED_EVENT_LINE, encoding="utf-8")  # dirty, uncommitted
+
+    run = cast(
+        "_MergeRunState",
+        types.SimpleNamespace(
+            main_repo=main_repo,
+            mission_slug=slug,
+            pre_target_coord_ref=coord_branch,
+            canonical_events_path=events_path,
+        ),
+    )
+    return run, coord_worktree, status_feature_dir, coord_branch
+
+
+def test_coord_seed_commit_targets_coord_branch_no_head_mismatch(tmp_path: Path) -> None:
+    """F1: the seed events commit lands on the COORD branch via real safe_commit
+    (no SafeCommitHeadMismatch), not the PRIMARY target branch."""
+    from specify_cli.merge.executor import _commit_coord_seed_events
+
+    run, coord_worktree, status_feature_dir, coord_branch = _coord_seed_run(tmp_path)
+
+    _commit_coord_seed_events(run, status_feature_dir)
+
+    # The seed events are now committed on the coord branch (clean tree) ...
+    porcelain = _git(coord_worktree, "status", "--porcelain").stdout
+    assert porcelain.strip() == "", f"seed events not committed: {porcelain!r}"
+    # ... and the commit is on the coord branch with the reconcile subject.
+    subject = _git(coord_worktree, "log", "-1", "--pretty=%s").stdout.strip()
+    assert "birth-cutover seed events reconciled" in subject
+    tracked = _git(coord_worktree, "show", "HEAD:kitty-specs/" + run.mission_slug + "/status.events.jsonl").stdout
+    assert "01JSEEDBIRTHCUTOVER0000000" in tracked
+
+
+def test_coord_seed_commit_is_resume_safe_noop_when_clean(tmp_path: Path) -> None:
+    """F2: a second invocation (events already committed, tree clean) is a no-op
+    — gated on dirty-state, not the per-run seeded_count, so resume heals without
+    duplicating."""
+    from specify_cli.merge.executor import _commit_coord_seed_events
+
+    run, coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
+    _commit_coord_seed_events(run, status_feature_dir)
+    head_after_first = _git(coord_worktree, "rev-parse", "HEAD").stdout.strip()
+
+    _commit_coord_seed_events(run, status_feature_dir)  # resume: nothing dirty
+    head_after_second = _git(coord_worktree, "rev-parse", "HEAD").stdout.strip()
+    assert head_after_second == head_after_first  # no duplicate commit
+
+
+def test_coord_seed_commit_best_effort_never_raises(tmp_path: Path) -> None:
+    """F3: a resolution failure (no coord ref captured) is a silent no-op, never
+    an exception that would abort the merge."""
+    import types
+    from typing import cast
+
+    from specify_cli.merge.executor import _MergeRunState, _commit_coord_seed_events
+
+    run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
+    # Drop the coord ref -> the helper must no-op, not raise.
+    broken = cast(
+        "_MergeRunState",
+        types.SimpleNamespace(
+            main_repo=run.main_repo,
+            mission_slug=run.mission_slug,
+            pre_target_coord_ref=None,
+            canonical_events_path=run.canonical_events_path,
+        ),
+    )
+    _commit_coord_seed_events(broken, status_feature_dir)  # must not raise

@@ -53,8 +53,11 @@ from specify_cli.coordination.surface_resolver import (
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.paths import get_main_repo_root
+from mission_runtime import CommitTarget
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
-from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
+from specify_cli.merge.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME, logger
@@ -80,7 +83,6 @@ from specify_cli.merge.git_probes import (
     _emit_remediation_hint,
     _is_linear_history_rejection,
     _lane_already_integrated,
-    _paths_have_status_changes,
     _raw_porcelain_status,
     _refresh_primary_checkout_after_merge,
 )
@@ -1004,24 +1006,62 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
             "birth-cutover for %s did not reconcile: %s", run.mission_slug, result.error
         )
 
-    # A genuinely-seeded COORD leg (the migration-coexistence case; a
-    # born-reconciled mission always seeds 0 -- WP04/WP05 dependency) must be
-    # committed onto the coordination branch from ITS OWN worktree:
-    # ``commit_merge_bookkeeping`` above only reaches paths tracked under
-    # ``main_repo``'s working tree, never a separate coord worktree. Reuse the
-    # SAME canonical commit seam (placement-port-resolved destination), just
-    # pointed at the coord worktree root, rather than a raw git commit.
-    if result.seeded_count > 0 and status_feature_dir != run.target_feature_dir:
-        coord_worktree_root = _coord_worktree_root(run)
-        if coord_worktree_root is not None:
-            commit_merge_bookkeeping(
-                repo_root=run.main_repo,
-                worktree_root=coord_worktree_root,
-                mission_slug=run.mission_slug,
-                message=f"chore({run.mission_slug}): birth-cutover seed events reconciled",
-                paths=(status_feature_dir / _STATUS_EVENTS_FILENAME,),
-                branch=run.lanes_manifest.target_branch,
-            )
+    # Commit a genuinely-seeded COORD leg (the migration-coexistence case) onto
+    # the coordination branch from ITS OWN worktree. Gated on dirty-state (not
+    # the per-run seeded_count) so it heals on resume, targeted at the coord ref
+    # (not the primary bookkeeping seam), and best-effort — see
+    # ``_commit_coord_seed_events`` (PR #2920 review F1/F2).
+    if status_feature_dir != run.target_feature_dir:
+        _commit_coord_seed_events(run, status_feature_dir)
+
+
+def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> None:
+    """Commit birth-cutover seed events onto the coordination branch (PR #2920
+    review F1/F2 — architect / debbie / paula converged on the same block).
+
+    Closes three faults in the original inline commit:
+
+    1. **Wrong partition (F1).** ``status.events.jsonl`` is a ``STATUS_STATE`` =
+       COORD-partition artifact, but ``commit_merge_bookkeeping`` bakes
+       ``PRIMARY_METADATA`` and resolves the destination to the PRIMARY
+       ``target_branch``. Committing it from the coord worktree (HEAD = the
+       coordination branch) tripped ``safe_commit``'s HEAD-must-match-destination
+       guard → ``SafeCommitHeadMismatch``. We target the coordination ref
+       explicitly (``run.pre_target_coord_ref`` — the ref the coord worktree is
+       actually on, mirroring :func:`_revert_coord_done_commit`).
+
+    2. **Resume-heal asymmetry (F2).** The old guard ``result.seeded_count > 0``
+       is a PER-RUN delta that is 0 on ``merge --resume`` — so an interrupted
+       merge that seeded events to disk but died before this commit skipped it
+       forever on resume, stranding them uncommitted while the sticky ``flipped``
+       leg healed. We gate on the coord worktree's ACTUAL dirty state
+       (``_paths_have_status_changes``) so resume completes whichever leg is open.
+
+    3. **Fatal on failure.** The old call sat outside the best-effort ``try`` and
+       could abort an otherwise-successful merge. This helper never raises —
+       birth-cutover is best-effort (repairable via ``migrate
+       backfill-runtime-state``).
+    """
+    coord_worktree_root = _coord_worktree_root(run)
+    coord_ref = run.pre_target_coord_ref
+    if coord_worktree_root is None or not coord_ref:
+        return
+    events_path = status_feature_dir / _STATUS_EVENTS_FILENAME
+    try:
+        if not _paths_have_status_changes(coord_worktree_root, [events_path]):
+            return  # nothing seeded/uncommitted — resume-safe no-op
+        safe_commit(
+            repo_root=run.main_repo,
+            worktree_root=coord_worktree_root,
+            target=CommitTarget(ref=coord_ref),
+            message=f"chore({run.mission_slug}): birth-cutover seed events reconciled",
+            paths=(events_path,),
+            capability=GuardCapability.MERGE_BOOKKEEPING,
+        )
+    except Exception as exc:  # noqa: BLE001 — best-effort, must never abort the merge
+        logger.warning(
+            "birth-cutover coord seed commit failed for %s: %s", run.mission_slug, exc
+        )
 
 
 def _phase_porcelain_invariant(run: _MergeRunState) -> None:
@@ -1106,6 +1146,11 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
     # exercised; the birth-cutover's own genuine delta (a seed event / the
     # ``status_phase`` flip) can now be the ONLY change in an otherwise
     # status.json-less mission, surfacing it.
+    # NOTE (PR #2920 review F5): this filter is write/update-only — it drops a
+    # path that is absent on disk (a never-materialized status.json). It is NOT
+    # deletion-safe: were a future bookkeeping step to need a path REMOVED, the
+    # filter would silently skip the deletion instead of committing it. None of
+    # the current members are ever deleted during merge, so this is inert today.
     files_to_commit = [path for path in files_to_commit if path.exists()]
 
     has_bookkeeping_changes = _paths_have_status_changes(run.main_repo, files_to_commit)
