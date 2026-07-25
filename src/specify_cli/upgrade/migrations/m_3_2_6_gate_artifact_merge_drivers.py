@@ -1,4 +1,4 @@
-"""Migration 3.3.0: install the coordination gate-artifact git merge drivers (#2804).
+"""Migration 3.2.6: install the coordination gate-artifact git merge drivers (#2804).
 
 ``acceptance-matrix.json`` and ``issue-matrix.md`` are filled on the target at
 accept time and left as placeholder scaffolds on the mission branch. Under the
@@ -38,8 +38,8 @@ _DRIVERS: tuple[DriverSpec, ...] = (
 class GateArtifactMergeDriverMigration(MergeDriverSeedingMigration):
     """Install git merge drivers for acceptance-matrix.json and issue-matrix.md (#2804)."""
 
-    migration_id = "3.3.0_gate_artifact_merge_drivers"
+    migration_id = "3.2.6_gate_artifact_merge_drivers"
     description = "Install semantic git merge drivers for acceptance-matrix.json and issue-matrix.md"
-    target_version = "3.3.0"
+    target_version = "3.2.6"
     drivers = _DRIVERS
     dry_run_summary = "Would install gate-artifact merge drivers and .gitattributes entries"
