@@ -52,11 +52,20 @@ def patched_intake_command_environment(
         if mock_sources is not None:
             stack.enter_context(patched_harness_plan_sources(mock_sources))
         if tty:
-            # Patch sys as seen by the intake module so isatty() returns True.
-            # CliRunner replaces sys.stdin during invoke, so we must patch the
-            # module-level sys reference, not sys.stdin directly.
+            # #2912: the candidate picker gates on ``is_interactive()`` (single
+            # authority), not a bare ``isatty()``. CliRunner replaces sys.stdin
+            # during invoke, so the robust way to simulate an interactive
+            # terminal is the ``SPEC_KITTY_FORCE_INTERACTIVE`` escape hatch (env,
+            # immune to the stdin swap). The intake.sys mock is kept for the
+            # module's other ``sys.stdin`` use (the capped payload read).
+            stack.enter_context(
+                patch.dict("os.environ", {"SPEC_KITTY_FORCE_INTERACTIVE": "1"})
+            )
             mock_sys = stack.enter_context(patch("specify_cli.cli.commands.intake.sys"))
             mock_sys.stdin.isatty.return_value = True
         elif tty is False:
+            stack.enter_context(
+                patch.dict("os.environ", {"SPEC_KITTY_NON_INTERACTIVE": "1"})
+            )
             stack.enter_context(patch("sys.stdin.isatty", return_value=False))
         yield
