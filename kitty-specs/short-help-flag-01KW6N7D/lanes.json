@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "short-help-flag-01KW6N7D",
+  "mission_id": "01KW6N7DHT4K8Z79W5QSX17N3R",
+  "mission_branch": "kitty/mission-short-help-flag-01KW6N7D",
+  "target_branch": "feat/short-help-flag",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/agent-subcommands.md",
+        "docs/api/cli-commands.md",
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/cli/commands/__init__.py",
+        "tests/specify_cli/cli/commands/test_short_help_flag.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-28T08:39:18.950689+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
