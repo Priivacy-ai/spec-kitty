@@ -1,6 +1,6 @@
 ---
 title: "Coord-Trust Residual + Runtime-State Birth-Cutover — Mission Scope"
-description: "Pre-spec scope for one mission: close #2841's write-placement residual (Part A) so the parallel/split-brain write is fully unrepresentable, with #2917's runtime-state birth-cutover as Part B riding the settled port."
+description: "Pre-spec scope: close #2841's write-placement residual (Part A) so the split-brain write is unrepresentable, plus #2917's runtime-state birth-cutover as Part B on the settled port."
 doc_status: active
 updated: '2026-07-25'
 ---

@@ -1,6 +1,6 @@
 ---
 title: "#2917 Runtime-State Birth-Cutover — Pre-Spec Research"
-description: "Grounded findings from a 4-lens research squad on the runtime-state cutover drift (#2917): the problem, its true (inert) impact, and the solution fork the mission spec must choose between."
+description: "Grounded findings from a 4-lens research squad on the #2917 runtime-state cutover drift: the problem, its true (inert) impact, and the solution fork the spec must choose."
 doc_status: active
 updated: '2026-07-25'
 ---
