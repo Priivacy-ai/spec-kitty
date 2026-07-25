@@ -185,6 +185,21 @@ false red corrupts the signal it exists to give. Expensive QA and manual testing
 wait for green; maintainers prioritize red recovery. See the
 [red-main policy](red-main-and-release-readiness.md).
 
+### What "good first issue" means here
+
+`good first issue` is **not** a difficulty or seniority signal — this project's
+contributor base is senior by default. It marks a **good entry point into the
+codebase**: a self-contained issue that teaches a subsystem while carrying **low
+customer and blast-radius impact**, so someone new to the repo can land it
+without first absorbing deep cross-cutting context.
+
+Reach for it when an issue is well-scoped, has a clear deliverable, and touches a
+peripheral or tooling surface rather than a load-bearing one. One guardrail: if a
+`good first issue` could still alter a **blocking or shared gate** (or otherwise
+carry real blast radius despite being a good entry point), require maintainer
+concurrence on the chosen approach **before** implementation — normal PR review
+then covers the rest.
+
 ## See also
 
 - [Contributing to Spec Kitty](contributing.md) — pull-request and maintainer workflow.

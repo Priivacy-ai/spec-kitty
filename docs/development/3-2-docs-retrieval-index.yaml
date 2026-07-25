@@ -5649,6 +5649,7 @@ pages:
     - {slug: "native-type-is-the-kind-carrier", text: "Native type is the kind carrier", level: 3}
     - {slug: "priority-and-what-makes-a-p0", text: "Priority, and what makes a P0", level: 3}
     - {slug: "a-p0-bug-should-carry-a-failing-reproduction-test", text: "A P0 bug should carry a failing reproduction test", level: 3}
+    - {slug: "what-good-first-issue-means-here", text: "What \"good first issue\" means here", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/onboarding-run.md"
     title: "Onboarding Run: Priming a Co-Maintainer Mission Session"
