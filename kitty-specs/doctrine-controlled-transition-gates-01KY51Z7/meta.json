@@ -26,6 +26,7 @@
   "purpose_context": "Today Spec Kitty's transition gates (e.g. the pre-review regression check) assume the repo has pytest and Spec Kitty's own source layout, which papercuts non-pytest consumer projects and leaks an internal test-tree module path into their checkouts. This mission (half A of epic #2535) makes gates resolve through the repo's active doctrine so each project runs only the gates it activates, closing two long-standing consumer-repo defects (#2534, #2330) by construction while preserving today's behaviour on Spec Kitty itself. Executable third-party gate assets are explicitly deferred to a later mission.",
   "purpose_tldr": "Make status-transition gates declared by the repo's active doctrine instead of hardcoded to Spec Kitty's own layout, so consumer projects aren't papercut.",
   "slug": "doctrine-controlled-transition-gates-01KY51Z7",
+  "status_phase": "1",
   "target_branch": "feat/doctrine-controlled-transition-gates",
   "topology": "coord",
   "vcs": "git",

@@ -27,6 +27,7 @@
   "purpose_context": "Post-#2851 the anti-sprawl ratchet that kept docs/ structured was retired, and a docs-wide concern audit found point-in-time artifacts, a split-brain shadow tree, and an incomplete section index misfiled across the tree. This mission redistributes the misfiled subset to canonical concern-homes and codifies the concern taxonomy as doctrine plus a scripts/docs lint that replaces the retired ratchet, so docs stay legible to contributors and maintainers without mechanical drift.",
   "purpose_tldr": "Make docs/ structurally sane — every file in its canonical concern-home — and add a durable guard so it stays that way.",
   "slug": "docs-structural-sanity-01KY53KJ",
+  "status_phase": "1",
   "target_branch": "docs/common-docs-section-audit",
   "topology": "coord",
   "vcs": "git",

@@ -26,6 +26,7 @@
   "purpose_context": "Charter, doctrine, and glossary already expose --json retrieval; Common Docs is the last canonical knowledge home with no query API. This mission adds a generated, freshness-gated docs index + a glossary-shaped query CLI, reusing the existing inventory_lockfile generator/gate + the glossary query pattern rather than new infra. Move 3 of docs/plans/engineering-notes/agent-knowledge-canonical-homes.md.",
   "purpose_tldr": "Give agents and harnesses a first-class 'spec-kitty docs query --json' retrieval surface over Common Docs (title + heading-anchor + abstract index), closing the one canonical-knowledge gap that still requires ad-hoc file globbing.",
   "slug": "common-docs-query-01KY541A",
+  "status_phase": "1",
   "target_branch": "feat/agent-knowledge-canonical-homes",
   "topology": "coord",
   "vcs": "git",

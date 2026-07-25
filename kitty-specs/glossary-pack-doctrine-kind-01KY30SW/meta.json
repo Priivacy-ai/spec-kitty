@@ -26,6 +26,7 @@
   "purpose_context": "Spec Kitty's canonical terminology lives in a runtime seed file today. This mission promotes it to a first-order doctrine artefact: a new GLOSSARY_PACK ArtifactKind with a built-in spec-kitty-core pack carrying the 104 canonical terms. It is the keystone of the glossary doctrine overhaul program, unblocking the executable-enforcement and runtime-retirement missions that follow.",
   "purpose_tldr": "Make the glossary a first-order, activatable doctrine artefact by adding a GLOSSARY_PACK kind and shipping the canonical terms as a built-in pack.",
   "slug": "glossary-pack-doctrine-kind-01KY30SW",
+  "status_phase": "1",
   "target_branch": "research/glossary-doctrine-artefact",
   "topology": "coord",
   "vcs": "git",
