@@ -19,6 +19,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **CLI UX: shell autocompletion, a `-h` short-help alias, and alphabetical
+  command listing (#2232, #2234, #2235).** Three additive quality-of-life
+  improvements to the `spec-kitty` command surface, with no behavior change to
+  existing commands:
+  - **Shell autocompletion** is now enabled (`--install-completion` /
+    `--show-completion`), with a latency-safe fast path: every TAB press serves
+    command/subcommand candidates from a small committed manifest
+    (`_completion_manifest.json`) instead of importing the whole command tree,
+    cutting completion invocation latency from roughly 812 ms to about 76 ms. A
+    drift-guard test keeps the manifest in sync with the live command tree.
+  - **`-h` is accepted as an alias for `--help`** across the root command and
+    every subcommand.
+  - **The root `--help` command list is now sorted alphabetically**, and a bare
+    `spec-kitty` invocation renders the same ordered help.
 - **Doctrine packs can now ship supporting files to consumer repos — the first
   is a docs structural-lint that keeps a project's documentation organized
   (#2302, #2864–#2867).** A doctrine pack can now carry an arbitrary
