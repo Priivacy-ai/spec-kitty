@@ -52,6 +52,10 @@ from specify_cli.cli.commands import _apply_short_help_options
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
+from tests.specify_cli.cli.commands._help_snapshot import (
+    force_wide_help_console,
+    normalize_help,
+)
 
 # Every test in this file drives the ``app`` object in-process via
 # ``CliRunner`` — no subprocess, no git — so it is a sub-second ``fast`` test
@@ -69,10 +73,20 @@ FIXTURES = Path(__file__).parent / "fixtures" / "tasks_cli"
 HELP_FIXTURES = FIXTURES / "help"
 JSON_FIXTURES = FIXTURES / "json"
 
-# Fixed terminal width keeps Rich's help rendering deterministic across
-# machines, terminal sizes, and CI; it must match the width used to generate
-# the committed help fixtures.
-HELP_ENV = {"COLUMNS": "100", "TERM": "dumb", "NO_COLOR": "1"}
+
+@pytest.fixture(autouse=True)
+def _wide_help_console(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force wrap-free, colourless ``--help`` rendering so the help fixtures are
+    width-invariant.
+
+    Rich sizes ``--help`` to the ambient terminal, and on the TTY-less CI path it
+    falls back to 80 columns while ignoring ``COLUMNS`` — so a fixed ``COLUMNS``
+    env pin (the previous approach) disagreed between local and CI wrap points.
+    Pinning the help console to a fixed wide, colour-free size removes the
+    ambient terminal from the comparison entirely; :func:`normalize_help` then
+    collapses each option/usage entry to one logical line.
+    """
+    force_wide_help_console(monkeypatch)
 
 # The 9 frozen commands (CONTRACT-1).
 COMMANDS = (
@@ -164,19 +178,19 @@ def test_top_level_help_lists_exactly_the_nine_commands() -> None:
 
 
 def test_group_help_matches_golden_fixture() -> None:
-    result = runner.invoke(app, ["--help"], env=HELP_ENV)
+    result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     fixture = (HELP_FIXTURES / "_group.help").read_text(encoding="utf-8")
-    assert result.stdout == fixture
+    assert normalize_help(result.stdout) == fixture.splitlines()
 
 
 @pytest.mark.parametrize("command", COMMANDS)
 def test_command_help_matches_golden_fixture(command: str) -> None:
-    """CONTRACT-2 (text): each command's rendered help is byte-frozen."""
-    result = runner.invoke(app, [command, "--help"], env=HELP_ENV)
+    """CONTRACT-2 (text): each command's rendered help is frozen (width-invariant)."""
+    result = runner.invoke(app, [command, "--help"])
     assert result.exit_code == 0, result.stdout
     fixture = (HELP_FIXTURES / f"{command}.help").read_text(encoding="utf-8")
-    assert result.stdout == fixture
+    assert normalize_help(result.stdout) == fixture.splitlines()
 
 
 def test_help_fixtures_avoid_dependabot_requirements_trap() -> None:
