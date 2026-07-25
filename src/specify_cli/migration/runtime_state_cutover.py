@@ -116,6 +116,16 @@ def _flip_phase(feature_dir: Path) -> None:
 
     Idempotent: short-circuits when the phase is already snapshot-authority, so a
     re-run writes zero bytes (INV-4).
+
+    NOTE (PR #2920 review F2): the write lands on ``feature_dir`` directly rather
+    than through ``resolve_placement_only(PRIMARY_METADATA)``. It coincides with
+    the port's PRIMARY answer only because every current caller passes a PRIMARY
+    dir (the merge birth-cutover passes ``run.target_feature_dir``; the backfill
+    passes each corpus mission's primary dir). Routing this write through the
+    port so PRIMARY-correctness is ENFORCED (not caller-guaranteed) — and then
+    narrowing the ``src/specify_cli/migration/`` gate carve-out — is deferred to a
+    follow-up, since it must be validated across the whole backfill corpus (FR-007)
+    without regressing the flip of genuinely-legacy missions.
     """
     target = canonicalize_feature_dir(feature_dir)
     meta = load_meta(target, allow_missing=True, on_malformed="raise") or {}

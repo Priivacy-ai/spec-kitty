@@ -105,7 +105,7 @@ A maintainer can detect and safely repair a mission whose bookkeeping content ha
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Whole-tree coverage | The write-placement enforcement scans 100% of `src/` Python modules with no module-level allowlist; a synthetic bypass added to any module reds the gate. Any sanctioned-primitive exclusion is individually justified inline. | Coverage | High | Open |
+| NFR-001 | Whole-tree coverage | The write-placement enforcement scans 100% of `src/` Python modules with no module-level allowlist, except three retained sanctioned SUBTREE carve-outs (`src/mission_runtime/` — the placement port cannot be scanned by its own gate; `src/specify_cli/upgrade/migrations/` and `src/specify_cli/migration/` — one-time migration code); a synthetic bypass added to any non-carve-out module reds the gate. Per-primitive exclusions are individually justified inline; narrowing the two `migration*` subtrees to per-file entries is deferred (follow-up — see PR #2920). | Coverage | High | Open |
 | NFR-002 | Fail-loud on mismatch | A read or write to the wrong partition raises a typed error; zero advisory-only mismatch paths remain for routed sites. | Correctness | High | Open |
 | NFR-003 | Idempotency | The birth-cutover and the one-time backfill are idempotent: a second run seeds 0 events and leaves `status_phase` and the event log byte-identical (deterministic seed IDs namespaced on immutable `mission_id`). | Reliability | High | Open |
 | NFR-004 | No write-side regression | The existing coord-trust write-side gates (`test_no_write_side_rederivation`, `test_safe_commit_import_boundary`, `test_write_surface_placement_guard`) remain green. | Reliability | High | Open |
@@ -133,7 +133,7 @@ A maintainer can detect and safely repair a mission whose bookkeeping content ha
 ### Measurable Outcomes
 
 - **SC-001**: `test_dogfood_corpus_backfilled` passes on `main` and **stays green after at least 3 subsequent mission merges** with no manual backfill (no re-drift).
-- **SC-002**: A synthetic non-seam-derived mission-artifact write added to **any** `src/` module reds the whole-tree enforcement gate (100% coverage; previously invisible outside the 17-module allowlist). *(FR-001, and FR-002/FR-003's now-routed writers fall under the same whole-tree gate.)*
+- **SC-002**: A synthetic non-seam-derived mission-artifact write added to any `src/` module **outside the three sanctioned subtree carve-outs** (see NFR-001) reds the whole-tree enforcement gate (previously invisible outside the 17-module allowlist). *(FR-001, and FR-002/FR-003's now-routed writers fall under the same whole-tree gate.)*
 - **SC-003**: A mission-artifact read from the wrong partition fails loud with a typed error in **100% of routed read sites** (zero silent substitutions).
 - **SC-004**: `agent mission repair` detects and repairs a synthetically-injected pre-existing content split-brain forward-only with **zero data loss**, and refuses (with a diff) on genuine divergence.
 - **SC-005**: A mission taken create→implement→merge lands `status_phase>=1` + `verify_backfill().ok` + non-empty snapshot with **no manual backfill invocation**.
