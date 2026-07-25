@@ -557,6 +557,27 @@ _Mission lifecycle commands for AI agents_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty agent mission repair
+
+```
+ Usage: spec-kitty agent mission repair [OPTIONS]
+
+ Detect and forward-only repair a pre-existing cross-partition content
+ split-brain for one mission (FR-005, NFR-005).
+
+ Fast-forwards under strict-ancestor + clean worktree, zero data loss.
+ Refuses with a unified diff (scoped to the mission's own content) and
+ mutates NOTHING on genuine (non-ancestor) divergence.
+
+ Examples:
+     spec-kitty agent mission repair --mission 020-my-mission
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission        TEXT  Mission slug/handle to repair [required]           │
+│    --help                 Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty agent mission branch-context
 
 ```

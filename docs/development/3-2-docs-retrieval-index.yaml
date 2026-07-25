@@ -2561,6 +2561,7 @@ pages:
     - {slug: "spec-kitty-agent-decision-verify", text: "spec-kitty agent decision verify", level: 2}
     - {slug: "spec-kitty-agent-mission", text: "spec-kitty agent mission", level: 2}
     - {slug: "spec-kitty-agent-mission-accept", text: "spec-kitty agent mission accept", level: 2}
+    - {slug: "spec-kitty-agent-mission-repair", text: "spec-kitty agent mission repair", level: 2}
     - {slug: "spec-kitty-agent-mission-branch-context", text: "spec-kitty agent mission branch-context", level: 2}
     - {slug: "spec-kitty-agent-mission-check-prerequisites", text: "spec-kitty agent mission check-prerequisites", level: 2}
     - {slug: "spec-kitty-agent-mission-create", text: "spec-kitty agent mission create", level: 2}
@@ -8034,7 +8035,7 @@ pages:
   - path: "docs/plans/engineering-notes/2841-residual-2917-mission-scope.md"
     title: "Coord-Trust Residual + Runtime-State Birth-Cutover — Mission Scope"
     divio_type: "none"
-    abstract: "Pre-spec scope for one mission: close #2841's write-placement residual (Part A) so the parallel/split-brain write is fully unrepresentable, with #2917's runtime-state birth-cutover as Part B riding the settled port."
+    abstract: "Pre-spec scope: close #2841's write-placement residual (Part A) so the split-brain write is unrepresentable, plus #2917's runtime-state birth-cutover as Part B on the settled port."
     anchors:
     - {slug: "what-2874-already-closed-so-we-don-t-re-spec-it", text: "What #2874 already closed (so we don't re-spec it)", level: 2}
     - {slug: "the-residual-why-the-parallel-write-is-not-fully-closed", text: "The residual — why the parallel write is not *fully* closed", level: 2}
@@ -8042,12 +8043,12 @@ pages:
     - {slug: "part-a-coord-trust-write-placement-residual-closure", text: "Part A — coord-trust write-placement residual closure", level: 3}
     - {slug: "part-b-2917-runtime-state-birth-cutover-option-c-rides-the-settled-port", text: "Part B — #2917 runtime-state birth-cutover (Option C), rides the settled port", level: 3}
     - {slug: "scope-boundary-vs-1619-do-not-creep", text: "Scope boundary vs #1619 (do NOT creep)", level: 2}
-    - {slug: "the-decision-for-the-operator", text: "The decision for the operator", level: 2}
+    - {slug: "operator-decision-2026-07-25-maximal-residual-closure", text: "Operator decision (2026-07-25): **maximal residual closure**", level: 2}
     - {slug: "key-files", text: "Key files", level: 2}
   - path: "docs/plans/engineering-notes/2917-runtime-state-birth-cutover-research.md"
     title: "#2917 Runtime-State Birth-Cutover — Pre-Spec Research"
     divio_type: "none"
-    abstract: "Grounded findings from a 4-lens research squad on the runtime-state cutover drift (#2917): the problem, its true (inert) impact, and the solution fork the mission spec must choose between."
+    abstract: "Grounded findings from a 4-lens research squad on the #2917 runtime-state cutover drift: the problem, its true (inert) impact, and the solution fork the spec must choose."
     anchors:
     - {slug: "tl-dr-the-decision-you-actually-have-to-make", text: "TL;DR — the decision you actually have to make", level: 2}
     - {slug: "the-problem-converged-high-confidence", text: "The problem (converged, high confidence)", level: 2}
