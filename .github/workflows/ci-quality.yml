@@ -2913,7 +2913,9 @@ jobs:
   # It is EXPECTED to be red while open P0s exist — that red is the honest,
   # tracked, release-gating signal, never retried to green; maintainers clear it
   # by fixing the product defect. Tolerates pytest exit code 5 (no regression
-  # tests currently registered) as green.
+  # tests currently registered) as green, and labels exit code 3 (pytest
+  # INTERNALERROR — crashed, nothing ran) as the distinct condition it is
+  # rather than letting it read as a failing reproduction (#2927).
   # ---------------------------------------------------------------------------
   regression-tests:
     name: regression tests (blocking)
@@ -2942,6 +2944,21 @@ jobs:
           if [ "$ec" -eq 5 ]; then
             echo "::notice::No regression red-first reproductions are currently registered (-m regression collected nothing)."
             exit 0
+          fi
+          if [ "$ec" -eq 3 ]; then
+            # Exit 3 is pytest's INTERNALERROR: it crashed (typically during
+            # collection) and NO test ran. Left unlabeled this is indistinguishable
+            # from exit 1 (a real red-first reproduction failing), which sends the
+            # reader hunting for a product defect in whatever subsystem their branch
+            # touched — see #2927, where that cost a full triage pass. Still fails
+            # the job (honest red); it just says what kind of red it is, and leaves
+            # the evidence attached so the next occurrence is diagnosable.
+            echo "::error::pytest INTERNALERROR (exit 3) — the suite CRASHED and no test ran. This is NOT a regression-test failure and says nothing about correctness either way. See #2927."
+            echo "--- resolved pytest/plugin versions ---"
+            python -m pip freeze | grep -Ei "^(pytest|pluggy|iniconfig)" || true
+            echo "--- plugin registration + collection attempt (diagnostic only) ---"
+            python -m pytest tests/ -m regression -p no:cacheprovider --collect-only -q 2>&1 | tail -40 || true
+            exit "$ec"
           fi
           exit "$ec"
 
