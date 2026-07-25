@@ -2612,6 +2612,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/2841-residual-2917-mission-scope.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2917-runtime-state-birth-cutover-research.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/3-2-0-training-bugs-2007/SYNTHESIS-2007.md
   tag: current
   divio_type: none
