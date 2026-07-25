@@ -1,0 +1,49 @@
+{
+  "mission_slug": "alphabetical-command-listing-01KW6N8W",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_root_command_order.py -q (3 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:49:00Z",
+      "notes": "FR-001 verified by focused root command ordering regression tests, including bare root invocation output."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_root_command_order.py -q (3 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:49:00Z",
+      "notes": "FR-002 verified by focused root command ordering regression tests, including full visible command-list preservation."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_root_command_order.py -q (3 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:49:00Z",
+      "notes": "FR-003 verified by focused root command ordering regression tests."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_root_command_order.py -q (3 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:49:00Z",
+      "notes": "FR-004 verified by focused root command ordering regression tests."
+    }
+  ],
+  "negative_invariants": []
+}
