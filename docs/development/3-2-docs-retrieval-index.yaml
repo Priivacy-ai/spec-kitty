@@ -8370,6 +8370,24 @@ pages:
     - {slug: "runner-up-1827-merge-baseline-circular-failure", text: "Runner-up: **#1827 (merge baseline circular failure)**", level: 3}
     - {slug: "the-neutral-cycle-shape-lead-parallel-tracks-since-3-2-x-ships-emergent-patches", text: "The neutral cycle shape (lead + parallel tracks, since 3.2.x ships emergent patches)", level: 3}
     - {slug: "5-top-3-dependency-note-single-recommendation-the-message-back", text: "5. Top-3 + dependency note + single recommendation (the message back)", level: 2}
+  - path: "docs/plans/engineering-notes/3.2.6-maintenance-brief.md"
+    title: "3.2.6 Maintenance Brief"
+    divio_type: "none"
+    abstract: "Maintainer-facing status of the 3.2.6 development cycle — what shipped, where main@head stands, and the in-flight work lines."
+    anchors:
+    - {slug: "1-where-main-stands-right-now", text: "1. Where `main` stands right now", level: 2}
+    - {slug: "2-what-shipped-in-3-2-6-so-far", text: "2. What shipped in 3.2.6 so far", level: 2}
+    - {slug: "doctrine-is-now-shippable-and-forkable", text: "Doctrine is now shippable and forkable", level: 3}
+    - {slug: "lifecycle-gates-stopped-guessing", text: "Lifecycle gates stopped guessing", level: 3}
+    - {slug: "wp-state-is-a-single-event-sourced-authority", text: "WP state is a single event-sourced authority", level: 3}
+    - {slug: "automation-non-interactive-robustness", text: "Automation / non-interactive robustness", level: 3}
+    - {slug: "coordination-merge-integrity", text: "Coordination / merge integrity", level: 3}
+    - {slug: "docs-dashboard", text: "Docs & dashboard", level: 3}
+    - {slug: "3-work-in-flight", text: "3. Work in flight", level: 2}
+    - {slug: "ready-to-merge-open-prs-operator-merges", text: "Ready-to-merge / open PRs (operator merges)", level: 3}
+    - {slug: "internal-work-lines-roadmap-context-not-all-pr-backed-yet", text: "Internal work lines (roadmap context — not all PR-backed yet)", level: 3}
+    - {slug: "4-what-this-means-for-the-stabilization-partial-code-freeze", text: "4. What this means for the stabilization partial code freeze", level: 2}
+    - {slug: "5-what-a-maintainer-should-know", text: "5. What a maintainer should know", level: 2}
   - path: "docs/plans/engineering-notes/651-docs-consolidation/02-common-docs-standard.md"
     title: "Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict"
     divio_type: "none"
