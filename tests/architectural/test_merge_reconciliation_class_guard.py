@@ -251,17 +251,61 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
     }
 
 
+# Directory-kind coordination residues that are human-authored planning
+# collections (WP03 task files / checklists): each WP's ``tasks/WPNN-*.md`` /
+# ``checklists/*.md`` is authored once and never independently edited on the
+# target side, so a stale mission-side copy is not both-sides-divergent
+# bookkeeping -- ``-X theirs`` keeping the mission copy is correct and no
+# reconcile driver is needed. Coord-write-placement-closure-01KYCF83 WP02
+# (FR-006) added a THIRD directory-kind residue, ``traces`` (mission tracer
+# files, ``MissionArtifactKind.TRACER_FILE``): tracer files are seeded at
+# PLANNING and then APPENDED to during EVERY lane's implement loop (mission
+# tracer files, #2095) -- when multiple lanes append to the SAME tracer file,
+# the mission and target sides both accumulate independent, non-overlapping
+# appends, which IS both-sides-divergent bookkeeping (the exact #2709 shape
+# a blind ``-X theirs`` would clobber). This is why the pre-existing
+# ``spec-kitty-traces`` order-preserving union merge driver
+# (``merge_driver.py::merge_driver_traces``) already covers
+# ``kitty-specs/**/traces/*.md`` across all four seeding surfaces (registry /
+# .gitattributes / init seed / upgrade migration, T013b below) -- traces is
+# divergent, not human-source, and its driver already exists; this dir set
+# only needed WP02's classification decision documented, not new plumbing.
+_NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset({"tasks", "checklists"})
+
+
 def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
     """T013 completeness (catches self-mutation (b) — a NEW canonical artifact with
     no driver): every both-sides-divergent canonical ``kitty-specs/**`` artifact in
     the mission-artifact-kind registry MUST carry a registered merge driver, else a
     future ``git merge --squash -X theirs`` silently re-inherits #2709. Fail-closed:
     a registry artifact not in ``_NON_DIVERGENT_CANONICAL_ARTIFACTS`` is required to
-    have a driver."""
+    have a driver.
+
+    Directory-kind residues (``_COORD_RESIDUE_DIRS``) split into the SAME two
+    buckets as file artifacts: human-authored/non-divergent
+    (``_NON_DIVERGENT_COORD_RESIDUE_DIRS`` -- ``tasks``/``checklists``) vs.
+    both-sides-divergent (``traces`` -- WP02/FR-006's ``TRACER_FILE``
+    classification), fail-closed: a THIRD, unclassified residue directory
+    reds here rather than silently passing.
+    """
     registered_patterns = set(_gitattributes_merge_drivers())
-    # Directory kinds are human-authored planning collections (WORK_PACKAGE_TASK,
-    # CHECKLIST) — not both-sides-divergent bookkeeping.
-    assert set(_COORD_RESIDUE_DIRS) == {"tasks", "checklists"}
+    divergent_dirs = set(_COORD_RESIDUE_DIRS) - _NON_DIVERGENT_COORD_RESIDUE_DIRS
+    assert _NON_DIVERGENT_COORD_RESIDUE_DIRS | divergent_dirs == set(_COORD_RESIDUE_DIRS)
+    assert divergent_dirs == {"traces"}, (
+        "a new coordination-residue directory kind appeared in "
+        "_COORD_RESIDUE_DIRS that this guard does not yet classify -- add it "
+        "to _NON_DIVERGENT_COORD_RESIDUE_DIRS (human-authored, single-writer) "
+        "or confirm it registers a union merge driver below (both-sides-"
+        f"divergent), never silently: {sorted(divergent_dirs)}"
+    )
+    for residue_dir in divergent_dirs:
+        pattern = f"kitty-specs/**/{residue_dir}/*.md"
+        assert pattern in registered_patterns, (
+            f"coordination-residue directory {residue_dir!r} is classified "
+            "both-sides-divergent bookkeeping but carries no registered merge "
+            f"driver for {pattern!r} in root .gitattributes -- it re-inherits "
+            "#2709 under `git merge --squash -X theirs`."
+        )
 
     uncovered: list[str] = []
     for glob, kind in _canonical_artifact_file_globs().items():

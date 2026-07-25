@@ -20,10 +20,19 @@ from typing import Any
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.time_utils import now_utc_iso
 
-from mission_runtime import CommitTarget
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    MissionArtifactKind,
+    resolve_placement_only,
+)
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
+from specify_cli.missions._read_path_resolver import (
+    StatusReadPathNotFound,
+    candidate_feature_dir_for_mission,
+)
 from runtime.next._internal_runtime.events import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
@@ -43,6 +52,29 @@ from runtime.next._internal_runtime.significance import (
 __all__ = ["DecisionGitLog"]
 
 logger = logging.getLogger(__name__)
+
+
+def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
+    """Return True when ``mission_slug`` has a primary ``meta.json`` on disk.
+
+    A cheap, read-only existence gate — NOT a ref derivation — that
+    distinguishes a genuinely bootstrapped mission from an ad-hoc fixture or
+    the create→first-write window. ``resolve_placement_only`` never raises
+    for a merely-absent mission (:func:`candidate_feature_dir_for_mission`'s
+    own contract): it silently degrades to the repo's generic default branch
+    instead of signalling unresolvability, so this gate is checked BEFORE
+    consulting the classifier rather than relying on an exception that would
+    never fire.
+    """
+    try:
+        # Explicit ``Path`` annotation: under the project's
+        # ``follow_imports = "skip"`` mypy config the cross-module
+        # ``candidate_feature_dir_for_mission`` return is seen as ``Any``; the
+        # annotation re-narrows it (the function IS typed ``-> Path``).
+        candidate: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    except Exception:  # noqa: BLE001 — any resolution hiccup means "not resolvable"
+        return False
+    return (candidate / "meta.json").exists()
 
 
 def _generate_event_id() -> str:
@@ -86,23 +118,66 @@ class DecisionGitLog:
         self._worktree_root = worktree_root
         self._destination_ref = destination_ref
         self._mission_slug = mission_slug
+        # FR-001: validate mission_slug before joining into a FS path (traversal
+        # guard) — validated FIRST so an unsafe slug fails closed with ValueError
+        # before any placement resolution (below) is attempted on it.
+        _safe_slug = assert_safe_path_segment(mission_slug)
         # T010: the CommitTarget is resolved by the calling surface
         # (runtime_bridge) which knows the coordination topology — it is passed
         # in, not re-derived here. When a legacy caller supplies only the string
-        # destination_ref, fall back to a ref-only target on that ref: the decision
-        # log always lands on the per-mission coordination branch, and safe_commit
-        # reads only ``target.ref`` (the vestigial ``.kind`` carrier is dropped,
-        # WP04 drain; the VO field defaults transitionally until WP16 removes it).
-        self._target = target or CommitTarget(ref=destination_ref)
+        # destination_ref (no injected ``target``), the DEFAULT is now derived
+        # through the placement port (coord-write-placement-closure-01KYCF83
+        # WP03 / FR-003) instead of trusting the ambient ``destination_ref``
+        # verbatim: ``decisions.events.jsonl`` classifies to ``DECISION_LOG`` (a
+        # COORD-partition kind, WP02), so ``resolve_placement_only`` resolves the
+        # SAME coordination-branch ref the classifier owns — never a re-derivation
+        # inline here. Only when the mission cannot be resolved (no meta.json yet,
+        # or an ad-hoc fixture outside a resolvable mission) does this degrade to
+        # the ambient ``destination_ref`` — mirroring the established degrade-path
+        # idiom in ``coordination.status_transition._resolve_write_target``.
+        self._target = target or self._resolve_default_target(
+            repo_root, mission_slug, destination_ref
+        )
         # WP04/FR-004: mission_id must be a ULID or None (fail-closed). Never
         # substitute the slug — a slug in a mission_id field is a contract violation.
         self._mission_id = mission_id
         self._inner = inner
-        # FR-001: validate mission_slug before joining into a FS path (traversal guard).
-        _safe_slug = assert_safe_path_segment(mission_slug)
         self._decisions_file = (
             worktree_root / KITTY_SPECS_DIR / _safe_slug / "decisions.events.jsonl"
         )
+
+    @staticmethod
+    def _resolve_default_target(
+        repo_root: Path, mission_slug: str, destination_ref: str
+    ) -> CommitTarget:
+        """Derive the default commit target via the placement port (FR-003).
+
+        ``decisions.events.jsonl`` is the ``DECISION_LOG`` kind (a
+        COORD-partition kind, WP02) — ``resolve_placement_only`` resolves the
+        SAME coordination-branch ref the classifier already owns.
+
+        Degrades to the caller-supplied ``destination_ref`` in two cases:
+
+        1. The mission has no primary ``meta.json`` on disk yet (the
+           create→first-write window, or an ad-hoc fixture outside a
+           resolvable mission). ``resolve_placement_only`` does NOT raise for
+           a merely-absent mission — it silently falls through to the repo's
+           generic default branch — so this is an explicit existence gate,
+           not a ref re-derivation, mirroring
+           ``coordination.status_transition._resolve_write_target``'s
+           documented bootstrap-window degrade.
+        2. Resolution raises anyway (a harder failure mode — e.g. an
+           ambiguous/malformed mission) — the same exception classes
+           ``_resolve_write_target`` catches.
+        """
+        if not _mission_meta_exists(repo_root, mission_slug):
+            return CommitTarget(ref=destination_ref)
+        try:
+            return resolve_placement_only(
+                repo_root, mission_slug, kind=MissionArtifactKind.DECISION_LOG
+            )
+        except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
+            return CommitTarget(ref=destination_ref)
 
     # ------------------------------------------------------------------
     # Decision event methods (git-logged)

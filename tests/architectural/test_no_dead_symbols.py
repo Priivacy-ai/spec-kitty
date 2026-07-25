@@ -655,7 +655,11 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands.merge::BaselineMergeCommitError (escalated: live collision)
         SymbolKey("BaselineMergeCommitError", "f63bb04588cfd7df1144a1e646283b39e2bcc28ae152b07a0799b34f0f91c65b", module_path="specify_cli.cli.commands.merge"),
         # specify_cli.merge.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
-        SymbolKey("_assert_status_surface_file_path_is_trusted", "d0447f87156c6860ac0a96338fe409aeda51ea18cf317fdc4430fd32945778cd"),
+        # (coord-write-placement-closure-01KYCF83 WP03 / FR-003 rehash: the
+        # filename-trust check now classifies via kind_for_mission_file instead
+        # of a hardcoded {filename1, filename2} membership test -- body changed,
+        # content-tier hash re-pinned.)
+        SymbolKey("_assert_status_surface_file_path_is_trusted", "4849bba669d427bc0cdb0a72f77dc821f821b979edd3293e9ea5f1d6e0fe6d62"),
         # specify_cli.merge.bookkeeping_projection::_read_optional_bytes
         SymbolKey("_read_optional_bytes", "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8"),
         # specify_cli.merge.bookkeeping_projection::_restore_optional_bytes

@@ -336,6 +336,10 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.STATUS_STATE,
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
+        # coord-write-placement-closure-01KYCF83 WP02 (FR-003, FR-006): newly
+        # classified COORD-partition kinds.
+        MissionArtifactKind.DECISION_LOG,
+        MissionArtifactKind.TRACER_FILE,
     }
     # Sanity: the two sets partition the whole enum exactly once.
     assert primary_kinds | coord_kinds == set(MissionArtifactKind)
@@ -520,6 +524,20 @@ PARTITION_RATIONALE: dict[MissionArtifactKind, tuple[_Partition, str, str]] = {
         "The writer + freshness gate + SSOT now agree on the primary target_branch; a "
         "stale primary copy is REAL dirt, never coord residue.",
         "record-analysis writer + freshness-hash gate (needs PRIMARY spec/plan/tasks)",
+    ),
+    MissionArtifactKind.DECISION_LOG: (
+        "COORD",
+        "coord-write-placement-closure-01KYCF83 WP02 (FR-003): decisions.events.jsonl "
+        "is coordination-owned bookkeeping (the decision-log event stream); a stale "
+        "primary copy is coordination residue, not real dirt.",
+        "events/decision_log.py DecisionGitLog",
+    ),
+    MissionArtifactKind.TRACER_FILE: (
+        "COORD",
+        "coord-write-placement-closure-01KYCF83 WP02 (FR-006): traces/ (mission "
+        "tracer files) is doctrine-correct COORD -- the prior unclassified state "
+        "made it residue-invisible.",
+        "mission-tracer-files procedure / retrospective generator traces ingest",
     ),
 }
 

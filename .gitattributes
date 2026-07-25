@@ -1,4 +1,5 @@
 kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log
+kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log
 kitty-specs/**/meta.json merge=spec-kitty-meta
 kitty-specs/**/traces/*.md merge=spec-kitty-traces
 kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix

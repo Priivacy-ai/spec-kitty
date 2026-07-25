@@ -85,6 +85,15 @@ class MissionArtifactKind(enum.Enum):
     # ``kitty-specs/<slug>/`` home for EVERY topology and never transits the
     # coordination branch.
     RETROSPECTIVE = "retrospective"
+    # coord-write-placement-closure-01KYCF83 WP02 (FR-003): decisions.events.jsonl
+    # (the decision-log event stream, ``events/decision_log.py``) is a
+    # COORD-partition kind (member of ``_PLACEMENT_ARTIFACT_KINDS``) -- it is
+    # coordination-owned bookkeeping, never a PRIMARY planning/identity artifact.
+    DECISION_LOG = "decision_log"
+    # coord-write-placement-closure-01KYCF83 WP02 (FR-006): traces/ (mission
+    # tracer files) is a COORD-partition kind -- doctrine-correct classification
+    # corrects the prior unclassified (residue-invisible) state.
+    TRACER_FILE = "tracer_file"
 
 
 @dataclass(frozen=True)
@@ -165,6 +174,11 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         MissionArtifactKind.ACCEPTANCE_MATRIX,
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.STATUS_STATE,
+        # coord-write-placement-closure-01KYCF83 WP02 (FR-003, FR-006): newly
+        # classified COORD-partition kinds -- see the enum member docstrings
+        # above for the per-kind rationale.
+        MissionArtifactKind.DECISION_LOG,
+        MissionArtifactKind.TRACER_FILE,
     }
 )
 
@@ -202,11 +216,18 @@ _MISSION_FILE_KIND_BY_BASENAME: dict[str, MissionArtifactKind] = {
     # ``WORK_PACKAGE_TASK`` partition. Listing it here makes that partition
     # DERIVABLE from the basename rather than caller-asserted at the read site.
     "baseline-tests.json": MissionArtifactKind.WORK_PACKAGE_TASK,
+    # coord-write-placement-closure-01KYCF83 WP02 (FR-003): decisions.events.jsonl
+    # is the decision-log event stream (``events/decision_log.py``) -- a
+    # COORD-partition kind (see ``_PLACEMENT_ARTIFACT_KINDS``).
+    "decisions.events.jsonl": MissionArtifactKind.DECISION_LOG,
 }
 
 _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     "tasks": MissionArtifactKind.WORK_PACKAGE_TASK,
     "checklists": MissionArtifactKind.CHECKLIST,
+    # coord-write-placement-closure-01KYCF83 WP02 (FR-006): traces/ (mission
+    # tracer files) is a COORD-partition kind (see ``_PLACEMENT_ARTIFACT_KINDS``).
+    "traces": MissionArtifactKind.TRACER_FILE,
 }
 
 
@@ -215,20 +236,17 @@ def artifact_home_for(
     placement_ref: CommitTarget,
 ) -> MissionArtifactHome:
     """Resolve the artifact-home contract for ``kind`` under ``placement_ref``."""
-    if kind is MissionArtifactKind.PRIMARY_METADATA:
-        return MissionArtifactHome(
-            kind=kind,
-            read_surface=TopologySurface.PRIMARY,
-            write_surface=TopologySurface.PRIMARY,
-            commit_target=None,
-        )
-
     # FR-002 / FR-004: planning + identity kinds resolve to the PRIMARY surface.
-    # This arm runs AFTER the read-anchored ``PRIMARY_METADATA`` arm above (which
-    # is also a ``_PRIMARY_ARTIFACT_KINDS`` member) so metadata keeps its
-    # never-committed-through-a-ref ``commit_target=None`` contract; the primary
-    # planning kinds DO carry the resolved primary ``placement_ref`` as their
-    # commit target. The returned shape is unchanged (NFR-004 / G-5).
+    # coord-write-placement-closure-01KYCF83 WP02 (T006): ``PRIMARY_METADATA``
+    # no longer gets a special-case ``commit_target=None`` arm ahead of this
+    # one -- it is a ``_PRIMARY_ARTIFACT_KINDS`` member like every other primary
+    # planning kind, so it now falls through here and carries the resolved
+    # ``placement_ref`` as its commit target too, making meta writes routable
+    # through the port (``write_meta`` / ``_flip_phase`` / `_bake_mission_number`).
+    # The pre-fix read-anchored ``None`` sentinel was audited (T005) and
+    # confirmed inert: the sole port consumer (``resolution.py:949``) copies
+    # ``home.commit_target`` verbatim into ``MissionArtifactContext`` without
+    # branching on ``None``-as-skip-commit.
     if kind in _PRIMARY_ARTIFACT_KINDS:
         return MissionArtifactHome(
             kind=kind,

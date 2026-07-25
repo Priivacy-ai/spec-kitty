@@ -87,6 +87,14 @@ _PUBLIC_SURFACE = sorted(
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
         # worktree_root consume — a package-root public symbol, so it is pinned here.
         "coord_read_dir_for",
+        # coord-write-placement-closure-01KYCF83 WP07 (T034 fold): the shared
+        # materialization-BLIND partition+topology predicate both
+        # ``_classify_artifact_surface`` (this package) and
+        # ``specify_cli.acceptance.execution_context.declared_home_surface``
+        # (the #2906 accept-time guard) now consume, instead of each
+        # independently reimplementing it inline — a package-root public
+        # symbol, so it is pinned here.
+        "declared_read_surface",
         "is_primary_artifact_kind",
         # lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the
         # self-bookkeeping allowlist predicate ``is_self_bookkeeping_path`` (gate-

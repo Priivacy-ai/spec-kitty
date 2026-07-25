@@ -339,8 +339,14 @@ class TestRetrospectiveCommit:
     def test_detached_head_reports_and_skips(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Detached HEAD: cannot resolve a destination → warn + skip (leave dirty),
-        never raise. The warning surfaces the uncommitted append to the operator."""
+        """Detached HEAD: the destination is resolved through the placement port
+        (mission_slug -> target_branch), which is CWD-invariant and does NOT
+        depend on the checked-out HEAD (coord-write-placement-closure-01KYCF83
+        WP03/FR-003 retires the ambient ``get_current_branch`` HEAD read this
+        test used to pin). ``safe_commit``'s own HEAD==destination guard still
+        refuses the commit while HEAD is detached, and the fail-open handler
+        reports it — never raises. The warning surfaces the uncommitted append
+        to the operator."""
         _init_repo(tmp_path)
         feature_dir = _make_feature_dir(tmp_path)
         _git(tmp_path, "add", "-A")
@@ -356,7 +362,7 @@ class TestRetrospectiveCommit:
                 mission_slug=MISSION_SLUG, feature_dir=feature_dir, repo_root=tmp_path
             )
 
-        assert any("NOT committed" in rec.message for rec in caplog.records)
+        assert any("could NOT be committed" in rec.message for rec in caplog.records)
         # File remains uncommitted (skipped), but the operator was told.
         assert "retrospective.yaml" in _porcelain(tmp_path)
 

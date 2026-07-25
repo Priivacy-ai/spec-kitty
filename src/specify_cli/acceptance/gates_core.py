@@ -386,6 +386,13 @@ def _matrix_surface_cannot_hold(
     ``SINGLE_BRANCH`` / ``LANES`` (declared home IS primary, AH-2) and for a
     materialised coord surface — both can legitimately hold the fact (C7 neutrality:
     the flat and coord-materialised cases behave identically).
+
+    coord-write-placement-closure-01KYCF83 WP07 (T034 fold): ``declared_home_surface``
+    now delegates to the shared ``mission_runtime.declared_read_surface`` predicate
+    the new fail-loud read authority is built from — this call site is unchanged,
+    but it now converges on the SAME partition+topology computation rather than a
+    second independent one (no behavioral change; the guard still refuses here,
+    it just shares its declared-home answer with the read authority).
     """
     from specify_cli.acceptance.execution_context import declared_home_surface
 

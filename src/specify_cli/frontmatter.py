@@ -16,12 +16,16 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
-# The additive PID-reuse identity baseline (C-007) co-written alongside
-# ``shell_pid`` at every claim-write site (D3b). Declared once here — the
-# single shared constant mirrors the ``"shell_pid"`` field-name pattern in
-# ``WP_FIELD_ORDER`` below — and read by ``core.stale_detection`` (the
-# claim-liveness consumer) so the field name cannot drift into a re-duplicated
-# literal (Sonar S1192).
+# The additive PID-reuse identity baseline (C-007), historically co-written
+# alongside ``shell_pid`` at claim-write time (D3b); WP05
+# (coord-write-placement-closure-01KYCF83, FR-008) confirms that write is
+# retired -- both fields now travel solely via the claim transition's
+# ``policy_metadata`` sidecar into the event log, and ``core.stale_detection``
+# (the claim-liveness consumer) resolves both from the reduced snapshot, never
+# frontmatter. Declared once here — the single shared constant mirrors the
+# ``"shell_pid"`` field-name pattern in ``WP_FIELD_ORDER`` below (retained for
+# legacy-file classification; see the ``WP_RUNTIME_FIELDS`` note) — so the
+# field name cannot drift into a re-duplicated literal (Sonar S1192).
 SHELL_PID_BASELINE_FIELD = "shell_pid_created_at"
 
 
@@ -273,10 +277,23 @@ class FrontmatterManager:
         return errors
 
 
-# The runtime claim/workspace-creation frontmatter fields ``spec-kitty implement``
-# writes into ``tasks/WP##.md`` at claim time (``shell_pid``/``shell_pid_created_at``)
-# and at workspace-creation time (``base_branch``/``base_commit``/``planning_base_branch``).
-# Derived from :attr:`FrontmatterManager.WP_FIELD_ORDER` -- the ONE canonical
+# WP05 (coord-write-placement-closure-01KYCF83, FR-008): the claim
+# ``shell_pid``/``shell_pid_created_at`` frontmatter write this comment used
+# to describe is RETIRED -- ``spec-kitty implement`` no longer writes those
+# two fields into ``tasks/WP##.md`` at claim time at all (the claim triple
+# rides the ``planned -> claimed`` transition's ``policy_metadata`` sidecar
+# into the event log instead; see
+# ``cli.commands.agent.workflow_executor._implement_write_claim_and_commit``:
+# "the WP file is NOT mutated for the claim ... this function writes 0
+# runtime bytes to the WP file"). Only ``base_branch``/``base_commit``/
+# ``planning_base_branch`` are still genuinely written, and only once, at
+# workspace-creation time (a distinct, still-live seam this WP does not
+# touch). ``shell_pid``/``SHELL_PID_BASELINE_FIELD`` remain listed below
+# purely as a legacy-classification tolerance: a WP file authored before this
+# retirement may still carry a stale ``shell_pid`` value on disk, and
+# consumers of :data:`WP_RUNTIME_FIELDS` (below) must still recognize it as a
+# non-blocking, runtime-only key rather than a real content change. Derived
+# from :attr:`FrontmatterManager.WP_FIELD_ORDER` -- the ONE canonical
 # field-name source -- so this set can never diverge from the class that
 # actually owns those field names (#2570.1). Consumed by
 # ``cli.commands.implement_cores._drop_runtime_frontmatter_only_wp`` (WP01,

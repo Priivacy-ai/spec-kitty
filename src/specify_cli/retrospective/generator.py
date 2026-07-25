@@ -221,15 +221,37 @@ def _load_wp_files(feature_dir: Path) -> list[tuple[str, str]]:
     return result
 
 
-def _load_traces(feature_dir: Path) -> list[tuple[str, str]]:
-    """Load tracer markdown files from ``<feature_dir>/traces/*.md`` (FR-007).
+def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
+    """Load tracer markdown files from the ``TRACER_FILE`` read surface (FR-007).
 
     Returns sorted ``(rel_path, text)`` pairs. Best-effort: a tracer that cannot be
     read as UTF-8 text (binary/corrupt) is skipped with a warning rather than
     crashing the generator (#2217 edge case). An empty/structureless tracer reads
     cleanly and simply contributes no findings downstream.
+
+    coord-write-placement-closure-01KYCF83 WP02 reclassified ``traces/`` from
+    PRIMARY to COORD (FR-006); this is the WP07 read-side closure (T055,
+    documented leeway — this module is not WP07-owned, but the reader edit is
+    a direct consequence of the read-authority routing and no other WP claims
+    it). ``persist -> destroy`` (``coordination/teardown.py``) means the
+    coordination worktree is still materialised when this runs, so a
+    ``feature_dir / "traces"`` read anchored to the PRIMARY checkout would
+    silently miss every tracer WP03's writers land on the coordination
+    surface under a coord-routing topology. Routing through
+    :func:`mission_runtime.placement_seam` resolves the coordination
+    worktree for that case while a coord-less topology (``SINGLE_BRANCH`` /
+    ``LANES``) still resolves the SAME primary ``feature_dir`` it always did
+    (AH-2 — no behaviour change there). The reported ``rel`` path below stays
+    primary-anchored (``kitty-specs/<slug>/traces/...``) regardless of which
+    physical surface the bytes were actually read from — it is a stable
+    evidence-provenance label, not a filesystem path.
     """
-    traces_dir = feature_dir / "traces"
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    traces_home = placement_seam(repo_root, feature_dir.name).read_dir(
+        MissionArtifactKind.TRACER_FILE
+    )
+    traces_dir = traces_home / "traces"
     if not traces_dir.is_dir():
         return []
     result: list[tuple[str, str]] = []
@@ -1189,7 +1211,7 @@ def generate_retrospective(
     review_report_text = _read_optional_text(feature_dir / "mission-review-report.md")
 
     # Tracer artifacts (T012 / FR-007): traces/*.md feed the ingestor seam.
-    traces = _load_traces(feature_dir)
+    traces = _load_traces(repo_root, feature_dir)
 
     wp_files = _load_wp_files(feature_dir)
     events = _load_events(feature_dir)

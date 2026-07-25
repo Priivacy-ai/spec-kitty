@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -657,10 +657,18 @@ def _resolve_write_target(
     * **Flat/base topology** (no coord branch) → ``CommitTarget(ref=target_branch)``
       — the CWD-invariant fix that supersedes ``_current_branch``.
 
-    When the placement resolver cannot resolve the mission (no ``meta.json`` yet
-    — the create→first-write window, or an ad-hoc fixture outside a resolvable
-    mission), it degrades to the prior selector so those callers keep working
-    without churn.
+    FR-003 / #1716 closure (WP04/T017): when the placement resolver cannot
+    resolve the mission (a blank/whitespace slug, or the coord-worktree-
+    materialized-without-mission-dir refusal reached in the pre-``meta.json``
+    create window), the fallback no longer reads the ambient checkout HEAD.
+    It instead resolves the SAME CWD-invariant ``target_branch`` the port
+    itself consults internally
+    (:func:`specify_cli.core.paths.get_feature_target_branch` — reads the
+    mission's ``target_branch`` from the primary ``meta.json`` when present,
+    else the repo's configured primary branch), so a status write in the
+    create window still resolves without deadlock and without guessing off
+    whatever branch happens to be checked out. ``coord_branch`` still
+    short-circuits first when the caller already has one in hand.
     """
     from mission_runtime import (  # noqa: PLC0415
         ActionContextError,
@@ -680,9 +688,17 @@ def _resolve_write_target(
             repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
         ).ref
     except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
-        # Unresolvable mission (pre-meta create window / ad-hoc fixture): fall
-        # back to the prior selector so the bootstrap path stays functional.
-        return coord_branch or _current_branch(repo_root)
+        # Unresolvable mission (pre-meta create window / ad-hoc fixture): route
+        # through the CWD-invariant target-branch resolver instead of the
+        # ambient checkout HEAD (#1716, closed). No git-HEAD read remains here.
+        if coord_branch:
+            return coord_branch
+        from specify_cli.core.paths import get_feature_target_branch  # noqa: PLC0415
+
+        # cast: follow_imports=skip (specify_cli.* boundary) makes
+        # get_feature_target_branch return Any under a narrow-file mypy
+        # invocation; its real signature returns str.
+        return cast(str, get_feature_target_branch(repo_root, mission_slug))
 
 
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:

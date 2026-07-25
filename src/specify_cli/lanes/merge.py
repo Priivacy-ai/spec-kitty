@@ -64,6 +64,21 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
         command="spec-kitty merge-driver-event-log %O %A %B",
         pattern="kitty-specs/**/status.events.jsonl",
     ),
+    # coord-write-placement-closure-01KYCF83 WP06 (out-of-owned-files leeway,
+    # documented in the move-task note): decisions.events.jsonl
+    # (events/decision_log.py's DecisionGitLog) is structurally identical to
+    # status.events.jsonl -- an append-only JSONL log with an `event_id` +
+    # `at` envelope (merge_event_payloads's only schema requirement) -- so it
+    # reuses the SAME driver command/config, just a second pattern, rather
+    # than a new dedicated driver. Surfaced by
+    # test_merge_reconciliation_class_guard.py's completeness check once WP02
+    # classified DECISION_LOG as a COORD-partition (both-sides-divergent) kind.
+    _MergeDriverSpec(
+        config_key="spec-kitty-event-log",
+        name="Spec Kitty event log union merge",
+        command="spec-kitty merge-driver-event-log %O %A %B",
+        pattern="kitty-specs/**/decisions.events.jsonl",
+    ),
     _MergeDriverSpec(
         config_key="spec-kitty-meta",
         name="Spec Kitty mission meta field merge",

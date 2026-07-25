@@ -134,7 +134,12 @@ def _is_snapshot_authority(meta: dict[str, object]) -> bool:
         return False
 
 
-def cutover_mission(feature_dir: Path, *, dry_run: bool = False) -> CutoverResult:
+def cutover_mission(
+    feature_dir: Path,
+    *,
+    status_feature_dir: Path | None = None,
+    dry_run: bool = False,
+) -> CutoverResult:
     """Seed -> fail-closed verify -> atomic ``status_phase`` flip for one mission.
 
     Orchestrates the three phases per the IC-01 contract, **branching on
@@ -148,16 +153,46 @@ def cutover_mission(feature_dir: Path, *, dry_run: bool = False) -> CutoverResul
     3. ``dry_run`` returns ``would_flip=verify.ok`` writing nothing;
     4. otherwise flip (:func:`_flip_phase`) and return ``flipped=True``.
 
+    Two-target spine (coord-write-placement-closure-01KYCF83 WP09 / IC-08 / T044):
+    *feature_dir* is the PRIMARY-partition leg — the legacy frontmatter/``tasks/``
+    read anchor AND the sole ``status_phase`` write target (:func:`_flip_phase`
+    always resolves against *feature_dir*; FR-002/IC-03's port already routes
+    ``PRIMARY_METADATA`` here for every topology, so this extends the existing
+    spine rather than forking a second writer — C-004).  *status_feature_dir* is
+    the COORD-partition leg the seed events are read/appended against (the
+    ``STATUS_STATE`` port target — where ``status.events.jsonl`` canonically
+    lives under coordination topology).  It defaults to *feature_dir* when
+    omitted, collapsing both legs to the single directory the pre-WP09
+    single-target behavior always used — the flat/single-branch degenerate case
+    (T047).
+
+    Soundness note (documented residual scope, C-001 sequencing): the seed/verify
+    legs read ``tasks/`` legacy frontmatter from *status_feature_dir* (not
+    *feature_dir*). Under coordination topology ``tasks/`` is COORD *residue*
+    (possibly stale/absent there — it is a PRIMARY-partition artifact). This is
+    safe for every mission this spine actually serves post-WP09: IC-08 depends on
+    IC-07 (event-sourced claim + subtask-completion) already landing, so no
+    mission reaching this hook can carry genuine frontmatter-authored runtime to
+    lose — :meth:`~specify_cli.migration.backfill_runtime_state.LegacyWPRuntime.has_evictable_state`
+    is empty regardless of which ``tasks/`` copy is inspected. Splitting the
+    read (from PRIMARY) from the write (to COORD) inside ``backfill_runtime_state``
+    itself would require forking its read/write coupling, which is out of this
+    WP's owned-file scope (see ``tracers/design-decisions.md``, IC-08).
+
     Args:
-        feature_dir: kitty-specs mission directory (canonicalized downstream).
+        feature_dir: kitty-specs mission directory (canonicalized downstream);
+            the PRIMARY leg.
+        status_feature_dir: kitty-specs mission directory for the COORD leg
+            (seed events). Defaults to *feature_dir*.
         dry_run: When True, seed nothing / flip nothing; report would-seed counts.
 
     Returns:
         A :class:`CutoverResult` describing the outcome.
     """
+    status_dir = status_feature_dir if status_feature_dir is not None else feature_dir
     slug = feature_dir.name
     try:
-        seed = _seed_phase(feature_dir, dry_run=dry_run)
+        seed = _seed_phase(status_dir, dry_run=dry_run)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, error=str(exc))
 
@@ -166,7 +201,7 @@ def cutover_mission(feature_dir: Path, *, dry_run: bool = False) -> CutoverResul
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=seed.reason)
 
     try:
-        verify = _verify_phase(feature_dir)
+        verify = _verify_phase(status_dir)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=str(exc))
 

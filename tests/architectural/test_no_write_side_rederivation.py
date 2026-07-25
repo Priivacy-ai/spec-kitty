@@ -11,8 +11,9 @@ This is the one allowed form-coupled test (NFR-003): a guard that FLAGS write-si
 re-derivation in the adopted modules. It must:
 
 * be **line-scoped**, not file-scoped — a file-level allow-list is a blanket
-  escape and is rejected (paula SF-2). The allow-list is seeded with ONLY the
-  genuinely-deferred S2 #1716 ladder line.
+  escape and is rejected (paula SF-2). The allow-list is seeded with ONLY
+  genuinely-deferred lines (the former S2 #1716 ladder line was drained by
+  WP04/T017 of coord-write-placement-closure-01KYCF83 and removed).
 * **bite** — a companion self-test plants a re-derivation in a fixture string and
   asserts the detector FLAGS it, proving the guard is not inert.
 * **pass on the post-adoption tree** — a flag on an adopted module would mean that
@@ -33,16 +34,33 @@ forbidden pattern is a *call construction*, so parsing the tree means a
 docstring merely quoting ``CommitTarget(ref=coordination_branch)`` never
 becomes a ``Call`` node and is never flagged, without needing tokenize's
 comment/string-skipping machinery.
+
+coord-write-placement-closure-01KYCF83 WP06 (T025-T030 / FR-001, NFR-001)
+RETIRES the 17-module ``_CHECKOUT_GRAMMAR_MODULES`` allowlist the second
+grammar used and replaces it with a **whole-tree ``src/`` scan** (shared
+walker: ``tests.architectural._placement_whole_tree_scan``): every module is
+in scope unless it is an individually-justified sanctioned primitive
+(``BOUNDARY_SANCTIONED_MODULES``) or falls under the RETAINED
+``BOUNDARY_SANCTIONED_PREFIXES``. A module allowlist is exactly the blanket
+escape a new, un-routed write surface could hide behind; the whole-tree scan
+closes that gap. See ``test_adopted_and_residual_modules_have_no_checkout_derived_commit_target``.
 """
 
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
+from tests.architectural._placement_whole_tree_scan import (
+    BOUNDARY_SANCTIONED_MODULES,
+    BOUNDARY_SANCTIONED_PREFIXES,
+)
+from tests.architectural._placement_whole_tree_scan import rel_path as _placement_rel_path
+from tests.architectural._placement_whole_tree_scan import scan_scope as _whole_tree_scan_scope
 from tests.architectural._ratchet_keys import (
     CompositeKey,
     ContentDescriptor,
@@ -125,14 +143,14 @@ class _Finding:
 #: line are unchanged — no re-anchoring "343 -> 347 -> ..." bookkeeping is
 #: needed (#2072).
 #:
-#: WS#1 — ``coordination/status_transition.py`` / ``_resolve_write_target``:
-#: the FALLBACK arm ``return coord_branch or _current_branch(repo_root)``,
-#: reached only when ``resolve_placement_only`` cannot resolve the mission
-#: (pre-meta create window / ad-hoc fixture). It is the last surviving
-#: ``_current_branch`` git-HEAD selector and belongs to the deferred #1716
-#: write-surface-SELECTION ladder (spec C-003 / plan D-1, OUT of scope). It is
-#: NOT on the genuine-simple-case path (NFR-006) and is asserted as deferred
-#: residual in ``test_simple_case_flat_topology.py``.
+#: WS#1 — RETIRED (coord-write-placement-closure-01KYCF83 / WP04 / T017 /
+#: FR-003): the ``coordination/status_transition.py`` / ``_resolve_write_target``
+#: FALLBACK arm ``return coord_branch or _current_branch(repo_root)`` this entry
+#: deferred (#1716) has been DRAINED — the arm no longer reads the ambient
+#: checkout HEAD (see ``test_wp05_write_target_drain.py``'s updated DRAINED
+#: verdict). Shrink-only: the entry is deleted rather than left vacuous, per
+#: this file's own ``test_checkout_head_selector_entry_is_still_a_live_finding``
+#: convention for a routed/removed site.
 #:
 #: WS#2 — ``cli/commands/agent/workflow.py`` / ``_review_feedback_root``: the
 #: sole, deduplicated ``feature_dir.parent.parent`` READ-side
@@ -154,18 +172,6 @@ class _Finding:
 #: escape: it must point at a specific deferred-by-spec finding, with a
 #: one-line rationale (per-descriptor, in ``rationale``).
 _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
-    ContentDescriptor(
-        rel_path="src/specify_cli/coordination/status_transition.py",
-        qualname="_resolve_write_target",
-        token_substring="coord_branch or _current_branch",
-        occurrence=None,
-        rationale=(
-            "deferred #1716 write-surface-SELECTION ladder line (spec C-003 / "
-            "plan D-1, OUT of scope) -- the FALLBACK arm of "
-            "_resolve_write_target, reached only when resolve_placement_only "
-            "cannot resolve the mission."
-        ),
-    ),
     ContentDescriptor(
         rel_path="src/specify_cli/cli/commands/agent/workflow_cores.py",
         qualname="review_feedback_root",
@@ -269,7 +275,8 @@ def test_adopted_modules_have_no_write_side_rederivation() -> None:
 
     A flag on an adopted module that is NOT on the line-scoped allow-list means
     that module still re-derives identity/root/target by hand — a real boundary
-    violation. The only permitted residual is the deferred S2 #1716 ladder line.
+    violation. The permitted residuals are the WS#2/WS#3 entries seeded below
+    (the deferred #1716 S2 line, WS#1, was drained by WP04/T017 and removed).
     """
     offenders: list[str] = []
     for module in _ADOPTED_MODULES:
@@ -357,7 +364,7 @@ def test_allow_list_is_line_scoped_not_a_blanket_file_escape() -> None:
     must be a 3-tuple of non-empty ``str``s whose third component (the
     token_line) is a real code line, never a whole-file wildcard.
     """
-    assert _ALLOW_LIST, "the allow-list must seed the known deferred S2 #1716 line"
+    assert _ALLOW_LIST, "the allow-list must seed the remaining tracked deferred lines (WS#2/WS#3)"
     for entry in _ALLOW_LIST:
         assert isinstance(entry, tuple) and len(entry) == 3, (
             f"allow-list entry must be a (rel_path, qualname, token_line) "
@@ -376,30 +383,41 @@ def test_allow_list_is_line_scoped_not_a_blanket_file_escape() -> None:
         )
 
 
-def test_allow_listed_line_is_the_deferred_head_selector() -> None:
-    """The WS#1 allow-listed descriptor really IS the deferred #1716 HEAD selector.
+def test_ws1_descriptor_no_longer_seeded_after_the_1716_drain() -> None:
+    """WS#1 was DELETED (shrink-only) once #1716 was closed (WP04/T017).
 
-    Guards against allow-list rot: if the descriptor drifts off the
-    ``coord_branch or _current_branch`` fallback (e.g. the site is renamed or
-    the deferred ladder is finally retired), :func:`descriptor_still_live`
-    (exactly-one, key-equal) fails loudly so the allow-list is re-grounded
-    rather than silently masking a moved offender — a stale/ambiguous
-    descriptor RAISES rather than silently picking a candidate.
+    The ``coord_branch or _current_branch`` selector no longer exists in
+    ``status_transition.py`` (see ``test_wp05_write_target_drain.py``'s
+    DRAINED verdict), so there is nothing left for a WS#1 allow-list entry to
+    pin. This asserts the entry stays gone -- a re-added WS#1 seed pointing at
+    ``status_transition.py`` would mean either the drain regressed (the
+    selector came back) or a NEW re-derivation was allow-listed instead of
+    fixed; either way this test should be revisited deliberately, not
+    silently.
     """
-    descriptor, seeded_key = _seed_and_key_for(
-        "src/specify_cli/coordination/status_transition.py"
+    assert all(
+        descriptor.rel_path != "src/specify_cli/coordination/status_transition.py"
+        for descriptor in _ALLOW_LIST_SEED
+    ), (
+        "a status_transition.py entry re-appeared in _ALLOW_LIST_SEED after the "
+        "#1716 drain (WP04/T017) removed WS#1 -- confirm this is a genuinely "
+        "NEW deferred finding, not the retired coord_branch-or-_current_branch "
+        "selector coming back."
     )
-    source = (_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8")
-    assert descriptor_still_live(source, descriptor, seeded_key), (
-        f"WS#1 descriptor {descriptor!r} is no longer live — it no longer "
-        "resolves to exactly one finding equal to its seeded key; the deferred "
-        "#1716 HEAD selector may have moved, been renamed, or been retired. "
-        "Re-ground the allow-list or remove the entry if it was retired."
-    )
-    _rel_path, _qualname, token_line = seeded_key
-    assert "coord_branch or _current_branch" in token_line, (
-        f"allow-listed {descriptor.rel_path} ({descriptor.qualname}) no longer "
-        f"holds the deferred HEAD selector (got token_line {token_line!r})."
+    # Token-based (not raw-text) re-check: the updated docstring legitimately
+    # QUOTES the retired selector as history (mirrors
+    # test_ratchet_ignores_prose_quoting_a_prior_walk below), so only a real
+    # CODE-token finding of kind write_target_head_selector would mean the
+    # drain regressed.
+    status_transition_path = _SRC / "coordination" / "status_transition.py"
+    findings = [
+        finding
+        for finding in _scan_module(status_transition_path)
+        if finding.kind == "write_target_head_selector"
+    ]
+    assert not findings, (
+        "the retired #1716 selector reappeared as CODE in status_transition.py; "
+        f"the WS#1 allow-list entry was deleted on the assumption it is gone for good: {findings!r}"
     )
 
 
@@ -465,33 +483,32 @@ _SEAM_FOLD_CALLEES: frozenset[str] = frozenset(
     }
 )
 
-#: T033 scan scope: every module WP02–WP05 routed (``_ADOPTED_MODULES``, T034)
-#: plus the residual/sanctioned files named by contracts/ratchet-contract.md
-#: that are NOT themselves mission-artifact write surfaces adopted elsewhere.
-_EXTRA_CHECKOUT_GRAMMAR_MODULES: tuple[Path, ...] = (
+#: RETIRED (WP06/T026): the 17-module allowlist (14 ``_ADOPTED_MODULES`` + 3
+#: extras) the whole-tree scan REPLACES. Kept ONLY as a historical record for
+#: the T030 non-regression proof below -- a module in this set was
+#: "formerly in scope" under the old allowlist, so planting a bypass THERE
+#: proves nothing about the widening (it would have reded before WP06 too);
+#: planting a bypass in a module OUTSIDE this set is what proves the
+#: whole-tree scan now sees what the allowlist could not. No longer used to
+#: constrain the scan itself -- see ``_whole_tree_scan_scope`` (imported from
+#: the shared ``_placement_whole_tree_scan`` helper) for the actual scope.
+_RETIRED_EXTRA_CHECKOUT_GRAMMAR_MODULES: tuple[Path, ...] = (
     _SRC / "orchestrator_api" / "commands.py",
     _SRC / "coordination" / "transaction.py",
     _SRC / "retrospective" / "writer.py",
 )
-_CHECKOUT_GRAMMAR_MODULES: tuple[Path, ...] = _ADOPTED_MODULES + _EXTRA_CHECKOUT_GRAMMAR_MODULES
-
-#: Detection-boundary invariant (contract: "Guard the detection boundary"):
-#: the sanctioned coord primitives / legacy-migration modules the contract
-#: names are NEVER added to the scanned scope above -- they ARE the sanctioned
-#: grammar (branch composition, worktree resolution, seam internals, migration
-#: bookkeeping), not a write site awaiting a seam route. Guarded by
-#: ``test_checkout_grammar_boundary_excludes_sanctioned_modules`` below so a
-#: future edit accidentally widening the scope into one of these fails loudly
-#: instead of silently needing a mass allow-list.
-_BOUNDARY_SANCTIONED_MODULES: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/lanes/branch_naming.py",
-        "src/specify_cli/coordination/workspace.py",
-        "src/specify_cli/upgrade/autocommit.py",
-        "src/specify_cli/invocation/executor.py",
-    }
+_RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST: frozenset[str] = frozenset(
+    _placement_rel_path(p)
+    for p in (_ADOPTED_MODULES + _RETIRED_EXTRA_CHECKOUT_GRAMMAR_MODULES)
 )
-_BOUNDARY_SANCTIONED_PREFIXES: tuple[str, ...] = (
+
+#: Pinned copy of the pre-widening ``BOUNDARY_SANCTIONED_PREFIXES`` (WP06 /
+#: T029 "prefix guard -- RETAIN, do not create"): the meta-test below asserts
+#: the shared helper's tuple is STILL exactly this -- a newly-ADDED dir-prefix
+#: entry reds immediately, forcing the adder to use a per-file
+#: ``BOUNDARY_SANCTIONED_MODULES`` entry (with a rationale) instead. The
+#: pre-existing three entries are untouched.
+_PINNED_BOUNDARY_SANCTIONED_PREFIXES: tuple[str, ...] = (
     "src/mission_runtime/",
     "src/specify_cli/upgrade/migrations/",
     "src/specify_cli/migration/",
@@ -589,6 +606,36 @@ def _is_seam_derived(
     return False
 
 
+#: T027 (WP06) def-vs-call discrimination: functions whose OWN body is the
+#: seam-facade's DEFINITION, not a caller. ``git.commit_helpers.safe_commit``
+#: builds its own ``CommitTarget`` from the legacy two-arg ``destination_ref=``
+#: compat-shim parameter as part of IMPLEMENTING the facade -- that is the
+#: exact conversion the shim exists to perform, not a caller bypass.
+#: ``mission_metadata.write_meta`` is named for symmetry (contracts/
+#: ratchet-contract.md lists it as a definition-site risk) even though it
+#: currently constructs no ``CommitTarget`` at all. Widening the whole-tree
+#: scan to 100% of ``src/`` (T026) newly brings ``commit_helpers.py`` into
+#: view, so without this discrimination the facade's own internals would
+#: false-red.
+_CHECKOUT_GRAMMAR_DEFINITION_SITE_FUNCTIONS: frozenset[str] = frozenset(
+    {"safe_commit", "write_meta"}
+)
+
+
+def _is_checkout_grammar_definition_site(
+    enclosing_fn: ast.FunctionDef | ast.AsyncFunctionDef | None,
+) -> bool:
+    """True when *enclosing_fn* IS one of the seam-facade functions being
+    DEFINED (T027) -- its own internal ``CommitTarget``/``safe_commit``
+    construction is scanner out-of-scope, not a caller bypass.
+
+    Scoped to the DIRECT enclosing function only (never file-wide): a
+    different, non-facade function in the SAME file is still scanned (see
+    ``test_definition_site_discrimination_does_not_mask_a_same_named_bypass_elsewhere``).
+    """
+    return enclosing_fn is not None and enclosing_fn.name in _CHECKOUT_GRAMMAR_DEFINITION_SITE_FUNCTIONS
+
+
 def _commit_target_ref_arg(call: ast.Call) -> ast.expr | None:
     """The ``ref`` argument of a ``CommitTarget(...)`` call (positional or kw)."""
     if call.args:
@@ -620,6 +667,19 @@ def _scan_checkout_grammar(source: str, path: Path) -> list[_CheckoutGrammarFind
     forbidden grammar is a call CONSTRUCTION, not a textual pattern, so parsing
     means a docstring merely quoting the pattern is inert prose (a ``Constant``
     string, never a ``Call`` node) and is never flagged.
+
+    **Proxy honesty (WP06)**: this is a SYNTACTIC proxy, not a value-flow
+    proof. "Seam-derived" means the ``ref``/``destination_ref`` argument is
+    (a) a string literal, (b) a direct call to a known seam-fold callee, or
+    (c) a local name assigned from such a call earlier in the SAME function
+    (``_is_seam_derived``). A bare parameter that the CALLER already resolved
+    through the seam one function up is indistinguishable, syntactically,
+    from a genuinely checkout-derived parameter -- such sites are
+    allow-listed with a rationale (``_CHECKOUT_GRAMMAR_ALLOW_LIST_SEED``), not
+    silently passed. def-vs-call discrimination (T027,
+    ``_is_checkout_grammar_definition_site``) additionally excludes the
+    facade's OWN definition body (``safe_commit``/``write_meta``) from
+    scanning -- a definition is not a call site.
     """
     try:
         tree = ast.parse(source, filename=str(path))
@@ -640,6 +700,8 @@ def _scan_checkout_grammar(source: str, path: Path) -> list[_CheckoutGrammarFind
         else:
             continue
         fn = _checkout_grammar_enclosing_function(parents, node)
+        if _is_checkout_grammar_definition_site(fn):
+            continue
         if _is_seam_derived(arg, fn):
             continue
         findings.append(_CheckoutGrammarFinding(path, node.lineno, callee, source))
@@ -729,6 +791,85 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "resolved via the placement seam. Out of IC-04 scope."
         ),
     ),
+    # -- WP06 (T029) additions: newly in scope once the 17-module allowlist
+    # was replaced by the whole-tree scan. -----------------------------------
+    ContentDescriptor(
+        rel_path="src/runtime/next/runtime_bridge_io.py",
+        qualname="resolve_commit_target",
+        token_substring="CommitTarget ( ref = coordination_branch )",
+        occurrence=None,
+        rationale=(
+            "SYNTACTIC-PROXY residual: resolve_commit_target is documented as "
+            "'the pure decision lifted out of _wrap_with_decision_git_log' -- "
+            "it wraps the CALLER-supplied, already-resolved "
+            "coordination_branch parameter into a CommitTarget VO. The actual "
+            "placement resolution happens in the caller before this pure "
+            "function is invoked; value-flow across that call boundary is not "
+            "provable by a syntactic AST scanner (contracts/ratchet-contract.md "
+            "'proxy honesty')."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/events/decision_log.py",
+        qualname="DecisionGitLog._resolve_default_target",
+        token_substring="CommitTarget ( ref = destination_ref )",
+        occurrence=0,
+        rationale=(
+            "Bootstrap-window degrade (coord-write-placement-closure-01KYCF83 "
+            "WP03/FR-003): the PRIMARY path calls resolve_placement_only(...) "
+            "directly (seam-derived). This first degrade fires ONLY when the "
+            "mission has no meta.json yet (create-to-first-write window, or an "
+            "ad-hoc fixture) -- an explicit existence gate, not a checkout "
+            "re-derivation; mirrors (but does not reproduce) the drained WS#1 "
+            "pattern by degrading to the caller-SUPPLIED destination_ref "
+            "parameter rather than reading ambient checkout HEAD."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/events/decision_log.py",
+        qualname="DecisionGitLog._resolve_default_target",
+        token_substring="CommitTarget ( ref = destination_ref )",
+        occurrence=1,
+        rationale=(
+            "Same bootstrap-window degrade as occurrence=0's sibling, "
+            "triggered instead by resolve_placement_only raising "
+            "ActionContextError/StatusReadPathNotFound/FileNotFoundError (a "
+            "harder failure mode -- e.g. an ambiguous/malformed mission). Same "
+            "caller-supplied-parameter rationale; the two returns are "
+            "identical text at different linenos in the same qualname "
+            "(occurrence disambiguates, D-2)."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/git/bookkeeping_commit.py",
+        qualname="_resolve_bookkeeping_commit_target",
+        token_substring="CommitTarget ( ref = branch )",
+        occurrence=0,
+        rationale=(
+            "Bootstrap-window degrade, explicitly documented as 'mirroring "
+            "coordination.status_transition._resolve_write_target': the "
+            "PRIMARY path calls resolve_placement_only(...) directly "
+            "(seam-derived). This first degrade fires ONLY when the mission "
+            "cannot be resolved (no meta.json yet, or an ad-hoc fixture) AND "
+            "a degrade-path 'branch' parameter was supplied by the caller -- "
+            "when no degrade path is available it raises ActionContextError "
+            "instead (fail-closed), it never silently reads checkout HEAD."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/git/bookkeeping_commit.py",
+        qualname="_resolve_bookkeeping_commit_target",
+        token_substring="CommitTarget ( ref = branch )",
+        occurrence=1,
+        rationale=(
+            "Same bootstrap-window degrade as occurrence=0's sibling, "
+            "triggered instead by resolve_placement_only raising "
+            "ActionContextError/StatusReadPathNotFound/FileNotFoundError. Same "
+            "caller-supplied-parameter rationale; the two returns are "
+            "identical text at different linenos in the same qualname "
+            "(occurrence disambiguates, D-2)."
+        ),
+    ),
 )
 
 #: Composite key resolved LIVE for each ``_CHECKOUT_GRAMMAR_ALLOW_LIST_SEED``
@@ -746,38 +887,67 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST: frozenset[CompositeKey] = frozenset(
 def test_checkout_grammar_boundary_excludes_sanctioned_modules() -> None:
     """Guard the detection boundary (contract): sanctioned primitives are never scanned.
 
-    The scan scope is a fixed, explicit file list (the write-site census, not
-    the whole ``src/`` tree). This asserts none of the sanctioned coord
-    primitives / legacy-migration modules the contract names ever sneak into
-    that scope -- if one did, the composite-key allow-list would be the WRONG
-    tool for it (these ARE the sanctioned grammar, not a residual).
+    WP06 (T026/T029) widened the scan scope from the retired 17-module
+    allowlist to every ``src/`` module (FR-001 / NFR-001) -- so this is now
+    the meta-test for the two REMAINING sanctioning mechanisms, both owned by
+    the shared ``_placement_whole_tree_scan`` helper:
+
+    1. none of ``BOUNDARY_SANCTIONED_MODULES`` (the per-file, rationale-
+       carrying exclusion set) ever sneaks into ``_whole_tree_scan_scope()``;
+    2. ``BOUNDARY_SANCTIONED_PREFIXES`` is byte-for-byte the pre-widening
+       tuple -- a newly-ADDED dir-prefix entry reds here immediately (T029
+       "prefix guard -- RETAIN, do not create"): a new prefix is how the
+       retired module allowlist would creep back in inverted form. Use a
+       per-file ``BOUNDARY_SANCTIONED_MODULES`` entry with a rationale
+       instead.
     """
-    scanned_rel = {p.relative_to(_REPO_ROOT).as_posix() for p in _CHECKOUT_GRAMMAR_MODULES}
-    for sanctioned in _BOUNDARY_SANCTIONED_MODULES:
+    scanned_rel = {_placement_rel_path(p) for p in _whole_tree_scan_scope()}
+    for sanctioned in BOUNDARY_SANCTIONED_MODULES:
         assert sanctioned not in scanned_rel, (
             f"{sanctioned} is a sanctioned coord primitive and must never enter "
-            "the checkout-grammar scan scope"
+            "the whole-tree placement-enforcement scan scope"
         )
     for rel in scanned_rel:
-        assert not rel.startswith(_BOUNDARY_SANCTIONED_PREFIXES), (
+        assert not rel.startswith(BOUNDARY_SANCTIONED_PREFIXES), (
             f"{rel} falls under a sanctioned-primitive prefix "
-            f"({_BOUNDARY_SANCTIONED_PREFIXES}) and must never enter the "
-            "checkout-grammar scan scope"
+            f"({BOUNDARY_SANCTIONED_PREFIXES}) and must never enter the "
+            "whole-tree placement-enforcement scan scope"
+        )
+    assert BOUNDARY_SANCTIONED_PREFIXES == _PINNED_BOUNDARY_SANCTIONED_PREFIXES, (
+        "BOUNDARY_SANCTIONED_PREFIXES drifted from the pinned pre-widening "
+        f"tuple {_PINNED_BOUNDARY_SANCTIONED_PREFIXES!r} (got "
+        f"{BOUNDARY_SANCTIONED_PREFIXES!r}). Adding a NEW dir-prefix entry is "
+        "forbidden (T029) -- add a per-file BOUNDARY_SANCTIONED_MODULES entry "
+        "with a rationale instead."
+    )
+
+
+def test_sanctioned_modules_carry_a_rationale() -> None:
+    """T029 meta-test: every ``BOUNDARY_SANCTIONED_MODULES`` entry has a
+    non-empty inline rationale.
+
+    A sanctioned exclusion with no rationale is unauditable -- it cannot be
+    told apart from a lazy escape hatch. Every entry must justify itself.
+    """
+    for rel, rationale in BOUNDARY_SANCTIONED_MODULES.items():
+        assert isinstance(rationale, str) and rationale.strip(), (
+            f"BOUNDARY_SANCTIONED_MODULES entry {rel!r} has no non-empty "
+            "inline rationale (T029) -- every sanctioned-primitive exclusion "
+            "must carry a justification."
         )
 
 
-def test_adopted_and_residual_modules_have_no_checkout_derived_commit_target() -> None:
-    """T033 / FR-011: the write-site census carries zero un-allow-listed offenders.
-
-    A flag on a scanned module that is NOT on ``_CHECKOUT_GRAMMAR_ALLOW_LIST``
-    means a real ``CommitTarget(ref=<checkout>)`` (or ``safe_commit(...,
-    destination_ref=<checkout>)``) bypass — the exact split-brain root the
-    placement seam exists to close (research.md D5 / plan D11).
+def _checkout_grammar_offenders(
+    module_sources: Iterable[tuple[Path, str]],
+) -> list[str]:
+    """The ``_CHECKOUT_GRAMMAR_ALLOW_LIST``-filtered offender messages for
+    ``module_sources`` -- the SAME logic the real whole-tree gate below runs,
+    shared with the T030 synthetic-bypass proof so both exercise one code
+    path (never a second, divergent implementation for the self-test).
     """
     offenders: list[str] = []
-    for module in _CHECKOUT_GRAMMAR_MODULES:
-        assert module.exists(), f"checkout-grammar module missing: {module}"
-        for finding in _scan_checkout_grammar_module(module):
+    for module, source in module_sources:
+        for finding in _scan_checkout_grammar(source, module):
             if finding.as_allow_key() in _CHECKOUT_GRAMMAR_ALLOW_LIST:
                 continue
             offenders.append(
@@ -786,6 +956,32 @@ def test_adopted_and_residual_modules_have_no_checkout_derived_commit_target() -
                 "expression — route it through placement_seam(...).write_target(kind) "
                 "or allow-list it with a tracked rationale"
             )
+    return offenders
+
+
+def test_adopted_and_residual_modules_have_no_checkout_derived_commit_target() -> None:
+    """T033 / FR-011 (WP06 / T026: whole-tree, not a 17-module allowlist).
+
+    A flag on a scanned module that is NOT on ``_CHECKOUT_GRAMMAR_ALLOW_LIST``
+    means a real ``CommitTarget(ref=<checkout>)`` (or ``safe_commit(...,
+    destination_ref=<checkout>)``) bypass — the exact split-brain root the
+    placement seam exists to close (research.md D5 / plan D11). The scan
+    scope is now EVERY ``src/`` module minus the small, individually-
+    justified sanctioned-primitive set (FR-001 / NFR-001) — no module
+    allowlist for a bypass to hide behind.
+    """
+    modules = _whole_tree_scan_scope()
+    assert len(modules) > len(_RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST), (
+        "sanity: the whole-tree scan scope must be strictly larger than the "
+        "retired 17-module allowlist it replaced (T026) — got "
+        f"{len(modules)} modules vs. {len(_RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST)} retired."
+    )
+    for module in modules:
+        assert module.exists(), f"checkout-grammar module missing: {module}"
+
+    offenders = _checkout_grammar_offenders(
+        (module, module.read_text(encoding="utf-8")) for module in modules
+    )
 
     assert not offenders, (
         "Checkout-derived CommitTarget/safe_commit construction found (T033 / "
@@ -821,12 +1017,132 @@ def test_retrospective_writer_is_checkout_grammar_clean() -> None:
     produces ZERO checkout-grammar findings, needing NO allow-list entry.
 
     It never constructs a ``CommitTarget`` at all (it resolves the RETROSPECTIVE
-    HOME directory via ``resolve_retrospective_home``; the actual commit happens
-    downstream in ``git/bookkeeping_commit.py``, out of this WP's scan scope).
-    Pins this so a future change adding a construction here is caught by the
-    main ratchet above rather than silently needing this file re-audited.
+    HOME directory via ``resolve_retrospective_home``; the actual commit
+    happens downstream in ``git/bookkeeping_commit.py``, which the WP06
+    whole-tree widening now scans directly -- see its own two allow-listed
+    bootstrap-window-degrade entries above). Pins this so a future change
+    adding a construction here is caught by the main ratchet above rather
+    than silently needing this file re-audited.
     """
     assert _scan_checkout_grammar_module(_SRC / "retrospective" / "writer.py") == []
+
+
+# ---------------------------------------------------------------------------
+# T027 (WP06) — def-vs-call discrimination: the seam facade's OWN definition
+# is not a caller bypass.
+# ---------------------------------------------------------------------------
+
+
+def test_definition_site_of_the_seam_facade_is_not_flagged() -> None:
+    """T027: ``git.commit_helpers.safe_commit``'s OWN compat-shim construction
+    (``target = CommitTarget(ref=destination_ref)``) is a DEFINITION site, not
+    a caller bypass -- it must produce ZERO checkout-grammar findings.
+
+    Widening the scan to 100% of ``src/`` (T026) newly brings
+    ``commit_helpers.py`` into view; without the def-vs-call discrimination
+    this would false-red on the facade's own internals.
+    """
+    findings = _scan_checkout_grammar_module(_SRC / "git" / "commit_helpers.py")
+    assert findings == [], (
+        "safe_commit's own compat-shim CommitTarget(ref=destination_ref) "
+        "construction was flagged -- the def-vs-call discrimination (T027) "
+        f"regressed. Findings: {findings!r}"
+    )
+
+
+def test_definition_site_discrimination_does_not_mask_a_same_named_bypass_elsewhere() -> None:
+    """Anti-false-negative: the def-site exemption is scoped to the DIRECT
+    enclosing function only, not file-wide.
+
+    A DIFFERENT function (not literally named ``safe_commit``/``write_meta``)
+    in the same fixture source must still be flagged if it constructs a
+    checkout-derived ``CommitTarget`` -- proving the discrimination does not
+    silently excuse an unrelated bypass sharing a file with the real shim.
+    """
+    fixture_source = (
+        "def _not_the_shim(current_branch):\n"
+        "    return CommitTarget(ref=current_branch)\n"
+        "def safe_commit(destination_ref):\n"
+        "    return CommitTarget(ref=destination_ref)\n"
+    )
+    findings = _scan_checkout_grammar(fixture_source, _SRC / "git" / "commit_helpers.py")
+    assert len(findings) == 1, (
+        "the def-site exemption for safe_commit masked a DIFFERENT, "
+        f"non-shim function's bypass in the same fixture: {findings!r}"
+    )
+    assert findings[0].lineno == 2, (
+        "expected the sole finding to be _not_the_shim's bypass (line 2), "
+        f"got lineno {findings[0].lineno}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T030 (WP06) — whole-tree proof: a bypass in a formerly-out-of-scope module
+# reds, and regression parity is preserved for a formerly-in-scope module.
+# ---------------------------------------------------------------------------
+
+#: Synthetic bypass fixture reused by both T030 tests below.
+_T030_INJECTED_BYPASS_SOURCE = (
+    "def _injected_bypass(current_branch):\n"
+    "    return CommitTarget(ref=current_branch)\n"
+)
+
+
+@pytest.mark.parametrize(
+    "rel_path",
+    [
+        "src/specify_cli/doc_analysis/doc_state.py",
+        "src/specify_cli/acceptance/__init__.py",
+    ],
+)
+def test_whole_tree_scan_catches_bypass_in_formerly_out_of_scope_module(rel_path: str) -> None:
+    """T030: a synthetic bypass planted in a module the RETIRED 17-module
+    allowlist could NOT see now REDS and names the offending site.
+
+    Injecting into a module that was already in the old allowlist would
+    prove nothing about the widening (it would have reded before WP06 too) --
+    each parametrized ``rel_path`` here is asserted to be OUTSIDE the retired
+    scope first, so this test can only pass by exercising the widening.
+    """
+    assert rel_path not in _RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST, (
+        f"{rel_path} must be a module the retired 17-module allowlist could "
+        "NOT see -- injecting a bypass into a formerly-in-scope module would "
+        "not exercise the widening (T030)."
+    )
+    module = _REPO_ROOT / rel_path
+    assert module.exists(), f"T030 fixture module missing: {module}"
+
+    offenders = _checkout_grammar_offenders([(module, _T030_INJECTED_BYPASS_SOURCE)])
+
+    assert offenders, (
+        "whole-tree gate failed to flag a planted bypass in the formerly "
+        f"out-of-scope module {rel_path} -- the widening is not effective."
+    )
+    assert any(rel_path in offender for offender in offenders), (
+        f"the offending site {rel_path} was not named in the offender "
+        f"message(s): {offenders!r}"
+    )
+
+
+def test_whole_tree_scan_control_still_flags_formerly_in_scope_module() -> None:
+    """T030 regression-parity control (NFR-004): a synthetic bypass planted in
+    a module that WAS already in the retired 17-module allowlist still reds
+    too -- the widening did not accidentally narrow detection for the
+    previously-covered set.
+    """
+    rel_path = "src/specify_cli/core/mission_creation.py"
+    assert rel_path in _RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST, (
+        f"{rel_path} must be a module the retired 17-module allowlist COULD "
+        "see, to serve as the regression-parity control."
+    )
+    module = _REPO_ROOT / rel_path
+
+    offenders = _checkout_grammar_offenders([(module, _T030_INJECTED_BYPASS_SOURCE)])
+
+    assert offenders, (
+        "regression: a planted bypass in a formerly-in-scope module no "
+        "longer reds under the whole-tree scan."
+    )
 
 
 # ---------------------------------------------------------------------------
