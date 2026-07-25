@@ -18,8 +18,12 @@ change without an explicit, reviewed update to this suite)
     disk -- this exercises the LENIENT not-exists DEGRADE path of
     ``acceptance._status_read_feature_dir`` (see also
     ``test_trio_transitions.py``) end-to-end through the real CLI, not just
-    at the unit boundary. The command still succeeds and reads status off
-    the primary checkout.
+    at the unit boundary. The command still succeeds and reads STATUS off
+    the primary checkout (``all_done`` / approved lane). RE-PIN 2026-07-25
+    (PR #2906): the acceptance-MATRIX gate now REFUSES the un-materialized
+    coord surface (GEC-5 / C2, #2885) rather than judging a primary
+    substitute, so ``ok`` is now ``False`` for this fixture -- see the
+    per-test docstring on ``test_coord_mission_diagnose_envelope_degrades_leniently``.
 
 * ``spec-kitty implement WP01 --mission <slug> --recover --json`` (flat +
   coord): the crash-recovery "nothing to recover" JSON contract --
@@ -380,16 +384,42 @@ class TestAcceptJsonDiagnose:
         assert payload["metadata_issues"] == []
 
     def test_coord_mission_diagnose_envelope_degrades_leniently(self, coord_repo: tuple[Path, str]) -> None:
-        """The coordination worktree was never materialized -- the status
-        read must degrade to the primary checkout and still succeed."""
+        """The coordination worktree was never materialized.
+
+        The STATUS read still degrades leniently to the primary checkout --
+        ``all_done`` and the approved lane are read there (``_status_read_feature_dir``'s
+        not-exists fallback is unchanged). The ACCEPTANCE-MATRIX gate, however, no
+        longer judges the coord-homed matrix against a PRIMARY substitute: it
+        refuses (``acceptance_matrix_cannot_evaluate`` / ``SURFACE_CANNOT_HOLD_FACT``),
+        so the diagnostic envelope reports ``ok=False`` and names why.
+
+        RE-PIN 2026-07-25 (PR #2906, operator-reviewed). This overrides the prior
+        ``ok=True`` pin from mission ``coord-authority-trio-degod`` (WP01). The
+        lifecycle-gate-execution-context mission's GEC-5 / C2 (#2885)
+        ``_matrix_surface_cannot_hold`` makes a coord-declared mission whose
+        coordination surface is not materialized REFUSE rather than judge an empty
+        or substituted PRIMARY surface -- the "refuse rather than guess" thesis this
+        mission exists to enforce. The old lenient ``ok=True`` was exactly the
+        confident-wrong-verdict (judging a coord fact off a primary substitute) the
+        mission eliminates. The command still succeeds (exit 0) and the envelope is
+        still emitted; it now discloses the cannot-evaluate honestly.
+        """
         repo_root, mission_slug = coord_repo
         payload = self._run(repo_root, mission_slug)
 
         assert payload["diagnose"] is True
+        # Status still degrades leniently to the primary checkout.
         assert payload["all_done"] is True
-        assert payload["ok"] is True
         assert payload["lanes"]["approved"] == ["WP01"]
         assert payload["mission_slug"] == mission_slug
+        # The matrix gate refuses the un-materialized coord surface (GEC-5 / C2).
+        assert payload["ok"] is False
+        assert any(
+            c["check"] == "acceptance_matrix_cannot_evaluate" for c in payload["blocked_checks"]
+        ), payload["blocked_checks"]
+        assert any(
+            "SURFACE_CANNOT_HOLD_FACT" in c["detail"] for c in payload["blocked_checks"]
+        ), payload["blocked_checks"]
 
 
 # ---------------------------------------------------------------------------
