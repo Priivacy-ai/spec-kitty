@@ -5,7 +5,7 @@
 extracted every cohesive seam into a dedicated one-way leaf module. What remains
 here is a thin shim that owns ONLY:
 
-* the ``mission`` Typer ``app`` and its 8 ``@app.command`` registrations
+* the ``mission`` Typer ``app`` and its 9 ``@app.command`` registrations
   (each delegating to a seam command function), and
 * a re-export block that keeps every historical ``mission.<name>`` patch
   target + ``from ...mission import <name>`` edge resolving (no business logic).
@@ -24,7 +24,8 @@ never back to ``mission``):
 * setup-plan + plan-commit       → ``mission_setup_plan``         (WP06)
 * accept / merge delegators      → ``mission_accept_merge``       (WP06)
 * finalize-tasks                 → ``mission_finalize``           (WP07)
-* planning-commit primitives     → ``coordination.commit_router`` (WP08)
+* planning-commit primitives     → ``coordination.commit_router`` (WP08 of #2056)
+* repair (Gap-2 cure)            → ``mission_repair`` (WP08 of coord-write-placement-closure-01KYCF83)
 """
 
 from __future__ import annotations
@@ -298,6 +299,13 @@ from specify_cli.coordination.commit_router import (
     _stage_finalize_artifacts_in_coord_worktree as _stage_finalize_artifacts_in_coord_worktree,
 )
 
+# WP08 (coord-write-placement-closure-01KYCF83, FR-005/NFR-005, Gap-2): the
+# ``agent mission repair`` command lives in its own leaf module (mirrors every
+# other seam above) — no business logic here, just the app registration.
+from specify_cli.cli.commands.agent.mission_repair import (
+    repair as repair_mission,
+)
+
 # Preserve the dynamic ``_invalid_<dir>_owned_files`` alias as a re-export so
 # patch targets keep resolving. The alias name is built from ``KITTY_SPECS_DIR``
 # at runtime (``.replace("-", "_")``) rather than hardcoding a raw mission-spec
@@ -327,6 +335,7 @@ app.command(name="setup-plan")(setup_plan)
 app.command(name="accept")(accept_feature)
 app.command(name="merge")(merge_feature)
 app.command(name="finalize-tasks")(finalize_tasks)
+app.command(name="repair")(repair_mission)
 
 
 TASKS_MD_FILENAME = "tasks.md"

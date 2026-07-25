@@ -73,6 +73,7 @@ __all__ = [
     "SurfaceLocations",
     "TopologySurface",
     "coord_read_dir_for",
+    "declared_read_surface",
     "mission_context_for",
     "placement_seam",
     "resolve_action_context",
@@ -1405,7 +1406,26 @@ class PlacementSeam:
 
         ``RETROSPECTIVE`` routes to :func:`resolve_retrospective_home` (the
         dedicated single authority, H-1); every other kind routes through
-        :func:`resolve_planning_read_dir` — see class docstring.
+        :func:`resolve_artifact_surface` (coord-write-placement-closure-01KYCF83
+        WP07, T032 — FR-004/NFR-002 fail-loud read authority).
+
+        Before WP07 this projected the LENIENT
+        :func:`~specify_cli.missions._read_path_resolver.resolve_planning_read_dir`
+        (via ``candidate_feature_dir_for_mission``), which never supplies a
+        ``coordination_branch`` to its fail-closed tail — so a coord-partition
+        kind whose declared coordination branch had been DELETED from git
+        silently substituted the primary checkout instead of raising. Routing
+        through :func:`resolve_artifact_surface` instead — the SAME
+        materialization-aware authority :func:`build_gate_execution_context`
+        already consumes — closes that silent substitution: ``DELETED`` now
+        raises :class:`~specify_cli.coordination.surface_resolver.
+        CoordinationBranchDeleted` (the existing typed partition-mismatch
+        signal; no new exception type needed). Every other cell — a
+        PRIMARY-partition kind, a coord-less topology (AH-2), or a coord
+        topology whose worktree is genuinely ``EMPTY``/``UNMATERIALIZED``
+        (the create-window) — resolves IDENTICALLY to before: these are the
+        T031-enumerated SANCTIONED degrades, preserved verbatim (NFR-002
+        forbids only *undeclared* fallbacks, not these declared ones).
         """
         if kind is MissionArtifactKind.RETROSPECTIVE:
             from specify_cli.retrospective.writer import resolve_retrospective_home
@@ -1420,12 +1440,7 @@ class PlacementSeam:
             )
             return retrospective_dir
 
-        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-
-        read_dir: Path = resolve_planning_read_dir(
-            self.repo_root, self.mission_slug, kind=kind
-        )
-        return read_dir
+        return resolve_artifact_surface(self.repo_root, self.mission_slug, kind).path
 
 
 @dataclass(frozen=True)
@@ -1503,6 +1518,49 @@ class ResolvedSurface:
     surface_kind: TopologySurface
 
 
+def declared_read_surface(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    resolver: MissionResolver | None = None,
+) -> TopologySurface:
+    """The intrinsic, materialization-BLIND declared home for a read of ``kind``.
+
+    AH-1/AH-3: a PRIMARY-partition kind's declared home is ``PRIMARY`` for
+    every topology (it never transits coordination). AH-2: a coord-partition
+    kind's declared home is ``COORD`` only when the mission's STORED topology
+    routes through coordination (:func:`routes_through_coordination`); a
+    coord-less topology (``SINGLE_BRANCH`` / ``LANES``) declares ``PRIMARY`` —
+    its actual home, not a fallback.
+
+    This answers "where does this kind's fact architecturally live", never
+    "where does a read resolve RIGHT NOW" — that materialization-aware
+    question belongs to :func:`resolve_artifact_surface`. The distinction is
+    load-bearing: :meth:`~specify_cli.acceptance.execution_context.
+    GateExecutionContext.surface_cannot_hold` (GEC-5 / #2906) compares THIS
+    declared answer against an ALREADY-RESOLVED (possibly create-window
+    -substituted) surface stamp to detect exactly the divergence a
+    stamp-is-not-permission refusal exists for. If this function consulted
+    materialization too, the two would always agree and the #2906 guard
+    could never fire.
+
+    coord-write-placement-closure-01KYCF83 WP07 (T034 fold): the ONE shared
+    partition+topology predicate. :func:`_classify_artifact_surface` (this
+    module) and :func:`~specify_cli.acceptance.execution_context.
+    declared_home_surface` both call this instead of each independently
+    reimplementing ``is_primary_artifact_kind`` + ``routes_through_coordination``
+    inline — convergence, not a second competing guard (D-06 / contract
+    "Read" reconciliation).
+    """
+    if is_primary_artifact_kind(kind):
+        return TopologySurface.PRIMARY
+    topology = resolve_topology(repo_root, mission_slug, resolver=resolver)
+    if routes_through_coordination(topology):
+        return TopologySurface.COORD
+    return TopologySurface.PRIMARY
+
+
 def _classify_artifact_surface(
     primary_root: Path,
     canonical_slug: str,
@@ -1517,18 +1575,17 @@ def _classify_artifact_surface(
     coordination mission dir. Consumes the EXISTING
     :func:`~specify_cli.missions._read_path_resolver.probe_coord_state` /
     :class:`CoordState` classifier; it writes no classifier beside it (GEC-3).
-    """
-    # AH-1/AH-3: a PRIMARY-partition kind lives on the primary surface for EVERY
-    # topology and coord state — it never transits coordination, so a deleted
-    # coord branch cannot affect reading it (no probe, no raise).
-    if is_primary_artifact_kind(kind):
-        return TopologySurface.PRIMARY, None
 
-    # AH-2: flat / SINGLE_BRANCH / LANES resolve AFFIRMATIVELY to primary — their
-    # declared home — gated on the STORED topology through the ONE canonical
-    # predicate, never an on-disk ``-coord`` husk stat (C-004 / #2062).
-    topology = resolve_topology(primary_root, canonical_slug, resolver=resolver)
-    if not routes_through_coordination(topology):
+    The declared (materialization-blind) partition+topology question is
+    answered by :func:`declared_read_surface` (T034 fold, WP07) — a
+    ``PRIMARY`` declared answer covers BOTH AH-1/AH-3 (a PRIMARY-partition
+    kind never transits coordination — no probe, no raise even under a
+    deleted coord branch) and AH-2 (a coord-less topology's declared home IS
+    primary, not a fallback); only a ``COORD`` declared answer proceeds to
+    the materialization-aware four-state classifier below.
+    """
+    declared = declared_read_surface(primary_root, canonical_slug, kind, resolver=resolver)
+    if declared is TopologySurface.PRIMARY:
         return TopologySurface.PRIMARY, None
 
     # Coord-routing topology + coord-partition kind: consume the four-state

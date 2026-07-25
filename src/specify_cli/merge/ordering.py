@@ -518,6 +518,24 @@ def _bake_mission_number_into_mission_branch(
     partial merge are responsible for clearing the flag (or running
     ``spec-kitty merge --abort``).
 
+    **coord-write-placement-closure-01KYCF83 WP09 (IC-08 / FR-009) design note:**
+    this function's detached-mission-branch-worktree mechanism was considered as
+    the wiring point for the birth-time runtime cutover (:func:`~specify_cli
+    .migration.runtime_state_cutover.cutover_mission`) — "the structural twin" —
+    but is deliberately NOT used for it. ``cutover_mission``'s sole ``status_phase``
+    writer (``_flip_phase``) resolves its write target via ``canonicalize_feature_dir``,
+    which follows ANY real worktree's ``.git`` pointer back to the canonical
+    main-repo root (confirmed via ``core.paths.resolve_canonical_root``). Because
+    planning artifacts (``meta.json``) already live on the target branch from
+    mission-creation time, that redirect would silently retarget the flip onto
+    ``main_repo``'s STALE pre-merge ``meta.json`` instead of the detached
+    mission-branch tip this function writes to — the exact same hazard this
+    function itself avoids by using ``compose_meta_json_path`` + direct
+    ``write_meta`` (never ``canonicalize_feature_dir``). The birth-cutover is
+    wired POST-target instead, in ``executor._run_birth_cutover`` (called from
+    ``_phase_record_done_and_project``); see ``tracers/design-decisions.md``
+    (IC-08) for the full analysis.
+
     **Retry safety**: the assignment always re-derives from the target tip.
     If a prior run assigned a number from a stale target and the push failed,
     re-running after ``git fetch`` sees the updated target and computes the

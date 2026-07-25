@@ -26,6 +26,14 @@ enforcement (FR-009, contracts/C-GUARD-1, NFR-004):
 
 Spec source: FR-009, NFR-004, contracts/C-GUARD-1; ticket #1355; ADR
 ``docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md``.
+
+coord-write-placement-closure-01KYCF83 WP06 (T028 / FR-001) adds a fourth
+guarantee: every ``target=CommitTarget(...)`` (or ``CommitTarget(ref=...)``
+built standalone) construction, anywhere in ``src/``, is seam-derived. This
+file reuses the SAME whole-tree scanner and AST grammar
+``test_no_write_side_rederivation.py`` defines (never a second, divergent
+implementation) so the C-GUARD-1 import-boundary perspective and the
+placement-enforcement gate agree on one detector.
 """
 
 from __future__ import annotations
@@ -34,6 +42,14 @@ import ast
 from pathlib import Path
 
 import pytest
+
+from tests.architectural._placement_whole_tree_scan import is_sanctioned
+from tests.architectural._placement_whole_tree_scan import iter_src_modules as _iter_placement_modules
+from tests.architectural._placement_whole_tree_scan import rel_path as _placement_rel_path
+from tests.architectural.test_no_write_side_rederivation import (
+    _CHECKOUT_GRAMMAR_ALLOW_LIST,
+    _scan_checkout_grammar,
+)
 
 pytestmark = pytest.mark.architectural
 
@@ -224,4 +240,39 @@ def test_safe_commit_destination_ref_shim_is_allowlisted() -> None:
         f"{sorted(stale)}. Remove them from "
         "_ALLOWLISTED_DESTINATION_REF_SAFE_COMMIT_SITES — the shim is one "
         "caller closer to deletion."
+    )
+
+
+def test_safe_commit_target_argument_is_seam_derived() -> None:
+    """WP06 / T028 / FR-001: every ``target=CommitTarget(...)`` construction is
+    seam-derived, not checkout-derived.
+
+    Reuses the SHARED whole-tree scanner (``_placement_whole_tree_scan``) and
+    the shared AST grammar (``test_no_write_side_rederivation._scan_checkout_grammar``
+    + its ``_CHECKOUT_GRAMMAR_ALLOW_LIST``) — this is a companion assertion
+    from the C-GUARD-1 import-boundary file's perspective, not a second,
+    divergent detector. A ``CommitTarget(...)``/``safe_commit(...,
+    destination_ref=...)`` construction that is neither seam-derived nor
+    allow-listed is exactly the split-brain root C-GUARD-1 and the placement
+    seam both exist to close.
+    """
+    offenders: list[str] = []
+    for module in _iter_placement_modules():
+        rel = _placement_rel_path(module)
+        if is_sanctioned(rel):
+            continue
+        source = module.read_text(encoding="utf-8")
+        for finding in _scan_checkout_grammar(source, module):
+            if finding.as_allow_key() in _CHECKOUT_GRAMMAR_ALLOW_LIST:
+                continue
+            offenders.append(
+                f"{rel}:{finding.lineno} {finding.callee}(...) constructs a ref "
+                "from a non-seam-derived expression — route it through "
+                "placement_seam(...).write_target(kind) or allow-list it in "
+                "test_no_write_side_rederivation.py with a tracked rationale"
+            )
+
+    assert not offenders, (
+        "safe_commit(target=CommitTarget(...)) construction not seam-derived "
+        "(WP06 / T028 / FR-001). Offenders:\n" + "\n".join(offenders)
     )

@@ -84,3 +84,9 @@ tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_corpus_conta
 tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_corpus_is_backfilled_non_vacuous
 tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_no_repo_root_event_file
 tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_sampled_complete_wp_reads_complete_via_public_gate
+# Deliberate regen (mission coord-write-placement-closure-01KYCF83 WP10, FR-010/IC-09):
+# a new non-vacuity proof that the re-keyed eligibility predicate genuinely reds on a
+# synthetic drifted (born, un-reconciled) mission fixture. It inherits the module-level
+# @pytest.mark.slow (shared with its sibling corpus-scanning tests in this file, all
+# genuinely slow real-event-log scans) — not a budget-motivated re-mark.
+tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_reked_lock_reds_on_born_un_reconciled_mission

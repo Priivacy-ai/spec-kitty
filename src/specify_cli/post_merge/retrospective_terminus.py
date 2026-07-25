@@ -232,32 +232,24 @@ def _commit_captured_retrospective(
     if not paths:
         return  # nothing the capture wrote is dirty — already committed or absent
 
-    # Canonical branch resolution (core.git_ops.get_current_branch already returns
-    # None for detached HEAD / non-git worktrees — no hand-rolled duplicate).
-    from specify_cli.core.git_ops import get_current_branch  # noqa: PLC0415
-
-    branch = get_current_branch(repo_root)
-    if branch is None:
-        logger.warning(
-            "retrospective for mission %s was captured but NOT committed: %s is not on a "
-            "branch (detached HEAD or not a git worktree). Commit it manually so the "
-            "durable event log is not left with an uncommitted append.",
-            mission_slug,
-            repo_root,
-        )
-        return
-
+    # coord-write-placement-closure-01KYCF83 WP03/FR-003: the destination is
+    # resolved through the placement port (mission_slug -> commit_merge_bookkeeping)
+    # rather than an ambient ``get_current_branch(repo_root)`` HEAD read — the
+    # CWD-dependent branch-detection fallback this mission retires. Any failure
+    # to resolve/commit (unresolvable mission, detached HEAD/HEAD-mismatch,
+    # non-git worktree, ...) is caught below and reported, never raised — the
+    # caller must not abort the merge/close.
     from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping  # noqa: PLC0415
 
     try:
         commit_merge_bookkeeping(
             repo_root=repo_root,
             worktree_root=repo_root,
-            branch=branch,
+            mission_slug=mission_slug,
             message=f"chore({mission_slug}): capture mission retrospective",
             paths=paths,
         )
-        logger.debug("committed retrospective bookkeeping for mission %s onto %s", mission_slug, branch)
+        logger.debug("committed retrospective bookkeeping for mission %s", mission_slug)
     except Exception as exc:  # noqa: BLE001 — fail-open: report but never abort merge/close
         joined = " ".join(str(p) for p in paths)
         logger.warning(

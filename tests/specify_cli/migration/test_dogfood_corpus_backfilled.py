@@ -24,6 +24,20 @@ Scope notes:
   mission's momentary phase.
 * Never-claimed / no-runtime missions legitimately reduce to an empty snapshot;
   the guard only asserts on missions that *carry* runtime state.
+
+WP10 re-key (FR-010 / C-003 / NFR-006 / IC-09): eligibility
+(:func:`_eligible_runtime_missions`) used to key on the frontmatter
+``has_evictable_state()`` signal. WP04/WP05 retired frontmatter runtime
+authoring, so that signal goes permanently empty for every mission born after
+the retirement — a future regression in the WP09 birth-cutover seam would
+leave such a mission un-flipped/empty and this guard would never see it
+(a vacuous pass). Eligibility is now keyed on independent evidence read
+directly from ``status.events.jsonl`` (see
+:func:`_mission_carries_event_log_runtime`) — never on the retired
+frontmatter signal, and never on ``status_phase`` itself (circular: that is
+exactly the field this guard verifies was flipped). See
+``test_reked_lock_reds_on_born_un_reconciled_mission`` for the non-vacuity
+proof.
 """
 
 from __future__ import annotations
@@ -41,6 +55,14 @@ from specify_cli.migration.backfill_runtime_state import (
     _seed_id,
     read_legacy_runtime,
     verify_backfill,
+)
+from specify_cli.status import (
+    Lane,
+    StatusEvent,
+    StoreError,
+    append_events_atomic_verified,
+    build_claim_policy_metadata,
+    read_event_stream,
 )
 from specify_cli.status import emit as _emit
 from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
@@ -117,18 +139,67 @@ def _backfilled_runtime_missions(corpus: Path) -> list[Path]:
     return out
 
 
+def _mission_carries_event_log_runtime(mission_dir: Path) -> bool:
+    """True iff *mission_dir*'s event log records independent runtime evidence.
+
+    WP10 re-key (FR-010 / IC-09): evidence comes ONLY from
+    ``status.events.jsonl`` — never from
+    :meth:`~specify_cli.migration.backfill_runtime_state.LegacyWPRuntime.has_evictable_state`
+    (frontmatter, retired by WP05/FR-008: every mission born after authoring
+    retirement carries NO frontmatter runtime at all, so keying eligibility
+    there makes the guard permanently blind to every future mission — a
+    vacuous pass) and never from ``status_phase`` (circular: that field is
+    exactly what this guard verifies was flipped, so gating eligibility on it
+    could never catch an un-flipped regression).
+
+    "Carries runtime" means the log holds, for at least one WP, either:
+
+    * an :class:`~specify_cli.status.InnerStateChanged` annotation — by
+      construction (``_append_annotation`` / the public ``annotate`` /
+      ``emit_inner_state_changed`` seam) an annotation is only ever appended
+      with a non-empty runtime delta, so its mere presence IS runtime
+      evidence; or
+    * a lane transition whose ``policy_metadata`` is non-empty — the only
+      transitions that carry ``policy_metadata`` are real ``planned ->
+      claimed`` claims (:func:`~specify_cli.status.build_claim_policy_metadata`,
+      live-emitted or backfill-seeded — both shapes are byte-identical on the
+      wire).
+
+    Deliberately narrower than "any transition at all": every WP receives a
+    ``genesis -> planned`` / self-transition ``planned -> planned`` *canonical
+    bootstrap* identity anchor at ``finalize-tasks`` time (confirmed
+    empirically across the committed corpus) that carries no runtime signal
+    whatsoever. A never-claimed WP legitimately reduces to an empty snapshot
+    (module docstring); a predicate keyed on "any event" would wrongly flag
+    those bootstrap-only missions as eligible and then fail the
+    non-empty-snapshot assertion on perfectly healthy, merely-unclaimed corpus
+    entries.
+    """
+    events_path = mission_dir / "status.events.jsonl"
+    if not events_path.is_file():
+        return False
+    try:
+        stream = read_event_stream(mission_dir)
+    except StoreError:
+        return False
+    if stream.annotations:
+        return True
+    return any(bool(event.policy_metadata) for event in stream.transitions)
+
+
 def _eligible_runtime_missions(corpus: Path) -> list[Path]:
-    """Every mission with anchored legacy runtime state requiring eviction."""
+    """Every mission whose event log carries independent runtime evidence.
+
+    Re-keyed (WP10 / FR-010 / IC-09) off
+    :func:`_mission_carries_event_log_runtime` — see that function's
+    docstring for the hard-forbidden predicates this deliberately never
+    reads.
+    """
     eligible: list[Path] = []
     for mission_dir in sorted(corpus.iterdir()):
         if not mission_dir.is_dir() or mission_dir.name == _SELF_MISSION:
             continue
-        runtime = read_legacy_runtime(mission_dir)
-        anchors = _claim_anchors(mission_dir)
-        if any(
-            row.has_evictable_state() and wp_id in anchors
-            for wp_id, row in runtime.items()
-        ):
+        if _mission_carries_event_log_runtime(mission_dir):
             eligible.append(mission_dir)
     return eligible
 
@@ -168,16 +239,21 @@ def test_corpus_is_backfilled_non_vacuous() -> None:
     )
 
 
-@pytest.mark.timeout(600)
-def test_all_eligible_missions_snapshot_non_empty_and_verify_ok() -> None:
-    """Every eligible mission is flipped, populated, and verifies cleanly.
+def _assert_birth_invariant_holds(corpus: Path) -> None:
+    """FR-010 / C-003: every eligible mission is flipped, populated, verifies.
+
+    Extracted so the SAME assertion runs both over the real committed corpus
+    (below) and over a synthetic drifted fixture
+    (``test_reked_lock_reds_on_born_un_reconciled_mission``), proving the
+    re-keyed lock genuinely REDS on drift rather than only ever observing an
+    already-healthy corpus.
 
     ``verify_backfill`` is the WP01 fail-closed count+value parity check of the
     reduced snapshot against the OLD frontmatter/``tasks.md`` reader, so an ``ok``
     result is the spot-check that the seeded snapshot equals the legacy view
     (SC-001 / NFR-001), not merely that *something* was seeded.
     """
-    missions = _eligible_runtime_missions(_kitty_specs())
+    missions = _eligible_runtime_missions(corpus)
     assert missions, "no eligible runtime-carrying missions found"
 
     unflipped = [mission.name for mission in missions if (_status_phase(mission) or 0) < 1]
@@ -201,6 +277,107 @@ def test_all_eligible_missions_snapshot_non_empty_and_verify_ok() -> None:
             f"{mission_dir.name}: verify_backfill NOT ok after backfill: "
             + "; ".join(result.mismatches)
         )
+
+
+@pytest.mark.timeout(600)
+def test_all_eligible_missions_snapshot_non_empty_and_verify_ok() -> None:
+    """Every eligible mission (real committed corpus) is flipped and populated.
+
+    See :func:`_assert_birth_invariant_holds` for the assertion body shared
+    with the anti-vacuity fixture test.
+    """
+    _assert_birth_invariant_holds(_kitty_specs())
+
+
+def test_reked_lock_reds_on_born_un_reconciled_mission(tmp_path: Path) -> None:
+    """T049 anti-vacuity proof (FR-010 / IC-09) — the whole point of WP10.
+
+    Builds a synthetic mission that is authoring-retired (no frontmatter
+    runtime state anywhere on disk — the FR-008/WP05 shape) but whose event
+    log carries a genuine LIVE claim (real ``policy_metadata``, exactly the
+    shape a born mission gets at the WP09 birth-cutover seam) while
+    ``status_phase`` was never flipped — a drifted, un-birth-stamped mission.
+
+    Two things must both hold, or the re-key is wrong:
+
+    1. The HARD-FORBIDDEN frontmatter predicate (``has_evictable_state()``)
+       does NOT see this mission as eligible at all — proving that keying
+       eligibility there (the pre-WP10 shape) would make the guard silently
+       skip it (a vacuous pass), never asserting anything and never redding.
+    2. The re-keyed :func:`_eligible_runtime_missions` DOES see it, and
+       :func:`_assert_birth_invariant_holds` REDS on it (the un-flipped
+       ``status_phase`` assertion fires) — proving the re-keyed lock is a
+       genuine, non-vacuous guard against exactly this future regression.
+    """
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    mission_dir = corpus / "drifted-un-birth-stamped-01KZQXTR"
+    mission_dir.mkdir()
+    tasks = mission_dir / "tasks"
+    tasks.mkdir()
+
+    mission_id = "01KZQXTRH8T2X6R4N9YV3D5C7B"
+    # No status_phase key at all in meta.json — genuinely un-flipped/un-birthed.
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "mission_slug": mission_dir.name,
+                "mission_type": "software-dev",
+            }
+        ),
+        encoding="utf-8",
+    )
+    # Authoring-retired WP frontmatter (FR-008/WP05 shape): no shell_pid /
+    # agent / assignee / tracker_refs anywhere — zero evictable state on disk.
+    (tasks / "WP01-demo.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Drifted Demo\nexecution_mode: code_change\n---\n\n# WP01\n",
+        encoding="utf-8",
+    )
+    # No tasks.md checkbox rows either — post-retirement, subtask completion
+    # is entirely event-sourced (the checkbox proxy is retired, not merely
+    # frontmatter). A checkbox row (even unchecked) would make the legacy
+    # reader's ``subtasks`` dict non-empty and defeat the anti-vacuity proof
+    # below (Sonar-safe finding: verified empirically against the real reader).
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01 Demo\n\n", encoding="utf-8")
+    # A genuine LIVE claim — the exact wire shape a real born mission carries
+    # (real policy_metadata, not a backfill seed).
+    claim = StatusEvent(
+        event_id="01DRIFTDRIFTDRIFTDRIFTDRIF",
+        mission_slug=mission_dir.name,
+        mission_id=mission_id,
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at="2026-07-25T09:00:00+00:00",
+        actor="claude:sonnet:pedro",
+        force=False,
+        execution_mode="worktree",
+        policy_metadata=build_claim_policy_metadata(
+            shell_pid=55221,
+            shell_pid_created_at="2026-07-25T08:59:00+00:00",
+            agent="claude:sonnet:pedro",
+        ),
+    )
+    append_events_atomic_verified(mission_dir, [claim])
+
+    # (1) Anti-vacuity call-out: the HARD-FORBIDDEN predicate is blind here.
+    legacy = read_legacy_runtime(mission_dir)
+    anchors = _claim_anchors(mission_dir)
+    forbidden_predicate_would_see_it = any(
+        row.has_evictable_state() and wp_id in anchors for wp_id, row in legacy.items()
+    )
+    assert forbidden_predicate_would_see_it is False, (
+        "fixture must be invisible to the retired has_evictable_state() "
+        "predicate, or this is not proving the vacuity WP10 closes"
+    )
+
+    # (2) The re-keyed predicate sees it...
+    assert mission_dir in _eligible_runtime_missions(corpus)
+
+    # ...and the lock genuinely REDS on it (non-vacuous).
+    with pytest.raises(AssertionError, match="not cut over"):
+        _assert_birth_invariant_holds(corpus)
 
 
 def test_sampled_complete_wp_reads_complete_via_public_gate() -> None:

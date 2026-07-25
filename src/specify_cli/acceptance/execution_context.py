@@ -53,10 +53,8 @@ from mission_runtime import (
     MissionArtifactKind,
     MissionResolver,
     TopologySurface,
-    is_primary_artifact_kind,
+    declared_read_surface,
     resolve_artifact_surface,
-    resolve_topology,
-    routes_through_coordination,
 )
 
 
@@ -238,11 +236,11 @@ def declared_home_surface(
 ) -> TopologySurface:
     """The surface a ``kind`` authoritatively belongs to under the STORED topology.
 
-    Answers "where does this kind's fact live" (GEC-5's input), consuming the SAME
-    canonical authority :func:`mission_runtime.resolve_artifact_surface` uses — the
-    :func:`mission_runtime.is_primary_artifact_kind` partition and the ONE
-    :func:`mission_runtime.routes_through_coordination` predicate over the stored
-    topology — so it never re-derives coord-state or ``EMPTY`` loud/quiet behaviour:
+    Answers "where does this kind's fact live" (GEC-5's input). A THIN wrapper
+    over :func:`mission_runtime.declared_read_surface` — the ONE shared
+    partition (:func:`mission_runtime.is_primary_artifact_kind`) + topology
+    (:func:`mission_runtime.routes_through_coordination`) predicate — so it
+    never re-derives coord-state or ``EMPTY`` loud/quiet behaviour:
 
     * a PRIMARY-partition kind is ``PRIMARY`` for every topology (AH-1/AH-3);
     * a coord-partition kind is ``COORD`` only when the mission's stored topology
@@ -254,13 +252,16 @@ def declared_home_surface(
     fact genuinely lives on, and only the coord create-window diverges from its
     stamp — which is exactly what :meth:`GateExecutionContext.surface_cannot_hold`
     keys on.
+
+    coord-write-placement-closure-01KYCF83 WP07 (T034 fold — the #2906
+    convergence): this function used to reimplement the partition+topology
+    check inline; it now DELEGATES to :func:`mission_runtime.
+    declared_read_surface` — the same predicate the new fail-loud read
+    authority (:meth:`mission_runtime.PlacementSeam.read_dir`'s
+    ``resolve_artifact_surface`` projection) is built from. One shared
+    predicate, two consumers — never a second competing guard.
     """
-    if is_primary_artifact_kind(kind):
-        return TopologySurface.PRIMARY
-    topology = resolve_topology(repo_root, mission_slug, resolver=resolver)
-    if routes_through_coordination(topology):
-        return TopologySurface.COORD
-    return TopologySurface.PRIMARY
+    return declared_read_surface(repo_root, mission_slug, kind, resolver=resolver)
 
 
 # Default HEAD resolver for GEC-2 ref agreement. Injected in tests so the seam is

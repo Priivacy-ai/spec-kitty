@@ -54,6 +54,12 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 
 _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
+# coord-write-placement-closure-01KYCF83 WP06: decisions.events.jsonl reuses
+# the SAME event-log union driver (structurally identical append-only JSONL
+# envelope) -- see specify_cli/lanes/merge.py's _MERGE_DRIVERS comment.
+_DECISION_LOG_GITATTRIBUTES_ENTRY = (
+    "kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log"
+)
 # C-006 (#2709): the meta.json field-merge and traces union drivers register on
 # the same surfaces as the event-log driver.
 _META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
@@ -181,6 +187,7 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
         lines = attributes_path.read_text(encoding="utf-8").splitlines()
     required_entries = (
         _EVENT_LOG_GITATTRIBUTES_ENTRY,
+        _DECISION_LOG_GITATTRIBUTES_ENTRY,
         _META_GITATTRIBUTES_ENTRY,
         _TRACES_GITATTRIBUTES_ENTRY,
         _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY,
