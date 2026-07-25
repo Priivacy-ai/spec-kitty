@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
+from specify_cli.core.env import is_interactive
 
 from specify_cli.intake.errors import (
     IntakeFileMissingError,
@@ -105,9 +106,9 @@ def _prompt_candidate_selection(
     for idx, (found_path, harness_key, _) in enumerate(candidates, start=1):
         err_console.print(f"  {idx}. {found_path}  ({harness_key})")
 
-    if not sys.stdin.isatty():
+    if not is_interactive():
         err_console.print(
-            "\nNon-interactive stdin — pass a path explicitly: spec-kitty intake <path>"
+            "\nNon-interactive — pass a path explicitly: spec-kitty intake <path>"
         )
         raise typer.Exit(1)
 

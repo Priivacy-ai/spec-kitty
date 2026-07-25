@@ -588,7 +588,9 @@ def test_warn_or_confirm_proceeds_with_assume_yes(tmp_path: Path) -> None:
 def test_warn_or_confirm_aborts_when_user_declines(tmp_path: Path) -> None:
     with (
         patch.object(preflight, "_collect_hollow_review_warnings", return_value={"WP01": ["force_count=2"]}),
-        patch.object(preflight.sys.stdin, "isatty", return_value=True),
+        # #2912: the gate now routes through is_interactive(); force the
+        # interactive confirm path via the documented escape hatch.
+        patch.dict("os.environ", {"SPEC_KITTY_FORCE_INTERACTIVE": "1"}),
         patch.object(preflight.typer, "confirm", return_value=False),
         pytest.raises(typer.Exit) as exc,
     ):

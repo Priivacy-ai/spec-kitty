@@ -9,7 +9,6 @@ remediation). One-way import: this module never imports the command shim.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +16,7 @@ import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
+from specify_cli.core.env import is_interactive
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
@@ -571,7 +571,7 @@ def _warn_or_confirm_hollow_reviews(
     console.print("These WPs may have been approved by the implementing agent, not an independent reviewer.")
     console.print("Consider re-reviewing before merge.\n")
 
-    if assume_yes or not sys.stdin.isatty():
+    if assume_yes or not is_interactive():
         console.print("[yellow]Proceeding without interactive confirmation.[/yellow]")
         return
 
