@@ -8,6 +8,7 @@ the ``_json_error`` envelope shape, and the env-gated branches of
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any
 
 import pytest
@@ -15,6 +16,12 @@ import pytest
 from specify_cli.cli.commands import _doctor_shared
 
 pytestmark = [pytest.mark.fast]
+
+
+def _clear_interactivity_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate the TTY/CI dimensions from the is_interactive env overrides."""
+    monkeypatch.delenv("SPEC_KITTY_FORCE_INTERACTIVE", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_NON_INTERACTIVE", raising=False)
 
 
 def test_console_is_single_shared_instance_across_import_sites() -> None:
@@ -64,7 +71,8 @@ def test_json_output_guard_restores_on_exception() -> None:
 def test_is_interactive_environment_false_when_not_a_tty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(_doctor_shared.sys.stdin, "isatty", lambda: False)
+    _clear_interactivity_env(monkeypatch)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
     for var in _doctor_shared._CI_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
     assert _doctor_shared._is_interactive_environment() is False
@@ -73,7 +81,8 @@ def test_is_interactive_environment_false_when_not_a_tty(
 def test_is_interactive_environment_true_when_tty_and_no_ci(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(_doctor_shared.sys.stdin, "isatty", lambda: True)
+    _clear_interactivity_env(monkeypatch)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     for var in _doctor_shared._CI_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
     assert _doctor_shared._is_interactive_environment() is True
@@ -83,10 +92,50 @@ def test_is_interactive_environment_true_when_tty_and_no_ci(
 def test_is_interactive_environment_false_under_ci(
     monkeypatch: pytest.MonkeyPatch, ci_value: str
 ) -> None:
-    monkeypatch.setattr(_doctor_shared.sys.stdin, "isatty", lambda: True)
+    _clear_interactivity_env(monkeypatch)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     for var in _doctor_shared._CI_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("CI", ci_value)
+    assert _doctor_shared._is_interactive_environment() is False
+
+
+def test_is_interactive_environment_honors_non_interactive_env_on_a_tty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2912: routing through is_interactive() means SPEC_KITTY_NON_INTERACTIVE
+    now suppresses the doctor prompt even when stdin is a TTY (it did not before)."""
+    _clear_interactivity_env(monkeypatch)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    for var in _doctor_shared._CI_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
+    assert _doctor_shared._is_interactive_environment() is False
+
+
+def test_is_interactive_environment_force_interactive_overrides_non_tty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2912: the SPEC_KITTY_FORCE_INTERACTIVE escape hatch now reaches doctor."""
+    _clear_interactivity_env(monkeypatch)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    for var in _doctor_shared._CI_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    assert _doctor_shared._is_interactive_environment() is True
+
+
+def test_is_interactive_environment_ci_veto_beats_force_interactive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-023 safety: a CI env var still vetoes prompting even if
+    SPEC_KITTY_FORCE_INTERACTIVE is set — CI must never hang on a prompt."""
+    _clear_interactivity_env(monkeypatch)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    for var in _doctor_shared._CI_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    monkeypatch.setenv("CI", "true")
     assert _doctor_shared._is_interactive_environment() is False
 
 

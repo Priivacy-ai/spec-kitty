@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER
 from specify_cli.cli.commands.merge_driver import (
     _acceptance_matrix_fill_score,
     _issue_matrix_fill_score,
@@ -84,6 +85,89 @@ def test_filled_issue_matrix_outscores_scaffold() -> None:
 
 def test_issue_matrix_score_ignores_non_table_prose() -> None:
     assert _issue_matrix_fill_score("# Heading\n\nplain prose, no rows\n") == 0
+
+
+# --- #2912: scorer robustness folds ---------------------------------------
+
+# A requirement-seeded scaffold criterion: its *description* is a real-looking
+# "Verify <req> is satisfied" (NOT the marker), while the scaffold marker lives
+# in *notes* — the exact shape ``scaffold_acceptance_matrix`` emits.
+_REQ_SEEDED_SCAFFOLD_CRITERION = {
+    "criterion_id": "AC-001",
+    "description": "Verify FR-001 is satisfied",
+    "pass_fail": "pending",
+    "evidence": None,
+    "notes": SCAFFOLD_TODO_MARKER,
+}
+
+
+def test_requirement_seeded_scaffold_scores_zero_not_inflated_by_description() -> None:
+    """#2912: the fill signal reads ``notes`` (where the marker lives), not
+    ``description`` — so a requirement-seeded scaffold scores 0 and cannot
+    out-fill a genuinely-filled matrix by sheer criterion count."""
+    scaffold = {
+        "overall_verdict": "pending",
+        "criteria": [
+            dict(_REQ_SEEDED_SCAFFOLD_CRITERION, criterion_id=f"AC-{i:03d}")
+            for i in range(1, 4)
+        ],
+    }
+    assert _acceptance_matrix_fill_score(json.dumps(scaffold)) == 0
+
+    filled_one = {
+        "overall_verdict": "pass",
+        "criteria": [
+            {
+                "criterion_id": "AC-001",
+                "description": "Verify FR-001 is satisfied",
+                "pass_fail": "pass",
+                "evidence": "commit abc1234",
+                "notes": "manual QA passed",
+            }
+        ],
+    }
+    assert _acceptance_matrix_fill_score(json.dumps(filled_one)) > _acceptance_matrix_fill_score(
+        json.dumps(scaffold)
+    )
+
+
+_MINIMAL_FILLED_ISSUE_MATRIX = """# Issue matrix
+
+| Issue | Verdict | Evidence ref |
+|-------|---------|--------------|
+| #2804 | fixed | abc1234 |
+"""
+
+_MINIMAL_SCAFFOLD_ISSUE_MATRIX = """# Issue matrix
+
+| Issue | Verdict | Evidence ref |
+|-------|---------|--------------|
+| #2804 | unknown | <link or commit> |
+"""
+
+_REORDERED_FILLED_ISSUE_MATRIX = """# Issue matrix
+
+| Verdict | Issue | Title | Evidence ref |
+|---------|-------|-------|--------------|
+| fixed | #2804 | merge resets gate artifacts | abc1234 |
+"""
+
+
+def test_issue_matrix_score_resolves_verdict_by_header_not_position() -> None:
+    """#2912: a minimal matrix with no Title column still scores its verdict.
+    The old positional ``cells[2]`` read landed on Evidence ref instead, and its
+    positional ``cells[1]`` counted the separator row's ``---`` as a title."""
+    filled = _issue_matrix_fill_score(_MINIMAL_FILLED_ISSUE_MATRIX)
+    scaffold = _issue_matrix_fill_score(_MINIMAL_SCAFFOLD_ISSUE_MATRIX)
+    assert filled == 1  # one real verdict; no Title column and no separator credit
+    assert scaffold == 0
+    assert filled > scaffold
+
+
+def test_issue_matrix_score_handles_reordered_columns() -> None:
+    """#2912: header resolution finds Verdict/Title wherever they sit."""
+    # verdict in column 0, title in column 2 → both counted, separator ignored.
+    assert _issue_matrix_fill_score(_REORDERED_FILLED_ISSUE_MATRIX) == 2
 
 
 def _run_driver(

@@ -241,9 +241,15 @@ def _acceptance_matrix_fill_score(text: str) -> int:
     """Return how much real acceptance evidence ``text`` carries.
 
     Counts a decided ``overall_verdict`` plus every criterion that has moved off
-    the scaffold (a non-pending verdict, real evidence, or a description that is
-    no longer the scaffold TODO). Unparseable text scores -1 so a valid document
-    always beats a corrupt one.
+    the scaffold (a non-pending verdict, real evidence, or ``notes`` carrying
+    real content beyond the scaffold TODO). Unparseable text scores -1 so a valid
+    document always beats a corrupt one.
+
+    The scaffold marker lives in ``notes`` for *both* scaffold shapes
+    (requirement-seeded and generic — see ``scaffold_acceptance_matrix``); the
+    requirement-seeded ``description`` ("Verify <req> is satisfied") is itself
+    scaffold, so scoring off ``notes`` (not ``description``) avoids crediting a
+    pure scaffold criterion (#2912).
     """
     try:
         data = json.loads(text) if text.strip() else {}
@@ -267,8 +273,8 @@ def _acceptance_matrix_fill_score(text: str) -> int:
                 score += 1
             if criterion.get("evidence"):
                 score += 1
-            description = criterion.get("description")
-            if isinstance(description, str) and SCAFFOLD_TODO_MARKER not in description:
+            notes = criterion.get("notes")
+            if isinstance(notes, str) and notes.strip() and SCAFFOLD_TODO_MARKER not in notes:
                 score += 1
     return score
 
@@ -276,23 +282,51 @@ def _acceptance_matrix_fill_score(text: str) -> int:
 def _issue_matrix_fill_score(text: str) -> int:
     """Return how many decided issue-matrix rows ``text`` carries.
 
-    A row counts when its verdict cell is a real verdict other than the
-    scaffold's ``unknown``, and again when its title cell is no longer the
-    ``<fill ...>`` placeholder. Non-table lines are ignored.
+    Columns are resolved by **header name** via the canonical ``COLUMN_ALIASES``
+    vocabulary (the issue-matrix SSOT), not by fixed position — so a legitimately
+    reordered or minimal matrix (e.g. one with no ``Title`` column) is scored
+    correctly instead of shifting the positional read (#2912). A row's verdict
+    counts when it is a real verdict other than the scaffold's ``unknown``; its
+    title, when the column exists, counts when it is no longer the ``<fill ...>``
+    placeholder. The header and separator rows are skipped.
     """
+    from specify_cli.cli.commands.review._issue_matrix import COLUMN_ALIASES
+
+    def _cells(row: str) -> list[str]:
+        parts = row.split("|")
+        if parts and not parts[0].strip():
+            parts = parts[1:]
+        if parts and not parts[-1].strip():
+            parts = parts[:-1]
+        return [p.strip() for p in parts]
+
+    verdict_idx: int | None = None
+    title_idx: int | None = None
     score = 0
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped.startswith("|"):
             continue
-        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if len(cells) < 3:
+        cells = _cells(stripped)
+        if verdict_idx is None:
+            # First table row is the header: resolve columns by canonical name.
+            headers = [COLUMN_ALIASES.get(c.lower(), c.lower()) for c in cells]
+            if "verdict" not in headers:
+                continue  # defensive: not a recognizable header row yet
+            verdict_idx = headers.index("verdict")
+            title_idx = headers.index("title") if "title" in headers else None
             continue
-        title, verdict = cells[1], cells[2]
-        if verdict and verdict not in {"unknown", "Verdict"} and not verdict.startswith("-"):
-            score += 1
-        if title and not title.startswith("<") and title != "Title":
-            score += 1
+        # Skip the separator row (cells are all dashes / colons).
+        if cells and all(cell and set(cell) <= {"-", ":"} for cell in cells):
+            continue
+        if verdict_idx < len(cells):
+            verdict = cells[verdict_idx]
+            if verdict and verdict != "unknown" and not verdict.startswith("-"):
+                score += 1
+        if title_idx is not None and title_idx < len(cells):
+            title = cells[title_idx]
+            if title and not title.startswith("<"):
+                score += 1
     return score
 
 

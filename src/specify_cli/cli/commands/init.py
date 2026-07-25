@@ -21,7 +21,7 @@ from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
     AI_CHOICES,
 )
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import is_interactive
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.vcs import (
     is_git_available,
@@ -397,11 +397,11 @@ class VCSNotFoundError(Exception):
 
 
 def _is_non_interactive_mode(flag: bool) -> bool:
-    if flag:
-        return True
-    if is_truthy(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
-        return True
-    return not sys.stdin.isatty()
+    # The explicit ``--non-interactive`` flag forces non-interactive; otherwise
+    # defer to the single non-interactive authority. Routing through
+    # ``is_interactive`` adds the ``SPEC_KITTY_FORCE_INTERACTIVE`` escape hatch
+    # the old local matrix omitted (#2912).
+    return flag or not is_interactive()
 
 
 def _primary_next_step_agent(selected_agents: list[str]) -> str:

@@ -44,10 +44,18 @@ def is_interactive() -> bool:
       2. ``SPEC_KITTY_NON_INTERACTIVE`` truthy   -> False (how agents/CI drive us).
       3. Otherwise: ``sys.stdin.isatty()``.
 
-    Any surface that is about to prompt — ``typer.prompt``, ``input()``, a
-    keystroke read — must consult this first. Prompting when this returns False
-    is the #2876 class of defect: in an agent harness with an open-but-silent
-    stdin pipe, the prompt blocks forever.
+    The single authority for **prompt-gating**: any surface about to block on a
+    human — ``typer.prompt``, ``input()``, ``typer.confirm``, a keystroke read —
+    must consult this first. Prompting when this returns False is the #2876 class
+    of defect: in an agent harness with an open-but-silent stdin pipe, the prompt
+    blocks forever. (`init`, `merge` preflight, `intake`, and `doctor` all route
+    through this — #2912.)
+
+    This is distinct from using ``stdin`` as a *data channel*: code that reads a
+    piped payload (e.g. a harness hook JSON on stdin) legitimately checks
+    ``sys.stdin.isatty()`` directly, because "is there piped input?" is a
+    different question from "may I prompt?" and must not be swayed by
+    ``SPEC_KITTY_FORCE_INTERACTIVE`` / ``NON_INTERACTIVE``.
 
     Tests monkeypatch ``sys.stdin`` or ``os.environ`` rather than relying on the
     real shell.
