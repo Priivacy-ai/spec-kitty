@@ -36,7 +36,7 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
  Commands for AI agents to execute spec-kitty mission actions programmatically
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ config      Manage project AI agent configuration (add, remove, list agents) │
@@ -63,7 +63,7 @@ _Mission action commands that display prompts and instructions for agents_
  Mission action commands that display prompts and instructions for agents
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ implement  Display work package prompt with implementation instructions.     │
@@ -96,30 +96,30 @@ _Mission action commands that display prompts and instructions for agents_
 │                       auto-detects first planned if omitted                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                          TEXT  Mission slug                        │
-│ --agent                            TEXT  Agent name (required for auto-move  │
-│                                          to in_progress)                     │
-│ --model                            TEXT  Dispatch-resolved model asserted    │
-│                                          against the correlated Op record    │
-│                                          (requires --invocation-id; never    │
-│                                          the frontmatter recommendation)     │
-│ --profile                          TEXT  Dispatch-resolved agent profile     │
-│                                          (registry.resolve / Op record —     │
-│                                          never the frontmatter agent_profile │
-│                                          string)                             │
-│ --invocation-id                    TEXT  Correlated Op record ULID whose     │
-│                                          mission, WP, action, profile, and   │
-│                                          model are authoritative             │
-│ --allow-sparse-checkout                  Proceed even if legacy              │
-│                                          sparse-checkout state is detected.  │
-│                                          Use of this override is logged.     │
-│                                          Does not bypass the commit-time     │
-│                                          data-loss backstop.                 │
-│ --acknowledge-not-bulk-edit              Suppress the bulk-edit inference    │
-│                                          warning when spec language          │
-│                                          resembles a bulk edit but the       │
-│                                          mission is not one.                 │
-│ --help                                   Show this message and exit.         │
+│ --mission                            TEXT  Mission slug                      │
+│ --agent                              TEXT  Agent name (required for          │
+│                                            auto-move to in_progress)         │
+│ --model                              TEXT  Dispatch-resolved model asserted  │
+│                                            against the correlated Op record  │
+│                                            (requires --invocation-id; never  │
+│                                            the frontmatter recommendation)   │
+│ --profile                            TEXT  Dispatch-resolved agent profile   │
+│                                            (registry.resolve / Op record —   │
+│                                            never the frontmatter             │
+│                                            agent_profile string)             │
+│ --invocation-id                      TEXT  Correlated Op record ULID whose   │
+│                                            mission, WP, action, profile, and │
+│                                            model are authoritative           │
+│ --allow-sparse-checkout                    Proceed even if legacy            │
+│                                            sparse-checkout state is          │
+│                                            detected. Use of this override is │
+│                                            logged. Does not bypass the       │
+│                                            commit-time data-loss backstop.   │
+│ --acknowledge-not-bulk-edit                Suppress the bulk-edit inference  │
+│                                            warning when spec language        │
+│                                            resembles a bulk edit but the     │
+│                                            mission is not one.               │
+│ --help                       -h            Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -147,18 +147,19 @@ _Mission action commands that display prompts and instructions for agents_
 │                       for_review if omitted                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug                                    │
-│ --agent                TEXT  Agent name (required for auto-move to           │
-│                              in_progress)                                    │
-│ --model                TEXT  Dispatch-resolved model asserted against the    │
-│                              correlated Op record (requires --invocation-id; │
-│                              never the frontmatter recommendation)           │
-│ --profile              TEXT  Dispatch-resolved agent profile                 │
-│                              (registry.resolve / Op record — never the       │
-│                              frontmatter agent_profile string)               │
-│ --invocation-id        TEXT  Correlated Op record ULID whose mission, WP,    │
-│                              action, profile, and model are authoritative    │
-│ --help                       Show this message and exit.                     │
+│ --mission                TEXT  Mission slug                                  │
+│ --agent                  TEXT  Agent name (required for auto-move to         │
+│                                in_progress)                                  │
+│ --model                  TEXT  Dispatch-resolved model asserted against the  │
+│                                correlated Op record (requires                │
+│                                --invocation-id; never the frontmatter        │
+│                                recommendation)                               │
+│ --profile                TEXT  Dispatch-resolved agent profile               │
+│                                (registry.resolve / Op record — never the     │
+│                                frontmatter agent_profile string)             │
+│ --invocation-id          TEXT  Correlated Op record ULID whose mission, WP,  │
+│                                action, profile, and model are authoritative  │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -172,7 +173,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
  Manage project AI agent configuration (add, remove, list agents)
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ list    List configured agents and their status.                             │
@@ -201,7 +202,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -213,7 +214,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
  List configured agents and their status.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -233,8 +234,8 @@ _Manage project AI agent configuration (add, remove, list agents)_
 │ *    agents      AGENTS...  Agent keys to remove [required]                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --keep-config          Keep in config.yaml but delete directory              │
-│ --help                 Show this message and exit.                           │
+│ --keep-config            Keep in config.yaml but delete directory            │
+│ --help         -h        Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -258,7 +259,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
 │ *    value      TEXT  Configuration value (e.g., true, false) [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -275,7 +276,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
  - Not configured but present (orphaned) (✗)
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -291,15 +292,16 @@ _Manage project AI agent configuration (add, remove, list agents)_
  Use --sync-hooks to update harness-specific post-edit hooks.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --create-missing                          Create directories for configured  │
-│                                           agents that are missing            │
-│ --remove-orphaned    --keep-orphaned      Remove directories for agents not  │
-│                                           in config                          │
-│                                           [default: remove-orphaned]         │
-│ --sync-hooks                              Update AI harness hook             │
-│                                           configurations (Claude, Cursor,    │
-│                                           etc.)                              │
-│ --help                                    Show this message and exit.        │
+│ --create-missing                            Create directories for           │
+│                                             configured agents that are       │
+│                                             missing                          │
+│ --remove-orphaned      --keep-orphaned      Remove directories for agents    │
+│                                             not in config                    │
+│                                             [default: remove-orphaned]       │
+│ --sync-hooks                                Update AI harness hook           │
+│                                             configurations (Claude, Cursor,  │
+│                                             etc.)                            │
+│ --help             -h                       Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -313,7 +315,7 @@ _Agent context management commands_
  Agent context management commands
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ resolve  Resolve canonical feature/work-package/action context for prompt    │
@@ -329,15 +331,16 @@ _Agent context management commands_
  Resolve canonical feature/work-package/action context for prompt execution.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --action         TEXT  Action to resolve context for (specify, plan,      │
-│                           analyze, tasks, tasks_outline, tasks_packages,     │
-│                           tasks_finalize, implement, review, accept, status) │
-│                           [required]                                         │
-│    --mission        TEXT  Mission slug (e.g., '020-my-mission')              │
-│    --wp-id          TEXT  Work package ID (e.g., WP01)                       │
-│    --agent          TEXT  Agent name for exact command rendering             │
-│    --json                 Output results as JSON                             │
-│    --help                 Show this message and exit.                        │
+│ *  --action           TEXT  Action to resolve context for (specify, plan,    │
+│                             analyze, tasks, tasks_outline, tasks_packages,   │
+│                             tasks_finalize, implement, review, accept,       │
+│                             status)                                          │
+│                             [required]                                       │
+│    --mission          TEXT  Mission slug (e.g., '020-my-mission')            │
+│    --wp-id            TEXT  Work package ID (e.g., WP01)                     │
+│    --agent            TEXT  Agent name for exact command rendering           │
+│    --json                   Output results as JSON                           │
+│    --help     -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -351,7 +354,7 @@ _Decision Moment ledger for interview questions._
  Decision Moment ledger for interview questions.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ open     Open a new Decision Moment or return idempotently if one already    │
@@ -375,17 +378,17 @@ _Decision Moment ledger for interview questions._
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                     TEXT  Mission handle [required]             │
-│ *  --rationale                   TEXT  Explanation of why it's being         │
-│                                        canceled (required)                   │
-│                                        [required]                            │
-│    --resolved-by                 TEXT  Identity of canceling party           │
-│    --actor                       TEXT  Identity of the acting agent          │
-│                                        [default: cli]                        │
-│    --dry-run                           Validate without writing              │
-│    --json           --no-json          Output JSON (default true)            │
-│                                        [default: json]                       │
-│    --help                              Show this message and exit.           │
+│ *  --mission                       TEXT  Mission handle [required]           │
+│ *  --rationale                     TEXT  Explanation of why it's being       │
+│                                          canceled (required)                 │
+│                                          [required]                          │
+│    --resolved-by                   TEXT  Identity of canceling party         │
+│    --actor                         TEXT  Identity of the acting agent        │
+│                                          [default: cli]                      │
+│    --dry-run                             Validate without writing            │
+│    --json             --no-json          Output JSON (default true)          │
+│                                          [default: json]                     │
+│    --help         -h                     Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -401,17 +404,17 @@ _Decision Moment ledger for interview questions._
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                     TEXT  Mission handle [required]             │
-│ *  --rationale                   TEXT  Explanation of why it's being         │
-│                                        deferred (required)                   │
-│                                        [required]                            │
-│    --resolved-by                 TEXT  Identity of deferring party           │
-│    --actor                       TEXT  Identity of the acting agent          │
-│                                        [default: cli]                        │
-│    --dry-run                           Validate without writing              │
-│    --json           --no-json          Output JSON (default true)            │
-│                                        [default: json]                       │
-│    --help                              Show this message and exit.           │
+│ *  --mission                       TEXT  Mission handle [required]           │
+│ *  --rationale                     TEXT  Explanation of why it's being       │
+│                                          deferred (required)                 │
+│                                          [required]                          │
+│    --resolved-by                   TEXT  Identity of deferring party         │
+│    --actor                         TEXT  Identity of the acting agent        │
+│                                          [default: cli]                      │
+│    --dry-run                             Validate without writing            │
+│    --json             --no-json          Output JSON (default true)          │
+│                                          [default: json]                     │
+│    --help         -h                     Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -423,24 +426,26 @@ _Decision Moment ledger for interview questions._
  Open a new Decision Moment or return idempotently if one already exists.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                   TEXT  Mission handle (slug, mission_id, or    │
-│                                      mid8)                                   │
-│                                      [required]                              │
-│ *  --flow                      TEXT  Origin flow: charter | specify | plan   │
-│                                      [required]                              │
-│ *  --input-key                 TEXT  The input key this decision governs     │
-│                                      [required]                              │
-│ *  --question                  TEXT  Human-readable question text [required] │
-│    --step-id                   TEXT  Interview step identifier               │
-│    --slot-key                  TEXT  Slot key (use when step_id unavailable) │
-│    --options                   TEXT  Candidate answers as a JSON array       │
-│                                      string                                  │
-│    --actor                     TEXT  Identity of the opening actor           │
-│                                      [default: cli]                          │
-│    --dry-run                         Validate without writing                │
-│    --json         --no-json          Output JSON (default true)              │
-│                                      [default: json]                         │
-│    --help                            Show this message and exit.             │
+│ *  --mission                     TEXT  Mission handle (slug, mission_id, or  │
+│                                        mid8)                                 │
+│                                        [required]                            │
+│ *  --flow                        TEXT  Origin flow: charter | specify | plan │
+│                                        [required]                            │
+│ *  --input-key                   TEXT  The input key this decision governs   │
+│                                        [required]                            │
+│ *  --question                    TEXT  Human-readable question text          │
+│                                        [required]                            │
+│    --step-id                     TEXT  Interview step identifier             │
+│    --slot-key                    TEXT  Slot key (use when step_id            │
+│                                        unavailable)                          │
+│    --options                     TEXT  Candidate answers as a JSON array     │
+│                                        string                                │
+│    --actor                       TEXT  Identity of the opening actor         │
+│                                        [default: cli]                        │
+│    --dry-run                           Validate without writing              │
+│    --json           --no-json          Output JSON (default true)            │
+│                                        [default: json]                       │
+│    --help       -h                     Show this message and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -456,18 +461,18 @@ _Decision Moment ledger for interview questions._
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                      TEXT  Mission handle [required]            │
-│ *  --final-answer                 TEXT  The chosen answer (non-empty)        │
-│                                         [required]                           │
-│    --other-answer                       True if answer is a write-in         │
-│    --rationale                    TEXT  Explanation of the choice            │
-│    --resolved-by                  TEXT  Identity of resolver                 │
-│    --actor                        TEXT  Identity of the acting agent         │
-│                                         [default: cli]                       │
-│    --dry-run                            Validate without writing             │
-│    --json            --no-json          Output JSON (default true)           │
-│                                         [default: json]                      │
-│    --help                               Show this message and exit.          │
+│ *  --mission                        TEXT  Mission handle [required]          │
+│ *  --final-answer                   TEXT  The chosen answer (non-empty)      │
+│                                           [required]                         │
+│    --other-answer                         True if answer is a write-in       │
+│    --rationale                      TEXT  Explanation of the choice          │
+│    --resolved-by                    TEXT  Identity of resolver               │
+│    --actor                          TEXT  Identity of the acting agent       │
+│                                           [default: cli]                     │
+│    --dry-run                              Validate without writing           │
+│    --json              --no-json          Output JSON (default true)         │
+│                                           [default: json]                    │
+│    --help          -h                     Show this message and exit.        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -479,15 +484,17 @@ _Decision Moment ledger for interview questions._
  Cross-check deferred decisions against inline sentinel markers.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                                TEXT  Mission handle [required]  │
-│    --fail-on-stale    --no-fail-on-stale          Exit non-zero when         │
-│                                                   findings are present       │
-│                                                   (default true)             │
-│                                                   [default: fail-on-stale]   │
-│    --json             --no-json                   Output JSON (default true) │
-│                                                   [default: json]            │
-│    --help                                         Show this message and      │
-│                                                   exit.                      │
+│ *  --mission                                  TEXT  Mission handle           │
+│                                                     [required]               │
+│    --fail-on-stale      --no-fail-on-stale          Exit non-zero when       │
+│                                                     findings are present     │
+│                                                     (default true)           │
+│                                                     [default: fail-on-stale] │
+│    --json               --no-json                   Output JSON (default     │
+│                                                     true)                    │
+│                                                     [default: json]          │
+│    --help           -h                              Show this message and    │
+│                                                     exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -501,7 +508,7 @@ _Mission lifecycle commands for AI agents_
  Mission lifecycle commands for AI agents
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ record-analysis      Persist `/spec-kitty.analyze` output as                 │
@@ -546,14 +553,14 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission accept --mission 077-my-mission --lenient --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (required in multi-mission repos)      │
-│ --mode             TEXT  Acceptance mode: auto, pr, local, checklist         │
-│                          [default: auto]                                     │
-│ --json                   Output results as JSON for agent parsing            │
-│ --lenient                Skip strict metadata validation                     │
-│ --no-commit              Skip auto-commit (report only)                      │
-│ --diagnose               Diagnose acceptance blockers without mutation       │
-│ --help                   Show this message and exit.                         │
+│ --mission            TEXT  Mission slug (required in multi-mission repos)    │
+│ --mode               TEXT  Acceptance mode: auto, pr, local, checklist       │
+│                            [default: auto]                                   │
+│ --json                     Output results as JSON for agent parsing          │
+│ --lenient                  Skip strict metadata validation                   │
+│ --no-commit                Skip auto-commit (report only)                    │
+│ --diagnose                 Diagnose acceptance blockers without mutation     │
+│ --help       -h            Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -586,10 +593,10 @@ _Mission lifecycle commands for AI agents_
  Return deterministic branch contract for planning-stage prompts.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                       Output JSON format                              │
-│ --target-branch        TEXT  Planned landing branch (defaults to current     │
-│                              branch)                                         │
-│ --help                       Show this message and exit.                     │
+│ --json                         Output JSON format                            │
+│ --target-branch          TEXT  Planned landing branch (defaults to current   │
+│                                branch)                                       │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -608,11 +615,11 @@ _Mission lifecycle commands for AI agents_
  --paths-only --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug (e.g., '020-my-mission')           │
-│ --json                       Output JSON format                              │
-│ --paths-only                 Only output path variables                      │
-│ --include-tasks              Include tasks.md in validation                  │
-│ --help                       Show this message and exit.                     │
+│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
+│ --json                         Output JSON format                            │
+│ --paths-only                   Only output path variables                    │
+│ --include-tasks                Include tasks.md in validation                │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -633,79 +640,81 @@ _Mission lifecycle commands for AI agents_
 │ *    mission_slug      TEXT  Mission slug (e.g., 'user-auth') [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                         TEXT               Mission type       │
-│                                                           (e.g.,             │
-│                                                           'documentation',   │
-│                                                           'software-dev')    │
-│ --json                                                    Output JSON format │
-│ --target-branch                        TEXT               Target branch      │
-│                                                           (defaults to       │
-│                                                           current branch)    │
-│ --friendly-name                        TEXT               Human-friendly     │
-│                                                           mission title      │
-│ --purpose-tldr                         TEXT               One-line           │
-│                                                           stakeholder TLDR   │
-│                                                           for the mission    │
-│ --purpose-context                      TEXT               Short              │
-│                                                           stakeholder-facing │
-│                                                           paragraph for the  │
-│                                                           mission            │
-│ --pr-bound            --no-pr-bound                       Mark mission as    │
-│                                                           PR-bound (gate     │
-│                                                           fires on           │
-│                                                           merge_target_bran… │
-│                                                           [default:          │
-│                                                           no-pr-bound]       │
-│ --topology                             [single_branch|la  Create-time        │
-│                                        nes|coord|lanes_w  mission shape:     │
-│                                        ith_coord]         single_branch |    │
-│                                                           lanes | coord |    │
-│                                                           lanes_with_coord.  │
-│                                                           Coordination-bear… │
-│                                                           shapes (coord,     │
-│                                                           lanes_with_coord)  │
-│                                                           mint a             │
-│                                                           coordination       │
-│                                                           branch;            │
-│                                                           branch-flat shapes │
-│                                                           (single_branch,    │
-│                                                           lanes) do not.     │
-│                                                           Default:           │
-│                                                           context-derived    │
-│                                                           (#2581) — coord on │
-│                                                           the primary        │
-│                                                           branch, with       │
-│                                                           --pr-bound, or     │
-│                                                           when explicitly    │
-│                                                           requested;         │
-│                                                           single_branch on a │
-│                                                           non-primary        │
-│                                                           feature/fork       │
-│                                                           branch without     │
-│                                                           --pr-bound.        │
-│ --branch-strategy                      TEXT               Branch-strategy    │
-│                                                           gate control       │
-│                                                           (e.g.,             │
-│                                                           'already-confirme… │
-│                                                           to bypass the      │
-│                                                           prompt)            │
-│ --start-branch                         TEXT               Create or switch   │
-│                                                           to this branch     │
-│                                                           before mission     │
-│                                                           files are written  │
-│ --force-recreate-…                                        Delete and         │
-│                                                           recreate the       │
-│                                                           per-mission        │
-│                                                           coordination       │
-│                                                           branch if it       │
-│                                                           already exists and │
-│                                                           has diverged from  │
-│                                                           the target.        │
-│                                                           Operator escape    │
-│                                                           hatch; never used  │
-│                                                           by automation.     │
-│ --help                                                    Show this message  │
-│                                                           and exit.          │
+│ --mission-type                          TEXT               Mission type      │
+│                                                            (e.g.,            │
+│                                                            'documentation',  │
+│                                                            'software-dev')   │
+│ --json                                                     Output JSON       │
+│                                                            format            │
+│ --target-branch                         TEXT               Target branch     │
+│                                                            (defaults to      │
+│                                                            current branch)   │
+│ --friendly-name                         TEXT               Human-friendly    │
+│                                                            mission title     │
+│ --purpose-tldr                          TEXT               One-line          │
+│                                                            stakeholder TLDR  │
+│                                                            for the mission   │
+│ --purpose-context                       TEXT               Short             │
+│                                                            stakeholder-faci… │
+│                                                            paragraph for the │
+│                                                            mission           │
+│ --pr-bound             --no-pr-bound                       Mark mission as   │
+│                                                            PR-bound (gate    │
+│                                                            fires on          │
+│                                                            merge_target_bra… │
+│                                                            [default:         │
+│                                                            no-pr-bound]      │
+│ --topology                              [single_branch|la  Create-time       │
+│                                         nes|coord|lanes_w  mission shape:    │
+│                                         ith_coord]         single_branch |   │
+│                                                            lanes | coord |   │
+│                                                            lanes_with_coord. │
+│                                                            Coordination-bea… │
+│                                                            shapes (coord,    │
+│                                                            lanes_with_coord) │
+│                                                            mint a            │
+│                                                            coordination      │
+│                                                            branch;           │
+│                                                            branch-flat       │
+│                                                            shapes            │
+│                                                            (single_branch,   │
+│                                                            lanes) do not.    │
+│                                                            Default:          │
+│                                                            context-derived   │
+│                                                            (#2581) — coord   │
+│                                                            on the primary    │
+│                                                            branch, with      │
+│                                                            --pr-bound, or    │
+│                                                            when explicitly   │
+│                                                            requested;        │
+│                                                            single_branch on  │
+│                                                            a non-primary     │
+│                                                            feature/fork      │
+│                                                            branch without    │
+│                                                            --pr-bound.       │
+│ --branch-strategy                       TEXT               Branch-strategy   │
+│                                                            gate control      │
+│                                                            (e.g.,            │
+│                                                            'already-confirm… │
+│                                                            to bypass the     │
+│                                                            prompt)           │
+│ --start-branch                          TEXT               Create or switch  │
+│                                                            to this branch    │
+│                                                            before mission    │
+│                                                            files are written │
+│ --force-recreate…                                          Delete and        │
+│                                                            recreate the      │
+│                                                            per-mission       │
+│                                                            coordination      │
+│                                                            branch if it      │
+│                                                            already exists    │
+│                                                            and has diverged  │
+│                                                            from the target.  │
+│                                                            Operator escape   │
+│                                                            hatch; never used │
+│                                                            by automation.    │
+│ --help             -h                                      Show this message │
+│                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -744,15 +753,16 @@ _Mission lifecycle commands for AI agents_
  --validate-only --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug (e.g., '020-my-mission')           │
-│ --json                       Output JSON format                              │
-│ --validate-only              Run all validations without committing. Reports │
-│                              issues that would block finalization.           │
-│ --target-branch        TEXT  Override the canonical merge target branch read │
-│                              from meta.json. Use this for legacy missions    │
-│                              created before WP07 persisted target_branch in  │
-│                              meta.json (FR-012 escape hatch).                │
-│ --help                       Show this message and exit.                     │
+│ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
+│ --json                         Output JSON format                            │
+│ --validate-only                Run all validations without committing.       │
+│                                Reports issues that would block finalization. │
+│ --target-branch          TEXT  Override the canonical merge target branch    │
+│                                read from meta.json. Use this for legacy      │
+│                                missions created before WP07 persisted        │
+│                                target_branch in meta.json (FR-012 escape     │
+│                                hatch).                                       │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -792,29 +802,29 @@ _Mission lifecycle commands for AI agents_
  --keep-branch
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                             TEXT  Mission slug (required in        │
-│                                             multi-mission repos)             │
-│ --target                              TEXT  Target branch for the            │
-│                                             branch-integration step          │
-│                                             (required in multi-mission       │
-│                                             repos)                           │
-│ --strategy                            TEXT  Strategy for the                 │
-│                                             branch-integration step: merge,  │
-│                                             squash, rebase                   │
-│                                             [default: merge]                 │
-│ --push                                      Publish to origin after the      │
-│                                             local merge (the operator        │
-│                                             publish step)                    │
-│ --dry-run                                   Show actions without executing   │
-│ --keep-branch                               Keep mission branch after merge  │
-│                                             (default: delete)                │
-│ --keep-worktree                             Keep worktree after merge        │
-│                                             (default: remove)                │
-│ --auto-retry       --no-auto-retry          Auto-navigate to a deterministic │
-│                                             mission worktree if in the wrong │
-│                                             location                         │
-│                                             [default: no-auto-retry]         │
-│ --help                                      Show this message and exit.      │
+│ --mission                               TEXT  Mission slug (required in      │
+│                                               multi-mission repos)           │
+│ --target                                TEXT  Target branch for the          │
+│                                               branch-integration step        │
+│                                               (required in multi-mission     │
+│                                               repos)                         │
+│ --strategy                              TEXT  Strategy for the               │
+│                                               branch-integration step:       │
+│                                               merge, squash, rebase          │
+│                                               [default: merge]               │
+│ --push                                        Publish to origin after the    │
+│                                               local merge (the operator      │
+│                                               publish step)                  │
+│ --dry-run                                     Show actions without executing │
+│ --keep-branch                                 Keep mission branch after      │
+│                                               merge (default: delete)        │
+│ --keep-worktree                               Keep worktree after merge      │
+│                                               (default: remove)              │
+│ --auto-retry         --no-auto-retry          Auto-navigate to a             │
+│                                               deterministic mission worktree │
+│                                               if in the wrong location       │
+│                                               [default: no-auto-retry]       │
+│ --help           -h                           Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -826,13 +836,13 @@ _Mission lifecycle commands for AI agents_
  Persist `/spec-kitty.analyze` output as `analysis-report.md`.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission           TEXT  Mission slug (e.g., '020-my-mission')              │
-│ --input-file        TEXT  Markdown report path, or '-' to read report from   │
-│                           stdin                                              │
-│                           [default: -]                                       │
-│ --agent             TEXT  Agent name that produced the analysis report       │
-│ --json                    Output JSON format                                 │
-│ --help                    Show this message and exit.                        │
+│ --mission             TEXT  Mission slug (e.g., '020-my-mission')            │
+│ --input-file          TEXT  Markdown report path, or '-' to read report from │
+│                             stdin                                            │
+│                             [default: -]                                     │
+│ --agent               TEXT  Agent name that produced the analysis report     │
+│ --json                      Output JSON format                               │
+│ --help        -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -910,9 +920,9 @@ _Mission lifecycle commands for AI agents_
  ------------------------------------------------------------------
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug (e.g., '020-my-mission')                 │
-│ --json                 Output JSON format                                    │
-│ --help                 Show this message and exit.                           │
+│ --mission          TEXT  Mission slug (e.g., '020-my-mission')               │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -924,14 +934,14 @@ _Mission lifecycle commands for AI agents_
  List agent profiles (activated-only by default; --all for the full catalog).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                    Output JSON array.                                 │
-│ --all                     Show every profile across all source layers        │
-│                           (annotated by source layer and activated|available │
-│                           state). Supersedes the activated-only default and  │
-│                           --show-available.                                  │
-│ --show-available          Also show available-but-not-activated profiles     │
-│                           (annotated by state).                              │
-│ --help                    Show this message and exit.                        │
+│ --json                      Output JSON array.                               │
+│ --all                       Show every profile across all source layers      │
+│                             (annotated by source layer and                   │
+│                             activated|available state). Supersedes the       │
+│                             activated-only default and --show-available.     │
+│ --show-available            Also show available-but-not-activated profiles   │
+│                             (annotated by state).                            │
+│ --help            -h        Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -946,10 +956,10 @@ _Mission lifecycle commands for AI agents_
 │ *    profile_id      TEXT  Profile ID to show. [required]                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Output JSON object.                                          │
-│ --all           Bypass the activation gate for inspection (show              │
-│                 non-activated profiles).                                     │
-│ --help          Show this message and exit.                                  │
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -963,7 +973,7 @@ _Release packaging commands for AI agents_
  Release packaging commands for AI agents
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ prep  Prepare release artifacts (changelog draft, version bump, structured   │
@@ -981,15 +991,15 @@ _Release packaging commands for AI agents_
  Reads kitty-specs/ artifacts and local git tags. No network calls.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --channel        [alpha|beta|stable]  Release channel: alpha | beta |     │
-│                                          stable                              │
-│                                          [required]                          │
-│    --repo           PATH                 Repository root (default: current   │
-│                                          directory)                          │
-│                                          [default: .]                        │
-│    --json                                Emit JSON instead of human-readable │
-│                                          text                                │
-│    --help                                Show this message and exit.         │
+│ *  --channel          [alpha|beta|stable]  Release channel: alpha | beta |   │
+│                                            stable                            │
+│                                            [required]                        │
+│    --repo             PATH                 Repository root (default: current │
+│                                            directory)                        │
+│                                            [default: .]                      │
+│    --json                                  Emit JSON instead of              │
+│                                            human-readable text               │
+│    --help     -h                           Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1003,7 +1013,7 @@ _Retrospective synthesis commands_
  Retrospective synthesis commands
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ synthesize  Apply staged proposals from a mission's retrospective record.    │
@@ -1028,21 +1038,21 @@ _Cross-mission retrospective summary._
  No mutation is performed.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project                  PATH                     Project root (default:   │
-│                                                     cwd)                     │
-│ --json                                              Emit JSON to stdout      │
-│ --json-out                 PATH                     Also write JSON to this  │
-│                                                     file                     │
-│ --limit                    INTEGER RANGE            Top-N for ranked         │
-│                            [1<=x<=100]              sections                 │
-│                                                     [default: 20]            │
-│ --since                    TEXT                     ISO-8601 date filter     │
-│ --include-malformed                                 Include malformed record │
-│                                                     detail                   │
-│ --filter                   TEXT                     Filter by record state   │
-│                                                     (has_findings|ran_no_fi… │
-│ --help                                              Show this message and    │
-│                                                     exit.                    │
+│ --project                    PATH                    Project root (default:  │
+│                                                      cwd)                    │
+│ --json                                               Emit JSON to stdout     │
+│ --json-out                   PATH                    Also write JSON to this │
+│                                                      file                    │
+│ --limit                      INTEGER RANGE           Top-N for ranked        │
+│                              [1<=x<=100]             sections                │
+│                                                      [default: 20]           │
+│ --since                      TEXT                    ISO-8601 date filter    │
+│ --include-malformed                                  Include malformed       │
+│                                                      record detail           │
+│ --filter                     TEXT                    Filter by record state  │
+│                                                      (has_findings|ran_no_f… │
+│ --help               -h                              Show this message and   │
+│                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1065,23 +1075,23 @@ _Apply staged proposals from a mission's retrospective record._
  Pass --fabricate-empty to use the legacy auto-fabrication path instead.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                TEXT  Mission handle (mission_id / mid8 /        │
-│                                   mission_slug)                              │
-│                                   [required]                                 │
-│    --apply                        Execute application after checks pass      │
-│                                   (default is dry-run)                       │
-│    --proposal-id            TEXT  Restrict batch to specific proposal ids    │
-│                                   (repeatable)                               │
-│    --json-out               PATH  Write JSON envelope to PATH in addition to │
-│                                   other output                               │
-│    --json                         Emit JSON to stdout (suppresses Rich       │
-│                                   rendering)                                 │
-│    --actor-id               TEXT  Override provenance actor id (default:     │
-│                                   inferred from environment)                 │
-│    --fabricate-empty              Legacy: auto-fabricate an empty record     │
-│                                   when none exists (synthesize_fabricate     │
-│                                   provenance)                                │
-│    --help                         Show this message and exit.                │
+│ *  --mission                  TEXT  Mission handle (mission_id / mid8 /      │
+│                                     mission_slug)                            │
+│                                     [required]                               │
+│    --apply                          Execute application after checks pass    │
+│                                     (default is dry-run)                     │
+│    --proposal-id              TEXT  Restrict batch to specific proposal ids  │
+│                                     (repeatable)                             │
+│    --json-out                 PATH  Write JSON envelope to PATH in addition  │
+│                                     to other output                          │
+│    --json                           Emit JSON to stdout (suppresses Rich     │
+│                                     rendering)                               │
+│    --actor-id                 TEXT  Override provenance actor id (default:   │
+│                                     inferred from environment)               │
+│    --fabricate-empty                Legacy: auto-fabricate an empty record   │
+│                                     when none exists (synthesize_fabricate   │
+│                                     provenance)                              │
+│    --help             -h            Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1095,7 +1105,7 @@ _Canonical status management commands_
  Canonical status management commands
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ emit         Emit a status transition event for a work package.              │
@@ -1127,14 +1137,14 @@ _Canonical status management commands_
      spec-kitty agent status doctor --stale-claimed-days 3 --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                       TEXT     Mission slug                        │
-│ --stale-claimed-days            INTEGER  Threshold for stale claims (days)   │
-│                                          [default: 7]                        │
-│ --stale-in-progress-days        INTEGER  Threshold for stale in-progress     │
-│                                          (days)                              │
-│                                          [default: 14]                       │
-│ --json                                   Machine-readable JSON output        │
-│ --help                                   Show this message and exit.         │
+│ --mission                         TEXT     Mission slug                      │
+│ --stale-claimed-days              INTEGER  Threshold for stale claims (days) │
+│                                            [default: 7]                      │
+│ --stale-in-progress-days          INTEGER  Threshold for stale in-progress   │
+│                                            (days)                            │
+│                                            [default: 14]                     │
+│ --json                                     Machine-readable JSON output      │
+│ --help                    -h               Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1161,32 +1171,33 @@ _Canonical status management commands_
 │ *    wp_id      TEXT  Work package ID (e.g., WP01) [required]                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --to                                 TEXT  Target lane (e.g., claimed,    │
-│                                               in_progress, for_review,       │
-│                                               approved, done)                │
-│                                               [required]                     │
-│ *  --actor                              TEXT  Who is making this transition  │
-│                                               [required]                     │
-│    --mission                            TEXT  Mission slug (required in      │
-│                                               multi-mission repos)           │
-│    --force                                    Force transition bypassing     │
-│                                               guards                         │
-│    --reason                             TEXT  Reason for forced transition   │
-│    --evidence-json                      TEXT  JSON string with done evidence │
-│    --review-ref                         TEXT  Review feedback reference      │
-│    --workspace-context                  TEXT  Workspace context identifier   │
-│                                               for claimed->in_progress       │
-│    --subtasks-complete                        Whether required subtasks are  │
-│                                               complete for                   │
-│                                               in_progress->for_review        │
-│    --implementation-evidence-pr…              Whether implementation         │
-│                                               evidence exists for            │
-│                                               in_progress->for_review        │
-│    --execution-mode                     TEXT  Execution mode (worktree or    │
-│                                               direct_repo)                   │
-│                                               [default: worktree]            │
-│    --json                                     Machine-readable JSON output   │
-│    --help                                     Show this message and exit.    │
+│ *  --to                                  TEXT  Target lane (e.g., claimed,   │
+│                                                in_progress, for_review,      │
+│                                                approved, done)               │
+│                                                [required]                    │
+│ *  --actor                               TEXT  Who is making this transition │
+│                                                [required]                    │
+│    --mission                             TEXT  Mission slug (required in     │
+│                                                multi-mission repos)          │
+│    --force                                     Force transition bypassing    │
+│                                                guards                        │
+│    --reason                              TEXT  Reason for forced transition  │
+│    --evidence-json                       TEXT  JSON string with done         │
+│                                                evidence                      │
+│    --review-ref                          TEXT  Review feedback reference     │
+│    --workspace-context                   TEXT  Workspace context identifier  │
+│                                                for claimed->in_progress      │
+│    --subtasks-complete                         Whether required subtasks are │
+│                                                complete for                  │
+│                                                in_progress->for_review       │
+│    --implementation-evidence-p…                Whether implementation        │
+│                                                evidence exists for           │
+│                                                in_progress->for_review       │
+│    --execution-mode                      TEXT  Execution mode (worktree or   │
+│                                                direct_repo)                  │
+│                                                [default: worktree]           │
+│    --json                                      Machine-readable JSON output  │
+│    --help                        -h            Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1202,9 +1213,9 @@ _Canonical status management commands_
  now just recoverable/archive history.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug                                          │
-│ --json                 Machine-readable JSON output                          │
-│ --help                 Show this message and exit.                           │
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Machine-readable JSON output                        │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1225,9 +1236,9 @@ _Canonical status management commands_
      spec-kitty agent status materialize --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug (required in multi-mission repos)        │
-│ --json                 Machine-readable JSON output                          │
-│ --help                 Show this message and exit.                           │
+│ --mission          TEXT  Mission slug (required in multi-mission repos)      │
+│ --json                   Machine-readable JSON output                        │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1252,7 +1263,7 @@ _Canonical status management commands_
 │ --json                   Output results as JSON                              │
 │ --actor            TEXT  Actor name for bootstrap events                     │
 │                          [default: migration]                                │
-│ --help                   Show this message and exit.                         │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1278,7 +1289,7 @@ _Canonical status management commands_
 │                                     [default: dry-run]                       │
 │ --target-repo  -t             PATH  Target repo path(s) to scan              │
 │ --json                              Machine-readable JSON output             │
-│ --help                              Show this message and exit.              │
+│ --help         -h                   Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1301,9 +1312,9 @@ _Canonical status management commands_
      spec-kitty agent status validate --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug (required in multi-mission repos)        │
-│ --json                 Machine-readable JSON output                          │
-│ --help                 Show this message and exit.                           │
+│ --mission          TEXT  Mission slug (required in multi-mission repos)      │
+│ --json                   Machine-readable JSON output                        │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1317,7 +1328,7 @@ _Task workflow commands for AI agents_
  Task workflow commands for AI agents
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ move-task          Move task between lanes (planned → doing → for_review →   │
@@ -1354,12 +1365,12 @@ _Task workflow commands for AI agents_
 │ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --note             TEXT  History note [required]                          │
-│    --mission          TEXT  Mission slug                                     │
-│    --agent            TEXT  Agent name                                       │
-│    --shell-pid        TEXT  Shell PID                                        │
-│    --json                   Output JSON format                               │
-│    --help                   Show this message and exit.                      │
+│ *  --note               TEXT  History note [required]                        │
+│    --mission            TEXT  Mission slug                                   │
+│    --agent              TEXT  Agent name                                     │
+│    --shell-pid          TEXT  Shell PID                                      │
+│    --json                     Output JSON format                             │
+│    --help       -h            Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1379,10 +1390,10 @@ _Task workflow commands for AI agents_
      spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug                                    │
-│ --json                       Output JSON format                              │
-│ --validate-only              Validate without writing changes                │
-│ --help                       Show this message and exit.                     │
+│ --mission                TEXT  Mission slug                                  │
+│ --json                         Output JSON format                            │
+│ --validate-only                Validate without writing changes              │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1407,9 +1418,9 @@ _Task workflow commands for AI agents_
 │ *    wp_id      TEXT  Work package ID (e.g., WP01) [required]                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug                                          │
-│ --json                 Output JSON format                                    │
-│ --help                 Show this message and exit.                           │
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1425,10 +1436,10 @@ _Task workflow commands for AI agents_
  spec-kitty agent tasks list-tasks --lane doing --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --lane           TEXT  Filter by lane                                        │
-│ --mission        TEXT  Mission slug                                          │
-│ --json                 Output JSON format                                    │
-│ --help                 Show this message and exit.                           │
+│ --lane             TEXT  Filter by lane                                      │
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1440,24 +1451,25 @@ _Task workflow commands for AI agents_
  Register requirement-to-WP mappings with immediate validation.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --wp                                 TEXT  WP ID (e.g., WP04)                │
-│ --refs                               TEXT  Comma-separated requirement refs  │
-│                                            (e.g., FR-001,FR-002)             │
-│ --batch                              TEXT  JSON batch mapping (e.g.,         │
-│                                            '{"WP01":["FR-001"],"WP02":["FR-… │
-│ --replace                                  Replace existing refs instead of  │
-│                                            merging (default: merge/union)    │
-│ --tracker-ref                        TEXT  External tracker reference (e.g., │
-│                                            '#1298' or 'JIRA-123').           │
-│                                            Repeatable; requires --wp.        │
-│                                            Persists to the WP frontmatter as │
-│                                            tracker_refs.                     │
-│ --mission                            TEXT  Mission slug                      │
-│ --json                                     Output JSON format                │
-│ --auto-commit    --no-auto-commit          Automatically commit WP file      │
-│                                            changes (default: from project    │
-│                                            config)                           │
-│ --help                                     Show this message and exit.       │
+│ --wp                                   TEXT  WP ID (e.g., WP04)              │
+│ --refs                                 TEXT  Comma-separated requirement     │
+│                                              refs (e.g., FR-001,FR-002)      │
+│ --batch                                TEXT  JSON batch mapping (e.g.,       │
+│                                              '{"WP01":["FR-001"],"WP02":["F… │
+│ --replace                                    Replace existing refs instead   │
+│                                              of merging (default:            │
+│                                              merge/union)                    │
+│ --tracker-ref                          TEXT  External tracker reference      │
+│                                              (e.g., '#1298' or 'JIRA-123').  │
+│                                              Repeatable; requires --wp.      │
+│                                              Persists to the WP frontmatter  │
+│                                              as tracker_refs.                │
+│ --mission                              TEXT  Mission slug                    │
+│ --json                                       Output JSON format              │
+│ --auto-commit      --no-auto-commit          Automatically commit WP file    │
+│                                              changes (default: from project  │
+│                                              config)                         │
+│ --help         -h                            Show this message and exit.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1491,14 +1503,15 @@ _Task workflow commands for AI agents_
 │                                 [required]                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --status                             TEXT  Status: done/pending           │
-│                                               [required]                     │
-│    --mission                            TEXT  Mission slug                   │
-│    --auto-commit    --no-auto-commit          Automatically commit tasks.md  │
-│                                               changes to target branch       │
-│                                               (default: from project config) │
-│    --json                                     Output JSON format             │
-│    --help                                     Show this message and exit.    │
+│ *  --status                               TEXT  Status: done/pending         │
+│                                                 [required]                   │
+│    --mission                              TEXT  Mission slug                 │
+│    --auto-commit      --no-auto-commit          Automatically commit         │
+│                                                 tasks.md changes to target   │
+│                                                 branch (default: from        │
+│                                                 project config)              │
+│    --json                                       Output JSON format           │
+│    --help         -h                            Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1523,86 +1536,86 @@ _Task workflow commands for AI agents_
 │ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --to                                         TEXT  Target lane            │
-│                                                       (planned/doing/for_re… │
-│                                                       [required]             │
-│    --mission                                    TEXT  Mission slug           │
-│    --agent                                      TEXT  Agent name             │
-│    --model                                      TEXT  Dispatch-resolved      │
-│                                                       model actual           │
-│    --profile                                    TEXT  Dispatch-resolved      │
-│                                                       agent profile actual   │
-│    --invocation-id                              TEXT  Authoritative dispatch │
-│                                                       Op record id           │
-│    --assignee                                   TEXT  Assignee name (sets    │
-│                                                       assignee when moving   │
-│                                                       to doing)              │
-│    --shell-pid                                  TEXT  Shell PID              │
-│    --note                                       TEXT  History note           │
-│    --review-feedback-fi…                        PATH  Path to review         │
-│                                                       feedback file          │
-│                                                       (required for --to     │
-│                                                       planned, including     │
-│                                                       with --force)          │
-│    --approval-ref                               TEXT  Approval reference for │
-│                                                       approval/done          │
-│                                                       transitions (e.g.,     │
-│                                                       PR#42)                 │
-│    --reviewer                                   TEXT  Reviewer name          │
-│                                                       (auto-detected from    │
-│                                                       git if omitted)        │
-│    --self-review-fallba…                              Record that approval   │
-│                                                       is a self-review       │
-│                                                       fallback after the     │
-│                                                       intended reviewer      │
-│                                                       failed.                │
-│    --intended-reviewer                          TEXT  Reviewer that should   │
-│                                                       have reviewed this WP  │
-│                                                       before fallback.       │
-│    --reviewer-failure-r…                        TEXT  Reason the intended    │
-│                                                       reviewer failed.       │
-│    --done-override-reas…                        TEXT  Required when --to     │
-│                                                       done and merge         │
-│                                                       ancestry cannot be     │
-│                                                       verified; recorded in  │
-│                                                       history/event reason   │
-│    --force                                            Force move even with   │
-│                                                       unchecked subtasks     │
-│                                                       (does not bypass       │
-│                                                       planned rollback       │
-│                                                       feedback requirement)  │
-│    --tracker-ref                                TEXT  External tracker       │
-│                                                       reference (e.g.,       │
-│                                                       '#1298' or             │
-│                                                       'JIRA-123').           │
-│                                                       Repeatable; appended   │
-│                                                       to the WP frontmatter  │
-│                                                       tracker_refs.          │
-│    --skip-review-artifa…                              Override a rejected    │
-│                                                       latest review artifact │
-│                                                       when                   │
-│                                                       arbiter-approving;     │
-│                                                       requires --note and    │
-│                                                       records override       │
-│                                                       evidence.              │
-│    --auto-commit            --no-auto-commit          Automatically commit   │
-│                                                       WP file changes to     │
-│                                                       target branch          │
-│                                                       (default: from project │
-│                                                       config)                │
-│    --json                                             Output JSON format     │
-│    --skip-pre-review-ga…                              Skip the pre-review    │
-│                                                       regression gate on a   │
-│                                                       --to for_review move   │
-│                                                       (also honored via the  │
-│                                                       SPEC_KITTY_SYNC_DISAB… │
-│                                                       /                      │
-│                                                       SPEC_KITTY_SYNC_MINIM… │
-│                                                       env vars). The gate    │
-│                                                       still runs and         │
-│                                                       enforces by default.   │
-│    --help                                             Show this message and  │
-│                                                       exit.                  │
+│ *  --to                                          TEXT  Target lane           │
+│                                                        (planned/doing/for_r… │
+│                                                        [required]            │
+│    --mission                                     TEXT  Mission slug          │
+│    --agent                                       TEXT  Agent name            │
+│    --model                                       TEXT  Dispatch-resolved     │
+│                                                        model actual          │
+│    --profile                                     TEXT  Dispatch-resolved     │
+│                                                        agent profile actual  │
+│    --invocation-id                               TEXT  Authoritative         │
+│                                                        dispatch Op record id │
+│    --assignee                                    TEXT  Assignee name (sets   │
+│                                                        assignee when moving  │
+│                                                        to doing)             │
+│    --shell-pid                                   TEXT  Shell PID             │
+│    --note                                        TEXT  History note          │
+│    --review-feedback-f…                          PATH  Path to review        │
+│                                                        feedback file         │
+│                                                        (required for --to    │
+│                                                        planned, including    │
+│                                                        with --force)         │
+│    --approval-ref                                TEXT  Approval reference    │
+│                                                        for approval/done     │
+│                                                        transitions (e.g.,    │
+│                                                        PR#42)                │
+│    --reviewer                                    TEXT  Reviewer name         │
+│                                                        (auto-detected from   │
+│                                                        git if omitted)       │
+│    --self-review-fallb…                                Record that approval  │
+│                                                        is a self-review      │
+│                                                        fallback after the    │
+│                                                        intended reviewer     │
+│                                                        failed.               │
+│    --intended-reviewer                           TEXT  Reviewer that should  │
+│                                                        have reviewed this WP │
+│                                                        before fallback.      │
+│    --reviewer-failure-…                          TEXT  Reason the intended   │
+│                                                        reviewer failed.      │
+│    --done-override-rea…                          TEXT  Required when --to    │
+│                                                        done and merge        │
+│                                                        ancestry cannot be    │
+│                                                        verified; recorded in │
+│                                                        history/event reason  │
+│    --force                                             Force move even with  │
+│                                                        unchecked subtasks    │
+│                                                        (does not bypass      │
+│                                                        planned rollback      │
+│                                                        feedback requirement) │
+│    --tracker-ref                                 TEXT  External tracker      │
+│                                                        reference (e.g.,      │
+│                                                        '#1298' or            │
+│                                                        'JIRA-123').          │
+│                                                        Repeatable; appended  │
+│                                                        to the WP frontmatter │
+│                                                        tracker_refs.         │
+│    --skip-review-artif…                                Override a rejected   │
+│                                                        latest review         │
+│                                                        artifact when         │
+│                                                        arbiter-approving;    │
+│                                                        requires --note and   │
+│                                                        records override      │
+│                                                        evidence.             │
+│    --auto-commit             --no-auto-commit          Automatically commit  │
+│                                                        WP file changes to    │
+│                                                        target branch         │
+│                                                        (default: from        │
+│                                                        project config)       │
+│    --json                                              Output JSON format    │
+│    --skip-pre-review-g…                                Skip the pre-review   │
+│                                                        regression gate on a  │
+│                                                        --to for_review move  │
+│                                                        (also honored via the │
+│                                                        SPEC_KITTY_SYNC_DISA… │
+│                                                        /                     │
+│                                                        SPEC_KITTY_SYNC_MINI… │
+│                                                        env vars). The gate   │
+│                                                        still runs and        │
+│                                                        enforces by default.  │
+│    --help                -h                            Show this message and │
+│                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1626,12 +1639,12 @@ _Task workflow commands for AI agents_
      spec-kitty agent tasks status --stale-threshold 15
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT     Mission slug                               │
-│ --json                            Output as JSON                             │
-│ --stale-threshold        INTEGER  Minutes of inactivity before a WP is       │
-│                                   considered stale                           │
-│                                   [default: 10]                              │
-│ --help                            Show this message and exit.                │
+│ --mission                  TEXT     Mission slug                             │
+│ --json                              Output as JSON                           │
+│ --stale-threshold          INTEGER  Minutes of inactivity before a WP is     │
+│                                     considered stale                         │
+│                                     [default: 10]                            │
+│ --help             -h               Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1649,9 +1662,9 @@ _Task workflow commands for AI agents_
 │ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug                                          │
-│ --json                 Output JSON format                                    │
-│ --help                 Show this message and exit.                           │
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1665,7 +1678,7 @@ _Test-related commands for AI agents_
  Test-related commands for AI agents
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ stale-check  Detect test assertions likely invalidated by source changes     │
@@ -1691,12 +1704,12 @@ _Test-related commands for AI agents_
    low    — string literal matches a Constant in an assertion-bearing position
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --base        TEXT  Base git ref for the diff [required]                  │
-│    --head        TEXT  Head git ref for the diff [default: HEAD]             │
-│    --repo        PATH  Repository root (default: current directory)          │
-│                        [default: .]                                          │
-│    --json              Emit JSON instead of human-readable text              │
-│    --help              Show this message and exit.                           │
+│ *  --base          TEXT  Base git ref for the diff [required]                │
+│    --head          TEXT  Head git ref for the diff [default: HEAD]           │
+│    --repo          PATH  Repository root (default: current directory)        │
+│                          [default: .]                                        │
+│    --json                Emit JSON instead of human-readable text            │
+│    --help  -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->
