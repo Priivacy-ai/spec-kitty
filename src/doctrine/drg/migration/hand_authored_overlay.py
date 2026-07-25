@@ -246,10 +246,17 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # prose as the gate that enforces them. The extractor has no frontmatter
     # mechanism to mint an edge to an asset, so these are authored directly in
     # the graph fragments. REQUIRES (not suggests): activating any of these
-    # artifacts pulls the shipped lint asset in as a mandatory prerequisite —
-    # it is the charter-activate-cascade deployment hook that lands the lint
-    # blob — and it de-orphans the asset (an un-linked asset that everything
-    # references is the un-navigable state the asset kind exists to fix).
+    # artifacts pulls the shipped lint asset in as a mandatory prerequisite.
+    # Note: ASSET is not a charter-activatable kind, so this is not a
+    # charter-activate-cascade deployment hook -- `--cascade all` on these
+    # artifacts only emits a benign "could not cascade-activate
+    # asset/common-docs-structural-lint" warning. The edge's real job is DRG
+    # de-orphaning (an un-linked asset that everything references is the
+    # un-navigable state the asset kind exists to fix) plus transitive-ref
+    # resolution: it is what lets resolve_transitive_refs() return the asset
+    # with is_complete=True for consumers walking these artifacts' reference
+    # closure, i.e. deployment-manifest completeness rather than an
+    # activation trigger.
     # -----------------------------------------------------------------------
     DRGEdge(
         source="directive:DIRECTIVE_042",

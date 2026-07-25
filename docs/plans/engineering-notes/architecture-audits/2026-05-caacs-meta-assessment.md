@@ -12,12 +12,12 @@ updated: '2026-05-11'
 **Status:** synthesis complete; adoption decision (DM-C) pending. **See 2026-05-11 update below.**
 **Author:** Planner Priti (ad-hoc planning session, 2026-05).
 **Companion documents:**
-- `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — the audit (extended 2026-05-09 with `tests/` + `kitty-specs/` scope; extended 2026-05-11 with multi-window refactor-candidate synthesis)
-- `docs/architecture/audits/2026-05-822-crosscheck.md` — the original #822 backlog crosscheck (2026-05-08)
-- `docs/architecture/audits/2026-05-phase3-issue-drafts-and-triage.md` — operational follow-ups
-- `docs/architecture/audits/2026-05-phase3-f1-knowledge-capture-plan.md` — F1 remediation plan
+- `docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md` — the audit (extended 2026-05-09 with `tests/` + `kitty-specs/` scope; extended 2026-05-11 with multi-window refactor-candidate synthesis)
+- `docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md` — the original #822 backlog crosscheck (2026-05-08)
+- `docs/plans/engineering-notes/architecture-audits/2026-05-phase3-issue-drafts-and-triage.md` — operational follow-ups
+- `docs/plans/engineering-notes/architecture-audits/2026-05-phase3-f1-knowledge-capture-plan.md` — F1 remediation plan
 - `docs/architecture/assessments/code-as-a-crime-scene-overview.md` — high-level explainer of the technique (added 2026-05-09)
-- `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md` — relating findings to #645, refreshed #822, and open bug tickets (added 2026-05-11)
+- `docs/plans/engineering-notes/architecture-audits/2026-05-11-findings-vs-issues-update.md` — relating findings to #645, refreshed #822, and open bug tickets (added 2026-05-11)
 **Doctrine references:** `tactic:forensic-repository-audit` (updated 2026-05-11 with a multi-window refactor-candidate step), `procedure:legacy-codebase-triage`, and the provisional `paradigm:brownfield-onboarding` (added 2026-05-11).
 
 ---
@@ -35,7 +35,7 @@ updated: '2026-05-11'
 >
 > **Implication for §6 (DM-C):** the shift from zero to two STRONG matches in three days *strengthens* — does not weaken — the adoption argument. The audit surfaced structural concerns the team independently filed within days. Where CaaCS looked first, the tracker followed. The case for CaaCS as an opt-in pre-investigation step (per §6) is empirically reinforced.
 >
-> Full detail: `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md`. A companion document reading #992 and #984 in full with proposed audit-evidence comment text lives at `docs/architecture/audits/2026-05-11-issue-992-984-audit-comments.md`.
+> Full detail: `docs/plans/engineering-notes/architecture-audits/2026-05-11-findings-vs-issues-update.md`. A companion document reading #992 and #984 in full with proposed audit-evidence comment text lives at `docs/plans/engineering-notes/architecture-audits/2026-05-11-issue-992-984-audit-comments.md`.
 >
 > The original §1 executive summary below is preserved as the time-of-writing record (2026-05-08). Read this update note as the live state.
 
@@ -107,7 +107,7 @@ That zero-STRONG outcome is the answer to the latent question behind #665/#666: 
 | F6 Duplicate task-prompt-template smell | 🟡 Smell | No |
 | F7–F14 | various | mostly No (3 PARTIAL, 7 WEAK matches in total) |
 
-Full table and prose: `docs/architecture/audits/2026-05-spec-kitty-caacs.md`. Mapping detail: `docs/architecture/audits/2026-05-822-crosscheck.md`.
+Full table and prose: `docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md`. Mapping detail: `docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md`.
 
 ## 4. Reflections on the approach
 
