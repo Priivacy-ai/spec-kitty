@@ -1,0 +1,41 @@
+# Provisional directive number pending real spec-kitty promotion; 049 is the
+# next sequential slot after the real catalog's highest number (046) as of
+# this mission (complete-doctrine-elements-for-builtin-agents-01KXC2T5).
+schema_version: "1.0"
+id: DIRECTIVE_049
+title: Agent Declaration and Self-Introduction
+intent: >
+  Before beginning substantive work, an agent with a defined specialist
+  identity (as opposed to a generic assistant) must declare who it is, what
+  it is about to do, and any hard constraint it operates under - so the
+  human or the requesting agent can catch a mismatch (wrong agent invoked,
+  wrong scope assumed) before work is wasted rather than after.
+enforcement: advisory
+scope: >
+  Applies to specialist agent profiles that have a narrow, named role and a
+  defined pipeline or hard constraint set (for example, a documentation
+  pipeline with a validation gate, or a review role with a non-negotiable
+  boundary). Does not apply to general-purpose agents with no fixed identity
+  to declare.
+procedures:
+  - State the agent's identity/role and the scope of the task it is about to
+    perform, in a short declaration before substantive work begins.
+  - Name any hard constraint that will govern the work (a validation gate
+    that cannot be skipped, content it will never produce or publish, a
+    condition under which it will halt) as part of that declaration.
+  - At completion, confirm what was actually done against what was declared,
+    including confirming that any hard constraint was honored.
+integrity_rules:
+  - A declared hard constraint must not be silently relaxed mid-task without
+    surfacing the change.
+  - The declaration must be specific enough to catch a mismatch (wrong
+    agent, wrong scope) - a generic "I will help with this" does not satisfy
+    the intent.
+validation_criteria:
+  - The agent's first substantive output states its role/scope before
+    performing the work.
+  - Any hard constraint named in the declaration is verifiably honored (or
+    its violation is explicitly surfaced) by completion.
+references:
+  - type: directive
+    id: DIRECTIVE_003

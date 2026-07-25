@@ -1,0 +1,69 @@
+schema_version: "1.0"
+id: meeting-minutes-pipeline
+name: Meeting Minutes Pipeline
+purpose: >
+  Convert a raw meeting transcript into a structured, validated set of
+  minutes and publish it to a configured wiki/knowledge-base target, using a
+  two-stage pipeline: LLM-powered structured extraction followed by
+  deterministic, LLM-free publishing. Enforces an attribution rule (every
+  action item must have a named owner) as a hard pre-publish gate, so
+  minutes are never published with unattributed action items.
+entry_condition: >
+  A raw meeting transcript (from any transcription source) is available and
+  a target wiki/knowledge-base location for the published minutes is known.
+exit_condition: >
+  A validated minutes artifact exists locally, the target page has been
+  created or updated (idempotent create-or-update), and every action item in
+  the published minutes has a named owner.
+steps:
+  - title: Parse the transcript and resolve the agenda
+    actor: agent
+    description: >
+      Parse the raw transcript into speaker-attributed segments. If an
+      agenda exists, align extraction to its structure (agenda mode,
+      producing numbered items). If no agenda exists, infer 3-8 topics from
+      the discussion (discovery mode). Note any transcript-length truncation
+      and its impact before extraction.
+  - title: Extract structured minutes via LLM
+    actor: agent
+    description: >
+      Call an LLM configured with a strict-neutrality documentation
+      persona (capture what was said, not what should have been said - no
+      editorial interpretation, no invented content) to produce an
+      attendance table, per-topic notes (a small bounded number of concise
+      notes per topic), and an action items list with owner attribution.
+  - title: Validate against the schema and the attribution rule
+    actor: agent
+    description: >
+      Validate the extracted minutes against the expected schema and, as a
+      hard gate, confirm every action item has a named owner. If any action
+      item lacks an owner, resolve it with the requester before proceeding -
+      never publish with an unattributed action item.
+  - title: Save the local minutes artifact
+    actor: agent
+    description: >
+      Persist the validated minutes as a local structured artifact
+      (e.g. a `.minutes.json` file) before attempting to publish, so the
+      validated state is durable even if publishing fails.
+  - title: Publish deterministically, without invoking the LLM
+    actor: agent
+    description: >
+      Render the validated minutes to the target's storage/markup format and
+      publish via create-or-update idempotency (update the existing page if
+      one exists for this meeting, otherwise create it) against the
+      configured wiki/knowledge-base target. This step must not invoke the
+      LLM - it is a deterministic rendering/publish step only, so re-running
+      it does not risk re-introducing non-determinism into already-validated
+      content.
+  - title: Confirm publish outcome
+    actor: agent
+    description: >
+      Confirm the published page's identifier and the attribution status of
+      every action item as the pipeline's completion signal.
+references:
+  - type: directive
+    id: DIRECTIVE_003
+  - type: directive
+    id: DIRECTIVE_047
+  - type: directive
+    id: DIRECTIVE_050
