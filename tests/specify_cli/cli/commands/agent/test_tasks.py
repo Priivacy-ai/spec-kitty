@@ -54,7 +54,6 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
     result = runner.invoke(app, ["move-task", "--help"], terminal_width=160)
 
     assert result.exit_code == 0, result.output
-    help_text = " ".join(result.output.split())
     group = get_command(app)
     assert isinstance(group, click.Group)
     click_command = group.commands["move-task"]
