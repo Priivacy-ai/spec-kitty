@@ -99,18 +99,21 @@ def run_plan_interview(  # noqa: C901
 
     Non-interactive contract (#2876): when :func:`is_interactive` is False —
     ``SPEC_KITTY_NON_INTERACTIVE`` set, or stdin is not a TTY, which is how
-    agents and CI drive this tool — the interview is skipped entirely and every
-    question comes back unanswered. Prompting there would block forever on an
-    open-but-silent stdin pipe.
+    agents and CI drive this tool — the interview never prompts (a blocking
+    prompt hangs forever on an open-but-silent stdin pipe). Per the issue it
+    *takes the defaults*: every Decision Moment is still opened and recorded
+    (deferred / unanswered), so ``decisions/index.json`` is written exactly as
+    in the interactive path — only the blocking ``typer.prompt`` (and the widen
+    affordance, which needs a keystroke) is skipped.
     """
     import typer
 
-    if not is_interactive():
+    interactive = is_interactive()
+    if not interactive:
         console.print(
-            "[dim]Non-interactive: skipping the plan interview; "
-            "all questions recorded as unanswered.[/dim]"
+            "[dim]Non-interactive: taking defaults for the plan interview "
+            "(no prompts; questions recorded as deferred).[/dim]"
         )
-        return dict.fromkeys((qid for qid, _ in questions), "")
 
     from specify_cli.decisions import service as _dm_service
     from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
@@ -131,26 +134,29 @@ def run_plan_interview(  # noqa: C901
     widen_store: Any = None
     saas_client: Any = None
 
-    try:
-        from specify_cli.saas_client import SaasClient
-        from specify_cli.widen import check_prereqs
-        from specify_cli.widen.flow import WidenFlow
-        from specify_cli.widen.state import WidenPendingStore
+    # Widen needs a keystroke ([w]); it is only reachable interactively. Skipping
+    # the setup non-interactively also avoids the SaaS prereq probe in CI (#2876).
+    if interactive:
+        try:
+            from specify_cli.saas_client import SaasClient
+            from specify_cli.widen import check_prereqs
+            from specify_cli.widen.flow import WidenFlow
+            from specify_cli.widen.state import WidenPendingStore
 
-        saas_client = SaasClient.from_env(repo_root)
-        _team_slug: str = ""
-        with contextlib.suppress(Exception):
-            from specify_cli.saas_client.auth import load_auth_context
+            saas_client = SaasClient.from_env(repo_root)
+            _team_slug: str = ""
+            with contextlib.suppress(Exception):
+                from specify_cli.saas_client.auth import load_auth_context
 
-            _auth_ctx = load_auth_context(repo_root)
-            _team_slug = _auth_ctx.team_slug or ""
+                _auth_ctx = load_auth_context(repo_root)
+                _team_slug = _auth_ctx.team_slug or ""
 
-        prereq_state = check_prereqs(saas_client, team_slug=_team_slug)
-        if prereq_state.all_satisfied:
-            widen_flow = WidenFlow(saas_client, repo_root, console)
-            widen_store = WidenPendingStore(repo_root, mission_slug)
-    except Exception:  # noqa: BLE001
-        pass  # non-fatal; [w] will be suppressed
+            prereq_state = check_prereqs(saas_client, team_slug=_team_slug)
+            if prereq_state.all_satisfied:
+                widen_flow = WidenFlow(saas_client, repo_root, console)
+                widen_store = WidenPendingStore(repo_root, mission_slug)
+        except Exception:  # noqa: BLE001
+            pass  # non-fatal; [w] will be suppressed
 
     mission_id = _get_mission_id(repo_root, mission_slug)
 
@@ -211,11 +217,18 @@ def run_plan_interview(  # noqa: C901
         # #2876: the hint's bracketed keys are literal text, not Rich markup.
         # Unescaped, Rich eats [enter]/[text]/[d]/[w] as style tags and the
         # operator sees "=accept default | =type answer | efer | [!cancel]".
-        console.print(f"[dim]{escape(hint_line)}[/dim]")
+        if interactive:
+            console.print(f"[dim]{escape(hint_line)}[/dim]")
 
         # Prompt
         user_answer = ""
         while True:
+            if not interactive:
+                # #2876: non-interactive — take the default, never prompt (a
+                # blocking read hangs on a silent stdin pipe). The Decision
+                # Moment above is still recorded (deferred below).
+                user_answer = default_value
+                break
             try:
                 raw = typer.prompt(question_text, default=default_value)
             except (KeyboardInterrupt, EOFError):
