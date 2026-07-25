@@ -260,6 +260,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
         "specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers",  # auto-discovered (#2804)
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
+        "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)
         # runtime-state-corpus-cutover-01KXZ0AX WP02 (FR-010, #2816): auto-discovered
         # corpus cutover migration for existing deployments. Auto-discovered via
         # pkgutil.iter_modules + @MigrationRegistry.register; never statically
