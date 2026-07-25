@@ -105,6 +105,24 @@ def test_every_synthesized_envelope_conforms():
     _assert_all_conform(stream)
 
 
+def test_import_and_status_envelopes_share_one_top_level_key_set():
+    """Guard against envelope-shape drift (Paula's #2884 M1): the hand-built
+    creation-prefix envelope (``_envelope``) and the reused migration status
+    envelope (``status_event_to_teamspace_envelope``) must carry the SAME
+    top-level key set. If they drift, one import stream ships two shapes — the
+    server could accept the WPStatusChanged rows while rejecting the
+    MissionCreated/WPCreated prefix, orphaning every WP. This is the cheap
+    parity guard the full-consolidation follow-up (#2262) can later subsume."""
+    stream = synthesize_mission_stream(
+        _demo_scan(), project_uuid=_PROJECT_UUID, project_slug="spec-kitty", repo_slug="acme/spec-kitty"
+    )
+    mission_created = next(env for env in stream if env["event_type"] == "MissionCreated")
+    wp_created = next(env for env in stream if env["event_type"] == "WPCreated")
+    wp_status = next(env for env in stream if env["event_type"] == "WPStatusChanged")
+    assert set(mission_created) == set(wp_status), "creation-prefix vs status envelope keys drifted"
+    assert set(wp_created) == set(wp_status), "WPCreated vs status envelope keys drifted"
+
+
 # ── ordering + INV-3 ──────────────────────────────────────────────────────────
 
 

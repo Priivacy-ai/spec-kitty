@@ -34,28 +34,41 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+import requests
+
+from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.delivery.receivers import (
+    BATCH_TIMEOUT_SECONDS,
     DeliveryOutcome,
     DeliveryReceiver,
     DeliveryResult,
     HttpPoster,
     OutboundEvent,
-    _requests_post,
+    default_http_poster,
 )
 from specify_cli.migration.envelope_seam import envelope_sha256
 from specify_cli.status import MISSION_CREATED
 
 _PREFLIGHT_ENDPOINT_PATH = "/api/v1/events/preflight/"
-_PREFLIGHT_TIMEOUT_SECONDS = 60.0
+# One delivery timeout policy for the whole SaaS transport: reuse the receiver's
+# canonical batch timeout rather than re-declaring the same 60s value (#2884).
+_PREFLIGHT_TIMEOUT_SECONDS = BATCH_TIMEOUT_SECONDS
 # Conservative per-request size: well under the server's 1000-event cap and its
 # 512 KiB decompressed byte ceiling. The receiver still auto-bisects on a 413.
 _IMPORT_CHUNK_SIZE = 500
 # The server's hard per-batch envelope cap. A single mission larger than
 # _IMPORT_CHUNK_SIZE is deliberately NOT split (mission-atomic chunking, see
-# _chunked) and becomes one oversized chunk — safe because the server accepts
-# up to this many events per batch, double our conservative budget.
+# _chunked) and becomes one oversized chunk — safe up to this many events per
+# batch. A mission that exceeds even this cap is caught fail-closed before any
+# network round-trip by _assert_batches_within_cap.
 _SERVER_MAX_BATCH_SIZE = 1000
 _MAX_REJECTED_SAMPLES = 5
+
+# The outbound-envelope contract context every producer validates against
+# (sync.emitter/batch/client all pass this to validate_outbound_payload). The
+# import producer runs the same offline gate so its hand-assembled prefix
+# envelopes fail fast locally, consistent with the rest of the fleet (#2884).
+_ENVELOPE_CONTRACT_CONTEXT = "envelope"
 
 Envelope = Mapping[str, Any]
 
@@ -107,7 +120,7 @@ def run_server_preflight(
     *,
     server_url: str,
     auth_token: str,
-    poster: HttpPoster = _requests_post,
+    poster: HttpPoster = default_http_poster,
 ) -> dict[str, Any]:
     """POST ``{"events": [...]}`` to the preflight endpoint; raise if not accepted."""
     url = server_url.rstrip("/") + _PREFLIGHT_ENDPOINT_PATH
@@ -117,7 +130,14 @@ def run_server_preflight(
         "Content-Encoding": "gzip",
         "Content-Type": "application/json",
     }
-    response = poster(url, data=body, headers=headers, timeout=_PREFLIGHT_TIMEOUT_SECONDS)
+    try:
+        response = poster(url, data=body, headers=headers, timeout=_PREFLIGHT_TIMEOUT_SECONDS)
+    except requests.RequestException as exc:
+        # A transport failure (unreachable host, timeout, TLS reset) during
+        # preflight must fail closed as a graceful rejection, not escape as a raw
+        # traceback — the delivery path maps the same error to a batch failure
+        # (receivers.py::_attempt_batch_send); preflight now matches (#2884).
+        raise PreflightRejected({"error": f"preflight transport failed: {exc}"}) from exc
     try:
         payload = response.json()
     except Exception as exc:  # non-JSON (5xx / proxy error) is a hard, fail-closed stop
@@ -125,6 +145,43 @@ def run_server_preflight(
     if response.status_code != 200 or not payload.get("accepted"):
         raise PreflightRejected(payload)
     return dict(payload)
+
+
+def validate_import_envelopes(envelopes: Sequence[Envelope]) -> None:
+    """Run the offline outbound-envelope contract gate over every envelope.
+
+    Every other envelope producer (``sync.emitter``/``batch``/``client``)
+    validates at emit/enqueue time; the import producer runs the same gate so
+    its hand-assembled ``MissionCreated``/``WPCreated`` prefix envelopes fail
+    fast locally instead of only at the server-preflight round-trip — closing
+    the defense-in-depth gap the #2884 review flagged. Raises
+    :class:`~specify_cli.core.contract_gate.ContractViolationError` on the first
+    offending envelope, before any network call.
+    """
+    for env in envelopes:
+        validate_outbound_payload(dict(env), _ENVELOPE_CONTRACT_CONTEXT)
+
+
+def _assert_batches_within_cap(chunks: Sequence[Sequence[Envelope]]) -> None:
+    """Fail closed if any mission-atomic chunk exceeds the server's batch cap.
+
+    Mission-atomic chunking (:func:`_chunked`) never splits a mission, so a
+    single mission larger than ``_SERVER_MAX_BATCH_SIZE`` becomes one oversized
+    chunk that the server would reject at preflight. Catch it here, before the
+    network round-trip, with an actionable message rather than an opaque
+    server-side rejection (#2884).
+    """
+    for chunk in chunks:
+        if len(chunk) > _SERVER_MAX_BATCH_SIZE:
+            raise PreflightRejected(
+                {
+                    "error": (
+                        f"a single mission is {len(chunk)} events, over the server's "
+                        f"{_SERVER_MAX_BATCH_SIZE}-event batch cap; mission-atomic chunking "
+                        "cannot split it. Import this mission on its own or trim its history."
+                    )
+                }
+            )
 
 
 # ── upload (stage 8) ──────────────────────────────────────────────────────────
@@ -171,8 +228,10 @@ def upload_envelopes(
     the first chunk with a failure outcome halts the run and the report records
     the partial state.
     """
+    chunks = list(_chunked(envelopes, chunk_size))
+    _assert_batches_within_cap(chunks)
     report = UploadReport()
-    _deliver_chunks(list(_chunked(envelopes, chunk_size)), receiver, report)
+    _deliver_chunks(chunks, receiver, report)
     return report
 
 
@@ -182,7 +241,7 @@ def run_import_upload(
     receiver: DeliveryReceiver,
     server_url: str,
     auth_token: str,
-    poster: HttpPoster = _requests_post,
+    poster: HttpPoster = default_http_poster,
     chunk_size: int = _IMPORT_CHUNK_SIZE,
 ) -> UploadReport:
     """Preflight every chunk, then (only if all pass) upload chunks in order.
@@ -204,6 +263,7 @@ def run_import_upload(
     updated payload is dropped as a duplicate rather than overwriting.
     """
     chunks = list(_chunked(envelopes, chunk_size))
+    _assert_batches_within_cap(chunks)
     for chunk in chunks:
         run_server_preflight(chunk, server_url=server_url, auth_token=auth_token, poster=poster)
     report = UploadReport()

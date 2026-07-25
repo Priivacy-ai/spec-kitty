@@ -12,10 +12,13 @@ import json
 from typing import Any
 
 import pytest
+import requests
 
+from specify_cli.core.contract_gate import ContractViolationError
 from specify_cli.delivery.receivers import DeliveryOutcome, DeliveryResult, StubReceiver
 from specify_cli.sync.history_import.upload import (
     _IMPORT_CHUNK_SIZE,
+    _SERVER_MAX_BATCH_SIZE,
     PreflightRejected,
     _chunked,
     build_provenance_manifest,
@@ -23,6 +26,7 @@ from specify_cli.sync.history_import.upload import (
     run_import_upload,
     run_server_preflight,
     upload_envelopes,
+    validate_import_envelopes,
 )
 
 pytestmark = pytest.mark.fast
@@ -107,6 +111,18 @@ def test_preflight_non_json_response_fails_closed():
         run_server_preflight([_env("e0")], server_url="http://x", auth_token="t", poster=poster)
 
 
+def test_preflight_transport_error_fails_closed_not_traceback():
+    """A transport failure (unreachable host / timeout / TLS reset) during
+    preflight maps to a graceful PreflightRejected, not an escaping traceback
+    (#2884). The delivery path already catches this; preflight now matches."""
+
+    def _raising_poster(url: str, *, data: bytes, headers: dict[str, str], timeout: float):
+        raise requests.ConnectionError("host unreachable")
+
+    with pytest.raises(PreflightRejected, match="transport failed"):
+        run_server_preflight([_env("e0")], server_url="http://x", auth_token="t", poster=_raising_poster)
+
+
 # ── upload (stage 8) ──────────────────────────────────────────────────────────
 
 
@@ -187,6 +203,82 @@ def test_single_mission_over_the_budget_is_one_oversized_chunk():
     stream = _mission_stream("big", _IMPORT_CHUNK_SIZE + 1)
     chunks = list(_chunked(stream, _IMPORT_CHUNK_SIZE))
     assert [len(chunk) for chunk in chunks] == [_IMPORT_CHUNK_SIZE + 1]
+
+
+def test_single_mission_over_the_server_cap_fails_closed_before_delivery():
+    """A mission bigger than the server's per-batch cap can't be split
+    (mission-atomic) and would be rejected server-side. Catch it locally,
+    before any delivery, with an actionable message (#2884, Paula n1)."""
+    stub = StubReceiver()
+    stream = _mission_stream("huge", _SERVER_MAX_BATCH_SIZE + 1)
+    with pytest.raises(PreflightRejected, match=f"{_SERVER_MAX_BATCH_SIZE}-event batch cap"):
+        upload_envelopes(stream, receiver=stub)
+    assert not stub.received_event_ids()  # nothing delivered — fail-closed
+
+
+# ── transport-transient partial delivery (B1, #2884) ──────────────────────────
+
+
+class _TransientReceiver:
+    """Succeeds every event except ids in *bad*, which map to TRANSIENT (a
+    network error with no http_status), recording delivery order."""
+
+    def __init__(self, bad: set[str]) -> None:
+        self.bad = bad
+        self.seen: list[str] = []
+
+    def deliver(self, batch):
+        results = []
+        for event in batch:
+            self.seen.append(event.event_id)
+            outcome = DeliveryOutcome.TRANSIENT if event.event_id in self.bad else DeliveryOutcome.SUCCESS
+            error = "network error" if event.event_id in self.bad else None
+            results.append(DeliveryResult(event_id=event.event_id, outcome=outcome, error=error))
+        return results
+
+
+def test_transport_transient_mid_stream_stops_and_reports_partial():
+    """A transport TRANSIENT (network error, not a server rejection) on chunk 2
+    of 3 halts delivery and reports partial — the same stop-on-failure contract
+    as REJECTED, pinned for the transient path the transport actually raises."""
+    receiver = _TransientReceiver(bad={"e1"})
+    report = upload_envelopes([_env(f"e{i}") for i in range(3)], receiver=receiver, chunk_size=1)
+
+    assert receiver.seen == ["e0", "e1"]  # e2's chunk never attempted
+    assert report.success == 1 and report.rejected == 1
+    assert report.partial
+    assert report.delivered_through_chunk == 1
+    assert report.undelivered_event_count == 1
+    assert not report.ok
+
+
+# ── offline envelope contract gate (M2, #2884) ────────────────────────────────
+
+
+def _valid_envelope(event_type: str = "MissionCreated") -> dict[str, Any]:
+    # canonical-event-exempt(exception-flow): a minimal contract-valid wire envelope for the gate under test
+    return {
+        "event_id": "e0",
+        "event_type": event_type,
+        "aggregate_type": "Mission",
+        "build_id": "import-history",
+        "schema_version": "3.0.0",
+        "payload": {},
+    }
+
+
+def test_validate_import_envelopes_passes_a_contract_valid_stream():
+    validate_import_envelopes([_valid_envelope("MissionCreated"), _valid_envelope("WPCreated")])
+
+
+def test_validate_import_envelopes_rejects_a_forbidden_top_level_field():
+    """The offline gate refuses a leaked forbidden top-level field before any
+    network round-trip — the drift a future edit to the hand-built envelope
+    could introduce (#2884)."""
+    leaked = _valid_envelope()
+    leaked["from_lane"] = "planned"  # a retired status field that belongs in payload
+    with pytest.raises(ContractViolationError):
+        validate_import_envelopes([leaked])
 
 
 # ── stop-on-first-failure delivery (B1, #2884) ────────────────────────────────

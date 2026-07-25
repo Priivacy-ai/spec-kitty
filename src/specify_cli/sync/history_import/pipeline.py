@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from specify_cli.delivery.receivers import DeliveryReceiver, HttpPoster, _requests_post
+from specify_cli.delivery.receivers import DeliveryReceiver, HttpPoster, default_http_poster
 from specify_cli.sync.history_import.identity import ImportIdentity, resolve_import_identity
 from specify_cli.sync.history_import.scan import MissionScan, scan_missions
 from specify_cli.sync.history_import.synthesize import synthesize_streams
@@ -27,6 +27,7 @@ from specify_cli.sync.history_import.upload import (
     UploadReport,
     build_provenance_manifest,
     run_import_upload,
+    validate_import_envelopes,
 )
 
 
@@ -152,7 +153,7 @@ def apply_import(
     receiver: DeliveryReceiver,
     server_url: str,
     auth_token: str,
-    poster: HttpPoster = _requests_post,
+    poster: HttpPoster = default_http_poster,
     chunk_size: int | None = None,
 ) -> ApplyResult:
     """Materialize: build the plan (real identity), then preflight + upload.
@@ -165,6 +166,10 @@ def apply_import(
     if plan.is_empty:
         return ApplyResult(plan=plan, manifest=[], report=UploadReport())
 
+    # Offline defense-in-depth: run the outbound-envelope contract gate over the
+    # real synthesized stream before any upload, consistent with every other
+    # producer (#2884). Raises ContractViolationError, fail-closed, offline.
+    validate_import_envelopes(plan.envelopes)
     manifest = build_provenance_manifest(plan.envelopes)
     upload_kwargs: dict[str, Any] = {"receiver": receiver, "server_url": server_url, "auth_token": auth_token, "poster": poster}
     if chunk_size is not None:
