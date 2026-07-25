@@ -9,7 +9,7 @@ updated: '2026-06-12'
 ## Inputs
 
 - **Audit referenced**: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08).
-- **Prior crosscheck**: `docs/architecture/audits/2026-05-822-crosscheck.md` (dated 2026-05-08).
+- **Prior crosscheck**: `docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md` (dated 2026-05-08).
 - **Multi-window refresh (2026-05-11)** introduced two new slow-burn refactor candidates: `src/specify_cli/orchestrator_api/commands.py` (1097 SLOC, F#28 full-history, R#24 4-mo) and `src/specify_cli/agent_utils/status.py` (570 SLOC, F#29 full-history, R#26 4-mo, contains the `_display_status_board` F-53 renderer).
 - **Provisional doctrine paradigm**: `brownfield-onboarding` (investigate before changing; document/transfer first; hierarchical reference bundles).
 - **Issue tracker reads** (all via `gh` against `Priivacy-ai/spec-kitty`, 2026-05-11):

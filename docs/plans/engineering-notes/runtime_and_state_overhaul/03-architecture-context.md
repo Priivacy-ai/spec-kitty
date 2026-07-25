@@ -9,7 +9,7 @@ updated: '2026-06-03'
 What the existing architecture already commits to, and what the audits already flag as debt that an
 execution-context redesign would touch. Sources: `docs/adr/3.x/*`,
 `docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md`,
-`docs/architecture/audits/2026-05-spec-kitty-caacs.md`, `docs/architecture/audits/2026-05-caacs-meta-assessment.md`.
+`docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md`, `docs/plans/engineering-notes/architecture-audits/2026-05-caacs-meta-assessment.md`.
 
 > Note: `docs/3.x` is currently empty — the 3.x **ADR set is the architectural intent** (there is no
 > consolidated 3.x behavioral spec yet; `docs/architecture/README-3.x.md:8-10`). The redesign must
