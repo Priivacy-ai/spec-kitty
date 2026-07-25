@@ -176,7 +176,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 - **Running Spec Kitty non-interactively (agents, CI, piped input) no longer
   hangs waiting for a prompt that will never be answered (#2876; extended in
-  #2912).** Under `SPEC_KITTY_NON_INTERACTIVE=1`, `spec-kitty plan` and
+  #2912; landed by #2910).** Under `SPEC_KITTY_NON_INTERACTIVE=1`, `spec-kitty plan` and
   `specify` reached their discovery interviews and called a blocking prompt with
   no non-interactive gate anywhere in the call graph, so an open-but-silent
   stdin pipe made them wait forever. The interviews now honor the contract: they
@@ -193,7 +193,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 - **Merging an accepted mission no longer discards the acceptance and
   issue-matrix evidence recorded when it was accepted (#2804; scorer hardening
-  #2912).** `acceptance-matrix.json` and `issue-matrix.md` are filled on the
+  #2912; landed by #2910).** `acceptance-matrix.json` and `issue-matrix.md` are filled on the
   target at accept time while the mission branch keeps empty scaffolds; the
   squash integration ran `git merge --squash -X theirs`, so the empty scaffold
   won the add/add conflict and the merged history kept blank gate artifacts —
