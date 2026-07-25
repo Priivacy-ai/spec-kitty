@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-07-25'
 ---
 # Changelog
 
@@ -19,6 +19,24 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Doctrine packs can now ship supporting files to consumer repos — the first
+  is a docs structural-lint that keeps a project's documentation organized
+  (#2302, #2864–#2867).** A doctrine pack can now carry an arbitrary
+  addressable file (a script, a blob, a `.docx`) that travels with the pack and
+  resolves in a consumer repo with no access to our source tree — the new
+  built-in `asset` doctrine kind, shipping its first member. That inaugural
+  asset, `common-docs-structural-lint`, checks that docs land in the right
+  section, that redirect stubs and frontmatter follow the house contract, and
+  that retired shadow doc-trees don't reappear; it is wired into the
+  `docs-freshness` CI workflow as a blocking gate and is pulled in automatically
+  whenever a common-docs artifact is activated. Alongside it, a one-time
+  structural-sanity sweep redistributed nine misfiled `architecture/` notes,
+  retired the `plans/notes/` 1.x shadow tree, and repointed every referrer with
+  zero dead links; the common-docs styleguide gains a machine-parseable
+  `structural_lint_config` block (with a `redirect_stub_description_prefix`
+  exemption key) as the lint's single source of truth; and the docs
+  reference-rewrite helper no longer doubles a destination path (`…/x.md/x.md`)
+  on a file-level move. No CLI product code (`src/specify_cli`) changed.
 - **Fork packaging hooks (entry-point plugins + `DistributionProfile`).**
   Renamed / private-index forks can customize CLI package identity, upgrade
   providers (including built-in PEP 503 `SimpleIndexProvider`), remediation
@@ -156,6 +174,54 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Running Spec Kitty non-interactively (agents, CI, piped input) no longer
+  hangs waiting for a prompt that will never be answered (#2876; extended in
+  #2912).** Under `SPEC_KITTY_NON_INTERACTIVE=1`, `spec-kitty plan` and
+  `specify` reached their discovery interviews and called a blocking prompt with
+  no non-interactive gate anywhere in the call graph, so an open-but-silent
+  stdin pipe made them wait forever. The interviews now honor the contract: they
+  still open every Decision Moment and write the decision index, but take
+  defaults and record each question as deferred instead of prompting — no prompt
+  is ever emitted non-interactively. A single authority, `core/env.is_interactive()`
+  (precedence `SPEC_KITTY_FORCE_INTERACTIVE` > `SPEC_KITTY_NON_INTERACTIVE` > a
+  real TTY), now backs that decision, and #2912 routed the four other divergent
+  prompt-gates — `init`, the `merge` hollow-review confirm, the `intake`
+  candidate picker, and `doctor` — through it too, so every prompt obeys the
+  same rule (with `doctor` keeping its CI-environment veto layered on top). Also
+  fixes the garbled interview hint menu where Rich was eating `[enter]`/`[text]`/`[d]`
+  as style tags.
+
+- **Merging an accepted mission no longer discards the acceptance and
+  issue-matrix evidence recorded when it was accepted (#2804; scorer hardening
+  #2912).** `acceptance-matrix.json` and `issue-matrix.md` are filled on the
+  target at accept time while the mission branch keeps empty scaffolds; the
+  squash integration ran `git merge --squash -X theirs`, so the empty scaffold
+  won the add/add conflict and the merged history kept blank gate artifacts —
+  losing the audit trail exactly when a reviewer needs it. Two new custom merge
+  drivers (`merge-driver-acceptance-matrix` / `merge-driver-issue-matrix`) now
+  keep whichever side actually carries evidence — scored, not fixed-side, so it
+  is correct whether the fill happened on the target or in a lane, with ties
+  going to the target where accept ran. The scorers were then hardened (#2912) to
+  read the scaffold marker from the field the scaffolder actually writes, and to
+  resolve verdict/title columns by canonical header rather than fixed position,
+  so a reordered or minimal matrix scores correctly. Seeded into `.gitattributes`,
+  the `init` seed, and an upgrade migration for already-initialized repos —
+  following the same pattern as the #2709 meta/traces drivers.
+
+- **Lifecycle gates no longer emit a confident-but-wrong verdict when run from
+  the wrong worktree, and a misclassified lock write no longer blocks a claim or
+  merge (#1834, #2885, #2882, #2795).** Every lifecycle gate now receives an
+  explicit execution context — which tree, which ref, which phase — and refuses,
+  recording a clear cannot-evaluate diagnostic instead of a pass/fail, when that
+  context is missing or inconsistent, rather than silently inheriting the
+  caller's working directory and judging a fact about one worktree against
+  another. Separately, `spec-kitty implement`/`merge` no longer wrongly report a
+  work package as blocked because Spec Kitty mistook its own planning-partition
+  lock write for a dirty tree (the #2795 claim-blocker, now topology-agnostic).
+  Internally, eleven scattered gate-exemption predicates are retired onto one
+  owner guarded by an exemption-registry ratchet, and the accept gate now
+  asserts ref-agreement before it judges the acceptance matrix.
+
 - **The `issue-matrix.md` and `acceptance-matrix.json` missing-file errors now name the regenerate command.**
   Both files are already scaffolded automatically during `spec-kitty tasks` (finalize-tasks); the failure messages an operator actually sees when one is missing (at `move-task --to approved` and at `spec-kitty accept`) previously said nothing about that, so a missing file read as "no tooling exists for this" rather than "re-run finalize-tasks." Both messages now name `spec-kitty agent mission finalize-tasks --mission <slug>`, and the issue-matrix message also points at its schema/worked-example doc (`src/specify_cli/cli/commands/review/ERROR_CODES.md`). The `spec-kitty-mission-review` skill's Gate 4 section gained the same pointer.
 
@@ -288,8 +354,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   behavioral class-closing guard reds if any of the seven `_restore_final_bookkeeping_snapshots`
   rollback sites (incl. the previously-unenumerated coord-reachable site) strands without marking.
   INV-5 (#1827) ordering preserved; happy-path merge byte-identical. Ships red-first repros for both
-  mechanisms. Deferred with follow-ups: **#2795** (#2367 Mechanism A — claim-time VCS-lock resync)
-  and **#2797** (unify the two `git revert` transport legs into one shared helper).
+  mechanisms. Deferred with follow-ups: **#2797** (unify the two `git revert` transport legs into
+  one shared helper). (**#2795**, #2367 Mechanism A — claim-time VCS-lock resync, was deferred here
+  and has since landed in #2906, above.)
 - **`--json` output is now plain regardless of terminal colour; CLI tests are colour-deterministic (#2632).**
   Under a colour-forcing harness (e.g. `FORCE_COLOR=3`) Rich syntax-highlighted `--json`
   output — splicing ANSI escapes into the payload so `json.loads` and `| jq` choked — and
