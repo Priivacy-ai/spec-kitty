@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 93  # justification: 93 auto-discovered migrations after #2816 added m_zz_runtime_state_backfill, registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer; it sorts after the charter folds and performs the fail-closed corpus cutover on upgrade.
+  category_1_auto_discovered_migrations: 94  # justification: 94 after #2804 added m_3_2_6_gate_artifact_merge_drivers (gate-artifact merge-driver seeding, target 3.2.6), registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer -- same auto-discovery shape as the sibling m_3_2_6_meta_traces_merge_drivers; no runtime caller by design.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
