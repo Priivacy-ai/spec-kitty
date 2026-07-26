@@ -437,15 +437,13 @@ entries:
   # two fields this work package exists to guard.
   - name: aliases
     declared_at: src/doctrine/glossary_packs/models.py
-    owner: unassigned
+    owner: mission:drg-edge-migration-extractor-retirement-01KYFV8C
     disposition: wire-the-producer
-    provisional: true
     note: >-
       Declared inert by its own module docstring, pending mission B2. SC-001 names
       this field explicitly.
   - name: banned_synonyms
     declared_at: src/doctrine/glossary_packs/models.py
-    owner: unassigned
+    owner: mission:drg-edge-migration-extractor-retirement-01KYFV8C
     disposition: wire-the-producer
-    provisional: true
     note: Enforcement field; the one shipped glossary pack does not author it.
