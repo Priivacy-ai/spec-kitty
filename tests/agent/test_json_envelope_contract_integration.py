@@ -319,7 +319,7 @@ class TestRootCLIPath:
         result = runner.invoke(root_app, ["orchestrator-api", *args])
         assert result.exit_code != 0
         assert "Traceback" not in result.output
-        env = json.loads(result.output)
+        env = _parse_envelope(result.output)
         assert env["success"] is False
         assert env["command"] == command
         assert env["error_code"] == "INVALID_MISSION"

@@ -306,6 +306,9 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
       ``coord_candidate`` / ``primary_candidate`` paths — the M2 fidelity fix; the
       external envelope *shape* is unchanged, only the code/data fidelity is raised
       (C-IC02 applied to the external surface).
+    * an unsafe selector rejected by the shared safe-path guard maps to
+      ``INVALID_MISSION`` so machine callers still receive JSON instead of a
+      raw traceback.
     * a genuine absence (no such mission, no coord topology) keeps the historical
       ``MISSION_NOT_FOUND`` envelope.
 
