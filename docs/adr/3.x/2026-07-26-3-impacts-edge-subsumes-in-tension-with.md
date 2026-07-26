@@ -121,21 +121,66 @@ keeping a relation name that cannot honestly carry half of its own value range.
 | **ADR-D9** | The computed projection is a **frozen dataclass with no `model_dump()`**, in a module no writer imports, stamped with `matrix_id` / `matrix_version`. |
 | **ADR-D10** | The value set and matrix are **N-parameterised** (N ≥ 3); AMMERSE is the default basis only, and axis identity is by `id`. Boundedness follows from coefficients ∈ [−1,1] plus a zero diagonal (Gershgorin). The validator enforces exactly those two properties, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1**, using a start-vector-independent method — plain power iteration is **fail-open** on two-camp bases. |
 
-### Symmetric tensions under a directed relation (ADR-D2's rider)
+### ADR-D11 — `is_symmetric` on `DRGEdge`: shorthand for the un-written inverse
 
 Because the two shipped claims are symmetric and the new relation is directed, this ADR settles
-the migration semantics rather than leaving them to the implementer:
+the migration semantics rather than leaving them to the implementer. An earlier revision required
+symmetric tensions to be **authored** as two directed edges; the operator replaced that with a
+generic model field, which is better on three counts recorded below.
 
-**A symmetric tension is authored as a pair of directed `impacts` edges**, one in each direction,
-each carrying its own value and its own `reason`. Consequences accepted:
+**`DRGEdge` gains `is_symmetric: bool = False`.** Semantics:
 
-* The canonical single-edge storage convention (lexicographically-smaller URN as source) **does
-  not apply** to `impacts`; it was a property of the symmetric boolean and retires with it.
-* Edge counts rise: the 2 boolean edges become 4 directed edges. This is a **ledgered** delta
-  against the golden counts, not an incidental one.
-* The pair form is strictly more expressive — it can state that A sabotages B more than B
-  sabotages A — and `reconciles_tension` already requires both sides, so the existing
-  reconciliation semantics carry over without change.
+* `source` / `target` keep their existing meaning. In an **asymmetric** relationship they carry the
+  direction of effect; nothing about them changes.
+* `is_symmetric: true` is **shorthand meaning "the inverse relationship holds too"** — it exists so
+  an author does not have to write the inverse as a second explicit edge. It is *not* a storage
+  convention and *not* a claim about `source`/`target` being interchangeable at the authoring layer.
+* Genuine asymmetry is still expressible, unchanged: two directed edges with their own values, or
+  one edge with `is_symmetric: false`.
+
+**The expansion happens in the generator, never in traversal.** This is what makes the field
+cheap and safe, and it falls directly out of the source-plus-cache architecture:
+
+| Layer | Holds |
+| --- | --- |
+| **(a)** authored `<kind>.edges.yaml` | **one** edge carrying `is_symmetric: true` |
+| **(b)** generated `*.graph.yaml` cache | **both** directions, materialised |
+
+Consequently `edges_from` / `edges_to` stay **purely structural** — `source == urn` and
+`target == urn` respectively — and every existing consumer sees an ordinary directed pair with no
+change and no adoption work. This matters because symmetry currently lives in *caller discipline*:
+those accessors special-case no relation, so `in_tension_with`'s bidirectionality today depends on
+each consumer remembering to query both directions. Expanding in the generator removes that
+obligation instead of generalising it, and closes the site class where a symmetric edge could
+silently resolve one-way.
+
+Two properties this design gets for free, both of which must be **asserted** rather than assumed:
+
+1. **Expansion is idempotent.** Expanding `{A→B, sym}` yields `{A→B, B→A}`; expanding *that* set
+   yields the same two edges, since each expands to itself plus an inverse already present and the
+   duplicate-triple check dedupes. The cache-coherence assertion `merge(authored) == cache` depends
+   on this holding.
+2. **Double-authoring is already an error.** Authoring both the symmetric shorthand *and* an
+   explicit inverse produces a duplicate `(source, target, relation)` triple after expansion, which
+   `assert_valid` already rejects. **No new validator rule is required** — the existing duplicate
+   check does the work, once expansion runs before validation.
+
+Accepted consequences:
+
+* The **authored** count for the two shipped claims stays **2**; the **cache** count goes 2 → 4.
+  That is a ledgered delta against the golden counts, recorded on the cache side only.
+* The canonical single-edge storage convention (lexicographically-smaller URN as source) retires
+  with the boolean. Its *purpose* survives as declared data: symmetry is now a field, not a
+  convention documented in a docstring and remembered at call sites.
+* `reconciles_tension` already requires an edge to **both** sides of a pair, and the cache presents
+  both, so its semantics carry over with no change.
+* `is_symmetric` is generic on the base model, so a future symmetric relation inherits it rather
+  than re-inventing the convention. Edge-level rather than relation-level is deliberate: `impacts`
+  can legitimately be symmetric or asymmetric *per claim*, and ADR-D6 has already rejected
+  `Relation`-keyed tables for lack of a totality guard.
+* **C-009 binds this field like any other.** Model + `_edge_to_dict` writer + generator expansion +
+  round-trip test + coverage gate land in **one commit**, or it joins the three arbitration slots
+  that shipped green and inert.
 
 ### Retires
 
@@ -173,8 +218,11 @@ each carrying its own value and its own `reason`. Consequences accepted:
 * The positive half of the range has **no current author**. Nothing in the tree needs
   "A reinforces B" as a standalone relationship today, so that expressiveness is bought ahead of
   demand — a deliberate bet on the design's direction.
-* Edge counts move (2 → 4 for the existing claims), so every golden-count baseline and its
-  composition ledger must be updated in step.
+* Cache edge counts move (2 → 4 for the existing claims, via `is_symmetric` expansion), so every
+  golden-count baseline and its composition ledger must be updated in step. The authored count is
+  unchanged at 2.
+* `is_symmetric` is a new field on a model with **no `model_config`**, so it is inert unless the
+  writer, the generator expansion, and a round-trip test land with it (ADR-D11, C-009).
 
 ### Neutral
 
@@ -209,8 +257,13 @@ ADR; D-6 is the same subject as ADR-D8 above.
 * `Relation.IMPACTS` exists; `in_tension_with` has **zero** members and zero references outside
   historical records; `git grep` for it returns only this ADR, the superseded one, and changelog
   entries.
-* The 2 shipped tension claims resolve as 4 directed `impacts` edges with their original `reason`
-  text byte-identical, and the golden-count ledger carries an entry explaining `2 → 4`.
+* The 2 shipped tension claims are **authored as 2** edges carrying `is_symmetric: true`, and
+  **expand to 4** directed edges in the generated cache, with each original `reason` text
+  byte-identical. The golden-count ledger carries an entry explaining the cache-side `2 → 4`.
+* Expansion is idempotent — regenerating an already-expanded cache is a zero diff — and authoring
+  both the shorthand and an explicit inverse fails `assert_valid` on the duplicate triple.
+* `edges_from` / `edges_to` remain purely structural: a test asserts neither special-cases
+  `is_symmetric`, so the expansion obligation cannot quietly migrate into traversal.
 * `reconciles_tension` still resolves both sides of each migrated pair.
 * The validator errors at gain ≥ 1−ε and warns as gain → 1, proven by a two-camp basis fixture on
   which plain power iteration fails open.
