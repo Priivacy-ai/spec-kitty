@@ -213,7 +213,7 @@ class UploadReport:
 
     @property
     def ok(self) -> bool:
-        return self.rejected == 0 and not self.partial
+        return self.pending == 0 and self.rejected == 0 and not self.partial
 
 
 def upload_envelopes(
