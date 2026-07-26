@@ -1,14 +1,23 @@
 """Tests for the import-history orchestration — ``build_import_plan`` (#2262).
 
 Drives the whole read-only pipeline (SELECT → AUDIT → SCAN → IDENTITY →
-SYNTHESIZE) end to end: real fixtures for the happy path, patched migration
-seams for the empty/blocked branches, and the apply path to prove the real
-project UUID is threaded onto every envelope (INV-5).
+SYNTHESIZE) end to end: synthetic dual-shape on-disk fixtures for the happy
+path, patched migration seams for the empty/blocked branches, and the apply
+path to prove the real project UUID is threaded onto every envelope (INV-5).
+
+The happy-path / apply-path fixtures are built under ``tmp_path`` via the
+shared builders in ``test_history_import_scan`` (``_build_legacy_shape_mission``
+/ ``_build_prefixed_shape_mission``) rather than pinned to specific
+``kitty-specs/`` dogfood missions in this repo. Those directories are
+scheduled for archival/relocation by the dogfood-corpus cutover (#2917); a
+mission-keyed ``skipif`` would then silently skip forever instead of failing
+(#2884 adversarial-review finding) — including the end-to-end apply test
+below, which is the ONLY proof that a real synthesized stream survives
+``validate_import_envelopes`` (the real outbound-envelope contract gate) and
+uploads cleanly.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import pytest
 
@@ -20,15 +29,102 @@ from specify_cli.sync.history_import.pipeline import (
     build_import_plan,
     describe_plan,
 )
+from tests.sync.test_history_import_scan import (
+    _build_legacy_shape_mission,
+    _build_prefixed_shape_mission,
+)
 
 pytestmark = pytest.mark.fast
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_SPECS = _REPO_ROOT / "kitty-specs"
-_LEGACY = _SPECS / "032-identity-aware-cli-event-sync"
-_PREFIXED = _SPECS / "single-mission-surface-resolver-01KVGCE8"
+# ── fixed ULID-shaped ids (real ``python-ulid`` output, hardcoded for a
+# deterministic, production-realistic ``mission_id`` per test) ───────────────
+_PLAN_LEGACY_MISSION_ID = "01KYFVD16B6AAJKDMT8SHR6VWP"
+_PLAN_PREFIXED_MISSION_ID = "01KYFVD16B6AAJKDMT8SHR6VWQ"
+_APPLY_UUID_MISSION_ID = "01KYFVD16B6AAJKDMT8SHR6VWR"
+_DESCRIBE_PLAN_MISSION_ID = "01KYFVD16B6AAJKDMT8SHR6VWS"
+_E2E_LEGACY_MISSION_ID = "01KYFVD16B6AAJKDMT8SHR6VWT"
+_E2E_PREFIXED_MISSION_ID = "01KYFVD16B6AAJKDMT8SHR6VWV"
 
-_FIXTURES = _LEGACY.is_dir() and _PREFIXED.is_dir()
+# Reused across the happy-path / apply / e2e fixtures below: six legacy WPs
+# (SYNTHESIZED prefix) drives the same WP-count floor the pipeline previously
+# asserted against the real ``032-identity-aware-cli-event-sync`` fixture.
+_LEGACY_WP_SPECS = [
+    ("WP01", "ProjectIdentity Module", []),
+    ("WP02", "Emitter Identity Injection", ["WP01"]),
+    ("WP03", "AuthClient Team Slug", ["WP01"]),
+    ("WP04", "Sync Runtime Lazy Singleton", ["WP02"]),
+    ("WP05", "Fix Duplicate Emissions", ["WP02", "WP03"]),
+    ("WP06", "Integration Tests", ["WP04", "WP05"]),
+]
+_PREFIXED_WP_SPECS = [
+    (
+        "WP01",
+        "Surface-resolution audit (read-only inventory)",
+        [],
+        "kitty-specs/plan-prefixed-mission/tasks/WP01-surface-resolution-audit.md",
+        "2026-06-19T17:11:46.841180Z",
+    ),
+    (
+        "WP02",
+        "Differential equivalence test (the deletion safety gate)",
+        [],
+        "kitty-specs/plan-prefixed-mission/tasks/WP02-differential-equivalence-test.md",
+        "2026-06-19T17:11:46.855890Z",
+    ),
+]
+
+
+def _legacy_lane_rows(mission_id: str, mission_slug: str) -> list[dict]:
+    return [
+        {
+            "actor": "migration",
+            "at": "2026-02-07T00:00:00Z",
+            "event_id": "01KJ5V38V9HRA67BAXKNQDG0H7",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "force": True,
+            "from_lane": "planned",
+            "mission_id": mission_id,
+            "mission_slug": mission_slug,
+            "policy_metadata": None,
+            "reason": "historical_frontmatter_to_jsonl:v1",
+            "review_ref": None,
+            "to_lane": "done",
+            "wp_id": "WP01",
+        },
+        {
+            "actor": "migration",
+            "at": "2026-02-07T00:00:00Z",
+            "event_id": "01KJ5V38VBW3NMHJEHCCKB3V7C",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "force": True,
+            "from_lane": "planned",
+            "mission_id": mission_id,
+            "mission_slug": mission_slug,
+            "policy_metadata": None,
+            "reason": "historical_frontmatter_to_jsonl:v1",
+            "review_ref": None,
+            "to_lane": "done",
+            "wp_id": "WP02",
+        },
+        {
+            "actor": "migration",
+            "at": "2026-02-07T00:00:00Z",
+            "event_id": "01KJ5V38VD6E2V3WJE9KVG9M82",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "force": True,
+            "from_lane": "planned",
+            "mission_id": mission_id,
+            "mission_slug": mission_slug,
+            "policy_metadata": None,
+            "reason": "historical_frontmatter_to_jsonl:v1",
+            "review_ref": None,
+            "to_lane": "in_progress",
+            "wp_id": "WP03",
+        },
+    ]
 
 
 def _patch_selection(monkeypatch, *, mission_dirs, blockers):
@@ -38,12 +134,27 @@ def _patch_selection(monkeypatch, *, mission_dirs, blockers):
     monkeypatch.setattr(envelope_seam, "teamspace_audit_blockers", lambda root, *, scan_root, mission_dirs: list(blockers))
 
 
-# ── happy path over real fixtures ─────────────────────────────────────────────
+# ── happy path over a synthetic dual-shape corpus ─────────────────────────────
 
 
-@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
-def test_build_plan_over_real_fixtures(tmp_path, monkeypatch):
-    _patch_selection(monkeypatch, mission_dirs=[_LEGACY, _PREFIXED], blockers=[])
+def test_build_plan_over_synthetic_dual_shape_corpus(tmp_path, monkeypatch):
+    """SELECT→AUDIT→SCAN→IDENTITY→SYNTHESIZE over BOTH hybrid-SCAN shapes
+    (§3.4) — a legacy (SYNTHESIZED) mission and a prefixed (ON_DISK) mission,
+    same dual-shape guarantee the real dogfood fixtures used to exercise."""
+    legacy_dir = _build_legacy_shape_mission(
+        tmp_path,
+        slug="087-plan-legacy-mission",
+        mission_id=_PLAN_LEGACY_MISSION_ID,
+        wp_specs=_LEGACY_WP_SPECS,
+        lane_rows=_legacy_lane_rows(_PLAN_LEGACY_MISSION_ID, "087-plan-legacy-mission"),
+    )
+    prefixed_dir = _build_prefixed_shape_mission(
+        tmp_path,
+        slug="plan-prefixed-mission",
+        mission_id=_PLAN_PREFIXED_MISSION_ID,
+        wp_specs=_PREFIXED_WP_SPECS,
+    )
+    _patch_selection(monkeypatch, mission_dirs=[legacy_dir, prefixed_dir], blockers=[])
 
     plan = build_import_plan(tmp_path, mission=None, apply=False)
 
@@ -79,10 +190,16 @@ def test_audit_blockers_raise_before_synthesis(tmp_path, monkeypatch):
 # ── apply threads the real UUID (INV-5) ───────────────────────────────────────
 
 
-@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
 def test_apply_plan_threads_the_real_uuid(tmp_path, monkeypatch):
     (tmp_path / ".kittify").mkdir()  # a real (uninitialized) checkout
-    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+    mission_dir = _build_legacy_shape_mission(
+        tmp_path,
+        slug="087-apply-uuid-mission",
+        mission_id=_APPLY_UUID_MISSION_ID,
+        wp_specs=_LEGACY_WP_SPECS,
+        lane_rows=_legacy_lane_rows(_APPLY_UUID_MISSION_ID, "087-apply-uuid-mission"),
+    )
+    _patch_selection(monkeypatch, mission_dirs=[mission_dir], blockers=[])
 
     plan = build_import_plan(tmp_path, mission=None, apply=True)
 
@@ -94,14 +211,20 @@ def test_apply_plan_threads_the_real_uuid(tmp_path, monkeypatch):
 # ── describe_plan rendering ───────────────────────────────────────────────────
 
 
-@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
 def test_describe_plan_lists_missions_and_breakdown(tmp_path, monkeypatch):
-    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+    mission_dir = _build_legacy_shape_mission(
+        tmp_path,
+        slug="087-describe-plan-mission",
+        mission_id=_DESCRIBE_PLAN_MISSION_ID,
+        wp_specs=_LEGACY_WP_SPECS,
+        lane_rows=_legacy_lane_rows(_DESCRIBE_PLAN_MISSION_ID, "087-describe-plan-mission"),
+    )
+    _patch_selection(monkeypatch, mission_dirs=[mission_dir], blockers=[])
     plan = build_import_plan(tmp_path, mission=None, apply=False)
 
     lines = describe_plan(plan)
     text = "\n".join(lines)
-    assert "032-identity-aware-cli-event-sync" in text
+    assert "087-describe-plan-mission" in text
     assert "MissionCreated" in text
     assert "event(s)" in text
 
@@ -211,10 +334,29 @@ def _accepting_poster(url, *, data, headers, timeout):
     return _AcceptingResponse()
 
 
-@pytest.mark.skipif(not _FIXTURES, reason="fixtures not present")
 def test_apply_import_uploads_every_envelope_under_the_real_uuid(tmp_path, monkeypatch):
+    """The end-to-end proof (#2884): synthesize from a synthetic dual-shape
+    corpus → the REAL ``validate_import_envelopes`` contract gate → the REAL
+    ``build_teamspace_envelope`` output → upload against a stub receiver,
+    asserting every envelope lands under the real project UUID. This is the
+    only test that runs a real synthesized stream through the offline
+    contract gate — an envelope-shape drift (e.g. ``schema_version`` off the
+    pinned contract version) would fail here first."""
     (tmp_path / ".kittify").mkdir()  # a real (uninitialized) checkout → apply mints the UUID
-    _patch_selection(monkeypatch, mission_dirs=[_LEGACY], blockers=[])
+    legacy_dir = _build_legacy_shape_mission(
+        tmp_path,
+        slug="087-e2e-legacy-mission",
+        mission_id=_E2E_LEGACY_MISSION_ID,
+        wp_specs=_LEGACY_WP_SPECS,
+        lane_rows=_legacy_lane_rows(_E2E_LEGACY_MISSION_ID, "087-e2e-legacy-mission"),
+    )
+    prefixed_dir = _build_prefixed_shape_mission(
+        tmp_path,
+        slug="e2e-prefixed-mission",
+        mission_id=_E2E_PREFIXED_MISSION_ID,
+        wp_specs=_PREFIXED_WP_SPECS,
+    )
+    _patch_selection(monkeypatch, mission_dirs=[legacy_dir, prefixed_dir], blockers=[])
     stub = StubReceiver()
 
     result = apply_import(

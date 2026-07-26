@@ -1,20 +1,31 @@
 """Tests for the hybrid SCAN stage of ``sync import-history`` — WP-Y2 (#2262).
 
-The SCAN is *hybrid* (§3.4), so the two mission shapes are driven against real
-committed fixtures:
+The SCAN is *hybrid* (§3.4): two mission shapes exist on disk and must both
+scan correctly —
 
-* legacy ``032-identity-aware-cli-event-sync`` — lane transitions only, prefix
-  SYNTHESIZED from ``meta.json`` + ``tasks/WP*.md``;
-* prefixed ``single-mission-surface-resolver-01KVGCE8`` — ``MissionCreated``/
-  ``WPCreated`` read ON_DISK.
+* **legacy** — lane transitions only; the creation prefix (mission fields +
+  WPs) is SYNTHESIZED from ``meta.json`` + ``tasks/WP*.md`` frontmatter;
+* **prefixed** — ``MissionCreated``/``WPCreated`` are read verbatim ON_DISK
+  from ``status.events.jsonl``.
+
+Both shapes are built here as synthetic on-disk fixtures under ``tmp_path``
+(``_build_legacy_shape_mission`` / ``_build_prefixed_shape_mission``) rather
+than pinned to specific ``kitty-specs/`` dogfood missions in this repo: the
+dogfood-corpus cutover (#2917) will archive/relocate those directories, and a
+mission-keyed ``skipif`` would then silently skip forever instead of failing
+(#2884 adversarial-review finding). The builders reproduce the two shapes with
+production-realistic data (real ULID-shaped ``mission_id``, realistic WP
+frontmatter / on-disk lifecycle payloads) so each test still exercises the
+exact discriminating shape it is named for.
 
 The local-only filter and the WPCreated-coverage guard are driven against
-synthetic missions so the assertions don't depend on fixture drift.
+smaller synthetic missions so the assertions don't depend on fixture drift.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -31,25 +42,226 @@ from specify_cli.sync.history_import.scan import (
 
 pytestmark = pytest.mark.fast
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_SPECS = _REPO_ROOT / "kitty-specs"
-_LEGACY = _SPECS / "032-identity-aware-cli-event-sync"
-_PREFIXED = _SPECS / "single-mission-surface-resolver-01KVGCE8"
+# ── fixed ULID-shaped ids (real ``python-ulid`` output, hardcoded for a
+# deterministic, production-realistic ``mission_id`` per test) ───────────────
+_LEGACY_MISSION_ID = "01KYFV95VETCC5CS96CWFJ9NBF"
+_PREFIXED_MISSION_ID = "01KYFV95VETCC5CS96CWFJ9NBG"
+_ORDER_LEGACY_MISSION_ID = "01KYFV95VETCC5CS96CWFJ9NBH"
+_ORDER_PREFIXED_MISSION_ID = "01KYFV95VETCC5CS96CWFJ9NBJ"
+_LANE_EVENT_WP01 = "01KYFV95VETCC5CS96CWFJ9NBK"
+_LANE_EVENT_WP02 = "01KYFV95VETCC5CS96CWFJ9NBM"
+_LANE_EVENT_WP03 = "01KYFV95VETCC5CS96CWFJ9NBN"
+
+
+# ── synthetic dual-shape fixture builders ─────────────────────────────────────
+
+
+def _lane_transition_row(
+    *,
+    mission_id: str,
+    mission_slug: str,
+    wp_id: str,
+    to_lane: str,
+    event_id: str,
+    from_lane: str = "planned",
+    at: str = "2026-02-07T00:00:00Z",
+) -> dict:
+    """One realistic lane-transition row, matching the on-disk StatusEvent shape."""
+    return {
+        "actor": "migration",
+        "at": at,
+        "event_id": event_id,
+        "evidence": None,
+        "execution_mode": "direct_repo",
+        "force": True,
+        "from_lane": from_lane,
+        "mission_id": mission_id,
+        "mission_slug": mission_slug,
+        "policy_metadata": None,
+        "reason": "historical_frontmatter_to_jsonl:v1",
+        "review_ref": None,
+        "to_lane": to_lane,
+        "wp_id": wp_id,
+    }
+
+
+def _write_events(mission_dir: Path, rows: list[dict]) -> None:
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "status.events.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+
+
+def _build_legacy_shape_mission(
+    tmp_path: Path,
+    *,
+    slug: str,
+    mission_id: str,
+    friendly_name: str = "Legacy Shape Mission",
+    mission_number: int = 87,
+    source_description: str = "Make CLI events identity-aware and auto-syncing so multiple local projects appear in SaaS dashboards.",
+    target_branch: str = "main",
+    wp_specs: Sequence[tuple[str, str, list[str]]] = (),
+    lane_rows: Sequence[dict] = (),
+) -> Path:
+    """Build the LEGACY on-disk shape: ``meta.json`` + ``tasks/WP*.md``
+    frontmatter, a lane-transitions-ONLY ``status.events.jsonl`` (no on-disk
+    ``MissionCreated``/``WPCreated`` prefix) — the SYNTHESIZED half of the
+    hybrid-SCAN dual-shape guarantee (§3.4).
+    """
+    mission_dir = tmp_path / "kitty-specs" / slug
+    tasks_dir = mission_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    meta = {
+        "created_at": "2026-02-07T00:00:00Z",
+        "friendly_name": friendly_name,
+        "mission_id": mission_id,
+        "mission_number": mission_number,
+        "mission_slug": slug,
+        "mission_type": "software-dev",
+        "slug": slug,
+        "source_description": source_description,
+        "status_phase": "1",
+        "target_branch": target_branch,
+        "vcs": "git",
+    }
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    for wp_id, title, deps in wp_specs:
+        frontmatter = "\n".join(
+            [
+                "---",
+                f"work_package_id: {wp_id}",
+                f"title: {title}",
+                f"dependencies: {json.dumps(deps)}",
+                f"base_branch: {target_branch}",
+                "base_commit: fe5dd26eb9160377ee55f83b072f5dc3db322843",
+                "created_at: '2026-02-07T07:23:14.221357+00:00'",
+                "subtasks:",
+                "- T001",
+                "- T002",
+                "phase: Phase 0 - Foundation",
+                "history:",
+                "- timestamp: '2026-02-07T00:00:00Z'",
+                "  lane: planned",
+                "  agent: system",
+                "  shell_pid: ''",
+                "---",
+                "",
+                f"# {title}",
+                "",
+            ]
+        )
+        file_slug = title.lower().replace(" ", "-").replace("/", "-")
+        (tasks_dir / f"{wp_id}-{file_slug}.md").write_text(frontmatter, encoding="utf-8")
+    if lane_rows:
+        _write_events(mission_dir, list(lane_rows))
+    return mission_dir
+
+
+def _build_prefixed_shape_mission(
+    tmp_path: Path,
+    *,
+    slug: str,
+    mission_id: str,
+    friendly_name: str = "Prefixed Shape Mission",
+    purpose_tldr: str = "Collapse the parallel resolvers into one canonical resolver.",
+    purpose_context: str = "Several commands resolve the wrong directory when surfaces diverge.",
+    target_branch: str = "main",
+    created_at: str = "2026-06-19T16:46:47.321621+00:00",
+    wp_specs: Sequence[tuple[str, str, list[str], str, str]] = (),
+) -> Path:
+    """Build the PREFIXED on-disk shape via the canonical local emitters: a
+    real ``MissionCreated`` + ``WPCreated[]`` lifecycle prefix on disk — the
+    ON_DISK half of the hybrid-SCAN dual-shape guarantee (§3.4).
+
+    ``wp_specs`` entries are ``(wp_id, title, depends_on, wp_path, created_at)``.
+    """
+    from specify_cli.status.lifecycle_events import (
+        emit_mission_created_local,
+        emit_wp_created_local,
+    )
+
+    mission_dir = tmp_path / "kitty-specs" / slug
+    mission_dir.mkdir(parents=True)
+    emit_mission_created_local(
+        mission_dir,
+        mission_slug=slug,
+        mission_id=mission_id,
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch=target_branch,
+        wp_count=len(wp_specs),
+        friendly_name=friendly_name,
+        purpose_tldr=purpose_tldr,
+        purpose_context=purpose_context,
+        created_at=created_at,
+    )
+    for wp_id, title, depends_on, wp_path, wp_created_at in wp_specs:
+        emit_wp_created_local(
+            mission_dir,
+            mission_slug=slug,
+            wp_id=wp_id,
+            wp_title=title,
+            wp_path=wp_path,
+            depends_on=depends_on,
+            created_at=wp_created_at,
+        )
+    return mission_dir
 
 
 # ── legacy shape: prefix SYNTHESIZED from meta.json + tasks/ ──────────────────
 
+_LEGACY_WP_SPECS = [
+    ("WP01", "ProjectIdentity Module", []),
+    ("WP02", "Emitter Identity Injection", ["WP01"]),
+    ("WP03", "AuthClient Team Slug", ["WP01"]),
+    ("WP04", "Sync Runtime Lazy Singleton", ["WP02"]),
+    ("WP05", "Fix Duplicate Emissions", ["WP02", "WP03"]),
+    ("WP06", "Integration Tests", ["WP04", "WP05"]),
+]
 
-@pytest.mark.skipif(not _LEGACY.is_dir(), reason="legacy fixture 032 not present")
-def test_legacy_mission_synthesizes_prefix_from_meta_and_tasks():
-    scan = scan_mission(_LEGACY)
+
+def test_legacy_mission_synthesizes_prefix_from_meta_and_tasks(tmp_path):
+    lane_rows = [
+        _lane_transition_row(
+            mission_id=_LEGACY_MISSION_ID,
+            mission_slug="087-legacy-shape-mission",
+            wp_id="WP01",
+            to_lane="done",
+            event_id=_LANE_EVENT_WP01,
+        ),
+        _lane_transition_row(
+            mission_id=_LEGACY_MISSION_ID,
+            mission_slug="087-legacy-shape-mission",
+            wp_id="WP02",
+            to_lane="done",
+            event_id=_LANE_EVENT_WP02,
+        ),
+        _lane_transition_row(
+            mission_id=_LEGACY_MISSION_ID,
+            mission_slug="087-legacy-shape-mission",
+            wp_id="WP03",
+            to_lane="in_progress",
+            event_id=_LANE_EVENT_WP03,
+        ),
+    ]
+    mission_dir = _build_legacy_shape_mission(
+        tmp_path,
+        slug="087-legacy-shape-mission",
+        mission_id=_LEGACY_MISSION_ID,
+        friendly_name="Identity-Aware CLI Event Sync",
+        mission_number=87,
+        source_description="Make CLI events identity-aware and auto-syncing so multiple local projects appear in SaaS dashboards.",
+        wp_specs=_LEGACY_WP_SPECS,
+        lane_rows=lane_rows,
+    )
+
+    scan = scan_mission(mission_dir)
 
     assert scan.prefix_source is PrefixSource.SYNTHESIZED
     # Identity + display fields resolve from meta.json (verbatim values).
-    assert scan.canonical_mission_id == "01KN2371WRE1E2BH9WR11MAGDG"
-    assert scan.mission_slug == "032-identity-aware-cli-event-sync"
+    assert scan.canonical_mission_id == _LEGACY_MISSION_ID
+    assert scan.mission_slug == "087-legacy-shape-mission"
     assert scan.name == "Identity-Aware CLI Event Sync"
-    assert scan.mission_number == 32
+    assert scan.mission_number == 87
     assert scan.mission_type == "software-dev"
     # Legacy has no purpose_tldr; source_description back-fills it.
     assert scan.purpose_tldr and scan.purpose_tldr.startswith("Make CLI events identity-aware")
@@ -70,13 +282,55 @@ def test_legacy_mission_synthesizes_prefix_from_meta_and_tasks():
 
 # ── prefixed shape: prefix read ON_DISK ───────────────────────────────────────
 
+_PREFIXED_SLUG = "single-mission-surface-resolver-01KYFV95"
+_PREFIXED_WP_SPECS = [
+    (
+        "WP01",
+        "Surface-resolution audit (read-only inventory)",
+        [],
+        f"kitty-specs/{_PREFIXED_SLUG}/tasks/WP01-surface-resolution-audit.md",
+        "2026-06-19T17:11:46.841180Z",
+    ),
+    (
+        "WP02",
+        "Differential equivalence test (the deletion safety gate)",
+        [],
+        f"kitty-specs/{_PREFIXED_SLUG}/tasks/WP02-differential-equivalence-test.md",
+        "2026-06-19T17:11:46.855890Z",
+    ),
+    (
+        "WP08",
+        "Load-bearing architectural guard",
+        ["WP01", "WP06"],
+        f"kitty-specs/{_PREFIXED_SLUG}/tasks/WP08-load-bearing-guard.md",
+        "2026-06-19T17:11:46.833815Z",
+    ),
+]
 
-@pytest.mark.skipif(not _PREFIXED.is_dir(), reason="prefixed fixture not present")
-def test_prefixed_mission_reads_prefix_from_disk():
-    scan = scan_mission(_PREFIXED)
+
+def test_prefixed_mission_reads_prefix_from_disk(tmp_path):
+    mission_dir = _build_prefixed_shape_mission(
+        tmp_path,
+        slug=_PREFIXED_SLUG,
+        mission_id=_PREFIXED_MISSION_ID,
+        friendly_name="Single Mission-Surface Resolver",
+        purpose_tldr=(
+            "Collapse the 4+ parallel coord/primary mission-surface resolvers into "
+            "one canonical resolver so every command agrees which on-disk surface "
+            "is authoritative."
+        ),
+        purpose_context=(
+            "When a mission's coordination worktree and primary checkout diverge, "
+            "several commands resolve the wrong directory."
+        ),
+        target_branch="feat/single-mission-surface-resolver",
+        wp_specs=_PREFIXED_WP_SPECS,
+    )
+
+    scan = scan_mission(mission_dir)
 
     assert scan.prefix_source is PrefixSource.ON_DISK
-    assert scan.canonical_mission_id == "01KVGCE8GSJE3BPCG6K5WNCH9B"
+    assert scan.canonical_mission_id == _PREFIXED_MISSION_ID
     assert scan.name == "Single Mission-Surface Resolver"
 
     by_id = {wp.wp_id: wp for wp in scan.work_packages}
@@ -89,11 +343,6 @@ def test_prefixed_mission_reads_prefix_from_disk():
 
 
 # ── local-only lifecycle events are dropped ───────────────────────────────────
-
-
-def _write_events(mission_dir: Path, rows: list[dict]) -> None:
-    mission_dir.mkdir(parents=True, exist_ok=True)
-    (mission_dir / "status.events.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
 
 
 def test_local_only_lifecycle_events_are_filtered(tmp_path):
@@ -174,12 +423,26 @@ def test_work_packages_are_sorted_by_wp_id(tmp_path):
 # ── batch helper ──────────────────────────────────────────────────────────────
 
 
-@pytest.mark.skipif(not (_LEGACY.is_dir() and _PREFIXED.is_dir()), reason="fixtures not present")
-def test_scan_missions_preserves_input_order():
-    scans = scan_missions([_PREFIXED, _LEGACY])
+def test_scan_missions_preserves_input_order(tmp_path):
+    """SCAN's batch helper preserves caller-given order across BOTH hybrid
+    shapes (§3.4) — not an accident of alphabetic sort."""
+    legacy_dir = _build_legacy_shape_mission(
+        tmp_path,
+        slug="087-order-legacy-mission",
+        mission_id=_ORDER_LEGACY_MISSION_ID,
+        friendly_name="Order Legacy Mission",
+    )
+    prefixed_dir = _build_prefixed_shape_mission(
+        tmp_path,
+        slug="order-prefixed-mission-01KYFV95",
+        mission_id=_ORDER_PREFIXED_MISSION_ID,
+        friendly_name="Order Prefixed Mission",
+    )
+
+    scans = scan_missions([prefixed_dir, legacy_dir])
     assert [scan.mission_slug for scan in scans] == [
-        "single-mission-surface-resolver-01KVGCE8",
-        "032-identity-aware-cli-event-sync",
+        "order-prefixed-mission-01KYFV95",
+        "087-order-legacy-mission",
     ]
     assert all(isinstance(scan, MissionScan) for scan in scans)
 
