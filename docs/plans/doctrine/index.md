@@ -20,6 +20,7 @@ related mission scope notes.
 - [Layered Doctrine Resolution — Design Blueprint](layered-doctrine-resolution-design.md)
 - [The Manifesto Tier — doctrine's missing primary-driver layer](manifesto-tier-primary-drivers.md) — *superseded in part; read the verdict first*
 - [Manifesto tier — verdict, corrections, and handover](manifesto-tier-verdict-and-handover.md)
+- [Creed and FoundationalValues — design as proposed](creed-and-values-design-as-proposed.md) — operator input record + measured corpus grounding
 - [Mission B (proposed scope) — Charter-mediated doctrine selection](mission-b-proposed-scope.md)
 - [Org Doctrine Layer — Post-Implementation Architecture Review](org-doctrine-layer-architecture-review.md)
 - [Runtime → Charter → Doctrine — boundary audit and recommendations](runtime-charter-doctrine-boundary.md)

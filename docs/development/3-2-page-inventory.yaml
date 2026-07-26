@@ -2510,6 +2510,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/creed-and-values-design-as-proposed.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/doctrine-artifact-selection-preflight.md
   tag: current
   divio_type: none

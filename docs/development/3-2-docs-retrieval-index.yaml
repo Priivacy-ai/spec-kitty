@@ -7737,6 +7737,24 @@ pages:
     - {slug: "5-remaining-hardcoded-kittify-missions-sites", text: "5. Remaining hardcoded `.kittify/missions/` sites", level: 3}
     - {slug: "6-config-driven-path-overrides", text: "6. Config-driven path overrides", level: 3}
     - {slug: "design-principles-from-hic", text: "Design Principles (from HiC)", level: 2}
+  - path: "docs/plans/doctrine/creed-and-values-design-as-proposed.md"
+    title: "Creed and FoundationalValues — design as proposed (operator input record)"
+    divio_type: "none"
+    abstract: "Verbatim record of the operator's Emergent HiC/Operator design for a creed artefact, FoundationalValues type, value-impact deltas, and a generalized impacts edge — plus the corpus evidence measured against it."
+    anchors:
+    - {slug: "core-problem-statement", text: "Core problem statement", level: 2}
+    - {slug: "1-part-1-creed-and-values", text: "1. Part 1 — Creed and Values", level: 2}
+    - {slug: "2-part-2-enhance-the-existing-drg-edge-relationship-model", text: "2. Part 2 — Enhance the existing DRG edge / relationship model", level: 2}
+    - {slug: "3-part-3-charter-creation", text: "3. Part 3 — Charter creation", level: 2}
+    - {slug: "4-counterpoints-raised-by-the-operator", text: "4. Counterpoints raised by the operator", level: 2}
+    - {slug: "5-verified-grounding-measured-against-this-design", text: "5. Verified grounding measured against this design", level: 2}
+    - {slug: "5-1-the-authored-shape-canonical-from-the-source-repository", text: "5.1 The authored shape (canonical, from the source repository)", level: 3}
+    - {slug: "5-2-corpus-size-and-completeness", text: "5.2 Corpus size and completeness", level: 3}
+    - {slug: "5-3-dimensionality-refutes-the-earlier-one-axis-collapse-finding", text: "5.3 Dimensionality — REFUTES the earlier \"one-axis collapse\" finding", level: 3}
+    - {slug: "5-4-per-axis-distribution-two-axes-carry-no-cost-information", text: "5.4 Per-axis distribution — two axes carry no cost information", level: 3}
+    - {slug: "5-5-granularity", text: "5.5 Granularity", level: 3}
+    - {slug: "5-6-the-mandatory-negative-component-rule-measured", text: "5.6 The mandatory-negative-component rule, measured", level: 3}
+    - {slug: "6-what-the-earlier-verdict-s-objections-look-like-against-this-design", text: "6. What the earlier verdict's objections look like against *this* design", level: 2}
   - path: "docs/plans/doctrine/doctrine-artifact-selection-preflight.md"
     title: "Pre-flight investigation — user-authored doctrine artifact selection"
     divio_type: "none"
