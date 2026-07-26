@@ -835,6 +835,54 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
     return Event, validate_event, str(package_version)
 
 
+# canonical-producer-exempt: #2891 -- the ONE TeamSpace replay-envelope shell.
+def _build_teamspace_envelope(
+    *,
+    event_id: str,
+    event_type: str,
+    aggregate_id: str,
+    aggregate_type: str,
+    payload: dict[str, Any],
+    timestamp: str,
+    build_id: str,
+    node_id: str,
+    lamport_clock: int,
+    project_uuid: str,
+    project_slug: str,
+    repo_slug: str | None,
+    correlation_id: str,
+    causation_id: str | None = None,
+) -> dict[str, Any]:
+    """The SINGLE TeamSpace replay-envelope shell (#2891).
+
+    The migration ``WPStatusChanged`` builder and the history-import
+    creation-prefix builder (``sync.history_import.synthesize._envelope``, via
+    the ``envelope_seam`` re-export) both assemble the identical 15-key envelope.
+    This is their one owner, so a new envelope-level field cannot be added to one
+    producer and silently forgotten in the other. Callers compute the field
+    VALUES (``build_id`` / ``correlation_id`` / ... differ per producer); the KEY
+    SET and ``schema_version`` live here. Replay/synthesis producers, not
+    live-path emitters — hence canonical-producer-exempt.
+    """
+    return {
+        "event_id": event_id,
+        "event_type": event_type,
+        "aggregate_id": aggregate_id,
+        "aggregate_type": aggregate_type,
+        "payload": payload,
+        "timestamp": timestamp,
+        "build_id": build_id,
+        "node_id": node_id,
+        "lamport_clock": lamport_clock,
+        "causation_id": causation_id,
+        "project_uuid": project_uuid,
+        "project_slug": project_slug,
+        "repo_slug": repo_slug,
+        "correlation_id": correlation_id,
+        "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
+    }
+
+
 # canonical-producer-exempt: #1198 -- historical migration-replay envelope builder.
 def _status_event_to_teamspace_envelope(
     status_event: StatusEvent,
@@ -871,25 +919,23 @@ def _status_event_to_teamspace_envelope(
         "review_ref": status_event.review_ref,
         "evidence": evidence,
     }
-    return {  # canonical-producer-exempt: #1198 — see function-level comment
-        "event_id": status_event.event_id,
-        "event_type": "WPStatusChanged",
-        "aggregate_id": status_event.wp_id,
-        "aggregate_type": "WorkPackage",
-        "payload": payload,
-        "timestamp": status_event.at,
-        "build_id": "mission-state-dry-run",
-        "node_id": "mission-state-dry-run",
-        "lamport_clock": lamport_clock,
-        "causation_id": None,
-        "project_uuid": str(project_uuid),
-        "project_slug": project_slug,
-        "repo_slug": repo_slug,
-        "correlation_id": deterministic_ulid(
+    return _build_teamspace_envelope(
+        event_id=status_event.event_id,
+        event_type="WPStatusChanged",
+        aggregate_id=status_event.wp_id,
+        aggregate_type="WorkPackage",
+        payload=payload,
+        timestamp=status_event.at,
+        build_id="mission-state-dry-run",
+        node_id="mission-state-dry-run",
+        lamport_clock=lamport_clock,
+        project_uuid=str(project_uuid),
+        project_slug=project_slug,
+        repo_slug=repo_slug,
+        correlation_id=deterministic_ulid(
             f"teamspace-dry-run:{status_event.mission_slug}:{status_event.event_id}"
         ),
-        "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
-    }
+    )
 
 
 def _historical_teamspace_evidence(
