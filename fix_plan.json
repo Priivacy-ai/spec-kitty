@@ -1,0 +1,19 @@
+{
+  "root_cause": "The orchestrator-api command layer centralizes mission selector resolution in `_resolve_mission_dir_or_fail`, but that boundary only translates `StatusReadPathNotFound` into a JSON failure envelope. Unsafe `--mission` values containing `..` are rejected earlier by the canonical path guard (`assert_safe_path_segment`) as `ValueError`, and that exception escapes Typer command execution unchanged, causing a raw Python traceback on stdout/stderr instead of the orchestrator-api JSON machine contract.",
+  "target_files": [
+    "src/specify_cli/orchestrator_api/commands.py",
+    "tests/agent/test_json_envelope_contract_integration.py"
+  ],
+  "target_functions": [
+    "_resolve_mission_dir_or_fail",
+    "TestRootCLIPath"
+  ],
+  "approach": "Add a narrow `except ValueError as exc` arm in `_resolve_mission_dir_or_fail` after the existing `StatusReadPathNotFound` handling, and map it through `_fail` with a stable machine error code such as `INVALID_MISSION` and `data.message` carrying the guard message. Because all affected subcommands already call this helper, the change should cover `mission-state`, `list-ready`, `resolve-workspace`, and other mission-resolving endpoints without per-command patches. Update the command error-code documentation comment if the chosen code is new.",
+  "tests_to_add": [
+    "Regression test through the root CLI path: `orchestrator-api mission-state --mission ../traversal` exits non-zero and emits parseable JSON with `success=false`, command `orchestrator-api.mission-state`, and `error_code=INVALID_MISSION`.",
+    "Parametrize the same assertion for `mission-state --mission ..`, `list-ready --mission ../traversal`, and `resolve-workspace --mission .. --wp WP01` if keeping the test compact remains straightforward."
+  ],
+  "expected_loc": 45,
+  "risk_notes": "Catching all `ValueError` at this boundary could hide unrelated programmer errors if future resolver code raises `ValueError` for a non-selector bug; keep the catch scoped to mission resolution and preserve the original message in the envelope.",
+  "out_of_scope_observations": "The related human-facing `next`/`research` traceback from #2878 should be handled separately; this plan only protects the orchestrator-api machine contract."
+}
