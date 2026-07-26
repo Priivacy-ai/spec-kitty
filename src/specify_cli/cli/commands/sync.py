@@ -495,7 +495,7 @@ def opt_out(
         shares = list_repository_shares_sync(source_project_uuid=routing.project_uuid)
     except (RepositorySharingClientError, typer.Exit) as exc:
         console.print(f"[yellow]Could not inspect remote share state:[/yellow] {exc}")
-        return
+        raise typer.Exit(1) from exc
 
     if shares:
         console.print(
@@ -515,7 +515,7 @@ def opt_out(
         deletion = delete_private_project_sync(source_project_uuid=routing.project_uuid)
     except RepositorySharingClientError as exc:
         console.print(f"[yellow]Private data was not deleted:[/yellow] {exc}")
-        return
+        raise typer.Exit(1) from exc
 
     console.print(
         f"[green]✓[/green] Deleted private SaaS data for this checkout "

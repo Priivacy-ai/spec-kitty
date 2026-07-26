@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.sync.batch import BatchEventResult, BatchSyncResult
+from specify_cli.sync.sharing_client import RepositorySharingClientError
 
 runner = CliRunner()
 pytestmark = pytest.mark.fast
@@ -266,6 +267,58 @@ def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.Monk
     assert result.exit_code == 0, result.stdout
     assert "Deleted private SaaS data for this checkout" in result.stdout
     assert "4 event(s), 1 build(s)" in result.stdout
+
+
+@pytest.mark.parametrize("failure_stage", ["inspect", "delete"])
+def test_opt_out_remote_delete_failure_exits_nonzero(
+    monkeypatch: pytest.MonkeyPatch,
+    failure_stage: str,
+) -> None:
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: type(
+            "Routing",
+            (),
+            {
+                "repo_root": "/tmp/repo",
+                "repo_slug": "acme/spec-kitty",
+                "project_slug": "spec-kitty-local",
+                "project_uuid": "11111111-1111-1111-1111-111111111111",
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.disable_checkout_sync",
+        lambda repo_root, remember_repo_default=True: type(
+            "Result",
+            (),
+            {
+                "removed_events": 0,
+                "removed_body_uploads": 0,
+                "remembered_for_repo": False,
+            },
+        )(),
+    )
+
+    def _fail(*args, **kwargs):
+        raise RepositorySharingClientError("remote unavailable")
+
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.list_repository_shares_sync",
+        _fail if failure_stage == "inspect" else lambda source_project_uuid=None: [],
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.delete_private_project_sync",
+        _fail,
+    )
+
+    result = runner.invoke(sync_module.app, ["opt-out", "--delete-private-data", "--yes"])
+
+    assert result.exit_code == 1
+    assert "remote unavailable" in result.stdout
 
 
 def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
