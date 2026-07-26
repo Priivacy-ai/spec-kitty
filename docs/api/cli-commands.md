@@ -1483,10 +1483,10 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  (`substitute.path_token`). Symlink entries in the template are skipped (not
  followed into the host filesystem).
 
- Credential policy: HTTPS `--template` fetches do **not** inject `GIT_TOKEN`.
- Use SSH remotes (or an explicit credential in the URL, not recommended) when
- authenticated clone is required. Other GitSource callers may still inject
- `GIT_TOKEN` by default.
+ Credential policy: HTTPS `--template` fetches do **not** inject `GIT_TOKEN`
+ and reject URL userinfo so credentials cannot be misparsed or exposed in
+ errors. Use SSH remotes or a credential helper when authenticated clone is
+ required. Other GitSource callers may still inject `GIT_TOKEN` by default.
 
  `.templateignore` matching uses a documented `fnmatch` subset — `*` may match
  across `/`, which is **not** full gitignore equivalence.
