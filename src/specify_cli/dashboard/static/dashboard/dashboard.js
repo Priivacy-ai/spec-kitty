@@ -420,7 +420,14 @@ function loadOverview() {
     const nextActionEl = nextAction ? (() => {
         const el = document.createElement('div');
         el.className = 'next-action-callout';
-        el.innerHTML = `<span class="next-action-icon">▶</span> <strong>Next step:</strong> <code>${nextAction}</code>`;
+        const icon = document.createElement('span');
+        icon.className = 'next-action-icon';
+        icon.textContent = '▶';
+        const label = document.createElement('strong');
+        label.textContent = 'Next step:';
+        const command = document.createElement('code');
+        command.textContent = nextAction;
+        el.append(icon, document.createTextNode(' '), label, document.createTextNode(' '), command);
         return el;
     })() : null;
 
