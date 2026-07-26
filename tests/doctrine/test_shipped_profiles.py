@@ -30,15 +30,20 @@ AGENT_PROFILES_README = BUILT_IN_DIR.parent / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
 EXPECTED_PROFILE_IDS = {
+    "analyst-annie",
     "architect-alphonso",
+    "comms-cleo",
     "curator-carla",
     "debugger-debbie",
     "designer-dagmar",
+    "diagram-daisy",
     "doctrine-daphne",
     "generic-agent",
     "human-in-charge",
     "implementer-ivan",
     "java-jenny",
+    "lexical-larry",
+    "minutes-maker-mahad",
     "paula-patterns",
     "planner-priti",
     "python-pedro",
@@ -46,6 +51,8 @@ EXPECTED_PROFILE_IDS = {
     "researcher-robbie",
     "retrospective-facilitator",
     "reviewer-renata",
+    "scribe-sally",
+    "synthesizer-sam",
     "frontend-freddy",
     "node-norris",
 }

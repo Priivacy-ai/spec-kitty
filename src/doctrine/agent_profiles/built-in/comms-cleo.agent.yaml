@@ -104,8 +104,8 @@ directive-references:
 tactic-references:
   - id: writing-audience-catalog
     rationale: >
-      Resolves gap G5: Cleo has no ready-to-use catalog of writing-audience personas to
-      satisfy the Audience-Oriented Writing directive against. Selects one of the built-in
+      Provides the ready-to-use catalog of writing-audience personas needed to satisfy the
+      Audience-Oriented Writing directive. Selects one of the built-in
       persona library's five personas (or an org-extension addition) instead of inventing an
       audience ad hoc. Not the same pattern as the architecture stakeholder-alignment tactic —
       this is about who is reading the prose, not who has a stake in a design decision.

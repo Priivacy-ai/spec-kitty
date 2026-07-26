@@ -32,9 +32,6 @@ purpose: >
   (term + definition + bounded context + decision rationale), SEMANTIC_DELTA (minimal
   renaming proposals with traceability), TONALITY_DIAGNOSTIC (semantic intent vs. perceived
   tone misalignment report).
-# NOTE: the source profile listed `curator-claire` in `collaboration.handoff-from`,
-# `handoff-to`, and `works-with`. Human-confirmed (complete-doctrine-elements-for-builtin-agents-
-# 01KXC2T5 follow-up): this was a typo for the existing builtin `curator-carla`. Resolved below.
 specialization:
   primary-focus: >
     Terminology governance: detecting synonym drift and concept conflation across codebases,

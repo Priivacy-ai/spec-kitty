@@ -36,16 +36,21 @@ the same `profile-id`; project profiles have final precedence.
 
 | Profile ID | Name | Role |
 |------------|------|------|
+| `analyst-annie` | Analyst Annie | analyst |
 | `architect-alphonso` | Architect Alphonso | architect |
+| `comms-cleo` | Comms Cleo | curator / researcher |
 | `curator-carla` | Curator Carla | curator |
 | `debugger-debbie` | Debugger Debbie | investigator |
 | `designer-dagmar` | Designer Dagmar | designer |
+| `diagram-daisy` | Diagram Daisy | designer |
 | `doctrine-daphne` | Doctrine Daphne | curator / onboarding-guide |
 | `frontend-freddy` | Frontend Freddy | implementer |
 | `generic-agent` | Generic Agent | implementer |
 | `human-in-charge` | Human in Charge | human-in-charge |
 | `implementer-ivan` | Implementer Ivan | implementer |
 | `java-jenny` | Java Jenny | implementer |
+| `lexical-larry` | Lexical Larry | semantic-analyst / terminology-reviewer / glossary-curator |
+| `minutes-maker-mahad` | Minutes-Maker Mahad | documentarian / meeting-facilitator |
 | `node-norris` | Node Norris | implementer |
 | `paula-patterns` | Paula Patterns | architecture-scout |
 | `planner-priti` | Planner Priti | planner |
@@ -54,6 +59,8 @@ the same `profile-id`; project profiles have final precedence.
 | `researcher-robbie` | Researcher Robbie | researcher |
 | `retrospective-facilitator` | Retrospective Facilitator | facilitator |
 | `reviewer-renata` | Reviewer Renata | reviewer |
+| `scribe-sally` | Scribe Sally | documentarian / transcriptionist |
+| `synthesizer-sam` | Synthesizer Sam | synthesizer |
 
 ## Python API
 
