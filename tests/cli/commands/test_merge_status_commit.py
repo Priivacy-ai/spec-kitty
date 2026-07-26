@@ -217,6 +217,19 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         feature_dir.mkdir(parents=True)
         _write_meta(feature_dir, mission_slug, mission_id=None)
         _seed_mission_branch(tmp_path, mission_slug)
+        # Materialize the status pair on disk BEFORE the merge, matching what the
+        # real (unmocked) `_mark_wp_merged_done` durably writes to the target
+        # checkout in production. This test mocks `_mark_wp_merged_done` itself
+        # (it only asserts the `commit_merge_bookkeeping` call args, not the
+        # done-transition mechanics — that E2E path is covered by
+        # `test_done_events_committed_to_git` below), so the on-disk artifact has
+        # to be seeded directly or `_phase_commit_and_assert`'s existence filter
+        # (added for the optional birth-cutover/baseline meta paths) legitimately
+        # drops a path that was never materialized in this fixture.
+        _seed_status_event(feature_dir, mission_slug, "WP01", "done")
+        from specify_cli.status.reducer import materialize
+
+        materialize(feature_dir)
 
         manifest = MagicMock()
         manifest.target_branch = "main"
