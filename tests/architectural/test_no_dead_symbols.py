@@ -741,7 +741,8 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644"),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
         # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
         # imports it (reusing the canonical delivery timeout, #2884).
-        SymbolKey("GateDecision", "63e6f6d31d87a0baa8128896db70bcd1a281aef33f9cdc64dc7a4fc1f825dd99"),  # specify_cli.delivery.receivers::GateDecision
+        # GateDecision left the allowlist: cli.commands.sync now imports it for the
+        # shared _resolve_gated_receiver seam (#2884 landing fold).
         SymbolKey("GateKind", "5b6ccac48cf9723e99c997a1f70c7af1f481e819abb62e251d9b3814fd71d05e"),  # specify_cli.delivery.receivers::GateKind
         SymbolKey("HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935"),  # specify_cli.delivery.receivers::HttpResponse
         SymbolKey("ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298"),  # specify_cli.delivery.receivers::ReceiverGate
