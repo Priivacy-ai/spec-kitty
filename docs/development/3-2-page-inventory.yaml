@@ -2516,6 +2516,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/creed-and-values-design-hardened.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/doctrine-artifact-selection-preflight.md
   tag: current
   divio_type: none
@@ -2571,6 +2577,36 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/runtime-charter-doctrine-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/architect.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/doctrine-curator.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/implementer.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/reviewer.md
   tag: current
   divio_type: none
   owning_workstream: none

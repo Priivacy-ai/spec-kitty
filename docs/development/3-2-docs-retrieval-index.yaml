@@ -7755,6 +7755,30 @@ pages:
     - {slug: "5-5-granularity", text: "5.5 Granularity", level: 3}
     - {slug: "5-6-the-mandatory-negative-component-rule-measured", text: "5.6 The mandatory-negative-component rule, measured", level: 3}
     - {slug: "6-what-the-earlier-verdict-s-objections-look-like-against-this-design", text: "6. What the earlier verdict's objections look like against *this* design", level: 2}
+  - path: "docs/plans/doctrine/creed-and-values-design-hardened.md"
+    title: "Creed and FoundationalValues — hardened design"
+    divio_type: "none"
+    abstract: "Hardened design after a four-lens squad: the structure is sound and needs no new kind, relation, or node; the numeric layer must be gated behind a one-day experiment because the sign channel is measurably noisy and creed-weighted ranking collapses toward magnitude."
+    anchors:
+    - {slug: "headline", text: "Headline", level: 2}
+    - {slug: "1-corrections-to-the-input-design-s-own-evidence", text: "1. Corrections to the input design's own evidence", level: 2}
+    - {slug: "2-the-39-question-settled-and-the-answer-is-a-third-option", text: "2. The 39% question — settled, and the answer is a third option", level: 2}
+    - {slug: "3-hardened-structure-decisions", text: "3. Hardened structure — decisions", level: 2}
+    - {slug: "3-1-foundationalvalues-not-an-enum", text: "3.1 `FoundationalValues` — not an enum", level: 3}
+    - {slug: "3-2-two-fields-two-types-value-impact-vs-value-bias", text: "3.2 Two fields, two types — `value_impact` vs `value_bias`", level: 3}
+    - {slug: "3-3-the-value-bearing-kind-set-positive-declared-once-in-code", text: "3.3 The value-bearing kind set — positive, declared once, in code", level: 3}
+    - {slug: "3-4-impacts-a-field-on-edges-and-in-tension-with-survives", text: "3.4 `impacts` — a field on edges, and `in_tension_with` survives", level: 3}
+    - {slug: "3-5-delta-string-on-the-wire-decimal-in-memory", text: "3.5 `delta` — string on the wire, `Decimal` in memory", level: 3}
+    - {slug: "3-6-the-connascence-matrix-parked-and-the-composition-invariant-is-a-type", text: "3.6 The connascence matrix — parked, and the composition invariant is a *type*", level: 3}
+    - {slug: "3-7-creed-on-the-charter-and-the-validation-seam-is-not-where-you-think", text: "3.7 `creed` on the charter — and the validation seam is not where you think", level: 3}
+    - {slug: "3-8-accreditation", text: "3.8 Accreditation", level: 3}
+    - {slug: "4-the-interview-loop-the-sharpest-live-objection", text: "4. The interview loop — the sharpest live objection", level: 2}
+    - {slug: "5-prerequisites-that-must-land-first", text: "5. Prerequisites that must land first", level: 2}
+    - {slug: "6-sequencing", text: "6. Sequencing", level: 2}
+    - {slug: "7-the-experiment-one-day-pre-registered-can-kill-the-numeric-layer", text: "7. THE EXPERIMENT — one day, pre-registered, can kill the numeric layer", level: 2}
+    - {slug: "8-what-survives-every-lens-the-minimum-shippable-thing", text: "8. What survives every lens — the minimum shippable thing", level: 2}
+    - {slug: "9-open-operator-decisions", text: "9. Open operator decisions", level: 2}
+    - {slug: "10-method-limits", text: "10. Method limits", level: 2}
   - path: "docs/plans/doctrine/doctrine-artifact-selection-preflight.md"
     title: "Pre-flight investigation — user-authored doctrine artifact selection"
     divio_type: "none"
@@ -7970,6 +7994,83 @@ pages:
     - {slug: "what-this-audit-does-not-cover", text: "What this audit does NOT cover", level: 2}
     - {slug: "recommendation-in-one-paragraph", text: "Recommendation in one paragraph", level: 2}
     - {slug: "appendix-raw-import-inventory-snapshot-2026-05-17", text: "Appendix — raw import inventory (snapshot 2026-05-17)", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/architect.md"
+    title: "Architect lens — seams, types, and concrete shapes"
+    divio_type: "none"
+    abstract: "Structural hardening of the creed/FoundationalValues design: where each part plugs in, the concrete type shapes, and the composition invariant enforced as a type."
+    anchors:
+    - {slug: "findings", text: "FINDINGS", level: 2}
+    - {slug: "q1-foundationalvalues-as-a-half-open-enum", text: "Q1 — `FoundationalValues` as a \"half-open enum\"", level: 2}
+    - {slug: "q2-where-creed-lives-exactly", text: "Q2 — Where `creed` lives, exactly", level: 2}
+    - {slug: "q3-impacts-field-on-edges-not-a-relation-member-and-in-tension-with-survives", text: "Q3 — `impacts`: field on edges, not a Relation member — and `in_tension_with` survives", level: 2}
+    - {slug: "q4-per-artefact-field-exact-kinds-and-shape", text: "Q4 — Per-artefact field: exact kinds and shape", level: 2}
+    - {slug: "q5-valueconnascence-n-n-home-reader-and-the-composition-invariant", text: "Q5 — `ValueConnascence` N×N: home, reader, and the composition invariant", level: 2}
+    - {slug: "q6-what-breaks-and-do-foundationalvalues-become-drg-nodes", text: "Q6 — What breaks, and do `FoundationalValues` become DRG nodes?", level: 2}
+    - {slug: "concrete-shapes", text: "CONCRETE SHAPES", level: 2}
+    - {slug: "1-value-set-connascence-matrix-src-doctrine-values-built-in-ammerse-valueset-yaml", text: "1. Value set + connascence matrix — `src/doctrine/values/built-in/ammerse.valueset.yaml`", level: 3}
+    - {slug: "2-creed-charter-yaml-block-weights-only-no-value-definitions-no-matrix", text: "2. Creed — `charter.yaml` block (weights only; no value definitions, no matrix)", level: 3}
+    - {slug: "3-python-the-four-types-the-two-seams", text: "3. Python — the four types + the two seams", level: 3}
+    - {slug: "4-per-artefact-field-yaml-model-6-kinds", text: "4. Per-artefact field — YAML + model (×6 kinds)", level: 3}
+    - {slug: "5-edge-field-src-doctrine-drg-models-py-328-339", text: "5. Edge field — `src/doctrine/drg/models.py:328-339`", level: 3}
+    - {slug: "seam-change-inventory", text: "SEAM-CHANGE INVENTORY", level: 2}
+    - {slug: "part-1-creed-and-values", text: "Part 1 — Creed and Values", level: 3}
+    - {slug: "part-2-impacts-on-edges", text: "Part 2 — `impacts` on edges", level: 3}
+    - {slug: "part-3-charter-creation", text: "Part 3 — Charter creation", level: 3}
+    - {slug: "what-breaks", text: "WHAT BREAKS", level: 2}
+    - {slug: "concession", text: "CONCESSION", level: 2}
+    - {slug: "verdict", text: "VERDICT", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/doctrine-curator.md"
+    title: "Doctrine-curator lens — exemptions, accreditation, provenance"
+    divio_type: "none"
+    abstract: "Doctrine integrity review of the creed/FoundationalValues design: the per-kind exemption table, the value_impact vs value_bias split, accreditation placement, provenance shape, and the gates it trips."
+    anchors:
+    - {slug: "findings", text: "Findings", level: 2}
+    - {slug: "exemption-table-all-12-artifactkind-members", text: "Exemption table — all 12 `ArtifactKind` members", level: 2}
+    - {slug: "value-impact-vs-value-bias-three-arguments", text: "`value_impact` vs `value_bias` — three arguments", level: 2}
+    - {slug: "accreditation-placement", text: "Accreditation placement", level: 2}
+    - {slug: "provenance-shape", text: "Provenance shape", level: 2}
+    - {slug: "composition-with-2216", text: "Composition with #2216", level: 2}
+    - {slug: "gates-tripped", text: "Gates tripped", level: 2}
+    - {slug: "concession", text: "Concession", level: 2}
+    - {slug: "verdict", text: "Verdict", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/implementer.md"
+    title: "Implementer lens — feasibility and the prototype slice"
+    divio_type: "none"
+    abstract: "Buildability of the creed/FoundationalValues design in this codebase: real Pydantic models, the delta representation decision, the coverage gate, and a one-day pre-registered prototype."
+    anchors:
+    - {slug: "profile-adopted", text: "Profile adopted", level: 2}
+    - {slug: "models", text: "Models", level: 2}
+    - {slug: "src-doctrine-values-models-py-new", text: "`src/doctrine/values/models.py` (new)", level: 3}
+    - {slug: "src-charter-creed-py-new-the-charter-tier-weighting", text: "`src/charter/creed.py` (new) — the charter-tier weighting", level: 3}
+    - {slug: "delta-representation", text: "`delta` representation", level: 2}
+    - {slug: "half-open-set", text: "Half-open set", level: 2}
+    - {slug: "the-honest-trade-four-costs-stated-plainly", text: "The honest trade — four costs, stated plainly", level: 3}
+    - {slug: "coverage-gate", text: "Coverage gate", level: 2}
+    - {slug: "prototype-slice", text: "Prototype slice", level: 2}
+    - {slug: "reaction-to-the-proposed-slice", text: "Reaction to the proposed slice", level: 3}
+    - {slug: "wps", text: "WPs", level: 3}
+    - {slug: "success-signal-fixed-before-the-run", text: "Success signal — fixed before the run", level: 3}
+    - {slug: "import-path", text: "Import path", level: 2}
+    - {slug: "concession", text: "CONCESSION", level: 2}
+    - {slug: "verdict", text: "VERDICT", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/index.md"
+    title: "Squad reports — creed and FoundationalValues hardening"
+    divio_type: "none"
+    abstract: "Raw four-lens squad reports behind the hardened creed/FoundationalValues design: architect, doctrine-curator, reviewer, and implementer."
+    anchors:
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/reviewer.md"
+    title: "Reviewer lens — adversarial pass and the 39% verdict"
+    divio_type: "none"
+    abstract: "Adversarial review of the creed/FoundationalValues design: the sign channel is measurably noisy, five of seven axes carry no cost signal, creed-weighted ranking collapses toward magnitude, and the interview is a closed loop."
+    anchors:
+    - {slug: "findings", text: "Findings", level: 2}
+    - {slug: "the-39-verdict", text: "The 39% verdict", level: 2}
+    - {slug: "fakeable-success-register", text: "Fakeable-success register", level: 2}
+    - {slug: "the-interview-loop", text: "The interview loop", level: 2}
+    - {slug: "what-survives-me", text: "What survives me", level: 2}
+    - {slug: "concession", text: "Concession", level: 2}
+    - {slug: "verdict", text: "Verdict", level: 2}
   - path: "docs/plans/doctrine/wp-prompt-governance-atdd-findings.md"
     title: "WP-Prompt Governance Contract — ATDD Findings"
     divio_type: "none"

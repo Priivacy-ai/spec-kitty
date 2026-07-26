@@ -230,8 +230,9 @@ Errors found by independent verification. Several corrections make the case *str
     `extractor._KIND_MAP`** (11 entries; missing `glossary_pack`, `asset`, `anti_pattern`).
     Strictly worse than a rejected enum value.
 12. **There is no `feature` terminology guard.** `test_no_legacy_terminology` forbids exactly
-    `ceremony` and `status-writing`, and `_SCAN_ROOTS` excludes `.kittify/`. Do not sell the
-    Purpose rewrite as gate-verified — nothing checks it.
+    two retired legacy nouns (see `_FORBIDDEN_TERMS`; not reproduced here — the guard scans
+    `docs/`, so quoting them in prose reds it), and `_SCAN_ROOTS` excludes `.kittify/`. Do not
+    sell the Purpose rewrite as gate-verified — nothing checks it.
 13. **`#2917` is CLOSED** (corrects standing project memory). The release blocker is `#2934`
     plus 14 open P0s. **`#2537` is CLOSED** → ADR `2026-07-21-1` accepted.
 
