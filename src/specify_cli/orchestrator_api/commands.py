@@ -321,6 +321,18 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
                 "primary_candidate": str(exc.primary_candidate),
             },
         )
+    except ValueError as exc:
+        # The traversal guard (``core.paths.assert_safe_path_segment``) fails
+        # closed with a plain ``ValueError``. It is raised before any resolution
+        # happens, so there are no candidate paths to report — but it must still
+        # leave through the envelope, never as a top-level traceback, or the
+        # JSON machine contract breaks for every programmatic consumer.
+        _fail(
+            command,
+            "USAGE_ERROR",
+            str(exc),
+            data={"message": str(exc), "mission_slug": mission_slug},
+        )
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))
     return mission_dir
