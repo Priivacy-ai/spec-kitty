@@ -23,6 +23,8 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
+from specify_cli.delivery.config import EventSyncConfig, Mode
+from specify_cli.delivery.receivers import GateContext, _TEAMSPACE_GATES
 
 pytestmark = pytest.mark.fast
 
@@ -184,9 +186,13 @@ def _wire_apply_seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         sync_command,
         "_open_event_sync_runtime",
-        lambda: SimpleNamespace(target=target),
+        lambda: SimpleNamespace(target=target, close=lambda: None),
     )
-    monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        sync_command,
+        "_load_event_sync_config",
+        lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE),
+    )
     monkeypatch.setattr(
         sync_command,
         "_resolve_active_receiver",
@@ -245,6 +251,140 @@ def test_apply_uploads_and_reports_on_success(tmp_path, monkeypatch):
     assert "1 created" in plain
     # The provenance manifest is surfaced, not silently discarded (#2884).
     assert "Provenance: 1 envelope(s) hashed" in plain
+
+
+# ── --apply: mode-authority fail-closed (P1, #2884) ──────────────────────────
+#
+# ``_resolve_history_import_receiver`` used to hardcode
+# ``EventSyncConfig.from_mode(Mode.TEAMSPACE)``, discarding whatever mode the
+# operator persisted via ``spec-kitty sync mode``. An operator on
+# EXTERNAL_RECEIVER / LOCAL_RETENTION / OPT_OUT would still get their full
+# mission history uploaded to the SaaS. These tests drive the real
+# ``_load_event_sync_config`` seam per mode to pin the fix.
+
+
+def _config_for_mode(mode: Mode) -> EventSyncConfig:
+    if mode is Mode.EXTERNAL_RECEIVER:
+        return EventSyncConfig.from_mode(mode, external_endpoint="https://x.example/e")
+    return EventSyncConfig.from_mode(mode)
+
+
+@pytest.mark.parametrize("mode", [Mode.EXTERNAL_RECEIVER, Mode.LOCAL_RETENTION, Mode.OPT_OUT])
+def test_apply_refuses_when_persisted_mode_is_not_teamspace(tmp_path, monkeypatch, mode):
+    """A non-TEAMSPACE persisted mode refuses the upload outright (exit 1),
+    naming both the requirement and the operator's current mode."""
+    _wire_apply_seams(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        sync_command, "_load_event_sync_config", lambda: _config_for_mode(mode)
+    )
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "requires event-sync mode TEAMSPACE" in plain
+    assert mode.name in plain
+
+
+def test_apply_proceeds_when_persisted_mode_is_teamspace(tmp_path, monkeypatch):
+    """The counterpart: a persisted TEAMSPACE mode is honored and --apply proceeds."""
+    import specify_cli.sync.history_import as history_import
+    from specify_cli.sync.history_import import UploadReport
+
+    _wire_apply_seams(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        sync_command, "_load_event_sync_config", lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE)
+    )
+    canned = _canned_apply_result(UploadReport(success=1))
+    monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
+
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 0
+
+
+# ── --apply: real gate evaluation, not the zero-gate stub (P1, #2884) ────────
+#
+# ``_wire_apply_seams`` stubs the receiver with ``gates=lambda: ()`` — zero
+# gates, so ``evaluate_gates`` can never block and the ``gate_decision.blocked``
+# branch (and the receiver-missing / no-endpoint branch) is untestable by
+# construction. These tests wire the REAL ``_TEAMSPACE_GATES`` tuple (or a
+# missing/unconfigured receiver) so the fail-closed branches are genuinely
+# exercised.
+
+
+def _wire_apply_seams_real_gates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, saas_enabled: bool, team_slug: str
+) -> None:
+    """Like ``_wire_apply_seams`` but the receiver declares the real Teamspace
+    gate tuple, so ``evaluate_gates`` genuinely evaluates saas/private/auth."""
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
+    target = SimpleNamespace(resolved_server_url="http://x", team_slug=team_slug)
+    monkeypatch.setattr(
+        sync_command,
+        "_open_event_sync_runtime",
+        lambda: SimpleNamespace(target=target, close=lambda: None),
+    )
+    monkeypatch.setattr(
+        sync_command,
+        "_load_event_sync_config",
+        lambda: EventSyncConfig.from_mode(Mode.TEAMSPACE),
+    )
+    monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: saas_enabled)
+    monkeypatch.setattr(
+        sync_command,
+        "_resolve_active_receiver",
+        lambda *a, **k: SimpleNamespace(
+            endpoint_url="http://x/batch", gates=lambda: _TEAMSPACE_GATES
+        ),
+    )
+    _patch_checkout(monkeypatch, tmp_path)
+
+
+def test_apply_fails_closed_when_real_gates_are_unsatisfied(tmp_path, monkeypatch):
+    """A GateContext short on saas_enabled and private_teamspace genuinely blocks
+    through the real Teamspace gate tuple, naming both unsatisfied gates."""
+    _wire_apply_seams_real_gates(monkeypatch, tmp_path, saas_enabled=False, team_slug="")
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 1
+    plain = _strip_ansi(result.output)
+    assert "gated" in plain
+    assert "saas_enabled" in plain
+    assert "private_teamspace" in plain
+
+
+def test_apply_proceeds_when_real_gates_are_satisfied(tmp_path, monkeypatch):
+    """The same real gate tuple, fully satisfied, lets --apply proceed (exit 0) —
+    the positive counterpart pinning that the real-gate wiring isn't itself
+    broken in a way that always blocks."""
+    import specify_cli.sync.history_import as history_import
+    from specify_cli.sync.history_import import UploadReport
+
+    _wire_apply_seams_real_gates(monkeypatch, tmp_path, saas_enabled=True, team_slug="team")
+    canned = _canned_apply_result(UploadReport(success=1))
+    monkeypatch.setattr(history_import, "apply_import", lambda *a, **k: canned)
+
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 0
+
+
+def test_apply_fails_closed_when_receiver_is_none(tmp_path, monkeypatch):
+    """No resolvable receiver (e.g. an unrecognized target) refuses to upload."""
+    _wire_apply_seams(monkeypatch, tmp_path)
+    monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *a, **k: None)
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 1
+    assert "not configured" in _strip_ansi(result.output)
+
+
+def test_apply_fails_closed_when_endpoint_url_missing(tmp_path, monkeypatch):
+    """A receiver resolved but with no ``endpoint_url`` also refuses to upload."""
+    _wire_apply_seams(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        sync_command,
+        "_resolve_active_receiver",
+        lambda *a, **k: SimpleNamespace(endpoint_url="", gates=lambda: ()),
+    )
+    result = runner.invoke(app, ["import-history", "--apply"])
+    assert result.exit_code == 1
+    assert "not configured" in _strip_ansi(result.output)
 
 
 # ── --apply: the except branches (T3, #2884) ─────────────────────────────────
