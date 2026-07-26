@@ -1,0 +1,84 @@
+{
+ "matrix_id": "ammerse-first-order",
+ "matrix_version": "1.0",
+ "source": "https://patterns.sddevelopment.be/practices/ammerse_impact_analysis/",
+ "accessed_on": "2026-07-26",
+ "source_digest": "sha256:ed01a394939c4e4604b6020f3e95d7d940abe7bd09b5bb7698b8813cffc1b840",
+ "source_digest_scope": "sha256 over the canonical JSON of {axes, matrix} (sorted keys, no whitespace) \u2014 detects any edit to the committed coefficients; the upstream page itself was not archived",
+ "attribution": "AMMERSE value system by J.B. Crossland. AMMERSE, AMMERSE Method, AMMERSE Theory and AMMERSE Value System are trademarks of J.B. Crossland. Reproduced under the author's authorization for accreditation purposes.",
+ "note": "As published. One asymmetric pair of 21 (47 of 49 cells symmetric); the sole disagreement is maintainable->extensible=+0.75 vs extensible->maintainable=-0.75 (probable upstream sign error, see the design doc). Divisor applied upstream is 6, read as N-1.",
+ "axes": [
+  "agile",
+  "minimal",
+  "maintainable",
+  "environmental",
+  "reachable",
+  "solvable",
+  "extensible"
+ ],
+ "matrix": [
+  [
+   0,
+   -0.5,
+   0.25,
+   0,
+   -0.75,
+   0.5,
+   0.5
+  ],
+  [
+   -0.5,
+   0,
+   0.75,
+   0.5,
+   0.75,
+   0.75,
+   -0.75
+  ],
+  [
+   0.25,
+   0.75,
+   0,
+   0.25,
+   0.5,
+   0.5,
+   0.75
+  ],
+  [
+   0,
+   0.5,
+   0.25,
+   0,
+   0,
+   0.25,
+   0
+  ],
+  [
+   -0.75,
+   0.75,
+   0.5,
+   0,
+   0,
+   0.75,
+   -0.75
+  ],
+  [
+   0.5,
+   0.75,
+   0.5,
+   0.25,
+   0.75,
+   0,
+   0.5
+  ],
+  [
+   0.5,
+   -0.75,
+   -0.75,
+   0,
+   -0.75,
+   0.5,
+   0
+  ]
+ ]
+}

@@ -96,9 +96,26 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     so the extractor mints one edge-less ``asset:common-docs-structural-lint``
 #:     node (the asset fragment ships ``edges: []``): +1 node / +0 edges /
 #:     +1 orphan. Composed: 303/757/30 + 1/0/1 = 304/757/31.
-_EXPECTED_NODE_COUNT = 304
+#: (4) ADR 2026-07-26-2 (doctrine artefact pack layout): the PowerShell toolguide
+#:     and its 245-line guide are promoted from ``toolguides/`` into the pack
+#:     layer ``toolguides/built-in/``. It had sat outside ``<type>/<pack>/`` since
+#:     the framework's first commit, so node discovery never saw it and the
+#:     toolguide was unreachable; promotion mints one edge-less
+#:     ``toolguide:powershell-syntax`` node: +1 node / +0 edges / +1 orphan.
+#:     The same change handles nine mispacked artefacts: **eight are DELETED**
+#:     (three byte-identical duplicates, two stale divergent copies, three
+#:     content-free seed stubs) and the ninth is the promotion above -- it was
+#:     moved, not deleted. The eight deletions have **zero** count impact: none
+#:     of them was ever a node, which is precisely why they were dead.
+#:     Composed: 304/757/31 + 1/0/1 = 305/757/32.
+#:     (An earlier revision of this ledger said "DELETES nine ... five duplicates,
+#:     four seed stubs". Both sub-counts were wrong -- git shows 8 deletions and
+#:     3 renames -- while the numeric assertions below stayed green. NFR-006 makes
+#:     this prose a contract precisely so the counts stay auditable; it is corrected
+#:     here rather than quietly, because a wrong ledger is what NFR-006 forbids.)
+_EXPECTED_NODE_COUNT = 305
 _EXPECTED_EDGE_COUNT = 757
-_EXPECTED_ORPHAN_COUNT = 31
+_EXPECTED_ORPHAN_COUNT = 32
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).

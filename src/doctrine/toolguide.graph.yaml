@@ -26,6 +26,9 @@ nodes:
 - urn: toolguide:plantuml-diagramming
   kind: toolguide
   label: PlantUML Diagramming
+- urn: toolguide:powershell-syntax
+  kind: toolguide
+  label: PowerShell Syntax Guide
 - urn: toolguide:python-mutation-tools
   kind: toolguide
   label: Python Mutation Testing with mutmut

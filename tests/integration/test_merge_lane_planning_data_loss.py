@@ -219,10 +219,17 @@ class TestMergeIncludesPlanningLane:
 # ---------------------------------------------------------------------------
 
 
-def _write_meta(feature_dir: Path, slug: str) -> None:
-    """Write a minimal meta.json for a mission directory."""
+def _write_meta(feature_dir: Path, slug: str, *, mission_id: str | None = None) -> None:
+    """Write a minimal meta.json for a mission directory.
+
+    ``mission_id`` defaults to ``None`` (legacy shape). Passing a canonical
+    ULID writes the MODERN shape, which the post-commit target-history
+    assertion (``_assert_merged_wps_done_on_target``) requires — it early-returns
+    on a legacy mission, so target-branch durability can only be asserted with a
+    modern mission.
+    """
     feature_dir.mkdir(parents=True, exist_ok=True)
-    meta = {
+    meta: dict[str, object] = {
         "mission_slug": slug,
         "mission_number": None,
         "mission_type": "software-dev",
@@ -230,6 +237,8 @@ def _write_meta(feature_dir: Path, slug: str) -> None:
         "purpose_tldr": "data-loss regression pin",
         "purpose_context": "real-merge planning-artifact reach-target test",
     }
+    if mission_id is not None:
+        meta["mission_id"] = mission_id
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -815,6 +824,54 @@ def _real_persistence_external_mocks(repo_root: Path):
         yield {"safe_commit": ms[0]}
 
 
+@contextlib.contextmanager
+def _real_bookkeeping_commit_external_mocks(repo_root: Path):
+    """Like ``_real_persistence_external_mocks`` but the bookkeeping commit runs
+    for REAL — ``commit_merge_bookkeeping`` is NOT mocked.
+
+    This is the intent-proving surface (#2934): it lets the real merge land the
+    status *pair* on the target branch so a test can read it back from committed
+    history (``git show main:...``), rather than only asserting what was
+    *requested* of a mocked commit. Only genuine external boundaries stay stubbed
+    (dossier sync, SaaS/mission-closed emit, diff summary, stale-assertion network
+    check, git preflight, gates/policy, the mission-number branch bake). The
+    post-merge working-tree invariant (``_classify_porcelain_lines``) stays
+    short-circuited because the disposable fixture repo carries test-only
+    untracked paths the invariant would otherwise flag.
+    """
+    patches = [
+        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
+        patch("specify_cli.merge.executor.emit_mission_closed"),
+        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
+        patch("specify_cli.post_merge.stale_assertions.run_check"),
+        patch("specify_cli.merge.executor.run_check"),
+        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
+        patch("specify_cli.policy.config.load_policy_config"),
+        patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.merge.executor._classify_porcelain_lines", return_value=([], 0)),
+        # NOTE: commit_merge_bookkeeping, _mark_wp_merged_done, and
+        # _assert_merged_wps_done_on_target are intentionally NOT mocked — the
+        # real bookkeeping commit lands on the target branch and the executor's
+        # own post-commit durability assertion runs.
+    ]
+    with contextlib.ExitStack() as stack:
+        ms = [stack.enter_context(p) for p in patches]
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        ms[7].return_value = gate_eval
+        policy = MagicMock()
+        policy.merge_gates = []
+        ms[8].return_value = policy
+        stale_report = MagicMock()
+        stale_report.findings = []
+        ms[3].return_value = stale_report
+        ms[4].return_value = stale_report
+        yield {}
+
+
 class TestPlanningOnlyDoneMarkingPersists:
     """F1: planning-only closeout must REALLY mark each WP done and persist the
     transition, not just call mocked side-effects.
@@ -1010,22 +1067,41 @@ class TestPlanningArtifactReachesTarget:
     ) -> None:
         """All-planning research missions close from the target branch without a mission branch.
 
-        This test pins the call-contract (mark-done invoked per WP, assert-done
-        invoked once) by mocking the persistence helpers. The *persistence*
-        guarantee — that the done transition is actually written and readable
-        back — is proven separately by
-        ``TestPlanningOnlyDoneMarkingPersists`` (F1), which runs the real
-        ``_mark_wp_merged_done`` / ``_assert_merged_wps_reached_done`` for the
-        primary-checkout (``coordination_branch``-absent) surface. The
-        ``coordination_branch``-set variant is deferred to
-        https://github.com/Priivacy-ai/spec-kitty/issues/1726.
+        Runs the REAL done-marking pipeline (``_mark_wp_merged_done`` /
+        ``_assert_merged_wps_reached_done`` are NOT mocked). Only genuine system
+        boundaries are stubbed — network side-effects (dossier sync, SaaS /
+        mission-closed emit, stale-assertion check), the git preflight, and the
+        ``commit_merge_bookkeeping`` git write (spied on, to inspect the staged
+        path set without touching the protected target branch).
+
+        Because the pipeline is real, the two WPs are seeded to ``approved``
+        through the real status-emit pipeline first (as a finished mission would
+        be), so the done transitions the merge appends produce a genuine
+        ``status.events.jsonl``. The observable guarantees here are that both WPs
+        persist as done and that bookkeeping requests the status *pair* — the
+        append-only event log (sole authority) AND its derived ``status.json``.
+        ``commit_merge_bookkeeping`` remains a boundary spy here, so this test
+        does not independently prove target-branch history — that intent is
+        proven by ``test_planning_only_bookkeeping_reaches_target_branch``, which
+        runs the real bookkeeping commit and reads the log back from ``main``.
+
+        History: an earlier version mocked ``_mark_wp_merged_done`` to pin the
+        call-contract. That stub manufactured a zero-event mission the successful
+        approved-to-done closeout path represented here cannot produce, so
+        ``status.events.jsonl`` was never written and the requested-path assertion
+        below tracked a mock artifact rather than real behavior (surfaced as
+        #2934). Mocking internal system-under-test logic is the antipattern;
+        boundaries are the only legitimate seam.
         """
+        from specify_cli.status.models import Lane
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events
+
         slug = "real-merge-planning-only-research"
         _init_git_repo(tmp_path)
 
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
-        (feature_dir / "tasks").mkdir(parents=True)
         _write_meta(feature_dir, slug)
         _write_lanes_manifest(
             feature_dir,
@@ -1033,8 +1109,11 @@ class TestPlanningArtifactReachesTarget:
             code_wp_ids=[],
             planning_wp_ids=["WP01", "WP02"],
         )
+        for wp_id in ("WP01", "WP02"):
+            _write_wp_file(feature_dir, wp_id)
+            _seed_wp_approved(feature_dir, slug, wp_id)
         _git(tmp_path, "add", ".")
-        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap planning mission fixture")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap approved planning mission")
 
         planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
         _commit_file(
@@ -1054,7 +1133,7 @@ class TestPlanningArtifactReachesTarget:
         )
         assert missing_branch.returncode != 0
 
-        with _real_merge_external_mocks(tmp_path) as mocks:
+        with _real_persistence_external_mocks(tmp_path) as mocks:
             _run_lane_based_merge(
                 repo_root=tmp_path,
                 mission_slug=slug,
@@ -1066,10 +1145,17 @@ class TestPlanningArtifactReachesTarget:
             )
 
         assert _file_on_branch(tmp_path, "main", planning_relpath)
-        marked_wps = [call.args[2] for call in mocks["mark_done"].call_args_list]
-        assert marked_wps == ["WP01", "WP02"]
-        mocks["assert_done"].assert_called_once()
-        assert set(mocks["assert_done"].call_args.args[2]) == {"WP01", "WP02"}
+
+        # The REAL done-marking pipeline drove both WPs to done in the canonical
+        # event log (no mocked call-contract to inspect — the persisted outcome
+        # is the assertion).
+        post = reduce(read_events(feature_dir))
+        assert post.work_packages["WP01"]["lane"] == Lane.DONE.value, (
+            "WP01 did not reach done in the persisted event log."
+        )
+        assert post.work_packages["WP02"]["lane"] == Lane.DONE.value, (
+            "WP02 did not reach done in the persisted event log."
+        )
 
         meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
         assert isinstance(meta.get("mission_number"), int)
@@ -1079,8 +1165,86 @@ class TestPlanningArtifactReachesTarget:
         for call in mocks["safe_commit"].call_args_list:
             committed_paths.update(_rel_paths(call.kwargs.get("paths"), tmp_path))
         assert f"kitty-specs/{slug}/meta.json" in committed_paths
+        # The append-only event log (sole authority) must be requested alongside
+        # its derived snapshot — never the snapshot alone.
         assert f"kitty-specs/{slug}/status.events.jsonl" in committed_paths
         assert f"kitty-specs/{slug}/status.json" in committed_paths
+
+    def test_planning_only_bookkeeping_reaches_target_branch(
+        self, tmp_path: Path
+    ) -> None:
+        """The status pair must land ON THE TARGET BRANCH — intent, not just request.
+
+        The sibling test above mocks ``commit_merge_bookkeeping`` (a boundary
+        spy), so it can only prove the pair was *requested*, not that it reached
+        ``main``. Per the intent-dominates principle, this test proves the actual
+        contract: it runs the REAL bookkeeping commit against a modern mission
+        (``mission_id`` present, so the executor's own post-commit
+        ``_assert_merged_wps_done_on_target`` runs instead of early-returning),
+        then reads the append-only event log back from ``main``'s committed tree
+        (``git show main:...``) and reduces it — proving both WPs are ``done`` on
+        the target branch, not merely in the working tree. If the merge left
+        ``main`` at ``approved`` (the durability-gap shape), this reduction fails.
+        """
+        from specify_cli.status.models import Lane
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events_from_text
+
+        slug = "real-merge-planning-only-durability"
+        # A modern (canonical-ULID) mission; shape mirrors the reliability fixture
+        # default (not strictly validated at this seam, distinct per tmp repo).
+        mission_id = "01KQKV85DURABILITY0000000000"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, slug, mission_id=mission_id)
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=[],
+            planning_wp_ids=["WP01", "WP02"],
+        )
+        for wp_id in ("WP01", "WP02"):
+            _write_wp_file(feature_dir, wp_id)
+            _seed_wp_approved(feature_dir, slug, wp_id)
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap approved modern mission")
+
+        planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
+        _commit_file(
+            tmp_path,
+            branch="main",
+            relpath=planning_relpath,
+            content="# Decision A\n\nPlanning artifact body.\n",
+            message=f"plan({slug}): commit planning artifact on target",
+        )
+
+        with _real_bookkeeping_commit_external_mocks(tmp_path):
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+                allow_sparse_checkout=True,
+            )
+
+        # INTENT: read the append-only event log back from main's COMMITTED tree
+        # (not the working tree) and prove both WPs are done on the target branch.
+        events_text = _git(
+            tmp_path, "show", f"main:kitty-specs/{slug}/status.events.jsonl"
+        ).stdout
+        target_snapshot = reduce(read_events_from_text(feature_dir, events_text))
+        assert target_snapshot.work_packages["WP01"]["lane"] == Lane.DONE.value, (
+            "WP01 is not done on the target branch — the done event did not reach main."
+        )
+        assert target_snapshot.work_packages["WP02"]["lane"] == Lane.DONE.value, (
+            "WP02 is not done on the target branch — the done event did not reach main."
+        )
+        # The derived snapshot must accompany its source log on the target branch.
+        _git(tmp_path, "show", f"main:kitty-specs/{slug}/status.json")
 
     def test_planning_artifact_on_phantom_lane_branch_is_NOT_reached(
         self, tmp_path: Path

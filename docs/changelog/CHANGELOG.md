@@ -80,7 +80,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **The pre-review test gate now works correctly for projects that use a custom
   test command, not just pytest (#2873, follow-up to #2535 half A).** When a work
   package moves to `for_review`, Spec Kitty runs the project's tests and flags any
-  failure the change *newly* introduced — comparing against a baseline captured
+  failure the change _newly_ introduced — comparing against a baseline captured
   before the work started. Previously the baseline side and the review side could
   run those tests two different ways, so a project configured with its own
   `review.test_command` (anything other than pytest) got unreliable results: it
@@ -88,7 +88,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   genuinely new test failure could slip through unflagged on a clean baseline. Now
   both sides run and interpret the tests through one shared path, so the
   comparison is apples-to-apples and a new failure is reliably caught. When the
-  two sides genuinely *can't* be compared (for example, the test command was
+  two sides genuinely _can't_ be compared (for example, the test command was
   changed in between), the gate now says so with a clear, non-blocking warning
   (shown as `SOURCE_MISMATCH`) instead of guessing — it never silently passes and
   never hard-blocks on that case. The captured baseline is now always saved, so
@@ -187,6 +187,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   baseline is regenerated accordingly.
 
 ### 🐛 Fixed
+
+- **The merge review-readiness check no longer writes a stray `status.json`
+  during a merge (#2934).** The check that looks for a rejected review before
+  merge was reducing mission status through the _writing_ materializer, so it
+  left a `status.json` snapshot on disk as a side effect. On a mission with no
+  status events yet, that snapshot had no matching `status.events.jsonl` (the
+  append-only event log that is the real source of truth), and the merge could
+  commit the orphaned snapshot on its own — the invalid "snapshot without its
+  event log" state the status doctor flags. The check now reads status without
+  writing anything; a gate reads, it does not persist. Includes the regression
+  test and a de-mocked planning-only merge test that exposed the shape.
 
 - **Running Spec Kitty non-interactively (agents, CI, piped input) no longer
   hangs waiting for a prompt that will never be answered (#2876; extended in

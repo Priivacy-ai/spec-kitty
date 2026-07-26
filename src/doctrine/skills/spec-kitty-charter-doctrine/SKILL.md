@@ -113,7 +113,8 @@ The current synthesis scope is: `directive`, `tactic`, `styleguide`.
 Read shipped examples to understand the expected YAML shape.
 There is no `doctrine list` or `doctrine show` CLI command — use the programmatic
 `DoctrineService` API (documented in the *Programmatic Doctrine Access* section below)
-or read the YAML files directly from `src/doctrine/<kind>/shipped/`:
+or read the YAML files directly from `src/doctrine/<kind>/built-in/` (artifacts live at
+`<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
 ```python
 from doctrine.service import DoctrineService

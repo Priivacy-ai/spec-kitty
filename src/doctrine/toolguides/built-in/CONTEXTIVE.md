@@ -145,7 +145,7 @@ Keys and values support markdown and emoji.
 
 ### Glossary curation
 
-The [glossary-curation-interview](../../../tactics/shipped/glossary-curation-interview.tactic.yaml)
+The [glossary-curation-interview](../../tactics/built-in/communication/glossary-curation-interview.tactic.yaml)
 tactic defines the process for systematically expanding a living glossary.
 Terms curated through that process should be captured in Contextive format
 so they are immediately enforceable in the IDE.
@@ -159,7 +159,7 @@ is not just documentation but an active, enforceable artifact.
 
 ### Glossary writing styleguide
 
-Follow the [kitty-glossary-writing](../shipped/../../styleguides/shipped/writing/kitty-glossary-writing.styleguide.yaml)
+Follow the [kitty-glossary-writing](../../styleguides/built-in/writing/kitty-glossary-writing.styleguide.yaml)
 styleguide when authoring definitions. Key rules:
 
 - Definitions must be self-contained (no undefined foundational terms)

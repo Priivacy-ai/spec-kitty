@@ -11,7 +11,7 @@ import re
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
-from specify_cli.status import materialize
+from specify_cli.status import materialize_snapshot
 from specify_cli.status import ReviewOverride
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
@@ -188,17 +188,24 @@ def find_rejected_review_artifact_conflicts(
 
     Two facts, two partitions (FR-006 / #2885). Neither is trusted from the single
     ``feature_dir`` the caller happened to pass — that trust WAS #2885: the dry-run
-    preview handed a PRIMARY dir, so ``materialize`` read an empty status log (a
+    preview handed a PRIMARY dir, so the reduce read an empty status log (a
     coord mission keeps its authoritative log on the coordination husk), every WP
     looked stateless, and the gate passed a rejected review by default while the
     real consolidation — handed the coord husk — refused. The **lane snapshot** now
     resolves from its ``STATUS_STATE`` home and the **review-cycle artifacts** from
     their ``WORK_PACKAGE_TASK`` home, so both callers resolve the same two surfaces
     and AGREE (SC-002).
+
+    Reduces via the read-only :func:`materialize_snapshot`, NOT :func:`materialize`
+    (#2934): this is a merge-readiness *check*, so it must not mutate the working
+    tree. ``materialize`` writes ``status.json`` as a side effect; on a mission
+    whose event log is empty/absent that write orphans a derived ``status.json``
+    with no backing ``status.events.jsonl`` (the invalid state ``validate`` flags),
+    which the merge then commits alone. A gate reads; it does not persist.
     """
     lane_state_dir = _resolve_lane_state_read_dir(feature_dir)
     review_cycle_dir = _resolve_review_cycle_read_dir(feature_dir)
-    snapshot = materialize(lane_state_dir)
+    snapshot = materialize_snapshot(lane_state_dir)
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
     findings: list[ReviewArtifactFinding] = []
 
