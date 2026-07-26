@@ -1,0 +1,319 @@
+# Frozen shrink-only baseline for the zero-producer lint (WP01, FR-001/SC-001).
+#
+# THIS IS NOT AN ALLOWLIST. An allowlist entry is permanently excused. A baseline
+# entry is DEBT: it has a named owner, a required structural fix, and a test
+# (`test_a_baseline_entry_does_not_survive_its_owner`) that fails the moment the
+# owner completes with the entry still here. `ALLOWLIST` stays `frozenset()`.
+#
+# Ratchet semantics (charter Burn-down Policy §a, `frozen-baseline-shrink-only-ratchet`):
+#   - a finding NOT in this file  -> FAILS the gate
+#   - a baseline entry no longer found -> WARNS, and the entry should be deleted
+#
+# Why a baseline at all: SC-001 asked for a zero-entry allowlist, but the lint's
+# first run on the shipped tree returned 41 findings whose owners run AFTER this
+# work package (WP05) or in a later mission (Mission D / I9). The dependency is
+# inverted; the criterion was written against a tree that turned out not to be
+# clean. Operator ruling, doctrine-silence-guards-01KYFV7Q.
+#
+# `disposition` vocabulary is exactly three values. There is deliberately no
+# `accepted`, no `wont-fix`, no `by-design`:
+#   wire-the-producer       something should fill this and nothing does
+#   delete-the-declaration  nothing should fill this; the declaration is the defect
+#   fix-the-lint-definition a false positive; the CHECKER changes, never the baseline
+#
+# `provisional: true` marks an entry whose disposition has NOT been adjudicated.
+# WP01 recorded the evidence but did not decide, so a provisional guess cannot
+# harden into the record. An entry with a named owner may NOT be provisional --
+# that owner's disposition is theirs to decide and record;
+# `test_baseline_entries_are_well_formed` pins it. The converse does not hold: the
+# occurrence-map `from` entry below is un-owned but operator-adjudicated.
+#
+# KNOWN UNDER-COUNT: the lint matches slot names globally, with no namespacing, so
+# a slot is masked whenever an unrelated same-named producer exists anywhere under
+# src/. The live example is `overrides` — the exact twin of the four `enhances`
+# entries below, retired by the same FR-028 cutover, absent from this file only
+# because `src/specify_cli/cli/commands/agent/tasks_status_cmd.py` and
+# `src/specify_cli/review/arbiter.py` use `overrides` as a local name. The error
+# direction is always false-NEGATIVE, so the true debt is >= 41. WP05 must excise
+# all eight `enhances`/`overrides` schema properties, not the four listed here.
+
+# WP owners without a `mission:` prefix are work packages of this mission.
+mission: doctrine-silence-guards-01KYFV7Q
+
+entries:
+
+  # --- WP05/T024: the FR-028 hard cutover left the schemas behind -----------
+  # `paradigms|procedures|styleguides|tactics/models.py` each carry
+  # `_RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")` and a
+  # `@model_validator` that RAISES on either. The schemas still advertise
+  # `enhances` as a valid property. Authoring it is a hard load error, so the
+  # schema documents a shape the loader rejects. See the under-count note above:
+  # the four `overrides` twins are masked, and are WP05's to remove as well.
+  - name: enhances
+    declared_at: src/doctrine/schemas/paradigm.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; paradigms/models.py raises on it.
+  - name: enhances
+    declared_at: src/doctrine/schemas/procedure.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; procedures/models.py raises on it.
+  - name: enhances
+    declared_at: src/doctrine/schemas/styleguide.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; styleguides/models.py raises on it.
+  - name: enhances
+    declared_at: src/doctrine/schemas/tactic.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; tactics/models.py raises on it.
+
+  # --- Mission D / I9: import_candidates has no producer yet ----------------
+  # There is no import-candidate artefact anywhere under src/. The only
+  # instances in the repository are the model's own test fixtures under
+  # tests/doctrine/fixtures/import-candidate/. The sequencing authority records
+  # I9 as the step that "gives import_candidates its first real producer", so
+  # the whole kind is scheduled debt rather than a mistake.
+  - name: accessed_on
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: accessed_on
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: adaptation
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: adaptation
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: adaptation_notes
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: adaptation_notes
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: attribution_reason
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: attribution_reason
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: external_references
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: external_references
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: extraction_action
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: extraction_action
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: publisher
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: publisher
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: resulting_artifacts
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: resulting_artifacts
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: source_references
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: source_references
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: target_concepts
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: target_concepts
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+
+  # --- Adjudicated by the operator, owner still to be named -----------------
+  # Occurrence maps are authored per-mission under kitty-specs/, which the
+  # adopted producer definition excludes (producers are src/-only), and
+  # src/specify_cli/bulk_edit/occurrence_map.py only READS the key
+  # (entry.get("from"), lines 209 and 331). Flagged because of where producers
+  # are allowed to live, not because nothing fills it -- so the checker is what
+  # changes here, never this file.
+  - name: from
+    declared_at: src/doctrine/schemas/occurrence-map.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    note: >-
+      Producer scope artefact: occurrence maps are authored under kitty-specs/,
+      outside the src/-only producer definition. Operator-adjudicated.
+
+  # --- Not adjudicated. Evidence recorded, disposition provisional ----------
+  # `Mission` in missions/models.py documents itself as "the schema-generation
+  # model ... NOT the runtime domain model used by MissionTemplateRepository
+  # (which operates on raw dicts)". `orchestration` is a REQUIRED field with no
+  # default, yet the four shipped mission_types/*.yaml carry only
+  # schema_version/id/display_name. Nothing under src/ constructs a `Mission`.
+  - name: from
+    declared_at: src/doctrine/schemas/mission.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Mission is a schema-generation-only model; no shipped artefact uses this shape.
+  - name: from_state
+    declared_at: src/doctrine/missions/models.py
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: >-
+      Field(alias="from") on the schema-generation-only Mission model; the wire
+      key `from` is unpopulated too, so neither spelling has a producer.
+  - name: 'on'
+    declared_at: src/doctrine/missions/models.py
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Mission is a schema-generation-only model; no shipped artefact uses this shape.
+  - name: 'on'
+    declared_at: src/doctrine/schemas/mission.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Mission is a schema-generation-only model; no shipped artefact uses this shape.
+  - name: orchestration
+    declared_at: src/doctrine/missions/models.py
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: >-
+      REQUIRED field with no default that no shipped artefact fills -- the model
+      cannot be constructed from the tree as it stands.
+  - name: orchestration
+    declared_at: src/doctrine/schemas/mission.schema.yaml
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: >-
+      REQUIRED field with no default that no shipped artefact fills -- the model
+      cannot be constructed from the tree as it stands.
+
+  # model_task_routing: the reader/writer asymmetry firing on a live case.
+  # loader.py:96-106 READS these (catalog.routing_policy.freshness_policy,
+  # freshness.max_catalog_age_hours). The shipped catalog mentions them only
+  # inside a comment block (lines 597-603) explaining that the catalog must
+  # "never wall-clock-expire". The staleness check is therefore unreachable on
+  # the shipped catalog -- possibly intentional, but intentional-and-inert.
+  - name: freshness_policy
+    declared_at: src/doctrine/model_task_routing/models.py
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Read by loader.py; present in the shipped catalog only as a comment.
+  - name: freshness_policy
+    declared_at: src/doctrine/schemas/model-to-task_type.schema.yaml
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Read by loader.py; present in the shipped catalog only as a comment.
+  - name: max_catalog_age_hours
+    declared_at: src/doctrine/model_task_routing/models.py
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Read by loader.py; present in the shipped catalog only as a comment.
+  - name: max_catalog_age_hours
+    declared_at: src/doctrine/schemas/model-to-task_type.schema.yaml
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Read by loader.py; present in the shipped catalog only as a comment.
+  - name: pricing_source_url
+    declared_at: src/doctrine/model_task_routing/models.py
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Declared on ModelCost; no shipped catalog entry carries it.
+  - name: pricing_source_url
+    declared_at: src/doctrine/schemas/model-to-task_type.schema.yaml
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Declared on ModelCost; no shipped catalog entry carries it.
+
+  # agent-profile aliases that no shipped profile authors. Mapped in both
+  # profile.py and schema_models.py via Field(alias=...); none of the 18
+  # profiles under agent_profiles/built-in/ carries any of them. Note the
+  # Python-side names are invisible to this lint: those models live in
+  # profile.py / schema_models.py, not a models.py.
+  - name: avatar-image
+    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
+    owner: unassigned
+    disposition: delete-the-declaration
+    provisional: true
+    note: No shipped agent profile authors this key.
+  - name: styleguide-references
+    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
+    owner: unassigned
+    disposition: delete-the-declaration
+    provisional: true
+    note: No shipped agent profile authors this key.
+  - name: toolguide-references
+    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
+    owner: unassigned
+    disposition: delete-the-declaration
+    provisional: true
+    note: No shipped agent profile authors this key.
+
+  # Sits directly next to mission B2's `aliases` -- the field this lint exists
+  # to guard. The only shipped pack, built-in/spec-kitty-core.glossary-pack.yaml,
+  # does not carry it.
+  - name: banned_synonyms
+    declared_at: src/doctrine/glossary_packs/models.py
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: Enforcement field; the one shipped glossary pack does not author it.

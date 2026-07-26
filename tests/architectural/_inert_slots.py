@@ -28,10 +28,28 @@ import ast
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-__all__ = ["ALLOWLIST", "InertSlot", "find_inert_slots"]
+from specify_cli.status.reducer import materialize_snapshot
+
+__all__ = [
+    "ALLOWLIST",
+    "BASELINE_PATH",
+    "COMPLETED_LANES",
+    "DISPOSITIONS",
+    "UNASSIGNED_OWNER",
+    "Baseline",
+    "BaselineEntry",
+    "BaselineError",
+    "InertSlot",
+    "find_inert_slots",
+    "load_baseline",
+    "owner_is_complete",
+    "ratchet",
+    "unresolved_by_completed_owners",
+]
 
 #: Zero entries, permanently. A finding is a producer that was never wired or a
 #: declaration that should be deleted; ``test_allowlist_is_empty`` pins this.
@@ -252,3 +270,191 @@ def find_inert_slots(root: Path) -> list[InertSlot]:
         if slot.name not in producers and slot.name not in ALLOWLIST
     ]
     return sorted(inert, key=lambda slot: (slot.name, str(slot.declared_at)))
+
+
+# ------------------------------------------------- the frozen shrink-only baseline
+#
+# The baseline is NOT a second allowlist. An allowlist entry is permanently
+# excused; a baseline entry is debt with a named owner, a required structural
+# fix, and :func:`owner_is_complete` standing behind it. ``ALLOWLIST`` stays
+# ``frozenset()`` — see the baseline file's header for the full distinction.
+
+BASELINE_PATH = Path(__file__).with_name("_inert_slots_baseline.yaml")
+
+#: Exactly three structural answers. There is deliberately no ``accepted``, no
+#: ``wont-fix``, no ``by-design`` — "leave it alone" is not a disposition.
+DISPOSITIONS = frozenset(
+    {"wire-the-producer", "delete-the-declaration", "fix-the-lint-definition"}
+)
+
+UNASSIGNED_OWNER = "unassigned"
+_MISSION_OWNER_PREFIX = "mission:"
+_MISSIONS_DIR = "kitty-specs"
+_EVENT_LOG = "status.events.jsonl"
+
+#: A WP counts as complete at ``approved``, not only at ``done``. ``done`` lands
+#: at merge, so a ``done``-only gate would fire on the mainline after the fact.
+#: ``approved`` is the reviewer's sign-off — the actionable moment, and the exact
+#: point at which an owner could otherwise walk away from its entries.
+COMPLETED_LANES = frozenset({"approved", "done"})
+
+
+class BaselineError(ValueError):
+    """The baseline file is malformed. Fail loud: a silently-skipped entry is a hole."""
+
+
+@dataclass(frozen=True)
+class BaselineEntry:
+    """One frozen finding: what it is, who must clear it, and how."""
+
+    name: str
+    declared_at: Path
+    owner: str
+    disposition: str
+    note: str
+    provisional: bool
+
+    @property
+    def slot(self) -> InertSlot:
+        return InertSlot(name=self.name, declared_at=self.declared_at)
+
+
+@dataclass(frozen=True)
+class Baseline:
+    """The parsed baseline file."""
+
+    mission: str
+    entries: tuple[BaselineEntry, ...]
+
+    @property
+    def slots(self) -> frozenset[InertSlot]:
+        return frozenset(entry.slot for entry in self.entries)
+
+
+def _require_str(raw: object, field: str, index: int) -> str:
+    if not isinstance(raw, str) or not raw.strip():
+        raise BaselineError(
+            f"baseline entry {index}: {field!r} must be a non-empty string, "
+            f"got {raw!r}. Quote YAML-ambiguous names such as 'on' and 'yes'."
+        )
+    return raw
+
+
+def _parse_entry(raw: object, index: int) -> BaselineEntry:
+    if not isinstance(raw, dict):
+        raise BaselineError(f"baseline entry {index} is not a mapping: {raw!r}")
+    disposition = _require_str(raw.get("disposition"), "disposition", index)
+    if disposition not in DISPOSITIONS:
+        raise BaselineError(
+            f"baseline entry {index}: illegal disposition {disposition!r}. "
+            f"Legal values are {sorted(DISPOSITIONS)} — there is no 'accepted'."
+        )
+    provisional = raw.get("provisional", False)
+    if not isinstance(provisional, bool):
+        raise BaselineError(
+            f"baseline entry {index}: 'provisional' must be a bool, got {provisional!r}"
+        )
+    return BaselineEntry(
+        name=_require_str(raw.get("name"), "name", index),
+        declared_at=Path(_require_str(raw.get("declared_at"), "declared_at", index)),
+        owner=_require_str(raw.get("owner"), "owner", index),
+        disposition=disposition,
+        note=_require_str(raw.get("note"), "note", index),
+        provisional=provisional,
+    )
+
+
+def load_baseline(path: Path = BASELINE_PATH) -> Baseline:
+    """Parse and validate the frozen baseline, raising on anything malformed."""
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise BaselineError(f"{path} does not contain a mapping")
+    mission = _require_str(document.get("mission"), "mission", -1)
+    raw_entries = document.get("entries")
+    if not isinstance(raw_entries, list):
+        raise BaselineError(f"{path}: 'entries' must be a list")
+    entries = tuple(
+        _parse_entry(raw, index) for index, raw in enumerate(raw_entries)
+    )
+    seen: set[InertSlot] = set()
+    for entry in entries:
+        if entry.slot in seen:
+            raise BaselineError(
+                f"duplicate baseline entry for {entry.name!r} at {entry.declared_at}"
+            )
+        seen.add(entry.slot)
+    return Baseline(mission=mission, entries=entries)
+
+
+def ratchet(
+    found: list[InertSlot], baseline: Baseline
+) -> tuple[list[InertSlot], list[BaselineEntry]]:
+    """Split findings against the baseline into ``(new, cleared)``.
+
+    ``new`` — findings absent from the baseline. Growth: the gate FAILS.
+    ``cleared`` — baseline entries no longer found. Shrinkage: the gate WARNS and
+    the entry should be deleted from the file.
+    """
+    frozen = baseline.slots
+    new = [slot for slot in found if slot not in frozen]
+    still_found = set(found)
+    cleared = [entry for entry in baseline.entries if entry.slot not in still_found]
+    return new, cleared
+
+
+def _mission_work_packages(root: Path, mission_slug: str) -> dict[str, Any]:
+    """Reduced WP states for *mission_slug*, or ``{}`` when it has no event log.
+
+    Uses :func:`materialize_snapshot`, the read-only sibling of ``materialize``:
+    a test must never write ``status.json`` into a mission directory as a side
+    effect of reading it.
+    """
+    mission_dir = root / _MISSIONS_DIR / mission_slug
+    if not (mission_dir / _EVENT_LOG).is_file():
+        return {}
+    states: dict[str, Any] = materialize_snapshot(mission_dir).work_packages
+    return states
+
+
+def owner_is_complete(owner: str, *, root: Path, mission: str) -> bool:
+    """Has *owner* finished, such that its baseline entries should be gone?
+
+    ``unassigned``      never complete — visible pressure, not a resting place.
+    ``WP##``            a work package of *mission*; complete at ``approved``/``done``.
+    ``mission:<slug>``  complete when the mission has work packages and all of
+                        them are complete.
+    """
+    if owner == UNASSIGNED_OWNER:
+        return False
+    if owner.startswith(_MISSION_OWNER_PREFIX):
+        slug = owner.removeprefix(_MISSION_OWNER_PREFIX)
+        states = _mission_work_packages(root, slug)
+        return bool(states) and all(
+            state.get("lane") in COMPLETED_LANES for state in states.values()
+        )
+    state = _mission_work_packages(root, mission).get(owner)
+    return state is not None and state.get("lane") in COMPLETED_LANES
+
+
+def unresolved_by_completed_owners(
+    found: list[InertSlot], baseline: Baseline, *, root: Path
+) -> dict[str, list[BaselineEntry]]:
+    """Baseline entries still present whose owner has already completed.
+
+    This is the anti-weasel check. Without it the baseline is an allowlist with
+    better manners: an owner could mark itself complete and leave its entries
+    sitting here forever.
+    """
+    still_found = set(found)
+    offenders: dict[str, list[BaselineEntry]] = {}
+    completion: dict[str, bool] = {}
+    for entry in baseline.entries:
+        if entry.slot not in still_found:
+            continue
+        if entry.owner not in completion:
+            completion[entry.owner] = owner_is_complete(
+                entry.owner, root=root, mission=baseline.mission
+            )
+        if completion[entry.owner]:
+            offenders.setdefault(entry.owner, []).append(entry)
+    return offenders
