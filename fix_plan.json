@@ -1,18 +1,21 @@
 {
-  "root_cause": "Unsafe mission selectors flow through orchestrator-api read endpoints into the canonical read-path resolver, which correctly calls assert_safe_path_segment and raises ValueError for '..' or '../traversal'. The orchestrator-api mission resolver adapter handles StatusReadPathNotFound and normal absent-mission cases, but without translating ValueError at that shared boundary the exception escapes Typer command execution and is rendered as a raw traceback instead of the JSON-first error envelope required by the machine contract.",
+  "root_cause": "The shared orchestrator-api mission resolver funnels --mission selectors through resolve_handle_to_read_path, which correctly calls assert_safe_path_segment and raises ValueError for values containing '..'. The machine-facing resolver adapter only translated resolver-specific not-found/fail-closed errors into JSON envelopes, so the safe-path ValueError escaped Typer/Click command execution and surfaced as a raw Python traceback instead of the orchestrator-api error envelope.",
   "target_files": [
     "src/specify_cli/orchestrator_api/commands.py",
     "tests/agent/test_json_envelope_contract_integration.py"
   ],
   "target_functions": [
     "_resolve_mission_dir_or_fail",
-    "TestRootCLIOrchestratorAPI.test_unsafe_mission_selector_through_root_returns_json"
+    "TestRootCLIPath.test_unsafe_mission_selector_through_root_returns_json"
   ],
-  "approach": "Add a narrow ValueError catch in _resolve_mission_dir_or_fail, immediately alongside the existing StatusReadPathNotFound translation, and map it to _fail(command, \"INVALID_MISSION\", ...) with a data.message field containing the guard message. Keep the safe-path guard in the resolver unchanged so traversal remains fail-closed; only the orchestrator-api error presentation changes. Add a root-CLI regression test covering mission-state, list-ready, and resolve-workspace with unsafe --mission values, asserting stdout is parseable JSON with success=false, the specific orchestrator-api.<command> value, and error_code INVALID_MISSION.",
+  "approach": "Handle unsafe selector ValueError at the existing shared _resolve_mission_dir_or_fail seam so every orchestrator-api subcommand that accepts --mission gets the same JSON-first behavior. Map the exception to an INVALID_MISSION envelope with the original diagnostic in data.message, preserving existing StatusReadPathNotFound and MISSION_NOT_FOUND handling. Add a root-CLI regression test that invokes mission-state, list-ready, and resolve-workspace with '..' selectors and asserts non-zero parseable JSON with no traceback.",
   "tests_to_add": [
-    "Parametrized regression in tests/agent/test_json_envelope_contract_integration.py for unsafe --mission selectors on mission-state, list-ready, and resolve-workspace through the root orchestrator-api command, asserting JSON envelope instead of traceback"
+    "Parameterized root CLI regression covering orchestrator-api mission-state --mission ../traversal",
+    "Parameterized root CLI regression covering orchestrator-api mission-state --mission ..",
+    "Parameterized root CLI regression covering orchestrator-api list-ready --mission ../traversal",
+    "Parameterized root CLI regression covering orchestrator-api resolve-workspace --mission .. --wp WP01"
   ],
   "expected_loc": 35,
-  "risk_notes": "Catching all ValueError at this boundary could accidentally classify an unrelated resolver ValueError as INVALID_MISSION, but the try block is scoped to mission directory resolution and the known source is the canonical path-segment guard.",
-  "out_of_scope_observations": "Related human-facing command tracebacks such as next/research are covered by issue #2878 and should not be changed in this orchestrator-api machine-contract fix."
+  "risk_notes": "Catching broad ValueError at the resolver adapter could accidentally classify unrelated resolver ValueErrors as INVALID_MISSION; keep the catch tightly scoped around mission resolution and preserve the message for diagnosis.",
+  "out_of_scope_observations": "The related human-facing next/research traceback from issue #2878 is a separate CLI surface and should not be changed in this fix."
 }
