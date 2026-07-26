@@ -188,6 +188,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **The merge review-readiness check no longer writes a stray `status.json`
+  during a merge (#2934).** The check that looks for a rejected review before
+  merge was reducing mission status through the *writing* materializer, so it
+  left a `status.json` snapshot on disk as a side effect. On a mission with no
+  status events yet, that snapshot had no matching `status.events.jsonl` (the
+  append-only event log that is the real source of truth), and the merge could
+  commit the orphaned snapshot on its own — the invalid "snapshot without its
+  event log" state the status doctor flags. The check now reads status without
+  writing anything; a gate reads, it does not persist. Includes the regression
+  test and a de-mocked planning-only merge test that exposed the shape.
+
 - **Running Spec Kitty non-interactively (agents, CI, piped input) no longer
   hangs waiting for a prompt that will never be answered (#2876; extended in
   #2912; landed by #2910).** Under `SPEC_KITTY_NON_INTERACTIVE=1`, `spec-kitty plan` and

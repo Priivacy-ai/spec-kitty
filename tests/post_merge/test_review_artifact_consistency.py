@@ -134,6 +134,42 @@ def test_latest_rejected_review_artifact_conflicts_with_approved_wp(
     assert diagnostic["remediation"]
 
 
+def test_find_conflicts_does_not_materialize_status_json(
+    tmp_path: Path,
+) -> None:
+    """#2934: the merge-readiness check must not write ``status.json``.
+
+    ``find_rejected_review_artifact_conflicts`` is a gate — it reads state to
+    decide whether a rejected review blocks merge; it must not persist anything.
+    It previously reduced via ``materialize`` (which writes ``status.json`` as a
+    side effect). On a mission whose event log is empty/absent that orphaned a
+    derived ``status.json`` with no backing ``status.events.jsonl`` — the invalid
+    state ``validate`` flags — which the merge then committed alone. Reducing via
+    the read-only ``materialize_snapshot`` removes the write while returning the
+    identical snapshot.
+    """
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KQKV85APPROVED000000001",
+    )
+    # Precondition: the fixture wrote only the event log, never status.json.
+    assert not mission.status_snapshot_path.exists()
+
+    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+    # Correctness preserved: no rejected review artifact → no findings.
+    assert findings == []
+    # The gate reads; it does not persist. No orphan status.json.
+    assert not mission.status_snapshot_path.exists(), (
+        "find_rejected_review_artifact_conflicts must not materialize "
+        "status.json — a merge-readiness check reads, it does not persist (#2934)."
+    )
+
+
 def test_latest_rejected_review_artifact_conflicts_with_done_wp(
     tmp_path: Path,
 ) -> None:
