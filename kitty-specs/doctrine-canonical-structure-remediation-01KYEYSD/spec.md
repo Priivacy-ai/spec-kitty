@@ -148,6 +148,54 @@ and the two existing authored tension edges (`directive.graph.yaml:90-93`, `:103
 architecture rather than fighting it: **ADR-D3 makes `impacts` authored-only, never derived** —
 the same principle as the authored-edge tier.
 
+### Correction to the sequencing authority: I3a is not a one-file campsite
+
+The sequencing authority ranks **I3a** third — *"wire `generate_schemas --check` into CI, 1
+workflow file, closes a verified gap."* The gap is real (`--check` exists; zero references in
+`.github/`), but the cost estimate is wrong, and wiring the gate as-is would immediately go red.
+
+Measured: `--check` **exits 1 today** with **7 stale schemas**. Regenerating produces three
+distinct divergence classes, only one of which is safe to accept:
+
+| Divergence | Direction | Disposition |
+| --- | --- | --- |
+| `enhances` / `overrides` removed from tactic/styleguide schemas | Models retired them (`_RETIRED_RELATIONSHIP_FIELDS`, `tactics/models.py:14`); the schemas still bless them | **Safe** — regeneration finishes a half-done excision. Same residue class as `directive_refs`. |
+| `structural_lint_config` removed from the styleguide schema | It is a **real declared model field** (`styleguides/models.py:92`) that the generator **fails to emit** | **Generator bug.** Accepting the deletion would invalidate `common-docs.styleguide.yaml`, which uses it. Fix the generator. |
+| `point_in_time_marker` removed | Declared in **no model**, yet **used by a shipped artefact** (`common-docs.styleguide.yaml`) | Silently ignored today, because the models lack `extra="forbid"`. Either add it to the model or remove it from the artefact — decide, don't regenerate blindly. |
+
+Also a definition rename (`reference` → `paradigm_reference`) whose `$ref` targets must be
+verified, and `mission_step_template_ref` newly emitted.
+
+So I3a's real shape is: **fix the generator, adjudicate two fields, regenerate, then wire the
+gate** — not one workflow file. Note the third row is itself an argument for I3c: a field in a
+shipped artefact that no model declares is exactly what `extra="forbid"` would have caught.
+
+**Status: not wired.** Wiring `--check` before this reconciliation would put a red gate on the
+branch and invite someone to "fix" it by accepting a regeneration that deletes valid schema.
+
+### I5's "two drifted AMMERSE copies" — target not yet pinned
+
+Searched for the second definition and did not find it where the estimate implies. Under
+`src/doctrine/` exactly **one** artefact defines the AMMERSE axes
+(`tactics/built-in/analysis/ammerse-impact-analysis.tactic.yaml`, 13 axis-name hits). The only
+other hits repo-wide are `.kittify/charter/charter.yaml` and `.kittify/charter/references.yaml`
+— the **compiled charter bundle**, which is generated, so divergence there is a staleness
+symptom rather than a second authored copy.
+
+So before I5 is actionable someone must name the second copy. Likely candidates: the tactic's
+prose definitions vs the axis ids in `docs/plans/doctrine/_ammerse-corpus-36-practices.json`, or
+the design authority's own §2 table. **Do not "unify" the compiled charter** — that is a
+regeneration target, not a source.
+
+### Both corrections above discharge a limitation the design authority states about itself
+
+The reviewer-facing companion is explicit: *"nothing was executed — every claim about how the
+existing codebase behaves is a careful static read, labelled as such."* These two findings are
+the first *executed* checks against that band, and both moved: I3a is not one workflow file, and
+I5's target is unconfirmed. That is the static-read caveat being discharged as intended, not a
+defect in the design work — but it does mean the ~9–12 file / 2–3 day campsite estimate should be
+re-priced before it is committed to.
+
 ### Ship-first set (gates on nothing)
 
 Ranks 1–4, ~9–12 files, ~2–3 days: I19 zero-producer lint · I1a sign-vs-rationale polarity lint
