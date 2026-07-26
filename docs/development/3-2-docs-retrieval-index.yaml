@@ -7828,6 +7828,25 @@ pages:
     - {slug: "mission-a-layered-doctrine-resolution-infrastructure", text: "Mission A — Layered Doctrine Resolution (infrastructure)", level: 3}
     - {slug: "mission-b-governance-aware-context-application-layer", text: "Mission B — Governance-Aware Context (application layer)", level: 3}
     - {slug: "non-goals", text: "Non-goals", level: 2}
+  - path: "docs/plans/doctrine/manifesto-tier-primary-drivers.md"
+    title: "The Manifesto Tier — doctrine's missing primary-driver layer"
+    divio_type: "none"
+    abstract: "Meta-level analysis: doctrine implements only the middle tier of a three-tier sense-making model, having inherited an upstream scope exclusion. AMMERSE is already in-repo but mis-tiered as a tactic. Proposes a manifesto tier as the arbitration basis."
+    anchors:
+    - {slug: "summary", text: "Summary", level: 2}
+    - {slug: "1-the-slot-is-already-declared-and-it-is-empty", text: "1. The slot is already declared, and it is empty", level: 2}
+    - {slug: "three-mis-tierings-one-root-cause", text: "Three mis-tierings, one root cause", level: 3}
+    - {slug: "2-the-omission-is-inherited-and-was-deliberate", text: "2. The omission is inherited and was deliberate", level: 2}
+    - {slug: "doctrine-implements-only-the-middle-tier-both-ends-are-missing", text: "Doctrine implements only the middle tier — both ends are missing", level: 3}
+    - {slug: "3-ammerse-is-already-in-the-repository-mis-tiered-and-inert", text: "3. AMMERSE is already in the repository, mis-tiered and inert", level: 2}
+    - {slug: "4-why-a-manifesto-solves-precedence-and-better-than-a-ranked-list", text: "4. Why a manifesto solves precedence, and better than a ranked list", level: 2}
+    - {slug: "5-the-payoff-the-output-bias-gets-an-exact-name", text: "5. The payoff: the output-bias gets an exact name", level: 2}
+    - {slug: "6-the-three-scopes-have-precise-meaning", text: "6. The three scopes have precise meaning", level: 2}
+    - {slug: "7-proposal", text: "7. Proposal", level: 2}
+    - {slug: "8-risks-and-one-non-negotiable", text: "8. Risks, and one non-negotiable", level: 2}
+    - {slug: "9-framing-note-for-whoever-specs-this", text: "9. Framing note for whoever specs this", level: 2}
+    - {slug: "provenance", text: "Provenance", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/doctrine/mission-b-proposed-scope.md"
     title: "Mission B (proposed scope) — Charter-mediated doctrine selection"
     divio_type: "none"

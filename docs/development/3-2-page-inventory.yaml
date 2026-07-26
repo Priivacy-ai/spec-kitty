@@ -2540,6 +2540,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/manifesto-tier-primary-drivers.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/mission-b-proposed-scope.md
   tag: current
   divio_type: none

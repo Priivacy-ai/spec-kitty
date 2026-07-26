@@ -2,7 +2,7 @@
 title: Doctrine
 description: Doctrine layering, charter boundary, and artifact-selection planning — architecture reviews, gap analyses, and mission scope notes.
 doc_status: draft
-updated: '2026-07-05'
+updated: '2026-07-26'
 related:
 - docs/plans/index.md
 ---
@@ -18,6 +18,7 @@ related mission scope notes.
 - [Doctrine Inclusion Assessment](doctrine-inclusion-assessment.md)
 - [Doctrine Migration: Architecture Alignment Review](doctrine-migration-architecture-review.md)
 - [Layered Doctrine Resolution — Design Blueprint](layered-doctrine-resolution-design.md)
+- [The Manifesto Tier — doctrine's missing primary-driver layer](manifesto-tier-primary-drivers.md)
 - [Mission B (proposed scope) — Charter-mediated doctrine selection](mission-b-proposed-scope.md)
 - [Org Doctrine Layer — Post-Implementation Architecture Review](org-doctrine-layer-architecture-review.md)
 - [Runtime → Charter → Doctrine — boundary audit and recommendations](runtime-charter-doctrine-boundary.md)
