@@ -1020,17 +1020,19 @@ class TestPlanningArtifactReachesTarget:
         Because the pipeline is real, the two WPs are seeded to ``approved``
         through the real status-emit pipeline first (as a finished mission would
         be), so the done transitions the merge appends produce a genuine
-        ``status.events.jsonl``. This is what proves the load-bearing invariant:
-        the done-recording commit carries the status *pair* — the append-only
-        event log (sole authority) AND its derived ``status.json`` — to the
-        target branch, not the snapshot alone (the #2934 data-loss shape).
+        ``status.events.jsonl``. The observable guarantees here are that both WPs
+        persist as done and that bookkeeping requests the status *pair* — the
+        append-only event log (sole authority) AND its derived ``status.json``.
+        ``commit_merge_bookkeeping`` remains a boundary spy, so this test does
+        not independently prove target-branch history.
 
         History: an earlier version mocked ``_mark_wp_merged_done`` to pin the
-        call-contract. That stub manufactured a zero-event mission the real flow
-        can never produce, so ``status.events.jsonl`` was never written and the
-        committed-path assertion below tracked a mock artifact rather than real
-        behavior (surfaced as #2934). Mocking internal system-under-test logic is
-        the antipattern; boundaries are the only legitimate seam.
+        call-contract. That stub manufactured a zero-event mission the successful
+        approved-to-done closeout path represented here cannot produce, so
+        ``status.events.jsonl`` was never written and the requested-path assertion
+        below tracked a mock artifact rather than real behavior (surfaced as
+        #2934). Mocking internal system-under-test logic is the antipattern;
+        boundaries are the only legitimate seam.
         """
         from specify_cli.status.models import Lane
         from specify_cli.status.reducer import reduce
@@ -1104,8 +1106,8 @@ class TestPlanningArtifactReachesTarget:
         for call in mocks["safe_commit"].call_args_list:
             committed_paths.update(_rel_paths(call.kwargs.get("paths"), tmp_path))
         assert f"kitty-specs/{slug}/meta.json" in committed_paths
-        # The append-only event log (sole authority) MUST reach the target
-        # branch alongside its derived snapshot — never the snapshot alone.
+        # The append-only event log (sole authority) must be requested alongside
+        # its derived snapshot — never the snapshot alone.
         assert f"kitty-specs/{slug}/status.events.jsonl" in committed_paths
         assert f"kitty-specs/{slug}/status.json" in committed_paths
 

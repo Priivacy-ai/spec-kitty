@@ -170,6 +170,25 @@ def test_find_conflicts_does_not_materialize_status_json(
     )
 
 
+def test_find_conflicts_does_not_orphan_snapshot_when_event_log_absent(
+    tmp_path: Path,
+) -> None:
+    """#2934: an absent event log must remain absent without an orphan snapshot."""
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="planned"))
+
+    assert not mission.status_events_path.exists()
+    assert not mission.status_snapshot_path.exists()
+
+    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+    assert findings == []
+    assert not mission.status_events_path.exists()
+    assert not mission.status_snapshot_path.exists(), (
+        "an absent event log must not gain an orphan status.json during readiness checks"
+    )
+
+
 def test_latest_rejected_review_artifact_conflicts_with_done_wp(
     tmp_path: Path,
 ) -> None:
