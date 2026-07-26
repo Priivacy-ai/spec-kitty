@@ -27,8 +27,8 @@ def _clean_agent_env(monkeypatch: pytest.MonkeyPatch) -> None:
     ("argv", "expected"),
     [
         (["init"], True),
-        (["--version"], True),
-        (["-v"], True),
+        (["--version"], False),
+        (["-v"], False),
         (["merge", "--feature", "001-test"], False),
         (["research"], False),
         (["agent", "feature", "check-prerequisites", "--json"], False),
@@ -71,8 +71,8 @@ def test_banner_is_suppressed_for_agent_runtime_markers(
     assert helpers._should_render_banner_for_invocation(["init"]) is False
 
 
-def test_version_callback_renders_banner(monkeypatch: pytest.MonkeyPatch) -> None:
-    """--version should still render the banner before printing version text."""
+def test_version_callback_does_not_render_banner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """--version should print copyable version text without a banner."""
     # Arrange
     calls: list[bool] = []
 
@@ -88,4 +88,4 @@ def test_version_callback_renders_banner(monkeypatch: pytest.MonkeyPatch) -> Non
     with pytest.raises(typer.Exit):
         cli_module.version_callback(True)
 
-    assert calls == [True]
+    assert calls == []
