@@ -4,7 +4,15 @@ This is the **immutable** contract the golden characterization test (WP01) pins.
 names, flag names, flag defaults, positional args, exit codes, or JSON-envelope keys is a **regression**,
 not a refactor. Source of truth: `mission.py` on base `c3814ec5a` (research.md §1).
 
-`app = typer.Typer(name="mission", no_args_is_help=True)` — exposes exactly **8 subcommands**.
+`app = typer.Typer(name="mission", no_args_is_help=True)` — exposes exactly **8 subcommands** at
+the original #2056 base (`c3814ec5a`).
+
+> **Amendment (coord-write-placement-closure-01KYCF83 WP08, FR-005/NFR-005):** a 9th subcommand,
+> `repair`, was added afterward (the Gap-2 cross-partition content repair cure — distinct from
+> `doctor coordination --fix` and `doctor mission-state --fix`; see
+> `kitty-specs/coord-write-placement-closure-01KYCF83/tracers/design-decisions.md`). The table
+> below is amended in place to track the live 9-subcommand surface rather than treated as
+> append-only drift, per DIRECTIVE_044 (canonical sources / no split-brain contract copies).
 
 ## Subcommands, args, flags
 
@@ -18,6 +26,7 @@ not a refactor. Source of truth: `mission.py` on base `c3814ec5a` (research.md �
 | `accept` | `accept_feature` | — | `--mission`, `--mode`, `--json`, `--lenient`, `--no-commit`, `--diagnose` |
 | `merge` | `merge_feature` | — | `--mission`, `--target`, `--strategy`, `--push`, `--dry-run`, `--keep-branch`, `--keep-worktree`, `--auto-retry/--no-auto-retry` |
 | `finalize-tasks` | `finalize_tasks` | — | `--mission`, `--json`, `--validate-only`, `--target-branch` |
+| `repair` | `repair` | — | `--mission` |
 
 ## Envelope & exit-code invariants (must also be pinned)
 
@@ -33,7 +42,7 @@ not a refactor. Source of truth: `mission.py` on base `c3814ec5a` (research.md �
 
 ## Golden test assertions (WP01)
 
-1. `CliRunner` invoking `app` with `--help` lists exactly the 8 command names above.
+1. `CliRunner` invoking `app` with `--help` lists exactly the 9 command names above.
 2. For each subcommand, `--help` lists exactly the flags in the table above (names + defaults).
 3. Representative success JSON envelope keys are asserted for at least `branch-context --json` and
    `check-prerequisites --json`.

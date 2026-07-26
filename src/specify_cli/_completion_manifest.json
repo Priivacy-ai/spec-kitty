@@ -104,6 +104,11 @@
        "help": "Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.\n\nThis command is designed to be called after LLM generates WP files via /spec-kitty.tasks.\nIt post-processes the generated files to add dependency information and commits everything.\n\nUse --validate-only to check for issues (missing requirement mappings, ownership overlaps,\ndependency cycles) without making any changes or committing.\n\nBootstrap Mutation Surface (FR-003 / SC-002)\n=============================================\nThe 8 frontmatter fields below may be written or overwritten by this command.\nWhen ``--validate-only`` is active, ALL writes are skipped — the\n``frontmatter_changed and not validate_only`` guard ensures zero bytes of\nmutation on disk (INV-6). In validate-only mode the bootstrap loop still\ninfers all 8 fields in memory so downstream validation operates against the\npost-bootstrap state — not the stale on-disk frontmatter.\n\nSee also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via\n``build_document() + write_text()`` — guarded the same way (T002).\n\nExamples:\n    spec-kitty agent mission finalize-tasks --mission 020-my-feature --json\n    spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json",
        "hidden": false,
        "deprecated": false
+      },
+      "repair": {
+       "help": "Detect and forward-only repair a pre-existing cross-partition content\nsplit-brain for one mission (FR-005, NFR-005).\n\nFast-forwards under strict-ancestor + clean worktree, zero data loss.\nRefuses with a unified diff (scoped to the mission's own content) and\nmutates NOTHING on genuine (non-ancestor) divergence.\n\nExamples:\n    spec-kitty agent mission repair --mission 020-my-mission",
+       "hidden": false,
+       "deprecated": false
       }
      }
     },
@@ -1193,6 +1198,11 @@
     },
     "opt-in": {
      "help": "Enable SaaS sync for this checkout.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "import-history": {
+     "help": "Materialize existing local mission/WP history into the SaaS projection (#2262).\n\nA first sync registers a remote project/build but leaves it with zero\nmaterialized missions — the SaaS materializer deliberately refuses to\nfabricate a WorkPackage from a status event with no prior create. This\ncommand emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``\nstream (INV-3) so historical work populates the projection.\n\nDry-run (default) runs the full read-only pipeline — SELECT → AUDIT\n(fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope\nstream that would be materialized. ``--apply`` additionally attaches\nprovenance, server-preflights the whole stream (fail-closed), and uploads it\nin chunks to the SaaS projection under the real persisted project UUID.\n\nImport is once-and-frozen: each event carries a deterministic id, so\nre-running after the on-disk facts change (e.g. after fixing a malformed WP\nthe dry-run flagged as skipped) re-sends the same id and the server drops the\nupdated payload as a duplicate rather than overwriting. Resolve any skipped\nor incomplete missions the dry-run reports before the first ``--apply``.",
      "hidden": false,
      "deprecated": false
     },
