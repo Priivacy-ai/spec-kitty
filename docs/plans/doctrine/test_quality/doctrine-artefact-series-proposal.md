@@ -20,6 +20,44 @@ premise — see the reconciliation note below). No files are created by this doc
 
 ---
 
+## Binding constraints (added 2026-07-26, after the proposal was first written)
+
+Two ADRs landed on this branch *because* of questions this proposal raised. They are
+**binding on the curator** and they change or retire parts of what follows:
+
+1. **[ADR 2026-07-26-1](../../../adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md)
+   — DRG edges are the canonical artefact-relationship authority.** Inline `references:`
+   blocks in artefact YAML are pre-DRG residue: frozen, closed to growth, slated for
+   migration. Consequences here:
+   - Every relationship in this series is an **edge**. No new artefact carries an inline
+     `references:` block, and no existing block gains entries.
+   - The `<kind>_reference.type` schema enums must **not** be widened. `asset` being
+     unnameable inline is correct behaviour. This retires the "asset support is not
+     end-to-end" reading of the #2918 finding (see the revised capability section below).
+   - `DIRECTIVE_041` is itself one of the 142 legacy carriers (5 inline entries). Its
+     existing block is **left alone**; the new link to the paradigm is an edge.
+2. **[ADR 2026-07-26-2](../../../adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md)
+   — artefacts live at `<type>/<pack>/[<category>/]<name>`.** The pack layer (`built-in`) is
+   mandatory and any category grouping nests *inside* it. Consequences here:
+   - Asset blobs go to `assets/built-in/<file>` or `assets/built-in/<category>/<file>` —
+     **never** `assets/<category>/built-in/`, which is the #2918 mistake.
+   - A layout gate now enforces this, so a misplaced artefact fails a test instead of
+     silently never loading.
+
+### Prior art found and removed (record, not a fold)
+
+A dormant `paradigm:test-first` ("Test-First Doctrine") and `directive:TEST_FIRST`
+("Test-First Development") were discovered outside the pack layer — never loaded, never
+activated, invisible to node discovery. The operator's call was to *reconcile* them into
+this series rather than drop them blind. On inspection there was **nothing to fold**:
+between them they carried an id, a title, and a one-line summary, with no procedures, steps,
+integrity rules, or validation criteria. They were deleted as part of the layout cleanup
+(`f7ee9fb02`). Recorded here so the reconciliation is honest rather than dressed up as a
+merge — but the *names* are a useful warning: do not let this series produce a third
+tests-doctrine authority. `DIRECTIVE_041` + the new paradigm are the authority.
+
+---
+
 ## Guiding correction — augment-heavy, not create-heavy
 
 An overlap audit against the pack's existing testing doctrine found that most of the
@@ -143,25 +181,42 @@ Every resolved-only node (asset / anti_pattern) has ≥1 inbound edge from an ac
 
 ---
 
-## Capability-awareness (intent dominates)
+## Capability-awareness (intent dominates) — REVISED 2026-07-26
 
-The sibling doctrine PR #2918 surfaced that **asset support is not end-to-end** in some usages:
-`type: asset` used as a *field inside a tactic* is schema-rejected, and manifests under
-`assets/<subdir>/built-in/**` are missed by the extractor (which scans `assets/built-in/**`).
-Per the operator's steer — *fix the root cause, do not greenwash by relabeling assets→templates;
-intent dominates over current capability* — this proposal is deliberately built on the **working**
-asset pattern to avoid those traps by construction:
+The sibling doctrine PR #2918 was read as showing that **asset support is not end-to-end**, on
+two counts. Investigation resolved both, and **neither is an asset-support defect**:
 
-- assets are referenced via **`requires`/`suggests` DRG edges** (working precedent exists), not a
-  `type: asset` field inside a tactic body;
-- asset blobs live at **`assets/built-in/<file>`** (the path the extractor scans), not a subdir.
+1. *"`type: asset` inside a tactic is schema-rejected."* — **Not a defect.** The
+   `<kind>_reference.type` enum belongs to the inline `references:` surface, which ADR
+   2026-07-26-1 pins as frozen pre-DRG residue. A kind being unnameable there is the
+   deprecated surface correctly refusing to grow. Widening it was drafted and **abandoned**:
+   it would have entrenched a second relationship authority. (Worth knowing: all four schema
+   copies of that enum had already drifted apart — they omit `asset` *and* `glossary_pack`,
+   and the `tactic` copy additionally omits `agent_profile` and `mission_step_contract`. The
+   fix is to close the surface, not to reconcile four copies of it.)
+2. *"The extractor misses `assets/<subdir>/built-in/**`."* — **Not an extractor defect.** The
+   directory was misplaced: #2918 inverted pack and category. Per ADR 2026-07-26-2 the
+   correct path is `assets/built-in/audiences/`, which the existing scan already finds via
+   `rglob`. A widening of the extractor scan was drafted and **abandoned** in favour of
+   fixing the layout and gating it.
 
-Residual verification the curator must still run (do NOT relabel to dodge them):
-1. Confirm the extractor picks up the four new `assets/built-in/*.md` blobs.
-2. Confirm CLI/canonical-validator **parity** — `spec-kitty doctrine validate` must reject the
-   same things the strict canonical tests reject (the #2918 review found a parity gap).
-3. If any of this reveals a genuine asset-support gap, closing it is **in-scope prerequisite
-   work**, not a reason to downgrade the artefacts.
+This matters as a method note, not just bookkeeping: *intent dominates over capability* means
+fix the tooling to serve the intended model — it does **not** mean assume every blocked path
+is a tooling gap. Two of the three "prerequisite fixes" this proposal originally called for
+dissolved once the intended model was actually pinned. The proposal's design was already
+right by construction (edges + `assets/built-in/` paths); what was wrong was the diagnosis of
+*why* the alternatives failed.
+
+Residual verification the curator must still run:
+
+1. Confirm the extractor picks up the four new `assets/built-in/*.md` blobs (the layout gate
+   now catches misplacement, but node *discovery* is a separate assertion).
+2. Re-evaluate the claimed CLI-vs-canonical-validator **parity gap** — `spec-kitty doctrine
+   validate` vs the strict canonical tests. Part of the originally-reported gap is likely the
+   frozen inline surface behaving correctly; characterize what genuinely diverges before
+   "fixing" it, and add a parity test for whatever remains.
+3. If a genuine asset-support gap does surface, closing it is **in-scope prerequisite work**,
+   not a reason to downgrade the artefacts.
 
 ---
 
@@ -173,16 +228,42 @@ Residual verification the curator must still run (do NOT relabel to dodge them):
 4. **URN/kind prefix** must equal kind; confirm `DIRECTIVE_047` is free (max present is 046).
 5. `enhances`/`overrides` are **not** usable on assets/anti-patterns — dedup is via `requires`→asset edges.
 6. Anti-pattern nodes **emit no edges** — route exemplar references through the good artefacts.
-7. `refines` **first use** — verify round-trip on regeneration.
+7. `refines` **first use — CONFIRMED, and it is a real risk.** Measured relation histogram
+   across all 14 shipped fragments: `suggests` 332, `requires` 259, `scope` 157, `rejects` 8,
+   `instantiates` 8, `specializes_from` 4, `reconciles_tension` 3, `in_tension_with` 2,
+   `applies` 1, **`refines` 0**. So the `041 --refines--> paradigm` edge is genuinely the
+   first in any built-in fragment. `refines` has been first-class since #2079 — which fixed a
+   silent `refines`→`applies` downgrade in the org→DRG bridge — but *nothing built-in has ever
+   exercised that fix*. Verify the round-trip explicitly on regeneration; do not assume.
 8. The 041 split must not author an accidental `in_tension_with` — the relation is `refines` (aligned, not competing).
 9. Add each anti-pattern/asset **node** in the same change as its referencing edges; regenerate the compiled graph; validate to zero errors.
+10. **Golden-count baselines move.** `tests/doctrine/drg/migration/test_extractor_projection.py`
+    pins node/edge/orphan cardinality (currently 305/757/32) with a composition ledger in the
+    constant's docstring. Every node and edge this series adds must extend that ledger with its
+    own entry — the counts are a contract, not an incidental.
+11. **Regeneration is via the CLI**, not by hand: `spec-kitty doctrine regenerate-graph`. The
+    fragments are `generated_by: drg-migration-v1`; hand-editing them desynchronizes the
+    freshness test (`test_shipped_graph_yaml_is_fresh`).
 
 ---
 
 ## Build order for the curator
 
-1. Asset blobs + sidecars; asset nodes in `asset.graph.yaml`.
-2. Paradigm; migrate `041.intent` → paradigm; shrink 041's intent to a pointer.
+0. **Prerequisite (not optional):** freeze the four `<kind>_reference.type` enums with a
+   pointer-comment to ADR 2026-07-26-1, and fix the ~10 source sites whose operator-facing
+   migration hint names `src/doctrine/graph.yaml` — a file #2680 sharded out of existence.
+   Authoring new doctrine while the system's own migration instruction is unfollowable just
+   propagates the confusion this series is meant to reduce.
+1. Asset blobs + sidecars at `assets/built-in/[<category>/]<file>`; asset nodes in `asset.graph.yaml`.
+2. Paradigm; migrate `041.intent` → paradigm; shrink 041's intent to a pointer. **Editing the
+   live `enforcement: required` `DIRECTIVE_041` is its own reviewed change — audit inbound
+   edges first.** Do not touch its existing inline `references:` block (ADR 2026-07-26-1).
 3. `DIRECTIVE_047` + `procedure:unfake-an-over-mocked-test`; two anti-pattern nodes.
 4. Excise the desiderata list + language-neutral Quad-A definition from the styleguides (keep language-specific examples inline).
-5. Author all edges; regenerate `graph.yaml`; run the reference/cross-edge audit + pack validation to zero errors; confirm the *Clear Test Boundaries* URL.
+5. Author all edges; regenerate the fragments with `spec-kitty doctrine regenerate-graph`;
+   extend the golden-count ledger; run the reference/cross-edge audit + pack validation to zero
+   errors; confirm the *Clear Test Boundaries* URL.
+6. Update the `doctrine-daphne` profile with the canonical doctrine/charter structure (layout
+   convention + edges-not-inline-refs), so the next curator invocation starts from the pinned
+   model rather than rediscovering it. A curator profile that does not carry these rules is how
+   the #2918 layout mistake happened in the first place.
