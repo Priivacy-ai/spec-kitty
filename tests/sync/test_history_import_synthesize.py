@@ -282,6 +282,88 @@ def test_dry_run_project_uuid_is_deterministic():
     assert a == uuid.uuid5(uuid.NAMESPACE_URL, "spec-kitty:teamspace-dry-run:demo-mission|other")
 
 
+# ── timestamp correctness (#2884 findings B/C) ────────────────────────────────
+
+
+def test_earliest_timestamp_compares_true_instants_not_lexicographic_strings():
+    """Mixed ISO-8601 suffix forms (``Z`` / ``+00:00`` / another offset) must
+    compare by true instant, not lexicographically (finding B, #2884): a raw
+    string ``min()`` would pick ``"...07:00:00Z"`` over ``"...08:00:00+02:00"``
+    even though the latter (06:00 UTC) is the actual earlier instant."""
+    import dataclasses
+
+    scan = dataclasses.replace(
+        _demo_scan(),
+        created_at=None,
+        work_packages=(
+            ScannedWorkPackage("WP01", "First WP", (), None, "2026-02-01T07:00:00Z", PrefixSource.SYNTHESIZED),
+            ScannedWorkPackage("WP02", "Second WP", (), None, "2026-02-01T08:00:00+02:00", PrefixSource.SYNTHESIZED),
+        ),
+        lane_transitions=(),
+    )
+    stream = synthesize_mission_stream(
+        scan, project_uuid=_PROJECT_UUID, project_slug="spec-kitty", repo_slug="acme/spec-kitty"
+    )
+    mission_created = stream[0]
+    # 2026-02-01T08:00:00+02:00 == 06:00 UTC, earlier than 07:00:00Z — a
+    # lexicographic min would have picked the Z candidate instead.
+    assert mission_created["timestamp"] == "2026-02-01T06:00:00+00:00"
+
+
+def test_wp_created_envelope_timestamp_matches_normalized_created_at():
+    """The ``WPCreated`` envelope timestamp and its payload ``created_at``
+    must agree on the same INSTANT (finding C, #2884): a parseable
+    ``created_at`` with a non-UTC offset must produce an envelope timestamp
+    normalized to UTC (consistent with what ``_earliest_timestamp`` emits
+    elsewhere), and it must name the exact same moment the payload's
+    ``created_at`` datetime does — not a raw, un-normalized passthrough."""
+    import dataclasses
+    from datetime import datetime
+
+    scan = dataclasses.replace(
+        _demo_scan(),
+        work_packages=(
+            ScannedWorkPackage("WP01", "First WP", (), None, "2026-02-01T08:00:00+02:00", PrefixSource.ON_DISK),
+        ),
+        lane_transitions=(),
+    )
+    stream = synthesize_mission_stream(
+        scan, project_uuid=_PROJECT_UUID, project_slug="spec-kitty", repo_slug="acme/spec-kitty"
+    )
+    wp_created = next(env for env in stream if env["event_type"] == "WPCreated")
+    # 08:00+02:00 == 06:00 UTC — the envelope timestamp is the normalized form.
+    assert wp_created["timestamp"] == "2026-02-01T06:00:00+00:00"
+    # The payload keeps its own (pydantic-serialized) datetime, but it must
+    # name the SAME instant as the envelope timestamp — never a differing
+    # verdict on the same underlying created_at.
+    assert datetime.fromisoformat(wp_created["payload"]["created_at"]) == datetime.fromisoformat(
+        wp_created["timestamp"]
+    )
+
+
+def test_wp_created_envelope_falls_back_to_mission_ts_when_created_at_unparseable():
+    """An unparseable ``created_at`` must fall back to ``mission_ts`` for BOTH
+    the envelope timestamp and the payload verdict. Previously the envelope
+    let the raw garbage string pass straight through
+    (``wp.created_at or mission_ts``) while the payload nulled the exact same
+    value — one envelope, two verdicts (finding C, #2884)."""
+    import dataclasses
+
+    scan = dataclasses.replace(
+        _demo_scan(),
+        created_at="2026-02-01T00:00:00+00:00",
+        work_packages=(ScannedWorkPackage("WP01", "First WP", (), None, "not-a-timestamp", PrefixSource.ON_DISK),),
+        lane_transitions=(),
+    )
+    stream = synthesize_mission_stream(
+        scan, project_uuid=_PROJECT_UUID, project_slug="spec-kitty", repo_slug="acme/spec-kitty"
+    )
+    mission_created = stream[0]
+    wp_created = next(env for env in stream if env["event_type"] == "WPCreated")
+    assert wp_created["payload"]["created_at"] is None
+    assert wp_created["timestamp"] == mission_created["timestamp"]
+
+
 # ── real fixtures end-to-end ──────────────────────────────────────────────────
 
 

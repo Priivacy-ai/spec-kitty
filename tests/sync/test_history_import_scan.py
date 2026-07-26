@@ -263,6 +263,73 @@ def test_malformed_wp_referenced_by_a_lane_transition_is_backfilled_no_orphan(tm
     assert {event.wp_id for event in scan.lane_transitions} <= set(by_id)
 
 
+# ── malformed lifecycle rows must be counted, not silently dropped (#2884 A) ──
+
+
+def test_malformed_event_type_row_is_counted_as_a_skipped_event_row(tmp_path):
+    """A row with a null (non-string) ``event_type`` is the genuinely silent
+    failure mode named in the review: valid JSON, so ``read_events`` (the
+    lane-transition reader) treats it as a skippable non-lane row and does
+    NOT fail closed the whole scan — but ``read_lifecycle_events`` also drops
+    it (its ``event_type`` isn't a ``str``), so a ``WPCreated`` row shaped
+    like this vanishes from BOTH readers with no signal at all. The scan must
+    count it (#2884 finding A) so a partial import is loud, not silent."""
+    mission_dir = tmp_path / "synthetic-truncated-01JJJJ"
+    mission_dir.mkdir(parents=True)
+    rows = [
+        {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
+        # canonical-event-exempt(exception-flow): malformed on-disk WPCreated
+        # row under test — null event_type is valid JSON but not a lifecycle
+        # row `read_lifecycle_events` will keep.
+        {"event_type": None, "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}},
+    ]
+    _write_events(mission_dir, rows)
+
+    scan = scan_mission(mission_dir)
+
+    assert scan.skipped_event_rows == 1
+    # The mission still scans successfully (fail-loud, not fail-closed) and
+    # the malformed WPCreated row truly never reaches work_packages.
+    assert scan.prefix_source is PrefixSource.ON_DISK
+    assert scan.work_packages == ()
+
+
+def test_wp_created_payload_with_no_wp_id_is_counted_not_silently_dropped(tmp_path):
+    """``_wps_from_prefix``'s ``if not wp_id: continue`` used to drop the row
+    with no log and no count. It must now be counted into
+    ``skipped_event_rows`` (#2884 finding A)."""
+    mission_dir = tmp_path / "synthetic-no-wpid-01KKKK"
+    mission_dir.mkdir(parents=True)
+    rows = [
+        {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
+        # canonical-event-exempt(exception-flow): malformed on-disk WPCreated row missing wp_id under test
+        {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_title": "No id here"}},
+        {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01", "wp_title": "Good"}},
+    ]
+    _write_events(mission_dir, rows)
+
+    scan = scan_mission(mission_dir)
+
+    assert scan.skipped_event_rows == 1
+    assert [wp.wp_id for wp in scan.work_packages] == ["WP01"]
+
+
+def test_no_malformed_rows_yields_zero_skipped_event_rows(tmp_path):
+    """The common case: a clean lifecycle prefix counts zero skips."""
+    mission_dir = tmp_path / "synthetic-clean-01LLLL"
+    _write_events(
+        mission_dir,
+        [
+            {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
+            {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}},
+        ],
+    )
+
+    scan = scan_mission(mission_dir)
+
+    assert scan.skipped_event_rows == 0
+
+
 def test_local_only_event_types_have_one_public_owner() -> None:
     """SSOT (#2884): scan's local-only filter and lifecycle's post-mission set are
     the SAME public owner object — no hand-mirrored frozenset copies to drift."""
@@ -274,7 +341,13 @@ def test_local_only_event_types_have_one_public_owner() -> None:
     from specify_cli.status.lifecycle import _POST_MISSION_EVENT_TYPES
     from specify_cli.sync.history_import.scan import _LOCAL_ONLY_EVENT_TYPES
 
-    assert frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED}) == LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
+    # actual == expected (conventional order, #2884 finding D). Bound to local
+    # names first: ruff's SIM300 (Yoda-condition) heuristic treats an ALL_CAPS
+    # name compared directly against a set literal as a constant-on-the-left
+    # false positive, so the operands are named here instead of inlined.
+    actual_local_only_types = LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
+    expected_local_only_types = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+    assert actual_local_only_types == expected_local_only_types
     # Identity (``is``), not just equality: both consumers bind the one owner.
     assert _LOCAL_ONLY_EVENT_TYPES is LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
     assert _POST_MISSION_EVENT_TYPES is LOCAL_ONLY_LIFECYCLE_EVENT_TYPES

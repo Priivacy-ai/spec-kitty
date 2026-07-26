@@ -20,6 +20,7 @@ turns a :class:`MissionScan` into the ordered, deterministic envelope stream
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -117,6 +118,13 @@ class MissionScan:
     # Fail-loud, not fail-closed: the scan survives, but the skips MUST reach
     # the operator-facing report so a partial import never reads as clean.
     skipped_wp_files: tuple[str, ...] = ()
+    # Malformed/unrecoverable rows dropped from the on-disk lifecycle prefix
+    # (status.events.jsonl): raw lines `read_lifecycle_events` silently skips
+    # (bad JSON, non-dict, or missing `event_type`) plus `WPCreated` payloads
+    # with no `wp_id`. Counted (not just logged) so a truncated prefix line
+    # surfaces here the same way a malformed WP file surfaces in
+    # `skipped_wp_files` — never a silent drop (#2884 finding A).
+    skipped_event_rows: int = 0
 
 
 # ── public API ───────────────────────────────────────────────────────────────
@@ -126,6 +134,7 @@ def scan_mission(mission_dir: Path) -> MissionScan:
     """Scan one mission directory into a normalized :class:`MissionScan`."""
     meta = load_meta_or_empty(mission_dir)
     lifecycle = _read_importable_lifecycle(mission_dir)
+    skipped_event_rows = _count_malformed_lifecycle_rows(mission_event_log_path(mission_dir))
 
     mc_payload = _first_payload(lifecycle, MISSION_CREATED)
     wp_payloads = _payloads(lifecycle, WP_CREATED)
@@ -135,7 +144,8 @@ def scan_mission(mission_dir: Path) -> MissionScan:
 
     skipped_wp_files: tuple[str, ...] = ()
     if wp_payloads:
-        work_packages = _wps_from_prefix(wp_payloads)
+        work_packages, wp_created_skipped = _wps_from_prefix(wp_payloads)
+        skipped_event_rows += wp_created_skipped
     else:
         work_packages, skipped_wp_files = _wps_from_task_files(mission_dir)
 
@@ -152,6 +162,7 @@ def scan_mission(mission_dir: Path) -> MissionScan:
         work_packages=work_packages,
         lane_transitions=lane_transitions,
         skipped_wp_files=skipped_wp_files,
+        skipped_event_rows=skipped_event_rows,
         **fields,
     )
 
@@ -204,12 +215,27 @@ def _coalesce(payload: Mapping[str, Any] | None, meta: Mapping[str, Any], key: s
 # ── work-package resolution ───────────────────────────────────────────────────
 
 
-def _wps_from_prefix(wp_payloads: Sequence[Mapping[str, Any]]) -> tuple[ScannedWorkPackage, ...]:
-    """Build WPs from on-disk ``WPCreated`` payloads."""
+def _wps_from_prefix(
+    wp_payloads: Sequence[Mapping[str, Any]],
+) -> tuple[tuple[ScannedWorkPackage, ...], int]:
+    """Build WPs from on-disk ``WPCreated`` payloads.
+
+    Returns ``(work_packages, skipped_count)``. A payload with no ``wp_id`` is
+    unusable (there is no aggregate to create), but dropping it silently would
+    let one truncated ``WPCreated`` line vanish the WP from the import while
+    the plan still reports clean — the skip is counted here so it reaches
+    ``MissionScan.skipped_event_rows`` (#2884 finding A).
+    """
     wps: list[ScannedWorkPackage] = []
+    skipped = 0
     for payload in wp_payloads:
         wp_id = payload.get("wp_id")
         if not wp_id:
+            logger.warning(
+                "import-history: skipping WPCreated payload with no wp_id: %r",
+                payload,
+            )
+            skipped += 1
             continue
         wps.append(
             ScannedWorkPackage(
@@ -221,7 +247,7 @@ def _wps_from_prefix(wp_payloads: Sequence[Mapping[str, Any]]) -> tuple[ScannedW
                 source=PrefixSource.ON_DISK,
             )
         )
-    return tuple(wps)
+    return tuple(wps), skipped
 
 
 def _wps_from_task_files(mission_dir: Path) -> tuple[tuple[ScannedWorkPackage, ...], tuple[str, ...]]:
@@ -318,6 +344,57 @@ def _read_importable_lifecycle(mission_dir: Path) -> list[dict[str, Any]]:
     """
     events = read_lifecycle_events(mission_event_log_path(mission_dir))
     return [event for event in events if event.get("event_type") not in _LOCAL_ONLY_EVENT_TYPES]
+
+
+def _count_malformed_lifecycle_rows(log_path: Path) -> int:
+    """Count raw JSONL rows ``read_lifecycle_events`` silently drops.
+
+    ``read_lifecycle_events`` (the status package's public accessor) tolerates
+    missing files, blank lines, and corrupted lines — it only returns rows
+    that parse as a JSON object carrying a top-level *string* ``event_type``,
+    logging a debug line for anything else and moving on. That is the right
+    behavior for its other callers, but for import-history a dropped
+    ``WPCreated``/``MissionCreated`` row must not vanish quietly. The sharpest
+    case (#2884 finding A) is genuinely silent: a row with ``event_type: null``
+    is valid JSON, so ``read_events`` (the lane-transition reader sharing this
+    same file) treats it as a skippable non-lane row and does NOT fail the
+    whole scan closed — but ``read_lifecycle_events`` also drops it (its
+    ``event_type`` isn't a ``str``), so the row vanishes from BOTH readers
+    with no signal at all.
+
+    This reads the same file independently (mirroring, not importing, the
+    private skip conditions in ``status.lifecycle_events._read_lifecycle_lines``)
+    so the count can be surfaced at the scan layer without modifying the
+    status package. A row with NO ``event_type`` key at all is the common
+    lane-transition (``StatusEvent``) shape sharing this file — not malformed,
+    just a sibling format read by ``read_events`` instead; only a row that
+    carries ``event_type`` but as a non-string value (or fails to parse as a
+    JSON object at all) counts as malformed here.
+    """
+    if not log_path.exists():
+        return 0
+    try:
+        text = log_path.read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    malformed = 0
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            malformed += 1
+            continue
+        if not isinstance(obj, dict):
+            malformed += 1
+            continue
+        if "event_type" not in obj:
+            continue  # a lane-transition (StatusEvent) row — not malformed, a sibling format
+        if not isinstance(obj["event_type"], str):
+            malformed += 1
+    return malformed
 
 
 def _payloads(lifecycle: Sequence[Mapping[str, Any]], event_type: str) -> list[dict[str, Any]]:

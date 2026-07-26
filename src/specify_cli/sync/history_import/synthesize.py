@@ -32,7 +32,7 @@ does not validate, persist, or upload — WP-Y5 owns preflight/upload.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from collections.abc import Sequence
 from typing import Any
 
@@ -204,6 +204,7 @@ def _wp_created_envelope(
     lamport: int,
     identity: _EnvelopeIdentity,
 ) -> dict[str, Any]:
+    parsed_created_at = _parse_timestamp(wp.created_at)
     payload = WPCreatedPayload(
         mission_slug=scan.mission_slug,
         mission_number=scan.mission_number,
@@ -212,17 +213,24 @@ def _wp_created_envelope(
         wp_path=wp.wp_path,
         depends_on=list(wp.depends_on),
         actor=_ACTOR,
-        created_at=_parse_timestamp(wp.created_at),
+        created_at=parsed_created_at,
     ).model_dump(mode="json", exclude_none=False)
+    aware_created_at = _as_aware_utc(parsed_created_at)
+    # The envelope timestamp and the payload's created_at must reach the SAME
+    # verdict on wp.created_at. Previously the envelope let the raw string
+    # pass through (`wp.created_at or mission_ts`) while the payload nulled
+    # the exact same unparseable value — one envelope, two verdicts (#2884
+    # finding C). Both now derive from the one `parsed_created_at`, and the
+    # envelope's is the normalized ISO form (aware isoformat) consistent with
+    # what ``_earliest_timestamp`` already emits — never a raw passthrough.
+    timestamp = aware_created_at.isoformat() if aware_created_at is not None else mission_ts
     return _envelope(
         event_id=deterministic_ulid(f"{_IMPORT_ID_NAMESPACE}{_identity_key(scan)}:WPCreated:{wp.wp_id}"),
         event_type=WP_CREATED,
         aggregate_id=wp.wp_id,
         aggregate_type=_AGG_WORK_PACKAGE,
         payload=payload,
-        # Envelope timestamp needs a value for ordering; the payload keeps the
-        # truthful created_at (None when synthesized for a legacy WP).
-        timestamp=wp.created_at or mission_ts,
+        timestamp=timestamp,
         lamport=lamport,
         identity=identity,
     )
@@ -316,11 +324,47 @@ def _parse_timestamp(value: str | None) -> datetime | None:
         return None
 
 
+def _as_aware_utc(value: datetime | None) -> datetime | None:
+    """Normalize a ``datetime`` to an aware, UTC-offset instant.
+
+    The three writers behind ``_earliest_timestamp``'s candidates (mission
+    ``meta.json``, WP ``WPCreated`` payloads, and lane-transition ``at``
+    fields) do not all use the same UTC offset convention. A naive value is
+    assumed to already be UTC (the codebase's own writer, ``now_utc_iso()``,
+    only ever produces offset-aware strings — a naive value would only occur
+    for hand-authored or legacy data). An aware value with a NON-UTC offset
+    is converted to UTC via ``astimezone`` — merely tagging ``tzinfo`` would
+    leave the wall-clock time unconverted (e.g. ``08:00+02:00`` would render
+    as ``08:00+00:00``, two hours off) and defeat the whole comparison
+    (#2884 finding B).
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _earliest_timestamp(scan: MissionScan) -> str:
-    """Earliest known timestamp across mission/WP/lane sources (deterministic)."""
+    """Earliest known timestamp across mission/WP/lane sources (deterministic).
+
+    Candidates come from three different writers using different ISO-8601
+    suffix conventions (a literal ``Z``, ``+00:00``, or another UTC offset). A
+    raw string ``min()`` compares candidates lexicographically, which picks
+    the wrong instant across those forms — e.g. ``"...07:00:00Z"`` sorts
+    before ``"...08:00:00+02:00"`` even though the latter (06:00 UTC) is
+    actually earlier (#2884 finding B). Parse every candidate to an aware
+    ``datetime`` first and compare true instants; a candidate that fails to
+    parse is excluded rather than let back in via the raw string.
+    """
     candidates: list[str] = []
     if scan.created_at:
         candidates.append(scan.created_at)
     candidates.extend(wp.created_at for wp in scan.work_packages if wp.created_at)
     candidates.extend(event.at for event in scan.lane_transitions if event.at)
-    return min(candidates) if candidates else _UNKNOWN_TIMESTAMP
+
+    parsed = [_as_aware_utc(_parse_timestamp(value)) for value in candidates]
+    aware = [dt for dt in parsed if dt is not None]
+    if not aware:
+        return _UNKNOWN_TIMESTAMP
+    return min(aware).isoformat()
