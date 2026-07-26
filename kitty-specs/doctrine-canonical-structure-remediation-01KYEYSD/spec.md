@@ -26,6 +26,38 @@ The operator's rationale for landing this as structural remediation rather than 
 
 Governing decisions: [ADR 2026-07-26-1](../../docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md) (relationship authority) and [ADR 2026-07-26-2](../../docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md) (pack layout).
 
+### The extractor is scaffolding (operator framing, 2026-07-26)
+
+> The extractor is to be considered as mostly a migration/curation enabler, not a stable,
+> repeatable system. The published DRG, edges, and doctrine relationship model is the
+> envisioned/desired way of working.
+
+This settles the mission's central design question, which a post-spec squad flagged as a
+blocker across three independent lenses. The question was "where do migrated relationships
+live, given `regenerate-graph` overwrites the fragments?" — and it was the wrong question. It
+assumed the extractor is permanent infrastructure that the migration must accommodate. It is
+not: it is a **transitional tool whose job ends when the migration it enables is complete.**
+
+Consequences that shape every requirement below:
+
+- The **published DRG — authored edges over the `Relation` vocabulary — is the target model.**
+  Not a build output of a legacy surface.
+- The authored-edge YAML tier (FR-016) is therefore the *destination*, not a workaround for an
+  overwrite bug.
+- The extractor remains legitimate and useful *as a migration oracle*: it is precisely the
+  thing that tells us what edge each of the 559 entries should become. Using it that way is
+  its intended purpose. Depending on it afterwards is not.
+- After FR-014, **nothing in the end state requires the extractor to run.** Any requirement
+  that would be falsified by deleting it entirely is a requirement mis-specified.
+
+This mission is therefore **completing deferred work, not inventing a direction.** The pattern
+is visible in the repo's own history: #2680 sharded the `graph.yaml` monolith but left ~18
+sites naming the old path; the inline-reference excision mission banned the scalar `*_refs`
+fields but left the structured blocks and missed `directive_refs`; the extractor was always
+meant to retire and never did. Each step deferred the last mile, which is how a build tool
+ended up masquerading as an authority — and why C-004 forbids adding another deferral to the
+pile.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A misplaced artefact fails loudly instead of vanishing (Priority: P1)
@@ -117,6 +149,11 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 - **A duplicate is divergent, not identical.** Two files, one id, different content — the built-in twin wins; the stray must not be the one preserved.
 - **The `refines` relation has never been exercised built-in.** A silent downgrade would be invisible without an explicit round-trip assertion.
 - **Regenerating fragments by hand** desynchronizes the freshness test; regeneration must go through the CLI.
+- **An entry is added to the authored tier but not removed from the YAML.** The overlay merge keys on `(source, target, relation)` and *overwrites*, so the duplicate produces identical output and a byte-style proof passes on a half-done migration. Completion must be asserted by the inventory gate (NFR-005), never by the diff invariant alone.
+- **A relationship is disguised as raw material** to dodge the gate — by pointing at an artefact's markdown payload (`POWERSHELL_SYNTAX.md` is a toolguide's content) or at a mission-tier template (empty glob, so a resolver-based predicate calls it raw material). Both shapes already exist in the tree, which is why the exemption is an enumerated allowlist rather than a computed predicate.
+- **A migration keyed on reference `type` instead of source kind** mis-types 118 of 372 structured entries. The mapping table in `research/inline-reference-inventory.md` is the contract.
+- **The org→DRG bridge silently drops a cross-layer edge** (built-in source → pack target) with no warning and no conflict record. NFR-004 must assert the *built-in fragment* round-trip, which is the path this mission's `refines` edge actually takes; the bridge defect is a separate finding.
+- **A grep gate for `graph.yaml` sweeps in `.kittify/doctrine/graph.yaml`**, which is a live project-tier path, and the deliberate mentions that name the dead path in order to forbid it. The gate needs both discriminators or it false-reds on correct code.
 
 ## Requirements *(mandatory)*
 
@@ -124,20 +161,29 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Layout gate | As a maintainer, I want a misplaced artefact to fail a test so it cannot silently never load. | High | Done (`f7ee9fb02`) |
+| FR-000 | Close P0 #2934 with a durability proof | As a maintainer, I want the planning-only closeout test to exercise the real pipeline and prove the status pair reaches the target branch's committed tree. | High | Done (`ca5e91c8f`, `775323199`) — owns SC-008, which previously had no requirement row |
+| FR-001 | Layout gate | As a maintainer, I want a misplaced artefact to fail a test so it cannot silently never load. | High | Done (`f7ee9fb02`) — **but see SC-016**: validates only 1 of 2 mandatory path segments |
 | FR-002 | Clear the nine dead artefacts | As a maintainer, I want one artefact id to mean one file so I cannot edit a stale divergent copy. | High | Done (`f7ee9fb02`) |
-| FR-003 | Promote the PowerShell toolguide | As an agent on Windows, I want the shipped PowerShell guidance to actually resolve. | Medium | Done (`f7ee9fb02`) |
+| FR-003 | Promote the PowerShell toolguide | As an agent on Windows, I want the shipped PowerShell guidance to actually resolve. | Medium | **Partial** — loads from the pack layer, but is a **graph orphan** with zero inbound edges, so no agent is handed it. "Resolves" was operationalized as id-lookup, not reachability. Needs an inbound edge (precedent: `DIRECTIVE_042 --requires--> asset:common-docs-structural-lint`, hand-authored for this exact shape). |
 | FR-004 | Freeze the reference-kind enums | As a contributor, I want the deprecated surface marked frozen so I do not "fix" it by widening it. | High | Open |
 | FR-005 | Correct the unfollowable migration hint | As an operator, I want the rejection hint to name a file that exists. | High | Open |
-| FR-006 | Remove the phantom `shipped/` layer | As an author, I want guidance to name the real pack directory. | Medium | Done (`f7ee9fb02`) |
+| FR-006 | Remove the phantom `shipped/` layer | As an author, I want guidance to name the real pack directory. | Medium | **Open — earlier "Done" was false.** `f7ee9fb02` fixed 6 cross-links + 2 READMEs; **21 references survive in 8 files**, including two operator-facing `SKILL.md` files that instruct readers to read `src/doctrine/<kind>/shipped/`, and a canonical glossary term body. Superseded by FR-020. |
 | FR-007 | Author the test-quality doctrine series | As a reviewer, I want the over-mocking failure mode to be a citable rule. | High | Open |
 | FR-008 | Split `DIRECTIVE_041` intent to the paradigm | As a reader, I want the mindset and the binding rule to live in the right artefact kinds. | Medium | Open |
 | FR-009 | Augment styleguides/tactics; excise duplicated checklists to assets | As a curator, I want one copy of each checklist. | Medium | Open |
 | FR-010 | Update `doctrine-daphne` with the canonical structure | As a curator agent, I want the pinned model at load time. | High | Open |
 | FR-011 | Close the validator parity gap | As a contributor, I want local validation to predict CI. | Low | Open |
-| FR-013 | Migrate all inline artefact relationships to edges | As a maintainer, I want one relationship authority in the tree, not a deprecated one still being derived. | High | Open |
-| FR-014 | Retire the extractor's reference-extraction passes | As a maintainer, I want the mechanism that re-derives the legacy surface removed, so the class cannot regrow. | High | Open |
-| FR-015 | Gate the relationship-free invariant | As a contributor, I want a structured reference entry to fail a test rather than pass review. | High | Open |
+| FR-013 | Migrate the 559 MIGRATE-class entries to authored edges | As a maintainer, I want one relationship authority in the tree, not a deprecated one still being derived. Scope and relation-mapping are defined by `research/inline-reference-inventory.md`, not by shape. | High | Open |
+| FR-014 | Retire the extractor's reference-extraction passes | As a maintainer, I want the mechanism that re-derives the legacy surface removed, so the class cannot regrow. Includes deleting the two dead `tactic_refs` passes. | High | Open |
+| FR-015 | Gate the relationship-free invariant | As a contributor, I want any MIGRATE-class entry to fail a test rather than pass review. Gate walks `steps[]` and all five MIGRATE fields, deriving scope from the inventory module. | High | Open |
+| FR-016 | Add an authored-edge YAML tier the generator merges | As a doctrine author, I want to declare relationships in YAML that regeneration preserves instead of overwriting. | High | Open |
+| FR-017 | Preserve authored rationale and labels through migration | As a curator, I want the 68 procedure rationales and 219 reference labels to survive rather than be deleted to make a proof pass. | High | Open |
+| FR-018 | Human review of the 55 hardcoded-`suggests` relations | As a maintainer, I do not want an inference artifact laundered into declared intent. | Medium | Open |
+| FR-019 | Preserve governance seeding untouched | As an agent, I want profile-routed prompts to keep rendering directives and tactics after the migration. | High | Open |
+| FR-020 | Correct the surviving `shipped/` references | As a reader, I want authoring guidance and glossary bodies to name paths that exist. | High | Open |
+| FR-021 | Fix the org→DRG bridge's silent cross-layer drop | As a pack author, I want an unresolvable edge to fail loudly instead of vanishing. Today a built-in-source→pack-target edge returns `None` with no warning and no conflict record; a bare built-in target id is blindly re-kinded to a node that may not exist; and a URN-shaped target dies with a raw pydantic error instead of a typed pack error. | High | Open |
+| FR-022 | Fix the documented `specializes_from` org-pack example | As a reader following `CLAUDE.md`, I want the documented lineage snippet to actually produce an edge. The `urn:profile:` shape in the docs is silently dropped by the bridge — documentation that yields an inert declaration. | Medium | Open |
+| FR-023 | Retype daphne's `applies` edge and gate the relation | As a curator, I want `procedure:onboard-external-agent-to-pack` reachable, and no future artefact to author a no-op `applies` edge. | Medium | Open |
 | FR-012 | Record both ADRs | As a future maintainer, I want the decisions citable, not re-derived. | High | Done (`c7df59e22`, `f7ee9fb02`) |
 
 ### Non-Functional Requirements
@@ -145,11 +191,16 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Gate non-vacuity | The layout gate rejects both real violation shapes in a self-mutation test, and its allowlist has exactly 0 entries. | Correctness | High | Done |
-| NFR-002 | Regeneration is idempotent and CLI-driven | `spec-kitty doctrine regenerate-graph` run twice produces a zero diff; fragments are never hand-edited. | Reliability | High | Open |
-| NFR-003 | Cleanup causes zero node loss | Deleting the nine strays moves node/edge/orphan counts by exactly 0. | Correctness | High | Done (verified: only +1 node, from the promotion) |
-| NFR-004 | `refines` round-trips end-to-end | The `041 → paradigm` `refines` edge survives regeneration and the org→DRG bridge without downgrading to `applies`. Measured baseline: 0 `refines` edges exist built-in today. | Correctness | High | Open |
-| NFR-005 | The legacy relationship surface reaches zero | Zero structured `{type, id}` reference entries remain under `src/doctrine/`, and zero remaining path-string entries resolve to a built-in artefact. Only raw non-artefact paths survive (14 entries). | Maintainability | High | Open |
-| NFR-007 | Migration is proven by byte-identical regeneration | Regenerating the fragments after the migration yields a byte-identical fragment set to the pre-migration baseline, and again after the extraction passes are deleted. This single invariant covers all 414 migrated entries. | Correctness | High | Open |
+| NFR-002 | The extractor is used as a migration oracle, not a durable producer | During migration, `spec-kitty doctrine regenerate-graph` is the oracle that says what each entry's edge *should* be (idempotency verified: three consecutive runs, zero diff). After FR-014, the **authored edge tier is the source** and no generated `*.graph.yaml` is ever hand-edited. The end state must not depend on the extractor still running — see "The extractor is scaffolding" below. | Reliability | High | Open |
+| NFR-003 | Cleanup causes zero node loss | The **eight deletions** move node/edge/orphan counts by exactly 0. The separate **one promotion** is an expected +1 node / +0 edges / +1 orphan. (Earlier wording said "nine deletions … exactly 0", which its own Done evidence falsified — git shows 8 deletions + 3 renames.) | Correctness | High | Done |
+| NFR-004 | `refines` round-trips through the built-in fragment load | The `041 → paradigm` `refines` edge survives the **built-in fragment** load path (`load_graph_or_dir`) without downgrading to `applies` — verified as the path this edge actually takes. Measured baseline: 0 `refines` edges exist built-in today, so #2079's downgrade fix has never been exercised by anything shipped. The org→DRG **bridge** is explicitly *not* this edge's path and is covered by FR-021 instead. | Correctness | High | Open |
+| NFR-012 | No `applies` edge is authored | `applies` is a documented dead sink — no traversal reads it, so aliasing a real relation onto it silently makes the edge a no-op (the #2079 defect class). Exactly one exists in the built-in graph today, and it is `agent_profile:doctrine-daphne --applies--> procedure:onboard-external-agent-to-pack` — the only inbound edge that procedure has, making daphne's own operating procedure unreachable. | Correctness | Medium | Open |
+| NFR-005 | The legacy relationship surface reaches zero | Zero MIGRATE-class entries remain across **all five** fields (`references`, `steps[].references`, `directive_refs`, `tactic_refs`, `tactic-references`, `context-sources.directives`). Measured by `scripts/doctrine/inline_reference_inventory.py`, which the gate imports — **not** by a hardcoded count and **not** by entry shape. The 14 RAW_MATERIAL entries survive as an enumerated `(file, path)` allowlist with a reason each; the 188 GOVERNANCE entries are untouched. | Maintainability | High | Open |
+| NFR-007 | Migration is proven by a structured diff invariant | The regenerated graph differs from the committed **pre-migration baseline manifest** only by the enumerated, ledgered deviations: added `reason`/label content (FR-017) and any relation changed by review (FR-018). Every other node, edge, relation, `when`, and `reason` is unchanged. Byte-identity is **not** the invariant — FR-017 and FR-018 break it by design, and a byte proof would pressure the migrator into deleting authored content to pass. | Correctness | High | Open |
+| NFR-008 | The baseline is a committed artefact, not a local snapshot | A per-fragment SHA-256 manifest of the pre-migration graph is committed **before** any artefact YAML is edited. Without it, "regenerate and compare" degenerates into `regenerate(tree) == regenerate(tree)` — a tautology of determinism that is blind to content loss. | Correctness | High | Open |
+| NFR-009 | Pass deletion is proven by an observed RED | FR-014's deletion is verified by first deleting the passes and asserting the graph **loses exactly the expected N edges**, then migrating and asserting it regains exactly those N. Asserting "still identical after deletion" has zero discriminating power: once the inline blocks are emptied, the passes are already no-ops. | Correctness | High | Open |
+| NFR-010 | Governance resolution is unchanged | For every built-in agent profile, the `(directives, tactics, styleguides, toolguides, procedures)` tuple returned by charter governance resolution is byte-equal before and after the migration. This is asserted **outside the graph**, because the 188 GOVERNANCE entries produce zero edges and every graph-shaped assertion is blind to them. | Correctness | High | Open |
+| NFR-011 | The FR-015 gate is non-vacuous | Mirrors NFR-001. The gate plants and rejects: a structured `{type, id}` entry, a step-level entry, a `directive_refs` bare-id entry, and a relationship disguised as raw material (a path to an artefact's markdown payload, and a path to a mission-tier template). | Correctness | High | Open |
 | NFR-006 | Golden counts stay a contract | Every added node/edge extends the composition ledger in `test_extractor_projection.py`; counts are never bumped without a ledger entry. | Maintainability | Medium | Open |
 
 ### Constraints
@@ -182,9 +233,18 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 - **SC-003**: Zero source sites instruct an operator to edit `src/doctrine/graph.yaml`; the rejection hint and its contract fixture name an existing per-kind fragment.
 - **SC-004**: The test-quality series (paradigm + `DIRECTIVE_047` + procedure + 2 anti-patterns + 4 assets, plus the augments) resolves with **zero** pack-validation errors, and every resolved-only node has ≥1 inbound edge.
 - **SC-005**: The `041 → paradigm` `refines` edge is present after regeneration and has not been downgraded to `applies`.
-- **SC-006**: `spec-kitty doctrine regenerate-graph` produces a zero diff on a second consecutive run, and golden counts match a ledger entry explaining every delta.
+- **SC-006**: The regenerated graph matches the **committed** fragments (freshness), and golden counts match a ledger entry explaining every delta. *Not* "a second consecutive run is identical" — regeneration is a pure function of the tree, so that is a tautology of determinism and cannot detect content loss.
 - **SC-007**: The `doctrine-daphne` profile states the layout convention, the edges-only rule, and the regeneration command.
 - **SC-008**: #2934 closes with its durability proof intact — the status pair is asserted to reach the target branch's committed tree, not merely a spy's request set.
-- **SC-009**: Zero structured `{type, id}` reference entries and zero artefact-resolving path entries remain under `src/doctrine/`; the 14 raw-material path entries survive and are recognised as non-relationships by the gate.
-- **SC-010**: The fragment set regenerated after the migration is byte-identical to the pre-migration baseline — and still byte-identical after the extraction passes are deleted.
-- **SC-011**: `extractor.py` contains no reference-extraction pass; a grep for the removed pass names returns nothing, and the fragments are authored rather than derived.
+- **SC-009**: `scripts/doctrine/inline_reference_inventory.py` reports **0** MIGRATE-class entries across all five fields (including `steps[]`); the 14 RAW_MATERIAL entries survive and match the enumerated allowlist exactly; the 188 GOVERNANCE entries are unchanged.
+- **SC-010**: The regenerated graph differs from the committed pre-migration SHA manifest only by the ledgered deviations (FR-017 additions, FR-018 relation changes) — every other node, edge, relation, `when`, and `reason` identical.
+- **SC-011**: `extractor.py` contains no reference-extraction pass (including the two dead `tactic_refs` passes), and **deleting the extractor entirely does not change the resolved graph** — the authored tier stands alone.
+- **SC-012**: Governance resolution for every built-in agent profile returns an identical `(directives, tactics, styleguides, toolguides, procedures)` tuple before and after the migration.
+- **SC-013**: All 68 procedure rationales and 219 reference labels are present in the post-migration graph, each accounted for by a ledger entry.
+- **SC-014**: The 55 hardcoded-`suggests` relations have a recorded human verdict; any retyped relation is a ledgered deviation.
+- **SC-015**: Zero `<kind>/shipped/` references remain under `src/doctrine/` (currently 21 across 8 files), and every relative cross-link in built-in markdown resolves on disk. Enforced by a gate, since the earlier fix-by-inspection missed 21 of 27.
+- **SC-016**: The layout gate validates **both** mandatory path segments — `parts[0] == kind.plural` and `parts[1] == built-in` — so a right-pack/wrong-type file (e.g. a tactic under `assets/built-in/`) is rejected.
+- **SC-017**: `toolguide:powershell-syntax` has ≥1 inbound edge from an activatable artefact, or FR-003 is restated as "loadable, not yet referenced" — no Done row whose user story is unmet.
+- **SC-018**: FR-004's enum freeze is enforced by a ratchet on the four enums' member sets, not only by a comment; adding a member fails a test.
+- **SC-019**: The excised checklist content (FR-009) appears exactly once under `src/doctrine/` — de-duplication is measured, not assumed.
+- **SC-020**: `spec-kitty doctrine validate` and the strict canonical tests return matching verdicts on a shared corpus of invalid artefacts (FR-011).
