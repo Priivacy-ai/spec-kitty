@@ -1,0 +1,272 @@
+---
+title: 'ADR: a signed `impacts` edge subsumes `in_tension_with` — one relation, sign carries the direction of effect'
+status: Accepted
+date: '2026-07-26'
+---
+
+**Status:** Accepted
+
+**Date:** 2026-07-26
+
+**Deciders:** Operator (Stijn Dejongh) — ADR-D2 (the programme-shape gate) decided explicitly on
+operator authority after the trade-off was laid out with measured file counts. Design and
+measurement by the FoundationalValues/creed session (15 profile-loaded agents across an initial
+proposal, two adversarial squad rounds that killed the first mechanism, a four-lens hardening
+round, corpus and matrix measurements, and a three-lens verification round producing a 26-item
+fix ledger).
+
+**Technical Story:** epic-level programme recorded in
+[`docs/plans/doctrine/manifesto-program-delivery-sequence.md`](../../plans/doctrine/manifesto-program-delivery-sequence.md)
+(sequencing authority) and
+[`docs/plans/doctrine/foundational-values-and-creed.md`](../../plans/doctrine/foundational-values-and-creed.md)
+(design authority). Landing on PR [#2936](https://github.com/Priivacy-ai/spec-kitty/pull/2936)
+with mission `doctrine-canonical-structure-remediation-01KYEYSD`. Clears sequence gates **G1**
+and **G2**.
+
+**Supersedes:** [`docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md`](2026-07-21-1-in-tension-with-drg-edge.md)
+(Accepted 2026-07-21).
+
+> ⚠️ **Two ADRs share the `2026-07-21-1` prefix.** The target is the
+> `in-tension-with-drg-edge` one. The `glossary-first-order-doctrine-artefact` ADR sharing that
+> prefix is **not** superseded and must not be edited by this change.
+
+---
+
+## Context and Problem Statement
+
+The doctrine graph has exactly one way to say two artefacts conflict: a boolean
+`in_tension_with` edge. Two rules either compete or they don't — there is no way to say *how
+strongly*, and no way at all to say the opposite (that one artefact **reinforces** another beyond
+the coarse `requires`/`suggests` distinction).
+
+The FoundationalValues/creed design generalises this to a signed strength on the edge:
+
+```text
+impacts: -1.0  ────────── 0 ────────── +1.0
+        sabotages      neutral      reinforces
+```
+
+The operator's ruling is that **`impacts: −1` is what "is antagonistic towards" means**. Under
+that ruling the boolean is not a sibling of the signed value — it is the negative half of it. So
+keeping both would be two authorities for one concept, which the charter's
+single-canonical-authority principle forbids and which
+[ADR 2026-07-26-1](2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md) has just
+finished cleaning up on the adjacent axis.
+
+That leaves one genuinely open question, and it is the whole reason this ADR needed a decision
+rather than a write-up: **once the boolean retires, what relation carries the signed value?** The
+answer moves the migration between roughly 5–10 files and 45–60, so it had to be settled here
+rather than discovered mid-implementation.
+
+### Measured ground (verified in-tree, not inferred)
+
+| Fact | Value |
+| --- | --- |
+| Files referencing `in_tension_with` / `IN_TENSION_WITH` | **21** (9 under `src/`, 12 under `tests/`) |
+| Files touching the `Relation` vocabulary at all | **50** — this is the ripple that prices option A |
+| Authored `in_tension_with` edges in the shipped graph | **2**, both in `directive.graph.yaml` |
+| Relation histogram (built-in) | `suggests` 332 · `requires` 259 · `scope` 157 · `rejects` 8 · `instantiates` 8 · `specializes_from` 4 · `reconciles_tension` 3 · `in_tension_with` 2 · `applies` 1 · `refines` 0 |
+
+The two authored edges are `DIRECTIVE_024 ↔ DIRECTIVE_025` (locality-of-change vs boy-scout) and
+`DIRECTIVE_025 ↔ tactic:change-apply-smallest-viable-diff`. Both carry substantial `reason` prose
+whose own words are *"both remain valid, co-activatable rules"* — i.e. the existing claims are
+**symmetric**. That matters, because `IN_TENSION_WITH` is documented as symmetric and
+non-transitive and is stored as a single canonical edge with the lexicographically-smaller URN as
+source (constraint C-002 of its originating mission), whereas `impacts` is **directed**. The
+migration therefore changes edge semantics, not merely edge labels.
+
+## Decision Drivers
+
+* **Single canonical authority** — one concept, one owning surface. A boolean relation plus a
+  signed field expressing the same claim is two authorities.
+* **The operative frame** — this layer *informs*, it never auto-decides. Numbers are conversation
+  prompts; the rationale is authoritative where number and prose disagree. Any design that lets
+  a magnitude decide something is out of frame.
+* **Authored, never derived** — deriving tension from value vectors was measured at **5 out of 5
+  false positives** on deliberately unrelated pairs. Whatever carries `impacts` must be
+  hand-authored.
+* **Decide the shape before the cost is sunk** — the file-count spread is ~6× between the options.
+* **Do not add vocabulary to leaking infrastructure** — the org→DRG bridge currently drops
+  cross-layer edges silently (see Consequences).
+
+## Considered Options
+
+* **Option A (chosen)** — a new `Relation.IMPACTS`: a directed, signed relation that replaces the
+  boolean outright.
+* **Option B** — keep `in_tension_with` as the relation and add the signed magnitude to it.
+* **Option C** — adopt `Relation.IMPACTS` but retain symmetric canonical storage.
+* **Option D** — keep both surfaces (boolean *and* signed field), scoped to different uses.
+
+## Decision Outcome
+
+**Chosen option: A — a new `Relation.IMPACTS`.**
+
+The operator chose the clean end state over the cheap one, with the cost understood and stated.
+The reviewing analysis had recommended B on evidence-per-cost grounds; that recommendation is
+recorded in *Pros and Cons* below and was **overruled deliberately**, because B buys its saving by
+keeping a relation name that cannot honestly carry half of its own value range.
+
+### The decisions this ADR takes
+
+| # | Decision |
+| --- | --- |
+| **ADR-D1** | `impacts` is a signed numeric annotation on `DRGEdge` and **subsumes** `in_tension_with`. `impacts < 0` **is** a tension claim. |
+| **ADR-D2** | ◆ **DECIDED: a new `Relation.IMPACTS` carries it.** Directed and signed. The relation type *is* `impacts`; the sign says how it affects the target. This is the programme-shape gate (≡ design D-2 / sequence gate G2) and it is now closed. |
+| **ADR-D3** | **`impacts` is AUTHORED-ONLY. Never derived.** The moment anything derives it from value vectors the subsumption is unsound and this becomes the option the superseded ADR rejected. |
+| **ADR-D4** | Candidate-pair predicate is `relation == impacts and impacts < 0` — **strict sign, no tunable threshold**. |
+| **ADR-D5** | `reconciles_tension` **survives**, re-pointed at negative-`impacts` pairs. Its existing rule stands: a pair counts as resolved only when an active artefact carries the edge to **both** sides. |
+| **ADR-D6** | `impacts` is meaningful on `impacts` / `rejects` / `refines` and **ignored elsewhere**. Stated as prose, deliberately **not** a `Relation`-keyed table — there is no totality guard for such a table, so it would rot silently the next time a relation is added. |
+| **ADR-D7** | Composition is **first-order only**. The published second-order matrix is **rejected**: all **42 of 42** off-diagonal cells mismatch `M×M` under six derivation hypotheses, so it is independently-authored judgement rather than computed ripple and cannot inherit the first matrix's provenance. |
+| **ADR-D8** | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs. **The one asymmetric published pair is NOT adjudicated here** — see Open Decisions. |
+| **ADR-D9** | The computed projection is a **frozen dataclass with no `model_dump()`**, in a module no writer imports, stamped with `matrix_id` / `matrix_version`. |
+| **ADR-D10** | The value set and matrix are **N-parameterised** (N ≥ 3); AMMERSE is the default basis only, and axis identity is by `id`. Boundedness follows from coefficients ∈ [−1,1] plus a zero diagonal (Gershgorin). The validator enforces exactly those two properties, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1**, using a start-vector-independent method — plain power iteration is **fail-open** on two-camp bases. |
+
+### Symmetric tensions under a directed relation (ADR-D2's rider)
+
+Because the two shipped claims are symmetric and the new relation is directed, this ADR settles
+the migration semantics rather than leaving them to the implementer:
+
+**A symmetric tension is authored as a pair of directed `impacts` edges**, one in each direction,
+each carrying its own value and its own `reason`. Consequences accepted:
+
+* The canonical single-edge storage convention (lexicographically-smaller URN as source) **does
+  not apply** to `impacts`; it was a property of the symmetric boolean and retires with it.
+* Edge counts rise: the 2 boolean edges become 4 directed edges. This is a **ledgered** delta
+  against the golden counts, not an incidental one.
+* The pair form is strictly more expressive — it can state that A sabotages B more than B
+  sabotages A — and `reconciles_tension` already requires both sides, so the existing
+  reconciliation semantics carry over without change.
+
+### Retires
+
+`in_tension_with` as a `Relation` member · the prior rejection of `Relation.IMPACTS` · the
+`0.25 × second_order` term · the convergence caveat · the "no superseding ADR needed" claim.
+
+### Migrates (in one commit each, per surface)
+
+* The 2 authored edges at `directive.graph.yaml:90-93` and `:103-106` → directed `impacts` pairs,
+  **preserving each `reason` verbatim**.
+* The tension surface: 1 dataclass + 5 functions at `consistency_check.py:917-1050`.
+* `RELATION_DESCRIPTIONS` plus verbatim doc parity.
+
+## Consequences
+
+### Positive
+
+* One relation owns "how do these two artefacts affect each other", with the sign carrying
+  direction of effect. No boolean shadow of the same claim.
+* The full range becomes authorable, including reinforcement, which `requires`/`suggests` can only
+  approximate.
+* Asymmetric tension becomes expressible for the first time.
+* Clears G1 and G2, which the sequencing authority identifies as the cheapest gate to clear and
+  the one unblocking the most downstream work.
+
+### Negative
+
+* **~45–60 files**, roughly 6× option B, rippling through the 50 files that touch the `Relation`
+  vocabulary. Accepted knowingly.
+* **The org→DRG bridge is currently leaking, and this ADR adds vocabulary to it.** Measured: a
+  built-in-source → pack-target edge returns `None` with **no warning and no conflict record**; a
+  bare built-in target id is blindly re-kinded to a node that may not exist; a URN-shaped target
+  dies with a raw pydantic error rather than a typed pack error. **The bridge fix must land before
+  or with the `Relation.IMPACTS` migration**, or the new relation inherits a silent-drop path.
+* The positive half of the range has **no current author**. Nothing in the tree needs
+  "A reinforces B" as a standalone relationship today, so that expressiveness is bought ahead of
+  demand — a deliberate bet on the design's direction.
+* Edge counts move (2 → 4 for the existing claims), so every golden-count baseline and its
+  composition ledger must be updated in step.
+
+### Neutral
+
+* `rejects` and `refines` gain an optional `impacts` annotation without changing their meaning.
+* The `applies` relation is untouched here. Note for anyone reading the surrounding code: the
+  comment at `drg/merge.py:97-98` claiming no traversal reads `applies` is **wrong** —
+  `charter_runtime/lint/checks/orphan.py` reads it and `charter/synthesizer/project_drg.py`
+  produces it. Do not build an "`applies` is dead" gate on that comment.
+
+## Open Decisions
+
+**ADR-D8's asymmetric pair is not decided here.** The published matrix has exactly one asymmetric
+pair out of 21 — Maintainable ↔ Extensible at `+0.75` one way and `−0.75` the other — and it is
+most likely an upstream sign error. It is **deliberately left open** because:
+
+1. the repair choice moves the headline truncation error between **4.37%** and **6.00%**, so it is
+   a measurement input, not a formatting detail;
+2. the validator cannot be written until it is settled;
+3. the upstream report to the AMMERSE author is **operator-only and never agent-drafted**, and the
+   adjudication should not front-run that conversation.
+
+Options are: symmetrise to `+0.75`, symmetrise to `−0.75`, or zero the pair. Both the measured
+asymmetry and the rejected `M×M` derivation claim are committed as JSON
+(`_ammerse-corpus-36-practices.json`, `_ammerse-second-order.json`) so the upstream report can
+cite reproducible evidence rather than assertion.
+
+The design authority's remaining open decisions (§13 D-1, D-3, D-4, D-5) are out of scope for this
+ADR; D-6 is the same subject as ADR-D8 above.
+
+## Confirmation
+
+* `Relation.IMPACTS` exists; `in_tension_with` has **zero** members and zero references outside
+  historical records; `git grep` for it returns only this ADR, the superseded one, and changelog
+  entries.
+* The 2 shipped tension claims resolve as 4 directed `impacts` edges with their original `reason`
+  text byte-identical, and the golden-count ledger carries an entry explaining `2 → 4`.
+* `reconciles_tension` still resolves both sides of each migrated pair.
+* The validator errors at gain ≥ 1−ε and warns as gain → 1, proven by a two-camp basis fixture on
+  which plain power iteration fails open.
+* No derivation path writes `impacts` — asserted by a gate, not by inspection (ADR-D3).
+* The org→DRG bridge no longer drops a cross-layer edge silently, verified before the migration
+  lands.
+
+## Pros and Cons of the Options
+
+### Option A — new `Relation.IMPACTS` (chosen)
+
+**Pros:** honest directed semantics; the full signed range in one concept; the boolean genuinely
+disappears rather than being shadowed; asymmetric tension becomes expressible; matches the design
+authority's recommendation.
+**Cons:** ~45–60 files; forces the two symmetric claims into directed pairs and retires their
+canonical-storage guarantee; adds vocabulary to a bridge with a known silent-drop defect; buys
+positive-half expressiveness that nothing currently authors.
+
+### Option B — keep `in_tension_with`, add the magnitude to it
+
+**Pros:** ~5–10 files; preserves the symmetry the two real edges actually have; delivers the only
+thing measurably missing today, which is magnitude on an existing conflict claim; aligns with the
+design's own finding that the sign channel is noisy and the rationale is what carries weight.
+**Cons — and these decided it:** a relation named `in_tension_with` cannot coherently carry
+`impacts: +0.5`, so half the range becomes unauthorable and the name lies about its own contents.
+ADR-D4's predicate collapses to "is this a tension edge", because the relation already says so —
+making the sign redundant with the relation. And "subsumes" would be the wrong word: this is
+annotation, not subsumption. **Recommended by the reviewing analysis on evidence-per-cost;
+overruled deliberately by the operator in favour of the clean end state.**
+
+### Option C — `Relation.IMPACTS` but symmetric
+
+**Pros:** honest name and full range without doubling the existing edges; keeps the canonical
+single-edge storage.
+**Cons:** pays option A's full ~45–60 file cost while giving up the directionality that motivates
+a signed *directed* strength, and would require amending the design authority's plane-2
+definition. Worst of both on cost-versus-fidelity.
+
+### Option D — keep both the boolean and the signed field
+
+**Pros:** no migration at all.
+**Cons:** two authorities for one claim, which is precisely what the sibling ADR 2026-07-26-1 has
+just spent a mission removing on the adjacent axis. Rejected on principle.
+
+## More Information
+
+* Design authority: [`foundational-values-and-creed.md`](../../plans/doctrine/foundational-values-and-creed.md)
+  (§6 maths, §11 contradiction register, §13 open decisions).
+* Sequencing authority: [`manifesto-program-delivery-sequence.md`](../../plans/doctrine/manifesto-program-delivery-sequence.md)
+  (critical path, 22 ranked increments, park register).
+* Verification round: [`squad-reports/review-round-2026-07-26.md`](../../plans/doctrine/squad-reports/review-round-2026-07-26.md)
+  — the 26-item fix ledger these authorities are post-fix against.
+* Reproduction: `docs/plans/doctrine/_reproduce_matrix_findings.py` (standard library only).
+* Sibling axis: [ADR 2026-07-26-1](2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md)
+  (DRG edges are the canonical relationship authority) and
+  [ADR 2026-07-26-2](2026-07-26-2-doctrine-artefact-pack-layout-convention.md) (pack layout).
+* Rejected with measurements, recorded so they are not rebuilt: vector-derived precedence
+  orderings (0 successes in 6 attempts), sign-opposition tension derivation (5/5 false positives),
+  creed-weighted ranking as a recommender (collapses to row-sum, r ≈ 0.98).

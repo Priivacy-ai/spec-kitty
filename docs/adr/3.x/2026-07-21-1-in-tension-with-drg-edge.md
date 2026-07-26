@@ -1,13 +1,19 @@
 ---
 title: 'in_tension_with and reconciles_tension DRG edges (retiring opposed_by)'
-status: Accepted
+status: Superseded
 date: '2026-07-21'
 ---
 # in_tension_with and reconciles_tension DRG edges (retiring opposed_by)
 
 **Filename:** `2026-07-21-1-in-tension-with-drg-edge.md`
 
-**Status:** Accepted
+**Status:** Superseded by [ADR 2026-07-26-3](2026-07-26-3-impacts-edge-subsumes-in-tension-with.md) (2026-07-26)
+
+> **Do not implement from this ADR.** A signed `impacts` edge subsumes `in_tension_with`:
+> `impacts < 0` **is** a tension claim, so the boolean relation retires and a new
+> `Relation.IMPACTS` carries the value. `reconciles_tension` survives, re-pointed at
+> negative-`impacts` pairs. The symmetric single-edge storage convention described below
+> retires with the boolean; symmetric tensions become directed pairs. Kept for history.
 
 **Date:** 2026-07-21
 
@@ -161,7 +167,7 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 **Blast radius (concrete file/impact list):**
 
 | Area | File | Impact |
-|---|---|---|
+| --- | --- | --- |
 | Enum | `src/doctrine/drg/models.py` | Add `IN_TENSION_WITH`, `RECONCILES_TENSION`, `REJECTS` to `Relation`; each member carries a description (Decision 6); document symmetric-not-transitive for `in_tension_with`. |
 | Doc parity | `docs/architecture/doctrine-relationships.md`, `tests/doctrine/test_relation_doc_parity.py` | Mirror the enum descriptions verbatim for `in_tension_with`, `reconciles_tension`, `rejects`; enforce content-equality parity against `RELATION_DESCRIPTIONS` with a dedicated test (Decision 6). |
 | Glossary | `docs/context/doctrine.md` | Add human-glossary entries for `in_tension_with`, `reconciles_tension`, `rejects`, consistent with the enum descriptions (Decision 6). |
