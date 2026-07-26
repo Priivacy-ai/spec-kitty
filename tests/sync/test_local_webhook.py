@@ -11,21 +11,30 @@ Covers:
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
+from spec_kitty_events.lifecycle import Event
 
 pytestmark = pytest.mark.fast
 
 from specify_cli.sync.local_webhook import EVENT_WEBHOOK_ENV, forward_event
 
 
-SAMPLE_EVENT = {
-    "event_id": "01HQXYZ" + "A" * 19,
-    "event_type": "WPCreated",
-    "aggregate_id": "WP01",
-    "payload": {"wp_id": "WP01"},
-}
+SAMPLE_EVENT = Event(
+    event_id="01HQXYZ" + "A" * 19,
+    event_type="WPCreated",
+    aggregate_id="WP01",
+    payload={"wp_id": "WP01"},
+    timestamp=datetime(2026, 7, 23, tzinfo=UTC),
+    build_id="test-build",
+    node_id="test-node",
+    lamport_clock=1,
+    project_uuid=UUID(int=0),
+    correlation_id="01HQXYZ" + "B" * 19,
+).model_dump(mode="json")
 
 
 class TestForwardEvent:
