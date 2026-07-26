@@ -1,9 +1,74 @@
 # Mission Specification: Doctrine Canonical Structure Remediation
 
-**Mission Branch**: `fix/2934-demock-planning-closeout-test` (single_branch topology — see C-003)
 **Created**: 2026-07-26
-**Status**: Draft
+**Status**: ⛔ **SPECCED, THEN SPLIT — this mission does not implement.** See below.
 **Input**: User description: "this scope is starting to feel like a same-branch unblock mission more than a series of ops... the systemic fix is the real structural remediation work that needs to happen now, even if it slows some other deliveries"
+
+---
+
+## ⛔ This mission was specced and then broken into five missions
+
+**Operator ruling, 2026-07-26.** This specification is complete and remains the **programme record** —
+the design authority for the whole remediation, the home of the three governing ADRs, the inventory
+research, and the Phase 0 findings. It is **not implemented directly**. Every requirement below is
+delivered by one of five child missions.
+
+Why: the delivery is ~28–43 agent-days and ~555–665 file touches. One pull request of that size is
+not reviewable, and the sequencing authority's **C2** forbids two all-surface sweeps sharing a single
+occurrence map — this scope contains three.
+
+| Mission | Slug | Delivers |
+|---|---|---|
+| **A** | `doctrine-silence-guards-01KYFV7Q` | Guards and campsite. Every mechanism that makes silence impossible, landed **before** anything new can ship inert. |
+| **B1** | `drg-relation-impacts-vocabulary-01KYFV87` | `Relation.IMPACTS` + `is_symmetric`; retires `in_tension_with`. Delivers ADR 2026-07-26-3. |
+| **B2** | `drg-edge-migration-extractor-retirement-01KYFV8C` | All 774 edges become authored; both Python edge registries and the calibrator are deleted; extractor edge production retires. **Carries `change_mode: bulk_edit` and the occurrence map.** |
+| **C** | `test-quality-doctrine-series-01KYFV8H` | The original #2935 deliverable: the over-mocking failure becomes a citable rule. |
+| **D** | `foundational-values-creed-band-01KYFV8N` | The reachable band of the FoundationalValues/creed programme. |
+
+**Mandatory order: A → B1 → B2 → C. D is independent of B2 but gates on A.**
+The order is not a preference — see C-009, C-010, and the ordering rationale in
+[`plan.md`](plan.md). A landing after B1 means `impacts`, `is_symmetric`, and `aliases` ship inert
+behind green tests, which is this mission's own defect class reproduced by its remediation.
+
+### Requirement routing — no requirement falls between the missions
+
+| Requirement | Owner |
+|---|---|
+| FR-000, FR-001, FR-002, FR-012 | **Done** (PR #2936) — closed here, not routed |
+| FR-004, FR-005, FR-006, FR-020, FR-021, FR-022, FR-023, FR-029, FR-030, FR-031 | **A** |
+| FR-032 | **B1** |
+| FR-013, FR-014, FR-015, FR-016, FR-017, FR-018, FR-019, FR-024, FR-025, FR-026, FR-027, FR-028 | **B2** |
+| FR-003, FR-007, FR-008, FR-009, FR-010, FR-011 | **C** |
+| NFR-001, NFR-003 | **Done** (PR #2936) |
+| NFR-012 | **A** |
+| NFR-006 | **B1** and **B2** (each ledgers its own count deltas) |
+| NFR-002, NFR-005, NFR-007, NFR-008, NFR-009, NFR-010, NFR-011, NFR-013 | **B2** |
+| NFR-004 | **C** |
+| C-001, C-002, C-004, C-006, C-007, C-011 | **All five** — standing constraints |
+| C-009 | Mechanism in **A**; binds **B1** and **B2** |
+| C-010 | Ordering constraint: **A before B1** |
+| C-005 | **C** |
+| SC-001, SC-002, SC-008 | **Done** (PR #2936) |
+| SC-003, SC-015, SC-016, SC-018, SC-021, SC-022, SC-023 | **A** |
+| SC-024 | **B1** |
+| SC-006, SC-009, SC-010, SC-011, SC-012, SC-013, SC-014 | **B2** |
+| SC-004, SC-005, SC-007, SC-017, SC-019, SC-020 | **C** |
+
+### What changed in this document at the split
+
+- **C-003 is superseded** (see the Constraints table). It named a branch and a PR that are both
+  merged, so it had to be rewritten regardless of the split.
+- **C-008 is closed.** ADR 2026-07-26-3 decided ADR-D2: a new `Relation.IMPACTS` carries `impacts`.
+  The gate it guarded is cleared.
+- **`change_mode: bulk_edit` moved off this mission's `meta.json` to B2's**, along with
+  `occurrence_map.yaml`. This mission edits nothing, so a bulk-edit guardrail on it was inert by
+  construction — the same failure mode NFR-013 exists to catch.
+- Four measured corrections are recorded in [`plan.md`](plan.md) under *Corrections to the spec*:
+  the migration is **169 files, not 139**; FR-027 is **not** behaviour-neutral and its resolution is
+  a ledgered deviation; the `shipped/` count is **22 across 9 files, not 21 across 8**, and one hit
+  is prose rather than a path.
+
+---
 
 ## Context
 
@@ -364,15 +429,15 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 |----|-------|------------|----------|----------|--------|
 | C-001 | Edges are the only relationship authority | Per ADR 2026-07-26-1: author relationships as DRG edges; never widen a `<kind>_reference.type` enum; never add an inline `references:` block. | Technical | High | Active |
 | C-002 | Pack layout is mandatory | Per ADR 2026-07-26-2: `<type>/<pack>/[<category>/]<name>`; categories nest inside the pack. | Technical | High | Active |
-| C-003 | Everything lands on one branch | All work stays on `fix/2934-demock-planning-closeout-test` and ships as one PR (#2936). Operator call; the P0 close is deliberately gated on the structural work. | Business | High | Active |
+| C-003 | ~~Everything lands on one branch~~ **SUPERSEDED 2026-07-26** | Original form: "All work stays on `fix/2934-demock-planning-closeout-test` and ships as one PR (#2936)." Both the branch and the PR are **merged** (`1a15bcf6c`), so the constraint named surfaces that no longer exist. **Replaced by:** the work ships as five sequenced missions (A → B1 → B2 → C; D independent of B2), each its own draft PR to `main`, each independently green. The operator merges. Rationale: ~600 file touches is not reviewable in one PR, and C2 of the sequencing authority forbids two all-surface sweeps sharing one occurrence map — this scope has three. | Business | High | **Superseded** |
 | C-004 | Structural work is not deferred while 3.2.6 is unreleasable | No known structural defect found by this mission is handed to a follow-up issue. Deferring is treated as the same failure mode as greenwashing: it converts a known defect into an invisible one. Supersedes this constraint's original "fence the migration out" form, withdrawn by the operator. | Business | High | Active |
 | C-005 | Editing `DIRECTIVE_041` is its own reviewed change | It is live at `enforcement: required`; audit inbound edges before touching it. | Technical | High | Active |
 | C-006 | Inherited base CI reds are not touched | The 6 `arch-adversarial` failures are byte-identical to `origin/main`; leave them honest (ADR 2026-07-17-1). `quality-gate` fails only as their cascade. | Technical | High | Active |
 | C-007 | Do not run the full architectural suite | It leaks resources and blocks the working session; run targeted tests only. | Technical | High | Active |
-| C-008 | G2/ADR-D2 is answered before anyone opens `extractor.py` | The superseding ADR must decide which relation carries `impacts` after `in_tension_with` retires. The answer moves FR-014's blast radius from ~45–60 files to ~5–10, so building first risks doing an order of magnitude more work than needed. **Operator-only sign-off.** | Technical | High | Active |
+| C-008 | G2/ADR-D2 is answered before anyone opens `extractor.py` | The superseding ADR must decide which relation carries `impacts` after `in_tension_with` retires. The answer moves FR-014's blast radius from ~45–60 files to ~5–10, so building first risks doing an order of magnitude more work than needed. **Operator-only sign-off.** | Technical | High | **Closed 2026-07-26** — ADR 2026-07-26-3 decided ADR-D2: a new `Relation.IMPACTS`. The operator chose the clean end state over the cheap one, overruling the reviewing analysis's evidence-per-cost recommendation of option B, and accepted the ~45–60 file cost knowingly. |
 | C-009 | No new schema slot without a producer and a coverage gate in the same commit | Governing precedent: 3-for-3 inert in this repo, one for 162 days behind green tests. Binds FR-028 (`aliases`) and FR-032 (`impacts`). | Technical | High | Active |
 | C-010 | `I2` cannot be sequenced after any new edge field | `extractor.py:133-145` and `:1210-1229` would silently delete the field at extraction and regeneration, so the field would ship inert and the tests would stay green. | Technical | High | Active |
-| C-011 | Operator-only, never agent-drafted | G2/ADR-D2 sign-off · the upstream report to the AMMERSE author (one asymmetric pair of 21, plus the false "M×M" derivation claim — both measured, both in the committed JSONs) · the charter deprioritisation statement · the D-4 interview design (model-chosen questions predictably yield a flat creed and launder the model's prior as operator provenance). | Business | High | Active |
+| C-011 | Operator-only, never agent-drafted | **Remaining:** the charter deprioritisation statement. **D-4 settled 2026-07-26** — constant-sum budget for the weights, per-weight provenance, elicitation questions carried on the value-set artefact, I8 first (see `plan.md`). **Discharged 2026-07-26:** G2/ADR-D2 (decided in ADR `2026-07-26-3`) · ADR-D8 (the asymmetric pair, symmetrised to `+0.75`) · the upstream report to the AMMERSE author — **withdrawn, not deferred**: the operator holds prior written consent from J.B. Crossland to use the AMMERSE idea and publish his own procedure under his own IP, so accreditation and mention discharge the obligation in full. No report is owed and nothing gates on one. | Business | High | Active |
 
 ### Key Entities
 
