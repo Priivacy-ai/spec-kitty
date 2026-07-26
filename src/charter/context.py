@@ -354,8 +354,7 @@ def build_charter_context_include(
     org_roots = [org_root] if org_root is not None else None
 
     if kind == "artifact":
-        service = _build_doctrine_service(repo_root, org_roots=org_roots)
-        return _render_generic_artifact_include(service, identifier)
+        return _render_generic_artifact_selector(repo_root, identifier, org_roots)
 
     # Route every other kind through the canonical operator-token resolver so
     # hyphenated tokens (``agent-profile``) and canonical underscore tokens
@@ -514,6 +513,19 @@ def _render_tactic_include(service: object, identifier: str, selector: str) -> s
             *_format_full_artifact_payload_body(tactic),
         ]
     )
+
+
+def _render_generic_artifact_selector(
+    repo_root: Path,
+    identifier: str,
+    org_roots: list[Path] | None,
+) -> str:
+    """Render a generic artifact selector, preferring local directives."""
+    local_directive = _load_local_directives(repo_root).get(identifier)
+    if local_directive is not None:
+        return _render_local_directive_include(local_directive, identifier)
+    service = _build_doctrine_service(repo_root, org_roots=org_roots)
+    return _render_generic_artifact_include(service, identifier)
 
 
 def _render_generic_artifact_include(service: object, identifier: str) -> str:
