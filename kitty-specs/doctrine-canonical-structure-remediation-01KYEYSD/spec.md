@@ -95,6 +95,66 @@ meant to retire and never did. Each step deferred the last mile, which is how a 
 ended up masquerading as an authority — and why C-004 forbids adding another deferral to the
 pile.
 
+## Programme integration — the FoundationalValues/creed design (folded 2026-07-26)
+
+The FoundationalValues/creed design session finalized on `docs/manifesto-tier-analysis` and is
+merged onto this branch (`091f1c7ae`). **Operator ruling: this entire design and implementation
+lands before any other work unblocks** — not doing so "would cause a lot of issues down the
+line." So this mission is no longer only the relationship/layout remediation; it is the
+remediation *plus* the programme that depends on it, sequenced as one delivery.
+
+**Authority tiers** (per `docs/plans/doctrine/index.md` — only these two are citable):
+
+- `docs/plans/doctrine/foundational-values-and-creed.md` — design authority (§6 maths,
+  §11 contradiction register, §13 open decisions D-1..D-6).
+- `docs/plans/doctrine/manifesto-program-delivery-sequence.md` — **sequencing authority**
+  (critical path, 22 ranked increments, ADR-D1..D10 scope, park register).
+- `docs/plans/doctrine/squad-reports/review-round-2026-07-26.md` — the 26-item fix ledger the
+  authorities are post-fix against. Findings are checkable, not asserted:
+  `_reproduce_matrix_findings.py` is stdlib-only and the *rejected* second-order matrix is
+  committed as `_ammerse-second-order.json` so the false-derivation claim can be verified.
+
+### Why this reorders our own requirements
+
+Three increments from that programme are **hard prerequisites to work already in this spec**,
+and one of them would otherwise silently destroy it:
+
+| Increment | Rank | Why it gates us |
+| --- | --- | --- |
+| **I19 zero-producer lint** | 1 | "The only thing preventing a fourth inert register." Directly guards FR-028 (`aliases`) from shipping as a field nothing produces. |
+| **I2 silent-kind-drop closure** (4 sites) | 5 | `query.py:230-242`, `charter/context.py:672-683` (no `else`), `extractor.py:133-145` (`_KIND_MAP`), `extractor.py:1210-1229` (the writers). **Cannot be sequenced after any new edge field** — sites 3 and 4 would silently delete it at extraction and regeneration. Collides with `#2532`; pin the fix **behaviourally**. |
+| **I3b DRG model + writers + round-trip** | 6 | `DRGNode`/`DRGEdge` carry **no `model_config`**, so extra fields are silently ignored, and the writers are field-by-field (`_node_to_dict` enumerates `urn`/`kind`/`label`/`tags`). Verified. Converts two silent-drop hazards into load errors. **Non-negotiably one commit.** |
+
+Governing precedent from the sequencing authority: **a schema slot without a producer *and* a
+coverage gate in the same commit goes silently inert — 3 for 3 in this repo, one of them for 162
+days behind green tests.** That is the same failure mode as everything else this mission exists
+to close, so it binds our own new fields.
+
+### The programme-shape gate sits between us and `extractor.py`
+
+**G2 / ADR-D2 must be answered inside the superseding ADR before anyone opens `extractor.py`.**
+It decides which relation carries `impacts` once `in_tension_with` retires — and the answer moves
+the blast radius by an order of magnitude: a new `Relation.IMPACTS` is ~45–60 files, whereas
+"keep the name, retire only the lifecycle" collapses to **~5–10**. FR-014 *is* "open
+`extractor.py`", so it is gated on G2. Operator-only sign-off.
+
+### Consequences for the authored-edge tier
+
+`in_tension_with` **retires**; `impacts` (a signed numeric annotation on the edge) subsumes it,
+with `impacts < 0` *being* a tension claim on strict sign. `reconciles_tension` survives,
+re-pointed at negative-`impacts` pairs. So our authored tier must carry an `impacts` annotation,
+and the two existing authored tension edges (`directive.graph.yaml:90-93`, `:103-106`) migrate to
+`{relation: impacts, impacts: <negative>}` **preserving each `reason`**. This aligns with our own
+architecture rather than fighting it: **ADR-D3 makes `impacts` authored-only, never derived** —
+the same principle as the authored-edge tier.
+
+### Ship-first set (gates on nothing)
+
+Ranks 1–4, ~9–12 files, ~2–3 days: I19 zero-producer lint · I1a sign-vs-rationale polarity lint
+(validation set of 12 known corpus rows exists **today**) · wire the existing
+`generate_schemas --check` into CI · unify the two drifted AMMERSE definition copies. Six of the
+top eight ranked increments are campsite work — deliberately, debt before functional work.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A misplaced artefact fails loudly instead of vanishing (Priority: P1)
@@ -216,7 +276,11 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | FR-025 | Promote the calibrator's 21 synthesised `scope` edges | As a reviewer, I do not want edges invented from a policy inequality (`\|review\| >= 0.80 * \|implement\|`) sitting in the graph indistinguishable from authored intent. Promote each to an authored edge with a ledger line, then delete `calibrate_surfaces`. This is the same laundering as FR-018's 55, at larger scale and on the seed relation. | High | Open |
 | FR-026 | Absorb both Python edge registries into the authored tier | As a maintainer, I want one authoring surface, measurably. `hand_authored_overlay.py` (17 edges, 6 nodes — every `rejects`, every `reconciles_tension`, both `in_tension_with`) and `_CURATED_ARTIFACT_EDGES` (13 edges, all four `specializes_from`) both move to YAML and **both modules are deleted**. Without this the surface count holds flat at 11 while the PR claims consolidation. | High | Open |
 | FR-027 | Collapse the duplicated profile→directive field | As a curator, I want one field to own "which directives does this profile cite". `context-sources.directives` (67) and `directive-references` (68) are the **same set on all 18 profiles** and have already drifted (`python-pedro` carries `034` in one only). **Prerequisite to FR-013** per operator decision: reconcile the drift, keep `directive-references` (it carries rationale and seeds the charter closure), delete `context-sources.directives`. | High | Open |
-| FR-028 | Add a `label` field to `DRGEdge` | As a curator, I want the 219 schema-**required** reference labels to have a home. `DRGEdge` currently has only `source`/`target`/`relation`/`when`/`reason`/`provenance`. Ripples into the validator, `merge_layers`, the org→DRG bridge, `_edge_to_dict`, the project DRG builder, and the glossary builder — all in scope. | High | Open |
+| FR-028 | Add `aliases: list[str]` to doctrine **artefacts** (supersedes the `DRGEdge.label` plan) | As a curator, I want the 219 reference labels to live on the artefact they name, not on every pointer to it — enabling grep now and semantic search later. **Measured:** the 219 label occurrences collapse to **102 distinct artefacts**, and the 8 targets carrying more than one label are genuine synonym sets (`tdd-red-green-refactor` → "Red-Green-Refactor" / "TDD Red-Green-Refactor" / "Test Driven Development (TDD)"). So these were never edge metadata; they are artefact names repeated at each pointer. Storing them as `DRGEdge.label` would have scattered one name across up to a dozen edges and preserved 8 silent disagreements that `aliases` merges into legitimate alias lists. Also removes the `DRGEdge` schema change and its six-consumer ripple. | High | Open |
+| FR-029 | I19 — zero-producer lint | As a maintainer, I want a schema slot with no producer to fail a test, because the precedent is 3-for-3 inert (one for 162 days behind green tests). **Rank 1, gates nothing, guards FR-028.** | High | Open |
+| FR-030 | I2 — close the four-site silent-kind-drop | As a maintainer, I want an unknown kind to fail loudly at all four sites rather than be dropped. **Must precede FR-028 and FR-013/014**: sites 3 and 4 would silently delete a new field at extraction and regeneration. Collides with `#2532` — pin behaviourally. Unblocks `#2468`/`#2847`/`#2862`/`#2829`. | High | Open |
+| FR-031 | I3b/I3c — `extra="forbid"` on `DRGNode`/`DRGEdge`/`AgentProfile` + writers + round-trip | As a maintainer, I want an unknown field to be a load error, not silence. Verified: the DRG models carry **no `model_config`** and the writers are field-by-field. **Model + writer + round-trip test in ONE commit** — this is the mechanism that makes FR-028 real rather than inert. | High | Open |
+| FR-032 | Carry `impacts` in the authored tier; migrate the two authored tension edges | As a curator, I want `impacts` (signed, authored-only, never derived) on the edge, with `impacts < 0` being the tension claim. Migrate `directive.graph.yaml:90-93` and `:103-106` to `{relation: impacts, impacts: <negative>}` **preserving each `reason`**; `reconciles_tension` survives re-pointed. Gated on G2/ADR-D2. | High | Open |
 | FR-015 | Gate the relationship-free invariant | As a contributor, I want any MIGRATE-class entry to fail a test rather than pass review. Gate walks `steps[]` and all five MIGRATE fields, deriving scope from the inventory module. | High | Open |
 | FR-016 | Add an authored-edge YAML tier the generator merges | As a doctrine author, I want to declare relationships in YAML that regeneration preserves instead of overwriting. | High | Open |
 | FR-017 | Preserve authored rationale and labels through migration | As a curator, I want the 68 procedure rationales and 219 reference labels to survive rather than be deleted to make a proof pass. | High | Open |
@@ -257,6 +321,10 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | C-005 | Editing `DIRECTIVE_041` is its own reviewed change | It is live at `enforcement: required`; audit inbound edges before touching it. | Technical | High | Active |
 | C-006 | Inherited base CI reds are not touched | The 6 `arch-adversarial` failures are byte-identical to `origin/main`; leave them honest (ADR 2026-07-17-1). `quality-gate` fails only as their cascade. | Technical | High | Active |
 | C-007 | Do not run the full architectural suite | It leaks resources and blocks the working session; run targeted tests only. | Technical | High | Active |
+| C-008 | G2/ADR-D2 is answered before anyone opens `extractor.py` | The superseding ADR must decide which relation carries `impacts` after `in_tension_with` retires. The answer moves FR-014's blast radius from ~45–60 files to ~5–10, so building first risks doing an order of magnitude more work than needed. **Operator-only sign-off.** | Technical | High | Active |
+| C-009 | No new schema slot without a producer and a coverage gate in the same commit | Governing precedent: 3-for-3 inert in this repo, one for 162 days behind green tests. Binds FR-028 (`aliases`) and FR-032 (`impacts`). | Technical | High | Active |
+| C-010 | `I2` cannot be sequenced after any new edge field | `extractor.py:133-145` and `:1210-1229` would silently delete the field at extraction and regeneration, so the field would ship inert and the tests would stay green. | Technical | High | Active |
+| C-011 | Operator-only, never agent-drafted | G2/ADR-D2 sign-off · the upstream report to the AMMERSE author (one asymmetric pair of 21, plus the false "M×M" derivation claim — both measured, both in the committed JSONs) · the charter deprioritisation statement · the D-4 interview design (model-chosen questions predictably yield a flat creed and launder the model's prior as operator provenance). | Business | High | Active |
 
 ### Key Entities
 
@@ -283,7 +351,11 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 - **SC-010**: The regenerated graph differs from the committed pre-migration SHA manifest only by the ledgered deviations (FR-017 additions, FR-018 relation changes) — every other node, edge, relation, `when`, and `reason` identical.
 - **SC-011**: `extractor.py` produces **no edges at all** — no reference pass, no action/`scope` pass, no mission-type projection, no template-instantiation pass, no curated registry, no calibrator. All 774 edges load from the authored tier, and **deleting every edge-producing function does not change the resolved graph**. What survives is node discovery plus validation. This is now a falsifiable claim: an earlier revision asserted it while the graph still derived 215 edges, which made it vacuously true at load time and self-contradictory as a scope statement.
 - **SC-012**: Governance resolution for every built-in agent profile returns an identical `(directives, tactics, styleguides, toolguides, procedures)` tuple before and after the migration.
-- **SC-013**: All 68 procedure rationales and 219 reference labels are present in the post-migration graph, each accounted for by a ledger entry.
+- **SC-013**: All 68 procedure rationales survive on their edges, and the 219 reference labels survive as `aliases` on the 102 artefacts they name — each accounted for by a ledger entry, with the 8 multi-label artefacts carrying alias lists rather than a single arbitrary winner.
+- **SC-021**: The zero-producer lint (FR-029) fails on a planted schema slot that nothing produces, and passes on the shipped tree — so `aliases` and `impacts` cannot ship inert.
+- **SC-022**: An unknown field on `DRGNode`/`DRGEdge`/`AgentProfile` is a **load error**, not silence; and a round-trip test proves `aliases` survives write→read (the writers are field-by-field, so this is the assertion that matters).
+- **SC-023**: An unknown kind fails loudly at all four silent-drop sites, proven by a planted unknown kind at each.
+- **SC-024**: `in_tension_with` has zero members after retirement; the two authored tension edges carry `{relation: impacts, impacts: <negative>}` with their original `reason` text intact; `reconciles_tension` still resolves against the negative-`impacts` pairs.
 - **SC-014**: The 55 hardcoded-`suggests` relations have a recorded human verdict; any retyped relation is a ledgered deviation.
 - **SC-015**: Zero `<kind>/shipped/` references remain under `src/doctrine/` (currently 21 across 8 files), and every relative cross-link in built-in markdown resolves on disk. Enforced by a gate, since the earlier fix-by-inspection missed 21 of 27.
 - **SC-016**: The layout gate validates **both** mandatory path segments — `parts[0] == kind.plural` and `parts[1] == built-in` — so a right-pack/wrong-type file (e.g. a tactic under `assets/built-in/`) is rejected.
