@@ -8,6 +8,13 @@ related:
 ---
 # Connascence-matrix analysis — measured 2026-07-26
 
+> ⚠️ **SUPERSEDED MATHS — read [`foundational-values-and-creed.md`](../foundational-values-and-creed.md) §6 and §11 instead.**
+> This evidence file endorses the three-term composition (`base + 0.5×fo + 0.25×so`) and quotes a
+> "~6%" residual; the adopted design is **two-term damped** (residual **4.70%**) and **rejects
+> second-order outright**. Its "49/49" mismatch count is now stated as **42/42 off-diagonal**, and
+> "48 of 49 symmetric" as **one asymmetric pair of 21 (47/49 cells)**. Kept verbatim as the
+> measurement record.
+
 Source: `https://patterns.sddevelopment.be/practices/ammerse_impact_analysis/`.
 Coefficients now available (previously not in-repo). All results computed, not asserted.
 

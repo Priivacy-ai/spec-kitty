@@ -2624,6 +2624,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/squad-reports/review-round-2026-07-26.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/squad-reports/reviewer.md
   tag: current
   divio_type: none

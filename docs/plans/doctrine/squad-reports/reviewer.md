@@ -9,6 +9,10 @@ related:
 ---
 # Reviewer lens — adversarial pass and the 39% verdict
 
+> ⚠️ **EVIDENCE — figures here predate the authority.** "The 39% verdict" is canonically **35% (12/34)**;
+> "five of seven axes carry no cost signal" is canonically **two never-negative, six with ≤3 negatives**.
+> Authority: [`foundational-values-and-creed.md`](../foundational-values-and-creed.md) §11.
+>
 > Squad report, 2026-07-26. Profile-loaded (`reviewer-renata`), read-only. Evidence base for
 > [`creed-and-values-design-hardened.md`](../creed-and-values-design-hardened.md).
 > Tactics applied: `reverse-speccing` (the load-bearing one — reconstruct the intended semantics

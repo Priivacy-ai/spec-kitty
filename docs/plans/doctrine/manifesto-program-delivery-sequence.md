@@ -13,7 +13,7 @@ related:
 > **Tier: AUTHORITY** for sequencing. The design authority is
 > [`foundational-values-and-creed.md`](foundational-values-and-creed.md).
 
-**Date:** 2026-07-26 · **Base:** `59ea3f94a`, branch `docs/manifesto-tier-analysis`
+**Date:** 2026-07-26 · **Base:** `0fcb4b3d2` + the review-round-2 fix commit, branch `docs/manifesto-tier-analysis`
 **Role:** sequencing only. No architectural decision is taken here; **D-2 is escalated, not
 resolved.**
 
@@ -29,11 +29,11 @@ resolved.**
 ## What the matrix measurement changed
 
 Measured: λ = 2.3350, gain **λ/(N−1) = 0.3892**, adopted two-term damped residual **4.70%**;
-second-order not derivable (**42/42 off-diagonal**); matrix symmetric in 48/49; **divisor read as
+second-order not derivable (**42/42 off-diagonal**); one asymmetric pair of 21 (47/49 cells); **divisor read as
 N−1** (an interpretation, not an upstream statement); and by Gershgorin gain **≤ 1** for any basis
 with coefficients ∈ [−1,1] and zero diagonal — so **bounded** always, **sound** for gain < 1, with
-equality at perfect polarisation. Sensitivity to the one asymmetric cell: residual 4.37%–6.00%
-depending on the repair, so **D-6 must be adjudicated before the matrix ships**.
+equality at perfect polarisation. Sensitivity to the one asymmetric pair: residual 4.37%–6.00%
+depending on the repair, so **design D-6 (≡ ADR-D8) must be adjudicated before the matrix ships**.
 
 | # | Effect | Was | Is now |
 |---|---|---|---|
@@ -50,7 +50,7 @@ authoring burdens. It is a scope reduction.**
 
 ## 1. Critical path
 
-`◆` = gate. `═` = critical path.
+`◆` = gate. `═` = critical path. *(Gate IDs are stable identifiers, not a sequence — path order is G0, G1, G2, G5, G3, G4. G5 is a precondition of rank 8, not an independently scheduled row.)*
 
 ```
   ◆G0  truncation soundness ............ CLEARED (gain=0.389; bounded generically)
@@ -60,26 +60,28 @@ authoring burdens. It is a scope reduction.**
    │
   I2   silent-kind-drop closure ............. shared enabler of 4 open issues
    │     ├ query.py:230-242 (16 bucketed / 10 read out)
-   │     ├ charter/context.py:672-683 (4 elif, no else)
+   │     ├ charter/context.py:672-683 (4 kind branches, no else)
    │     ├ extractor.py:133-145 (_KIND_MAP, 11 entries)
    │     └ extractor.py:1210-1229 (_node_to_dict/_edge_to_dict — 4th site)
    │
   I3b  DRGNode/DRGEdge extra="forbid" + writers + round-trip  (ONE commit)
+  I3c  AgentProfile extra="forbid" (1 line; same campsite cluster, no deps)
    │
   ◆G1  SUPERSEDING ADR — impacts subsumes in_tension_with
   ◆G2  ══ WHICH RELATION CARRIES `impacts` ══  *** the program-shape gate ***
    │
   I12  Relation.IMPACTS + edge annotation + retire in_tension_with
-   │      + re-point consistency_check.py:934-1050
+   │      + re-point consistency_check.py:917-1050
   I13  first-order connascence matrix, N-generic, inside the value-set artefact
          ▲                    ▲
   I5 → I6  AMMERSE definition unification → accreditation (NOTICE, provenance)
   I9       corpus import + value-set artefact + a NON-AMMERSE N≠7 fixture
+  I8       perturbation-stability probe  [needs I9; runs independent of #2538]
 
   ─── STRAND B — context strength (independent; the #2538 arm-B enabler) ───
   ◆G5  verify the #2538 rig still runs ....... BEFORE WP01
   I4-WP01  additive ResolvedContext partition + campsite deletions
-  I4-WP02  un-vacuum walker.py:507 — the RED is the deliverable
+  I4-WP02  un-vacuum walker.py:507-509 — the RED is the deliverable
   I16      advisory-homonym unification (8 vocabularies → 2)  ← blocks WP03
   I4-WP03  Required:/Suggested: render grouping
   ◆G3  #2538 ARM-B RUN ....... gates ONLY the numeric value branch
@@ -99,7 +101,7 @@ authoring burdens. It is a scope reduction.**
 
 **Key sequencing conclusions:**
 
-- **`#2538` gates only the numeric value branch** (I14, I17, I10) — *not* I12/I13/I1a. Ruling (a)
+- **`#2538` gates only the numeric value branch** (I14, I17) — I10 is gated on **G4** (design D-3), *not* G3; and it does not gate I12/I13/I1a. Ruling (a)
   settles the tension question on operator authority; it does not need the experiment. Prior art
   predicts arm B ≈ null, and a probably-null gate must not hold a strand that is already decided.
 - **`#2591` is off the critical path.** It is a child of `#2216`, which is `blocked_by #2467`
@@ -134,7 +136,7 @@ authoring burdens. It is a scope reduction.**
 | **17** | **I13 first-order matrix, N-generic** | No — needs I6, I9 | 6–10 files | Delivers the licensed composition. Scope halved | **Mission** |
 | **18** | **I15 `#2591` component-type** | Blocked by `#2467` | 41–59 files | The discriminator I1c/I14 applicability should be expressed in | **Mission** |
 | **19** | **I1c `costs:` field** | Yes | 12 code + 260 authored | The minimum that survives every lens | **Mission** |
-| **20** | **I14 value fields** | No — G3 + coverage gate first | 14–18 code + **1,820 cells** | — | **Mission** ×2 |
+| **20** | **I14 value fields** | No — G3 + coverage gate first | 14–18 code + **~1,372–1,596 cells** (post-§7.4 kind set) | — | **Mission** ×2 |
 | **21** | **I10 ranking function** | No — G4 | 3 files, ~4h | **Dies entirely if G4 answers "prose"** | Mission WP |
 | **22** | **I17 interview instrument** | No — G3 + D-4 | 5–10 files | Closes the production-side laundering | **Mission** |
 
@@ -146,27 +148,26 @@ authoring burdens. It is a scope reduction.**
 ⚠️ **Two ADRs share the `2026-07-21-1` prefix** — the glossary one is *not* the target. Name the
 full filename.
 
-**Decides:**
+**Decides:** *(namespace note: `ADR-Dn` = decisions this ADR takes; `D-n` = the design authority's §13 open decisions. They are different lists — `ADR-D8` and design `D-6` are the same subject under two IDs; sequence gate `G2` ≡ design `D-2`.)*
 
 | # | Decision |
 |---|---|
-| D1 | `impacts` is a numeric annotation on `DRGEdge` and **subsumes** `in_tension_with`: `impacts < 0` **is** a tension claim |
-| **D2** | **◆ Which relation carries `impacts` after retirement.** Recommendation (not a decision): a new `Relation.IMPACTS` — subsumption removes the earlier objection, since the relation type *is* `impacts` and the sign says how. **If the answer is "keep the name, retire only the lifecycle", I12 collapses to ~5–10 files and rank 16 is badly wrong** |
-| D3 | **`impacts` is AUTHORED-ONLY. Never derived.** The moment anything derives it from value vectors, the subsumption is unsound and this becomes the option the superseded ADR rejected |
-| D4 | Candidate-pair predicate: `relation == impacts and impacts < 0` — **strict sign, no tunable threshold** |
-| D5 | `reconciles_tension` **survives**, re-pointed at negative-`impacts` pairs |
-| D6 | `impacts` meaningful on the tension successor / `rejects` / `refines`; ignored elsewhere. **Prose, no per-relation table** — there is no totality guard for a `Relation`-keyed table |
-| D7 | Composition is **first-order only** — measured, the second-order derivation claim is false |
-| D8 | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs; the one asymmetric published cell is adjudicated here |
-| D9 | The computed projection is a **frozen dataclass with no `model_dump()`** in a module no writer imports, stamped `matrix_id`/`matrix_version` |
-| **D10** | **Ruling (d): the value set and matrix are N-parameterised.** Boundedness follows from coefficients ∈ [−1,1] + zero diagonal (Gershgorin); the validator enforces those two, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1** |
+| ADR-D1 | `impacts` is a numeric annotation on `DRGEdge` and **subsumes** `in_tension_with`: `impacts < 0` **is** a tension claim |
+| **ADR-D2** | **◆ Which relation carries `impacts` after retirement (≡ design D-2 / gate G2).** Recommendation (not a decision): a new `Relation.IMPACTS` — subsumption removes the earlier objection, since the relation type *is* `impacts` and the sign says how. **If the answer is "keep the name, retire only the lifecycle", I12 collapses to ~5–10 files and rank 16 is badly wrong** |
+| ADR-D3 | **`impacts` is AUTHORED-ONLY. Never derived.** The moment anything derives it from value vectors, the subsumption is unsound and this becomes the option the superseded ADR rejected |
+| ADR-D4 | Candidate-pair predicate: `relation == impacts and impacts < 0` — **strict sign, no tunable threshold** |
+| ADR-D5 | `reconciles_tension` **survives**, re-pointed at negative-`impacts` pairs |
+| ADR-D6 | `impacts` meaningful on the tension successor / `rejects` / `refines`; ignored elsewhere. **Prose, no per-relation table** — there is no totality guard for a `Relation`-keyed table |
+| ADR-D7 | Composition is **first-order only** — measured, the second-order derivation claim is false (42/42 off-diagonal) |
+| ADR-D8 | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs; the one asymmetric published pair is adjudicated here (≡ design D-6) |
+| ADR-D9 | The computed projection is a **frozen dataclass with no `model_dump()`** in a module no writer imports, stamped `matrix_id`/`matrix_version` |
+| **ADR-D10** | **Ruling (d): the value set and matrix are N-parameterised.** Boundedness follows from coefficients ∈ [−1,1] + zero diagonal (Gershgorin); the validator enforces those two, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1** |
 
 **Retires:** `in_tension_with` as a relation member · the prior rejection of `Relation.IMPACTS` ·
 the `0.25 × second_order` term · the convergence caveat · the "no superseding ADR needed" claim.
 
 **Migrates:** the 2 authored edges (`directive.graph.yaml:90-93`, `:103-106`) to
-`{relation: impacts, impacts: <negative>}` preserving each `reason`; the 7 consistency-check
-functions; `RELATION_DESCRIPTIONS` + verbatim doc parity, in one commit.
+`{relation: impacts, impacts: <negative>}` preserving each `reason`; the tension surface (1 dataclass + 5 functions, `consistency_check.py:917-1050`); `RELATION_DESCRIPTIONS` + verbatim doc parity, in one commit.
 
 ## 4. Tracker shape — report only
 
@@ -192,7 +193,7 @@ drift, `RECONCILE_CHANGE_SCOPE_TENSIONS` delete-or-wire) · `#2468`/`#2847`/`#28
 
 | Parked | Reason | Unpark on |
 |---|---|---|
-| `0.25 × second_order` | Measured: not derivable (49/49). Independently authored judgement | Upstream publishes independent provenance **and** a consumer exists |
+| `0.25 × second_order` | Measured: not derivable (42/42 off-diagonal). Independently authored judgement | Upstream publishes independent provenance **and** a consumer exists |
 | **Deriving `impacts` from value vectors** | The option the superseded ADR rejected, plus 5/5 false positives with overlapping bands | **Never** without a blind study clearing precision/recall (3 scorers × 20 artefacts, ~1 day) |
 | `minItems: 1` mandatory-negative as schema | Gates on the least reliable field and inverts its outcome | **Never as schema.** The advisory lint is the shipping form |
 | Mandatory `rationale` as hard constraint | Calibration corpus fails it (≥3 of 38) | ≥95% corpus compliance, measured, after I1a runs |
@@ -203,7 +204,7 @@ drift, `RECONCILE_CHANGE_SCOPE_TENSIONS` delete-or-wire) · `#2468`/`#2847`/`#28
 | Outcomes tier | Downstream of an ungated prerequisite | Value tier shipped |
 | Re-tier AMMERSE onto `glossary_pack` | Not in `extractor._KIND_MAP` — the edge would silently vanish | I2 landed **and** a consumer exists |
 | I10 ranking function | Only remaining consumer is I8 | **G4** answers "arithmetic"; else close as won't-do |
-| I14 value fields | 1,820 cells against a 34-vector calibration set | **G3 positive** **and** a coverage gate designed **before** the schema |
+| I14 value fields | ~1,372–1,596 cells against a 34-vector calibration set | **G3 positive** **and** a coverage gate designed **before** the schema |
 | Batching any two all-surface sweeps | One unreviewable occurrence map | Structural. Never |
 
 ## 6. Upstream report
@@ -241,7 +242,9 @@ the directly analogous precedent for I12.
 | Through the gates | 8–15 | ≈55–100 | 2.4–4.6k | 11–18 days |
 | Post-gate, sweep-dominated | 16–22 | ≈120–180 | 6–11k | 25–45 days + operator authoring |
 
-**~85% of the program's cost is in the last band, and the last band is entirely behind G2 and G3.**
+**~60–65% of the tabulated engineering cost is in the last band. Roughly half of that band (I12,
+I14, I17) is behind G2/G3; I15 is behind `#2467`, I10 behind G4, and I13/I1c behind no gate at
+all. The unquantified authoring tail (~1,372–1,596 cells) is entirely behind G3.**
 
 **Landing overheads to budget:** every new `docs/` page needs inventory + index regeneration and
 `relative_link_fixer --check`; `src/doctrine/` or prose changes need

@@ -25,6 +25,8 @@ design is the synthesis, these are the workings.
   models, the `delta` representation decision, the coverage gate, and the one-day pre-registered
   prototype.
 
+- [Verification round 2026-07-26](review-round-2026-07-26.md) — the final three-lens review before
+  handover, with the aggregated verdict and applied fix ledger.
 - [Connascence-matrix measurement](connascence-matrix-measurement.md) — spectral radius, truncation soundness,
   the false second-order derivation claim, and the sole asymmetric cell.
 

@@ -18,13 +18,15 @@ related mission scope notes.
 - [Doctrine Inclusion Assessment](doctrine-inclusion-assessment.md)
 - [Doctrine Migration: Architecture Alignment Review](doctrine-migration-architecture-review.md)
 - [Layered Doctrine Resolution — Design Blueprint](layered-doctrine-resolution-design.md)
-- [The Manifesto Tier — doctrine's missing primary-driver layer](manifesto-tier-primary-drivers.md) — *superseded in part; read the verdict first*
-- [Manifesto tier — verdict, corrections, and handover](manifesto-tier-verdict-and-handover.md)
+*Tiering: **AUTHORITY** docs are the only citable design/sequence statements; **RECORD** docs are superseded inputs and verdicts kept for provenance; **EVIDENCE** docs are raw squad reports and measurements.*
+
+- [The Manifesto Tier — doctrine's missing primary-driver layer](manifesto-tier-primary-drivers.md) — RECORD; *superseded in part; read the verdict first*
+- [Manifesto tier — verdict, corrections, and handover](manifesto-tier-verdict-and-handover.md) — RECORD
 - **[FoundationalValues and Creed — canonical design](foundational-values-and-creed.md)** — **AUTHORITY**: the only doc citable as "the design"
 - **[FoundationalValues/creed program — delivery sequence](manifesto-program-delivery-sequence.md)** — **AUTHORITY** for sequencing
-- [Creed and FoundationalValues — design as proposed](creed-and-values-design-as-proposed.md) — operator input record + measured corpus grounding
-- [Creed and FoundationalValues — hardened design](creed-and-values-design-hardened.md) — four-lens hardening; structure sound, numeric layer gated behind a one-day experiment
-- [Squad reports + measurements](squad-reports/index.md) — the raw four-lens reports behind the hardened design
+- [Creed and FoundationalValues — design as proposed](creed-and-values-design-as-proposed.md) — RECORD; operator input + measured corpus grounding
+- [Creed and FoundationalValues — hardened design](creed-and-values-design-hardened.md) — RECORD; four-lens hardening round
+- [Squad reports + measurements](squad-reports/index.md) — EVIDENCE; raw lens reports, measurements, and the [final verification round](squad-reports/review-round-2026-07-26.md)
 - [Mission B (proposed scope) — Charter-mediated doctrine selection](mission-b-proposed-scope.md)
 - [Org Doctrine Layer — Post-Implementation Architecture Review](org-doctrine-layer-architecture-review.md)
 - [Runtime → Charter → Doctrine — boundary audit and recommendations](runtime-charter-doctrine-boundary.md)

@@ -10,6 +10,12 @@ related:
 ---
 # Creed and FoundationalValues — hardened design
 
+> ⚠️ **RECORD — superseded by [`foundational-values-and-creed.md`](foundational-values-and-creed.md).**
+> Known-stale figures a direct reader must not carry forward: "5 components for 80%" (canonical:
+> **~4–5 effective dimensions, 4 reach 79.8%** at n=36 / 81.6% at n=34); "1,820 cells / ≈2,650"
+> (canonical: **~1,372–1,596** after the kind narrowing); the ranking-collapse measurement's status
+> as an *objection* (retired by the operative frame). See the authority's §11 contradiction register.
+
 **Date:** 2026-07-26 · **Status:** hardened design, **no decision taken**
 **Input:** [`creed-and-values-design-as-proposed.md`](creed-and-values-design-as-proposed.md)
 **Method:** four profile-loaded lenses, read-only — architect (seams/types),

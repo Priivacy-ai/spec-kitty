@@ -15,16 +15,19 @@ related:
 > Everything else in this corpus is **RECORD** (what was decided and why) or **EVIDENCE** (raw
 > squad reports and measurements). Where an older document disagrees, this one wins — §11.
 
-**Date:** 2026-07-26 · **Status:** design proposal. **No build decision has been taken.**
+**Date:** 2026-07-26 · **Base:** branch `docs/manifesto-tier-analysis` · **Status:** design
+proposal. **No build decision has been taken.**
 
 > ### ⚠️ Read this before anything else
 >
 > - **Nothing was executed.** Every claim about code behaviour in this document is a **static
 >   read** of source and test bodies. No test was run. Claims of the form "X silently drops Y"
 >   are predictions by construction, not observed failures.
-> - **The measurements *are* real and reproducible.** Every number in §6 comes from
->   `_reproduce_matrix_findings.py` (stdlib only, run it) and every corpus number from
->   `_ammerse-corpus-36-practices.json`, both committed beside this file.
+> - **The measurements *are* real and checkable.** §6.1–§6.3's figures reproduce from
+>   `_reproduce_matrix_findings.py` (stdlib only, run it) over `_ammerse-connascence-first-order.json`;
+>   §6.5's second-order comparison reproduces against `_ammerse-second-order.json`; the corpus
+>   figures are auditable from `_ammerse-corpus-36-practices.json` (the PCA convention is stated
+>   in §10.2). All committed beside this file.
 > - **One decision gates the whole programme: D-2 — which DRG relation carries `impacts` once
 >   `in_tension_with` retires.** It swings the migration between ~5–10 files and ~45–60. The
 >   *design* is stable under either answer; only the *programme shape* moves. It must be settled
@@ -44,11 +47,13 @@ Three questions, in order of what they unblock:
 
 | Band | Effort | Notes |
 |---|---|---|
-| Prose-only (§8) | ~9–12 files, <0.7 kLOC, **4–7 days** | Gates on nothing. Ships alone |
+| First campsite band (sequence ranks 1–4) | ~9–12 files, <0.7 kLOC, **~2–3 days** | Gates on nothing. Ships alone |
 | Through the gates | ~55–100 files, 2.4–4.6 kLOC, **11–18 days** | |
-| Numeric layer | ~120–180 files, 6–11 kLOC, **25–45 days** + authoring | **1,820 authored cells** against a **34-vector** calibration set |
+| Numeric layer | ~120–180 files, 6–11 kLOC, **25–45 days** + authoring | **~1,372–1,596 authored cells** (196–228 artefacts × 7 after §7.4's kind narrowing; an earlier 1,820 figure used the pre-narrowing superset) against a **34-vector** calibration set |
 
-**~85% of the programme's cost sits behind two gates** (D-2 and the `#2538` experiment).
+**~60–65% of the tabulated engineering cost sits in the final band; roughly half of that band (I12, I14, I17) is behind the two gates** — D-2 (the sequence document's gate **G2**) and the `#2538` experiment (its **G3**) — **and the authoring tail sits entirely behind `#2538`.** The remainder of the band (I13, I15, I1c) is behind other conditions or none.
+
+*The §8 prose layer, priced honestly: its lint is sequence rank 2 (a commit); its charter statement is operator-authored and unranked; its `costs:` field is sequence rank 19 — 12 code files plus a 196–228-artefact authoring sweep. "Gates on nothing" is true of all three; "cheap" is true only of the first two.*
 
 **How we would know it failed.** Two falsification instruments exist and neither has been run: a
 **perturbation-stability probe** (jitter the creed weights by the wobble a real interview produces;
@@ -161,7 +166,7 @@ For the avoidance of the error an earlier draft made, the four candidates are:
 decay is roughly half of `r`, because a real base vector is not aligned with the dominant
 eigenvector.
 
-### 6.2 The generic bound — bounded always, sound for any non-degenerate basis
+### 6.2 The generic bound — bounded always, sound for gain < 1
 
 For any matrix with zero diagonal and coefficients in [−1, 1], Gershgorin gives
 `|λ| ≤ max row abs-sum ≤ N − 1`, therefore:
@@ -184,19 +189,27 @@ that, and it is a candidate third constraint.)*
 
 **Consequence for the validator:** enforce coefficients ∈ [−1, 1] and a zero diagonal by schema;
 then **error at gain ≥ 1 − ε** and **warn as gain → 1**. The spectral radius is load-bearing at
-exactly the boundary case, so it is a check, not decoration.
+exactly the boundary case, so it is a check, not decoration — **and the method matters**: plain
+power iteration from a fixed start vector silently under-reports on exactly the boundary class
+(a two-camp ±1 basis with true gain 1.0 reads as 0.33 from an all-ones start, because all-ones is
+an eigenvector of a *smaller* eigenvalue). The committed script uses seeded random restarts; a
+shipping validator must use a start-vector-independent method (restarts, or the characteristic
+polynomial at N ≤ ~20). AMMERSE's own figures were never affected — its dominant eigenvalue is
+real and non-deficient from all-ones — but the fail-open direction is the dangerous one.
 
 **Empirically the boundary is not somewhere you stumble.** Over **30,000 random admissible bases**
 at N = 7 (symmetric, zero diagonal, coefficients drawn uniform on [−1, 1]): **max observed gain
-0.6225, mean 0.3842** — well clear of 1 in every sample. Reaching equality requires a deliberately
+0.6225, mean 0.3841** — well clear of 1 in every sample. (Reproducing the max requires the full
+30,000 samples — `SAMPLES=30000` on the script; the mean is sample-size stable.) Reaching equality requires a deliberately
 constructed all-±1 pattern. Two consequences: the error branch will effectively never fire on a
-genuinely authored basis, and the AMMERSE basis at **0.3892 sits almost exactly at the mean of
+genuinely authored basis, and the AMMERSE basis at **0.3892 sits almost exactly at the mean (0.3841) of
 random admissible bases** — so its coupling strength is statistically unremarkable, which means the
 4.70% residual is representative rather than fortunate.
 
 ### 6.3 Sensitivity to the one asymmetric cell
 
-The published matrix is symmetric in **48 of 49** cells; the exception is
+The published matrix has **one asymmetric pair of 21** (47 of 49 cells satisfy the symmetry
+predicate — an asymmetric pair fails it at both cells); the exception is
 `maintainable → extensible = +0.75` against `extensible → maintainable = −0.75` — a probable
 upstream sign error (§10.4). λ was computed on the **unrepaired** matrix, and the repair choice
 moves the result:
@@ -209,7 +222,7 @@ moves the result:
 | cell zeroed (abstain) | 0.3995 | 4.99% |
 
 The spread is 4.37%–6.00%. Nothing about the design's soundness turns on it, but the headline number
-does, so **the cell must be adjudicated before the matrix ships** (D-6).
+does, so **the pair must be adjudicated before the matrix ships** (D-6).
 
 ### 6.4 Do not renormalise per tier — that is what causes absolutism
 
@@ -223,19 +236,28 @@ published *normalised* second-order matrix contains cells at exactly ±1.
 first-order costs 4.70%; a third tier would cost 0.91%. So truncation depth is a free choice, not a
 defensive one.
 
-**Scale once at the end, never per tier.** `(1 − r) = 0.8054` bounds the output into [−1, 1] and,
-because every artefact is multiplied by the *same* constant, preserves all relative ordering
-exactly. *(That constant is derived from the infinite damped series, `S = 1/(1−r)`; the tight
-constant for a two-term truncation is `1/(1+r) = 0.8371`. Either bounds the output; `(1−r)` is
-simply the more conservative.)*
+**Scale once at the end, never per tier** — every artefact multiplied by the *same* constant
+preserves all relative ordering exactly. **But the constant must come from the sup-norm, not the
+spectral radius.** A per-axis [−1, 1] guarantee is an ℓ∞ statement, and the ℓ∞ per-step gain is
+set by the max row abs-sum: `r∞ = 0.5 × max_row_abs_sum / (N−1)` — for AMMERSE `0.5 × 4.0 / 6 =
+1/3`, giving the tight two-term scale `1/(1 + r∞) = 0.7500` (verified: the worst admissible ±1
+base lands at exactly 1.000000). The spectral constant `(1−r) = 0.8054` preserves ordering and
+bounds typical magnitudes — every real corpus vector stays inside (max 0.895) — but an adversarial
+±1 base overflows it to **1.074**, so it is not a guarantee. Note `r∞` is basis-dependent, so a
+consumer basis computes its own constant. **And no fixed constant bounds a *sum*:** §5-P3 makes
+deltas summable across the active set, and two real corpus vectors already sum past 1.7 — the
+active-set composition must clamp or average `base` before scaling. That is an open design
+consequence, not a solved one.
 
 ### 6.5 Second-order is not adopted
 
 The article states second-order values come from "multiplying the first-order impact matrix with
 itself." **Tested and false:** every one of the **42 off-diagonal** cells mismatches `M×M` (the 7
 diagonal cells are trivially different, since the published second-order diagonal is zeroed). Six
-hypotheses were tested and rejected, best fit `1.75 × M` still wrong in 32 of 49; the published
-normalisation is also not `raw / max|raw|`.
+hypotheses were tested and rejected, best fit `1.75 × M` still wrong in 32 of the 42 off-diagonal
+cells; the published normalisation is also not `raw / max|raw|`. The published second-order
+matrices (raw and normalised) are committed as `_ammerse-second-order.json` so this comparison is
+independently checkable.
 
 So the second-order matrix is **independently authored judgement, not a computed ripple** — it needs
 its own provenance and cannot inherit the first-order matrix's. **Use first-order only**, which the
@@ -285,8 +307,9 @@ lockstep across two packages. Use a named accessor: `resolve_active_value_set()`
 
 ### 7.2 Type the axes — levers vs goals
 
-Across the 36 authored vectors, `solvable` and `environmental` are **never negative**, and five of
-seven axes carry ≤3 negative cells — effectively **one cost axis and six benefit axes**.
+Across the 36 authored vectors, `solvable` and `environmental` are **never negative**, and six of
+seven axes carry ≤3 negative cells — effectively **one cost axis (`minimal`, 19 of the 27 negative
+cells) and six benefit axes**.
 
 The **adjudication** (an interpretation, not a measurement) is that the basis **conflates levers with
 goals**: goal variables sit at the end of causal chains, so nothing pushes them down. The in-repo
@@ -435,13 +458,15 @@ complete 7-axis vector** → **34 excluding two all-zero stubs** (`TEMPLATE_PRAC
 
 | Mechanism | Result |
 |---|---|
-| Deriving a **precedence ordering** from value vectors | **0 reproductions of 6**; four distinct orderings; worse than chance. Categorical: the target encodes a pipeline of operator types (generator / transformer / guard), and a scalar weighting has one output type |
-| Deriving **tension edges** from sign opposition | **5 of 5 false positives** on deliberately unrelated pairs, with opposition counts overlapping genuine cases. ⚠️ Wide interval — 5 pairs out of ~47,900, chosen as expected-to-be-unrelated rather than adversarially hard |
+| Deriving a **precedence ordering** from value vectors | **0 reproductions of 6** (2 independent scoring passes × 3 weightings); four distinct orderings; worse than chance. Categorical: the target encodes a pipeline of operator types (generator / transformer / guard), and a scalar weighting has one output type |
+| Deriving **tension edges** from sign opposition | **5 of 5 false positives** on deliberately unrelated pairs, with opposition counts overlapping genuine cases. ⚠️ Wide interval — 5 pairs out of ~47,900 (= C(310, 2) over the 310-node DRG; the 260 figure elsewhere counts behavioural *artefacts*, a different denominator — see §11), chosen as expected-to-be-unrelated rather than adversarially hard |
 | Second-order matrix as `M×M` | **42 of 42 off-diagonal cells mismatch** |
 
 ### 10.2 What the corpus shows
 
-- **Effective dimensionality: ~4–5 of 7.** Per-component variance at n=36:
+- **Effective dimensionality: ~4–5 of 7.** (Covariance-matrix PCA, centered — a
+  correlation-matrix PCA gives ~75.7% at four components and would look like a contradiction; it
+  is a different convention.) Per-component variance at n=36:
   31.9 / 21.3 / 14.2 / 12.5 / 8.7 / 7.6 / 3.9 — so **4 components reach 79.8%** and 5 reach 88.6%.
   At n=34 the series is 33.9 / 56.1 / 71.2 / 81.6 / 90.0 cumulative, again ~80% at four. Pairwise
   correlations exceeding |0.35|: **two at n=36**, **three at n=34** (the third marginal at −0.37).
@@ -463,8 +488,8 @@ complete 7-axis vector** → **34 excluding two all-zero stubs** (`TEMPLATE_PRAC
 
 ### 10.3 Upstream discrepancies to report
 
-1. **Probable sign error** — the sole asymmetry in 49 cells (§6.3), while the published second-order
-   matrix is fully symmetric.
+1. **Probable sign error** — the sole asymmetric pair of 21 (§6.3), while the published
+   second-order matrix is fully symmetric.
 2. **The derivation claim is false** (§6.5).
 
 **The operator reports these, not an agent** — an external communication about a trademarked work,
@@ -475,8 +500,15 @@ detects an upstream fix, **before the matrix ships** (D-6).
 
 | Claim | Superseded | **Canonical** |
 |---|---|---|
-| Residual of the adopted truncation | ~6% | **4.70%** — 6% was the *undamped three-term* figure |
+| Residual of the adopted truncation | ~6% | **4.70%** — the 6% was `gain³ = 5.89%`, the first-omitted-term magnitude of an undamped three-term truncation, quoted without the geometric tail; the comparable full-tail figure is 9.65% (§6.1) |
 | Generic soundness | "unconditionally sound" | **bounded** always (gain ≤ 1); **sound** for gain < 1 |
+| The three-term composition (`base + 0.5×fo + 0.25×so`) | endorsed as "quantitatively defensible" in the matrix-measurement evidence doc | **superseded** — the adopted composition is two-term damped (§6); second-order is rejected outright (§6.5) |
+| Second-order mismatch count | 49/49 | **42/42 off-diagonal** (7 diagonal cells trivially differ) |
+| Matrix symmetry count | "48 of 49 cells" | **one asymmetric pair of 21; 47 of 49 cells** |
+| Random-sweep mean | 0.3842 | **0.3841** (max 0.6225 unchanged; conclusions unchanged) |
+| `(1−r)` "bounds the output into [−1,1]" | asserted | **false in the sup-norm** — tight two-term constant is `1/(1+r∞)` (= 0.75 for AMMERSE); `(1−r)` overflows to 1.074 on an adversarial ±1 base (§6.4) |
+| Numeric-layer authoring size | 1,820 cells (260 × 7) | **~1,372–1,596** (196–228 artefacts × 7 after §7.4's kind narrowing) |
+| Artefact-count denominators | used interchangeably | **260** = behavioural artefacts (authoring); **310** = DRG nodes (pair counts, ~47,900); **41–59 files** = code-sweep surface. Different measures |
 | The gain = 1 equality case | "all values agree perfectly" | **perfect polarisation**, incl. all-disagree |
 | Effective dimensionality | "5 components for 80%", "rank ≈ 5" | **~4–5 of 7**; 4 reach 79.8% |
 | `trade-off` / `long-term` in doctrine YAML | 0 / 0 | **35 / 15** (authored YAML, excluding generated graphs) |
@@ -488,7 +520,7 @@ detects an upstream fix, **before the matrix ships** (D-6).
 | `impacts` vs `in_tension_with` | keep separate; no ADR needed | **`impacts` subsumes it**; superseding ADR required (operator ruling) |
 | `Relation.IMPACTS` | rejected by a hardening lens | **reopened as D-2** (operator ruling overrides) |
 | The connascence matrix | "park it — no available producer" | **unparked**: coefficients are now in-repo and authorized |
-| "Two axes carry no cost information" | as stated | **understated** — one cost axis, six benefit axes |
+| "Two axes carry no cost information" / "five of seven carry no cost signal" | as stated | **two** axes are never negative; six of seven carry ≤3 negative cells; `minimal` carries 19 of 27 (§7.2) |
 | "Gain, not correlation" | applied to everything | **matrix is symmetric ⇒ correlation-like; edges are directed ⇒ gain** |
 | Field-authored-relationship ban | blocks `value_impact` | **does not apply** — covers three lineage fields only. *Adjudicated, not measured* |
 | "3-for-3 decay is a law" | blocker | **a strong regularity, not a law** |
@@ -510,11 +542,11 @@ detects an upstream fix, **before the matrix ships** (D-6).
 | # | Decision | Why it matters |
 |---|---|---|
 | **D-1** | Value-bearing kinds: is `toolguide` in, and is `agent_profile` `value_bias` or out? | Two lenses disagreed. §7.4 adjudicates on semantics; settle before touching model/schema files |
-| **D-2** | **Which relation carries `impacts` after `in_tension_with` retires?** | **The programme-shape gate.** ~45–60 files vs ~5–10. Must be decided inside the ADR |
+| **D-2** | **Which relation carries `impacts` after `in_tension_with` retires?** (= the sequence document's gate **G2**) | **The programme-shape gate.** ~45–60 files vs ~5–10. Must be decided inside the ADR |
 | **D-3** | Does the creed feed **arithmetic**, or does an agent read `creed.yaml` as prose context? | If prose, the ranking function is unnecessary and the numeric layer shrinks dramatically |
 | **D-4** | Interview instrument: authored question bank + forced choice, or model-chosen questions? | Model-chosen over N virtues with no budget predictably yields a near-flat creed, the regime in which the creed is inert — and nothing records *who supplied each weight*, so a model's prior can acquire operator provenance |
 | **D-5** | Mandatory `rationale`: advisory or hard? | The calibration corpus fails it (≥3 of 38) |
-| **D-6** | The asymmetric matrix cell (§6.3) | The symmetry validator cannot be written without it, and the headline residual moves 4.37%–6.00% |
+| **D-6** | The asymmetric matrix pair (§6.3) (= the sequence ADR list's **ADR-D8**) | The symmetry validator cannot be written without it, and the headline residual moves 4.37%–6.00% |
 
 ## 14. Sequence
 
@@ -527,9 +559,10 @@ wiring the existing `generate_schemas --check` into CI, and the AMMERSE definiti
 
 ## 15. Method and limits
 
-Twelve profile-loaded agents across three squads (two sequential adversarial rounds, one hardening
-round of four lenses), plus a design-aggregation pass, a corpus measurement, a connascence-matrix
-measurement, and a publication-readiness review. All read-only.
+Fifteen profile-loaded agents across four squads (two sequential adversarial rounds, one hardening
+round of four lenses, one three-lens verification round), plus single-agent design-aggregation,
+sequencing, and publication-readiness passes; the corpus and matrix measurements were performed
+inline. All read-only.
 
 - **Nothing was executed** — no test was run; every code-behaviour claim is a static read.
 - The sign-channel finding sampled 14 of 38 corpus files plus 3 controls: it establishes that

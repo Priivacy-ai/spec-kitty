@@ -10,6 +10,11 @@ related:
 ---
 # Creed and FoundationalValues — design as proposed
 
+> ⚠️ **RECORD — the operator's input design, kept verbatim. The build target is
+> [`foundational-values-and-creed.md`](foundational-values-and-creed.md).** Known-stale figures
+> here: "rank ≈ 5" / "5 components for 80%" (canonical: **~4–5 effective dimensions**), "39%
+> (14/36)" (canonical: **35% — 12/34**, two of the fourteen are stubs). See the authority's §11.
+
 **Status:** operator input record. **No decision taken.** Prototyping / hardening.
 **Author of the design:** Stijn Dejongh (operator). Recorded verbatim in §1–§4 below.
 **Provenance:** supersedes the mechanism rejected in

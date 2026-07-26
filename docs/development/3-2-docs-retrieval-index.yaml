@@ -7859,7 +7859,7 @@ pages:
     - {slug: "5-the-three-planes-and-the-one-legal-composition", text: "5. The three planes — and the one legal composition", level: 2}
     - {slug: "6-the-mathematics", text: "6. The mathematics", level: 2}
     - {slug: "6-1-per-step-gain-and-the-adopted-truncation-s-residual", text: "6.1 Per-step gain and the adopted truncation's residual", level: 3}
-    - {slug: "6-2-the-generic-bound-bounded-always-sound-for-any-non-degenerate-basis", text: "6.2 The generic bound — bounded always, sound for any non-degenerate basis", level: 3}
+    - {slug: "6-2-the-generic-bound-bounded-always-sound-for-gain-1", text: "6.2 The generic bound — bounded always, sound for gain < 1", level: 3}
     - {slug: "6-3-sensitivity-to-the-one-asymmetric-cell", text: "6.3 Sensitivity to the one asymmetric cell", level: 3}
     - {slug: "6-4-do-not-renormalise-per-tier-that-is-what-causes-absolutism", text: "6.4 Do not renormalise per tier — that is what causes absolutism", level: 3}
     - {slug: "6-5-second-order-is-not-adopted", text: "6.5 Second-order is not adopted", level: 3}
@@ -8131,6 +8131,15 @@ pages:
     abstract: "Raw four-lens squad reports behind the hardened creed/FoundationalValues design: architect, doctrine-curator, reviewer, and implementer."
     anchors:
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/review-round-2026-07-26.md"
+    title: "Verification round — three-lens review of the finalized authorities"
+    divio_type: "none"
+    abstract: "Final review squad before handover: sequence-doc executability (architect), fresh-eyes fix verification (patterns), and adversarial number-by-number reproduction (debugger). Aggregated verdict and the fix list that was applied."
+    anchors:
+    - {slug: "aggregated-verdict", text: "Aggregated verdict", level: 2}
+    - {slug: "fix-ledger", text: "Fix ledger", level: 2}
+    - {slug: "what-the-lenses-could-not-verify-carried-forward-honestly", text: "What the lenses could not verify (carried forward honestly)", level: 2}
+    - {slug: "lens-verdicts-condensed", text: "Lens verdicts, condensed", level: 2}
   - path: "docs/plans/doctrine/squad-reports/reviewer.md"
     title: "Reviewer lens — adversarial pass and the 39% verdict"
     divio_type: "none"

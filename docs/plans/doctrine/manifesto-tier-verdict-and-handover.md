@@ -9,6 +9,12 @@ related:
 ---
 # Manifesto tier — verdict, corrections, and handover
 
+> ⚠️ **RECORD.** This verdict killed the *derived-tension* mechanism; a **successor design exists
+> and is the build target**: [`foundational-values-and-creed.md`](foundational-values-and-creed.md)
+> (authored `impacts` edges, creed on the charter — none of the mechanisms rejected here).
+> Its "~47,900 candidate pairs" is C(310,2) over DRG *nodes*; the authoring denominator is 260
+> behavioural *artefacts* — different measures (authority §11).
+
 **Date:** 2026-07-26
 **Method:** two sequential adversarial squads, 8 profile-loaded agents, all read-only.
 Round 1 (grounding): researcher-robbie, architect-alphonso, doctrine-daphne, paula-patterns.
