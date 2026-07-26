@@ -135,6 +135,9 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | FR-009 | Augment styleguides/tactics; excise duplicated checklists to assets | As a curator, I want one copy of each checklist. | Medium | Open |
 | FR-010 | Update `doctrine-daphne` with the canonical structure | As a curator agent, I want the pinned model at load time. | High | Open |
 | FR-011 | Close the validator parity gap | As a contributor, I want local validation to predict CI. | Low | Open |
+| FR-013 | Migrate all inline artefact relationships to edges | As a maintainer, I want one relationship authority in the tree, not a deprecated one still being derived. | High | Open |
+| FR-014 | Retire the extractor's reference-extraction passes | As a maintainer, I want the mechanism that re-derives the legacy surface removed, so the class cannot regrow. | High | Open |
+| FR-015 | Gate the relationship-free invariant | As a contributor, I want a structured reference entry to fail a test rather than pass review. | High | Open |
 | FR-012 | Record both ADRs | As a future maintainer, I want the decisions citable, not re-derived. | High | Done (`c7df59e22`, `f7ee9fb02`) |
 
 ### Non-Functional Requirements
@@ -145,7 +148,8 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | NFR-002 | Regeneration is idempotent and CLI-driven | `spec-kitty doctrine regenerate-graph` run twice produces a zero diff; fragments are never hand-edited. | Reliability | High | Open |
 | NFR-003 | Cleanup causes zero node loss | Deleting the nine strays moves node/edge/orphan counts by exactly 0. | Correctness | High | Done (verified: only +1 node, from the promotion) |
 | NFR-004 | `refines` round-trips end-to-end | The `041 → paradigm` `refines` edge survives regeneration and the org→DRG bridge without downgrading to `applies`. Measured baseline: 0 `refines` edges exist built-in today. | Correctness | High | Open |
-| NFR-005 | The legacy surface does not grow | The count of built-in artefacts carrying inline `references:` blocks does not exceed its current 142, and no new artefact adds one. | Maintainability | High | Open |
+| NFR-005 | The legacy relationship surface reaches zero | Zero structured `{type, id}` reference entries remain under `src/doctrine/`, and zero remaining path-string entries resolve to a built-in artefact. Only raw non-artefact paths survive (14 entries). | Maintainability | High | Open |
+| NFR-007 | Migration is proven by byte-identical regeneration | Regenerating the fragments after the migration yields a byte-identical fragment set to the pre-migration baseline, and again after the extraction passes are deleted. This single invariant covers all 414 migrated entries. | Correctness | High | Open |
 | NFR-006 | Golden counts stay a contract | Every added node/edge extends the composition ledger in `test_extractor_projection.py`; counts are never bumped without a ledger entry. | Maintainability | Medium | Open |
 
 ### Constraints
@@ -155,7 +159,7 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | C-001 | Edges are the only relationship authority | Per ADR 2026-07-26-1: author relationships as DRG edges; never widen a `<kind>_reference.type` enum; never add an inline `references:` block. | Technical | High | Active |
 | C-002 | Pack layout is mandatory | Per ADR 2026-07-26-2: `<type>/<pack>/[<category>/]<name>`; categories nest inside the pack. | Technical | High | Active |
 | C-003 | Everything lands on one branch | All work stays on `fix/2934-demock-planning-closeout-test` and ships as one PR (#2936). Operator call; the P0 close is deliberately gated on the structural work. | Business | High | Active |
-| C-004 | The 142-file inline-ref migration is out of scope | Fenced out; needs its own idempotency/edge-preservation proof before any extraction pass is deleted. | Technical | High | Active |
+| C-004 | Structural work is not deferred while 3.2.6 is unreleasable | No known structural defect found by this mission is handed to a follow-up issue. Deferring is treated as the same failure mode as greenwashing: it converts a known defect into an invisible one. Supersedes this constraint's original "fence the migration out" form, withdrawn by the operator. | Business | High | Active |
 | C-005 | Editing `DIRECTIVE_041` is its own reviewed change | It is live at `enforcement: required`; audit inbound edges before touching it. | Technical | High | Active |
 | C-006 | Inherited base CI reds are not touched | The 6 `arch-adversarial` failures are byte-identical to `origin/main`; leave them honest (ADR 2026-07-17-1). `quality-gate` fails only as their cascade. | Technical | High | Active |
 | C-007 | Do not run the full architectural suite | It leaks resources and blocks the working session; run targeted tests only. | Technical | High | Active |
@@ -181,4 +185,6 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 - **SC-006**: `spec-kitty doctrine regenerate-graph` produces a zero diff on a second consecutive run, and golden counts match a ledger entry explaining every delta.
 - **SC-007**: The `doctrine-daphne` profile states the layout convention, the edges-only rule, and the regeneration command.
 - **SC-008**: #2934 closes with its durability proof intact — the status pair is asserted to reach the target branch's committed tree, not merely a spy's request set.
-- **SC-009**: No new inline `references:` block is authored anywhere in this mission (count stays ≤142).
+- **SC-009**: Zero structured `{type, id}` reference entries and zero artefact-resolving path entries remain under `src/doctrine/`; the 14 raw-material path entries survive and are recognised as non-relationships by the gate.
+- **SC-010**: The fragment set regenerated after the migration is byte-identical to the pre-migration baseline — and still byte-identical after the extraction passes are deleted.
+- **SC-011**: `extractor.py` contains no reference-extraction pass; a grep for the removed pass names returns nothing, and the fragments are authored rather than derived.

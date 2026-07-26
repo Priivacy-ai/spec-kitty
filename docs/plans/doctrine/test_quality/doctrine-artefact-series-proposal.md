@@ -34,8 +34,10 @@ Two ADRs landed on this branch *because* of questions this proposal raised. They
    - The `<kind>_reference.type` schema enums must **not** be widened. `asset` being
      unnameable inline is correct behaviour. This retires the "asset support is not
      end-to-end" reading of the #2918 finding (see the revised capability section below).
-   - `DIRECTIVE_041` is itself one of the 142 legacy carriers (5 inline entries). Its
-     existing block is **left alone**; the new link to the paradigm is an edge.
+   - `DIRECTIVE_041` is itself one of the legacy carriers (5 structured entries). Those five
+     migrate to edges as part of FR-013 — and because editing `041` is its own reviewed change,
+     do that migration **with** the intent split rather than as an anonymous line in the bulk
+     pass. The new link to the paradigm is an edge from the start.
 2. **[ADR 2026-07-26-2](../../../adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md)
    — artefacts live at `<type>/<pack>/[<category>/]<name>`.** The pack layer (`built-in`) is
    mandatory and any category grouping nests *inside* it. Consequences here:

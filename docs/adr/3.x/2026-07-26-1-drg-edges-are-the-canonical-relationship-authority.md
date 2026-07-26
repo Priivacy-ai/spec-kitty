@@ -33,7 +33,7 @@ declared its own relationships inline, in its own YAML body. The DRG later intro
 traversable edges as the way relationships are modelled. Both surfaces are still live, and
 the doctrine layer therefore has **two authorities for one concept**.
 
-**Surface A — inline `references:` blocks.** 142 built-in artifact YAMLs carry a
+**Surface A — inline `references:` blocks.** 139 built-in artifact YAMLs carry a
 `references:` list of `{type, id, when?}` entries. Four schemas (`directive`, `paradigm`,
 `procedure`, `tactic`) bless this shape via a `<kind>_reference` definition whose `type`
 property carries a **hand-copied enum of doctrine kinds**.
@@ -97,13 +97,13 @@ Four consequences of the split were observed empirically, not theorised:
 
 ## Considered Options
 
-* **Option 1 (chosen)** — Pin DRG edges as the sole relationship authority; freeze the inline
-  `references:` surface; fix the stale migration hint; stage the migration of the 142 files
-  and the retirement of the extractor's reference passes.
+* **Option 1 (chosen)** — Pin DRG edges as the sole relationship authority; fix the stale
+  migration hint; **and migrate all 414 relationship entries now**, retiring the extractor's
+  reference passes behind a byte-identical-regeneration proof.
 * **Option 2** — Keep both surfaces, and bring the inline surface to full parity (widen the
   four kind enums, add a `relation:` field to `references:`, keep deriving the graph).
-* **Option 3** — Big-bang: migrate all 142 files and delete the extraction passes in one
-  mission, now.
+* **Option 3 (initially chosen, then withdrawn)** — Pin the direction and *freeze* the inline
+  surface, but defer the migration and the pass retirement to follow-up work.
 * **Option 4** — Declare the inline blocks canonical and treat the fragments as pure build
   output (invert the other way).
 
@@ -116,10 +116,11 @@ The end state this ADR pins:
 1. **DRG edges are the single canonical authority for artefact→artefact relationships.**
    Relation semantics live in `doctrine.drg.models.Relation`. No schema, body field, or
    sidecar may declare a second relationship vocabulary.
-2. **The inline `references:` block is frozen legacy.** It stays readable for the 142 files
-   that still carry it, but it is **closed to growth**: no new artefact adds one, and no
-   existing block gains entries. New relationships are authored as edges in the per-kind
-   `*.graph.yaml` fragment.
+2. **The inline `references:` block stops carrying artefact relationships.** Every one of the
+   414 relationship-bearing entries migrates to a hand-authored edge in the per-kind
+   `*.graph.yaml` fragment, in this mission. The field survives only for raw non-artefact
+   material (14 entries), and is closed to growth in every case: no new artefact adds a
+   relationship entry.
 3. **The four `<kind>_reference.type` enums are frozen, not fixed.** A kind that cannot be
    named inline is *correct* behaviour, not a defect. Specifically: **do not add `asset` (or
    any kind) to those enums** — the pull request that tries is repeating the mistake this ADR
@@ -128,20 +129,56 @@ The end state this ADR pins:
    the ~10 sites repeating `src/doctrine/graph.yaml` are corrected to the sharded per-kind
    fragment path (`src/doctrine/<kind>.graph.yaml`). Guidance that cannot be followed is
    worse than none.
-5. **The extractor's reference passes are slated for retirement**, following ADR 2026-07-18-1:
-   migrate each file's inline block into hand-authored edges (preserving the inferred relation
-   explicitly), then delete the reference-extraction passes so fragments are authored, not
-   derived. **Staged deliberately** — see the scope fence.
+5. **The extractor's reference passes are retired in this mission**, following ADR 2026-07-18-1:
+   migrate each file's relationship entries into hand-authored edges (preserving the
+   per-kind inferred relation *explicitly*, so authored intent and edge type stop living in
+   different files), then delete the reference-extraction passes so fragments are authored,
+   not derived. Sequenced so the proof comes first: baseline → migrate → assert byte-identical
+   → delete passes → assert byte-identical again.
 6. **New doctrine artefacts are edge-native from birth.** An artefact authored today declares
    zero inline references and all its relationships as edges.
 
-### Scope fence — what this ADR does *not* do
+### Scope: the migration happens now, in this mission
 
-This ADR **does not** migrate the 142 files, and no single mission should. The migration is
-mechanical but wide, and it changes generated fragments, so it must be staged behind its own
-red-first proof that regeneration is idempotent and edge-preserving (a fragment diff of
-exactly zero before the passes are deleted). Filed as follow-up work, not folded here.
-Until then the inline blocks remain **readable**; only *growth* is prohibited.
+An earlier revision of this ADR deferred the migration of the inline blocks to follow-up work,
+on the grounds that it is wide and needs its own idempotency proof. **That deferral was
+withdrawn by the operator**, and the reasoning is worth recording because it generalises:
+
+> We are working on the `3.2.6`-unreleasable issues, and have been extreme boyscouting for over
+> a week. We will continue this practice and philosophy until 3.2.6 is stable, and we covered as
+> many of the existing "ticking timebombs" as we can. Similar to how we stopped greenwashing, we
+> desperately need to stop deferring structural issues.
+
+The deferral was also a weak argument on its own terms: "it needs a proof first" is a reason to
+**build the proof**, not to postpone. And the required proof here is unusually strong and cheap —
+because the fragments are *generated*, a correct migration is exactly one whose regenerated
+fragment set is **byte-identical** to the pre-migration baseline. That is a total,
+mechanically-checkable invariant, not a judgement call.
+
+**Measured composition** (so the next reader does not re-measure). 139 files carry a
+`references:` list, holding 428 entries in two structurally different classes:
+
+| Class | Entries | Files | Kinds | Disposition |
+| --- | --- | --- | --- | --- |
+| Structured `{type, id}` — always an artefact reference | 357 | 120 | tactic 84, procedure 20, directive 15, paradigm 1 | **migrate to edges** |
+| Path string resolving to a built-in artefact | 57 | styleguide/toolguide | styleguide 17, toolguide 2 | **migrate to edges** |
+| Path string to non-artefact material (README, ADR, docs, templates) | 14 | same files | — | **keep** — see below |
+
+So the migration is **414 entries → hand-authored edges**, not 428.
+
+**The `references:` field is not deleted outright.** 14 entries point at raw reference material —
+`src/doctrine/skills/README.md`, `docs/adr/...`, Divio templates, an action `index.yaml`. Those
+denote no artefact relationship, produce no edge today (`_resolve_path_ref` fails closed on
+them by design, NFR-003), and the doctrine README explicitly sanctions carrying raw reference
+material. Forcing them into edges would invent relationships that do not exist — the same
+category error as widening the kind enum.
+
+The end state is therefore **not** "no `references:` blocks" but the sharper invariant:
+
+> A `references:` list may contain only plain path strings to **non-artefact** material.
+> Zero structured `{type, id}` entries; zero path strings that resolve to a built-in artefact.
+
+This is gateable, and it is what the confirmation criteria below assert.
 
 ### Consequences
 
@@ -157,11 +194,15 @@ Until then the inline blocks remain **readable**; only *growth* is prohibited.
 
 #### Negative
 
-* The doctrine layer carries two readable surfaces until the staged migration completes,
-  and readers must know that one of them is closed. This ADR is the thing that tells them.
 * Authoring relationships is now a two-file edit (artefact body + graph fragment), which is
   less locally-obvious than an inline list. Accepted: it is the cost of typed relations.
-* 142 files remain to migrate — visible, tracked debt rather than silent drift.
+* The migration touches 139 artefact files and the generated fragments in one change — a large
+  mechanical diff inside an already-wide PR. Mitigated by the byte-identical-regeneration
+  invariant, which makes the whole migration verifiable in a single assertion rather than by
+  reviewing 414 individual edge moves.
+* The 14 surviving raw-material path entries mean `references:` does not disappear entirely, so
+  a reader must know the distinction between "a path to a doc" and "a relationship". The gate
+  encodes it, and this ADR explains it.
 
 #### Neutral
 
@@ -175,9 +216,11 @@ Until then the inline blocks remain **readable**; only *growth* is prohibited.
   routes asset references through `requires`/`suggests` edges rather than a `type: asset`
   body field. No redesign needed.
 * The `DIRECTIVE_041` intent split must **not** add inline references. `041` is itself one of
-  the 142 legacy carriers (5 inline entries); its existing block is left alone, and the new
-  `DIRECTIVE_041 --refines--> paradigm:tests-as-scaffold-not-friction` link is authored as an
-  edge.
+  the legacy carriers (5 structured entries), so those five migrate to edges with the rest;
+  the new `DIRECTIVE_041 --refines--> paradigm:tests-as-scaffold-not-friction` link is
+  authored as an edge from the start. Note the ordering constraint: because editing `041` is
+  its own reviewed change, do its migration *with* the intent split rather than as an
+  anonymous line in the bulk pass.
 * That edge is the **first `refines` edge in any built-in fragment** (histogram above: 0).
   Round-trip verification through the org→DRG bridge on regeneration is therefore a real
   risk item, not a formality — #2079 fixed a silent `refines`→`applies` downgrade, and
@@ -185,25 +228,33 @@ Until then the inline blocks remain **readable**; only *growth* is prohibited.
 
 ### Confirmation
 
-* `git grep -n "^references:" src/doctrine` does not grow beyond its current 142 files; new
-  artefacts land with zero inline references.
+* **Zero** structured `{type, id}` reference entries remain anywhere under `src/doctrine/`, and
+  **zero** remaining path-string entries resolve to a built-in artefact via `_resolve_path_ref`.
+  The only surviving entries are raw non-artefact paths. Enforced by a gate, not by inspection.
+* Regenerating the fragments immediately after the migration produces a **byte-identical**
+  fragment set to the pre-migration baseline — the total invariant that proves every one of the
+  414 entries became the same edge the extractor used to infer, with none lost, added, or
+  re-typed. Asserted again *after* the extraction passes are deleted.
 * The four `<kind>_reference.type` enums are byte-identical to their pre-ADR state (no kind
   added), and a comment in each schema marks the definition frozen with a pointer here.
 * No source site tells an operator to edit `src/doctrine/graph.yaml`; the rejection-hint
   regex and its schema fixture name the per-kind fragment path.
-* When the staged migration runs: regenerating fragments after migrating a file produces a
+* During the migration, at every increment: regenerating fragments after migrating a file produces a
   **zero diff**, proving the hand-authored edge preserved the previously-inferred relation
   before any extraction pass is deleted.
 
 ## Pros and Cons of the Options
 
-### Option 1 — Pin edges as canonical, freeze the inline surface, stage the retirement (chosen)
+### Option 1 — Pin edges as canonical and complete the migration now (chosen)
 
-**Pros:** resolves the two-authority smell by *closing* a surface instead of maintaining it;
-cheap now (freeze + hint fix + this record); keeps the wide mechanical migration behind its
-own proof; immediately reclassifies the #2918 finding and unblocks #2935 authoring.
-**Cons:** two readable surfaces persist for a while; relationship authoring becomes a
-two-file edit.
+**Pros:** ends the two-authority condition outright rather than documenting it; the doctrine
+layer has exactly one relationship authority when the PR lands, so no reader has to hold
+"which surface is live?" in their head. The byte-identical-regeneration invariant makes a
+414-entry mechanical migration *cheaper to verify than to review* — one assertion covers every
+entry. Deleting the extraction passes removes the mechanism that keeps re-deriving the legacy
+surface, so the class cannot regrow. Also reclassifies the #2918 finding and unblocks #2935.
+**Cons:** a large mechanical diff inside an already-wide PR; relationship authoring becomes a
+two-file edit; `references:` survives for raw material, so the field does not vanish entirely.
 
 ### Option 2 — Full parity for the inline surface
 
@@ -213,13 +264,21 @@ requires adding a `relation:` field, i.e. re-implementing the `Relation` vocabul
 form — a second authority for edge semantics. Directly contradicts single-canonical-authority
 and ADR 2026-07-01-1. Rejected.
 
-### Option 3 — Big-bang migration now
+### Option 3 — Pin the direction, defer the migration (initially chosen, then withdrawn)
 
-**Pros:** one authority immediately; no interim dual-surface confusion.
-**Cons:** 142 files plus 14 generated fragments in one change, landing inside an unrelated
-P0/doctrine mission, with no idempotency proof yet written. High regression surface for a
-mechanical change; would bury the #2935 review. Rejected as sequencing, not direction —
-Option 1 commits to the same end state.
+**Pros:** narrow change now; the wide mechanical migration sits behind its own proof and its
+own review; the P0 and the #2935 series land sooner.
+**Cons — and these carried the decision:** it leaves two readable surfaces live and the
+extraction passes still *actively deriving* the deprecated one, so the class keeps regenerating
+itself while the ADR asserts it is closed. "Frozen" without enforcement is the same posture that
+produced nine dead files and the #2918 layout error. The stated blocker — "it needs an
+idempotency proof first" — is an argument for building the proof, which turned out to be a
+single byte-comparison, not a research project.
+
+Withdrawn by the operator on the explicit ground that deferring structural work is the same
+failure mode as greenwashing a test: it converts a known defect into an invisible one and
+relies on a future maintainer having the same context. While `3.2.6` is unreleasable, the
+standing posture is to clear ticking timebombs in the mission that finds them.
 
 ### Option 4 — Declare inline blocks canonical; fragments are pure build output
 
