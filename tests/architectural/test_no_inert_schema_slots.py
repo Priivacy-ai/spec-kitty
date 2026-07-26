@@ -40,7 +40,15 @@ The adopted definition:
 **Producer** — anything that actually puts a value in the slot:
 
 * a shipped doctrine artefact under ``src/doctrine/**`` carrying the key, **or**
-* code under ``src/`` that assigns it.
+* code **under ``src/doctrine/``** that assigns it.
+
+  Scoped to the doctrine tree, not all of ``src/``, and the scope is load-bearing.
+  Matching is by bare name (see the under-count section), so a wider producer scan
+  means any unrelated local variable anywhere in the CLI masks a doctrine slot.
+  Harvesting all of ``src/`` produced 12,742 names against 807 here — and among the
+  11,935 it added were ``aliases`` and ``overrides``. That is not a rounding error:
+  ``aliases`` is one of the three fields SC-001 names, so the whole-``src`` version
+  of this gate **did not guard the thing it was written to guard**.
 
 **The generated schemas are explicitly NOT producers.** They are the thing being
 checked. Admitting them is precisely what made the earlier definition vacuous.
@@ -77,17 +85,31 @@ The historical inert set is **derived, not cited**. An earlier draft referred to
 exist cannot falsify anything, and invites picking three cases that flatter the
 definition. Whatever this lint reports on the shipped tree *is* the finding.
 
-A known under-count: bare-name matching
+Known under-counts — and what they cost
 ---------------------------------------
-Slots are matched to producers **by name, with no namespacing**, so a slot is masked
-whenever an unrelated same-named producer exists anywhere under ``src/``. The live
-example is ``overrides``: the exact twin of the four ``enhances`` findings, retired
-by the same FR-028 cutover, and absent from the report only because
-``cli/commands/agent/tasks_status_cmd.py`` and ``review/arbiter.py`` use ``overrides``
-as a local name. The error direction is always **false-negative**, never false
-positive — the lint under-reports, so the real debt is ``>= 41``. Per-kind
-namespacing is a change to the definition, not to the implementation; it is not this
-work package's to make.
+Two of them. Both make the lint **under**-report, never over-report, so the true
+debt is ``>= 59``. State the forward consequence, not just the arithmetic: an
+under-count does not merely hide debt, it can silently retire one of this gate's
+named duties.
+
+**1. Bare-name matching.** Slots are matched to producers by name with no
+namespacing, so a slot is masked whenever an unrelated same-named producer exists
+anywhere in the scanned tree. This one already cost a guard duty once: while
+producers were harvested from all of ``src/``, ``aliases`` was masked by unrelated
+CLI code, so **mission B2 could have shipped ``aliases`` inert with this gate
+green** — SC-001's central promise, quietly void. ``overrides`` was masked the same
+way, hiding half the FR-028 pair. Scoping producers to ``src/doctrine/`` recovered
+both. The residual risk is a collision *inside* the doctrine tree; per-kind
+namespacing would close it and is a change to the definition, not this work
+package's to make.
+
+**2. ``_model_slots`` globs only ``models.py``.** Roughly 99 Pydantic fields are
+invisible to the slot side: ``agent_profiles/profile.py`` (68),
+``missions/step_contracts.py`` (23), ``drg/org_pack_config.py`` (8), plus
+``base.py``, ``drg/merge.py`` and ``drg/org_pack_loader.py``. Concretely, the
+agent-profile findings below are schema-side only — their Python twins
+(``avatar_image``, ``toolguide_references``, …) are simply not seen. Widening the
+glob is deferred, not solved.
 
 The baseline is not an allowlist (operator ruling)
 --------------------------------------------------
@@ -110,7 +132,35 @@ the baseline
     the owner being done — which is the whole reason this is a baseline and not an
     ``xfail``.
 
-Growth above the baseline FAILS; shrinkage WARNS (charter Burn-down Policy §a).
+Growth above the baseline FAILS; shrinkage WARNS (charter Burn-down Policy §a), and
+the file's size is registered with the charter-named ratchet in ``_baselines.yaml``
+so nothing about it is pinned only by this module.
+
+``unassigned`` is the hole in that claim, and it is capped
+------------------------------------------------------------
+``owner_is_complete`` returns ``False`` unconditionally for ``unassigned``, so the
+anti-weasel test is *structurally incapable* of firing for those entries — the
+"fails the moment that owner completes" promise is simply false for them. Combined
+with the growth rule (a new finding must enter the baseline to pass), an
+``unassigned`` row is a legal way to satisfy the gate without doing any work: it
+never fires, never expires, never requires adjudication. Two things hold the line:
+
+* ``MAX_UNASSIGNED_ENTRIES`` — a shrink-only cap, so the hatch cannot widen while
+  the current set is adjudicated.
+* ``test_every_named_owner_resolves`` — every non-``unassigned`` owner must name a
+  real WP or mission in the event log, so ``WP42``, ``wp05`` and ``mission:typo``
+  cannot masquerade as owned work. (They would read as "never complete", which is
+  indistinguishable from live debt.)
+
+Concrete floor (charter §5)
+---------------------------
+Every shipped-tree assertion here is an **absence** assertion — ``new == []``,
+``offenders == {}``, ``name not in flagged`` — and all of them pass on a scan that
+found nothing at all. The ``tmp_path`` self-mutation tests cannot cover this: they
+build their own tree, so the shipped-tree path stays unpinned. Relocate
+``src/doctrine``, rename the ``models.py`` convention, or land any refactor that
+empties the walk, and this whole module goes inert behind green tests.
+``test_the_scan_actually_sees_the_shipped_tree`` is the floor that pins it.
 
 Non-vacuity (NFR-001)
 ---------------------
@@ -134,10 +184,15 @@ from functools import lru_cache
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.architectural._inert_slots import (
     ALLOWLIST,
+    BASELINE_SLOTS,
     DISPOSITIONS,
+    MAX_UNASSIGNED_ENTRIES,
+    MINIMUM_BASELINE_ENTRIES_STILL_FOUND,
+    MINIMUM_SCANNED_SLOT_NAMES,
     UNASSIGNED_OWNER,
     Baseline,
     BaselineEntry,
@@ -145,8 +200,10 @@ from tests.architectural._inert_slots import (
     InertSlot,
     find_inert_slots,
     load_baseline,
+    owner_exists,
     owner_is_complete,
     ratchet,
+    scanned_slots,
     unresolved_by_completed_owners,
 )
 
@@ -409,6 +466,133 @@ def test_a_missing_mission_is_not_complete(tmp_path: Path) -> None:
     assert not owner_is_complete("mission:nope", root=tmp_path, mission="nope")
 
 
+def test_a_specified_but_unplanned_mission_resolves_yet_is_not_complete(
+    tmp_path: Path,
+) -> None:
+    """"Not yet decomposed into WPs" is not "no such mission".
+
+    This is Mission D's live state, and conflating the two is a bug this module
+    shipped until ``test_every_named_owner_resolves`` caught it: existence must be
+    the mission directory, completion must be its work packages.
+    """
+    mission_dir = tmp_path / "kitty-specs" / "specified-only"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    owner = "mission:specified-only"
+
+    assert owner_exists(owner, root=tmp_path, mission="irrelevant")
+    assert not owner_is_complete(owner, root=tmp_path, mission="irrelevant")
+
+
+def test_a_typo_owner_does_not_resolve(tmp_path: Path) -> None:
+    """The failure this guards: a misspelt owner reads exactly like unfinished work."""
+    _plant_mission(tmp_path, "planted-mission", "WP99", "done")
+
+    assert owner_exists("WP99", root=tmp_path, mission="planted-mission")
+    assert not owner_exists("wp99", root=tmp_path, mission="planted-mission")
+    assert not owner_exists("WP42", root=tmp_path, mission="planted-mission")
+    assert not owner_exists("mission:typo", root=tmp_path, mission="planted-mission")
+
+
+def test_the_scan_actually_sees_the_shipped_tree() -> None:
+    """The concrete floor. Without it every other shipped-tree assertion is absence.
+
+    ``new == []`` is green when the tree is clean **and** when the walk found
+    nothing, and nothing else in this module can tell those apart.
+    """
+    slot_names = {slot.name for slot in scanned_slots(_REPO_ROOT)}
+
+    assert len(slot_names) >= MINIMUM_SCANNED_SLOT_NAMES, (
+        f"the slot scan found only {len(slot_names)} distinct names under "
+        f"{_REPO_ROOT}; the floor is {MINIMUM_SCANNED_SLOT_NAMES}. Either the "
+        "doctrine tree moved, the models.py convention was renamed, or the walk is "
+        "broken — in every case this gate is now inert and must be repaired, not "
+        "relaxed."
+    )
+
+    still_found = set(_shipped()) & load_baseline().slots
+    assert len(still_found) >= MINIMUM_BASELINE_ENTRIES_STILL_FOUND, (
+        f"only {len(still_found)} baseline entries are still detected; the floor is "
+        f"{MINIMUM_BASELINE_ENTRIES_STILL_FOUND}. A genuine burn-down this large "
+        "should lower the floor deliberately in the same change."
+    )
+
+
+def test_every_named_owner_resolves() -> None:
+    """An owner that does not exist reads exactly like an owner that is not done.
+
+    Without this, ``WP42`` / ``wp05`` / ``mission:typo`` sit in the baseline looking
+    like live, owned debt while being unreachable by the anti-weasel gate forever.
+    """
+    baseline = load_baseline()
+    unresolvable = sorted(
+        {
+            entry.owner
+            for entry in baseline.entries
+            if not owner_exists(entry.owner, root=_REPO_ROOT, mission=baseline.mission)
+        }
+    )
+
+    assert unresolvable == [], (
+        f"baseline owners that name no real WP or mission: {unresolvable}. "
+        f"WP owners resolve against mission {baseline.mission!r}; 'mission:<slug>' "
+        "owners resolve against kitty-specs/<slug>."
+    )
+
+
+def test_the_unassigned_hatch_is_capped_and_shrink_only() -> None:
+    """``unassigned`` can never fire the anti-weasel gate, so it must not widen.
+
+    This is the one number in the file that is a policy, not an observation: it may
+    go down as entries are adjudicated and must never go up.
+    """
+    unassigned = [e for e in load_baseline().entries if e.owner == UNASSIGNED_OWNER]
+
+    assert len(unassigned) <= MAX_UNASSIGNED_ENTRIES, (
+        f"{len(unassigned)} entries are owned by {UNASSIGNED_OWNER!r}, above the "
+        f"shrink-only cap of {MAX_UNASSIGNED_ENTRIES}. A new finding needs a real "
+        "owner; the hatch does not widen to accommodate it."
+    )
+    if len(unassigned) < MAX_UNASSIGNED_ENTRIES:
+        warnings.warn(
+            f"{UNASSIGNED_OWNER} entries are down to {len(unassigned)}; lower "
+            f"MAX_UNASSIGNED_ENTRIES to lock it in.",
+            stacklevel=1,
+        )
+
+
+def test_an_owned_entry_may_not_be_provisional_at_load_time(tmp_path: Path) -> None:
+    """Same class of rule as the disposition vocabulary, so same enforcement point."""
+    path = tmp_path / "b.yaml"
+    path.write_text(
+        "mission: m\nentries:\n"
+        "  - name: x\n    declared_at: a.yaml\n    owner: WP01\n"
+        "    disposition: wire-the-producer\n    note: n\n    provisional: true\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BaselineError, match="cannot stay provisional"):
+        load_baseline(path)
+
+
+def test_the_baseline_size_is_registered_with_the_charter_ratchet() -> None:
+    """Burn-down Policy §a: the size lives in ``_baselines.yaml``, not only here.
+
+    Pinned from this side too, so the registration cannot drift into being a number
+    nobody compares against anything.
+    """
+    recorded = yaml.safe_load(
+        (_REPO_ROOT / "tests" / "architectural" / "_baselines.yaml").read_text(
+            encoding="utf-8"
+        )
+    )["test_no_inert_schema_slots"]["baseline_entries"]
+
+    assert recorded == len(BASELINE_SLOTS), (
+        f"_baselines.yaml records {recorded} baseline entries but the file holds "
+        f"{len(BASELINE_SLOTS)}. Update both in the same change."
+    )
+
+
 def test_allowlist_is_empty() -> None:
     """NFR-001: a gate with a populated allowlist is a gate with exceptions.
 
@@ -428,7 +612,7 @@ def test_calibration_anchors_are_not_flagged(slot_name: str) -> None:
     is the definition that is wrong — ``structural_lint_config`` in particular is a
     field mission A's own WP05 is defending.
     """
-    flagged = {s.name for s in find_inert_slots(_REPO_ROOT)}
+    flagged = {s.name for s in _shipped()}
 
     assert slot_name not in flagged, (
         f"{slot_name!r} was flagged as inert. It is not: see the calibration-anchor "

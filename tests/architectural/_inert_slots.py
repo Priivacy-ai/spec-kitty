@@ -37,8 +37,12 @@ from specify_cli.status.reducer import materialize_snapshot
 __all__ = [
     "ALLOWLIST",
     "BASELINE_PATH",
+    "BASELINE_SLOTS",
     "COMPLETED_LANES",
     "DISPOSITIONS",
+    "MAX_UNASSIGNED_ENTRIES",
+    "MINIMUM_BASELINE_ENTRIES_STILL_FOUND",
+    "MINIMUM_SCANNED_SLOT_NAMES",
     "UNASSIGNED_OWNER",
     "Baseline",
     "BaselineEntry",
@@ -46,8 +50,10 @@ __all__ = [
     "InertSlot",
     "find_inert_slots",
     "load_baseline",
+    "owner_exists",
     "owner_is_complete",
     "ratchet",
+    "scanned_slots",
     "unresolved_by_completed_owners",
 ]
 
@@ -242,17 +248,38 @@ def _iter_code_producer_names(tree: ast.Module) -> Iterator[str]:
 
 
 def _code_producers(root: Path) -> set[str]:
-    src = root / _SRC
+    """Names written by code **in the doctrine tree** — the tree the slots live in.
+
+    Scoped to ``src/doctrine/`` rather than all of ``src/``, and that scope is
+    load-bearing rather than a tidiness preference. Matching is by bare name with
+    no namespacing, so a wider scan means any unrelated local variable anywhere in
+    the CLI masks a doctrine slot of the same name. Whole-``src`` harvesting
+    produced 12,742 names against 807 here, and among the 11,935 it added were
+    ``aliases`` and ``overrides`` — i.e. it defeated SC-001's ``aliases`` guard
+    outright and hid half of the FR-028 ``enhances``/``overrides`` pair. Widening
+    this back is not a refactor; it is a hole.
+    """
+    doctrine = root / _SRC / _DOCTRINE
     produced: set[str] = set()
-    if not src.is_dir():
+    if not doctrine.is_dir():
         return produced
-    for path in sorted(src.rglob("*.py")):
+    for path in sorted(doctrine.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         produced.update(_iter_code_producer_names(tree))
     return produced
 
 
 # ------------------------------------------------------------------------- the gate
+
+
+def scanned_slots(root: Path) -> set[InertSlot]:
+    """Every slot the walk finds under *root*, before producers are considered.
+
+    Exposed so the concrete floor can pin that the scan saw the tree at all. The
+    findings list cannot do that job: it is empty both when the tree is clean and
+    when the walk found nothing.
+    """
+    return {*_schema_slots(root), *_model_slots(root)}
 
 
 def find_inert_slots(root: Path) -> list[InertSlot]:
@@ -262,7 +289,7 @@ def find_inert_slots(root: Path) -> list[InertSlot]:
     tree — the non-vacuity test points it at a planted ``tmp_path``, which is the
     only reason that test proves anything about the shipped-tree assertion.
     """
-    slots = {*_schema_slots(root), *_model_slots(root)}
+    slots = scanned_slots(root)
     producers = _artefact_producers(root) | _code_producers(root)
     inert = [
         slot
@@ -291,6 +318,22 @@ UNASSIGNED_OWNER = "unassigned"
 _MISSION_OWNER_PREFIX = "mission:"
 _MISSIONS_DIR = "kitty-specs"
 _EVENT_LOG = "status.events.jsonl"
+
+#: Shrink-only cap on ``unassigned`` entries (25 today). ``unassigned`` is the one
+#: owner the anti-weasel test can never fire for, so an uncapped hatch lets a new
+#: finding satisfy the growth rule without anyone taking responsibility for it.
+#: This number may only ever go DOWN.
+MAX_UNASSIGNED_ENTRIES = 25
+
+#: Concrete floors (charter §5, ``architectural-gate-non-vacuity`` failure mode #1).
+#: Every shipped-tree assertion in this gate is an *absence* assertion — ``new ==
+#: []``, ``offenders == {}``, ``name not in flagged`` — so all of them pass on a
+#: scan that saw nothing at all. Relocate ``src/doctrine``, rename the ``models.py``
+#: convention, or land any refactor that empties the walk, and the gate goes 100%
+#: inert behind green tests. These pin that the scan actually found the tree.
+#: Today: 216 distinct slot names, 59 baseline entries all still present.
+MINIMUM_SCANNED_SLOT_NAMES = 180
+MINIMUM_BASELINE_ENTRIES_STILL_FOUND = 35
 
 #: A WP counts as complete at ``approved``, not only at ``done``. ``done`` lands
 #: at merge, so a ``done``-only gate would fire on the mainline after the fact.
@@ -354,10 +397,16 @@ def _parse_entry(raw: object, index: int) -> BaselineEntry:
         raise BaselineError(
             f"baseline entry {index}: 'provisional' must be a bool, got {provisional!r}"
         )
+    owner = _require_str(raw.get("owner"), "owner", index)
+    if provisional and owner != UNASSIGNED_OWNER:
+        raise BaselineError(
+            f"baseline entry {index}: owner {owner!r} is named, so its disposition "
+            "is that owner's call to make and record — it cannot stay provisional."
+        )
     return BaselineEntry(
         name=_require_str(raw.get("name"), "name", index),
         declared_at=Path(_require_str(raw.get("declared_at"), "declared_at", index)),
-        owner=_require_str(raw.get("owner"), "owner", index),
+        owner=owner,
         disposition=disposition,
         note=_require_str(raw.get("note"), "note", index),
         provisional=provisional,
@@ -402,6 +451,11 @@ def ratchet(
     return new, cleared
 
 
+def _mission_exists(root: Path, mission_slug: str) -> bool:
+    """Is there a real mission at ``kitty-specs/<slug>`` with an event log?"""
+    return (root / _MISSIONS_DIR / mission_slug / _EVENT_LOG).is_file()
+
+
 def _mission_work_packages(root: Path, mission_slug: str) -> dict[str, Any]:
     """Reduced WP states for *mission_slug*, or ``{}`` when it has no event log.
 
@@ -409,11 +463,32 @@ def _mission_work_packages(root: Path, mission_slug: str) -> dict[str, Any]:
     a test must never write ``status.json`` into a mission directory as a side
     effect of reading it.
     """
-    mission_dir = root / _MISSIONS_DIR / mission_slug
-    if not (mission_dir / _EVENT_LOG).is_file():
+    if not _mission_exists(root, mission_slug):
         return {}
+    mission_dir = root / _MISSIONS_DIR / mission_slug
     states: dict[str, Any] = materialize_snapshot(mission_dir).work_packages
     return states
+
+
+def owner_exists(owner: str, *, root: Path, mission: str) -> bool:
+    """Does *owner* name a real WP or mission in the event log?
+
+    ``owner_is_complete`` answers ``False`` both for "not finished yet" and for
+    "no such thing", which makes a typo indistinguishable from live debt: ``WP42``,
+    ``wp05`` and ``mission:typo`` would all sit in the baseline reading as work
+    that someone is doing. ``unassigned`` is the one deliberate non-owner and is
+    capped separately.
+    """
+    if owner == UNASSIGNED_OWNER:
+        return True
+    if owner.startswith(_MISSION_OWNER_PREFIX):
+        slug = owner.removeprefix(_MISSION_OWNER_PREFIX)
+        # Existence is the mission directory, NOT its work packages: a mission
+        # that has been specified but not yet decomposed into WPs is real and
+        # ownable. Mission D is in exactly that state today. Conflating the two
+        # would make "not yet planned" indistinguishable from "no such mission".
+        return _mission_exists(root, slug)
+    return owner in _mission_work_packages(root, mission)
 
 
 def owner_is_complete(owner: str, *, root: Path, mission: str) -> bool:
@@ -458,3 +533,11 @@ def unresolved_by_completed_owners(
         if completion[entry.owner]:
             offenders.setdefault(entry.owner, []).append(entry)
     return offenders
+
+
+#: Module-scope frozenset so the charter-named ratchet meta-test
+#: (``test_ratchet_baselines.py`` against ``tests/architectural/_baselines.yaml``)
+#: can introspect this baseline's size exactly as it does every other gated
+#: allowlist: growth above the recorded number FAILS, shrinkage WARNS. Without
+#: this registration nothing pins the file's size at all.
+BASELINE_SLOTS: frozenset[InertSlot] = load_baseline().slots

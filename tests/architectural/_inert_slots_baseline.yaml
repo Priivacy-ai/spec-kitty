@@ -28,14 +28,24 @@
 # `test_baseline_entries_are_well_formed` pins it. The converse does not hold: the
 # occurrence-map `from` entry below is un-owned but operator-adjudicated.
 #
-# KNOWN UNDER-COUNT: the lint matches slot names globally, with no namespacing, so
-# a slot is masked whenever an unrelated same-named producer exists anywhere under
-# src/. The live example is `overrides` — the exact twin of the four `enhances`
-# entries below, retired by the same FR-028 cutover, absent from this file only
-# because `src/specify_cli/cli/commands/agent/tasks_status_cmd.py` and
-# `src/specify_cli/review/arbiter.py` use `overrides` as a local name. The error
-# direction is always false-NEGATIVE, so the true debt is >= 41. WP05 must excise
-# all eight `enhances`/`overrides` schema properties, not the four listed here.
+# `unassigned` is CAPPED and shrink-only (`MAX_UNASSIGNED_ENTRIES`). It is the one
+# owner value the anti-weasel test can never fire for, so without a cap it is a
+# legal row that never fires, never expires and never requires adjudication --
+# i.e. a way to satisfy the growth rule without doing the work. The cap may only
+# go down. Every named owner must also RESOLVE to a real WP or mission in the
+# event log (`test_every_named_owner_resolves`): `WP42`, `wp05` and `mission:typo`
+# would otherwise read as "never complete" exactly like `unassigned`.
+#
+# KNOWN UNDER-COUNT (still true after the src/doctrine scope fix): the lint matches
+# slot names globally, with no namespacing, so a slot is still masked by an
+# unrelated same-named producer *inside* src/doctrine/. The error direction is
+# always false-NEGATIVE, so the true debt is >= 59.
+#
+# The scope fix is why this file grew 41 -> 59. `_code_producers` used to harvest
+# all of src/ (12,742 names vs 807 now). Among the names that scan added were
+# `aliases` -- the field SC-001 exists to guard, which the gate therefore did NOT
+# guard -- and `overrides`, which hid half of the FR-028 pair. The `enhances` /
+# `overrides` set is now complete at 8.
 
 # WP owners without a `mission:` prefix are work packages of this mission.
 mission: doctrine-silence-guards-01KYFV7Q
@@ -65,6 +75,28 @@ entries:
     disposition: delete-the-declaration
     note: FR-028 retired the field; styleguides/models.py raises on it.
   - name: enhances
+    declared_at: src/doctrine/schemas/tactic.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; tactics/models.py raises on it.
+  # The four `overrides` twins, surfaced by the src/doctrine producer scope fix.
+  # Same validator, same cutover, same removal.
+  - name: overrides
+    declared_at: src/doctrine/schemas/paradigm.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; paradigms/models.py raises on it.
+  - name: overrides
+    declared_at: src/doctrine/schemas/procedure.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; procedures/models.py raises on it.
+  - name: overrides
+    declared_at: src/doctrine/schemas/styleguide.schema.yaml
+    owner: WP05
+    disposition: delete-the-declaration
+    note: FR-028 retired the field; styleguides/models.py raises on it.
+  - name: overrides
     declared_at: src/doctrine/schemas/tactic.schema.yaml
     owner: WP05
     disposition: delete-the-declaration
@@ -176,6 +208,37 @@ entries:
     owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
+  # Surfaced by the src/doctrine producer scope fix; same kind, same owner.
+  - name: classification
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: classification
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: note
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: note
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: reference
+    declared_at: src/doctrine/import_candidates/models.py
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
+  - name: reference
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    owner: mission:foundational-values-creed-band-01KYFV8N
+    disposition: wire-the-producer
+    note: Whole import-candidate kind ships with zero instances under src/.
 
   # --- Adjudicated by the operator, owner still to be named -----------------
   # Occurrence maps are authored per-mission under kitty-specs/, which the
@@ -240,6 +303,50 @@ entries:
     note: >-
       REQUIRED field with no default that no shipped artefact fills -- the model
       cannot be constructed from the tree as it stands.
+  - name: required_artifacts
+    declared_at: src/doctrine/missions/models.py
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Mission is a schema-generation-only model; no shipped artefact uses this shape.
+  - name: required_artifacts
+    declared_at: src/doctrine/schemas/mission.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Mission is a schema-generation-only model; no shipped artefact uses this shape.
+  - name: to
+    declared_at: src/doctrine/missions/models.py
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: >-
+      Transition target on the schema-generation-only Mission model; its `from`
+      twin is unpopulated for the same reason.
+  - name: to
+    declared_at: src/doctrine/schemas/mission.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: >-
+      Transition target on the schema-generation-only Mission model; its `from`
+      twin is unpopulated for the same reason.
+
+  # Same producer-scope class as the operator-adjudicated `from` above -- the
+  # occurrence-map schema in full. Marked provisional because the operator ruled
+  # on `from` specifically, not on these two.
+  - name: moves
+    declared_at: src/doctrine/schemas/occurrence-map.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Occurrence maps are authored under kitty-specs/, outside the src/-only producer scope.
+  - name: to
+    declared_at: src/doctrine/schemas/occurrence-map.schema.yaml
+    owner: unassigned
+    disposition: fix-the-lint-definition
+    provisional: true
+    note: Occurrence maps are authored under kitty-specs/, outside the src/-only producer scope.
 
   # model_task_routing: the reader/writer asymmetry firing on a live case.
   # loader.py:96-106 READS these (catalog.routing_policy.freshness_policy,
@@ -307,10 +414,35 @@ entries:
     disposition: delete-the-declaration
     provisional: true
     note: No shipped agent profile authors this key.
+  - name: model
+    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
+    owner: unassigned
+    disposition: delete-the-declaration
+    provisional: true
+    note: No shipped agent profile authors this key (0 of 18 carry `model:`).
 
   # Sits directly next to mission B2's `aliases` -- the field this lint exists
   # to guard. The only shipped pack, built-in/spec-kitty-core.glossary-pack.yaml,
   # does not carry it.
+  # SC-001's own two fields, and the reason the src/doctrine scope fix was a
+  # BLOCKER rather than a tidy-up: `aliases` was masked by the whole-src/ producer
+  # scan, so mission B2 could have shipped it inert with this gate green.
+  # glossary_packs/models.py says so in its own docstring: the `aliases` /
+  # `banned_synonyms` fields "are carried and round-tripped for Mission B
+  # forward-compat but are inert (unwired) in Mission A".
+  #
+  # OWNER NEEDED: these belong to mission B2, whose slug does not exist in
+  # kitty-specs/ yet, so a `mission:` owner here would not resolve. Route them the
+  # moment B2 is created -- until then the anti-weasel gate cannot fire for the
+  # two fields this work package exists to guard.
+  - name: aliases
+    declared_at: src/doctrine/glossary_packs/models.py
+    owner: unassigned
+    disposition: wire-the-producer
+    provisional: true
+    note: >-
+      Declared inert by its own module docstring, pending mission B2. SC-001 names
+      this field explicitly.
   - name: banned_synonyms
     declared_at: src/doctrine/glossary_packs/models.py
     owner: unassigned
