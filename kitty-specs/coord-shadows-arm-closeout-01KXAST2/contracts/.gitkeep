@@ -1,3 +1,0 @@
-No API/schema contracts for this mission — it is an internal refactor/fix slice
-(status-gate + subtask-row canon + lane-recovery + liveness), no new external
-surface. Directory kept for the software-dev path convention.
