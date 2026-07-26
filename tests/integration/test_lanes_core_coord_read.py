@@ -288,7 +288,10 @@ def test_materialize_worktree_topology_reads_primary(
     from specify_cli.core.worktree_topology import materialize_worktree_topology
 
     ctx = coord_topology_mission_sentinel_meta
-    topo = materialize_worktree_topology(ctx.repo, ctx.slug)
+    _seed_reducible_husk_event(ctx)
+    topo = materialize_worktree_topology(
+        ctx.repo, ctx.slug, status_feature_dir=ctx.coord_feature_dir
+    )
 
     assert {entry.wp_id for entry in topo.entries} == {"WP01"}, (
         "routed PRIMARY read must materialize WP01 from PRIMARY tasks/lanes; an "

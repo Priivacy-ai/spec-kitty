@@ -16,7 +16,7 @@ from pathlib import Path
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
-from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_wp_lane
+from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_all_wp_lanes
 from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
 
 
@@ -71,13 +71,20 @@ class FeatureTopology:
         return self.target_branch
 
 
-def _read_canonical_lane_or_default(feature_dir: Path, wp_id: str) -> str:
+def _read_canonical_lanes_or_default(
+    feature_dir: Path, *, allow_missing: bool
+) -> dict[str, Lane]:
+    """Read one immutable lane snapshot; surface corrupt canonical state."""
     try:
-        lane = get_wp_lane(feature_dir, wp_id)
+        return get_all_wp_lanes(feature_dir)
     except CanonicalStatusNotFoundError:
-        return "planned"
-    except Exception:
-        return "planned"
+        if allow_missing:
+            return {}
+        raise
+
+
+def _lane_or_default(lanes: dict[str, Lane], wp_id: str) -> str:
+    lane = lanes.get(wp_id, Lane.UNINITIALIZED)
     if lane == Lane.UNINITIALIZED:
         return "planned"
     return str(lane)
@@ -148,6 +155,9 @@ def materialize_worktree_topology(
         main_repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
     )
     status_dir = status_feature_dir or feature_dir
+    lanes = _read_canonical_lanes_or_default(
+        status_dir, allow_missing=status_feature_dir is None
+    )
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
@@ -205,7 +215,7 @@ def materialize_worktree_topology(
                     )
                 ),
                 dependencies=graph.get(wp_id, []),
-                lane=_read_canonical_lane_or_default(status_dir, wp_id),
+                lane=_lane_or_default(lanes, wp_id),
                 worktree_exists=worktree_exists,
                 commits_ahead_of_base=commits_ahead,
             )

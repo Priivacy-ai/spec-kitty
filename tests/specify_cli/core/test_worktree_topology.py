@@ -77,11 +77,15 @@ def test_mixed_mission_topology_includes_repo_root_planning_entry(
     status_feature_dir.mkdir(parents=True)
     status_reads: list[Path] = []
 
-    def _read_status(path: Path, _wp_id: str) -> str:
+    def _read_status(path: Path, *, allow_missing: bool) -> dict[str, str]:
         status_reads.append(path)
-        return "approved"
+        assert allow_missing is False
+        return {"WP01": "approved", "WP02": "approved"}
 
-    monkeypatch.setattr("specify_cli.core.worktree_topology._read_canonical_lane_or_default", _read_status)
+    monkeypatch.setattr(
+        "specify_cli.core.worktree_topology._read_canonical_lanes_or_default",
+        _read_status,
+    )
 
     topology = materialize_worktree_topology(
         repo_root, mission_slug, status_feature_dir=status_feature_dir
@@ -89,7 +93,7 @@ def test_mixed_mission_topology_includes_repo_root_planning_entry(
 
     assert [entry.wp_id for entry in topology.entries] == ["WP01", "WP02"]
     assert [entry.lane for entry in topology.entries] == ["approved", "approved"]
-    assert status_reads == [status_feature_dir, status_feature_dir]
+    assert status_reads == [status_feature_dir]
     assert topology.has_stacking is True
 
     planning_entry = topology.get_entry("WP02")
