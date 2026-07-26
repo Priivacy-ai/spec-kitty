@@ -1,9 +1,0 @@
-id,type,location,description,accessed
-S-001,codebase,scripts/tasks/tasks_cli.py,Primary tasks CLI with move command,2025-12-17
-S-002,codebase,scripts/tasks/task_helpers.py,WP location and frontmatter utilities,2025-12-17
-S-003,codebase,src/specify_cli/dashboard/scanner.py,Dashboard lane scanning and rendering,2025-12-17
-S-004,codebase,src/specify_cli/task_metadata_validation.py,Lane mismatch detection logic,2025-12-17
-S-005,codebase,tests/test_tasks_cli_commands.py,Existing test patterns for lane operations,2025-12-17
-S-006,stakeholder,User planning input,Clean break preference and command rename decision,2025-12-17
-S-007,codebase,src/specify_cli/tasks_support.py,Duplicate helper functions,2025-12-17
-S-008,codebase,src/specify_cli/acceptance.py,Lane-based acceptance checking,2025-12-17
