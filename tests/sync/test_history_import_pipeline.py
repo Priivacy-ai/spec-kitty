@@ -148,6 +148,49 @@ def test_describe_plan_makes_skipped_wps_impossible_to_miss():
     assert "2 WPs SKIPPED (malformed frontmatter: WP07.md, WP11.md)" in text  # the mission row names them
 
 
+def test_describe_plan_makes_skipped_event_rows_impossible_to_miss():
+    """Same fail-loud contract as the WP-file skip, for the on-disk lifecycle
+    prefix (#2884 finding A): a dropped WPCreated/MissionCreated row must mark
+    BOTH the summary line and the mission row, never read as clean success."""
+    import uuid
+
+    from specify_cli.sync.history_import.identity import ImportIdentity
+    from specify_cli.sync.history_import.pipeline import ImportPlan
+    from specify_cli.sync.history_import.scan import MissionScan, PrefixSource
+
+    scan = MissionScan(
+        mission_slug="m-event-skips",
+        canonical_mission_id=None,
+        mission_number=None,
+        name="M Event Skips",
+        mission_type="software-dev",
+        purpose_tldr=None,
+        purpose_context=None,
+        target_branch="main",
+        created_at=None,
+        prefix_source=PrefixSource.ON_DISK,
+        work_packages=(),
+        lane_transitions=(),
+        skipped_event_rows=3,
+    )
+    identity = ImportIdentity(
+        project_uuid=uuid.UUID("11111111-2222-3333-4444-555555555555"),
+        project_slug="p",
+        repo_slug="p",
+        is_synthetic=True,
+    )
+    plan = ImportPlan(
+        identity=identity,
+        scans=(scan,),
+        # canonical-event-exempt(exception-flow): minimal wire-envelope fixture for report rendering
+        envelopes=({"event_id": "e0", "event_type": "MissionCreated"},),
+    )
+
+    text = "\n".join(describe_plan(plan))
+    assert "3 lifecycle row(s) SKIPPED" in text  # the summary line itself is marked
+    assert "3 lifecycle row(s) SKIPPED (malformed on-disk prefix)" in text  # the mission row names it
+
+
 def test_describe_empty_plan(tmp_path, monkeypatch):
     _patch_selection(monkeypatch, mission_dirs=[], blockers=[])
     plan = build_import_plan(tmp_path, mission=None, apply=False)

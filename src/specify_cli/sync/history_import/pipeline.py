@@ -54,6 +54,10 @@ class MissionSummary:
     # Malformed-frontmatter WP files the scan skipped (fail-loud, B3/#2884):
     # these MUST render in the report so skips never read as clean success.
     skipped_wp_files: tuple[str, ...] = ()
+    # Malformed/unrecoverable on-disk lifecycle-prefix rows the scan dropped
+    # (truncated JSON, missing wp_id, ...) — same fail-loud contract as
+    # ``skipped_wp_files`` but for the on-disk prefix path (#2884 finding A).
+    skipped_event_rows: int = 0
 
     @property
     def skipped_wp_count(self) -> int:
@@ -88,6 +92,11 @@ class ImportPlan:
         """Total malformed-frontmatter WP files skipped across all scans."""
         return sum(len(scan.skipped_wp_files) for scan in self.scans)
 
+    @property
+    def skipped_event_rows_total(self) -> int:
+        """Total malformed on-disk lifecycle-prefix rows skipped across all scans."""
+        return sum(scan.skipped_event_rows for scan in self.scans)
+
     def event_type_counts(self) -> dict[str, int]:
         return dict(Counter(str(env["event_type"]) for env in self.envelopes))
 
@@ -99,6 +108,7 @@ class ImportPlan:
                 wp_count=len(scan.work_packages),
                 status_count=len(scan.lane_transitions),
                 skipped_wp_files=scan.skipped_wp_files,
+                skipped_event_rows=scan.skipped_event_rows,
             )
             for scan in self.scans
         ]
@@ -187,14 +197,21 @@ def describe_plan(plan: ImportPlan) -> list[str]:
     # Skips must be impossible to read past: they mark the summary line itself,
     # not just a footnote (fail-loud, B3/#2884).
     skipped_note = f" · {plan.skipped_wp_total} WP file(s) SKIPPED" if plan.skipped_wp_total else ""
+    # Same fail-loud contract for the on-disk lifecycle-prefix path (finding A):
+    # a dropped WPCreated/MissionCreated row must mark the summary line too.
+    skipped_event_note = (
+        f" · {plan.skipped_event_rows_total} lifecycle row(s) SKIPPED" if plan.skipped_event_rows_total else ""
+    )
     lines = [
         f"Import plan for project {plan.identity.project_slug} [{plan.identity.project_uuid}]{identity_note}",
-        f"{plan.mission_count} mission(s) → {plan.total_events} event(s){skipped_note}:",
+        f"{plan.mission_count} mission(s) → {plan.total_events} event(s){skipped_note}{skipped_event_note}:",
     ]
     for summary in plan.mission_summaries():
         row = f"  • {summary.mission_slug}  [{summary.prefix_source}]  {summary.wp_count} WP, {summary.status_count} status"
         if summary.skipped_wp_count:
             row += f" · {summary.skipped_wp_count} WPs SKIPPED (malformed frontmatter: {', '.join(summary.skipped_wp_files)})"
+        if summary.skipped_event_rows:
+            row += f" · {summary.skipped_event_rows} lifecycle row(s) SKIPPED (malformed on-disk prefix)"
         lines.append(row)
     counts = plan.event_type_counts()
     breakdown = ", ".join(f"{count} {event_type}" for event_type, count in sorted(counts.items()))
