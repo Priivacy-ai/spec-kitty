@@ -23,6 +23,7 @@ from typing import Any, Literal, cast
 from urllib.parse import urlsplit
 
 from packaging.version import Version
+from pydantic import BaseModel, ConfigDict
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import (
@@ -835,7 +836,50 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
     return Event, validate_event, str(package_version)
 
 
-# canonical-producer-exempt: #2891 -- the ONE TeamSpace replay-envelope shell.
+class _TeamspaceEnvelope(BaseModel):
+    """The SINGLE TeamSpace replay-envelope shape (#2891, CP001/CP002 #2884).
+
+    The migration ``WPStatusChanged`` builder and the history-import
+    creation-prefix builder (``sync.history_import.synthesize._envelope``, via
+    the ``envelope_seam`` re-export) both assemble the identical 15-key envelope.
+    This model is their one owner, so a new envelope-level field cannot be added
+    to one producer and silently forgotten in the other -- ``extra="forbid"``
+    turns a mismatched key set into a construction-time error instead of a
+    silent drift. Callers compute the field VALUES (``build_id`` /
+    ``correlation_id`` / ... differ per producer); the KEY SET and
+    ``schema_version`` live here.
+
+    Fields deliberately keep their raw wire types (``str`` for ``timestamp``
+    and ``project_uuid``, not ``datetime``/``UUID``): this is a structural
+    shape guard for the replay/synthesis producers, not the
+    ``spec_kitty_events.Event`` wire contract (that separate validation
+    already happens via ``event_cls.model_validate(envelope)`` in
+    ``teamspace_dry_run``). Constructing through ``Event`` here instead would
+    silently drop ``aggregate_type``/``repo_slug`` -- fields ``Event`` does not
+    declare -- and coerce ``timestamp``/``project_uuid`` to
+    ``datetime``/``UUID``, changing the on-wire envelope shape asserted by
+    ``tests/sync/test_history_import_synthesize.py``.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    event_id: str
+    event_type: str
+    aggregate_id: str
+    aggregate_type: str
+    payload: dict[str, Any]
+    timestamp: str
+    build_id: str
+    node_id: str
+    lamport_clock: int
+    causation_id: str | None = None
+    project_uuid: str
+    project_slug: str
+    repo_slug: str | None
+    correlation_id: str
+    schema_version: str = CANONICAL_ENVELOPE_SCHEMA_VERSION
+
+
 def _build_teamspace_envelope(
     *,
     event_id: str,
@@ -852,35 +896,31 @@ def _build_teamspace_envelope(
     repo_slug: str | None,
     correlation_id: str,
     causation_id: str | None = None,
-) -> dict[str, Any]:
-    """The SINGLE TeamSpace replay-envelope shell (#2891).
+) -> _TeamspaceEnvelope:
+    """Construct the SINGLE TeamSpace replay-envelope shell (#2891).
 
-    The migration ``WPStatusChanged`` builder and the history-import
-    creation-prefix builder (``sync.history_import.synthesize._envelope``, via
-    the ``envelope_seam`` re-export) both assemble the identical 15-key envelope.
-    This is their one owner, so a new envelope-level field cannot be added to one
-    producer and silently forgotten in the other. Callers compute the field
-    VALUES (``build_id`` / ``correlation_id`` / ... differ per producer); the KEY
-    SET and ``schema_version`` live here. Replay/synthesis producers, not
-    live-path emitters — hence canonical-producer-exempt.
+    Callers that need the wire-format dict (JSONL rows, hashing, upload
+    payloads) call ``.model_dump()`` at their own serialization boundary --
+    this builder's job is only to close the "hand-rolled dict, key typo, or
+    forgotten key" defect class by construction.
     """
-    return {
-        "event_id": event_id,
-        "event_type": event_type,
-        "aggregate_id": aggregate_id,
-        "aggregate_type": aggregate_type,
-        "payload": payload,
-        "timestamp": timestamp,
-        "build_id": build_id,
-        "node_id": node_id,
-        "lamport_clock": lamport_clock,
-        "causation_id": causation_id,
-        "project_uuid": project_uuid,
-        "project_slug": project_slug,
-        "repo_slug": repo_slug,
-        "correlation_id": correlation_id,
-        "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
-    }
+    return _TeamspaceEnvelope(
+        event_id=event_id,
+        event_type=event_type,
+        aggregate_id=aggregate_id,
+        aggregate_type=aggregate_type,
+        payload=payload,
+        timestamp=timestamp,
+        build_id=build_id,
+        node_id=node_id,
+        lamport_clock=lamport_clock,
+        causation_id=causation_id,
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        repo_slug=repo_slug,
+        correlation_id=correlation_id,
+        schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
+    )
 
 
 # canonical-producer-exempt: #1198 -- historical migration-replay envelope builder.
@@ -935,7 +975,7 @@ def _status_event_to_teamspace_envelope(
         correlation_id=deterministic_ulid(
             f"teamspace-dry-run:{status_event.mission_slug}:{status_event.event_id}"
         ),
-    )
+    ).model_dump()
 
 
 def _historical_teamspace_evidence(
