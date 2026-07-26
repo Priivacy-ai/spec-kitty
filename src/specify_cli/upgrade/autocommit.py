@@ -33,6 +33,8 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import safe_commit
 
+_ELIGIBLE_ROOT_GENERATED_FILES = frozenset({".gitignore", "AGENTS.md", "GEMINI.md"})
+
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
 
 DETACHED_HEAD_WARNING = (
@@ -68,11 +70,10 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
         status = entry[:2]
         path = entry[3:]
 
-        # With -z format, renames/copies include a second NUL-separated
-        # path.  We take the *destination* (new name); the source (old name)
-        # is intentionally discarded because we care about "what exists now".
+        # With -z format, renames/copies report destination first (in ``path``)
+        # and source second. Consume and discard the source because we care
+        # about the path that exists now.
         if ("R" in status or "C" in status) and i < len(entries) and entries[i]:
-            path = entries[i]
             i += 1
 
         normalized = path.strip().replace("\\", "/")
@@ -91,12 +92,12 @@ def is_upgrade_commit_eligible(path: str, checkout: Path) -> bool:
     if not normalized:
         return False
 
-    # Ignore paths that are outside the repo and root-level files — except
-    # .gitignore: the gitignore-backfill migrations write it, and leaving it
-    # dirty is exactly the merge-blocking churn #2385 reports.
+    # Ignore paths that are outside the repo and arbitrary root-level files.
+    # The allowlist contains root surfaces owned by upgrade/session-presence
+    # writers; the pre-run baseline still excludes pre-existing operator dirt.
     if normalized.startswith("../"):
         return False
-    if "/" not in normalized and normalized != ".gitignore":
+    if "/" not in normalized and normalized not in _ELIGIBLE_ROOT_GENERATED_FILES:
         return False
 
     # Never auto-commit ~/.kittify when users run inside their home directory.

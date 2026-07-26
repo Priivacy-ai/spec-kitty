@@ -22,6 +22,34 @@ from specify_cli.upgrade.runner import UpgradeResult
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+def test_rich_surface_drift_returns_summary_before_caller_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The caller must get a chance to commit repair writes before exit 1."""
+    from specify_cli.tool_surface.repair import DriftPolicySummary
+
+    summary = DriftPolicySummary(
+        created=[Path("created-surface")],
+        drifted_reported=[Path("customized-surface")],
+    )
+    monkeypatch.setattr(upgrade_cmd, "_repair_stale_command_manifest", lambda *_a, **_kw: None)
+    monkeypatch.setattr(
+        "specify_cli.tool_surface.repair.run_surface_repair",
+        lambda *_a, **_kw: summary,
+    )
+
+    result = upgrade_cmd._run_upgrade_surface_repair(
+        tmp_path,
+        confirm=True,
+        dry_run=False,
+        json_output=False,
+    )
+
+    assert result is summary
+
+
 def test_git_status_paths_parses_modified_files(tmp_path: Path, monkeypatch) -> None:
     """Porcelain output with modified files is parsed correctly."""
     # Simulate: " M src/foo.py\0 M src/bar.py\0"
@@ -46,12 +74,36 @@ def test_git_status_paths_parses_added_and_untracked(tmp_path: Path, monkeypatch
 
 
 def test_git_status_paths_handles_rename(tmp_path: Path, monkeypatch) -> None:
-    """Rename entries use the destination (new) path."""
-    # git status -z for rename: "R  old.py\0new.py\0"
-    raw = b"R  old.py\0new.py\0"
+    """Rename entries use the destination-first path from porcelain ``-z``."""
+    raw = b"R  new.py\0old.py\0"
     fake_result = MagicMock(returncode=0, stdout=raw)
     monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
     paths = autocommit.git_status_paths(tmp_path)
+    assert "new.py" in paths
+    assert "old.py" not in paths
+
+
+def test_git_status_paths_handles_real_git_rename(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=tmp_path,
+        check=True,
+    )
+    old_path = tmp_path / "old.py"
+    old_path.write_text("print('old')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "old.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "mv", "old.py", "new.py"], cwd=tmp_path, check=True)
+
+    paths = autocommit.git_status_paths(tmp_path)
+
+    assert paths is not None
     assert "new.py" in paths
     assert "old.py" not in paths
 
@@ -108,6 +160,13 @@ def test_eligible_accepts_root_gitignore(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible(".gitignore", tmp_path) is True
 
 
+@pytest.mark.parametrize("path", ["AGENTS.md", "GEMINI.md"])
+def test_eligible_accepts_owned_root_tool_surfaces(
+    tmp_path: Path, path: str
+) -> None:
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is True
+
+
 def test_eligible_rejects_parent_traversal(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible("../secret.txt", tmp_path) is False
 
@@ -126,7 +185,7 @@ def test_eligible_rejects_home_kittify(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_prepare_upgrade_commit_files_excludes_root_files(
+def test_prepare_upgrade_commit_files_excludes_arbitrary_root_files(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -149,6 +208,7 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
 
     assert {str(path) for path in files} == {
         ".kittify/metadata.yaml",
+        "AGENTS.md",
         "kitty-specs/001-test/tasks/WP01.md",
         "docs/guides/upgrade.md",
     }

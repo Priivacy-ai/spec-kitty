@@ -153,7 +153,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   while running" shape as #2430.
 
 - **`spec-kitty upgrade` no longer returns with self-made dirt from the
-  post-commit stages (#2491).** The upgrade auto-commit ran *before* the
+  post-commit stages (#2491).** The upgrade auto-commit ran _before_ the
   tool-surface repair and the teamspace-migration offer on both CLI paths, so
   anything those stages wrote — observed in the field as a modified-but-
   uncommitted `.kittify/command-skills-manifest.json` after a 3.2.4→3.2.6
@@ -165,6 +165,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   the pass captures exactly the post-commit writes. Skipped under `--dry-run`
   and under `manual_review_required` (preserved customized files are never
   swept); repair/drift semantics and exit codes are untouched.
+
 ### ♻️ Changed
 
 - **Internal: the coord-authority trio is decomposed into ports + pure cores

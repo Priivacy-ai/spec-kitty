@@ -391,8 +391,6 @@ def _run_upgrade_surface_repair(
         if not json_output:
             for line in render_surface_summary_lines(summary):
                 console.print(line)
-            if summary.drifted_reported and confirm:
-                raise typer.Exit(1)
         return summary
     except typer.Exit:
         raise
@@ -776,6 +774,7 @@ def upgrade(  # noqa: C901
             if repair_committed:
                 auto_committed = True
                 auto_commit_paths.extend(p for p in repair_paths if p not in auto_commit_paths)
+                auto_commit_warning = None
             if repair_warning and repair_warning != auto_commit_warning:
                 worktree_warnings.append(repair_warning)
         surface_drift_failed = _surface_drift_exit_required(
@@ -817,6 +816,8 @@ def upgrade(  # noqa: C901
                 console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
             if auto_commit_warning:
                 console.print(f"[yellow]Warning:[/yellow] {auto_commit_warning}")
+            if surface_drift_failed:
+                raise typer.Exit(1)
         return
 
     # Show migration plan
@@ -920,6 +921,10 @@ def upgrade(  # noqa: C901
         if repair_committed:
             auto_committed = True
             auto_commit_paths_list.extend(p for p in repair_paths if p not in auto_commit_paths_list)
+            if auto_commit_warning:
+                if auto_commit_warning in result.warnings:
+                    result.warnings.remove(auto_commit_warning)
+                auto_commit_warning = None
         if repair_warning and repair_warning not in result.warnings:
             result.warnings.append(repair_warning)
     surface_drift_failed = _surface_drift_exit_required(
@@ -1003,6 +1008,8 @@ def upgrade(  # noqa: C901
         auto_committed=auto_committed,
         auto_commit_paths=auto_commit_paths_list,
     )
+    if surface_drift_failed:
+        raise typer.Exit(1)
 
 
 def _print_upgrade_section(header: str, items: list[str], item_prefix: str) -> None:
