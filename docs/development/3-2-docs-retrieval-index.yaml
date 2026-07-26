@@ -7761,6 +7761,12 @@ pages:
     abstract: "Hardened design after a four-lens squad: the structure is sound and needs no new kind, relation, or node; the numeric layer must be gated behind a one-day experiment because the sign channel is measurably noisy and creed-weighted ranking collapses toward magnitude."
     anchors:
     - {slug: "headline", text: "Headline", level: 2}
+    - {slug: "0-the-operative-frame-and-what-it-changes", text: "0. The operative frame — and what it changes", level: 2}
+    - {slug: "0-1-what-this-reframing-retires", text: "0.1 What this reframing retires", level: 3}
+    - {slug: "0-2-the-lever-goal-split-a-free-improvement-from-the-in-repo-template", text: "0.2 The lever/goal split — a free improvement from the in-repo template", level: 3}
+    - {slug: "0-3-what-survives-the-reframing-three-items", text: "0.3 What survives the reframing — three items", level: 3}
+    - {slug: "0-4-the-experiment-re-scoped-to-the-stated-goal", text: "0.4 The experiment, re-scoped to the stated goal", level: 3}
+    - {slug: "0-5-the-cheapest-next-experiment-unchanged-by-all-of-this", text: "0.5 The cheapest next experiment, unchanged by all of this", level: 3}
     - {slug: "1-corrections-to-the-input-design-s-own-evidence", text: "1. Corrections to the input design's own evidence", level: 2}
     - {slug: "2-the-39-question-settled-and-the-answer-is-a-third-option", text: "2. The 39% question — settled, and the answer is a third option", level: 2}
     - {slug: "3-hardened-structure-decisions", text: "3. Hardened structure — decisions", level: 2}

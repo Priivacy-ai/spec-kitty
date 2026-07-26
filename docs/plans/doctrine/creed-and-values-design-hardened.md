@@ -52,6 +52,128 @@ Against that, two measurements move the centre of gravity:
 (§7) whose failure condition is pre-registered.** Everything else in this document is the
 shape to build if that gate passes.
 
+> ⚠️ **Read §0 first.** The operator's stated frame — a *limited-horizon heuristic that informs
+> an agent*, not a measurement — recalibrates most of what follows. §0 records what survives
+> that reframing and what does not. In particular the ranking-collapse measurement above was
+> calibrated to a ranking use and largely loses force under the stated frame; the sign-channel
+> finding does not.
+
+---
+
+## 0. The operative frame — and what it changes
+
+Recorded from the operator, and it governs the rest of this document:
+
+> Quantitative measures are unreliable, indeed. But a **limited-horizon heuristic** is a
+> pragmatic approach that is "close enough" for practical purposes. Adjusting the weights of
+> edges between behavioural atoms is exactly how neural networks are trained. Our goal is not
+> to recreate absolute truth or reach a mathematical representation of an unrepresentable
+> fact. It is to **formally encode our graph in a way that is "good enough for government
+> work" and improves the LLM's / agent's reasoning about the operator's intent and
+> preferences.**
+
+Plus the systems-thinking framing that precedes it: an `impacts` edge is a **causal-loop link**
+— *"more of X means more/less of Y"* — with polarity and gain, the standard notation of causal
+loop diagrams.
+
+### 0.1 What this reframing retires
+
+- **The ranking-collapse measurement (§Headline, §5) loses most of its force.** It measures
+  fidelity of a *sort order*. Under the stated frame the creed's job is **context**, not sort
+  order — so `r = 0.98` against an unweighted row mean is not a failure, because reproducing a
+  sensible global ordering is not what the artefact is for. The measurement stands as a fact;
+  its status as an *objection* does not.
+- **The false-positive finding retires entirely.** It measured *deriving* links from
+  vector-sign opposition. A causal-loop link is **authored**. Different mechanism; objection
+  withdrawn.
+- **"The numbers must be individually defensible" was the wrong bar.** A heuristic that informs
+  a reader does not need per-cell defensibility. This was a calibration error carried through
+  the earlier squad rounds.
+- **The causal-map notation is already in-repo, unregistered.**
+  `src/doctrine/templates/diagrams/{mermaid,plantuml}/examples/causal-map-*-template.md` ships
+  `s (reinforces)` / `o (undermines)` links and states its purpose as *"Systems thinking:
+  mapping feedback loops between practices and outcomes."* This is the **third** instance of
+  the pattern (after the three-tier meta model and the AMMERSE definitions): the model shipped
+  as a drawing aid instead of as structure. The design is *promoting* an in-repo formalism, not
+  importing a foreign one — a materially stronger position than the input doc claims.
+
+### 0.2 The lever/goal split — a free improvement from the in-repo template
+
+The causal-map template types nodes as **Practice / Outcome / Risk**. That is the distinction
+that dissolves the "two dead axes" finding: practices are **levers**, outcomes are **goals**.
+`solvable` and `environmental` never going negative across 36 authored vectors is not two dead
+axes — it is the basis **conflating levers with goals**. Goal variables sit at the end of causal
+chains, so nothing pushes them down.
+
+**Recommendation: type the axes.** A creed weighting over goal-axes and over lever-axes means
+different things, and a causal-loop model would separate them by construction.
+
+### 0.3 What survives the reframing — three items
+
+**1. The vocabulary: it is a *gain*, not a correlation.** This matters practically, not
+pedantically, because it determines which composition rule is legal:
+
+- correlation is **symmetric** (`r(X,Y) = r(Y,X)`); a causal link is directed
+- correlation is **measured over observations**; an authored judgement is an **elasticity** or
+  **gain** — a structural parameter
+- **correlations do not compose**: 0.5 then 0.5 is not 0.25, it is underdetermined
+- standardized *path* coefficients do compose multiplicatively — but only in **acyclic** graphs,
+  under linearity and no unmeasured confounding
+
+Causal loop diagrams are **cyclic by design**. So `base + 0.5×first-order + 0.25×second-order`
+is a **truncated Neumann series** of a feedback loop, valid only while total loop gain < 1.
+"Limited-horizon" is exactly the right instinct — this names the horizon precisely and gives it
+a **checkable convergence condition** instead of an unstated one.
+
+**2. The sign-channel finding does NOT retire, and it is the one that bites a heuristic.**
+§2 measured `fail_fast` at maintainable **+0.50** while its own rationale says "leading to
+potential long-term maintenance challenges." An agent reading the **number** gets the wrong
+steer; an agent reading the **prose** gets the right one. Under a
+heuristic-that-informs-an-agent frame this is the sharpest remaining risk, because the failure
+is *confidently wrong in the direction that suppresses a real concern* — which is worse than
+absent data, not better.
+
+> **The floor that makes "good enough" actually good enough: never render a number without its
+> rationale, and treat the rationale as authoritative where they disagree.** The corpus shows
+> the prose is right when the number is wrong.
+
+**3. The neural-network analogy holds for the conclusion but is missing one property — and
+supplying it is the design's natural next step.** NN weights work despite individual
+meaninglessness because of three things: a **loss signal**, **gradient updates rather than
+authoring**, and **massive redundancy** so errors average out. This design has none of the
+three: weights are authored once by judgement, there is no loss signal, and there is one number
+per axis per artefact with no redundancy.
+
+So the analogy correctly supports *"individual weights need not be right"* — but only because
+NNs have a **correction mechanism**. Without a feedback signal an authored weight set does not
+converge; it simply *is*, carrying whatever bias the author had.
+
+**That gap is cheap to close, and closing it is what makes the analogy real:** the design
+already has a candidate signal — **override events**. When a creed-informed suggestion is
+rejected or overridden, that is a gradient. A deviation ledger that records
+*(suggestion, override, reason)* turns a static authored matrix into something correctable.
+Recommended as the design's own next iteration, not as a precondition.
+
+### 0.4 The experiment, re-scoped to the stated goal
+
+§7's arms were built to test ranking fidelity. Under the stated frame the right question is
+narrower and cheaper:
+
+> **Does an agent given the creed surface the trade-off rather than resolve it silently?**
+
+That is exactly `#2538`'s existing locked metric — *surfaced vs silent* — and it needs no
+ranking function, no top-5 threshold, and no complete scoring. Keep §7's **perturbation-stability
+probe** (it is cheap and it still tells you whether the instrument is stable), drop the top-5
+fidelity threshold as the primary gate, and promote surfaced-vs-silent in its place.
+
+### 0.5 The cheapest next experiment, unchanged by all of this
+
+Compute the **spectral radius of the 7×7 connascence matrix**. If it is ≥ 1 the `0.5 / 0.25`
+truncation is unsound and you learn that before anything ships; the sign of cycle products tells
+you which loops are reinforcing versus balancing. An afternoon on a 7×7, no schema, no artefact
+scoring, no interview. **Blocked only on the coefficients, which are not in this repository** —
+both in-repo copies defer to the external article.
+
 ---
 
 ## 1. Corrections to the input design's own evidence
