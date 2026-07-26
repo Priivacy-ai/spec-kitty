@@ -8080,6 +8080,11 @@ pages:
     - {slug: "2-the-second-order-matrix-is-not-derivable-from-the-first-order-one", text: "2. The second-order matrix is NOT derivable from the first-order one", level: 2}
     - {slug: "3-one-probable-typo-in-the-published-first-order-matrix", text: "3. One probable typo in the published first-order matrix", level: 2}
     - {slug: "4-the-matrix-is-symmetric-which-vindicates-the-correlation-framing-for-the-matrix", text: "4. The matrix is symmetric — which vindicates the \"correlation\" framing *for the matrix*", level: 2}
+    - {slug: "5-the-absolutism-problem-diagnosed-and-it-is-the-renormalisation", text: "5. The absolutism problem — diagnosed, and it is the renormalisation", level: 2}
+    - {slug: "5-1-with-per-tier-renormalisation-absolutism-is-provable-not-incidental", text: "5.1 With per-tier renormalisation: absolutism is provable, not incidental", level: 3}
+    - {slug: "5-2-without-renormalisation-the-dampening-already-solves-it-with-room-to-spare", text: "5.2 Without renormalisation, the dampening already solves it — with room to spare", level: 3}
+    - {slug: "5-3-the-fix-one-final-scaling-never-per-tier", text: "5.3 The fix: one final scaling, never per-tier", level: 3}
+    - {slug: "5-4-consequences-for-the-design", text: "5.4 Consequences for the design", level: 3}
   - path: "docs/plans/doctrine/squad-reports/doctrine-curator.md"
     title: "Doctrine-curator lens — exemptions, accreditation, provenance"
     divio_type: "none"

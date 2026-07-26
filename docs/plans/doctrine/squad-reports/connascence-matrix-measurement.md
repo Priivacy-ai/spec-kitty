@@ -83,3 +83,97 @@ So both framings are right, in different places:
 
 The earlier "it's a gain not a correlation" correction applies to the **edges**, not to the
 matrix. Withdraw it for the matrix.
+
+---
+
+## 5. The absolutism problem — diagnosed, and it is the renormalisation
+
+**Operator's concern:** iterating past tertiary effects over-amplifies the signal and converges on
+1s, 0s and −1s; a dampening effect (lowering each tier's relative weight) was attempted, but the
+maths was unverified.
+
+**Verdict: the concern is real and correctly observed, the dampening is sound and in fact
+conservative, but the cause is NOT the iteration. It is the per-tier max-renormalisation.**
+
+### 5.1 With per-tier renormalisation: absolutism is provable, not incidental
+
+Renormalising after each matrix application *is* **power iteration**. `M^k·v / ‖M^k·v‖` converges to
+the dominant eigenvector regardless of the starting vector. So every artefact's higher-order profile
+converges to the **same** pattern, and the base vector's identity is destroyed.
+
+Demonstrated with three deliberately dissimilar starting artefacts, renormalised each tier:
+
+| Artefact | tier 3 | tier 5 |
+|---|---|---|
+| rigour-heavy | `[1.0, 0.37, −0.06, 0.07, 0.27, −0.30, 0.61]` | `[1.0, 0.47, −0.36, 0.03, 0.43, −0.57, 0.63]` |
+| velocity-heavy | `[−0.62, 1.0, 0.52, 0.35, 0.89, 0.71, −0.82]` | `[−0.61, 1.0, 0.43, 0.32, 0.95, 0.56, −0.82]` |
+| `safe_to_fail` | `[0.05, 0.72, 0.66, 0.25, 0.02, 1.0, −0.13]` | `[−0.46, 1.0, 0.66, 0.36, 0.74, 0.86, −0.76]` |
+
+All three migrate toward the same attractor — the **dominant eigenvector of M**:
+
+> Agile **−0.55** · Minimal **+1.00** · Maintainable **+0.35** · Environmental **+0.30** ·
+> Reachable **+0.97** · Solvable **+0.46** · Extensible **−0.77**
+
+Under renormalisation, every artefact eventually "says" Minimal-and-Reachable-maximal,
+Agile-and-Extensible-negative. That is the absolutism, and values piling onto ±1 and 0 is its
+signature. Note the published *normalised* second-order matrix contains cells at exactly −1 and +1 —
+the fingerprint of max-normalisation.
+
+### 5.2 Without renormalisation, the dampening already solves it — with room to spare
+
+Per-tier contribution `(1/2)^(k−1) · (M^(k−1)·b) / (N−1)^(k−1)`, so the decay ratio is
+
+```
+r = 0.5 × λ/(N−1) = 0.5 × 0.3892 = 0.1946
+```
+
+Measured contribution norms for a real artefact (`safe_to_fail`):
+
+| Tier | Contribution norm | Cumulative |
+|---|---|---|
+| 1 (base) | 1.2971 | 1.2971 |
+| 2 | 0.1215 | 1.3135 |
+| 3 | 0.0123 | 1.3234 |
+| 4 | 0.0014 | 1.3239 |
+| 5 | 0.0002 | 1.3239 |
+
+- **Tail beyond tier 3 = 0.91% of base.** Stopping at tertiary is not a compromise; it is already
+  past the point of measurable difference.
+- **Tail beyond tier 2 = 4.70%.** Two tiers would also be defensible.
+- **Even undamped it converges** — ratio 0.3892, tail beyond tier 3 ≈ 9.6%. The divergence fear was
+  unfounded in both cases; saturation came entirely from renormalising.
+
+### 5.3 The fix: one final scaling, never per-tier
+
+Since `|base| ≤ 1` element-wise, the composed value is bounded by the series sum
+`S = 1/(1−r) = 1.2416`. So scale **once, at the end**, by `(1−r) = 0.8054`:
+
+```
+composed(v) = (1−r) × [ base(v) + Σ_{k≥2} (1/2)^(k−1) · (M^(k−1)·base)(v) / (N−1)^(k−1) ]
+```
+
+Verified on three real corpus artefacts: every output lands inside [−1, 1], and because every
+artefact is multiplied by the **same constant**, all relative ordering is preserved exactly.
+
+| Artefact | base max\|·\| | output max\|·\| | in range |
+|---|---|---|---|
+| `safe_to_fail` | 0.90 | 0.740 | ✓ |
+| `avoid_gold_plating` | 0.70 | 0.640 | ✓ |
+| `AMMERSE_impact_analysis` | 0.60 | 0.438 | ✓ |
+
+**Generic over N:** `r = 0.5 × λ/(N−1)` and `λ ≤ N−1` (§1), so `r ≤ 0.5` for any admissible
+consumer basis, giving `S ≤ 2` and a final scale never below 0.5. The rule holds for any value
+system, and both `λ` and `N` are computable from the supplied matrix.
+
+### 5.4 Consequences for the design
+
+1. **Drop per-tier renormalisation. Keep the dampening.** The dampening was the right instinct; the
+   renormalisation was silently undoing it.
+2. **This is a second, independent reason to use first-order only.** The published second-order
+   matrix has already been max-normalised, so consuming it as-is imports the very step that causes
+   absolutism.
+3. **Truncation depth becomes a free choice** rather than a defensive one: tertiary leaves <1%,
+   secondary <5%. Pick on taste, and record the number.
+4. **`r` is a useful reportable diagnostic.** As `r → 0.5` the basis is approaching total agreement
+   and the higher tiers stop adding information — the same degeneracy warning as §1, from the other
+   direction.

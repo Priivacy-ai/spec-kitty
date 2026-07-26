@@ -123,6 +123,16 @@ because that means the basis is degenerate — the values are not independent co
 restatements of one concern. That is a genuinely useful check on a consumer-authored basis, and it
 is cheap.
 
+**Do not renormalise per tier — that is what causes absolutism.** Renormalising after each matrix
+application is *power iteration*: every artefact converges to the dominant eigenvector of `M`
+regardless of its own base vector, so values pile onto ±1 and 0 and the artefact's identity is
+destroyed. The dampening weights (1, ½, ¼, …) already solve this on their own: the decay ratio is
+`r = 0.5 × λ/(N−1) = 0.1946`, so the tail beyond the third tier is **0.91%** of base and beyond the
+second **4.70%**. Scale **once at the end** by `(1−r)`, which bounds the output to [−1, 1] and
+preserves all relative ordering exactly. Since `λ ≤ N−1`, `r ≤ 0.5` for any admissible basis, so
+this holds generically. Measurement:
+[`squad-reports/connascence-matrix-measurement.md`](squad-reports/connascence-matrix-measurement.md) §5.
+
 **Second-order is not adopted.** The published article claims second-order values come from
 "multiplying the first-order impact matrix with itself." **Tested and false** — `M×M` mismatches
 49/49 cells; six hypotheses all rejected (best fit `1.75×M` still wrong in 32/49); the published
