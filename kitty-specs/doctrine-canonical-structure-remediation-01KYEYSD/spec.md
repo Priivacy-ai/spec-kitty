@@ -44,6 +44,43 @@ Consequences that shape every requirement below:
   Not a build output of a legacy surface.
 - The authored-edge YAML tier (FR-016) is therefore the *destination*, not a workaround for an
   overwrite bug.
+
+#### Localized source + generated cache (operator framing, 2026-07-26)
+
+> Why not a + b? `a` as the localized source of truth, with `b` an aggregate composed out of
+> those localized edge files for efficiency reasons? (think: file-based generated cache)
+
+This replaces an earlier false dichotomy in this spec, which treated "the loader reads the
+`*.graph.yaml` fragments" as evidence that the fragments are an *authority*. Under cache
+semantics that is a non-problem — being read is what a cache is for. The model:
+
+- **(a) `<kind>.edges.yaml` — localized source of truth.** Authored, co-located with the
+  artefacts whose relationships they declare (locality of change: a curator edits a
+  relationship next to the thing it relates).
+- **(b) the aggregate `*.graph.yaml` — a generated cache**, read at runtime for efficiency.
+
+Three properties this buys that neither "fragments are the authority" nor "Python registry is
+the authority" did:
+
+1. **"Derived" becomes falsifiable rather than aspirational.** A cache has exactly one correct
+   value, `f(sources)`. That is a checkable equation. "This YAML is authored and that YAML is
+   generated" is a convention a reader must remember; "this is a cache" is a semantic that
+   carries its own rule — the name does the enforcement work.
+2. **It inverts a vacuity trap.** The five freshness canaries currently compare
+   `extractor(tree) + overlay` against the committed fragments. With 559 of 774 edges moved
+   into the overlay that degenerates to `overlay == overlay` — vacuous for 72% of the edge set,
+   and no requirement noticed. Under (a)+(b) the check becomes `merge(authored) == cache`, a
+   real coherence assertion that gets **stronger** as more edges become authored.
+3. **It survives pack extraction** — the cache need not ship; rebuild on install.
+
+Conditions that make it safe, and these are requirements rather than preferences: the cache
+declares itself in-band (a header naming it generated plus a content hash of its inputs, so
+staleness is self-evident rather than inferred — the fragments already carry
+`generated_by: drg-migration-v1`, so there is precedent); the freshness check is **enforced in
+CI, not advisory**; and nothing hand-edits it. **Open:** whether the cache must be committed at
+all, or can be a build artefact — the 14 fragments are the highest-churn shared output in this
+mission, so a committed cache means every rebase re-touches exactly the files whose state is
+the correctness proof.
 - The extractor remains legitimate and useful *as a migration oracle*: it is precisely the
   thing that tells us what edge each of the 559 entries should become. Using it that way is
   its intended purpose. Depending on it afterwards is not.
@@ -174,7 +211,12 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | FR-010 | Update `doctrine-daphne` with the canonical structure | As a curator agent, I want the pinned model at load time. | High | Open |
 | FR-011 | Close the validator parity gap | As a contributor, I want local validation to predict CI. | Low | Open |
 | FR-013 | Migrate the 559 MIGRATE-class entries to authored edges | As a maintainer, I want one relationship authority in the tree, not a deprecated one still being derived. Scope and relation-mapping are defined by `research/inline-reference-inventory.md`, not by shape. | High | Open |
-| FR-014 | Retire the extractor's reference-extraction passes | As a maintainer, I want the mechanism that re-derives the legacy surface removed, so the class cannot regrow. Includes deleting the two dead `tactic_refs` passes. | High | Open |
+| FR-014 | Retire **all** edge production from the extractor | As a maintainer, I want the mechanism that re-derives relationships removed entirely, so the class cannot regrow. Operator decision 2026-07-26: **full retirement**, not reference passes only. Covers the reference passes (559), the action/`scope` pass (157), mission-type projection (21), template instantiation (8), `_CURATED_ARTIFACT_EDGES` (13), and the calibrator's synthesised `scope` edges (21). Node discovery stays derived. Also deletes the two dead `tactic_refs` passes and the vestigial `_SKIP_REF_TYPES`. | High | Open |
+| FR-024 | Author the 215 structural edges | As a maintainer, I want `scope`, mission-type, template-instantiation, curated, and calibrated edges authored rather than computed, since they are the edges the closure actually traverses. `scope` is the **seed** of every context resolution, so leaving it derived would leave the load-bearing relation outside the authority. | High | Open |
+| FR-025 | Promote the calibrator's 21 synthesised `scope` edges | As a reviewer, I do not want edges invented from a policy inequality (`\|review\| >= 0.80 * \|implement\|`) sitting in the graph indistinguishable from authored intent. Promote each to an authored edge with a ledger line, then delete `calibrate_surfaces`. This is the same laundering as FR-018's 55, at larger scale and on the seed relation. | High | Open |
+| FR-026 | Absorb both Python edge registries into the authored tier | As a maintainer, I want one authoring surface, measurably. `hand_authored_overlay.py` (17 edges, 6 nodes — every `rejects`, every `reconciles_tension`, both `in_tension_with`) and `_CURATED_ARTIFACT_EDGES` (13 edges, all four `specializes_from`) both move to YAML and **both modules are deleted**. Without this the surface count holds flat at 11 while the PR claims consolidation. | High | Open |
+| FR-027 | Collapse the duplicated profile→directive field | As a curator, I want one field to own "which directives does this profile cite". `context-sources.directives` (67) and `directive-references` (68) are the **same set on all 18 profiles** and have already drifted (`python-pedro` carries `034` in one only). **Prerequisite to FR-013** per operator decision: reconcile the drift, keep `directive-references` (it carries rationale and seeds the charter closure), delete `context-sources.directives`. | High | Open |
+| FR-028 | Add a `label` field to `DRGEdge` | As a curator, I want the 219 schema-**required** reference labels to have a home. `DRGEdge` currently has only `source`/`target`/`relation`/`when`/`reason`/`provenance`. Ripples into the validator, `merge_layers`, the org→DRG bridge, `_edge_to_dict`, the project DRG builder, and the glossary builder — all in scope. | High | Open |
 | FR-015 | Gate the relationship-free invariant | As a contributor, I want any MIGRATE-class entry to fail a test rather than pass review. Gate walks `steps[]` and all five MIGRATE fields, deriving scope from the inventory module. | High | Open |
 | FR-016 | Add an authored-edge YAML tier the generator merges | As a doctrine author, I want to declare relationships in YAML that regeneration preserves instead of overwriting. | High | Open |
 | FR-017 | Preserve authored rationale and labels through migration | As a curator, I want the 68 procedure rationales and 219 reference labels to survive rather than be deleted to make a proof pass. | High | Open |
@@ -198,8 +240,9 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 | NFR-005 | The legacy relationship surface reaches zero | Zero MIGRATE-class entries remain across **all five** fields (`references`, `steps[].references`, `directive_refs`, `tactic_refs`, `tactic-references`, `context-sources.directives`). Measured by `scripts/doctrine/inline_reference_inventory.py`, which the gate imports — **not** by a hardcoded count and **not** by entry shape. The 14 RAW_MATERIAL entries survive as an enumerated `(file, path)` allowlist with a reason each; the 188 GOVERNANCE entries are untouched. | Maintainability | High | Open |
 | NFR-007 | Migration is proven by a structured diff invariant | The regenerated graph differs from the committed **pre-migration baseline manifest** only by the enumerated, ledgered deviations: added `reason`/label content (FR-017) and any relation changed by review (FR-018). Every other node, edge, relation, `when`, and `reason` is unchanged. Byte-identity is **not** the invariant — FR-017 and FR-018 break it by design, and a byte proof would pressure the migrator into deleting authored content to pass. | Correctness | High | Open |
 | NFR-008 | The baseline is a committed artefact, not a local snapshot | A per-fragment SHA-256 manifest of the pre-migration graph is committed **before** any artefact YAML is edited. Without it, "regenerate and compare" degenerates into `regenerate(tree) == regenerate(tree)` — a tautology of determinism that is blind to content loss. | Correctness | High | Open |
-| NFR-009 | Pass deletion is proven by an observed RED | FR-014's deletion is verified by first deleting the passes and asserting the graph **loses exactly the expected N edges**, then migrating and asserting it regains exactly those N. Asserting "still identical after deletion" has zero discriminating power: once the inline blocks are emptied, the passes are already no-ops. | Correctness | High | Open |
-| NFR-010 | Governance resolution is unchanged | For every built-in agent profile, the `(directives, tactics, styleguides, toolguides, procedures)` tuple returned by charter governance resolution is byte-equal before and after the migration. This is asserted **outside the graph**, because the 188 GOVERNANCE entries produce zero edges and every graph-shaped assertion is blind to them. | Correctness | High | Open |
+| NFR-009 | Pass deletion is proven by an observed RED — as an **in-process ablation**, not a git state | For each edge-producing pass, an ablation harness deletes it over a *tree copy* and asserts the graph loses exactly the expected N edges. It must be in-process: as a git sequence it is unachievable, because NFR-002 needs the extractor alive as the migration oracle while NFR-009 needs it deleted, and once the authored tier carries the edges the deletion is a no-op again — the same vacuity one layer up. This method is already proven: two review lenses independently reproduced the 559 count by exactly this ablation. | Correctness | High | Open |
+| NFR-013 | The occurrence-classification guardrail is active | `meta.json` carries `change_mode: bulk_edit` and an admissible `occurrence_map.yaml` exists, so DIRECTIVE_035 (`enforcement: required`) actually gates implement/review/finalize-tasks. It was **inert by omission** until 2026-07-26: a 559-occurrence, 169-file, same-surface migration was escaping the repo's own required bulk-edit guardrail because a metadata field was never set — this mission's defect class in this mission's own metadata. The map's `do_not_change` entries turn the GOVERNANCE and RAW_MATERIAL exemptions from a hope into a gate, and `check_diff_compliance` makes the reviewer review *exceptions* rather than a 169-file sweep. | Correctness | High | In progress |
+| NFR-010 | Governance resolution is unchanged — asserted at the **production** seams | For every built-in agent profile and all 24 actions, the resolved context and the **rendered** governance text are byte-equal before and after. Asserted at `charter/context.py` closure resolution and at the two inline profile-field render paths — **not** at `resolve_governance_for_profile`, which has no production caller (only re-exports and tests), so pinning it would have left this mission's anti-silence guard silently green while the rendered prompt changed. Requires a **committed** before-snapshot for the same reason NFR-008 does. | Correctness | High | Open |
 | NFR-011 | The FR-015 gate is non-vacuous | Mirrors NFR-001. The gate plants and rejects: a structured `{type, id}` entry, a step-level entry, a `directive_refs` bare-id entry, and a relationship disguised as raw material (a path to an artefact's markdown payload, and a path to a mission-tier template). | Correctness | High | Open |
 | NFR-006 | Golden counts stay a contract | Every added node/edge extends the composition ledger in `test_extractor_projection.py`; counts are never bumped without a ledger entry. | Maintainability | Medium | Open |
 
@@ -238,7 +281,7 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 - **SC-008**: #2934 closes with its durability proof intact — the status pair is asserted to reach the target branch's committed tree, not merely a spy's request set.
 - **SC-009**: `scripts/doctrine/inline_reference_inventory.py` reports **0** MIGRATE-class entries across all five fields (including `steps[]`); the 14 RAW_MATERIAL entries survive and match the enumerated allowlist exactly; the 188 GOVERNANCE entries are unchanged.
 - **SC-010**: The regenerated graph differs from the committed pre-migration SHA manifest only by the ledgered deviations (FR-017 additions, FR-018 relation changes) — every other node, edge, relation, `when`, and `reason` identical.
-- **SC-011**: `extractor.py` contains no reference-extraction pass (including the two dead `tactic_refs` passes), and **deleting the extractor entirely does not change the resolved graph** — the authored tier stands alone.
+- **SC-011**: `extractor.py` produces **no edges at all** — no reference pass, no action/`scope` pass, no mission-type projection, no template-instantiation pass, no curated registry, no calibrator. All 774 edges load from the authored tier, and **deleting every edge-producing function does not change the resolved graph**. What survives is node discovery plus validation. This is now a falsifiable claim: an earlier revision asserted it while the graph still derived 215 edges, which made it vacuously true at load time and self-contradictory as a scope statement.
 - **SC-012**: Governance resolution for every built-in agent profile returns an identical `(directives, tactics, styleguides, toolguides, procedures)` tuple before and after the migration.
 - **SC-013**: All 68 procedure rationales and 219 reference labels are present in the post-migration graph, each accounted for by a ledger entry.
 - **SC-014**: The 55 hardcoded-`suggests` relations have a recorded human verdict; any retyped relation is a ledgered deviation.

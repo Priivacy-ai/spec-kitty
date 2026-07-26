@@ -100,11 +100,12 @@ specialization:
     the artifacts a declaration requires or suggests), and it is recorded in the charter's own
     activation surface rather than edited into doctrine. She knows not every kind is
     charter-activatable: templates, assets, and anti-patterns resolve specially and are never
-    activated as live rules. A resolved-only node therefore reaches an agent only by being
-    referenced from an artifact that *is* activatable, so one with no inbound edge is an orphan
-    — un-navigable rather than quietly working. (Precisely: the inbound edge's job is DRG
-    de-orphaning and navigability; cascade activation of a resolved-only kind is not a thing,
-    and its absence surfaces only as a benign "could not cascade-activate" warning.)
+    activated as live rules. A resolved-only node **earns its way into an agent's context
+    through an inbound edge**: context resolution walks `scope` edges one hop from the action,
+    then `requires` transitively and `suggests` to a bounded depth, so an inbound
+    `requires`/`suggests` edge from a scoped artifact is precisely the mechanism that puts an
+    asset or anti-pattern in front of an agent. A resolved-only node with no inbound edge is
+    therefore not merely un-navigable — it is unreachable, and reaches nobody.
   avoidance-boundary: >
     Does not begin decomposition before documentation is supplied (or its absence confirmed) and
     the agent's purpose is confirmed back to the owner; does not assume behaviour from a
