@@ -80,7 +80,15 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: join gates on the node's *presence*, not on edges. That raises the ceiling from
 #: the historical 14 baseline to 29 (empirical 29, no slack). Full narrative in
 #: ``drg-orphan-residual.md``.
-DOCUMENTED_ORPHAN_RESIDUAL = 29
+#:
+#: 2026-07-26 (PR #2936 fold): #2936 promoted ``toolguide:powershell-syntax`` from a
+#: dead, unreachable file into a live graph node with no inbound/outbound edge (real
+#: PowerShell-authoring content, consumed at runtime, no doctrinal static referent —
+#: same class as the existing ``toolguide:rtk-search-tooling`` /
+#: ``toolguide:python-review-checks`` residuals). Accepted as an edge-less residual per
+#: D-C2 / C-003 rather than a manufactured edge. Raises the ceiling 29 -> 30. Full
+#: narrative in ``drg-orphan-residual.md``.
+DOCUMENTED_ORPHAN_RESIDUAL = 30
 
 
 def _count_orphans(graph: DRGGraph) -> int:

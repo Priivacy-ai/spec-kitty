@@ -139,3 +139,26 @@ is in scope for that follow-up unless an artifact is shown to be genuinely retir
 > row at the merge/accept gate. The residual ceiling is pinned at **29** by
 > `test_shipped_graph_orphan_count_within_documented_residual` (raised from 14 by the
 > 2026-07-23 mission_step_contract entry above).
+
+## 2026-07-26 — `toolguide:powershell-syntax` accepted as an edge-less residual (PR #2936 fold)
+
+PR #2936 (`fix(#2934) + doctrine canonical structure`, commit `1a15bcf6c`) promoted
+`toolguides/built-in/powershell-syntax.toolguide.yaml` from a dead, unreachable-since-first-
+commit file into a live, graph-tracked node (`toolguide:powershell-syntax`) — the file's
+245-line PowerShell guide is real content, and the toolguide tests already named the
+`built-in/` path, so the artifact was made reachable rather than deleted. The node ships with
+no inbound or outbound edge: no directive, procedure, or agent profile in the shipped tree
+cites it by URN — it is consumed by agents authoring PowerShell commands at runtime (same
+class as the existing `toolguide:rtk-search-tooling` / `toolguide:python-review-checks`
+residuals below: operator/runtime tooling, no doctrinal static referent).
+
+Per D-C2 / C-003 this is documented as an accepted residual rather than wired with a
+manufactured edge (no existing artifact has a genuine doctrinal reason to cite a PowerShell
+syntax guide) or deleted (the content is valid and current). This raises the documented
+residual ceiling **29 → 30** (empirical 30, no slack). The ceiling constant lives in
+`tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py`
+(`DOCUMENTED_ORPHAN_RESIDUAL = 30`).
+
+| URN | Artifact | Why residual (not wired, not deleted) |
+|-----|----------|----------------------------------------|
+| `toolguide:powershell-syntax` | PowerShell Syntax Guide | Promoted from dead to live by #2936; real content, consumed by agents at runtime, no built-in artifact statically references it. |
