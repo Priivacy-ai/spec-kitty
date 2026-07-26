@@ -1817,6 +1817,29 @@ def import_history(
     console.print("\n[dim]Dry-run: nothing uploaded. Re-run with --apply to materialize.[/dim]")
 
 
+def _resolve_history_import_receiver(
+    runtime: _EventSyncRuntime, *, token: str
+) -> tuple[DeliveryReceiver, str]:
+    """Resolve one gated Teamspace authority for preflight and delivery."""
+    from specify_cli.delivery.config import EventSyncConfig, Mode
+    from specify_cli.delivery.receivers import evaluate_gates
+
+    config = EventSyncConfig.from_mode(Mode.TEAMSPACE)
+    receiver = _resolve_active_receiver(runtime.target, config, auth_token=token)
+    if receiver is None or not getattr(receiver, "endpoint_url", ""):
+        console.print("[red]Event sync is not configured for this checkout.[/red] Cannot upload.")
+        raise typer.Exit(1)
+    gate_decision = evaluate_gates(
+        receiver,
+        _event_sync_gate_context(receiver, runtime.target, auth_token=token),
+    )
+    if gate_decision.blocked:
+        names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
+        console.print(f"[red]Event sync is gated:[/red] {names}. Cannot upload.")
+        raise typer.Exit(1)
+    return receiver, runtime.target.resolved_server_url
+
+
 def _run_import_apply(mission: str | None) -> None:
     """The ``import-history --apply`` path: preflight + upload under the real UUID.
 
@@ -1843,13 +1866,8 @@ def _run_import_apply(mission: str | None) -> None:
         )
         raise typer.Exit(1)
 
-    config = _load_event_sync_config()
     runtime = _open_event_sync_runtime()
-    receiver = _resolve_active_receiver(runtime.target, config, auth_token=token)
-    if receiver is None or not getattr(receiver, "endpoint_url", ""):
-        console.print("[red]Event sync is not configured for this checkout.[/red] Cannot upload.")
-        raise typer.Exit(1)
-    server_url = config.resolve_runtime_target().resolved_server_url
+    receiver, server_url = _resolve_history_import_receiver(runtime, token=token)
     repo_root = _require_active_checkout().repo_root
 
     try:
@@ -1901,19 +1919,17 @@ def _run_import_apply(mission: str | None) -> None:
             f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
             "--apply: the server dedups on event_id, so the re-run resumes idempotently."
         )
+    if report.pending:
+        # Direct import delivery does not journal or ledger pending outcomes.
+        # Never claim that ``sync now`` can retry work that was not persisted.
+        console.print(
+            f"[yellow]Incomplete:[/yellow] {report.pending} event(s) remain pending and are not "
+            "confirmed in the projection. Re-run --apply after resolving the receiver issue."
+        )
     if not report.ok:
         for sample in report.rejected_samples:
             console.print(f"  [red]✗[/red] {sample}")
         raise typer.Exit(1)
-    if report.pending:
-        # Pending = queued locally, not yet confirmed materialized. For a
-        # "did my history show up?" tool this is a distinct, non-final signal
-        # (not the same as confirmed success) — surface it plainly.
-        console.print(
-            f"[yellow]Note:[/yellow] {report.pending} event(s) are queued (pending), not yet "
-            "confirmed in the projection. They deliver on the next `spec-kitty sync now`; "
-            "re-check the dashboard after."
-        )
 
 
 @app.command(name="workspace")

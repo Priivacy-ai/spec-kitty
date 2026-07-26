@@ -177,13 +177,21 @@ def test_apply_fails_closed_when_unauthenticated(monkeypatch):
 def _wire_apply_seams(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Wire the auth/config/receiver seams so --apply reaches apply_import."""
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
-    monkeypatch.setattr(sync_command, "_open_event_sync_runtime", lambda: SimpleNamespace(target=object()))
+    target = SimpleNamespace(
+        resolved_server_url="http://x",
+        team_slug="team",
+    )
     monkeypatch.setattr(
         sync_command,
-        "_load_event_sync_config",
-        lambda: SimpleNamespace(resolve_runtime_target=lambda: SimpleNamespace(resolved_server_url="http://x")),
+        "_open_event_sync_runtime",
+        lambda: SimpleNamespace(target=target),
     )
-    monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *a, **k: SimpleNamespace(endpoint_url="http://x/batch"))
+    monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        sync_command,
+        "_resolve_active_receiver",
+        lambda *a, **k: SimpleNamespace(endpoint_url="http://x/batch", gates=lambda: ()),
+    )
     _patch_checkout(monkeypatch, tmp_path)
 
 
@@ -348,11 +356,12 @@ def test_apply_renders_pending_tally_as_non_final(tmp_path, monkeypatch):
 
     report = UploadReport(success=1, pending=3)
     result = _invoke_apply_with_report(tmp_path, monkeypatch, report)
-    assert result.exit_code == 0  # pending is non-final, not a failure
+    assert result.exit_code == 1  # no durable retry record exists for direct delivery
     plain = _strip_ansi(result.output)
     assert "3 pending" in plain
-    assert "queued (pending)" in plain
-    assert "not yet" in plain  # explicitly distinct from confirmed success
+    assert "remain pending" in plain
+    assert "not confirmed" in plain
+    assert "sync now" not in plain
 
 
 def test_apply_renders_partial_upload_as_distinct_state(tmp_path, monkeypatch):
