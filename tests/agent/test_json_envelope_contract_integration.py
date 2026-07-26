@@ -309,6 +309,7 @@ class TestRootCLIPath:
         """Unsafe mission selectors must return JSON, not a Python traceback."""
         result = runner.invoke(root_app, ["orchestrator-api", *args])
         assert result.exit_code != 0
+        assert "Traceback" not in result.output
         env = json.loads(result.output)
         assert env["success"] is False
         assert env["command"] == command

@@ -1,19 +1,18 @@
 {
-  "root_cause": "The orchestrator-api command layer centralizes mission selector resolution in `_resolve_mission_dir_or_fail`, but that boundary only translates `StatusReadPathNotFound` into a JSON failure envelope. Unsafe `--mission` values containing `..` are rejected earlier by the canonical path guard (`assert_safe_path_segment`) as `ValueError`, and that exception escapes Typer command execution unchanged, causing a raw Python traceback on stdout/stderr instead of the orchestrator-api JSON machine contract.",
+  "root_cause": "Unsafe mission selectors flow through orchestrator-api read endpoints into the canonical read-path resolver, which correctly calls assert_safe_path_segment and raises ValueError for '..' or '../traversal'. The orchestrator-api mission resolver adapter handles StatusReadPathNotFound and normal absent-mission cases, but without translating ValueError at that shared boundary the exception escapes Typer command execution and is rendered as a raw traceback instead of the JSON-first error envelope required by the machine contract.",
   "target_files": [
     "src/specify_cli/orchestrator_api/commands.py",
     "tests/agent/test_json_envelope_contract_integration.py"
   ],
   "target_functions": [
     "_resolve_mission_dir_or_fail",
-    "TestRootCLIPath"
+    "TestRootCLIOrchestratorAPI.test_unsafe_mission_selector_through_root_returns_json"
   ],
-  "approach": "Add a narrow `except ValueError as exc` arm in `_resolve_mission_dir_or_fail` after the existing `StatusReadPathNotFound` handling, and map it through `_fail` with a stable machine error code such as `INVALID_MISSION` and `data.message` carrying the guard message. Because all affected subcommands already call this helper, the change should cover `mission-state`, `list-ready`, `resolve-workspace`, and other mission-resolving endpoints without per-command patches. Update the command error-code documentation comment if the chosen code is new.",
+  "approach": "Add a narrow ValueError catch in _resolve_mission_dir_or_fail, immediately alongside the existing StatusReadPathNotFound translation, and map it to _fail(command, \"INVALID_MISSION\", ...) with a data.message field containing the guard message. Keep the safe-path guard in the resolver unchanged so traversal remains fail-closed; only the orchestrator-api error presentation changes. Add a root-CLI regression test covering mission-state, list-ready, and resolve-workspace with unsafe --mission values, asserting stdout is parseable JSON with success=false, the specific orchestrator-api.<command> value, and error_code INVALID_MISSION.",
   "tests_to_add": [
-    "Regression test through the root CLI path: `orchestrator-api mission-state --mission ../traversal` exits non-zero and emits parseable JSON with `success=false`, command `orchestrator-api.mission-state`, and `error_code=INVALID_MISSION`.",
-    "Parametrize the same assertion for `mission-state --mission ..`, `list-ready --mission ../traversal`, and `resolve-workspace --mission .. --wp WP01` if keeping the test compact remains straightforward."
+    "Parametrized regression in tests/agent/test_json_envelope_contract_integration.py for unsafe --mission selectors on mission-state, list-ready, and resolve-workspace through the root orchestrator-api command, asserting JSON envelope instead of traceback"
   ],
-  "expected_loc": 45,
-  "risk_notes": "Catching all `ValueError` at this boundary could hide unrelated programmer errors if future resolver code raises `ValueError` for a non-selector bug; keep the catch scoped to mission resolution and preserve the original message in the envelope.",
-  "out_of_scope_observations": "The related human-facing `next`/`research` traceback from #2878 should be handled separately; this plan only protects the orchestrator-api machine contract."
+  "expected_loc": 35,
+  "risk_notes": "Catching all ValueError at this boundary could accidentally classify an unrelated resolver ValueError as INVALID_MISSION, but the try block is scoped to mission directory resolution and the known source is the canonical path-segment guard.",
+  "out_of_scope_observations": "Related human-facing command tracebacks such as next/research are covered by issue #2878 and should not be changed in this orchestrator-api machine-contract fix."
 }
