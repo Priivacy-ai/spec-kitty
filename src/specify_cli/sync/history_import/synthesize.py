@@ -247,9 +247,13 @@ def _envelope(
     envelope-level fields. This builder only supplies the import producer's
     ``build_id``/``node_id``/``correlation_id`` values.
     """
-    # Explicit annotation: under the project's ``follow_imports = "skip"`` mypy
-    # config the cross-module ``build_teamspace_envelope`` return is seen as
-    # ``Any``; re-narrow it (the seam owner IS typed ``-> dict[str, Any]``).
+    # ``build_teamspace_envelope`` returns the canonical ``_TeamspaceEnvelope``
+    # model (CP001/CP002, #2884); ``.model_dump()`` is this function's
+    # serialization boundary back to the wire-format dict the rest of the
+    # import pipeline (mutation in ``_rebrand_as_import``, hashing, upload)
+    # expects. Explicit annotation: under the project's ``follow_imports =
+    # "skip"`` mypy config the cross-module call is seen as ``Any`` regardless;
+    # re-narrow it here.
     envelope: dict[str, Any] = build_teamspace_envelope(
         event_id=event_id,
         event_type=event_type,
@@ -264,7 +268,7 @@ def _envelope(
         project_slug=identity.project_slug,
         repo_slug=identity.repo_slug,
         correlation_id=identity.correlation_id,
-    )
+    ).model_dump()
     return envelope
 
 
