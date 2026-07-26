@@ -392,10 +392,15 @@ class TestDeriveNextAction:
         assert result is not None
         assert "042-bar" in result
 
-    def test_placeholder_slug_when_no_slug_in_meta(self):
-        result = scanner._derive_next_action({}, self._stats(total=1, done=1))
-        assert result is not None
-        assert "<mission>" in result
+    def test_none_when_no_slug_in_meta(self):
+        assert scanner._derive_next_action({}, self._stats(total=1, done=1)) is None
+
+    def test_none_when_slug_is_not_shell_safe(self):
+        result = scanner._derive_next_action(
+            {"mission_slug": "demo; rm -rf data"},
+            self._stats(total=1, done=1),
+        )
+        assert result is None
 
     def test_none_when_meta_is_not_dict(self):
         assert scanner._derive_next_action(None, self._stats(total=2, done=2)) is None  # type: ignore[arg-type]
