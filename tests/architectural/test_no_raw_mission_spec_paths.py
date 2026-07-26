@@ -71,6 +71,13 @@ _SEMANTIC_CONSTRUCTOR_FILES = {
     Path("src/specify_cli/cli/commands/agent/context.py"),
     Path("src/specify_cli/cli/commands/agent/mission.py"),
     Path("src/specify_cli/cli/commands/decision.py"),
+    # `agent mission repair` (coord split-brain repair) constructs the same
+    # `KITTY_SPECS_DIR / <handle>` primary dir as the WP10 entrypoints above, for
+    # the SOLE purpose of bootstrapping the mission's own content location before
+    # the forward-only repair -- a meta-read seed mirroring the sibling
+    # mission_feature_resolution.py pattern (see the in-file rationale at
+    # mission_repair.py), not an independent resolution path.
+    Path("src/specify_cli/cli/commands/agent/mission_repair.py"),
 }
 
 

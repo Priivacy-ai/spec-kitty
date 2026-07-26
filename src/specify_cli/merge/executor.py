@@ -53,10 +53,11 @@ from specify_cli.coordination.surface_resolver import (
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.paths import get_main_repo_root
-from mission_runtime import CommitTarget
-from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
-from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
+from specify_cli.git.bookkeeping_commit import (
+    commit_coord_seed_bookkeeping,
+    commit_merge_bookkeeping,
+)
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.merge.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 from specify_cli.lanes.persistence import require_lanes_json
@@ -1021,14 +1022,19 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
 
     Closes three faults in the original inline commit:
 
-    1. **Wrong partition (F1).** ``status.events.jsonl`` is a ``STATUS_STATE`` =
-       COORD-partition artifact, but ``commit_merge_bookkeeping`` bakes
-       ``PRIMARY_METADATA`` and resolves the destination to the PRIMARY
-       ``target_branch``. Committing it from the coord worktree (HEAD = the
-       coordination branch) tripped ``safe_commit``'s HEAD-must-match-destination
-       guard → ``SafeCommitHeadMismatch``. We target the coordination ref
-       explicitly (``run.pre_target_coord_ref`` — the ref the coord worktree is
-       actually on, mirroring :func:`_revert_coord_done_commit`).
+    1. **Right partition through the seam (F1, #2884).** ``status.events.jsonl``
+       is a ``STATUS_STATE`` = COORD-partition artifact. It routes through
+       :func:`commit_coord_seed_bookkeeping`, which selects
+       ``MissionArtifactKind.STATUS_STATE`` so the placement port resolves the
+       COORD ref (the coordination branch under coordination topology) — the ref
+       the coord worktree's HEAD is already on, so ``safe_commit``'s
+       HEAD-must-match-destination guard is satisfied (no
+       ``SafeCommitHeadMismatch``). ``run.pre_target_coord_ref`` is passed only as
+       the degrade-path fallback (used solely if placement resolution fails).
+       This is ONE kind-parameterized bookkeeping seam, not a duplicated
+       guard-capability call site: PR #2920's earlier direct-``safe_commit``
+       workaround wrongly assumed the seam could only serve the PRIMARY partition
+       (it merely hardcoded ``PRIMARY_METADATA``).
 
     2. **Resume-heal asymmetry (F2).** The old guard ``result.seeded_count > 0``
        is a PER-RUN delta that is 0 on ``merge --resume`` — so an interrupted
@@ -1050,13 +1056,13 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
     try:
         if not _paths_have_status_changes(coord_worktree_root, [events_path]):
             return  # nothing seeded/uncommitted — resume-safe no-op
-        safe_commit(
+        commit_coord_seed_bookkeeping(
             repo_root=run.main_repo,
             worktree_root=coord_worktree_root,
-            target=CommitTarget(ref=coord_ref),
+            mission_slug=run.mission_slug,
             message=f"chore({run.mission_slug}): birth-cutover seed events reconciled",
             paths=(events_path,),
-            capability=GuardCapability.MERGE_BOOKKEEPING,
+            branch=coord_ref,
         )
     except Exception as exc:  # noqa: BLE001 — best-effort, must never abort the merge
         logger.warning(
