@@ -294,18 +294,27 @@ class TestRootCLIPath:
         _assert_usage_error(result.output, substring="Missing command")
 
     @pytest.mark.parametrize(
-        ("args", "command"),
+        ("args", "command", "selector"),
         [
-            (["mission-state", "--mission", "../traversal"], "orchestrator-api.mission-state"),
-            (["mission-state", "--mission", ".."], "orchestrator-api.mission-state"),
-            (["list-ready", "--mission", "../traversal"], "orchestrator-api.list-ready"),
+            (
+                ["mission-state", "--mission", "../traversal"],
+                "orchestrator-api.mission-state",
+                "../traversal",
+            ),
+            (["mission-state", "--mission", ".."], "orchestrator-api.mission-state", ".."),
+            (
+                ["list-ready", "--mission", "../traversal"],
+                "orchestrator-api.list-ready",
+                "../traversal",
+            ),
             (
                 ["resolve-workspace", "--mission", "..", "--wp", "WP01"],
                 "orchestrator-api.resolve-workspace",
+                "..",
             ),
         ],
     )
-    def test_unsafe_mission_selector_through_root_returns_json(self, args, command):
+    def test_unsafe_mission_selector_through_root_returns_json(self, args, command, selector):
         """Unsafe mission selectors must return JSON, not a Python traceback."""
         result = runner.invoke(root_app, ["orchestrator-api", *args])
         assert result.exit_code != 0
@@ -315,6 +324,7 @@ class TestRootCLIPath:
         assert env["command"] == command
         assert env["error_code"] == "INVALID_MISSION"
         assert "Not a safe path segment" in env["data"]["message"]
+        assert selector in env["data"]["message"]
 
     # -- Old command names through root CLI must fail ----------------------
 
