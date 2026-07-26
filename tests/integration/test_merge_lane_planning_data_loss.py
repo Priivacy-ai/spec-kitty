@@ -1010,22 +1010,37 @@ class TestPlanningArtifactReachesTarget:
     ) -> None:
         """All-planning research missions close from the target branch without a mission branch.
 
-        This test pins the call-contract (mark-done invoked per WP, assert-done
-        invoked once) by mocking the persistence helpers. The *persistence*
-        guarantee — that the done transition is actually written and readable
-        back — is proven separately by
-        ``TestPlanningOnlyDoneMarkingPersists`` (F1), which runs the real
-        ``_mark_wp_merged_done`` / ``_assert_merged_wps_reached_done`` for the
-        primary-checkout (``coordination_branch``-absent) surface. The
-        ``coordination_branch``-set variant is deferred to
-        https://github.com/Priivacy-ai/spec-kitty/issues/1726.
+        Runs the REAL done-marking pipeline (``_mark_wp_merged_done`` /
+        ``_assert_merged_wps_reached_done`` are NOT mocked). Only genuine system
+        boundaries are stubbed — network side-effects (dossier sync, SaaS /
+        mission-closed emit, stale-assertion check), the git preflight, and the
+        ``commit_merge_bookkeeping`` git write (spied on, to inspect the staged
+        path set without touching the protected target branch).
+
+        Because the pipeline is real, the two WPs are seeded to ``approved``
+        through the real status-emit pipeline first (as a finished mission would
+        be), so the done transitions the merge appends produce a genuine
+        ``status.events.jsonl``. This is what proves the load-bearing invariant:
+        the done-recording commit carries the status *pair* — the append-only
+        event log (sole authority) AND its derived ``status.json`` — to the
+        target branch, not the snapshot alone (the #2934 data-loss shape).
+
+        History: an earlier version mocked ``_mark_wp_merged_done`` to pin the
+        call-contract. That stub manufactured a zero-event mission the real flow
+        can never produce, so ``status.events.jsonl`` was never written and the
+        committed-path assertion below tracked a mock artifact rather than real
+        behavior (surfaced as #2934). Mocking internal system-under-test logic is
+        the antipattern; boundaries are the only legitimate seam.
         """
+        from specify_cli.status.models import Lane
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events
+
         slug = "real-merge-planning-only-research"
         _init_git_repo(tmp_path)
 
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
-        (feature_dir / "tasks").mkdir(parents=True)
         _write_meta(feature_dir, slug)
         _write_lanes_manifest(
             feature_dir,
@@ -1033,8 +1048,11 @@ class TestPlanningArtifactReachesTarget:
             code_wp_ids=[],
             planning_wp_ids=["WP01", "WP02"],
         )
+        for wp_id in ("WP01", "WP02"):
+            _write_wp_file(feature_dir, wp_id)
+            _seed_wp_approved(feature_dir, slug, wp_id)
         _git(tmp_path, "add", ".")
-        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap planning mission fixture")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap approved planning mission")
 
         planning_relpath = f"kitty-specs/{slug}/research/decision-A.md"
         _commit_file(
@@ -1054,7 +1072,7 @@ class TestPlanningArtifactReachesTarget:
         )
         assert missing_branch.returncode != 0
 
-        with _real_merge_external_mocks(tmp_path) as mocks:
+        with _real_persistence_external_mocks(tmp_path) as mocks:
             _run_lane_based_merge(
                 repo_root=tmp_path,
                 mission_slug=slug,
@@ -1066,10 +1084,17 @@ class TestPlanningArtifactReachesTarget:
             )
 
         assert _file_on_branch(tmp_path, "main", planning_relpath)
-        marked_wps = [call.args[2] for call in mocks["mark_done"].call_args_list]
-        assert marked_wps == ["WP01", "WP02"]
-        mocks["assert_done"].assert_called_once()
-        assert set(mocks["assert_done"].call_args.args[2]) == {"WP01", "WP02"}
+
+        # The REAL done-marking pipeline drove both WPs to done in the canonical
+        # event log (no mocked call-contract to inspect — the persisted outcome
+        # is the assertion).
+        post = reduce(read_events(feature_dir))
+        assert post.work_packages["WP01"]["lane"] == Lane.DONE.value, (
+            "WP01 did not reach done in the persisted event log."
+        )
+        assert post.work_packages["WP02"]["lane"] == Lane.DONE.value, (
+            "WP02 did not reach done in the persisted event log."
+        )
 
         meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
         assert isinstance(meta.get("mission_number"), int)
@@ -1079,6 +1104,8 @@ class TestPlanningArtifactReachesTarget:
         for call in mocks["safe_commit"].call_args_list:
             committed_paths.update(_rel_paths(call.kwargs.get("paths"), tmp_path))
         assert f"kitty-specs/{slug}/meta.json" in committed_paths
+        # The append-only event log (sole authority) MUST reach the target
+        # branch alongside its derived snapshot — never the snapshot alone.
         assert f"kitty-specs/{slug}/status.events.jsonl" in committed_paths
         assert f"kitty-specs/{slug}/status.json" in committed_paths
 
