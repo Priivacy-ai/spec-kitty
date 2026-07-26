@@ -66,8 +66,13 @@ Four consequences of the split were observed empirically, not theorised:
 2. **The migration instruction the system prints is unfollowable.** `InlineReferenceRejectedError`
    tells operators to *"add edge {source, target, relation: requires} to `src/doctrine/graph.yaml`"* —
    but mission #2680 sharded that monolith into per-kind fragments and **`src/doctrine/graph.yaml`
-   no longer exists**. Ten source sites repeat the stale path. The one piece of guidance
-   pointing from the legacy surface to the canonical one points at nothing.
+   no longer exists**. **18 files** repeat the stale path — `.py` models, errors and exceptions,
+   four READMEs, a shipped tactic, and the brownfield paradigm's own notes. The one piece of
+   guidance pointing from the legacy surface to the canonical one points at nothing. (An earlier
+   revision said "ten"; measured, it is 18. Note some mentions are *deliberate* — this ADR and the
+   `doctrine-daphne` profile name the path in order to forbid it — so a naive grep gate would
+   false-red, and `.kittify/doctrine/graph.yaml` is a live project-tier path that must not be
+   swept in.)
 3. **The inline shape cannot express the modern vocabulary.** `references:` carries only
    `type`/`id`/`when` — there is no relation field. Every relation richer than "related to"
    (`refines`, `rejects`, `in_tension_with`, `reconciles_tension`) is *inexpressible* inline
@@ -98,8 +103,8 @@ Four consequences of the split were observed empirically, not theorised:
 ## Considered Options
 
 * **Option 1 (chosen)** — Pin DRG edges as the sole relationship authority; fix the stale
-  migration hint; **and migrate all 414 relationship entries now**, retiring the extractor's
-  reference passes behind a byte-identical-regeneration proof.
+  migration hint; **and migrate all 559 relationship entries now**, retiring **all** edge
+  production behind a structured-diff proof (see the Amendment).
 * **Option 2** — Keep both surfaces, and bring the inline surface to full parity (widen the
   four kind enums, add a `relation:` field to `references:`, keep deriving the graph).
 * **Option 3 (initially chosen, then withdrawn)** — Pin the direction and *freeze* the inline
@@ -117,7 +122,7 @@ The end state this ADR pins:
    Relation semantics live in `doctrine.drg.models.Relation`. No schema, body field, or
    sidecar may declare a second relationship vocabulary.
 2. **The inline `references:` block stops carrying artefact relationships.** Every one of the
-   414 relationship-bearing entries migrates to a hand-authored edge in the per-kind
+   559 relationship-bearing entries migrates to a hand-authored edge in the per-kind
    `*.graph.yaml` fragment, in this mission. The field survives only for raw non-artefact
    material (14 entries), and is closed to growth in every case: no new artefact adds a
    relationship entry.
@@ -133,8 +138,8 @@ The end state this ADR pins:
    migrate each file's relationship entries into hand-authored edges (preserving the
    per-kind inferred relation *explicitly*, so authored intent and edge type stop living in
    different files), then delete the reference-extraction passes so fragments are authored,
-   not derived. Sequenced so the proof comes first: baseline → migrate → assert byte-identical
-   → delete passes → assert byte-identical again.
+   not derived. Sequenced so the proof comes first: commit the baseline manifest → migrate →
+   assert the structured diff → prove pass deletion by observed RED (in-process ablation).
 6. **New doctrine artefacts are edge-native from birth.** An artefact authored today declares
    zero inline references and all its relationships as edges.
 
@@ -150,21 +155,31 @@ withdrawn by the operator**, and the reasoning is worth recording because it gen
 > desperately need to stop deferring structural issues.
 
 The deferral was also a weak argument on its own terms: "it needs a proof first" is a reason to
-**build the proof**, not to postpone. And the required proof here is unusually strong and cheap —
-because the fragments are *generated*, a correct migration is exactly one whose regenerated
-fragment set is **byte-identical** to the pre-migration baseline. That is a total,
-mechanically-checkable invariant, not a judgement call.
+**build the proof**, not to postpone.
 
-**Measured composition** (so the next reader does not re-measure). 139 files carry a
-`references:` list, holding 428 entries in two structurally different classes:
+**Measured composition** (derived, never hand-counted — run
+`PYTHONPATH=src python scripts/doctrine/inline_reference_inventory.py`; the FR-015 gate imports
+that module rather than restating a literal). **171 files carry 761 entries across six inline
+surfaces**, in three dispositions:
 
-| Class | Entries | Files | Kinds | Disposition |
-| --- | --- | --- | --- | --- |
-| Structured `{type, id}` — always an artefact reference | 357 | 120 | tactic 84, procedure 20, directive 15, paradigm 1 | **migrate to edges** |
-| Path string resolving to a built-in artefact | 57 | styleguide/toolguide | styleguide 17, toolguide 2 | **migrate to edges** |
-| Path string to non-artefact material (README, ADR, docs, templates) | 14 | same files | — | **keep** — see below |
+| Disposition | Entries | Surfaces |
+| --- | --- | --- |
+| **MIGRATE** — denotes an artefact→artefact relationship | **559** | `references` 414 · `steps[].references` 15 · `context-sources.directives` 67 · `directive_refs` 34 · `tactic-references` 29 |
+| **GOVERNANCE** — zero DRG edges; seeds the charter closure. **Do not migrate** | 188 | `directive-references` 68 · `context-sources.{additional,doctrine-layers,tactics}` 120 |
+| **RAW_MATERIAL** — path strings to non-artefact files. **Keep** | 14 | enumerated `(file, path)` allowlist |
 
-So the migration is **414 entries → hand-authored edges**, not 428.
+**An earlier revision of this ADR said 414, in six places. That figure was the top-level
+`references:` row alone** — correct as far as it went, mistaken as a total. It missed 15
+step-level entries (in 7 tactic files, **4 of which carry no top-level block at all**, so a
+file-driven migration would never have opened them) and it missed five sibling surfaces entirely,
+including `directive_refs`, which mints 34 real edges and is schema-blessed in 12 paradigms.
+
+The **GOVERNANCE** row is the load-bearing correction. `directive-references` produces no DRG
+edges but is the seed set for the entire charter governance closure, so sweeping it would empty
+every profile-routed prompt's directives while byte-identical fragments, golden counts, and a
+zero-structured-entries gate all stayed green. That is this ADR's own defect class — silence —
+reproduced by its remediation, and it is why the scope must name surfaces rather than say "all
+inline relationships".
 
 **The `references:` field is not deleted outright.** 14 entries point at raw reference material —
 `src/doctrine/skills/README.md`, `docs/adr/...`, Divio templates, an action `index.yaml`. Those
@@ -175,10 +190,48 @@ category error as widening the kind enum.
 
 The end state is therefore **not** "no `references:` blocks" but the sharper invariant:
 
-> A `references:` list may contain only plain path strings to **non-artefact** material.
-> Zero structured `{type, id}` entries; zero path strings that resolve to a built-in artefact.
+> Zero MIGRATE-class entries across all five migrating surfaces. A `references:` list may contain
+> only plain path strings to **non-artefact** material. The 188 GOVERNANCE entries are untouched.
 
 This is gateable, and it is what the confirmation criteria below assert.
+
+### Amendment (2026-07-26) — three decisions taken after this ADR was first accepted
+
+This ADR was Accepted before three operator rulings that change its scope and its proof. They are
+recorded here because **this ADR, not a spec table, is the citable record** (DIRECTIVE_003), and an
+implementer reading the original text would have built the wrong proof against a scope 26% too
+small.
+
+1. **Full retirement, not reference passes only.** `generate_graph` has nine steps; the reference
+   passes are one. The others produce ~215 further edges — 157 `scope` from action indexes, 21
+   mission-type projection, 8 template instantiation, 13 from a *second* hardcoded Python registry
+   (`_CURATED_ARTIFACT_EDGES`, holding all four `specializes_from`), plus a calibrator that
+   **synthesises** `scope` edges from the inequality `|review| ≥ 0.80 × |implement|`. **All 774
+   edges become authored.** Node discovery stays derived; the extractor becomes a node minter plus
+   validator. Both Python edge registries are absorbed and deleted — otherwise the surface count
+   holds flat at 11 while claiming consolidation.
+2. **The proof is a structured diff, not byte-identity.** Byte-identity was the original invariant
+   and it is withdrawn: preserving the 68 procedure rationales and the 219 reference labels breaks
+   it *by design*, and a byte proof would therefore pressure the migrator into **deleting authored
+   content to make the proof pass**. The invariant is now "the regenerated graph differs from the
+   committed pre-migration baseline manifest only by the enumerated, ledgered deviations". Two
+   further corrections ride along: the baseline must be a **committed** manifest written before any
+   YAML is edited (otherwise "regenerate and compare" degenerates into
+   `regenerate(tree) == regenerate(tree)`, a tautology of determinism blind to content loss), and
+   pass deletion is proven by an **observed RED via in-process ablation**, because as a git
+   sequence it is unachievable — the extractor must be alive as the migration oracle, and once the
+   authored tier carries the edges the deletion is a no-op again.
+3. **Labels move to `aliases` on artefacts, not `DRGEdge.label`.** Measured: the 219 label
+   occurrences collapse to **102 distinct artefacts**, and the 8 targets carrying more than one
+   label are genuine synonym sets. They were never edge metadata — they are artefact names repeated
+   at every pointer. `aliases: list[str]` on the artefact deduplicates them, merges the 8
+   disagreements into legitimate alias lists, enables grep now and semantic search later, and
+   removes a `DRGEdge` schema change with a six-consumer ripple.
+
+Sibling: [ADR 2026-07-26-3](2026-07-26-3-impacts-edge-subsumes-in-tension-with.md) adds
+`Relation.IMPACTS` and `is_symmetric` to the same edge model. `is_symmetric` is expanded **by the
+generator**, so the authored tier holds one edge and the cache holds both directions — consistent
+with the source-plus-cache split this ADR's amendment relies on.
 
 ### Consequences
 
@@ -197,9 +250,9 @@ This is gateable, and it is what the confirmation criteria below assert.
 * Authoring relationships is now a two-file edit (artefact body + graph fragment), which is
   less locally-obvious than an inline list. Accepted: it is the cost of typed relations.
 * The migration touches 139 artefact files and the generated fragments in one change — a large
-  mechanical diff inside an already-wide PR. Mitigated by the byte-identical-regeneration
-  invariant, which makes the whole migration verifiable in a single assertion rather than by
-  reviewing 414 individual edge moves.
+  mechanical diff inside an already-wide PR. Mitigated by the structured-diff invariant plus the
+  inventory gate, which together make the migration verifiable by assertion rather than by
+  reviewing 559 individual edge moves.
 * The 14 surviving raw-material path entries mean `references:` does not disappear entirely, so
   a reader must know the distinction between "a path to a doc" and "a relationship". The gate
   encodes it, and this ADR explains it.
@@ -231,10 +284,10 @@ This is gateable, and it is what the confirmation criteria below assert.
 * **Zero** structured `{type, id}` reference entries remain anywhere under `src/doctrine/`, and
   **zero** remaining path-string entries resolve to a built-in artefact via `_resolve_path_ref`.
   The only surviving entries are raw non-artefact paths. Enforced by a gate, not by inspection.
-* Regenerating the fragments immediately after the migration produces a **byte-identical**
-  fragment set to the pre-migration baseline — the total invariant that proves every one of the
-  414 entries became the same edge the extractor used to infer, with none lost, added, or
-  re-typed. Asserted again *after* the extraction passes are deleted.
+* The regenerated graph differs from the **committed** pre-migration baseline manifest only by
+  the enumerated, ledgered deviations (preserved rationales and labels; any relation changed by
+  review). Every other node, edge, relation, `when` and `reason` is unchanged. Completeness is
+  asserted separately by the inventory gate — the diff proves preservation, not completion.
 * The four `<kind>_reference.type` enums are byte-identical to their pre-ADR state (no kind
   added), and a comment in each schema marks the definition frozen with a pointer here.
 * No source site tells an operator to edit `src/doctrine/graph.yaml`; the rejection-hint
@@ -249,8 +302,8 @@ This is gateable, and it is what the confirmation criteria below assert.
 
 **Pros:** ends the two-authority condition outright rather than documenting it; the doctrine
 layer has exactly one relationship authority when the PR lands, so no reader has to hold
-"which surface is live?" in their head. The byte-identical-regeneration invariant makes a
-414-entry mechanical migration *cheaper to verify than to review* — one assertion covers every
+"which surface is live?" in their head. The structured-diff invariant plus the inventory gate make
+a 559-entry mechanical migration *cheaper to verify than to review* — assertions cover every
 entry. Deleting the extraction passes removes the mechanism that keeps re-deriving the legacy
 surface, so the class cannot regrow. Also reclassifies the #2918 finding and unblocks #2935.
 **Cons:** a large mechanical diff inside an already-wide PR; relationship authoring becomes a
