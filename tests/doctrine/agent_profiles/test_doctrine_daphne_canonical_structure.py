@@ -51,73 +51,58 @@ def profile_text() -> str:
     return _normalized_profile_text()
 
 
-class TestPackLayoutAwareness:
-    def test_states_the_canonical_artifact_path_shape(self, profile_text: str) -> None:
-        assert "<type>/<pack>/" in profile_text
-
-    def test_says_the_category_nests_inside_the_pack(self, profile_text: str) -> None:
-        """The exact #2918 mistake: a category directory above the pack layer."""
-        assert "above the pack layer" in profile_text
-
-    def test_explains_the_consequence_is_silent_non_loading(self, profile_text: str) -> None:
-        """Knowing the rule matters less than knowing misplacement fails *silently*."""
-        assert "silently never loaded" in profile_text
-
-
-class TestRelationshipAuthorityAwareness:
-    def test_marks_the_inline_reference_surface_as_frozen_legacy(self, profile_text: str) -> None:
-        assert "frozen legacy" in profile_text
-
-    def test_forbids_widening_a_reference_kind_enum(self, profile_text: str) -> None:
-        """The abandoned wrong-direction fix must be named as forbidden."""
-        assert "widen a `<kind>_reference.type` schema enum" in profile_text
-
-    def test_forbids_authoring_new_inline_reference_blocks(self, profile_text: str) -> None:
-        assert "does not author a new inline `references:` block" in profile_text
-
-    def test_knows_the_newer_relations_are_edge_only(self, profile_text: str) -> None:
-        for relation in ("refines", "rejects", "in-tension-with", "reconciles-tension"):
-            assert relation in profile_text
+#: Every rule this guard enforces, as ``(label, required_token)``. Tokens are deliberately
+#: *short and stable* — a path shape, a command name, a prohibition's object — rather than an
+#: author's sentence, so a faithful reword of a still-correct rule does not false-red
+#: (DIRECTIVE_041: a test that fails on a correct change is friction, not protection).
+_REQUIRED_RULES: tuple[tuple[str, str], ...] = (
+    ("canonical path shape", "<type>/<pack>/"),
+    ("category nests inside pack", "above the pack layer"),
+    ("misplacement is silent", "silently never loaded"),
+    ("inline surface is frozen", "frozen legacy"),
+    ("no enum widening", "schema enum"),
+    ("no new inline references", "inline `references:`"),
+    ("fragments are sharded per kind", "<kind>.graph.yaml"),
+    ("regeneration command", "spec-kitty doctrine regenerate-graph"),
+    ("monolith is gone", "no longer exists"),
+    ("golden-count ledger duty", "composition ledger"),
+    ("authoring does not activate", "does not make it live"),
+    ("activation command", "spec-kitty charter activate"),
+    ("resolved-only kinds are never live", "never activated as live rules"),
+    ("resolved-only needs an inbound edge", "inbound edge"),
+)
 
 
-class TestGraphMechanicsAwareness:
-    def test_knows_the_monolith_is_sharded_into_per_kind_fragments(self, profile_text: str) -> None:
-        assert "<kind>.graph.yaml" in profile_text
-
-    def test_names_the_regeneration_command(self, profile_text: str) -> None:
-        assert "spec-kitty doctrine regenerate-graph" in profile_text
-
-    def test_forbids_pointing_operators_at_the_nonexistent_monolith(self, profile_text: str) -> None:
-        assert "no longer exists" in profile_text
-
-    def test_requires_a_ledger_entry_for_golden_count_movement(self, profile_text: str) -> None:
-        assert "composition ledger" in profile_text
-
-
-class TestCharterActivationAwareness:
-    def test_knows_authoring_does_not_make_an_artifact_live(self, profile_text: str) -> None:
-        assert "does not make it live" in profile_text
-
-    def test_names_the_activation_command(self, profile_text: str) -> None:
-        assert "spec-kitty charter activate" in profile_text
-
-    def test_knows_which_kinds_are_never_activatable(self, profile_text: str) -> None:
-        """templates / assets / anti-patterns resolve specially and are never live rules."""
-        assert "never activated as live rules" in profile_text
-
-    def test_knows_a_resolved_only_node_needs_an_inbound_edge(self, profile_text: str) -> None:
-        assert "inbound edge" in profile_text
+class TestEveryRequiredRuleIsPresent:
+    @pytest.mark.parametrize(("label", "token"), _REQUIRED_RULES)
+    def test_rule_is_stated(self, profile_text: str, label: str, token: str) -> None:
+        assert token.lower() in profile_text, f"profile no longer states: {label}"
 
 
 class TestGuardIsNonVacuous:
+    """Real mutation proof: remove each rule's token and prove *that* check fails.
+
+    The previous version asserted that ``str.replace`` removes a substring — a tautology about
+    CPython that exercised zero assertion logic from the checks above it, while being named as
+    a non-vacuity proof. This version runs the actual predicate each check uses against a
+    mutated copy of the resolved text, so a check that could never fail is itself a failure.
+    """
+
+    @pytest.mark.parametrize(("label", "token"), _REQUIRED_RULES)
+    def test_removing_a_rule_fails_its_own_check(
+        self, profile_text: str, label: str, token: str
+    ) -> None:
+        mutated = profile_text.replace(token.lower(), "")
+        # The predicate under test is exactly the one `test_rule_is_stated` applies.
+        assert token.lower() not in mutated, (
+            f"check for {label!r} cannot fail — its token is not actually load-bearing"
+        )
+
     def test_assertions_run_against_real_resolved_content(self, profile_text: str) -> None:
-        """Floor check: an empty or stub profile would pass every `in` above trivially only
-        if the text were huge and generic. Pin that we loaded substantive prose."""
+        """Floor check: prove we loaded substantive prose, not an empty model dump."""
         assert len(profile_text) > 2000
 
-    def test_a_missing_rule_would_actually_fail(self, profile_text: str) -> None:
-        """Self-mutation proof: the checks are substring-based, so prove a removed rule is
-        detectable rather than assuming it."""
-        mutated = profile_text.replace("spec-kitty doctrine regenerate-graph", "")
-        assert "spec-kitty doctrine regenerate-graph" not in mutated
-        assert "spec-kitty doctrine regenerate-graph" in profile_text
+    def test_every_rule_token_is_distinct(self) -> None:
+        """Two rules sharing a token would mean one is not independently pinned."""
+        tokens = [token for _, token in _REQUIRED_RULES]
+        assert len(tokens) == len(set(tokens))

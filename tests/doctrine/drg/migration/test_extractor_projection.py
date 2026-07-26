@@ -102,10 +102,17 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     the framework's first commit, so node discovery never saw it and the
 #:     toolguide was unreachable; promotion mints one edge-less
 #:     ``toolguide:powershell-syntax`` node: +1 node / +0 edges / +1 orphan.
-#:     The same change DELETES nine mispacked artefacts (five duplicates of live
-#:     built-ins, four content-free seed stubs) with **zero** count impact --
-#:     none of them was ever a node, which is precisely why they were dead.
+#:     The same change handles nine mispacked artefacts: **eight are DELETED**
+#:     (three byte-identical duplicates, two stale divergent copies, three
+#:     content-free seed stubs) and the ninth is the promotion above -- it was
+#:     moved, not deleted. The eight deletions have **zero** count impact: none
+#:     of them was ever a node, which is precisely why they were dead.
 #:     Composed: 304/757/31 + 1/0/1 = 305/757/32.
+#:     (An earlier revision of this ledger said "DELETES nine ... five duplicates,
+#:     four seed stubs". Both sub-counts were wrong -- git shows 8 deletions and
+#:     3 renames -- while the numeric assertions below stayed green. NFR-006 makes
+#:     this prose a contract precisely so the counts stay auditable; it is corrected
+#:     here rather than quietly, because a wrong ledger is what NFR-006 forbids.)
 _EXPECTED_NODE_COUNT = 305
 _EXPECTED_EDGE_COUNT = 757
 _EXPECTED_ORPHAN_COUNT = 32

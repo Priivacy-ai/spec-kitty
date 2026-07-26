@@ -118,7 +118,7 @@ src/doctrine/<type>/<pack>/[<category>/]<name>.<kind>.yaml
    `mission_step_contract` — which lives at `missions/built_in_step_contracts/`, the path
    `extractor.py::_iter_step_contract_data` documents as *authoritative*; there is no
    `mission_step_contracts/` directory at all. This carve-out was discovered *by* the gate
-   (18 step contracts flagged on its first run) and is pinned **positively** — the gate also
+   (17 step contracts flagged on its first run) and is pinned **positively** — the gate also
    asserts step contracts exist at that path and appear nowhere else — so "it's mission-tier"
    cannot become a hiding place for a genuine stray.
 6. **Future form, after packs are extracted to their own repository:**

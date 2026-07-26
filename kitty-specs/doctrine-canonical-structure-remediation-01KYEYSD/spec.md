@@ -143,7 +143,7 @@ A contributor runs `spec-kitty doctrine validate`, sees green, pushes, and CI's 
 
 ### Edge Cases
 
-- **A legitimately mission-tier artefact trips the layout gate.** Happened on the gate's first run: 18 step contracts at `missions/built_in_step_contracts/`. Resolved as a documented carve-out, pinned *positively* so the exception cannot hide a real stray.
+- **A legitimately mission-tier artefact trips the layout gate.** Happened on the gate's first run: 17 step contracts at `missions/built_in_step_contracts/`. Resolved as a documented carve-out, pinned *positively* so the exception cannot hide a real stray.
 - **Deleting a stray removes a graph node.** Must not happen — the nine were dead. Proven by zero count movement (NFR-003).
 - **Promoting a dormant artefact makes it live.** The PowerShell toolguide becomes reachable: a behavioural change inside a layout cleanup, disclosed rather than smuggled.
 - **A duplicate is divergent, not identical.** Two files, one id, different content — the built-in twin wins; the stray must not be the one preserved.

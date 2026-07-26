@@ -29,6 +29,7 @@ self-validate.
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -74,36 +75,58 @@ _FILE_BACKED_KINDS: tuple[ArtifactKind, ...] = tuple(
 #: convenience edit.
 _ALLOWLIST: frozenset[str] = frozenset()
 
+#: Exact number of shipped built-in step contracts. Pinned rather than floored so a silent
+#: loss fails; bump deliberately with a note when a contract is genuinely added.
+_EXPECTED_STEP_CONTRACT_COUNT = 17
 
-def _is_legal_artefact_path(relative: Path) -> bool:
-    """Return whether *relative* matches ``<type>/<pack>/[<category>/...]/<name>``.
 
-    *relative* is relative to ``src/doctrine/``. Legal shape requires at least three parts
-    (type, pack, filename) with the pack segment exactly at index 1. Any number of category
-    directories may sit between the pack and the file.
+def _is_legal_artefact_path(relative: Path, kind: ArtifactKind) -> bool:
+    """Return whether *relative* matches ``<kind.plural>/<pack>/[<category>/...]/<name>``.
+
+    *relative* is relative to ``src/doctrine/``. **Both** leading segments are mandatory and
+    both are checked, because the resolvers key on both:
+
+    * ``parts[0]`` must equal the artefact's own ``kind.plural`` — a repository scans
+      ``<its own package dir>/built-in`` (``base.py``), so a tactic filed under
+      ``assets/built-in/`` is never loaded no matter how correct its pack segment is;
+    * ``parts[1]`` must be the pack layer.
+
+    An earlier revision checked only ``parts[1]``, which accepted two shapes that are exactly
+    as dead as the nine files this gate was built to catch — including the near-miss twin of
+    the #2918 mistake (that put the category *above* the pack; this puts it *in place of* the
+    type). Three independent review lenses found the hole, which is why the fix asserts the
+    segment against the live enum rather than a hardcoded directory list.
+
+    Any number of category directories may sit between the pack and the file: every built-in
+    loader path uses ``rglob``, so arbitrary depth is legal by design (ADR 2026-07-26-2 rule 2).
     """
     parts = relative.parts
     if len(parts) < 3:
         return False
-    return parts[1] == _PACK_DIR
+    return parts[0] == kind.plural and parts[1] == _PACK_DIR
 
 
-def _iter_artefact_files(root: Path) -> list[Path]:
-    """Return every ``*.<kind>.yaml`` artefact file under *root*, as relative paths."""
-    found: list[Path] = []
+def _iter_artefact_files(root: Path) -> list[tuple[ArtifactKind, Path]]:
+    """Return ``(kind, relative_path)`` for every ``*.<kind>.yaml`` artefact under *root*.
+
+    The kind is carried out of the glob rather than re-derived from the path, so the checker
+    can compare the *declared* kind (from the filename suffix it was globbed by) against the
+    *directory* it sits in. That comparison is the whole point of the gate.
+    """
+    found: list[tuple[ArtifactKind, Path]] = []
     for kind in _FILE_BACKED_KINDS:
         for path in root.rglob(kind.glob_pattern):
             if "__pycache__" in path.parts:
                 continue
-            found.append(path.relative_to(root))
-    return sorted(set(found))
+            found.append((kind, path.relative_to(root)))
+    return sorted(set(found), key=lambda pair: (pair[1].as_posix(), pair[0].value))
 
 
 def _violations(root: Path) -> list[Path]:
     return [
         rel
-        for rel in _iter_artefact_files(root)
-        if not _is_legal_artefact_path(rel) and rel.as_posix() not in _ALLOWLIST
+        for kind, rel in _iter_artefact_files(root)
+        if not _is_legal_artefact_path(rel, kind) and rel.as_posix() not in _ALLOWLIST
     ]
 
 
@@ -117,19 +140,32 @@ class TestShippedTreeIsCompliant:
             + "\nSee docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md"
         )
 
-    def test_gate_actually_scanned_something(self) -> None:
-        """Floor check: a glob that silently matches nothing would pass vacuously."""
-        assert len(_iter_artefact_files(_DOCTRINE_ROOT)) > 100
+    def test_every_governed_kind_has_at_least_one_scanned_file(self) -> None:
+        """Per-kind floor, not a total.
+
+        A single total floor is met by ``TACTIC`` alone (122 files), so it would stay green
+        if ``ASSET``'s glob broke and zero assets were scanned — and ``ASSET`` is the kind
+        whose misplacement in #2918 motivated this gate. Assert per-kind instead.
+        """
+        scanned = Counter(kind for kind, _ in _iter_artefact_files(_DOCTRINE_ROOT))
+        missing = [kind.value for kind in _FILE_BACKED_KINDS if scanned[kind] == 0]
+        assert not missing, f"gate scanned zero files for: {missing}"
 
     def test_allowlist_is_empty(self) -> None:
         """The nine violators were cleared, not frozen. Keep it that way."""
         assert len(_ALLOWLIST) == 0
 
     def test_no_phantom_shipped_pack_dir_exists(self) -> None:
-        """``shipped/`` is not a second spelling of the pack layer -- it never existed."""
+        """``shipped/`` is not a second spelling of the pack layer -- it never existed.
+
+        ``rglob`` rather than a depth-2 ``glob``: a nested ``shipped/`` was previously
+        unflagged. Note this asserts no such *directory* exists, which was never in doubt —
+        the harder half (no ``shipped/`` **references** in guidance) is SC-015/FR-020 and is
+        deliberately not claimed here.
+        """
         strays = [
             p.relative_to(_DOCTRINE_ROOT).as_posix()
-            for p in _DOCTRINE_ROOT.glob("*/shipped")
+            for p in _DOCTRINE_ROOT.rglob("shipped")
             if p.is_dir()
         ]
         assert not strays, f"unexpected `shipped/` pack dirs: {strays}"
@@ -143,10 +179,19 @@ class TestMissionTierExceptions:
     """
 
     def test_step_contracts_live_at_their_authoritative_mission_tier_path(self) -> None:
+        """Exact count, not a floor.
+
+        A ``> 10`` floor against 17 files on disk would stay green if six vanished — which is
+        not the "positive pin" the ADR claims. Pinned exactly, consistent with how the DRG
+        golden counts are pinned; update deliberately with a note when a contract is added.
+        """
         contracts_dir = _DOCTRINE_ROOT / "missions" / "built_in_step_contracts"
         assert contracts_dir.is_dir(), "authoritative step-contract dir is missing"
         found = sorted(contracts_dir.glob("*.step-contract.yaml"))
-        assert len(found) > 10, f"expected the shipped step contracts, found {len(found)}"
+        assert len(found) == _EXPECTED_STEP_CONTRACT_COUNT, (
+            f"expected {_EXPECTED_STEP_CONTRACT_COUNT} shipped step contracts, "
+            f"found {len(found)}"
+        )
 
     def test_no_step_contract_lives_anywhere_else(self) -> None:
         expected_parent = _DOCTRINE_ROOT / "missions" / "built_in_step_contracts"
@@ -156,6 +201,36 @@ class TestMissionTierExceptions:
             if p.parent != expected_parent and "__pycache__" not in p.parts
         ]
         assert not strays, f"step contracts outside the authoritative dir: {strays}"
+
+    def test_mission_tier_set_is_exactly_pinned(self) -> None:
+        """Growing the carve-out must be a deliberate edit, not a quiet escape hatch.
+
+        ``test_artifact_tier_kinds_are_still_covered`` stops an *existing* kind being
+        smuggled in, but a future ``ArtifactKind`` member could be dropped into
+        ``_MISSION_TIER_KINDS`` with nothing objecting — re-opening silent invisibility for
+        that kind. Pin the set exactly, mirroring the empty-allowlist posture.
+        """
+        expected = {
+            ArtifactKind.TEMPLATE,
+            ArtifactKind.ANTI_PATTERN,
+            ArtifactKind.MISSION_STEP_CONTRACT,
+        }
+        assert set(_MISSION_TIER_KINDS) == expected
+
+    def test_no_standalone_anti_pattern_artifact_file_exists(self) -> None:
+        """``ANTI_PATTERN``'s exclusion rests on a negative filesystem claim — assert it.
+
+        The kind is excluded because anti-patterns are hand-authored inside graph fragments
+        with no standalone artifact file. That is exactly the sort of claim a gate should
+        check rather than assume: a planted ``*.anti_pattern.yaml`` would today be both dead
+        and invisible to this gate.
+        """
+        strays = [
+            p.relative_to(_DOCTRINE_ROOT).as_posix()
+            for p in _DOCTRINE_ROOT.rglob("*.anti_pattern.yaml")
+            if "__pycache__" not in p.parts
+        ]
+        assert not strays, f"anti-patterns have no artifact-file convention: {strays}"
 
     def test_artifact_tier_kinds_are_still_covered(self) -> None:
         """The carve-out must not have swallowed a kind the rule should govern."""
@@ -205,6 +280,28 @@ class TestGateNonVacuity:
     def test_rejects_artefact_at_doctrine_root(self, tmp_path: Path) -> None:
         self._plant(tmp_path, "planted.tactic.yaml")
         assert [p.as_posix() for p in _violations(tmp_path)] == ["planted.tactic.yaml"]
+
+    def test_rejects_right_pack_wrong_type_dir(self, tmp_path: Path) -> None:
+        """A tactic under ``assets/built-in/`` — the shape the earlier gate accepted.
+
+        ``TacticRepository`` scans ``tactics/built-in`` only, so this file is as dead as any
+        of the nine, while having a perfectly correct pack segment.
+        """
+        self._plant(tmp_path, "assets/built-in/planted.tactic.yaml")
+        assert [p.as_posix() for p in _violations(tmp_path)] == [
+            "assets/built-in/planted.tactic.yaml"
+        ]
+
+    def test_rejects_novel_type_dir(self, tmp_path: Path) -> None:
+        """``<invented>/built-in/x.asset.yaml`` — the category-in-place-of-type near miss.
+
+        #2918 put the category *above* the pack (caught from the start). Putting it *in place
+        of* the type was accepted until three review lenses found it.
+        """
+        self._plant(tmp_path, "audiences/built-in/planted.asset.yaml")
+        assert [p.as_posix() for p in _violations(tmp_path)] == [
+            "audiences/built-in/planted.asset.yaml"
+        ]
 
 
 class TestPromotedPowershellToolguideIsReachable:
