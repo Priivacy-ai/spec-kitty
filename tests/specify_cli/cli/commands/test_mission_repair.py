@@ -25,6 +25,7 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import mission_repair as mr
+from tests._support.ansi import strip_ansi
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -332,7 +333,7 @@ def test_repair_command_registered_on_mission_app() -> None:
 
     result = _RUNNER.invoke(mission_app, ["repair", "--help"])
     assert result.exit_code == 0
-    assert "--mission" in result.stdout
+    assert "--mission" in strip_ansi(result.stdout)
 
 
 @pytest.mark.non_sandbox
@@ -350,4 +351,5 @@ def test_repair_reachable_end_to_end_via_cli(
     result = _RUNNER.invoke(mission_app, ["repair", "--mission", mission_slug])
 
     assert result.exit_code == 0
-    assert "Clean" in result.stdout or "Nothing to repair" in result.stdout
+    plain = strip_ansi(result.stdout)
+    assert "Clean" in plain or "Nothing to repair" in plain
