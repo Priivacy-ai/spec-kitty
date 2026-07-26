@@ -91,6 +91,8 @@ def test_dashboard_overview_mission_copy_uses_text_nodes():
     assert "contextEl.textContent = purposeContext;" in source
     assert "overviewContent.replaceChildren(...overviewChildren);" in source
     assert "overviewContent.innerHTML" not in source
+    assert "command.textContent = nextAction;" in source
+    assert "el.innerHTML" not in source
     assert "<h3>Mission Run: ${feature.name}" not in source
     assert "${purposeTldr}</p>" not in source
     assert "${purposeContext}</p>" not in source

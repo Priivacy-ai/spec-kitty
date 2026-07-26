@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 import contextlib
 import logging
 import os
@@ -248,7 +249,13 @@ def _derive_next_action(meta_data: dict[str, Any], kanban_stats: dict[str, Any])
         return None
     if meta_data.get("accepted_at"):
         return None
-    slug = meta_data.get("mission_slug") or meta_data.get("slug") or "<mission>"
+    slug = meta_data.get("mission_slug") or meta_data.get("slug")
+    if not isinstance(slug, str):
+        return None
+    try:
+        slug = assert_safe_path_segment(slug)
+    except ValueError:
+        return None
     if meta_data.get("baseline_merge_commit"):
         return f"Run /spec-kitty.review, then: spec-kitty accept --mission {slug}"
     if not kanban_stats.get("error") and kanban_stats.get("total", 0) > 0:
