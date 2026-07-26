@@ -334,6 +334,8 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
             },
         )
     except ValueError as exc:
+        if not str(exc).startswith("Not a safe path segment:"):
+            raise
         _fail(command, "INVALID_MISSION", str(exc), data={"message": str(exc)})
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))

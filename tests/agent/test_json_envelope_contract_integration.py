@@ -323,7 +323,7 @@ class TestRootCLIPath:
         assert env["success"] is False
         assert env["command"] == command
         assert env["error_code"] == "INVALID_MISSION"
-        assert "Not a safe path segment" in env["data"]["message"]
+        assert env["data"]["message"].startswith("Not a safe path segment:")
         assert selector in env["data"]["message"]
 
     # -- Old command names through root CLI must fail ----------------------
