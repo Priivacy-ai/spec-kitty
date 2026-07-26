@@ -1371,11 +1371,16 @@ function updateFeatureListSilent(features) {
     }
     updateSidebarState();
 
-    // Detect artifact changes and reload overview if artifacts changed
+    // Refresh every value rendered by the overview. Lifecycle markers can
+    // change without changing artifacts (for example merge or acceptance).
     if (currentPage === 'overview' && oldFeature && feature) {
-        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
-        const newArtifacts = JSON.stringify(feature.artifacts);
-        if (oldArtifacts !== newArtifacts) {
+        const overviewState = item => JSON.stringify({
+            artifacts: item.artifacts,
+            next_action: item.next_action,
+            mission_status: item.mission_status,
+            kanban_stats: item.kanban_stats,
+        });
+        if (overviewState(oldFeature) !== overviewState(feature)) {
             loadOverview();
         }
     }

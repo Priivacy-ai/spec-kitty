@@ -81,6 +81,14 @@ def test_dashboard_features_polling_guards_malformed_payloads():
     assert "response.ok" in source
 
 
+def test_dashboard_overview_polling_includes_lifecycle_state():
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+
+    assert "next_action: item.next_action" in source
+    assert "mission_status: item.mission_status" in source
+    assert "kanban_stats: item.kanban_stats" in source
+
+
 def test_dashboard_overview_mission_copy_uses_text_nodes():
     source = DASHBOARD_JS.read_text(encoding="utf-8")
 
