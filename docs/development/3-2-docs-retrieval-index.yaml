@@ -2442,6 +2442,70 @@ pages:
     - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md"
+    title: "ADR: DRG edges are the canonical artefact-relationship authority; inline `references:` blocks are pre-DRG residue to be migrated and retired"
+    divio_type: "none"
+    abstract: "**Status:** Accepted"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "scope-the-migration-happens-now-in-this-mission", text: "Scope: the migration happens now, in this mission", level: 3}
+    - {slug: "amendment-2026-07-26-three-decisions-taken-after-this-adr-was-first-accepted", text: "Amendment (2026-07-26) — three decisions taken after this ADR was first accepted", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "immediate-application-to-2935-the-mission-that-surfaced-this", text: "Immediate application to #2935 (the mission that surfaced this)", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-pin-edges-as-canonical-and-complete-the-migration-now-chosen", text: "Option 1 — Pin edges as canonical and complete the migration now (chosen)", level: 3}
+    - {slug: "option-2-full-parity-for-the-inline-surface", text: "Option 2 — Full parity for the inline surface", level: 3}
+    - {slug: "option-3-pin-the-direction-defer-the-migration-initially-chosen-then-withdrawn", text: "Option 3 — Pin the direction, defer the migration (initially chosen, then withdrawn)", level: 3}
+    - {slug: "option-4-declare-inline-blocks-canonical-fragments-are-pure-build-output", text: "Option 4 — Declare inline blocks canonical; fragments are pure build output", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md"
+    title: "ADR: doctrine artefacts live at `<type>/<pack>/[<category>/]<name>` — misplacement is an error, not invisibility"
+    divio_type: "none"
+    abstract: "**Status:** Accepted"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "disposition-of-the-nine", text: "Disposition of the nine", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-pin-the-layout-clear-the-litter-gate-it-chosen", text: "Option 1 — Pin the layout, clear the litter, gate it (chosen)", level: 3}
+    - {slug: "option-2-accept-both-layouts-in-the-resolvers", text: "Option 2 — Accept both layouts in the resolvers", level: 3}
+    - {slug: "option-3-document-only-no-gate", text: "Option 3 — Document only, no gate", level: 3}
+    - {slug: "option-4-gate-with-the-9-frozen-as-a-baseline", text: "Option 4 — Gate with the 9 frozen as a baseline", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md"
+    title: "ADR: a signed `impacts` edge subsumes `in_tension_with` — one relation, sign carries the direction of effect"
+    divio_type: "none"
+    abstract: "**Status:** Accepted"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "measured-ground-verified-in-tree-not-inferred", text: "Measured ground (verified in-tree, not inferred)", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "the-decisions-this-adr-takes", text: "The decisions this ADR takes", level: 3}
+    - {slug: "adr-d11-is-symmetric-on-drgedge-shorthand-for-the-un-written-inverse", text: "ADR-D11 — `is_symmetric` on `DRGEdge`: shorthand for the un-written inverse", level: 3}
+    - {slug: "retires", text: "Retires", level: 3}
+    - {slug: "migrates-in-one-commit-each-per-surface", text: "Migrates (in one commit each, per surface)", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "open-decisions", text: "Open Decisions", level: 2}
+    - {slug: "confirmation", text: "Confirmation", level: 2}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-a-new-relation-impacts-chosen", text: "Option A — new `Relation.IMPACTS` (chosen)", level: 3}
+    - {slug: "option-b-keep-in-tension-with-add-the-magnitude-to-it", text: "Option B — keep `in_tension_with`, add the magnitude to it", level: 3}
+    - {slug: "option-c-relation-impacts-but-symmetric", text: "Option C — `Relation.IMPACTS` but symmetric", level: 3}
+    - {slug: "option-d-keep-both-the-boolean-and-the-signed-field", text: "Option D — keep both the boolean and the signed field", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -7740,7 +7804,7 @@ pages:
   - path: "docs/plans/doctrine/creed-and-values-design-as-proposed.md"
     title: "Creed and FoundationalValues — design as proposed (operator input record)"
     divio_type: "none"
-    abstract: "Verbatim record of the operator's Emergent HiC/Operator design for a creed artefact, FoundationalValues type, value-impact deltas, and a generalized impacts edge — plus the corpus evidence measured against it."
+    abstract: "Verbatim record of the operator's creed/FoundationalValues design — value-impact deltas and a generalized impacts edge — plus the corpus evidence measured against it."
     anchors:
     - {slug: "core-problem-statement", text: "Core problem statement", level: 2}
     - {slug: "1-part-1-creed-and-values", text: "1. Part 1 — Creed and Values", level: 2}
@@ -7758,7 +7822,7 @@ pages:
   - path: "docs/plans/doctrine/creed-and-values-design-hardened.md"
     title: "Creed and FoundationalValues — hardened design"
     divio_type: "none"
-    abstract: "Hardened design after a four-lens squad: the structure is sound and needs no new kind, relation, or node; the numeric layer must be gated behind a one-day experiment because the sign channel is measurably noisy and creed-weighted ranking collapses toward magnitude."
+    abstract: "Hardened design after a four-lens squad: the structure needs no new kind, relation, or node, but the numeric layer is gated because the sign channel is measurably noisy."
     anchors:
     - {slug: "headline", text: "Headline", level: 2}
     - {slug: "0-the-operative-frame-and-what-it-changes", text: "0. The operative frame — and what it changes", level: 2}
@@ -7849,7 +7913,7 @@ pages:
   - path: "docs/plans/doctrine/foundational-values-and-creed.md"
     title: "FoundationalValues and Creed — canonical design"
     divio_type: "none"
-    abstract: "The single authority for the FoundationalValues/creed design: a value system generic over N values with AMMERSE as the default basis, per-artefact impact deltas, a signed impacts edge that subsumes in_tension_with, and the measured grounding behind all of it."
+    abstract: "Single authority for the FoundationalValues/creed design: generic over N values, AMMERSE the default basis, and a signed impacts edge that subsumes in_tension_with."
     anchors:
     - {slug: "0-what-is-being-asked-of-a-reviewer", text: "0. What is being asked of a reviewer", level: 2}
     - {slug: "1-problem-statement", text: "1. Problem statement", level: 2}
@@ -7915,7 +7979,7 @@ pages:
   - path: "docs/plans/doctrine/manifesto-program-delivery-sequence.md"
     title: "FoundationalValues/creed program — delivery sequence"
     divio_type: "none"
-    abstract: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, the superseding-ADR scope, tracker shape, park register, upstream report, and effort envelope anchored on in-repo precedents."
+    abstract: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, superseding-ADR scope, park register, and effort envelope."
     anchors:
     - {slug: "settled-inputs-do-not-re-litigate", text: "Settled inputs — do not re-litigate", level: 2}
     - {slug: "what-the-matrix-measurement-changed", text: "What the matrix measurement changed", level: 2}
@@ -7931,7 +7995,7 @@ pages:
   - path: "docs/plans/doctrine/manifesto-tier-primary-drivers.md"
     title: "The Manifesto Tier — doctrine's missing primary-driver layer"
     divio_type: "none"
-    abstract: "Meta-level analysis: doctrine implements only the middle tier of a three-tier sense-making model, having inherited an upstream scope exclusion. AMMERSE is already in-repo but mis-tiered as a tactic. Proposes a manifesto tier as the arbitration basis."
+    abstract: "Meta-analysis: doctrine implements only the middle tier of a three-tier sense-making model. AMMERSE is in-repo but mis-tiered as a tactic. Proposes a manifesto tier."
     anchors:
     - {slug: "summary", text: "Summary", level: 2}
     - {slug: "1-the-slot-is-already-declared-and-it-is-empty", text: "1. The slot is already declared, and it is empty", level: 2}
@@ -7950,7 +8014,7 @@ pages:
   - path: "docs/plans/doctrine/manifesto-tier-verdict-and-handover.md"
     title: "Manifesto tier — verdict, corrections, and handover"
     divio_type: "none"
-    abstract: "Verdict of two adversarial squads on the proposed manifesto doctrine tier: the diagnosis survives, the mechanism is rejected by an experiment the proposal itself nominated. Carries the corrected facts, the actionable sequence, and the decision gate."
+    abstract: "Verdict of two adversarial squads on the proposed manifesto tier: the diagnosis survives, the mechanism is rejected by an experiment the proposal itself nominated."
     anchors:
     - {slug: "the-call", text: "THE CALL", level: 2}
     - {slug: "what-killed-the-mechanism", text: "What killed the mechanism", level: 3}
@@ -8094,7 +8158,7 @@ pages:
   - path: "docs/plans/doctrine/squad-reports/doctrine-curator.md"
     title: "Doctrine-curator lens — exemptions, accreditation, provenance"
     divio_type: "none"
-    abstract: "Doctrine integrity review of the creed/FoundationalValues design: the per-kind exemption table, the value_impact vs value_bias split, accreditation placement, provenance shape, and the gates it trips."
+    abstract: "Doctrine integrity review of the creed design: the per-kind exemption table, the value_impact vs value_bias split, accreditation placement, and the gates it trips."
     anchors:
     - {slug: "findings", text: "Findings", level: 2}
     - {slug: "exemption-table-all-12-artifactkind-members", text: "Exemption table — all 12 `ArtifactKind` members", level: 2}
@@ -8108,7 +8172,7 @@ pages:
   - path: "docs/plans/doctrine/squad-reports/implementer.md"
     title: "Implementer lens — feasibility and the prototype slice"
     divio_type: "none"
-    abstract: "Buildability of the creed/FoundationalValues design in this codebase: real Pydantic models, the delta representation decision, the coverage gate, and a one-day pre-registered prototype."
+    abstract: "Buildability of the creed design here: real Pydantic models, the delta representation decision, the coverage gate, and a one-day pre-registered prototype."
     anchors:
     - {slug: "profile-adopted", text: "Profile adopted", level: 2}
     - {slug: "models", text: "Models", level: 2}
@@ -8134,7 +8198,7 @@ pages:
   - path: "docs/plans/doctrine/squad-reports/review-round-2026-07-26.md"
     title: "Verification round — three-lens review of the finalized authorities"
     divio_type: "none"
-    abstract: "Final review squad before handover: sequence-doc executability (architect), fresh-eyes fix verification (patterns), and adversarial number-by-number reproduction (debugger). Aggregated verdict and the fix list that was applied."
+    abstract: "Final review squad before handover: sequence executability, fresh-eyes fix verification, and adversarial number-by-number reproduction. Verdict plus the applied fix list."
     anchors:
     - {slug: "aggregated-verdict", text: "Aggregated verdict", level: 2}
     - {slug: "fix-ledger", text: "Fix ledger", level: 2}
@@ -8143,7 +8207,7 @@ pages:
   - path: "docs/plans/doctrine/squad-reports/reviewer.md"
     title: "Reviewer lens — adversarial pass and the 39% verdict"
     divio_type: "none"
-    abstract: "Adversarial review of the creed/FoundationalValues design: the sign channel is measurably noisy, five of seven axes carry no cost signal, creed-weighted ranking collapses toward magnitude, and the interview is a closed loop."
+    abstract: "Adversarial review of the creed design: the sign channel is measurably noisy, five of seven axes carry no cost signal, and creed-weighted ranking collapses to magnitude."
     anchors:
     - {slug: "findings", text: "Findings", level: 2}
     - {slug: "the-39-verdict", text: "The 39% verdict", level: 2}
@@ -8152,6 +8216,49 @@ pages:
     - {slug: "what-survives-me", text: "What survives me", level: 2}
     - {slug: "concession", text: "Concession", level: 2}
     - {slug: "verdict", text: "Verdict", level: 2}
+  - path: "docs/plans/doctrine/test_quality/doctrine-artefact-series-proposal.md"
+    title: "Test-Quality Doctrine — Artefact Series Proposal"
+    divio_type: "none"
+    abstract: "Curator proposal for the test-slicing/mocking-boundary doctrine series: a Tests-as-Scaffold paradigm, DIRECTIVE_041 disambiguation, exemplar assets, and the DRG edge map."
+    anchors:
+    - {slug: "binding-constraints-added-2026-07-26-after-the-proposal-was-first-written", text: "Binding constraints (added 2026-07-26, after the proposal was first written)", level: 2}
+    - {slug: "prior-art-found-and-removed-record-not-a-fold", text: "Prior art found and removed (record, not a fold)", level: 3}
+    - {slug: "guiding-correction-augment-heavy-not-create-heavy", text: "Guiding correction — augment-heavy, not create-heavy", level: 2}
+    - {slug: "the-operator-s-topology-refinements-applied", text: "The operator's topology refinements (applied)", level: 2}
+    - {slug: "proposed-series", text: "Proposed series", level: 2}
+    - {slug: "create", text: "Create", level: 3}
+    - {slug: "augment-edit-no-new-node", text: "Augment (edit, no new node)", level: 3}
+    - {slug: "directive-041-disambiguation-stays-vs-moves", text: "DIRECTIVE_041 disambiguation (stays vs moves)", level: 2}
+    - {slug: "drg-edge-map-source-relation-target", text: "DRG edge map (source --relation--> target)", level: 2}
+    - {slug: "capability-awareness-intent-dominates-revised-2026-07-26", text: "Capability-awareness (intent dominates) — REVISED 2026-07-26", level: 2}
+    - {slug: "load-time-validation-risks", text: "Load-time / validation risks", level: 2}
+    - {slug: "build-order-for-the-curator", text: "Build order for the curator", level: 2}
+  - path: "docs/plans/doctrine/test_quality/index.md"
+    title: "Test Quality Doctrine"
+    divio_type: "none"
+    abstract: "Research and planning notes for test-quality doctrine — test slicing/scoping and mocking-boundary discipline."
+    anchors:
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/doctrine/test_quality/mocking-boundary-and-test-slicing-research.md"
+    title: "Test Slicing & Mocking-Boundary Discipline — Research Findings"
+    divio_type: "none"
+    abstract: "Research for refining Spec Kitty's test-boundary doctrine after #2934, covering functional slicing, internal mocks, and outcome assertions."
+    anchors:
+    - {slug: "1-purpose-and-scope", text: "1. Purpose and scope", level: 2}
+    - {slug: "1-1-why-this-is-worth-doctrine-not-just-a-review-comment", text: "1.1 Why this is worth doctrine, not just a review comment", level: 3}
+    - {slug: "2-the-rule-synthesised", text: "2. The rule (synthesised)", level: 2}
+    - {slug: "3-source-by-source-synthesis", text: "3. Source-by-source synthesis", level: 2}
+    - {slug: "3-1-clear-test-boundaries-the-primary-operative-rule", text: "3.1 Clear Test Boundaries — the primary operative rule", level: 3}
+    - {slug: "3-2-the-testing-pyramid-why-level-choice-avoids-mocking-internals", text: "3.2 The Testing Pyramid — why level choice avoids mocking internals", level: 3}
+    - {slug: "3-3-connascence-the-theoretical-backbone", text: "3.3 Connascence — the theoretical backbone", level: 3}
+    - {slug: "3-4-test-desiderata-kent-beck-the-property-level-backing", text: "3.4 Test Desiderata (Kent Beck) — the property-level backing", level: 3}
+    - {slug: "3-5-clean-code-supporting-framing-by-extension-only", text: "3.5 Clean Code — supporting framing (by extension only)", level: 3}
+    - {slug: "4-the-remediation-recipe", text: "4. The remediation recipe", level: 2}
+    - {slug: "5-worked-example-2934-in-the-vocabulary-above", text: "5. Worked example — #2934, in the vocabulary above", level: 2}
+    - {slug: "6-existing-project-alignment", text: "6. Existing project alignment", level: 2}
+    - {slug: "7-tensions-and-counterpoints-stated-honestly", text: "7. Tensions and counterpoints (stated honestly)", level: 2}
+    - {slug: "8-recommendations-for-the-doctrine-artefact-2935", text: "8. Recommendations for the doctrine artefact (#2935)", level: 2}
+    - {slug: "9-references", text: "9. References", level: 2}
   - path: "docs/plans/doctrine/wp-prompt-governance-atdd-findings.md"
     title: "WP-Prompt Governance Contract — ATDD Findings"
     divio_type: "none"
