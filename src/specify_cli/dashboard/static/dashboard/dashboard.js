@@ -1303,6 +1303,23 @@ function updateFeatureListSilent(features) {
     allFeatures = features;
     const feature = features.find(f => f.id === currentFeature);
 
+    // Polling can change selector status labels and sort order. Rebuild the
+    // options without changing the selected mission or current page.
+    if (features.length > 1) {
+        const options = document.createDocumentFragment();
+        features.forEach(f => {
+            const option = document.createElement('option');
+            option.value = f.id;
+            option.textContent = getFeatureDisplayName(f);
+            option.selected = f.id === currentFeature;
+            options.appendChild(option);
+        });
+        select.replaceChildren(options);
+        select.value = currentFeature;
+    } else if (features.length === 1) {
+        singleFeatureName.textContent = `Mission Run: ${getFeatureDisplayName(features[0])}`;
+    }
+
     if (feature?.workflow) {
         updateWorkflowIcons(feature.workflow);
         computeFeatureWorktreeStatus(feature);

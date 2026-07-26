@@ -85,3 +85,12 @@ def test_dashboard_selector_options_use_dom_text_nodes():
     assert "select.replaceChildren(options);" in source
     assert "select.innerHTML = features.map" not in source
     assert '<option value="${f.id}"' not in source
+
+
+def test_dashboard_polling_rebuilds_selector_status_labels():
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+    silent_update = source.split("function updateFeatureListSilent(features)", 1)[1]
+
+    assert "option.textContent = getFeatureDisplayName(f);" in silent_update
+    assert "select.replaceChildren(options);" in silent_update
+    assert "select.value = currentFeature;" in silent_update
