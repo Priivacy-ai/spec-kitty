@@ -2522,6 +2522,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/creed-and-values-design-as-proposed.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/creed-and-values-design-hardened.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/doctrine-artifact-selection-preflight.md
   tag: current
   divio_type: none
@@ -2540,6 +2552,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/foundational-values-and-creed.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/index.md
   tag: current
   divio_type: none
@@ -2547,6 +2565,24 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/layered-doctrine-resolution-design.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/manifesto-program-delivery-sequence.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/manifesto-tier-primary-drivers.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/manifesto-tier-verdict-and-handover.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2565,6 +2601,48 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/runtime-charter-doctrine-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/architect.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/connascence-matrix-measurement.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/doctrine-curator.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/implementer.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/review-round-2026-07-26.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/squad-reports/reviewer.md
   tag: current
   divio_type: none
   owning_workstream: none

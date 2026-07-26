@@ -117,5 +117,6 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-21 | [promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, and deliver terminology enforcement as an executable ASSET gate](2026-07-21-1-glossary-first-order-doctrine-artefact.md) |
 | 2026-07-22 | [gate bindings reuse `mission_step_contract` — the content-vs-relationship principle](2026-07-22-1-gate-binding-content-vs-relationship.md) |
 | 2026-07-23 | [`surface` names two unrelated domains — split the vocabulary, rename to `ToolSurfaceKind` and `TopologySurface`](2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md) |
+| 2026-07-23 | [Post-Consolidation Deferral and External Enforcement of Negative Invariants](2026-07-23-2-post-consolidation-deferral-and-external-enforcement.md) |
 | 2026-07-26 | [DRG edges are the canonical artefact-relationship authority; inline `references:` blocks are pre-DRG residue to be migrated and retired](2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md) |
 | 2026-07-26 | [doctrine artefacts live at `<type>/<pack>/[<category>/]<name>` — misplacement is an error, not invisibility](2026-07-26-2-doctrine-artefact-pack-layout-convention.md) |
