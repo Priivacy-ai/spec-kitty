@@ -96,9 +96,19 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     so the extractor mints one edge-less ``asset:common-docs-structural-lint``
 #:     node (the asset fragment ships ``edges: []``): +1 node / +0 edges /
 #:     +1 orphan. Composed: 303/757/30 + 1/0/1 = 304/757/31.
-_EXPECTED_NODE_COUNT = 304
+#: (4) ADR 2026-07-26-2 (doctrine artefact pack layout): the PowerShell toolguide
+#:     and its 245-line guide are promoted from ``toolguides/`` into the pack
+#:     layer ``toolguides/built-in/``. It had sat outside ``<type>/<pack>/`` since
+#:     the framework's first commit, so node discovery never saw it and the
+#:     toolguide was unreachable; promotion mints one edge-less
+#:     ``toolguide:powershell-syntax`` node: +1 node / +0 edges / +1 orphan.
+#:     The same change DELETES nine mispacked artefacts (five duplicates of live
+#:     built-ins, four content-free seed stubs) with **zero** count impact --
+#:     none of them was ever a node, which is precisely why they were dead.
+#:     Composed: 304/757/31 + 1/0/1 = 305/757/32.
+_EXPECTED_NODE_COUNT = 305
 _EXPECTED_EDGE_COUNT = 757
-_EXPECTED_ORPHAN_COUNT = 31
+_EXPECTED_ORPHAN_COUNT = 32
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).

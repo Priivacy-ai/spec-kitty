@@ -1,8 +1,8 @@
 # TypeScript Mutation Testing with Stryker
 
 Operator reference and workflow for mutation testing TypeScript/JavaScript code with Stryker. Use
-alongside the [Mutation-Aware Test Design](../styleguides/shipped/mutation-aware-test-design.styleguide.yaml)
-styleguide and the [Mutation Testing Workflow](../tactics/shipped/mutation-testing-workflow.tactic.yaml) tactic.
+alongside the [Mutation-Aware Test Design](../../styleguides/built-in/mutation-aware-test-design.styleguide.yaml)
+styleguide and the [Mutation Testing Workflow](../../tactics/built-in/testing/mutation-testing-workflow.tactic.yaml) tactic.
 
 ## Installation and Configuration
 

@@ -19,7 +19,7 @@ Files use the pattern `kebab-id.paradigm.yaml` (e.g., `test-first.paradigm.yaml`
 
 Shipped paradigms live under:
 
-- `src/doctrine/paradigms/shipped/*.paradigm.yaml`
+- `src/doctrine/paradigms/built-in/*.paradigm.yaml`
 
 ## Glossary Reference
 

@@ -31,10 +31,15 @@ consumer.
 
 ## Authoring pipeline
 
-New artifacts are authored directly in each kind's `shipped/` tree (for
-example `directives/shipped/NNN-name.directive.yaml`). Cross-artifact
-relationships are expressed as edges in `graph.yaml`, not as inline
-reference fields inside each YAML. Raw reference material may still be
+New artifacts are authored at `<type>/<pack>/[<category>/]<name>.<kind>.yaml` —
+for example `directives/built-in/NNN-name.directive.yaml` or
+`tactics/built-in/testing/<name>.tactic.yaml`. The pack layer (`built-in`) is
+mandatory and any category grouping nests *inside* it; an artifact placed
+outside that shape is never loaded (see ADR 2026-07-26-2). Cross-artifact
+relationships are expressed as edges in the per-kind `<kind>.graph.yaml`
+fragment, not as inline reference fields inside each YAML (see ADR
+2026-07-26-1; the single `graph.yaml` monolith was sharded by #2680). Raw
+reference material may still be
 captured under `_reference/` as an intake landing zone; converting it to
 doctrine is a manual editorial step that writes the shipped YAML plus the
 matching `graph.yaml` edges.
