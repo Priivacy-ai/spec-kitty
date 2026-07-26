@@ -11,7 +11,14 @@ related:
 # The Manifesto Tier — doctrine's missing primary-driver layer
 
 **Date:** 2026-07-26
-**Status:** analysis / design proposal — nothing implemented
+**Status:** ⚠️ **SUPERSEDED IN PART — the proposed mechanism is REJECTED.** Two adversarial
+squads (8 profile-loaded agents) ran against this document on 2026-07-26. The **diagnosis
+survives and was sharpened**; the **mechanism (§4c, §7.2–§7.4, §6) is dead**, killed by an
+experiment this document itself nominated as its falsification condition. Read
+[`manifesto-tier-verdict-and-handover.md`](manifesto-tier-verdict-and-handover.md) **first** —
+it carries the verdict, the corrected facts, and the actionable sequence. Sections below
+marked ❌ are retained as the record of the investigation, not as proposals.
+**Known factual errors in this document are listed in the handover, §"Corrections".**
 **Scope:** meta-level. Read-only investigation of the doctrine tier model, run as a
 complementary lens alongside the grounded architectural work on
 `fix/2934-demock-planning-closeout-test`.

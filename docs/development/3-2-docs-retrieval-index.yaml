@@ -7847,6 +7847,28 @@ pages:
     - {slug: "9-framing-note-for-whoever-specs-this", text: "9. Framing note for whoever specs this", level: 2}
     - {slug: "provenance", text: "Provenance", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/doctrine/manifesto-tier-verdict-and-handover.md"
+    title: "Manifesto tier — verdict, corrections, and handover"
+    divio_type: "none"
+    abstract: "Verdict of two adversarial squads on the proposed manifesto doctrine tier: the diagnosis survives, the mechanism is rejected by an experiment the proposal itself nominated. Carries the corrected facts, the actionable sequence, and the decision gate."
+    anchors:
+    - {slug: "the-call", text: "THE CALL", level: 2}
+    - {slug: "what-killed-the-mechanism", text: "What killed the mechanism", level: 3}
+    - {slug: "three-more-independent-failures", text: "Three more independent failures", level: 3}
+    - {slug: "the-finding-that-decides-the-cost-question", text: "The finding that decides the cost question", level: 3}
+    - {slug: "the-re-frame-that-matters-most", text: "The re-frame that matters most", level: 3}
+    - {slug: "what-survives", text: "What survives", level: 2}
+    - {slug: "what-is-dead", text: "What is dead", level: 2}
+    - {slug: "corrections-to-the-original-document", text: "Corrections to the original document", level: 2}
+    - {slug: "the-sequence-what-to-actually-do", text: "THE SEQUENCE — what to actually do", level: 2}
+    - {slug: "file-unconditionally-regardless-of-the-manifesto-s-fate", text: "File unconditionally, regardless of the manifesto's fate", level: 3}
+    - {slug: "the-first-mission-make-the-thesis-falsifiable-build-no-new-tier", text: "The first mission — make the thesis falsifiable, build no new tier", level: 3}
+    - {slug: "the-decision-gate-2538-and-it-already-exists", text: "THE DECISION GATE — `#2538`, and it already exists", level: 3}
+    - {slug: "two-human-decisions-not-agent-tasks", text: "Two human decisions — not agent tasks", level: 3}
+    - {slug: "explicitly-parked-with-reasons", text: "Explicitly parked — with reasons", level: 3}
+    - {slug: "debt-tickets-worth-filing-now-independent-of-everything-above", text: "Debt tickets worth filing now (independent of everything above)", level: 3}
+    - {slug: "handover-note-to-the-parallel-session-fix-2934-demock-planning-closeout-test", text: "Handover note to the parallel session (`fix/2934-demock-planning-closeout-test`)", level: 2}
+    - {slug: "method-note-and-limits", text: "Method note and limits", level: 2}
   - path: "docs/plans/doctrine/mission-b-proposed-scope.md"
     title: "Mission B (proposed scope) — Charter-mediated doctrine selection"
     divio_type: "none"
