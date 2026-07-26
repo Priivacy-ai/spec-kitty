@@ -101,16 +101,16 @@ FLOOR_MARGIN = 2
 
 # WP16 SC-004-equivalent anti-mass-allow-list guard: the number of call sites
 # routed through load_meta/load_meta_strict/load_meta_or_empty has its own
-# floor and can only rise. Live routed census on this tree is 121 (includes
+# floor and can only rise. Live routed census on this tree is 120 (includes
 # mission_metadata.py's own internal call sites — e.g. load_meta_strict/
 # load_meta_or_empty delegating to load_meta, and the module's many other
 # public helpers reading meta.json through the one canonical primitive; those
 # ARE genuine routed-usage evidence, not the read implementation itself, which
 # is why mission_metadata.py is excluded from the INLINE scan but NOT from this
 # routed-usage census — plus the import-history SCAN's own load_meta_or_empty
-# call, #2262). Floor (117) sits MARGIN(4) below the live count and strictly
-# below it, so the anti-vacuity check proves the census is not merely equal to
-# a hand-entered value.
+# call, #2262). Floor (117) sits 3 below the live count (within MARGIN(4)) and
+# strictly below it, so the anti-vacuity check proves the census is not merely
+# equal to a hand-entered value.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
 ROUTED_LOAD_META_FLOOR = 117
 
