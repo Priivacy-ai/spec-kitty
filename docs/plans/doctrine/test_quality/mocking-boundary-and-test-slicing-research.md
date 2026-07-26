@@ -64,7 +64,7 @@ stub call-args.**
 **Acceptable mock seams (exhaustive):**
 
 | Seam | Source anchor |
-|------|---------------|
+| ---- | ------------- |
 | Entry to a **different domain** (domain-contract tests) | "external services" — _Clear Test Boundaries_, step 3 |
 | **Filesystem** interaction | "externals, such as … the file system" — _Clear Test Boundaries_, step 4 |
 | **Database** interaction | "data access layers" — _Clear Test Boundaries_, step 3; `UserDatabaseProxy` in the case study |
@@ -290,12 +290,25 @@ Drawn from _Clear Test Boundaries_ and the #2934 fix:
 
 ## 6. Existing project alignment
 
-- `CLAUDE.md` already carries test-quality guidance (Sonar "prefer testable extractions",
-  "every new branch/helper needs tests in the same PR"). This work is the **mocking-boundary
-  complement**, currently unwritten.
+> **Correction (post-review).** An earlier draft called the mocking-boundary rule
+> "currently unwritten." That overclaimed uniqueness. A doctrine overlap audit found the
+> rule is **already carried by wired, activatable authority** —
+> `styleguide:test-desiderata-and-boundaries`, `tactic:test-boundaries-by-responsibility`,
+> `tactic:function-over-form-testing`, `tactic:connascence-analysis`, and the
+> `enforcement: required` `directive:DIRECTIVE_041` ("Tests as Scaffold, Not Friction").
+> The correct move is **reconcile and extend** that authority, not create parallel doctrine.
+> The genuine deltas and the full augment-heavy series live in the companion
+> [artefact-series proposal](doctrine-artefact-series-proposal.md), which supersedes §8 below.
+
+- `CLAUDE.md` carries test-quality guidance (Sonar "prefer testable extractions",
+  "every new branch/helper needs tests in the same PR"); the doctrine pack carries the
+  boundary/desiderata authority above. This work adds only the genuine deltas: the positive
+  mock allow-list as a citable rule, the "internal-SUT-logic mock manufactures a
+  production-unreachable state" failure mode, an "unfake a test" procedure, and the mindset
+  paradigm the rule currently mis-homes inside a directive.
 - The charter's Quality & Tech-Debt Standing Orders (adversarial squad cadence, red-first
-  discipline) are the natural enforcement surface: the artefact should be a **binding lens**
-  the post-tasks / pre-merge squad and reviewers can cite, not advisory prose.
+  discipline) are the natural enforcement surface: the new/augmented artefacts should be a
+  **binding lens** the post-tasks / pre-merge squad and reviewers can cite, not advisory prose.
 
 ---
 
@@ -336,6 +349,13 @@ is more durable than an overstated one.
 ---
 
 ## 8. Recommendations for the doctrine artefact (#2935)
+
+> **Superseded.** The single-artefact recommendation below reflected the false-uniqueness
+> premise corrected in §6. The authoritative, augment-heavy artefact series (a
+> Tests-as-Scaffold paradigm, the `DIRECTIVE_041` disambiguation, checklist→asset moves,
+> exemplar assets, and the full DRG edge map) lives in the companion
+> [artefact-series proposal](doctrine-artefact-series-proposal.md). The notes below are
+> retained only as the source-authority mapping the proposal draws on.
 
 1. **Kind & placement:** a `tactic` (or `directive` — curator's call) in a doctrine
    test-discipline family under `src/doctrine/`, placed per the DRG. **Primary authority:**

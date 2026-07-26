@@ -15,6 +15,10 @@ tests: where the test boundary is drawn, and what may (and may not) be mocked.
   — the evidence basis for the mocking-boundary doctrine artefact (#2935), synthesised
   from Test Desiderata, Clear Test Boundaries, the Testing Pyramid, Connascence, and
   Clean Code; motivated by the #2934 false-alarm incident.
+- [Test-Quality Doctrine — Artefact Series Proposal](doctrine-artefact-series-proposal.md)
+  — the curator-facing, augment-heavy design: a Tests-as-Scaffold paradigm, the
+  `DIRECTIVE_041` disambiguation, checklist→asset moves, exemplar assets, and the full
+  DRG edge map. Supersedes §8 of the research findings.
 
 ## See also
 
