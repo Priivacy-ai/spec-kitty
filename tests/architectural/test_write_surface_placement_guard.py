@@ -520,9 +520,13 @@ PARTITION_RATIONALE: dict[MissionArtifactKind, tuple[_Partition, str, str]] = {
         "PRIMARY",
         "FR-003 (coord-commit-integrity) re-home COORD→PRIMARY: record-analysis "
         "output (analysis-report.md) shares the spec/plan/tasks freshness-hash "
-        "siblings, which are PRIMARY-only — a coord write is structurally impossible. "
-        "The writer + freshness gate + SSOT now agree on the primary target_branch; a "
-        "stale primary copy is REAL dirt, never coord residue.",
+        "siblings, which are PRIMARY-only — so partition-membership policy routes a "
+        "write here to PRIMARY (a coord write is policy-forbidden, not physically "
+        "impossible: resolve_placement_only would route any kind forced into the "
+        "COORD partition to the coordination branch — see "
+        "test_rehome_any_load_bearing_kind_flips_resolved_ref). The writer + "
+        "freshness gate + SSOT now agree on the primary target_branch; a stale "
+        "primary copy is REAL dirt, never coord residue.",
         "record-analysis writer + freshness-hash gate (needs PRIMARY spec/plan/tasks)",
     ),
     MissionArtifactKind.DECISION_LOG: (

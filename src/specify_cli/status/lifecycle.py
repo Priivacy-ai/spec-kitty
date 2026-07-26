@@ -17,6 +17,7 @@ from typing import Any
 from specify_cli.mission_metadata import load_meta, resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
+    LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
     MISSION_REOPENED,
     mission_event_log_path,
     read_lifecycle_events,
@@ -162,7 +163,9 @@ def _derive_last_transition_at(snapshot: StatusSnapshot) -> datetime | None:
     return _parse_dt(snapshot.materialized_at)
 
 
-_POST_MISSION_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+# Post-mission events (reopen / follow-up) ARE the local-only lifecycle set by
+# design; alias the single public owner rather than re-declaring the membership.
+_POST_MISSION_EVENT_TYPES = LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
 
 
 def _event_sort_key(event: dict[str, Any]) -> tuple[str, str]:

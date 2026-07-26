@@ -189,6 +189,7 @@ from .aggregate import (
 from .lifecycle_events import (
     FOLLOW_UP_RECORDED,
     LIFECYCLE_EVENT_TYPES,
+    LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
     MISSION_CREATED,
     MISSION_REOPENED,
     PLAN_COMPLETED,
@@ -284,6 +285,7 @@ __all__ = [
     "InvalidMissionSlug",
     "MissionMetadataUnavailable",
     "LIFECYCLE_EVENT_TYPES",
+    "LOCAL_ONLY_LIFECYCLE_EVENT_TYPES",
     "FOLLOW_UP_RECORDED",
     "MISSION_CREATED",
     "MISSION_REOPENED",
