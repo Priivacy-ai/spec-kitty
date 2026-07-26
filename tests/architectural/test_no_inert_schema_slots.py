@@ -181,7 +181,7 @@ def test_allowlist_is_empty() -> None:
 
     Mirrors ``test_doctrine_artefact_layout.py``'s own zero-entry rule.
     """
-    assert ALLOWLIST == frozenset()
+    assert frozenset() == ALLOWLIST
 
 
 @pytest.mark.parametrize(
