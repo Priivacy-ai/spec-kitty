@@ -18,7 +18,11 @@ governance:
     rules: []
   doctrine:
     selected_paradigms: []
-    selected_directives: []
+    # This project-level directive is deliberately selected rather than added
+    # to shipped action indexes: it must reach every review runtime without
+    # becoming product-wide doctrine for downstream projects.
+    selected_directives:
+    - DIR-014
     selected_tactics: []
     selected_styleguides: []
     selected_toolguides: []
@@ -106,6 +110,11 @@ directives:
   - id: DIR-013
     title: When an agent encounters pre-existing test failure
     description: When an agent encounters pre-existing test failures while working in this repository, the agent MUST open a GitHub issue reporting them before treating those failures as accepted baseline context or continuing past them. The issue must include the command run, the relevant failure summary, and why the agent believes the failures are pre-existing rather than introduced by its current change.
+    severity: warn
+    references: []
+  - id: DIR-014
+    title: Pull-Request Review Closure
+    description: 'On every review and merge action, treat each actionable human, Codex, or automated review finding as a tracked work item. After addressing a finding, reply directly on the original thread with the change and its validation evidence, then resolve or collapse the conversation when the platform permits. If a finding is not addressed, state the scope-bound reason directly on that thread. Before handoff, report the exact count of unresolved actionable threads and any blocker so no reviewer has to rediscover review state. The `Pull-Request Review Closure` prose in `.kittify/charter/charter.md` is the human-readable companion summary of this directive.'
     severity: warn
     references: []
 catalog:

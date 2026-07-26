@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from charter.charter_yaml_io import load_charter_yaml
+from charter.schemas import CharterYaml
 from doctrine.spdd_reasons.template_renderer import (
     REASONS_BLOCK_END,
     REASONS_BLOCK_START,
@@ -157,3 +159,11 @@ class TestReviewGateActivation:
         text = _read_review_template()
         rendered = process_spdd_blocks(text, active=True)
         assert "Record the outcome" in rendered
+
+    def test_review_closure_directive_is_runtime_selected(self) -> None:
+        """Review closure remains active through the structured charter runtime."""
+        charter = CharterYaml.model_validate(
+            load_charter_yaml(REPO_ROOT / ".kittify" / "charter" / "charter.yaml")
+        )
+
+        assert "DIR-014" in charter.governance.doctrine.selected_directives

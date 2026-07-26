@@ -48,6 +48,9 @@ fetch + when-doing stanza only when the budget would otherwise be exceeded):
 - **Regression Vigilance** — from `.kittify/charter/charter.md` — the
   project's explicit drift guard; apply when the diff renames or introduces
   identifier-bearing terms.
+- **Pull-Request Review Closure** — from `.kittify/charter/charter.md` —
+  close each actionable review finding with a direct reply, validation evidence,
+  and a resolved conversation when the platform allows.
 - Any additional action-critical sections the mission declares are appended
   automatically.
 

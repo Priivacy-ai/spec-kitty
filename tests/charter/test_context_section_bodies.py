@@ -49,6 +49,10 @@ _CHARTER_WITH_ALL_SECTIONS = textwrap.dedent(
 
     - The WP diff respects the agent profile's directive-references.
     - Terminology in code and docs aligns with the project glossary.
+
+    ## Pull-Request Review Closure
+
+    - Reply on every addressed review thread with validation evidence, then resolve it.
     """
 )
 
@@ -309,6 +313,21 @@ class TestActionSectionSets:
         )
         for heading in ("Terminology Canon", "Code Review Checklist", "Regression Vigilance"):
             assert f"### {heading}" in result
+        assert "### Pull-Request Review Closure" in result
+        assert "Reply on every addressed review thread" in result
+
+    def test_action_implement_excludes_review_closure_section(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_ALL_SECTIONS, action="implement"
+        )
+        assert "Pull-Request Review Closure" not in result
+
+    def test_action_merge_uses_review_closure_section(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_ALL_SECTIONS, action="merge"
+        )
+        assert "### Pull-Request Review Closure" in result
+        assert "Reply on every addressed review thread" in result
 
     def test_unknown_action_emits_no_section(self) -> None:
         result = render_critical_section_bodies(

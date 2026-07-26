@@ -62,6 +62,10 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 
 **Recovery:** If you accidentally push to origin/main, do NOT force-push (branch protection blocks it). Instead: create a `revert/<slug>` branch from origin/main, commit a revert, open a PR to merge it, then open the real mission PR.
 
+### Pull-Request Review Closure
+
+The binding policy is [`Pull-Request Review Closure`](.kittify/charter/charter.md#pull-request-review-closure) in the project charter. Follow it for every pull request you touch; do not make reviewers rediscover review state from commits or summaries.
+
 ---
 
 ## Terminology Canon

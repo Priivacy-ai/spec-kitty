@@ -136,6 +136,15 @@ How missions are executed between the operator (human-in-command) and the agent 
   performs the merge. → git/workflow discipline (`DIRECTIVE_045`), Agent Operating
   Discipline above.
 
+### Pull-Request Review Closure
+
+Treat every actionable human, Codex, or automated review finding as a tracked work item.
+After addressing it, reply directly on the original thread with the change and validation
+evidence, then resolve or collapse the conversation when the platform permits. If it is not
+addressed, state the scope-bound reason directly on that thread. Before handoff, report the
+exact count of unresolved actionable threads and any blocker so no reviewer has to rediscover
+review state.
+
 ## Governance by Workflow Action
 
 Quick map from workflow action to the rules that bind it (load the action's doctrine

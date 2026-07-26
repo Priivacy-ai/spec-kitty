@@ -393,6 +393,10 @@ def build_charter_context_include(
             raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
         return artifact_result
 
+    if canonical_kind == ArtifactKind.DIRECTIVE.value:
+        local_directive = _load_local_directives(repo_root).get(identifier)
+        if local_directive is not None:
+            return _render_local_directive_include(local_directive, identifier)
     service = _build_doctrine_service(repo_root, org_roots=org_roots)
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
         return _render_directive_include(service, identifier, selector)
@@ -481,6 +485,17 @@ def _render_directive_include(service: object, identifier: str, selector: str) -
             f"Directive {directive_id}: {title}",
             *_format_inline_directive_body(directive),
             *_format_full_artifact_payload_body(directive),
+        ]
+    )
+
+
+def _render_local_directive_include(directive: object, identifier: str) -> str:
+    """Render a project-authored directive selected from ``charter.yaml``."""
+    title = getattr(directive, "title", identifier)
+    return "\n".join(
+        [
+            f"Directive {identifier}: {title}",
+            *_format_inline_local_directive_body(directive),
         ]
     )
 
@@ -862,6 +877,17 @@ def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
     if not updates:
         return selection
     return selection.model_copy(update=updates)
+
+
+def _load_local_directives(repo_root: Path) -> dict[str, object]:
+    """Return project-authored directives declared in the structured charter."""
+    from charter.sync import load_directives_config
+
+    try:
+        directives = load_directives_config(repo_root).directives
+    except Exception:  # noqa: BLE001 — selected catalog directives still render normally
+        return {}
+    return {directive.id: directive for directive in directives}
 
 
 def _load_action_doctrine_bundle(
@@ -1704,6 +1730,18 @@ def _format_inline_directive_body(directive: object) -> list[str]:
     return body_lines
 
 
+def _format_inline_local_directive_body(directive: object) -> list[str]:
+    """Render a project-authored directive without treating it as catalog debt."""
+    body_lines = ["    Source: project charter"]
+    description = getattr(directive, "description", None)
+    if isinstance(description, str) and description.strip():
+        body_lines.append(f"    Rule: {description.strip()}")
+    severity = getattr(directive, "severity", None)
+    if isinstance(severity, str) and severity.strip():
+        body_lines.append(f"    Severity: {severity.strip()}")
+    return body_lines
+
+
 def _budget_estimate(lines: list[str]) -> int:
     """Total character cost of *lines* including newlines."""
     return sum(len(line) + 1 for line in lines)
@@ -2127,6 +2165,8 @@ def _render_selected_artifacts(
     when_clause: str,
     body_formatter: Callable[[object], list[str]],
     org_source_map: dict[str, str] | None = None,
+    local_artifacts: dict[str, object] | None = None,
+    local_body_formatter: Callable[[object], list[str]] | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
 
@@ -2154,8 +2194,11 @@ def _render_selected_artifacts(
         header_line = f"  - {artifact_id}{suffix}"
         lines.append(header_line)
 
-        artifact = None
-        if repository is not None:
+        local_artifact = (
+            local_artifacts.get(artifact_id) if local_artifacts is not None else None
+        )
+        artifact = local_artifact
+        if artifact is None and repository is not None:
             try:
                 artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
             except Exception:  # noqa: BLE001 — best-effort catalog lookup
@@ -2193,7 +2236,8 @@ def _render_selected_artifacts(
             )
             continue
 
-        body_lines = body_formatter(artifact)
+        formatter = local_body_formatter if local_artifact is not None else body_formatter
+        body_lines = (formatter or body_formatter)(artifact)
         if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
             lines.extend(body_lines)
         else:
@@ -2232,6 +2276,7 @@ def _render_selected_directives(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    local_directives: dict[str, object] | None = None,
 ) -> list[str]:
     """Render globally-selected directives into prompt lines."""
     repo = getattr(service, "directives", None)
@@ -2243,6 +2288,8 @@ def _render_selected_directives(
         when_clause="are about to apply a code change",
         body_formatter=_format_inline_directive_body,
         org_source_map=org_source_map,
+        local_artifacts=local_directives,
+        local_body_formatter=_format_inline_local_directive_body,
     )
 
 
@@ -2451,6 +2498,7 @@ def _render_selection_block(
         "paradigms",
         doctrine_selection.selected_paradigms,
     )
+    local_directives = _load_local_directives(repo_root) if repo_root is not None else {}
     directive_org = _merge(
         _collect_org_source_map(
             getattr(service, "directives", None), doctrine_selection.selected_directives
@@ -2509,7 +2557,10 @@ def _render_selection_block(
             doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org
         ),
         _render_selected_directives(
-            doctrine_selection.selected_directives, service, org_source_map=directive_org
+            doctrine_selection.selected_directives,
+            service,
+            org_source_map=directive_org,
+            local_directives=local_directives,
         ),
         _render_selected_tactics(
             doctrine_selection.selected_tactics, service, org_source_map=tactic_org

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -48,6 +49,7 @@ from charter.context import (
     _provenance_suffix,
     _reset_agent_profile_cache,
     _render_doctrine_artifact_include,
+    _render_selected_directives,
     _render_selected_agent_profiles,
     _render_selected_mission_step_contracts,
     _render_selected_procedures,
@@ -295,6 +297,24 @@ class TestInlineBodyRendering:
         assert "implement" in joined
         assert "s1" in joined
 
+    def test_project_local_directive_renders_as_structured_authority(self) -> None:
+        local_directive = SimpleNamespace(
+            title="Pull-Request Review Closure",
+            description="Reply directly on each addressed review thread.",
+            severity="warn",
+        )
+
+        lines = _render_selected_directives(
+            ["DIR-014"],
+            _StubService(),
+            local_directives={"DIR-014": local_directive},
+        )
+        joined = "\n".join(lines)
+
+        assert "Source: project charter" in joined
+        assert "Reply directly on each addressed review thread." in joined
+        assert "Charter catalog miss" not in joined
+
 
 # ---------------------------------------------------------------------------
 # Token-budget overflow — body too large triggers fetch + when-doing stanza
@@ -406,6 +426,31 @@ class TestFetchSelectorRecovery:
                 "styleguide",
                 "does-not-exist",
             )
+
+    def test_project_local_directive_include_recovers_body(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        local_directive = SimpleNamespace(
+            title="Pull-Request Review Closure",
+            description="Reply directly on each addressed review thread.",
+            severity="warn",
+        )
+        monkeypatch.setattr(
+            context_module,
+            "_load_local_directives",
+            lambda _repo_root: {"DIR-014": local_directive},
+        )
+
+        text = context_module.build_charter_context_include(
+            tmp_path,
+            "directive:DIR-014",
+        )
+
+        assert "Directive DIR-014: Pull-Request Review Closure" in text
+        assert "Source: project charter" in text
+        assert "Reply directly on each addressed review thread." in text
 
     def test_selected_procedure_include_recovers_body(self) -> None:
         procedure = _DummyProcedure(
