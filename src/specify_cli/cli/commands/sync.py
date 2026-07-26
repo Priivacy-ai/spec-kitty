@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.retention import RetentionResult
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.sync.history_import import UploadReport
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
@@ -1873,6 +1874,46 @@ def _resolve_history_import_receiver(
     return receiver, runtime.target.resolved_server_url
 
 
+def _render_upload_report(report: UploadReport) -> bool:
+    """Render the partial / pending / rejected tail of an upload report.
+
+    Returns ``True`` when the run is fully clean (no partial delivery, no
+    pending events, no rejections) and ``False`` when the caller must exit
+    non-zero. The return value mirrors ``UploadReport.ok`` exactly, so the
+    exit code the caller raises always agrees with the message just printed.
+    """
+    if report.partial:
+        # Distinct third state: neither success nor total failure. Delivery
+        # stopped at the first failed chunk, so everything delivered is a safe
+        # ordered prefix of whole missions; the rest was never attempted.
+        console.print(
+            f"[yellow]Partial upload:[/yellow] delivery stopped at a failed chunk — a safe ordered "
+            f"prefix was delivered ({report.delivered_through_chunk} full chunk(s)); "
+            f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
+            "--apply: the server dedups on event_id, so the re-run resumes idempotently."
+        )
+    if report.pending:
+        # Direct import delivery does not journal or ledger pending outcomes,
+        # and import event ids are deterministic (frozen at synthesis time), so
+        # the server dedups a re-run onto these same ids. That means re-running
+        # --apply will report them as `duplicate` and exit 0 regardless of
+        # whether they ever materialized in the projection — "pending" can also
+        # arise from a 200 response that merely omits an entry, which is not
+        # necessarily anything the operator can act on. Never suggest a re-run
+        # as the fix; point at the authoritative surface instead.
+        console.print(
+            f"[yellow]Incomplete:[/yellow] {report.pending} event(s) remain pending and are not "
+            "confirmed in the projection. Re-running --apply will report these events as "
+            "duplicates (the server dedups on event_id) and exit 0 whether or not they were "
+            "ever materialized — verify the outcome in the dashboard/projection instead."
+        )
+    if not report.ok:
+        for sample in report.rejected_samples:
+            console.print(f"  [red]✗[/red] {sample}")
+        return False
+    return True
+
+
 def _run_import_apply(mission: str | None) -> None:
     """The ``import-history --apply`` path: preflight + upload under the real UUID.
 
@@ -1949,26 +1990,7 @@ def _run_import_apply(mission: str | None) -> None:
             f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
             f"{report.pending} pending, {report.rejected} rejected ({report.total} total)."
         )
-        if report.partial:
-            # Distinct third state: neither success nor total failure. Delivery
-            # stopped at the first failed chunk, so everything delivered is a safe
-            # ordered prefix of whole missions; the rest was never attempted.
-            console.print(
-                f"[yellow]Partial upload:[/yellow] delivery stopped at a failed chunk — a safe ordered "
-                f"prefix was delivered ({report.delivered_through_chunk} full chunk(s)); "
-                f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
-                "--apply: the server dedups on event_id, so the re-run resumes idempotently."
-            )
-        if report.pending:
-            # Direct import delivery does not journal or ledger pending outcomes.
-            # Never claim that ``sync now`` can retry work that was not persisted.
-            console.print(
-                f"[yellow]Incomplete:[/yellow] {report.pending} event(s) remain pending and are not "
-                "confirmed in the projection. Re-run --apply after resolving the receiver issue."
-            )
-        if not report.ok:
-            for sample in report.rejected_samples:
-                console.print(f"  [red]✗[/red] {sample}")
+        if not _render_upload_report(report):
             raise typer.Exit(1)
     finally:
         runtime.close()
