@@ -96,6 +96,16 @@ REVIEWER_SELF_APPROVAL = "ReviewerSelfApproval"
 MISSION_REOPENED = "MissionReopened"
 FOLLOW_UP_RECORDED = "FollowUpRecorded"
 
+# The lifecycle event types that are LOCAL-ONLY: emitted after a mission's active
+# lifecycle (reopen / follow-up) and deliberately kept OFF the SaaS strict-
+# validation delivery path. The SINGLE public owner of this membership (#2884),
+# consumed by the post-mission ordering in ``status/lifecycle.py`` and the import
+# scan in ``sync/history_import/scan.py`` — replacing two hand-mirrored frozenset
+# copies. NOTE: this is NOT the installed ``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``,
+# which is empty in the package while both types ARE in its model map, so trusting
+# it would let these reach strict validation and reject the whole batch.
+LOCAL_ONLY_LIFECYCLE_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+
 LIFECYCLE_EVENT_TYPES = frozenset({
     PROJECT_INITIALIZED,
     MISSION_CREATED,

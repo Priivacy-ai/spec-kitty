@@ -36,9 +36,8 @@ from specify_cli.mission_metadata import load_meta_or_empty
 # Access the status subsystem only through its package facade (the
 # status-module-boundary gate forbids new deep submodule imports).
 from specify_cli.status import (
-    FOLLOW_UP_RECORDED,
+    LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
     MISSION_CREATED,
-    MISSION_REOPENED,
     WP_CREATED,
     StatusEvent,
     StoreError,
@@ -53,13 +52,13 @@ logger = logging.getLogger(__name__)
 _TASKS_DIRNAME = "tasks"
 _DEFAULT_MISSION_TYPE = "software-dev"
 
-# The lifecycle event types that are deliberately local-only and MUST be kept
-# off the SaaS strict-validation path (status/lifecycle.py:165). We mirror that
-# set from the public constants rather than trusting
-# ``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``, which is empty in the installed
-# package while both types ARE in its model map — so relying on it would let
-# these hit strict validation and reject the whole batch.
-_LOCAL_ONLY_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+# The lifecycle event types kept OFF the SaaS strict-validation path — bound from
+# the single public owner in the status package (#2884) rather than a
+# hand-mirrored frozenset. (Deliberately NOT the installed
+# ``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``, which is empty while both types
+# ARE in its model map — trusting it would let these reach strict validation and
+# reject the whole batch; the public owner documents that rationale.)
+_LOCAL_ONLY_EVENT_TYPES = LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
 
 
 class MissionScanError(RuntimeError):

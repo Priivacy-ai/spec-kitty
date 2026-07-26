@@ -261,3 +261,20 @@ def test_malformed_wp_referenced_by_a_lane_transition_is_backfilled_no_orphan(tm
     assert by_id["WP01"].source is PrefixSource.SYNTHESIZED
     # Every wp_id a lane transition references is covered (INV-3).
     assert {event.wp_id for event in scan.lane_transitions} <= set(by_id)
+
+
+def test_local_only_event_types_have_one_public_owner() -> None:
+    """SSOT (#2884): scan's local-only filter and lifecycle's post-mission set are
+    the SAME public owner object — no hand-mirrored frozenset copies to drift."""
+    from specify_cli.status import (
+        FOLLOW_UP_RECORDED,
+        LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
+        MISSION_REOPENED,
+    )
+    from specify_cli.status.lifecycle import _POST_MISSION_EVENT_TYPES
+    from specify_cli.sync.history_import.scan import _LOCAL_ONLY_EVENT_TYPES
+
+    assert LOCAL_ONLY_LIFECYCLE_EVENT_TYPES == frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+    # Identity (``is``), not just equality: both consumers bind the one owner.
+    assert _LOCAL_ONLY_EVENT_TYPES is LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
+    assert _POST_MISSION_EVENT_TYPES is LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
