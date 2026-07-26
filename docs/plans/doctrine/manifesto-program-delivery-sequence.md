@@ -28,15 +28,18 @@ resolved.**
 
 ## What the matrix measurement changed
 
-Measured: λ = 2.3350, **λ/(N−1) = 0.3892 < 1**, truncation residual ≈ 6%; second-order not
-derivable (49/49); matrix symmetric in 48/49; **divisor = N−1**; and by Gershgorin the bound holds
-**unconditionally** for any basis with coefficients ∈ [−1,1] and zero diagonal.
+Measured: λ = 2.3350, gain **λ/(N−1) = 0.3892**, adopted two-term damped residual **4.70%**;
+second-order not derivable (**42/42 off-diagonal**); matrix symmetric in 48/49; **divisor read as
+N−1** (an interpretation, not an upstream statement); and by Gershgorin gain **≤ 1** for any basis
+with coefficients ∈ [−1,1] and zero diagonal — so **bounded** always, **sound** for gain < 1, with
+equality at perfect polarisation. Sensitivity to the one asymmetric cell: residual 4.37%–6.00%
+depending on the repair, so **D-6 must be adjudicated before the matrix ships**.
 
 | # | Effect | Was | Is now |
 |---|---|---|---|
 | 1 | Spectral-radius experiment | "cheapest next experiment", blocked on coefficients not in repo | **DONE.** Retired. One gate and one afternoon removed |
 | 2 | Matrix park — "a slot with no available producer" | Parked indefinitely | **UNPARKED** → increment **I13** |
-| 3 | The composition formula | Unstated convergence assumption | **Licensed**, ~6% residual, and **generically sound for any admissible basis** |
+| 3 | The composition formula | Unstated convergence assumption | **Licensed**, 4.70% residual (two-term damped), and **bounded for any admissible basis** (gain ≤ 1; sound for gain < 1) |
 | 4 | Composing `impacts` along DRG cycles | Open runaway-gain risk needing a cycle guard | **Bounded.** I12 loses a sub-requirement |
 | 5 | `0.25 × second_order` | Planned third term | **DEAD.** Scope halved |
 | 6 | Matrix validator | 3 assertions | **4** — add symmetry. Plus an N-generic range + zero-diagonal check, which is what makes soundness structural |
@@ -50,7 +53,7 @@ authoring burdens. It is a scope reduction.**
 `◆` = gate. `═` = critical path.
 
 ```
-  ◆G0  truncation soundness ............ CLEARED (λ/(N−1)=0.389; generically bounded)
+  ◆G0  truncation soundness ............ CLEARED (gain=0.389; bounded generically)
 
   ═══ STRAND A — impacts / tension subsumption (the long pole) ═══
   I3a  generate_schemas --check → CI ......... campsite, no deps
@@ -156,7 +159,7 @@ full filename.
 | D7 | Composition is **first-order only** — measured, the second-order derivation claim is false |
 | D8 | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs; the one asymmetric published cell is adjudicated here |
 | D9 | The computed projection is a **frozen dataclass with no `model_dump()`** in a module no writer imports, stamped `matrix_id`/`matrix_version` |
-| **D10** | **Ruling (d): the value set and matrix are N-parameterised.** Soundness follows from coefficients ∈ [−1,1] + zero diagonal (Gershgorin), so the validator enforces those two and reports λ/(N−1) as a **degeneracy warning**, not a gate |
+| **D10** | **Ruling (d): the value set and matrix are N-parameterised.** Boundedness follows from coefficients ∈ [−1,1] + zero diagonal (Gershgorin); the validator enforces those two, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1** |
 
 **Retires:** `in_tension_with` as a relation member · the prior rejection of `Relation.IMPACTS` ·
 the `0.25 × second_order` term · the convergence caveat · the "no superseding ADR needed" claim.

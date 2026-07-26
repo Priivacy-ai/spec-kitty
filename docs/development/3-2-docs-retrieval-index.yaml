@@ -7851,31 +7851,37 @@ pages:
     divio_type: "none"
     abstract: "The single authority for the FoundationalValues/creed design: a value system generic over N values with AMMERSE as the default basis, per-artefact impact deltas, a signed impacts edge that subsumes in_tension_with, and the measured grounding behind all of it."
     anchors:
+    - {slug: "0-what-is-being-asked-of-a-reviewer", text: "0. What is being asked of a reviewer", level: 2}
     - {slug: "1-problem-statement", text: "1. Problem statement", level: 2}
     - {slug: "2-the-operative-frame-governs-everything-below", text: "2. The operative frame — governs everything below", level: 2}
-    - {slug: "3-generic-over-n-the-design-is-not-ammerse", text: "3. Generic over N — the design is not AMMERSE", level: 2}
-    - {slug: "4-the-three-planes-and-the-one-legal-composition", text: "4. The three planes — and the one legal composition", level: 2}
-    - {slug: "5-the-mathematics-sound-for-any-basis-unconditionally", text: "5. The mathematics — sound for any basis, unconditionally", level: 2}
-    - {slug: "6-the-design", text: "6. The design", level: 2}
-    - {slug: "6-1-foundationalvalues-a-repository-backed-artefact-not-an-enum", text: "6.1 `FoundationalValues` — a repository-backed artefact, not an enum", level: 3}
-    - {slug: "6-2-type-the-axes-levers-vs-goals", text: "6.2 Type the axes — levers vs goals", level: 3}
-    - {slug: "6-3-two-fields-two-types", text: "6.3 Two fields, two types", level: 3}
-    - {slug: "6-4-which-kinds-carry-a-value-field", text: "6.4 Which kinds carry a value field", level: 3}
-    - {slug: "6-5-impacts-subsumes-in-tension-with", text: "6.5 `impacts` subsumes `in_tension_with`", level: 3}
-    - {slug: "6-6-the-composition-invariant-enforced-structurally", text: "6.6 The composition invariant, enforced structurally", level: 3}
-    - {slug: "6-7-the-creed-and-where-it-lives", text: "6.7 The creed, and where it lives", level: 3}
-    - {slug: "7-the-prose-layer-ships-first-gates-on-nothing", text: "7. The prose layer — ships first, gates on nothing", level: 2}
-    - {slug: "8-the-feedback-gap-and-the-one-thing-that-closes-it", text: "8. The feedback gap — and the one thing that closes it", level: 2}
-    - {slug: "9-measured-grounding", text: "9. Measured grounding", level: 2}
-    - {slug: "9-1-what-failed-measurement-do-not-rebuild-these", text: "9.1 What failed measurement — do not rebuild these", level: 3}
-    - {slug: "9-2-what-the-corpus-shows-36-authored-vectors-and-it-is-a-real-calibration-set", text: "9.2 What the corpus shows — 36 authored vectors, and it is a real calibration set", level: 3}
-    - {slug: "9-3-the-design-s-own-self-assessment-already-authored-upstream", text: "9.3 The design's own self-assessment, already authored upstream", level: 3}
-    - {slug: "9-4-upstream-discrepancies-to-report", text: "9.4 Upstream discrepancies to report", level: 3}
-    - {slug: "10-contradiction-register-this-document-s-values-win", text: "10. Contradiction register — this document's values win", level: 2}
-    - {slug: "11-accreditation", text: "11. Accreditation", level: 2}
-    - {slug: "12-open-decisions", text: "12. Open decisions", level: 2}
-    - {slug: "13-sequence", text: "13. Sequence", level: 2}
-    - {slug: "14-method-limits", text: "14. Method limits", level: 2}
+    - {slug: "3-provenance", text: "3. Provenance", level: 2}
+    - {slug: "4-generic-over-n-the-design-is-not-ammerse", text: "4. Generic over N — the design is not AMMERSE", level: 2}
+    - {slug: "5-the-three-planes-and-the-one-legal-composition", text: "5. The three planes — and the one legal composition", level: 2}
+    - {slug: "6-the-mathematics", text: "6. The mathematics", level: 2}
+    - {slug: "6-1-per-step-gain-and-the-adopted-truncation-s-residual", text: "6.1 Per-step gain and the adopted truncation's residual", level: 3}
+    - {slug: "6-2-the-generic-bound-bounded-always-sound-for-any-non-degenerate-basis", text: "6.2 The generic bound — bounded always, sound for any non-degenerate basis", level: 3}
+    - {slug: "6-3-sensitivity-to-the-one-asymmetric-cell", text: "6.3 Sensitivity to the one asymmetric cell", level: 3}
+    - {slug: "6-4-do-not-renormalise-per-tier-that-is-what-causes-absolutism", text: "6.4 Do not renormalise per tier — that is what causes absolutism", level: 3}
+    - {slug: "6-5-second-order-is-not-adopted", text: "6.5 Second-order is not adopted", level: 3}
+    - {slug: "7-the-design", text: "7. The design", level: 2}
+    - {slug: "7-1-foundationalvalues-a-repository-backed-artefact-not-an-enum", text: "7.1 `FoundationalValues` — a repository-backed artefact, not an enum", level: 3}
+    - {slug: "7-2-type-the-axes-levers-vs-goals", text: "7.2 Type the axes — levers vs goals", level: 3}
+    - {slug: "7-3-two-fields-two-types", text: "7.3 Two fields, two types", level: 3}
+    - {slug: "7-4-which-kinds-carry-a-value-field", text: "7.4 Which kinds carry a value field", level: 3}
+    - {slug: "7-5-impacts-subsumes-in-tension-with", text: "7.5 `impacts` subsumes `in_tension_with`", level: 3}
+    - {slug: "7-6-the-composition-invariant-enforced-structurally", text: "7.6 The composition invariant, enforced structurally", level: 3}
+    - {slug: "7-7-the-creed-lives-on-the-charter", text: "7.7 The creed lives on the charter", level: 3}
+    - {slug: "8-the-prose-layer-the-do-less-option-ships-first-gates-on-nothing", text: "8. The prose layer — the do-less option, ships first, gates on nothing", level: 2}
+    - {slug: "9-the-feedback-gap", text: "9. The feedback gap", level: 2}
+    - {slug: "10-measured-grounding", text: "10. Measured grounding", level: 2}
+    - {slug: "10-1-what-failed-measurement-do-not-rebuild-these", text: "10.1 What failed measurement — do not rebuild these", level: 3}
+    - {slug: "10-2-what-the-corpus-shows", text: "10.2 What the corpus shows", level: 3}
+    - {slug: "10-3-upstream-discrepancies-to-report", text: "10.3 Upstream discrepancies to report", level: 3}
+    - {slug: "11-contradiction-register-this-document-s-values-win", text: "11. Contradiction register — this document's values win", level: 2}
+    - {slug: "12-accreditation", text: "12. Accreditation", level: 2}
+    - {slug: "13-open-decisions", text: "13. Open decisions", level: 2}
+    - {slug: "14-sequence", text: "14. Sequence", level: 2}
+    - {slug: "15-method-and-limits", text: "15. Method and limits", level: 2}
   - path: "docs/plans/doctrine/index.md"
     title: "Doctrine"
     divio_type: "none"

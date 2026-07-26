@@ -1,0 +1,17 @@
+{
+  "matrix_id": "ammerse-first-order",
+  "source": "https://patterns.sddevelopment.be/practices/ammerse_impact_analysis/",
+  "accessed_on": "2026-07-26",
+  "attribution": "AMMERSE value system by J.B. Crossland. AMMERSE, AMMERSE Method, AMMERSE Theory and AMMERSE Value System are trademarks of J.B. Crossland. Reproduced under the author's authorization for accreditation purposes.",
+  "note": "As published. Symmetric in 48 of 49 cells; the sole asymmetry is maintainable->extensible=+0.75 vs extensible->maintainable=-0.75 (probable upstream sign error, see the design doc). Divisor applied upstream is 6, read as N-1.",
+  "axes": ["agile", "minimal", "maintainable", "environmental", "reachable", "solvable", "extensible"],
+  "matrix": [
+    [0, -0.5, 0.25, 0, -0.75, 0.5, 0.5],
+    [-0.5, 0, 0.75, 0.5, 0.75, 0.75, -0.75],
+    [0.25, 0.75, 0, 0.25, 0.5, 0.5, 0.75],
+    [0, 0.5, 0.25, 0, 0, 0.25, 0],
+    [-0.75, 0.75, 0.5, 0, 0, 0.75, -0.75],
+    [0.5, 0.75, 0.5, 0.25, 0.75, 0, 0.5],
+    [0.5, -0.75, -0.75, 0, -0.75, 0.5, 0]
+  ]
+}
