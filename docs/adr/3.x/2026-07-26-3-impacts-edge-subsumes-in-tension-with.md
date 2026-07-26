@@ -117,7 +117,7 @@ keeping a relation name that cannot honestly carry half of its own value range.
 | **ADR-D5** | `reconciles_tension` **survives**, re-pointed at negative-`impacts` pairs. Its existing rule stands: a pair counts as resolved only when an active artefact carries the edge to **both** sides. |
 | **ADR-D6** | `impacts` is meaningful on `impacts` / `rejects` / `refines` and **ignored elsewhere**. Stated as prose, deliberately **not** a `Relation`-keyed table — there is no totality guard for such a table, so it would rot silently the next time a relation is added. |
 | **ADR-D7** | Composition is **first-order only**. The published second-order matrix is **rejected**: all **42 of 42** off-diagonal cells mismatch `M×M` under six derivation hypotheses, so it is independently-authored judgement rather than computed ripple and cannot inherit the first matrix's provenance. |
-| **ADR-D8** | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs. **The one asymmetric published pair is NOT adjudicated here** — see Open Decisions. |
+| **ADR-D8** | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs. ◆ **CLOSED by amendment, 2026-07-26: the one asymmetric published pair is a sign error, repaired by symmetrising to `+0.75`.** See *Amendment (2026-07-26)* below, after *Migrates*. |
 | **ADR-D9** | The computed projection is a **frozen dataclass with no `model_dump()`**, in a module no writer imports, stamped with `matrix_id` / `matrix_version`. |
 | **ADR-D10** | The value set and matrix are **N-parameterised** (N ≥ 3); AMMERSE is the default basis only, and axis identity is by `id`. Boundedness follows from coefficients ∈ [−1,1] plus a zero diagonal (Gershgorin). The validator enforces exactly those two properties, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1**, using a start-vector-independent method — plain power iteration is **fail-open** on two-camp bases. |
 
@@ -194,6 +194,77 @@ Accepted consequences:
 * The tension surface: 1 dataclass + 5 functions at `consistency_check.py:917-1050`.
 * `RELATION_DESCRIPTIONS` plus verbatim doc parity.
 
+### Amendment (2026-07-26) — ADR-D8 closed: the asymmetric pair is a sign error, repaired by symmetrising to `+0.75`
+
+This ADR was Accepted with ADR-D8 open (see *Open Decisions* below, kept for record — this
+amendment is recorded here rather than by silently rewriting that section, because this ADR, not a
+spec table, is the citable record, DIRECTIVE_003). The operator has since adjudicated it.
+
+1. **The asymmetry is an error, not an intentional directional claim.** The published AMMERSE
+   first-order matrix has exactly one asymmetric pair out of 21 (47 of 49 cells satisfy the
+   symmetry predicate): `maintainable → extensible = +0.75` against
+   `extensible → maintainable = −0.75`. Every other authored pair in the matrix is symmetric, and
+   the published second-order matrix — a derivative of the first, per its own methodology
+   statement — is *fully* symmetric, which is inconsistent with an intentional asymmetric claim
+   surviving into it.
+2. **Repair: symmetrise to `+0.75` in both directions.** The substantive claim adopted is that
+   **maintainability and extensibility reinforce each other** — a well-maintained system is easier
+   to extend, and cleanly-factored extension points keep a system maintainable. The published
+   `−0.75` cell is the errant one and is superseded by `+0.75`.
+3. **The matrix is symmetric, authored as N(N−1)/2 unique pairs.** This half of ADR-D8 was already
+   stated at first acceptance; it was blocked on this repair choice and is now unblocked.
+
+**Measured consequence** (verified via `docs/plans/doctrine/_reproduce_matrix_findings.py`, reading
+the committed, unmodified `_ammerse-connascence-first-order.json`):
+
+| Reading | gain | residual |
+| --- | --- | --- |
+| as published (asymmetric) | 0.3892 | 4.70% |
+| **symmetrised to `+0.75` — ADOPTED** | **0.3766** | **4.37%** |
+| symmetrised to `−0.75` | 0.4337 | 6.00% |
+| zeroed (abstain) | 0.3995 | 4.99% |
+
+The headline truncation residual for the adopted two-term damped composition moves from **4.70% to
+4.37%**; the per-step gain moves from **0.3892 to 0.3766**. The as-published figure is retained in
+the row above — and in the design authority's own sensitivity table (§6.3) — rather than dropped,
+because it remains the figure that was actually measured off the unrepaired matrix, and the in-repo
+divergence record (see below) cites it as the baseline the repair moved away from.
+
+**Basis of this adjudication — stated plainly, without hedging.** Two different authorships are in
+play here (design authority §3): **the operator (Stijn Dejongh) authored the AMMERSE *analysis
+procedure***, the in-repo tactic and the Pragmatic Penguin Patterns library it draws on; **J.B.
+Crossland authored the AMMERSE *value system and its impact matrices***, the ideological root this
+procedure builds on. The operator holds Crossland's prior written consent to use the AMMERSE idea
+and to publish his own procedure under his own intellectual property; accreditation and mention
+(§12) discharge that relationship in full. This repair is therefore **the operator's adjudication,
+taken on his own authority over his own procedure** — not upstream authorial confirmation from
+Crossland, and that distinction is worth keeping precise (it says whose judgement this is), but it
+is not a provisional or pending call. It does not await, and is not conditioned on, any response
+from Crossland.
+
+**One thing this closure does not become a gate on, and one thing it is worth keeping for its own
+sake:**
+
+* There is **no outstanding report owed to Crossland** and no step of this amendment waits on one.
+  An earlier draft of this ADR framed the eventual repair as something that "should not front-run"
+  a conversation with the AMMERSE author (see *Open Decisions* below) — that reasoning is
+  **superseded** by the operator's standing consent and is recorded here as history, not as a
+  constraint that still binds.
+* **An in-repo divergence record still earns its place, as provenance hygiene for our own matrix,
+  not as an accreditation deliverable or a shipping gate.** Our matrix differs from the published
+  one at exactly one cell; a future reader needs to know which cell and why, and a
+  **`source_digest`** lets a later re-read detect if the upstream figures ever change. Recording it
+  (mismatch counts, the `accessed_on` URL, both this finding and the false `M×M`
+  second-order-derivation claim, ADR-D7) is good engineering practice for the mission that ships the
+  matrix, `foundational-values-creed-band-01KYFV8N` — not a precondition owed to anyone outside the
+  repository.
+
+The two evidence JSON files this amendment reasons over —
+`docs/plans/doctrine/_ammerse-connascence-first-order.json` and
+`docs/plans/doctrine/_ammerse-second-order.json` — are the published upstream data and stay
+byte-identical; the repair is layered on consumption (the value-set artefact a later mission
+authors), not a correction of the source data.
+
 ## Consequences
 
 ### Positive
@@ -234,23 +305,33 @@ Accepted consequences:
 
 ## Open Decisions
 
-**ADR-D8's asymmetric pair is not decided here.** The published matrix has exactly one asymmetric
-pair out of 21 — Maintainable ↔ Extensible at `+0.75` one way and `−0.75` the other — and it is
-most likely an upstream sign error. It is **deliberately left open** because:
+**ADR-D8 is CLOSED — see *Amendment (2026-07-26)* above (after *Migrates*, before *Consequences*).**
+Symmetrised to `+0.75`. The paragraphs below are kept as the historical record of why it was
+originally left open at first acceptance, not as a live description of the current state.
+
+At first acceptance, **ADR-D8's asymmetric pair was not decided here.** The published matrix has
+exactly one asymmetric pair out of 21 — Maintainable ↔ Extensible at `+0.75` one way and `−0.75`
+the other — and it was most likely an upstream sign error. It was **deliberately left open**
+because:
 
 1. the repair choice moves the headline truncation error between **4.37%** and **6.00%**, so it is
    a measurement input, not a formatting detail;
-2. the validator cannot be written until it is settled;
-3. the upstream report to the AMMERSE author is **operator-only and never agent-drafted**, and the
-   adjudication should not front-run that conversation.
+2. the validator could not be written until it was settled;
+3. ~~the upstream report to the AMMERSE author is **operator-only and never agent-drafted**, and
+   the adjudication should not front-run that conversation.~~ **Superseded by the Amendment above:**
+   the operator holds Crossland's prior written consent for this procedure, so there is no
+   conversation to front-run and no report the adjudication was waiting on. This reason no longer
+   applies; it is struck through rather than deleted because it was the accepted reasoning at first
+   acceptance.
 
-Options are: symmetrise to `+0.75`, symmetrise to `−0.75`, or zero the pair. Both the measured
-asymmetry and the rejected `M×M` derivation claim are committed as JSON
-(`_ammerse-corpus-36-practices.json`, `_ammerse-second-order.json`) so the upstream report can
-cite reproducible evidence rather than assertion.
+The options considered were: symmetrise to `+0.75` (**chosen**, see the Amendment), symmetrise to
+`−0.75`, or zero the pair. Both the measured asymmetry and the rejected `M×M` derivation claim
+remain committed as JSON (`_ammerse-corpus-36-practices.json`, `_ammerse-second-order.json`),
+byte-identical — retained as provenance for our own matrix, not as material for any outstanding
+report.
 
 The design authority's remaining open decisions (§13 D-1, D-3, D-4, D-5) are out of scope for this
-ADR; D-6 is the same subject as ADR-D8 above.
+ADR; D-6 was the same subject as ADR-D8 above and is closed alongside it.
 
 ## Confirmation
 

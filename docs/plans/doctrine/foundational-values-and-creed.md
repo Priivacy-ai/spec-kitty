@@ -147,20 +147,29 @@ All figures reproducible via `_reproduce_matrix_findings.py`, reading
 
 ### 6.1 Per-step gain and the adopted truncation's residual
 
-On the AMMERSE basis: **λ = 2.3350**, so per-step gain **λ/(N−1) = 0.3892**. With the ½ dampening
-the decay ratio is **r = 0.5 × λ/(N−1) = 0.1946**, and the residual of the **adopted two-term
-damped** truncation is
+On the AMMERSE basis **as published** (the sole asymmetric pair unrepaired): **λ = 2.3350**, so
+per-step gain **λ/(N−1) = 0.3892**. With the ½ dampening the decay ratio is
+**r = 0.5 × λ/(N−1) = 0.1946**, and the residual of the **adopted two-term damped** truncation on
+that as-published matrix is
 
 > **r²/(1 − r) = 4.70%**
 
-For the avoidance of the error an earlier draft made, the four candidates are:
+For the avoidance of the error an earlier draft made, the four candidates — figured on the
+as-published matrix — are:
 
 | Truncation | Residual |
 | --- | --- |
 | undamped, two terms | 24.79% |
 | undamped, three terms | 9.65% |
-| **damped, two terms — adopted** | **4.70%** |
+| **damped, two terms — as published** | **4.70%** |
 | damped, three terms | 0.91% |
+
+> **Superseded by ADR-D8's closure ([ADR `2026-07-26-3`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md), Amendment 2026-07-26).** The sole asymmetric cell
+> (§6.3) is repaired by symmetrising to `+0.75`; on the **adopted, repaired matrix** the per-step
+> gain is **0.3766** and the damped two-term residual is **4.37%** — this is now the shipping
+> headline figure, not the 4.70% above. The as-published figures in this subsection are retained
+> because they are the measurement the sensitivity analysis (§6.3) and the in-repo divergence record
+> are computed against, not because they are what ships.
 
 `r` is an **asymptotic bound**, not the observed per-tier ratio: on a real artefact the observed
 decay is roughly half of `r`, because a real base vector is not aligned with the dominant
@@ -211,18 +220,33 @@ random admissible bases** — so its coupling strength is statistically unremark
 The published matrix has **one asymmetric pair of 21** (47 of 49 cells satisfy the symmetry
 predicate — an asymmetric pair fails it at both cells); the exception is
 `maintainable → extensible = +0.75` against `extensible → maintainable = −0.75` — a probable
-upstream sign error (§10.4). λ was computed on the **unrepaired** matrix, and the repair choice
+upstream sign error (§10.3). λ was computed on the **unrepaired** matrix, and the repair choice
 moves the result:
 
 | Reading | gain | residual |
 | --- | --- | --- |
 | as published (asymmetric) | 0.3892 | 4.70% |
-| symmetrised to +0.75 | 0.3766 | 4.37% |
+| **symmetrised to +0.75 — ADOPTED** | **0.3766** | **4.37%** |
 | symmetrised to −0.75 | 0.4337 | **6.00%** |
 | cell zeroed (abstain) | 0.3995 | 4.99% |
 
 The spread is 4.37%–6.00%. Nothing about the design's soundness turns on it, but the headline number
-does, so **the pair must be adjudicated before the matrix ships** (D-6).
+does.
+
+> **D-6 / ADR-D8 — CLOSED, 2026-07-26.** The asymmetry is adjudicated as an **error**, repaired by
+> **symmetrising to `+0.75` in both directions**: the adopted claim is that maintainability and
+> extensibility **reinforce** each other. Recorded as an amendment to
+> [ADR `2026-07-26-3`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md). The
+> headline residual moves to **4.37%** (gain **0.3766**), the "symmetrised to +0.75" row above.
+> This is **the operator's own adjudication, taken on his own authority over his own analysis
+> procedure** (§3) — not upstream authorial confirmation from Crossland, who authored the AMMERSE
+> value system itself; that distinction says whose judgement this is, but the decision is final,
+> not provisional, and does not await or depend on any response from Crossland. The operator holds
+> Crossland's prior written consent to use the AMMERSE idea and publish his own procedure under his
+> own intellectual property, and accreditation (§12) discharges that relationship in full — there
+> is no report owed. The in-repo upstream-discrepancy record noted in §10.3/§14 (mismatch counts,
+> `accessed_on` URL, `source_digest`) still earns its place as provenance for our own matrix, not
+> as an accreditation deliverable or a shipping gate.
 
 ### 6.4 Do not renormalise per tier — that is what causes absolutism
 
@@ -486,25 +510,38 @@ complete 7-axis vector** → **34 excluding two all-zero stubs** (`TEMPLATE_PRAC
   field and inverts its own outcome — it would reject eleven careful analyses and **pass** the only
   real offender. Ship it as an advisory lint.
 
-### 10.3 Upstream discrepancies to report
+### 10.3 Divergences from the published article
 
 1. **Probable sign error** — the sole asymmetric pair of 21 (§6.3), while the published
-   second-order matrix is fully symmetric.
+   second-order matrix is fully symmetric. **Adjudicated CLOSED, 2026-07-26** (D-6 / ADR-D8,
+   amendment to [ADR `2026-07-26-3`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)):
+   repaired by symmetrising to `+0.75`. This is the operator's own adjudication, on his own
+   authority over his own analysis procedure — not upstream authorial confirmation from Crossland,
+   who authored the AMMERSE value system itself. That distinction says whose judgement this is; it
+   is not a hedge on the decision, which is final.
 2. **The derivation claim is false** (§6.5).
 
-**The operator reports these, not an agent** — an external communication about a trademarked work,
-inside the accreditation relationship. Record them in-repo with a `source_digest` so a later re-port
-detects an upstream fix, **before the matrix ships** (D-6).
+Both findings are an external communication about a trademarked work, so **if reported anywhere,
+the operator reports them, not an agent** — but no report is owed here: the operator holds
+Crossland's prior written consent to use the AMMERSE idea and publish this procedure under his own
+intellectual property, and accreditation (§12) discharges that relationship in full. **Recording
+both findings in-repo, with a `source_digest`, still earns its place as provenance for our own
+matrix** — a future reader needs to know where and why our matrix diverges from the published one,
+and the digest lets a later read detect if the upstream figures ever change. This is good
+engineering practice for the mission that ships the matrix
+(`foundational-values-creed-band-01KYFV8N`), not a precondition owed to anyone outside the
+repository.
 
 ## 11. Contradiction register — this document's values win
 
 | Claim | Superseded | **Canonical** |
 | --- | --- | --- |
-| Residual of the adopted truncation | ~6% | **4.70%** — the 6% was `gain³ = 5.89%`, the first-omitted-term magnitude of an undamped three-term truncation, quoted without the geometric tail; the comparable full-tail figure is 9.65% (§6.1) |
+| Residual of the adopted truncation | ~6%, then **4.70%** as published | **4.37%** — the 6% was `gain³ = 5.89%`, the first-omitted-term magnitude of an undamped three-term truncation, quoted without the geometric tail (the comparable full-tail figure is 9.65%, §6.1); 4.70% was the as-published-matrix figure, now superseded by ADR-D8's closure symmetrising the sole asymmetric cell to `+0.75` (§6.3) |
 | Generic soundness | "unconditionally sound" | **bounded** always (gain ≤ 1); **sound** for gain < 1 |
 | The three-term composition (`base + 0.5×fo + 0.25×so`) | endorsed as "quantitatively defensible" in the matrix-measurement evidence doc | **superseded** — the adopted composition is two-term damped (§6); second-order is rejected outright (§6.5) |
 | Second-order mismatch count | 49/49 | **42/42 off-diagonal** (7 diagonal cells trivially differ) |
 | Matrix symmetry count | "48 of 49 cells" | **one asymmetric pair of 21; 47 of 49 cells** |
+| ADR-D8 / D-6 asymmetric-pair adjudication | left open at first ADR acceptance (§ Open Decisions of ADR `2026-07-26-3`) | **CLOSED 2026-07-26** — symmetrised to `+0.75` by amendment to that ADR; an expert judgement of the analysis-procedure's author, not upstream authorial confirmation (§6.3, §10.3) |
 | Random-sweep mean | 0.3842 | **0.3841** (max 0.6225 unchanged; conclusions unchanged) |
 | `(1−r)` "bounds the output into [−1,1]" | asserted | **false in the sup-norm** — tight two-term constant is `1/(1+r∞)` (= 0.75 for AMMERSE); `(1−r)` overflows to 1.074 on an adversarial ±1 base (§6.4) |
 | Numeric-layer authoring size | 1,820 cells (260 × 7) | **~1,372–1,596** (196–228 artefacts × 7 after §7.4's kind narrowing) |

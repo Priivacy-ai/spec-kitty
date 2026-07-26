@@ -67,8 +67,8 @@ authoring burdens. It is a scope reduction.**
   I3b  DRGNode/DRGEdge extra="forbid" + writers + round-trip  (ONE commit)
   I3c  AgentProfile extra="forbid" (1 line; same campsite cluster, no deps)
    │
-  ◆G1  SUPERSEDING ADR — impacts subsumes in_tension_with
-  ◆G2  ══ WHICH RELATION CARRIES `impacts` ══  *** the program-shape gate ***
+  ◆G1  SUPERSEDING ADR — impacts subsumes in_tension_with ... CLEARED (ADR 2026-07-26-3, Accepted)
+  ◆G2  ══ WHICH RELATION CARRIES `impacts` ══  *** the program-shape gate *** ... CLEARED (Option A: new `Relation.IMPACTS` — §10)
    │
   I12  Relation.IMPACTS + edge annotation + retire in_tension_with
    │      + re-point consistency_check.py:917-1050
@@ -79,15 +79,15 @@ authoring burdens. It is a scope reduction.**
   I8       perturbation-stability probe  [needs I9; runs independent of #2538]
 
   ─── STRAND B — context strength (independent; the #2538 arm-B enabler) ───
-  ◆G5  verify the #2538 rig still runs ....... BEFORE WP01
+  ◆G5  verify the #2538 rig still runs ....... FAILED 2026-07-26 — rig verified absent in-repo (§10)
   I4-WP01  additive ResolvedContext partition + campsite deletions
   I4-WP02  un-vacuum walker.py:507-509 — the RED is the deliverable
   I16      advisory-homonym unification (8 vocabularies → 2)  ← blocks WP03
   I4-WP03  Required:/Suggested: render grouping
-  ◆G3  #2538 ARM-B RUN ....... gates ONLY the numeric value branch
+  ◆G3  #2538 ARM-B RUN ....... UNREACHABLE — G5 failed (§10); gates ONLY the numeric value branch
    │
-  I14  value_impact / value_bias fields        [gated on G3 positive]
-  I17  interview instrument                    [gated on G3 + D-4]
+  I14  value_impact / value_bias fields        [CLOSED 2026-07-26 — G3 unreachable, not deferred (§10); was: gated on G3 positive]
+  I17  interview instrument                    [CLOSED 2026-07-26 — G3 unreachable, not deferred (§10); was: gated on G3 + D-4]
 
   ─── STRAND C — prose layer (gates on nothing) ───
   I1a  sign-vs-rationale-polarity lint ..... validation set exists TODAY
@@ -95,8 +95,8 @@ authoring burdens. It is a scope reduction.**
   I1b  operator-authored charter deprioritisation statement (human)
   I1c  costs: field sweep
   I15  #2591 component-type
-  ◆G4  D-3 — arithmetic, or agent reads creed.yaml as prose?
-  I10  ranking function                       [gated on G4; dies if "prose"]
+  ◆G4  D-3 — arithmetic, or agent reads creed.yaml as prose? ... ANSWERED 2026-07-26: ARITHMETIC (operator ruling; §10)
+  I10  ranking function                       [UNPARKED 2026-07-26 — G4 answered "arithmetic" (§10); was: gated on G4; dies if "prose"]
 ```
 
 **Key sequencing conclusions:**
@@ -129,20 +129,25 @@ authoring burdens. It is a scope reduction.**
 | **10** | **I9 corpus import + value set + non-AMMERSE fixture** | Yes | 8 files | The calibration artefact every numeric increment needs. Gives `import_candidates` its first real producer. **Ruling (d): must include an N≠7 fixture** | **Mission** (~4h) |
 | **11** | **I8 perturbation-stability probe** | Yes, once I9 exists | ~20 lines | Highest-information measurement available; can falsify the design. Runs whether or not `#2538` does | Commit |
 | **12** | **I16 `advisory` homonym unification (8→2)** | Yes | 30–60 files; needs occurrence map | Removes a `primary`/`merge`-class footgun before it reaches agent context. **Blocks WP03** | **Mission** |
-| **13** | **I4-WP03 render grouping** | No — needs I16 | 5–10 files | Produces **arm B** of G3 | Mission WP |
-| **14** | **G3 run `#2538` arm B** | Yes | No code | **Decides whether I14/I17 ever ship.** EV ≈ one avoided 41–59-file mission | Experiment |
+| **13** | **I4-WP03 render grouping** | No — needs I16 | 5–10 files | ~~Produces arm B of G3~~ — **G3 unreachable (§10, 2026-07-26)**; survives in mission **D** on independent merit only (render-grouping clarity), not as an experiment input | Mission WP |
+| **14** | **G3 run `#2538` arm B** | ~~Yes~~ | No code | **CLOSED 2026-07-26 (§10): the rig is verified absent in-repo.** I14/I17 are closed directly below, not gated on this row running | Experiment — will not run |
 | **15** | **I6 accreditation** | No — needs I5 | 5–8 files | Discharges ruling (c). `NOTICE` verified absent | **Mission** |
-| **16** | **I12 `Relation.IMPACTS` + retire `in_tension_with`** | No — needs G2, I2, I3b | **45–60 files** | Delivers ruling (a) | **Mission** |
+| **16** | **I12 `Relation.IMPACTS` + retire `in_tension_with`** | No — **G2 CLEARED** (Option A, §10); needs I2, I3b | **45–60 files** | Delivers ruling (a). Estimate confirmed, not reduced — Option A was the one chosen | **Mission**, `drg-relation-impacts-vocabulary-01KYFV87` |
 | **17** | **I13 first-order matrix, N-generic** | No — needs I6, I9 | 6–10 files | Delivers the licensed composition. Scope halved | **Mission** |
 | **18** | **I15 `#2591` component-type** | Blocked by `#2467` | 41–59 files | The discriminator I1c/I14 applicability should be expressed in | **Mission** |
 | **19** | **I1c `costs:` field** | Yes | 12 code + 260 authored | The minimum that survives every lens | **Mission** |
-| **20** | **I14 value fields** | No — G3 + coverage gate first | 14–18 code + **~1,372–1,596 cells** (post-§7.4 kind set) | — | **Mission** ×2 |
-| **21** | **I10 ranking function** | No — G4 | 3 files, ~4h | **Dies entirely if G4 answers "prose"** | Mission WP |
-| **22** | **I17 interview instrument** | No — G3 + D-4 | 5–10 files | Closes the production-side laundering | **Mission** |
+| **20** | **I14 value fields** | **CLOSED 2026-07-26 (§10)** — G3 unreachable, not deferred | 14–18 code + **~1,372–1,596 cells** (post-§7.4 kind set) | — | ~~Mission ×2~~ CLOSED |
+| **21** | **I10 ranking function** | **Yes — UNPARKED 2026-07-26**, G4 answered "arithmetic" (§10) | 3 files, ~4h | Ships in mission **D**. Must not rebuild the row-sum collapse (r≈0.98) or the vector-derived mechanism (0/6 reproductions); I8's perturbation probe is the cheapest instrument to falsify the arithmetic reading first | Mission WP → **D** |
+| **22** | **I17 interview instrument** | **CLOSED 2026-07-26 (§10)** — G3 unreachable, not deferred | 5–10 files | Closes the production-side laundering | ~~Mission~~ CLOSED |
 
 **Six of the top eight are campsite or campsite-adjacent — deliberate: debt before functional work.**
 
 ## 3. What the superseding ADR must cover
+
+> **Status (2026-07-26): written and Accepted** —
+> [`docs/adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md).
+> ADR-D2 chose **Option A**. **ADR-D8 is also now CLOSED**, by amendment to the same ADR (symmetrised
+> to `+0.75`; headline residual 4.70% → 4.37%). See § 10, Ruling 5.
 
 **Supersedes** `docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md` (Accepted 2026-07-21).
 ⚠️ **Two ADRs share the `2026-07-21-1` prefix** — the glossary one is *not* the target. Name the
@@ -159,7 +164,7 @@ full filename.
 | ADR-D5 | `reconciles_tension` **survives**, re-pointed at negative-`impacts` pairs |
 | ADR-D6 | `impacts` meaningful on the tension successor / `rejects` / `refines`; ignored elsewhere. **Prose, no per-relation table** — there is no totality guard for a `Relation`-keyed table |
 | ADR-D7 | Composition is **first-order only** — measured, the second-order derivation claim is false (42/42 off-diagonal) |
-| ADR-D8 | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs; the one asymmetric published pair is adjudicated here (≡ design D-6) |
+| **ADR-D8** | The matrix is **symmetric**, authored as N(N−1)/2 unique pairs; the one asymmetric published pair is **CLOSED 2026-07-26 by amendment** (≡ design D-6): symmetrised to `+0.75`, headline residual 4.70% → 4.37%, gain 0.3892 → 0.3766. See § 10, Ruling 5 |
 | ADR-D9 | The computed projection is a **frozen dataclass with no `model_dump()`** in a module no writer imports, stamped `matrix_id`/`matrix_version` |
 | **ADR-D10** | **Ruling (d): the value set and matrix are N-parameterised.** Boundedness follows from coefficients ∈ [−1,1] + zero diagonal (Gershgorin); the validator enforces those two, **errors at gain ≥ 1−ε** (the series does not converge at the boundary) and **warns as gain → 1** |
 
@@ -203,29 +208,43 @@ drift, `RECONCILE_CHANGE_SCOPE_TENSIONS` delete-or-wire) · `#2468`/`#2847`/`#28
 | Computable squad coverage / collinearity | Zero prior art; depends on vectors that do not exist | Only if I14 ships for independent reasons |
 | Outcomes tier | Downstream of an ungated prerequisite | Value tier shipped |
 | Re-tier AMMERSE onto `glossary_pack` | Not in `extractor._KIND_MAP` — the edge would silently vanish | I2 landed **and** a consumer exists |
-| I10 ranking function | Only remaining consumer is I8 | **G4** answers "arithmetic"; else close as won't-do |
-| I14 value fields | ~1,372–1,596 cells against a 34-vector calibration set | **G3 positive** **and** a coverage gate designed **before** the schema |
+| I10 ranking function | Only remaining consumer is I8 | **UNPARKED 2026-07-26** — G4 answered "arithmetic" (operator ruling; §10). Must not rebuild the row-sum collapse (r≈0.98) or the vector-derived mechanism (0/6 reproductions); I8's perturbation probe is the cheapest instrument to falsify the arithmetic reading before more is built on it |
+| I14 value fields | ~1,372–1,596 cells against a 34-vector calibration set | **CLOSED 2026-07-26, not deferred** — G3 is unreachable: the `#2538` rig is verified absent in-repo (§10). Unpark only if a rig materializes **and** a coverage gate is designed before the schema |
+| I17 interview instrument | Closes the production-side laundering, gated on G3 + D-4 | **CLOSED 2026-07-26, not deferred** — same G3-unreachable finding as I14 (§10) |
 | Batching any two all-surface sweeps | One unreviewable occurrence map | Structural. Never |
 
 ## 6. Upstream report
 
 Two measured findings against the AMMERSE practice article: the probable sign error
 (`Maintainable→Extensible +0.75` vs `Extensible→Maintainable −0.75`, sole asymmetry in 49 cells) and
-the false derivation claim (`M×M` mismatches 49/49; six hypotheses rejected).
+the false derivation claim (`M×M` mismatches 49/49; six hypotheses rejected). **The sign-error
+finding is CLOSED, not merely reported — see Ruling 5, §10.**
 
-**Who: the operator, not an agent.** This is an external communication about a trademarked work
-inside the accreditation relationship ruling (c) establishes.
+~~**Who: the operator, not an agent.** This is an external communication about a trademarked work
+inside the accreditation relationship ruling (c) establishes.~~ **Superseded (§10, Ruling 5): no
+external report is owed.** Ruling (c)'s accreditation relationship rests on the operator's prior
+written consent from Crossland to use the AMMERSE idea and publish this procedure under his own
+intellectual property; accreditation and mention discharge it in full. The sign-error repair is the
+operator's own adjudication over his own procedure, not a call requiring Crossland's confirmation,
+and there is no conversation it was waiting on.
 
-**Where:** (1) upstream, via the article's channel; (2) in-repo as an `## Upstream discrepancies`
-section in the corpus README created by I9, carrying both findings, the mismatch counts, the
-`accessed_on` URL, and a **`source_digest`** so a later re-port detects an upstream fix; (3) in the
-ADR — D8 records the adjudication, D7 cites the derivation finding.
+**Where:** ~~(1) upstream, via the article's channel;~~ **struck — no upstream report is owed
+(§10).** (2) in-repo as an `## Upstream discrepancies` section in the corpus README created by I9,
+carrying both findings, the mismatch counts, the `accessed_on` URL, and a **`source_digest`** so a
+later re-read detects an upstream fix — **kept, reframed as provenance hygiene for our own matrix,
+not an accreditation deliverable (§10)**; (3) in the ADR — **D8 records the adjudication, CLOSED
+2026-07-26 by amendment**, D7 cites the derivation finding.
 
-**Sequencing constraint:** the in-repo record must exist **before I13 ships**, because the validator
-has to encode a decision about the asymmetric cell.
+**Sequencing constraint:** ~~the in-repo record must exist before I13 ships, because the validator
+has to encode a decision about the asymmetric cell.~~ **Moot (§10): the decision already exists**
+(symmetrised to `+0.75`), so the validator can encode it without waiting on the record. The in-repo
+divergence record in item (2) above remains **recommended** for I13, not a blocking precondition.
 
-**Safe default so nothing blocks:** take the symmetric reading; if ambiguous, set the cell to `0`
-and record the abstention. Abstaining on 1 of 49 costs ~2% and **cannot** introduce a wrong steer.
+~~**Safe default so nothing blocks:** take the symmetric reading; if ambiguous, set the cell to `0`
+and record the abstention. Abstaining on 1 of 49 costs ~2% and **cannot** introduce a wrong
+steer.~~ **Superseded (§10): the fallback was never exercised.** The pair is adjudicated —
+symmetrised to `+0.75`, not zeroed — so I13 encodes that reading directly rather than the abstention
+default.
 
 ## 7. Effort envelope
 
@@ -240,11 +259,20 @@ the directly analogous precedent for I12.
 | --- | --- | --- | --- | --- |
 | Campsite, zero gates | 1–7 | ≈22–34 | 1.1–1.6k | **4–7 days** |
 | Through the gates | 8–15 | ≈55–100 | 2.4–4.6k | 11–18 days |
-| Post-gate, sweep-dominated | 16–22 | ≈120–180 | 6–11k | 25–45 days + operator authoring |
+| Post-gate, sweep-dominated | 16–22 | ≈95–150\* | 6–11k\* | 25–45 days\* |
 
-**~60–65% of the tabulated engineering cost is in the last band. Roughly half of that band (I12,
-I14, I17) is behind G2/G3; I15 is behind `#2467`, I10 behind G4, and I13/I1c behind no gate at
-all. The unquantified authoring tail (~1,372–1,596 cells) is entirely behind G3.**
+\* **Adjusted 2026-07-26 (§10):** ranks 20 (I14) and 22 (I17) are CLOSED, not deferred — the
+`#2538` rig they were gated on is verified absent in-repo. That directly removes their stated file
+counts (14–18 + 5–10 = 19–28 files) from the row above and removes the entire unquantified
+authoring tail (~1,372–1,596 cells) from the programme — it was I14's alone. No per-item LOC or
+day breakdown existed for I14/I17 to subtract precisely from the 6–11k / 25–45-day figures, so
+those two columns are carried forward as upper bounds pending a re-tabulation, not recomputed
+here. Rank 21 (I10) stays in this band (unparked, not closed) at its existing 3-file / ~4h
+estimate.
+
+**~60–65% of the tabulated engineering cost is in the last band** (pre-2026-07-26 figure; falls
+with the I14/I17 closure above). **Of the closed portion, I12 remains behind G2 (now CLEARED, §10);
+I15 is behind `#2467`; I10 is behind G4 (now ANSWERED, §10); I13/I1c are behind no gate at all.**
 
 **Landing overheads to budget:** every new `docs/` page needs inventory + index regeneration and
 `relative_link_fixer --check`; `src/doctrine/` or prose changes need
@@ -270,6 +298,15 @@ unverified by anyone, and G3 decays with it. C4 is a semantics call left to the 
 Ruling (b) removes any instrument for pricing the numeric layer's *value* — only its cost; G3 is the
 only such instrument, and prior art predicts it reads null.
 
+> **2026-07-26 update (§10):** both open items in this concession are now resolved. **D-2 is
+> settled** — ADR `2026-07-26-3` (Accepted) chose Option A, so the rank-16 estimate is confirmed at
+> 45–60 files, not hostage to it. **The `#2538` rig's liveness is no longer unverified** — it was
+> checked this session (repo search + `git log --all -S` over its distinctive phrases across all
+> branches) and found absent: every in-repo reference is a document, and nothing was ever committed
+> or deleted under that name. This is an in-repo-only finding; it does not prove no such rig exists
+> in the operator's own environment. G3 (and, with it, I14/I17) is closed on that basis, not merely
+> decayed.
+
 ## 9. Verdict
 
 **Ship ranks 1–4 as one campsite band: the zero-producer lint, the polarity lint, the
@@ -285,3 +322,109 @@ actually decides this program's shape is not `#2538` — it is D-2, inside the s
 gates a 45-to-60-file mission on the near path, is a one-document decision, and is the one question
 that cannot be discovered during implementation. **Write the ADR in parallel with ranks 1–5 and
 answer D-2 in it before anyone opens `extractor.py` with intent to add a field.**
+
+> **2026-07-26 update:** carried out. See § 10 for the realization into five sequenced missions,
+> the D-2/ADR-D2 closure, the D-3 operator ruling, and the `#2538` rig finding.
+
+## 10. Realization & amendment — 2026-07-26
+
+This section is an **addition**, not a rewrite: §§1–9 above are left as originally written except
+for the specific rows and cells this section falsifies (each carries an inline `§10` pointer back
+here). This is the operator's realization ruling plus two measurements and two decisions taken
+against this document, on this branch, this session.
+
+### (a) Realization into five sequenced missions
+
+The 22 ranked increments in § 2 were split by operator ruling into five sequenced missions
+(scaffolds already exist under `kitty-specs/`). Mission
+`doctrine-canonical-structure-remediation-01KYEYSD` is the **programme record**: it carries the
+spec that did this split, and does **not** itself implement — it has zero work packages.
+
+| Mission | Slug | Increments (this document's numbering) |
+| --- | --- | --- |
+| **A** | `doctrine-silence-guards-01KYFV7Q` | Ranks 1, 3, 5, 6, 7 (I19, I3a, I2, I3b, I3c) + layout/enum ratchets, followable guidance, org→DRG bridge fix, `applies` hygiene |
+| **B1** | `drg-relation-impacts-vocabulary-01KYFV87` | Rank 9 (the superseding ADR — written, Accepted), rank 16 (I12) |
+| **B2** | `drg-edge-migration-extractor-retirement-01KYFV8C` | The 774-edge authored-edge migration and extractor edge-production retirement (broader than the original 22 increments; see the mission's own spec) |
+| **C** | `test-quality-doctrine-series-01KYFV8H` | Rank 2 (I1a) + the original #2935 test-quality series deliverable |
+| **D** | `foundational-values-creed-band-01KYFV8N` | Ranks 4, 10, 11, 12, 13 (reduced scope), 15, 17, 21 (I5, I9, I8, I16, I4-WP03, I6, I13, I10) |
+
+**Mandatory order: A → B1 → B2 → C; D gates on A only** — unchanged from, and consistent with, the
+critical-path ordering already established in § 1 (I2 cannot sequence after I12; the ADR is the
+cheapest gate).
+
+### (b) Two measurements taken this session
+
+**Finding 1 — Gate G5 fails: the `#2538` experiment rig does not exist in-repo.** Checked: every
+in-repo hit for `2538` (across `.py`, `.md`, `.yaml`) is a document — the superseded ADR, four plan
+files, four squad reports, and the docs retrieval index — plus two `test_no_dead_symbols.py` hits
+that are content-hash substrings, not references to the rig. No brief, fork fixtures,
+pre-registration, or judge harness exists under `tests/`, `scripts/`, `src/`, or `.local/`, on this
+branch or any other (checked via `git log --all -S` over the rig's distinctive phrases, e.g. "CSV
+export to a reporting module", "Reproduction threshold" — the only hits are the commits that added
+the *design* documents referencing the rig; nothing rig-specific was ever committed or deleted).
+Issue #2538 itself confirms this: it says "Rig is standing. Run and results pending," is labeled
+`priority:P2`, and sits in milestone 3.3.x — not release-critical.
+
+**Consequence:** § 1's gate **G3 is unreachable**. Ranks **20 (I14) and 22 (I17) are CLOSED, not
+deferred** — this removes the programme's entire unquantified authoring tail (~1,372–1,596 cells).
+**Rank 13 (I4-WP03)** loses its only stated purpose (producing G3's arm B) and survives in mission
+D on independent merit only. **Rank 12 (I16)** is unaffected — it keeps its independent merit (a
+`primary`/`merge`-class footgun removal) by operator ruling, regardless of G3. **Rank 14 (the G3
+run itself) is closed** as unreachable, not merely deferred.
+
+**Caveat, stated explicitly:** this proves only that the rig is not in this repository. If it
+exists in the operator's own environment, this finding — and the G3/I14/I17 closures that follow
+from it — reverses.
+
+**Finding 2 — Rank 4 (I5, AMMERSE definition unification): the second copy is FOUND, and the
+estimate holds.** It is `src/doctrine/templates/architecture/ammerse-analysis-template.md`
+(Markdown — an earlier search scoped to YAML missed it). All seven value definitions differ
+between it and the tactic (`src/doctrine/tactics/built-in/analysis/ammerse-impact-analysis.tactic.yaml`):
+the template carries compressed glosses, the tactic carries full text. Sharper than drift: the
+tactic instructs "Use the canonical definitions **exactly as stated** … use these **verbatim** as
+the scoring lens," then says "Use the AMMERSE Analysis template to structure the record" — and
+`tactic:ammerse-impact-analysis --suggests--> template:ammerse-analysis-template` is a **live DRG
+edge** (`src/doctrine/tactic.graph.yaml:405`). So an agent following the tactic is told to quote
+verbatim and is routed by the graph to a second copy with seven different definitions — the §12
+accreditation hazard, on a shipped path. This does not change rank 4's row (the estimate was
+already right); it confirms **I5 does not collapse to a parity test** — the unification must cover
+both surfaces.
+
+### Two rulings this session
+
+**Ruling 3 — Gate G2 / ADR-D2 is CLOSED.**
+[`docs/adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)
+(Accepted 2026-07-26) decided it: a new `Relation.IMPACTS` (**Option A**). The operator overruled
+the reviewing analysis's evidence-per-cost recommendation of Option B, accepting the ~45–60-file
+cost knowingly. § 8's Concession — "D-2 is the load-bearing thing this plan cannot settle" — is now
+settled; the rank-16 estimate is confirmed at 45–60 files, not reduced, since Option A (the
+expensive one) was chosen.
+
+**Ruling 4 — operator ruling on design decision D-3: ARITHMETIC.** The creed feeds a ranking
+function; it is not read as prose. **Rank 21 (I10) UNPARKS** into mission D. Recorded alongside it,
+per the design authority's own measurements: creed-weighted ranking collapses to row-sum at
+r ≈ 0.98, and vector-derived precedence scored 0 reproductions of 6. I10 must not rebuild either
+mechanism; I8's perturbation-stability probe is the cheapest instrument that can falsify the
+arithmetic reading before anything further is built on it.
+
+**Ruling 5 — design decision D-6 / ADR-D8 is CLOSED: the asymmetric pair is a sign error,
+repaired by symmetrising to `+0.75`.** Recorded as an amendment to
+[ADR `2026-07-26-3`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)
+(§ 3's status blockquote and ADR-D8 row above are updated in place, since they describe the ADR's
+current state rather than a point-in-time finding). The adopted claim is that maintainability and
+extensibility **reinforce** each other; the published `−0.75` cell is the errant one. **Headline
+residual moves 4.70% → 4.37%, per-step gain 0.3892 → 0.3766** (reproduced via
+`_reproduce_matrix_findings.py`). This unblocks I13's validator (rank 17, mission **D**) fully — it
+no longer waits on anything.
+
+**Basis, stated plainly:** this is **the operator's own adjudication, on his own authority over his
+own analysis procedure** — not upstream authorial confirmation from Crossland, who authored the
+AMMERSE value system itself. The operator holds Crossland's prior written consent to use the
+AMMERSE idea and publish this procedure under his own intellectual property; accreditation (§12 of
+the design authority) discharges that relationship in full. **§6 above is corrected in place**: no
+external report is owed, there is no conversation the adjudication was front-running, and the
+in-repo divergence record item (2) of §6 is retained as **provenance for our own matrix** — useful
+so a future reader knows where and why it diverges from the published one, and so a `source_digest`
+can catch an upstream change later — not as an accreditation deliverable or a precondition on I13
+shipping. The safe-default fallback (§6's "take the symmetric reading; if ambiguous, zero the
+cell") was never exercised: the adjudicated reading is `+0.75`, not the abstention default.

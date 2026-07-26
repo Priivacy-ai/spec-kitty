@@ -2,16 +2,17 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-07-16'
+updated: '2026-07-26'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
 - docs/plans/testing/qa-tidy-first-sequencing.md
+- docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/release-goals/index.md
 ---
 # 3.2.x Milestone — Roadmap
 
-*Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md).*
+*Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md). Addendum, 2026-07-26: doctrine canonical-structure remediation programme recorded — one mission specced then split into five sequenced missions (#2948–#2952) by operator ruling; see the dedicated section below.*
 
 ## Intent of 3.2.x
 
@@ -61,7 +62,9 @@ The dependency spine above is the **G2/G3** program — strangling the core doma
    ├─ #2468 mission-types + step-contracts as doctrine kinds           │ #2467 blocks:
    ├─ #2469 loose-contract ASSET kind ✅ · #2495 templates as DRG ✅    │  #2468 #2470 #2471 #2216
    ├─ #2470 shortcodes-as-doctrine · #2471 pack-validator CI · #2472 procedure-kind fate
-   ├─ #2473 model-discipline currency · #2537 DRG at_tension_with edge
+   ├─ #2473 model-discipline currency · #2537 DRG at_tension_with edge (CLOSED — superseded
+   │        by ADR 2026-07-26-3 / mission B1 #2949, see the remediation programme below)
+   ├─ #2948/#2949/#2950 doctrine canonical-structure remediation missions A/B1/B2 (see below)
    ├─ #2535 doctrine-controlled transition gates (P1) — sub-epic, needs #2468/#2469
    │     └─ #2595 ScopeSource port · #2596 pre-review handler · #2597 gate-binding schema
    │        #2598 invert move-task hook · #2599 executable ASSET handlers · #2540 trust baseline
@@ -91,10 +94,54 @@ Glossary-as-doctrine: #1629 + #1418 (P1, now 3.2.x) — first-order glossary art
 
 **Exit-criteria implication:** the milestone's G1 goal is not satisfied merely because the spine closes. At minimum the arc's **keystone #2467** and the extensibility kinds it unblocks (#2468 and #2535's declarative-gate half) must land for G1 to have "deepened Doctrine/Charter/DRG impact on runtime execution" as declared. The governance-tier tail (#2216) and trust/distribution (#2539) may legitimately carry into 3.3.x — but as an **explicit re-milestone decision, not silent drift** (the same standing counter-measure as the milestone-drift watch item below).
 
+## Doctrine canonical-structure remediation programme (2026-07-26)
+
+While closing P0 #2934 and researching the test-quality doctrine series (#2935), one root cause turned up behind four unrelated-looking symptoms: **the doctrine layer — the YAML rules and relationships that drive charter/DRG behavior — predates its own canonical model, and nothing enforces the model that replaced it.** Concretely: a schema correctly refusing a new artefact kind was mistaken for a bug; an error message tells operators to edit a file deleted years ago; nine doctrine files sit in directories nothing ever loads (two of them stale duplicates of the real file); and a directory layer named in documentation has never existed on disk. In every case the failure was silent — a misplaced or orphaned file just stops mattering instead of raising an error.
+
+This was specced as one mission, `doctrine-canonical-structure-remediation-01KYEYSD` (spec: `kitty-specs/doctrine-canonical-structure-remediation-01KYEYSD/spec.md`, the requirements authority and full FR→mission routing table; plan: `.../plan.md`, the cost and Phase 0 findings; governing ADRs [2026-07-26-1](../adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md), [-2](../adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md), [-3](../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)). Once priced at an estimated 28–43 agent-days and ~555–665 file touches, the operator ruled it too large for one pull request and split it into five sequenced missions. The original spec mission does not implement anything itself — it stays the programme record.
+
+| # | Mission | What it delivers | Agent-days | Files | Tracker issue |
+| --- | --- | --- | --- | --- | --- |
+| A | `doctrine-silence-guards-01KYFV7Q` | The guard rails: a lint that fails if a doctrine field exists but nothing produces or reads it; closes four sites that silently drop an unrecognized artefact kind; makes an unrecognized field on the core doctrine models a load error instead of silent data loss; fixes the stale migration hint, the phantom `shipped/` directory references, and the org→DRG bridge's silent edge drop. | 4–6 | ~55–70 | #2948 |
+| B1 | `drg-relation-impacts-vocabulary-01KYFV87` | A new signed `impacts` relationship (replacing the old yes/no `in_tension_with` flag) plus an `is_symmetric` shorthand, per ADR 2026-07-26-3. | 3–5 | ~45–60 | #2949 |
+| B2 | `drg-edge-migration-extractor-retirement-01KYFV8C` | The largest mission: moves all 774 doctrine relationships from "computed by a script each time" to "written down once, checked in." Deletes the two Python modules that used to compute them. Same-surface bulk edit; carries its own occurrence map. | 11–14 | ~365–390 | #2950 |
+| C | `test-quality-doctrine-series-01KYFV8H` | The original #2935 deliverable: turns the over-mocking failure behind P0 #2934 into a citable doctrine rule (new paradigm, directive, procedure, anti-patterns), plus curator-profile and CLI-validator fixes. | 3–5 | ~30–45 | #2951 |
+| D | `foundational-values-creed-band-01KYFV8N` | The reachable slice of a separate creed-scoring design (see [`manifesto-program-delivery-sequence.md`](doctrine/manifesto-program-delivery-sequence.md)): definition unification, accreditation, a couple of structural fixes, an advisory-terminology unification, and the ranking-function arithmetic (see scope change below). | 7–13 | ~60–100 | #2952 |
+| **Total** | | | **28–43** | **~555–665** | |
+
+Operator review/decision time across the five draft PRs is estimated separately at 25–40 hours.
+
+### Why the order is fixed, not a preference
+
+The missions must land **A → B1 → B2 → C**, with **D depending only on A**:
+
+- **A must go first.** Mission A adds a lint that fails if a new doctrine field is declared but nothing in the codebase actually reads or writes it. Without that landing first, any field B1 adds would ship silently unused behind a green test suite — this exact failure has already happened three times in this repository, one of them for 162 days before anyone noticed.
+- **A must land before B1 specifically.** Two code sites (`extractor.py:133-145` and `:1210-1229`) currently drop unrecognized data silently instead of erroring. If B1's new `impacts`/`is_symmetric` fields exist before those two sites are fixed, the fields get silently deleted every time the doctrine graph is regenerated — again, behind green tests. Mission A fixes those sites.
+- **B1 must land before B2.** B1 retires the old `in_tension_with` flag in favor of the new `impacts` field. If B2 (which moves all 774 relationships into checked-in files) ran first, the two currently-existing tension relationships would be migrated once under the old scheme, then have to be migrated again once B1 lands — the same data touched twice for no reason.
+- **C must land after B2.** Mission C authors new doctrine content, and the whole point of B2 is that relationships are now written down directly instead of computed. C's new content needs to be written the new way from day one, which only works once B2's checked-in format exists.
+- **D only needs A.** D's work doesn't touch the relationship-migration machinery B1/B2 own, so it only needs A's guard rails, not the migration.
+
+### Two scope changes since the spec was written
+
+1. **The #2538 experiment does not exist in this repository.** The spec assumed an experiment rig (issue #2538, "does missing tension-modeling cause bad deferment at depth?") existed to test whether new numeric "value" fields (I14) and their supporting interview instrument (I17) are worth building. An exhaustive search — code, tests, git history, branches — found no trace of that rig ever having been built or committed. Because that gate can't be cleared, **I14 and I17 are now closed, not deferred** — removing the programme's entire unquantified authoring tail, estimated at 1,372–1,596 hand-authored data cells. *Caveat: this only proves the rig isn't in this repository — if it exists in the operator's own environment, the conclusion reverses.* Issue #2538 itself stays open (it's milestone-3.3.x work) and is untouched by this finding — it is neither closed nor reopened here.
+2. **The ranking-function design decision landed on "arithmetic."** One of the open design decisions in the FoundationalValues/creed programme (D-3: should the creed ranking be computed arithmetically, or read as prose?) was ruled by the operator. The answer is arithmetic, which un-parks increment I10 (the ranking function itself) into mission D.
+
+### How this relates to existing tracker items
+
+This programme does not duplicate open work — it feeds it or is fed by it:
+
+- **#2466** (pack ecosystem epic, P1) is the parent epic for missions A/B1/B2's tracker issues (#2948, #2949, #2950 — see the arc diagram above).
+- **#2591** (component-type schema) and **#2538** (the value-fields experiment) are untouched — both stay exactly where they were, at their existing milestones.
+- **#2468**, **#2847**, **#2862**, **#2829** are all blocked by mission A's silent-kind-drop fix — cross-linked as `blocked by #2948`.
+- **#2532** (decompose `charter/context.py`) touches the same code mission A must fix (a missing `else` branch) — cross-referenced so neither drops the fix.
+- **#2537** (closed) is superseded by ADR 2026-07-26-3 / mission B1's `impacts` relation — noted in the arc diagram above and on the closed issue; not reopened.
+- **#2935** is the doctrine-authoring backlog item mission C delivers (C is filed as its sub-issue, #2951).
+- **#2934** is the P0 already closed by PR #2936, which also delivered FR-000/001/002/012 and the layout gate's first non-vacuity proof — this programme's five missions pick up everything else.
+
 ## Wave status board (degod/unshim roadmap)
 
 | Wave | Deliverable | Status | Anchors |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **0** (S) | Bind CI suite map — marker→job authority; `-m unit`/`-m contract` select a job; fails closed | **SHIPPED** — PR #2368 (merged 2026-07-04, commit `6db60d367`; mission `ci-suite-map-bind-01KWNPMP`), marker→job authority bound — the substrate the ci-topology-shrink mission (below) builds on | #2297, #2296, #2034, #2333 CLOSED; **#2283 now CLOSED** (Phase 3 landed via PR #2442, 2026-07-07 — local pre-PR CI parity + factor-(a) verify; the factor-(c) *dynamic* half of the review-time boundary is realized by #2438's `pre_review_gate`, and the still-unmodeled contract-ownership half is filed as #2441 — see Watch items) |
 | **1** (D) | tasks.py degod — body-thinning via ports, golden-CLI test first | **SHIPPED** — PR #2308 (tasks.py 4569→1206 LOC, 10/10 WPs) | #2116 CLOSED (+#2305/#2306/#2307) |
 | **1∥** (U) | category_4 removable-now shim sweep (8→0) + orphan cleanup | **SHIPPED** — PR #2325 (unshim wave 1) | #2289, #2292, #2258 CLOSED |
