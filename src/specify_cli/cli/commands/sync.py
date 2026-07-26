@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.config import EventSyncConfig, Mode
     from specify_cli.delivery.dispatcher import DispatchSummary
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
-    from specify_cli.delivery.receivers import DeliveryReceiver
+    from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
     from specify_cli.delivery.retention import RetentionResult
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
@@ -685,6 +685,31 @@ def _event_sync_gate_context(
     )
 
 
+def _resolve_gated_receiver(
+    target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str
+) -> tuple[DeliveryReceiver | None, GateDecision | None]:
+    """Resolve the active receiver and evaluate its gates — data only, no policy.
+
+    Shared by ``sync now`` (:func:`_run_event_sync_dispatch`) and
+    ``import-history --apply`` (:func:`_resolve_history_import_receiver`); the
+    two callers previously duplicated this resolve+evaluate sequence and had
+    already diverged (#2884 P2). Returns ``(None, None)`` when the mode has no
+    receiver (retention-only). Otherwise returns the receiver and its
+    :class:`GateDecision` — each caller decides what a blocked decision means:
+    ``sync now`` degrades to a dim best-effort notice, ``import-history`` fails
+    closed with ``typer.Exit(1)``. Neither policy lives here.
+    """
+    from specify_cli.delivery.receivers import evaluate_gates
+
+    receiver = _resolve_active_receiver(target, config, auth_token=auth_token)
+    if receiver is None:
+        return None, None
+    gate_decision = evaluate_gates(
+        receiver, _event_sync_gate_context(receiver, target, auth_token=auth_token)
+    )
+    return receiver, gate_decision
+
+
 def _count_retained_events(runtime: _EventSyncRuntime) -> int:
     with contextlib.suppress(Exception):
         return len(runtime.journal.read_all())
@@ -988,24 +1013,22 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
 
         return DispatchSummary.empty()
     from specify_cli.delivery.dispatcher import DispatchSummary
-    from specify_cli.delivery.receivers import evaluate_gates
 
     runtime: _EventSyncRuntime | None = None
     try:
         runtime = _open_event_sync_runtime()
         config = _load_event_sync_config()
         auth_token = _event_sync_access_token()
-        receiver = _resolve_active_receiver(runtime.target, config, auth_token=auth_token)
+        receiver, gate_decision = _resolve_gated_receiver(
+            runtime.target, config, auth_token=auth_token
+        )
         if receiver is None:
             console.print(
                 f"[dim]Event sync mode {config.mode.name}: retention only; "
                 f"no delivery attempted.[/dim]"
             )
             return DispatchSummary.empty()
-        gate_decision = evaluate_gates(
-            receiver,
-            _event_sync_gate_context(receiver, runtime.target, auth_token=auth_token),
-        )
+        assert gate_decision is not None  # a resolved receiver always carries a decision
         if gate_decision.blocked:
             names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
             console.print(f"[dim]Event sync gated: {names}[/dim]")
@@ -1820,19 +1843,29 @@ def import_history(
 def _resolve_history_import_receiver(
     runtime: _EventSyncRuntime, *, token: str
 ) -> tuple[DeliveryReceiver, str]:
-    """Resolve one gated Teamspace authority for preflight and delivery."""
-    from specify_cli.delivery.config import EventSyncConfig, Mode
-    from specify_cli.delivery.receivers import evaluate_gates
+    """Resolve one gated Teamspace authority for preflight and delivery.
 
-    config = EventSyncConfig.from_mode(Mode.TEAMSPACE)
-    receiver = _resolve_active_receiver(runtime.target, config, auth_token=token)
+    Fails closed on the operator's *persisted* event-sync mode (#2884 P1):
+    import-history uploads a mission's full history, so it must honor
+    ``spec-kitty sync mode`` like every other sync surface, not silently
+    override it to TEAMSPACE. An operator on EXTERNAL_RECEIVER, LOCAL_RETENTION,
+    or OPT_OUT gets a clear refusal instead of an unwanted upload.
+    """
+    from specify_cli.delivery.config import Mode
+
+    config = _load_event_sync_config()
+    if config.mode is not Mode.TEAMSPACE:
+        console.print(
+            "[red]import-history requires event-sync mode TEAMSPACE;[/red] "
+            f"current mode is {config.mode.name}. Run `spec-kitty sync mode TEAMSPACE` "
+            "to switch, then retry."
+        )
+        raise typer.Exit(1)
+    receiver, gate_decision = _resolve_gated_receiver(runtime.target, config, auth_token=token)
     if receiver is None or not getattr(receiver, "endpoint_url", ""):
         console.print("[red]Event sync is not configured for this checkout.[/red] Cannot upload.")
         raise typer.Exit(1)
-    gate_decision = evaluate_gates(
-        receiver,
-        _event_sync_gate_context(receiver, runtime.target, auth_token=token),
-    )
+    assert gate_decision is not None  # a resolved receiver always carries a decision
     if gate_decision.blocked:
         names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
         console.print(f"[red]Event sync is gated:[/red] {names}. Cannot upload.")
@@ -1867,69 +1900,78 @@ def _run_import_apply(mission: str | None) -> None:
         raise typer.Exit(1)
 
     runtime = _open_event_sync_runtime()
-    receiver, server_url = _resolve_history_import_receiver(runtime, token=token)
-    repo_root = _require_active_checkout().repo_root
-
     try:
-        result = apply_import(
-            repo_root, mission=mission, receiver=receiver, server_url=server_url, auth_token=token
-        )
-    except (MissionStateRepairError, MissionScanError) as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-    except ImportIdentityError as exc:
-        console.print(f"[red]Identity error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-    except ImportAuditBlocked as exc:
-        console.print(f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:")
-        for blocker in exc.blockers[:20]:
-            console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
-        raise typer.Exit(1) from exc
-    except ContractViolationError as exc:
-        # The offline outbound-envelope gate refused a synthesized envelope
-        # before any upload — fail closed with the contract detail (#2884).
-        console.print(f"[red]Envelope contract violation:[/red] {exc}")
-        raise typer.Exit(1) from exc
-    except PreflightRejected as exc:
-        console.print(f"[red]Server preflight rejected the import:[/red] {exc}")
-        raise typer.Exit(1) from exc
+        receiver, server_url = _resolve_history_import_receiver(runtime, token=token)
+        repo_root = _require_active_checkout().repo_root
 
-    if result.plan.is_empty:
-        console.print("[yellow]No missions found to import.[/yellow]")
-        raise typer.Exit(0)
+        try:
+            result = apply_import(
+                repo_root,
+                mission=mission,
+                receiver=receiver,
+                server_url=server_url,
+                auth_token=token,
+            )
+        except (MissionStateRepairError, MissionScanError) as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except ImportIdentityError as exc:
+            console.print(f"[red]Identity error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except ImportAuditBlocked as exc:
+            console.print(
+                f"[red]Import blocked:[/red] {len(exc.blockers)} audit finding(s) must be resolved first:"
+            )
+            for blocker in exc.blockers[:20]:
+                console.print(f"  [yellow]•[/yellow] {blocker['mission_slug']}: {blocker['message']}")
+            raise typer.Exit(1) from exc
+        except ContractViolationError as exc:
+            # The offline outbound-envelope gate refused a synthesized envelope
+            # before any upload — fail closed with the contract detail (#2884).
+            console.print(f"[red]Envelope contract violation:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except PreflightRejected as exc:
+            console.print(f"[red]Server preflight rejected the import:[/red] {exc}")
+            raise typer.Exit(1) from exc
 
-    for line in describe_plan(result.plan):
-        console.print(line)
-    console.print(
-        f"[dim]Provenance: {len(result.manifest)} envelope(s) hashed into the sha256 import "
-        "audit manifest.[/dim]"
-    )
-    report = result.report
-    console.print(
-        f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
-        f"{report.pending} pending, {report.rejected} rejected ({report.total} total)."
-    )
-    if report.partial:
-        # Distinct third state: neither success nor total failure. Delivery
-        # stopped at the first failed chunk, so everything delivered is a safe
-        # ordered prefix of whole missions; the rest was never attempted.
+        if result.plan.is_empty:
+            console.print("[yellow]No missions found to import.[/yellow]")
+            raise typer.Exit(0)
+
+        for line in describe_plan(result.plan):
+            console.print(line)
         console.print(
-            f"[yellow]Partial upload:[/yellow] delivery stopped at a failed chunk — a safe ordered "
-            f"prefix was delivered ({report.delivered_through_chunk} full chunk(s)); "
-            f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
-            "--apply: the server dedups on event_id, so the re-run resumes idempotently."
+            f"[dim]Provenance: {len(result.manifest)} envelope(s) hashed into the sha256 import "
+            "audit manifest.[/dim]"
         )
-    if report.pending:
-        # Direct import delivery does not journal or ledger pending outcomes.
-        # Never claim that ``sync now`` can retry work that was not persisted.
+        report = result.report
         console.print(
-            f"[yellow]Incomplete:[/yellow] {report.pending} event(s) remain pending and are not "
-            "confirmed in the projection. Re-run --apply after resolving the receiver issue."
+            f"\n[green]Imported:[/green] {report.success} created, {report.duplicate} duplicate, "
+            f"{report.pending} pending, {report.rejected} rejected ({report.total} total)."
         )
-    if not report.ok:
-        for sample in report.rejected_samples:
-            console.print(f"  [red]✗[/red] {sample}")
-        raise typer.Exit(1)
+        if report.partial:
+            # Distinct third state: neither success nor total failure. Delivery
+            # stopped at the first failed chunk, so everything delivered is a safe
+            # ordered prefix of whole missions; the rest was never attempted.
+            console.print(
+                f"[yellow]Partial upload:[/yellow] delivery stopped at a failed chunk — a safe ordered "
+                f"prefix was delivered ({report.delivered_through_chunk} full chunk(s)); "
+                f"{report.undelivered_event_count} event(s) not attempted. Fix the failure and re-run "
+                "--apply: the server dedups on event_id, so the re-run resumes idempotently."
+            )
+        if report.pending:
+            # Direct import delivery does not journal or ledger pending outcomes.
+            # Never claim that ``sync now`` can retry work that was not persisted.
+            console.print(
+                f"[yellow]Incomplete:[/yellow] {report.pending} event(s) remain pending and are not "
+                "confirmed in the projection. Re-run --apply after resolving the receiver issue."
+            )
+        if not report.ok:
+            for sample in report.rejected_samples:
+                console.print(f"  [red]✗[/red] {sample}")
+            raise typer.Exit(1)
+    finally:
+        runtime.close()
 
 
 @app.command(name="workspace")
