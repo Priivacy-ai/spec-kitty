@@ -266,7 +266,12 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
 
     Local-only event types (``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``)
     skip strict validation by design — the set is currently empty but
-    reserved for future internal-only event types.
+    reserved for future internal-only event types. The local
+    :data:`LOCAL_ONLY_LIFECYCLE_EVENT_TYPES` SSOT is also consulted here
+    (#2884): it is the actual enforcement point for the "kept OFF the SaaS
+    strict-validation path" invariant its own docstring claims, since the
+    external set does not yet cover ``MissionReopened`` / ``FollowUpRecorded``
+    even though both are present in ``_EVENT_TYPE_TO_MODEL``.
 
     Unknown event types (event_type not in ``_EVENT_TYPE_TO_MODEL``) pass
     through quietly so unrecognised types don't become sudden hard
@@ -277,7 +282,7 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
     from spec_kitty_events.conformance import validate_event
     from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
 
-    if event_type in LOCAL_ONLY_EVENT_TYPES:
+    if event_type in LOCAL_ONLY_EVENT_TYPES or event_type in LOCAL_ONLY_LIFECYCLE_EVENT_TYPES:
         return
 
     if event_type not in _EVENT_TYPE_TO_MODEL:

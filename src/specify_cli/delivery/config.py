@@ -48,7 +48,7 @@ from specify_cli.delivery.receivers import (
     ExternalReceiver,
     HttpPoster,
     TeamspaceReceiver,
-    _requests_post,
+    default_http_poster,
 )
 
 # -- Audit-visible reason strings (S1192: referenced across helpers/tests) ------
@@ -207,7 +207,7 @@ class DefaultReceiverFactory:
     """
 
     teamspace_auth_token: str = ""
-    poster: HttpPoster = _requests_post
+    poster: HttpPoster = default_http_poster
 
     def build_teamspace(self, *, resolved_server_url: str) -> DeliveryReceiver:
         return TeamspaceReceiver(
