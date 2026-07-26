@@ -1,6 +1,6 @@
 ---
 title: "Test-Quality Doctrine — Artefact Series Proposal"
-description: "Curator-facing proposal (doctrine-daphne) for the test-slicing/mocking-boundary doctrine series: a Tests-as-Scaffold paradigm, DIRECTIVE_041 disambiguation, checklist→asset moves, exemplar assets, and the full DRG edge map — augment-heavy, create-light."
+description: "Curator proposal for the test-slicing/mocking-boundary doctrine series: a Tests-as-Scaffold paradigm, DIRECTIVE_041 disambiguation, exemplar assets, and the DRG edge map."
 doc_status: draft
 updated: '2026-07-26'
 related:
