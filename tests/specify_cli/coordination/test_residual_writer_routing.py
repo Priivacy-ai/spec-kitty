@@ -264,8 +264,11 @@ class TestBookkeepingProjectionRoutesThroughPlacementPort:
             pytest.raises(ValueError, match="Refusing untrusted status filename"),
         ):
             bp._assert_status_surface_file_path_is_trusted(
-                repo_root=Path("/tmp/does-not-matter"),
-                status_feature_dir=Path("/tmp/does-not-matter/kitty-specs/x"),
+                # Non-shared-temp absolute sentinels (tmp-literal burndown category B):
+                # the call raises on the (patched-untrusted) filename before either
+                # path is ever read, so the dirs are incidental placeholders.
+                repo_root=Path("/sentinel/does-not-matter"),
+                status_feature_dir=Path("/sentinel/does-not-matter/kitty-specs/x"),
                 filename="status.events.jsonl",
             )
         mock_classify.assert_called_once()

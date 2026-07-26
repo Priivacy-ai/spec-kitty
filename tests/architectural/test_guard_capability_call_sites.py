@@ -42,11 +42,14 @@ _ENUM_HOME = "src/specify_cli/core/commit_guard.py"
 _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
     # Test-fixture-only: no production caller, ever.
     "TEST_MODE": frozenset({_ENUM_HOME}),
-    # The bona-fide merge/close done-transitions bookkeeping flow. Both the merge
-    # executor AND the post-merge retrospective terminus (which also runs from the
-    # `mission close` path) land their bookkeeping commit through the ONE shared
-    # seam `git/bookkeeping_commit.py` (#2280 / PR #2281) — a single sanctioned
-    # protected-flow commit surface, not a second guard-capability call site.
+    # The bona-fide merge/close done-transitions bookkeeping flow. Every caller
+    # (the merge executor's done-transitions commit AND its birth-cutover COORD
+    # seed commit, plus the post-merge retrospective terminus) lands through the
+    # ONE shared seam `git/bookkeeping_commit.py` (#2280 / PR #2281) — its two
+    # named entry points (`commit_merge_bookkeeping` PRIMARY /
+    # `commit_coord_seed_bookkeeping` COORD) both delegate to a single guarded
+    # `_commit_bookkeeping` call site. A single sanctioned protected-flow commit
+    # surface, not a second guard-capability call site outside this module.
     "MERGE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/git/bookkeeping_commit.py"}),
     # The bona-fide upgrade bookkeeping flow. Main checkout AND every sibling
     # worktree (#2385 / epic #2392) land their upgrade commit through the ONE
