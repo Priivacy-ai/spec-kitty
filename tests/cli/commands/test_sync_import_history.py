@@ -491,7 +491,11 @@ def test_apply_renders_rejected_tally_and_samples(tmp_path, monkeypatch):
     assert "not attempted" not in plain  # total failure is NOT the partial state
 
 
-def test_apply_renders_pending_tally_as_non_final(tmp_path, monkeypatch):
+def test_apply_treats_pending_as_a_failure(tmp_path, monkeypatch):
+    """Pending is a final failure (exit 1), and the message is honest about why:
+    import event ids are deterministic, so a re-run reports these events as
+    duplicates and exits 0 whether or not the projection ever materialized
+    them — the dashboard/projection is the authoritative check, not a re-run."""
     from specify_cli.sync.history_import import UploadReport
 
     report = UploadReport(success=1, pending=3)
@@ -501,6 +505,9 @@ def test_apply_renders_pending_tally_as_non_final(tmp_path, monkeypatch):
     assert "3 pending" in plain
     assert "remain pending" in plain
     assert "not confirmed" in plain
+    assert "duplicates" in plain
+    assert "dashboard" in plain
+    assert "receiver issue" not in plain  # dropped: not always an operator-fixable cause
     assert "sync now" not in plain
 
 
@@ -525,3 +532,57 @@ def test_apply_renders_partial_upload_as_distinct_state(tmp_path, monkeypatch):
     assert "safe ordered" in plain and "prefix" in plain
     assert "5 event(s) not attempted" in plain
     assert "e2: nope" in plain
+
+
+# ── _render_upload_report: extracted rendering seam (P2 nit, C901 relief) ────
+#
+# ``_run_import_apply`` delegated its partial/pending/rejected tail to this
+# helper so the branches are directly testable without wiring the whole
+# --apply CLI path. Driven straight with synthetic ``UploadReport`` values.
+
+
+def test_render_upload_report_partial_only(capsys):
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(success=2, partial=True, delivered_through_chunk=1, undelivered_event_count=5)
+    ok = sync_command._render_upload_report(report)
+    plain = _strip_ansi(capsys.readouterr().out)
+    assert ok is False
+    assert "Partial upload" in plain
+    assert "5 event(s) not attempted" in plain
+
+
+def test_render_upload_report_pending_only_points_at_the_projection(capsys):
+    """No re-run suggestion, no 'receiver issue' framing: the honest message
+    names the dedup-duplicate outcome and points at the dashboard/projection."""
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(success=1, pending=3)
+    ok = sync_command._render_upload_report(report)
+    plain = _strip_ansi(capsys.readouterr().out)
+    assert ok is False
+    assert "remain pending" in plain
+    assert "duplicates" in plain
+    assert "dashboard" in plain
+    assert "receiver issue" not in plain
+
+
+def test_render_upload_report_rejected_prints_samples(capsys):
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(success=1, rejected=2, rejected_samples=["e1: nope", "e2: bad payload"])
+    ok = sync_command._render_upload_report(report)
+    plain = _strip_ansi(capsys.readouterr().out)
+    assert ok is False
+    assert "e1: nope" in plain
+    assert "e2: bad payload" in plain
+
+
+def test_render_upload_report_all_clean_returns_true_and_prints_nothing(capsys):
+    from specify_cli.sync.history_import import UploadReport
+
+    report = UploadReport(success=5)
+    ok = sync_command._render_upload_report(report)
+    plain = capsys.readouterr().out
+    assert ok is True
+    assert plain == ""
