@@ -22,6 +22,7 @@ related mission scope notes.
 - [Org Doctrine Layer — Post-Implementation Architecture Review](org-doctrine-layer-architecture-review.md)
 - [Runtime → Charter → Doctrine — boundary audit and recommendations](runtime-charter-doctrine-boundary.md)
 - [WP-Prompt Governance Contract — ATDD Findings](wp-prompt-governance-atdd-findings.md)
+- [Test Quality — test slicing & mocking-boundary discipline](test_quality/index.md)
 
 ## See also
 
