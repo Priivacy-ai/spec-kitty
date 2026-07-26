@@ -7846,6 +7846,36 @@ pages:
     - {slug: "kernel-dependency-graph-is-accurate", text: "Kernel Dependency Graph is Accurate", level: 3}
     - {slug: "pre-existing-test-failures-not-migration-caused", text: "Pre-Existing Test Failures (Not Migration-Caused)", level: 2}
     - {slug: "recommended-follow-on-tasks", text: "Recommended Follow-On Tasks", level: 2}
+  - path: "docs/plans/doctrine/foundational-values-and-creed.md"
+    title: "FoundationalValues and Creed — canonical design"
+    divio_type: "none"
+    abstract: "The single authority for the FoundationalValues/creed design: a value system generic over N values with AMMERSE as the default basis, per-artefact impact deltas, a signed impacts edge that subsumes in_tension_with, and the measured grounding behind all of it."
+    anchors:
+    - {slug: "1-problem-statement", text: "1. Problem statement", level: 2}
+    - {slug: "2-the-operative-frame-governs-everything-below", text: "2. The operative frame — governs everything below", level: 2}
+    - {slug: "3-generic-over-n-the-design-is-not-ammerse", text: "3. Generic over N — the design is not AMMERSE", level: 2}
+    - {slug: "4-the-three-planes-and-the-one-legal-composition", text: "4. The three planes — and the one legal composition", level: 2}
+    - {slug: "5-the-mathematics-sound-for-any-basis-unconditionally", text: "5. The mathematics — sound for any basis, unconditionally", level: 2}
+    - {slug: "6-the-design", text: "6. The design", level: 2}
+    - {slug: "6-1-foundationalvalues-a-repository-backed-artefact-not-an-enum", text: "6.1 `FoundationalValues` — a repository-backed artefact, not an enum", level: 3}
+    - {slug: "6-2-type-the-axes-levers-vs-goals", text: "6.2 Type the axes — levers vs goals", level: 3}
+    - {slug: "6-3-two-fields-two-types", text: "6.3 Two fields, two types", level: 3}
+    - {slug: "6-4-which-kinds-carry-a-value-field", text: "6.4 Which kinds carry a value field", level: 3}
+    - {slug: "6-5-impacts-subsumes-in-tension-with", text: "6.5 `impacts` subsumes `in_tension_with`", level: 3}
+    - {slug: "6-6-the-composition-invariant-enforced-structurally", text: "6.6 The composition invariant, enforced structurally", level: 3}
+    - {slug: "6-7-the-creed-and-where-it-lives", text: "6.7 The creed, and where it lives", level: 3}
+    - {slug: "7-the-prose-layer-ships-first-gates-on-nothing", text: "7. The prose layer — ships first, gates on nothing", level: 2}
+    - {slug: "8-the-feedback-gap-and-the-one-thing-that-closes-it", text: "8. The feedback gap — and the one thing that closes it", level: 2}
+    - {slug: "9-measured-grounding", text: "9. Measured grounding", level: 2}
+    - {slug: "9-1-what-failed-measurement-do-not-rebuild-these", text: "9.1 What failed measurement — do not rebuild these", level: 3}
+    - {slug: "9-2-what-the-corpus-shows-36-authored-vectors-and-it-is-a-real-calibration-set", text: "9.2 What the corpus shows — 36 authored vectors, and it is a real calibration set", level: 3}
+    - {slug: "9-3-the-design-s-own-self-assessment-already-authored-upstream", text: "9.3 The design's own self-assessment, already authored upstream", level: 3}
+    - {slug: "9-4-upstream-discrepancies-to-report", text: "9.4 Upstream discrepancies to report", level: 3}
+    - {slug: "10-contradiction-register-this-document-s-values-win", text: "10. Contradiction register — this document's values win", level: 2}
+    - {slug: "11-accreditation", text: "11. Accreditation", level: 2}
+    - {slug: "12-open-decisions", text: "12. Open decisions", level: 2}
+    - {slug: "13-sequence", text: "13. Sequence", level: 2}
+    - {slug: "14-method-limits", text: "14. Method limits", level: 2}
   - path: "docs/plans/doctrine/index.md"
     title: "Doctrine"
     divio_type: "none"
@@ -7876,6 +7906,22 @@ pages:
     - {slug: "mission-a-layered-doctrine-resolution-infrastructure", text: "Mission A — Layered Doctrine Resolution (infrastructure)", level: 3}
     - {slug: "mission-b-governance-aware-context-application-layer", text: "Mission B — Governance-Aware Context (application layer)", level: 3}
     - {slug: "non-goals", text: "Non-goals", level: 2}
+  - path: "docs/plans/doctrine/manifesto-program-delivery-sequence.md"
+    title: "FoundationalValues/creed program — delivery sequence"
+    divio_type: "none"
+    abstract: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, the superseding-ADR scope, tracker shape, park register, upstream report, and effort envelope anchored on in-repo precedents."
+    anchors:
+    - {slug: "settled-inputs-do-not-re-litigate", text: "Settled inputs — do not re-litigate", level: 2}
+    - {slug: "what-the-matrix-measurement-changed", text: "What the matrix measurement changed", level: 2}
+    - {slug: "1-critical-path", text: "1. Critical path", level: 2}
+    - {slug: "2-ranked-increments-by-evidence-per-cost", text: "2. Ranked increments — by evidence-per-cost", level: 2}
+    - {slug: "3-what-the-superseding-adr-must-cover", text: "3. What the superseding ADR must cover", level: 2}
+    - {slug: "4-tracker-shape-report-only", text: "4. Tracker shape — report only", level: 2}
+    - {slug: "5-explicitly-parked", text: "5. Explicitly parked", level: 2}
+    - {slug: "6-upstream-report", text: "6. Upstream report", level: 2}
+    - {slug: "7-effort-envelope", text: "7. Effort envelope", level: 2}
+    - {slug: "8-concession", text: "8. Concession", level: 2}
+    - {slug: "9-verdict", text: "9. Verdict", level: 2}
   - path: "docs/plans/doctrine/manifesto-tier-primary-drivers.md"
     title: "The Manifesto Tier — doctrine's missing primary-driver layer"
     divio_type: "none"
@@ -8025,6 +8071,15 @@ pages:
     - {slug: "what-breaks", text: "WHAT BREAKS", level: 2}
     - {slug: "concession", text: "CONCESSION", level: 2}
     - {slug: "verdict", text: "VERDICT", level: 2}
+  - path: "docs/plans/doctrine/squad-reports/connascence-matrix-measurement.md"
+    title: "Connascence-matrix measurement"
+    divio_type: "none"
+    abstract: "Measured analysis of the AMMERSE first- and second-order impact matrices: spectral radius, truncation soundness, the false derivation claim, and the one asymmetric cell."
+    anchors:
+    - {slug: "1-the-truncation-is-sound-the-design-s-central-maths-question-is-answered-favourably", text: "1. The truncation is SOUND — the design's central maths question is answered favourably", level: 2}
+    - {slug: "2-the-second-order-matrix-is-not-derivable-from-the-first-order-one", text: "2. The second-order matrix is NOT derivable from the first-order one", level: 2}
+    - {slug: "3-one-probable-typo-in-the-published-first-order-matrix", text: "3. One probable typo in the published first-order matrix", level: 2}
+    - {slug: "4-the-matrix-is-symmetric-which-vindicates-the-correlation-framing-for-the-matrix", text: "4. The matrix is symmetric — which vindicates the \"correlation\" framing *for the matrix*", level: 2}
   - path: "docs/plans/doctrine/squad-reports/doctrine-curator.md"
     title: "Doctrine-curator lens — exemptions, accreditation, provenance"
     divio_type: "none"

@@ -25,6 +25,9 @@ design is the synthesis, these are the workings.
   models, the `delta` representation decision, the coverage gate, and the one-day pre-registered
   prototype.
 
+- [Connascence-matrix measurement](connascence-matrix-measurement.md) — spectral radius, truncation soundness,
+  the false second-order derivation claim, and the sole asymmetric cell.
+
 Where two lenses diverged (`toolguide` and `agent_profile` membership), the hardened design
 adjudicates on semantics and says so.
 
