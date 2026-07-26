@@ -90,6 +90,24 @@ def _write_events(mission_dir: Path, rows: list[dict]) -> None:
     (mission_dir / "status.events.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
 
 
+def _append_raw_jsonl_line(mission_dir: Path, raw_json_line: str) -> None:
+    """Append one literal JSON-text line to ``status.events.jsonl``.
+
+    For fixture rows that are deliberately malformed (the shape a canonical
+    ``spec_kitty_events.lifecycle.*Payload`` model cannot represent by
+    definition — that is the point of the test). Writing the line as a
+    Python ``str`` literal rather than a hand-rolled ``dict`` keeps the
+    fixture faithful to "malformed on-disk bytes" as the actual unit under
+    test, and gives the canonical-producer AST lint nothing event-shaped to
+    flag (there is no ``ast.Dict`` literal carrying ``event_type``/``payload``
+    keys — only opaque text).
+    """
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    path = mission_dir / "status.events.jsonl"
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(raw_json_line + "\n")
+
+
 def _build_legacy_shape_mission(
     tmp_path: Path,
     *,
@@ -537,16 +555,27 @@ def test_malformed_event_type_row_is_counted_as_a_skipped_event_row(tmp_path):
     it (its ``event_type`` isn't a ``str``), so a ``WPCreated`` row shaped
     like this vanishes from BOTH readers with no signal at all. The scan must
     count it (#2884 finding A) so a partial import is loud, not silent."""
+    from specify_cli.status.lifecycle_events import emit_mission_created_local
+
     mission_dir = tmp_path / "synthetic-truncated-01JJJJ"
     mission_dir.mkdir(parents=True)
-    rows = [
-        {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
-        # canonical-event-exempt(exception-flow): malformed on-disk WPCreated
-        # row under test — null event_type is valid JSON but not a lifecycle
-        # row `read_lifecycle_events` will keep.
-        {"event_type": None, "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}},
-    ]
-    _write_events(mission_dir, rows)
+    emit_mission_created_local(
+        mission_dir,
+        mission_slug="synthetic-truncated-01JJJJ",
+        mission_id=None,
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+        wp_count=0,
+    )
+    # Deliberately malformed on-disk WPCreated row under test — null
+    # event_type is valid JSON but not a lifecycle row `read_lifecycle_events`
+    # will keep. A canonical *Payload model cannot represent this shape (that
+    # is the point), so the raw bytes are appended as a literal JSON-text line.
+    _append_raw_jsonl_line(
+        mission_dir,
+        '{"event_type": null, "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}}',
+    )
 
     scan = scan_mission(mission_dir)
 
@@ -561,15 +590,35 @@ def test_wp_created_payload_with_no_wp_id_is_counted_not_silently_dropped(tmp_pa
     """``_wps_from_prefix``'s ``if not wp_id: continue`` used to drop the row
     with no log and no count. It must now be counted into
     ``skipped_event_rows`` (#2884 finding A)."""
+    from specify_cli.status.lifecycle_events import (
+        emit_mission_created_local,
+        emit_wp_created_local,
+    )
+
     mission_dir = tmp_path / "synthetic-no-wpid-01KKKK"
     mission_dir.mkdir(parents=True)
-    rows = [
-        {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
-        # canonical-event-exempt(exception-flow): malformed on-disk WPCreated row missing wp_id under test
-        {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_title": "No id here"}},
-        {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01", "wp_title": "Good"}},
-    ]
-    _write_events(mission_dir, rows)
+    emit_mission_created_local(
+        mission_dir,
+        mission_slug="synthetic-no-wpid-01KKKK",
+        mission_id=None,
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+        wp_count=1,
+    )
+    # Deliberately malformed on-disk WPCreated row missing wp_id under test —
+    # WPCreatedPayload requires wp_id, so a canonical model cannot construct
+    # this shape (that is the point); appended as a literal JSON-text line.
+    _append_raw_jsonl_line(
+        mission_dir,
+        '{"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_title": "No id here"}}',
+    )
+    emit_wp_created_local(
+        mission_dir,
+        mission_slug="synthetic-no-wpid-01KKKK",
+        wp_id="WP01",
+        wp_title="Good",
+    )
 
     scan = scan_mission(mission_dir)
 
@@ -579,13 +628,26 @@ def test_wp_created_payload_with_no_wp_id_is_counted_not_silently_dropped(tmp_pa
 
 def test_no_malformed_rows_yields_zero_skipped_event_rows(tmp_path):
     """The common case: a clean lifecycle prefix counts zero skips."""
+    from specify_cli.status.lifecycle_events import (
+        emit_mission_created_local,
+        emit_wp_created_local,
+    )
+
     mission_dir = tmp_path / "synthetic-clean-01LLLL"
-    _write_events(
+    emit_mission_created_local(
         mission_dir,
-        [
-            {"event_type": "MissionCreated", "aggregate_type": "Mission", "payload": {}},
-            {"event_type": "WPCreated", "aggregate_type": "WorkPackage", "payload": {"wp_id": "WP01"}},
-        ],
+        mission_slug="synthetic-clean-01LLLL",
+        mission_id=None,
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+        wp_count=1,
+    )
+    emit_wp_created_local(
+        mission_dir,
+        mission_slug="synthetic-clean-01LLLL",
+        wp_id="WP01",
+        wp_title="WP01",
     )
 
     scan = scan_mission(mission_dir)
