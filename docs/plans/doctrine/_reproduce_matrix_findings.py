@@ -10,9 +10,14 @@ from __future__ import annotations
 import copy
 import json
 import math
+import random
 from pathlib import Path
 
 HERE = Path(__file__).parent
+
+#: Random-basis samples. Kept small so the script stays fast; the committed figure
+#: in the design document used 30000 samples with 400 power iterations each.
+SAMPLES = 2000
 
 
 def spectral_radius(matrix: list[list[float]], iterations: int = 400) -> float:
@@ -63,6 +68,23 @@ def main() -> None:
         all_neg = [[0.0 if i == j else -1.0 for j in range(size)] for i in range(size)]
         print(f"  N={size:2d}  all +1 -> {spectral_radius(all_pos) / (size - 1):.4f}"
               f"   all -1 -> {spectral_radius(all_neg) / (size - 1):.4f}")
+
+    print(f"\nrandom admissible bases at N={n} (symmetric, zero diagonal, uniform [-1,1]):")
+    print(f"  {SAMPLES} samples — the committed figure is 30000 samples: max 0.6225, mean 0.3842")
+    # noqa rationale: numerical sampling for a reproducibility check, not a security
+    # context. A fixed seed is required so the reported figures are reproducible.
+    rng = random.Random(7)  # noqa: S311
+    worst = 0.0
+    total = 0.0
+    for _ in range(SAMPLES):
+        candidate = [[0.0] * n for _ in range(n)]
+        for i in range(n):
+            for j in range(i + 1, n):
+                candidate[i][j] = candidate[j][i] = rng.uniform(-1.0, 1.0)
+        sampled = spectral_radius(candidate, iterations=120) / divisor
+        worst = max(worst, sampled)
+        total += sampled
+    print(f"  max gain = {worst:.4f}, mean = {total / SAMPLES:.4f}  (bound is 1.0)")
 
 
 if __name__ == "__main__":

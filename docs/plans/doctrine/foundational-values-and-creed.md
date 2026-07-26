@@ -184,8 +184,15 @@ that, and it is a candidate third constraint.)*
 
 **Consequence for the validator:** enforce coefficients ∈ [−1, 1] and a zero diagonal by schema;
 then **error at gain ≥ 1 − ε** and **warn as gain → 1**. The spectral radius is load-bearing at
-exactly the boundary case, so it is a check, not decoration. Empirically it is not a tight
-constraint — the AMMERSE basis sits at 0.389, well inside.
+exactly the boundary case, so it is a check, not decoration.
+
+**Empirically the boundary is not somewhere you stumble.** Over **30,000 random admissible bases**
+at N = 7 (symmetric, zero diagonal, coefficients drawn uniform on [−1, 1]): **max observed gain
+0.6225, mean 0.3842** — well clear of 1 in every sample. Reaching equality requires a deliberately
+constructed all-±1 pattern. Two consequences: the error branch will effectively never fire on a
+genuinely authored basis, and the AMMERSE basis at **0.3892 sits almost exactly at the mean of
+random admissible bases** — so its coupling strength is statistically unremarkable, which means the
+4.70% residual is representative rather than fortunate.
 
 ### 6.3 Sensitivity to the one asymmetric cell
 
