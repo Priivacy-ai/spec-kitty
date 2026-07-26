@@ -2822,6 +2822,7 @@ pages:
     - {slug: "spec-kitty-worktree-removal-delay", text: "SPEC_KITTY_WORKTREE_REMOVAL_DELAY", level: 3}
     - {slug: "hosted-auth-and-sync", text: "Hosted Auth and Sync", level: 2}
     - {slug: "spec-kitty-enable-saas-sync", text: "SPEC_KITTY_ENABLE_SAAS_SYNC", level: 3}
+    - {slug: "spec-kitty-event-webhook", text: "SPEC_KITTY_EVENT_WEBHOOK", level: 3}
     - {slug: "spec-kitty-saas-url", text: "SPEC_KITTY_SAAS_URL", level: 3}
     - {slug: "output-and-ux", text: "Output and UX", level: 2}
     - {slug: "spec-kitty-no-nag", text: "SPEC_KITTY_NO_NAG", level: 3}
