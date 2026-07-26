@@ -40,7 +40,7 @@ from spec_kitty_events.project_lifecycle import WPCreatedPayload
 
 from specify_cli.core.mission_payload import build_mission_created_payload
 from specify_cli.migration.envelope_seam import (
-    CANONICAL_ENVELOPE_SCHEMA_VERSION,
+    build_teamspace_envelope,
     deterministic_ulid,
     status_event_to_teamspace_envelope,
 )
@@ -238,30 +238,34 @@ def _envelope(
     timestamp: str,
     lamport: int,
     identity: _EnvelopeIdentity,
-) -> dict[str, Any]:  # canonical-producer-exempt: #2262 -- historical import-replay envelope builder
-    """Assemble a full TeamSpace envelope, matching the WPStatusChanged shape.
+) -> dict[str, Any]:
+    """Assemble the creation-prefix TeamSpace envelope via the shared shell.
 
-    Mirrors the migration-replay builder ``status_event_to_teamspace_envelope``
-    (itself #1198-exempt): a historical replay/synthesis producer, not a
-    live-path event emitter, so it assembles the envelope dict directly.
+    The 15-key envelope shell is owned by ``build_teamspace_envelope`` (the same
+    owner the migration ``WPStatusChanged`` builder uses, re-exported through
+    ``envelope_seam``) — #2891, so the two replay producers cannot drift on the
+    envelope-level fields. This builder only supplies the import producer's
+    ``build_id``/``node_id``/``correlation_id`` values.
     """
-    return {  # canonical-producer-exempt: #2262 -- see function-level comment
-        "event_id": event_id,
-        "event_type": event_type,
-        "aggregate_id": aggregate_id,
-        "aggregate_type": aggregate_type,
-        "payload": payload,
-        "timestamp": timestamp,
-        "build_id": _BUILD_ID,
-        "node_id": _NODE_ID,
-        "lamport_clock": lamport,
-        "causation_id": None,
-        "project_uuid": identity.project_uuid,
-        "project_slug": identity.project_slug,
-        "repo_slug": identity.repo_slug,
-        "correlation_id": identity.correlation_id,
-        "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
-    }
+    # Explicit annotation: under the project's ``follow_imports = "skip"`` mypy
+    # config the cross-module ``build_teamspace_envelope`` return is seen as
+    # ``Any``; re-narrow it (the seam owner IS typed ``-> dict[str, Any]``).
+    envelope: dict[str, Any] = build_teamspace_envelope(
+        event_id=event_id,
+        event_type=event_type,
+        aggregate_id=aggregate_id,
+        aggregate_type=aggregate_type,
+        payload=payload,
+        timestamp=timestamp,
+        build_id=_BUILD_ID,
+        node_id=_NODE_ID,
+        lamport_clock=lamport,
+        project_uuid=identity.project_uuid,
+        project_slug=identity.project_slug,
+        repo_slug=identity.repo_slug,
+        correlation_id=identity.correlation_id,
+    )
+    return envelope
 
 
 def _rebrand_as_import(envelope: dict[str, Any], identity: _EnvelopeIdentity) -> dict[str, Any]:

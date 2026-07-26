@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from specify_cli.migration.mission_state import (
     CANONICAL_ENVELOPE_SCHEMA_VERSION,
+    _build_teamspace_envelope as build_teamspace_envelope,
     _select_mission_dirs as select_mission_dirs,
     _status_event_to_teamspace_envelope as status_event_to_teamspace_envelope,
     _teamspace_audit_blockers as teamspace_audit_blockers,
@@ -38,6 +39,7 @@ from specify_cli.migration.mission_state import (
 
 __all__ = [
     "CANONICAL_ENVELOPE_SCHEMA_VERSION",
+    "build_teamspace_envelope",
     "deterministic_ulid",
     "envelope_sha256",
     "select_mission_dirs",
