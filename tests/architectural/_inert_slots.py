@@ -323,7 +323,7 @@ _EVENT_LOG = "status.events.jsonl"
 #: owner the anti-weasel test can never fire for, so an uncapped hatch lets a new
 #: finding satisfy the growth rule without anyone taking responsibility for it.
 #: This number may only ever go DOWN.
-MAX_UNASSIGNED_ENTRIES = 25
+MAX_UNASSIGNED_ENTRIES = 23
 
 #: Concrete floors (charter §5, ``architectural-gate-non-vacuity`` failure mode #1).
 #: Every shipped-tree assertion in this gate is an *absence* assertion — ``new ==
