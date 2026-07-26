@@ -24,7 +24,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
 from specify_cli.delivery.config import EventSyncConfig, Mode
-from specify_cli.delivery.receivers import GateContext, _TEAMSPACE_GATES
+from specify_cli.delivery.receivers import _TEAMSPACE_GATES
 
 pytestmark = pytest.mark.fast
 
