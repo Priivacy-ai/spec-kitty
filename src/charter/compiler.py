@@ -1439,9 +1439,19 @@ def _dump_yaml(data: dict[str, object]) -> str:
 def _trim_source_path(source_path: str) -> str:
     if not source_path:
         return ""
-    marker = "src/doctrine/"
-    if marker in source_path:
-        return source_path[source_path.index(marker) :]
+    canonical_prefix = "src/doctrine/"
+    # Bundled doctrine installs as a top-level ``doctrine`` package regardless of
+    # the parent directory name -- ``src`` in a checkout, ``site-packages``/
+    # ``dist-packages`` in an installed environment, or an arbitrary directory
+    # under ``pip install --target``. Recognize the package root by name so every
+    # layout normalizes to portable provenance. Use the *rightmost* ``doctrine``
+    # component so an unrelated ancestor named ``doctrine`` does not leak the
+    # outer layout into the suffix.
+    parts = source_path.replace("\\", "/").split("/")
+    for index in range(len(parts) - 1, -1, -1):
+        if parts[index] == "doctrine":
+            suffix = "/".join(parts[index + 1 :])
+            return f"{canonical_prefix}{suffix}" if suffix else source_path
     return source_path
 
 

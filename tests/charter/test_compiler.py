@@ -7,7 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog
-from charter.compiler import _resolve_template_set, compile_charter, write_compiled_charter
+from charter.compiler import (
+    _resolve_template_set,
+    _trim_source_path,
+    compile_charter,
+    write_compiled_charter,
+)
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -18,6 +23,28 @@ from charter.interview import (
 from charter.pack_context import PackContext
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.mark.parametrize(
+    "source_path",
+    [
+        "/Users/example/.local/share/uv/tools/spec-kitty-cli/lib/python3.11/site-packages/doctrine/paradigms/built-in/atomic-design.paradigm.yaml",
+        r"C:\Users\example\AppData\Local\Programs\Python\Python311\Lib\site-packages\doctrine\paradigms\built-in\atomic-design.paradigm.yaml",
+        "/usr/lib/python3/dist-packages/doctrine/paradigms/built-in/atomic-design.paradigm.yaml",
+        # An ancestor checkout also contains ``src/doctrine/``; the innermost
+        # (rightmost) install marker must win so the outer layout does not leak.
+        "/home/me/src/doctrine/proj/.venv/lib/python3.11/site-packages/doctrine/paradigms/built-in/atomic-design.paradigm.yaml",
+        # ``pip install --target /app/vendor`` drops the ``doctrine`` package
+        # under an arbitrary parent that matches none of the conventional names.
+        "/app/vendor/doctrine/paradigms/built-in/atomic-design.paradigm.yaml",
+    ],
+)
+def test_trim_source_path_canonicalizes_installed_doctrine(source_path: str) -> None:
+    """Charter provenance is portable across source and installed CLI layouts."""
+    assert (
+        _trim_source_path(source_path)
+        == "src/doctrine/paradigms/built-in/atomic-design.paradigm.yaml"
+    )
 
 
 def test_compile_charter_contains_governance_activation_block() -> None:

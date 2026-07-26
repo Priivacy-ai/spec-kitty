@@ -15,7 +15,10 @@ from specify_cli.tool_surface.findings import (
     SurfaceFinding,
 )
 from specify_cli.tool_surface.profiles.projection import (
+    LAYER_BUILTIN,
+    LAYER_ORG,
     ProfileProjector,
+    _manifest_source_path,
     default_profile_repository,
 )
 from specify_cli.tool_surface.profiles.manifest import PROJECTION_VERSION, hash_file
@@ -46,6 +49,132 @@ def test_project_claude_returns_builtin_profiles() -> None:
     assert sample.format == "claude-agent"
     assert sample.source_layer == "builtin"
     assert sample.file_hash is None  # computed only after write
+
+
+def test_project_serializes_builtin_provenance_portably(tmp_path: Path) -> None:
+    """Built-in profile manifests must not retain an installation-specific path."""
+    projected = {
+        profile.profile_urn: profile
+        for profile in ProfileProjector(_builtin_repo()).project("claude", tmp_path)
+    }
+
+    assert (
+        projected["agent_profile:architect-alphonso"].source_path
+        == "src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml"
+    )
+
+
+@pytest.mark.parametrize(
+    "install_root",
+    ["site-packages", "dist-packages"],
+)
+def test_manifest_source_path_canonicalizes_in_project_install(
+    tmp_path: Path, install_root: str
+) -> None:
+    """An in-project doctrine install must not leak its host-local path.
+
+    When Spec Kitty is installed into ``<project>/.venv/.../site-packages`` (or
+    the Debian-derived ``dist-packages`` layout), the built-in doctrine source
+    resolves *under* the project root, so a naive repo-relative serialization
+    would persist a host-specific ``.../doctrine/...`` path that changes across
+    installation layouts. A ``builtin`` manifest path must instead canonicalize
+    to the portable ``src/doctrine/...`` form.
+    """
+    installed = (
+        tmp_path
+        / ".venv"
+        / "lib"
+        / "python3.11"
+        / install_root
+        / "doctrine"
+        / "agent_profiles"
+        / "built-in"
+        / "architect-alphonso.agent.yaml"
+    )
+    assert (
+        _manifest_source_path(installed, tmp_path, LAYER_BUILTIN)
+        == "src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml"
+    )
+
+
+def test_manifest_source_path_selects_innermost_doctrine_root(
+    tmp_path: Path,
+) -> None:
+    """The innermost doctrine root wins when an ancestor also matches a marker.
+
+    An install can sit beneath a checkout whose own path contains
+    ``src/doctrine/`` (``/home/me/src/doctrine/proj/.venv/.../site-packages/
+    doctrine/...``). Splitting on the leftmost marker would leak the outer
+    checkout and virtualenv layout; the rightmost recognized marker must be
+    used so only the canonical package-relative suffix survives.
+    """
+    installed = (
+        tmp_path
+        / "src"
+        / "doctrine"
+        / "proj"
+        / ".venv"
+        / "lib"
+        / "python3.11"
+        / "site-packages"
+        / "doctrine"
+        / "agent_profiles"
+        / "built-in"
+        / "architect-alphonso.agent.yaml"
+    )
+    assert (
+        _manifest_source_path(installed, tmp_path / "elsewhere", LAYER_BUILTIN)
+        == "src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml"
+    )
+
+
+def test_manifest_source_path_canonicalizes_pip_target_install(
+    tmp_path: Path,
+) -> None:
+    """A ``pip install --target`` layout still yields canonical provenance.
+
+    ``pip install --target /app/vendor`` drops the ``doctrine`` package directly
+    under an arbitrary directory (``/app/vendor/doctrine/...``) whose parent
+    matches none of the conventional ``src``/``site-packages``/``dist-packages``
+    names. The package root must still be recognized so the manifest records the
+    portable ``src/doctrine/...`` provenance rather than the host path.
+    """
+    installed = (
+        tmp_path
+        / "app"
+        / "vendor"
+        / "doctrine"
+        / "agent_profiles"
+        / "built-in"
+        / "architect-alphonso.agent.yaml"
+    )
+    assert (
+        _manifest_source_path(installed, tmp_path / "elsewhere", LAYER_BUILTIN)
+        == "src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml"
+    )
+
+
+def test_manifest_source_path_preserves_out_of_tree_org_source(
+    tmp_path: Path,
+) -> None:
+    """An out-of-tree org overlay under ``src/doctrine/`` keeps its real path.
+
+    Canonicalization is restricted to ``builtin`` sources; an org checkout at
+    e.g. ``/opt/acme/src/doctrine/agent_profiles/...`` must retain its true
+    (out-of-tree, absolute) provenance rather than being rewritten to a
+    bundled-looking ``src/doctrine/...`` path that hides its origin.
+    """
+    org_source = (
+        tmp_path
+        / "opt"
+        / "acme"
+        / "src"
+        / "doctrine"
+        / "agent_profiles"
+        / "acme-analyst.agent.yaml"
+    )
+    result = _manifest_source_path(org_source, tmp_path / "project", LAYER_ORG)
+    assert result == str(org_source.resolve())
 
 
 def test_project_unsupported_tool_returns_empty() -> None:
