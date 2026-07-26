@@ -70,7 +70,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 # ---------------------------------------------------------------------------
 
 
-# The exact 8 subcommands `app` exposes, in alphabetical (Typer help) order.
+# The exact 9 subcommands `app` exposes, in alphabetical (Typer help) order.
+# `repair` was added by WP08 of coord-write-placement-closure-01KYCF83 (the
+# Gap-2 cross-partition content repair cure, FR-005/NFR-005) after the
+# original #2056 characterization; the contract below is amended in place
+# rather than treated as append-only drift, per DIRECTIVE_044.
 _EXPECTED_COMMANDS: frozenset[str] = frozenset(
     {
         "branch-context",
@@ -81,6 +85,7 @@ _EXPECTED_COMMANDS: frozenset[str] = frozenset(
         "accept",
         "merge",
         "finalize-tasks",
+        "repair",
     }
 )
 
@@ -132,6 +137,7 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
     "finalize-tasks": frozenset(
         {"--mission", "--json", "--validate-only", "--target-branch"}
     ),
+    "repair": frozenset({"--mission"}),
 }
 
 
@@ -171,12 +177,12 @@ def runner() -> CliRunner:
 
 
 # ---------------------------------------------------------------------------
-# T001 — the command set is exactly the 8 frozen commands
+# T001 — the command set is exactly the 9 frozen commands
 # ---------------------------------------------------------------------------
 
 
-def test_app_exposes_exactly_eight_frozen_commands(runner: CliRunner) -> None:
-    """``app --help`` lists exactly the 8 contracted commands — no more, no fewer."""
+def test_app_exposes_exactly_nine_frozen_commands(runner: CliRunner) -> None:
+    """``app --help`` lists exactly the 9 contracted commands — no more, no fewer."""
     result = runner.invoke(mission_app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0, result.stdout
 
