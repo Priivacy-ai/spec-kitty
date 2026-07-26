@@ -288,3 +288,15 @@ test_no_dead_symbols:
   # read_wp_lane_actor) were deleted and the 3 internally-used types
   # (EventLogWriteTarget, StatusContractError, StatusReadSource) were
   # de-exported from status_service.__all__, so the baseline is now 0.
+
+# tests/architectural/test_no_inert_schema_slots.py — the zero-producer lint
+# (mission doctrine-silence-guards-01KYFV7Q, WP01).
+#
+# NOT an allowlist. Each entry is a declared doctrine slot that nothing in the
+# tree populates, frozen with a named owner and a required structural fix; see
+# tests/architectural/_inert_slots_baseline.yaml. Growth FAILS, shrinkage WARNS.
+# Entries clear when their owner lands the fix — WP05 owns 8 (the FR-028
+# enhances/overrides excision) and mission foundational-values-creed-band-01KYFV8N
+# owns 26 (import_candidates' first producer). Expect this to fall, not rise.
+test_no_inert_schema_slots:
+  baseline_entries: 59
