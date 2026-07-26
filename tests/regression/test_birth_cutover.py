@@ -735,6 +735,163 @@ def test_coord_seed_commit_targets_coord_branch_no_head_mismatch(tmp_path: Path)
     assert "01JSEEDBIRTHCUTOVER0000000" in tracked
 
 
+def _coord_seed_run_real_meta(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[object, Path, Path, str, Path, str]:
+    """Real-``meta.json`` sibling of :func:`_coord_seed_run` (adversarial-review
+    P1, #2884): builds a genuine COORD-topology mission through the REAL
+    ``create_mission_core`` entry point, so ``meta.json`` carries the exact
+    fields production writes (``mission_id``, ``target_branch``,
+    ``coordination_branch``, ``topology``) at the PRIMARY checkout.
+
+    ``_coord_seed_run`` never writes ``kitty-specs/<slug>/meta.json`` into the
+    main repo, so ``_resolve_bookkeeping_commit_target``'s
+    ``_mission_meta_exists`` gate is always False there and every existing F1/F2/F3
+    test runs the ``branch=coord_ref`` degrade fallback — never
+    ``resolve_placement_only(kind=MissionArtifactKind.STATUS_STATE)``, the
+    placement-port branch this fixture exists to exercise. With a real
+    ``meta.json`` present, ``_mission_meta_exists`` is True and the seam must
+    reach the placement port.
+    """
+    from specify_cli.core.mission_creation import create_mission_core
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.merge.executor import _MergeRunState
+    from specify_cli.missions._create import ensure_coordination_branch
+
+    repo = _init_project(tmp_path)
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION", "1")
+    # Mirrors _bootstrap_born_mission's churn-ignore setup: the nested
+    # coordination worktree is untracked test-harness scaffolding, orthogonal
+    # to the placement-port behavior under test.
+    (repo / ".gitignore").write_text(".worktrees/\n.kittify/sync-state.json\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "chore: ignore worktrees + sync-state churn")
+
+    result = create_mission_core(
+        repo, "coord-seed-real-meta-demo", topology=MissionTopology.COORD
+    )
+    feature_dir = result.feature_dir
+    slug = feature_dir.name
+    assert result.coordination_branch is not None, "COORD topology must mint a coord branch"
+
+    # The planning scaffold (kitty-specs/<slug>/*, incl. meta.json) must be
+    # committed on "main" BEFORE the coordination branch is (re-)forked below —
+    # otherwise the coord branch/worktree carries no kitty-specs/<slug> dir at
+    # all (the "coord-empty" state _bootstrap_born_mission's own comment
+    # documents) and status.events.jsonl would have nowhere real to seed.
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", f"chore({slug}): finalize planning scaffold")
+
+    mission_id = str(result.meta["mission_id"])
+    # Re-fork from the CURRENT "main" tip (now carrying the mission dir),
+    # the same documented operator escape hatch _bootstrap_born_mission uses.
+    ensure_coordination_branch(
+        repo_root=repo,
+        mission_slug=slug,
+        mission_id=mission_id,
+        target_branch="main",
+        force_recreate=True,
+    )
+    coord_worktree = CoordinationWorkspace.resolve(repo, slug, mission_id[:8])
+    coord_branch = result.coordination_branch
+
+    status_feature_dir = coord_worktree / "kitty-specs" / slug
+    assert status_feature_dir.exists(), "coord worktree must carry the mission dir (not coord-empty)"
+    events_path = status_feature_dir / "status.events.jsonl"
+    events_path.write_text(_SEED_EVENT_LINE, encoding="utf-8")  # dirty, uncommitted
+
+    import types
+    from typing import cast
+
+    run = cast(
+        "_MergeRunState",
+        types.SimpleNamespace(
+            main_repo=repo,
+            mission_slug=slug,
+            pre_target_coord_ref=coord_branch,
+            canonical_events_path=events_path,
+        ),
+    )
+    return run, coord_worktree, status_feature_dir, coord_branch, repo, slug
+
+
+def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F1 sibling, under a REAL coord-topology ``meta.json`` (adversarial-review
+    P1, #2884): proves ``_commit_coord_seed_events`` actually reaches
+    ``resolve_placement_only(kind=MissionArtifactKind.STATUS_STATE)`` through
+    :func:`commit_coord_seed_bookkeeping` — not merely the ``branch=coord_ref``
+    degrade fallback every ``_coord_seed_run``-driven test exercises (that
+    fixture's main repo never carries a ``meta.json``, so
+    ``_mission_meta_exists`` is always False there and the placement-port call
+    is never reached).
+    """
+    from mission_runtime import MissionArtifactKind, resolve_placement_only
+
+    from specify_cli.git import bookkeeping_commit
+    from specify_cli.merge.executor import _commit_coord_seed_events
+
+    run, coord_worktree, status_feature_dir, coord_branch, main_repo, slug = (
+        _coord_seed_run_real_meta(tmp_path, monkeypatch)
+    )
+
+    # Falsifiability precondition: in THIS fixture, the artifact ``kind`` must
+    # actually change the resolved destination, or assertion (b) below would
+    # pass even with the wrong kind (or no placement-port call at all) wired
+    # in. PRIMARY_METADATA resolves to the mission's PRIMARY target branch
+    # ("main"), which is a different ref than the coord branch.
+    primary_target = resolve_placement_only(
+        main_repo, slug, kind=MissionArtifactKind.PRIMARY_METADATA
+    ).ref
+    assert primary_target != coord_branch, (
+        "fixture is not falsifying: PRIMARY_METADATA must NOT resolve to the coord branch"
+    )
+
+    # Spy on the placement port as bookkeeping_commit imports it, to prove the
+    # seam actually CONSULTED it (with the STATUS_STATE kind) rather than
+    # silently taking the branch=coord_ref degrade path (#2884's own review
+    # finding: the degrade fallback's ``branch`` param is ALSO coord_branch in
+    # this fixture, so the resulting ref alone cannot distinguish "the port
+    # resolved it" from "resolution failed and degrade quietly supplied the
+    # same value").
+    real_resolve_placement_only = bookkeeping_commit.resolve_placement_only
+    calls: list[MissionArtifactKind] = []
+
+    def _spy_resolve_placement_only(*args: object, **kwargs: object) -> object:
+        calls.append(kwargs["kind"])  # type: ignore[arg-type]
+        return real_resolve_placement_only(*args, **kwargs)
+
+    monkeypatch.setattr(
+        bookkeeping_commit, "resolve_placement_only", _spy_resolve_placement_only
+    )
+
+    _commit_coord_seed_events(run, status_feature_dir)
+
+    # The placement port was consulted exactly once, with the COORD-partition
+    # kind — proving the degrade path (which never calls resolve_placement_only
+    # at all when _mission_meta_exists is False) was NOT taken.
+    assert calls == [MissionArtifactKind.STATUS_STATE]
+
+    # (a) Same assertion style as the sibling F1 test: the seed commit lands on
+    # the coord branch via real safe_commit (clean tree, reconcile subject).
+    porcelain = _git(coord_worktree, "status", "--porcelain").stdout
+    assert porcelain.strip() == "", f"seed events not committed: {porcelain!r}"
+    subject = _git(coord_worktree, "log", "-1", "--pretty=%s").stdout.strip()
+    assert "birth-cutover seed events reconciled" in subject
+    tracked = _git(
+        coord_worktree, "show", "HEAD:kitty-specs/" + slug + "/status.events.jsonl"
+    ).stdout
+    assert "01JSEEDBIRTHCUTOVER0000000" in tracked
+
+    # (b) The falsifiable assertion the finding demands: the placement port
+    # itself resolves the COORD-partition STATUS_STATE kind to the coord
+    # branch under this real coord topology.
+    resolved = resolve_placement_only(main_repo, slug, kind=MissionArtifactKind.STATUS_STATE)
+    assert resolved.ref == coord_branch
+
+
 def test_coord_seed_commit_is_resume_safe_noop_when_clean(tmp_path: Path) -> None:
     """F2: a second invocation (events already committed, tree clean) is a no-op
     — gated on dirty-state, not the per-run seeded_count, so resume heals without
