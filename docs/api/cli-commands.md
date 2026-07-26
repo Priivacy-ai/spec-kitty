@@ -4098,13 +4098,13 @@ _Synchronization commands_
  or incomplete missions the dry-run reports before the first ``--apply``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --apply                Materialize the selected missions into the SaaS       │
-│                        projection (default is a dry-run plan).               │
-│ --dry-run              Preview what would be imported without emitting       │
-│                        anything (this is the default).                       │
-│ --mission        TEXT  Import only this mission (slug / mid8 / ULID);        │
-│                        default imports all eligible missions.                │
-│ --help                 Show this message and exit.                           │
+│ --apply                  Materialize the selected missions into the SaaS     │
+│                          projection (default is a dry-run plan).             │
+│ --dry-run                Preview what would be imported without emitting     │
+│                          anything (this is the default).                     │
+│ --mission          TEXT  Import only this mission (slug / mid8 / ULID);      │
+│                          default imports all eligible missions.              │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
