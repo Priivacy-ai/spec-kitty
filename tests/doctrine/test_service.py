@@ -217,7 +217,8 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(tmp_pat
 # ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission.
 # The Directive model no longer carries inline ``tactic_refs``; cross-artifact
 # relationships are expressed exclusively via edges in
-# ``src/doctrine/graph.yaml`` and are validated by the DRG cycle/shape tests.
+# the per-kind DRG fragments (``src/doctrine/<kind>.graph.yaml``) and are
+# validated by the DRG cycle/shape tests.
 
 
 def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_match(
