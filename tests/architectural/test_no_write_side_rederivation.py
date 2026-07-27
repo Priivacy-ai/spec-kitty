@@ -506,12 +506,21 @@ _RETIRED_CHECKOUT_GRAMMAR_ALLOWLIST: frozenset[str] = frozenset(
 #: T029 "prefix guard -- RETAIN, do not create"): the meta-test below asserts
 #: the shared helper's tuple is STILL exactly this -- a newly-ADDED dir-prefix
 #: entry reds immediately, forcing the adder to use a per-file
-#: ``BOUNDARY_SANCTIONED_MODULES`` entry (with a rationale) instead. The
-#: pre-existing three entries are untouched.
+#: ``BOUNDARY_SANCTIONED_MODULES`` entry (with a rationale) instead.
+#:
+#: placement-port-residuals-closure-01KYDEF0 WP03 (2026-07-26 / FR-003/004,
+#: SC-002, C-002): ``"src/specify_cli/migration/"`` DROPPED from this tuple --
+#: the subtree carries ZERO ``CommitTarget``/``safe_commit`` construction
+#: (empirically confirmed; see T014), so the prefix was pure unused blanket
+#: scope, not an active sanction. Removing it restores "any module" scan
+#: precision (SC-002/NFR-001) without allow-listing anything new. The
+#: remaining two entries (``mission_runtime/``, ``upgrade/migrations/``) are
+#: untouched (C-002). The SEPARATE, intentional ``migration/`` blanket in
+#: ``test_mission_resolver_walker_gate.py::_MIGRATION_WALKER_DIR_PREFIXES``
+#: (C-004) is a different scan and is NOT affected by this change.
 _PINNED_BOUNDARY_SANCTIONED_PREFIXES: tuple[str, ...] = (
     "src/mission_runtime/",
     "src/specify_cli/upgrade/migrations/",
-    "src/specify_cli/migration/",
 )
 
 
@@ -809,67 +818,21 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "'proxy honesty')."
         ),
     ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/events/decision_log.py",
-        qualname="DecisionGitLog._resolve_default_target",
-        token_substring="CommitTarget ( ref = destination_ref )",
-        occurrence=0,
-        rationale=(
-            "Bootstrap-window degrade (coord-write-placement-closure-01KYCF83 "
-            "WP03/FR-003): the PRIMARY path calls resolve_placement_only(...) "
-            "directly (seam-derived). This first degrade fires ONLY when the "
-            "mission has no meta.json yet (create-to-first-write window, or an "
-            "ad-hoc fixture) -- an explicit existence gate, not a checkout "
-            "re-derivation; mirrors (but does not reproduce) the drained WS#1 "
-            "pattern by degrading to the caller-SUPPLIED destination_ref "
-            "parameter rather than reading ambient checkout HEAD."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/events/decision_log.py",
-        qualname="DecisionGitLog._resolve_default_target",
-        token_substring="CommitTarget ( ref = destination_ref )",
-        occurrence=1,
-        rationale=(
-            "Same bootstrap-window degrade as occurrence=0's sibling, "
-            "triggered instead by resolve_placement_only raising "
-            "ActionContextError/StatusReadPathNotFound/FileNotFoundError (a "
-            "harder failure mode -- e.g. an ambiguous/malformed mission). Same "
-            "caller-supplied-parameter rationale; the two returns are "
-            "identical text at different linenos in the same qualname "
-            "(occurrence disambiguates, D-2)."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/git/bookkeeping_commit.py",
-        qualname="_resolve_bookkeeping_commit_target",
-        token_substring="CommitTarget ( ref = branch )",
-        occurrence=0,
-        rationale=(
-            "Bootstrap-window degrade, explicitly documented as 'mirroring "
-            "coordination.status_transition._resolve_write_target': the "
-            "PRIMARY path calls resolve_placement_only(...) directly "
-            "(seam-derived). This first degrade fires ONLY when the mission "
-            "cannot be resolved (no meta.json yet, or an ad-hoc fixture) AND "
-            "a degrade-path 'branch' parameter was supplied by the caller -- "
-            "when no degrade path is available it raises ActionContextError "
-            "instead (fail-closed), it never silently reads checkout HEAD."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/git/bookkeeping_commit.py",
-        qualname="_resolve_bookkeeping_commit_target",
-        token_substring="CommitTarget ( ref = branch )",
-        occurrence=1,
-        rationale=(
-            "Same bootstrap-window degrade as occurrence=0's sibling, "
-            "triggered instead by resolve_placement_only raising "
-            "ActionContextError/StatusReadPathNotFound/FileNotFoundError. Same "
-            "caller-supplied-parameter rationale; the two returns are "
-            "identical text at different linenos in the same qualname "
-            "(occurrence disambiguates, D-2)."
-        ),
-    ),
+    # NOTE (placement-port-residuals-closure-01KYDEF0 WP04, FR-005): the four
+    # ``decision_log.DecisionGitLog._resolve_default_target`` /
+    # ``bookkeeping_commit._resolve_bookkeeping_commit_target``
+    # ``CommitTarget(ref=...)`` descriptors formerly seeded here were DELETED
+    # (shrink-only governance, matching the ``test_checkout_grammar_allow_list_
+    # entries_are_still_live`` staleness contract above): WP04 extracted the
+    # shared ``CommitTarget(ref=degrade_ref)`` degrade construction these two
+    # call sites duplicated into ONE helper,
+    # ``mission_runtime.write_target_degrade.resolve_write_target_or_degrade``.
+    # Both call sites now only ever call that helper — the ``CommitTarget(...)``
+    # construction itself no longer exists at either site, so the descriptors
+    # resolve to zero candidates. The helper's own construction needs no new
+    # allow-list entry: ``src/mission_runtime/`` is already a
+    # ``BOUNDARY_SANCTIONED_PREFIXES`` entry (out of this scan's scope), same
+    # as every other seam-internal primitive under that package.
 )
 
 #: Composite key resolved LIVE for each ``_CHECKOUT_GRAMMAR_ALLOW_LIST_SEED``

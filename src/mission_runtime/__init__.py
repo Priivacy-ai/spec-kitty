@@ -66,6 +66,7 @@ from mission_runtime.resolution import (
     translate_surface,
 )
 from mission_runtime.mission_resolver_port import MissionResolver
+from mission_runtime.write_target_degrade import resolve_write_target_or_degrade
 
 __all__ = [
     "ActionContextError",
@@ -102,6 +103,7 @@ __all__ = [
     "resolve_mid8",
     "resolve_placement_only",
     "resolve_topology",
+    "resolve_write_target_or_degrade",
     "routes_through_coordination",
     "translate_surface",
 ]

@@ -92,10 +92,20 @@ BOUNDARY_SANCTIONED_MODULES: dict[str, str] = {
 #: ``test_checkout_grammar_boundary_excludes_sanctioned_modules``'s pinned
 #: tuple guard -- use a per-file ``BOUNDARY_SANCTIONED_MODULES`` entry
 #: instead.
+#:
+#: placement-port-residuals-closure-01KYDEF0 WP03 (FR-003/004, SC-002,
+#: C-002): ``"src/specify_cli/migration/"`` was DROPPED from this tuple --
+#: empirically the subtree has ZERO ``CommitTarget``/``safe_commit``
+#: construction, so the prefix sanctioned nothing real; dropping it restores
+#: "any module" scan precision. Keep this in LOCKSTEP with
+#: ``test_no_write_side_rederivation.py``'s
+#: ``_PINNED_BOUNDARY_SANCTIONED_PREFIXES`` (its meta-test hard-asserts
+#: equality). Do not confuse with the separate, intentional ``migration/``
+#: blanket in ``test_mission_resolver_walker_gate.py`` (C-004) -- a different
+#: scan, untouched by this change.
 BOUNDARY_SANCTIONED_PREFIXES: tuple[str, ...] = (
     "src/mission_runtime/",
     "src/specify_cli/upgrade/migrations/",
-    "src/specify_cli/migration/",
 )
 
 

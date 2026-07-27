@@ -21,18 +21,13 @@ from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.time_utils import now_utc_iso
 
 from mission_runtime import (
-    ActionContextError,
     CommitTarget,
     MissionArtifactKind,
-    resolve_placement_only,
+    resolve_write_target_or_degrade,
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
-from specify_cli.missions._read_path_resolver import (
-    StatusReadPathNotFound,
-    candidate_feature_dir_for_mission,
-)
 from runtime.next._internal_runtime.events import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
@@ -52,29 +47,6 @@ from runtime.next._internal_runtime.significance import (
 __all__ = ["DecisionGitLog"]
 
 logger = logging.getLogger(__name__)
-
-
-def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
-    """Return True when ``mission_slug`` has a primary ``meta.json`` on disk.
-
-    A cheap, read-only existence gate — NOT a ref derivation — that
-    distinguishes a genuinely bootstrapped mission from an ad-hoc fixture or
-    the create→first-write window. ``resolve_placement_only`` never raises
-    for a merely-absent mission (:func:`candidate_feature_dir_for_mission`'s
-    own contract): it silently degrades to the repo's generic default branch
-    instead of signalling unresolvability, so this gate is checked BEFORE
-    consulting the classifier rather than relying on an exception that would
-    never fire.
-    """
-    try:
-        # Explicit ``Path`` annotation: under the project's
-        # ``follow_imports = "skip"`` mypy config the cross-module
-        # ``candidate_feature_dir_for_mission`` return is seen as ``Any``; the
-        # annotation re-narrows it (the function IS typed ``-> Path``).
-        candidate: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-    except Exception:  # noqa: BLE001 — any resolution hiccup means "not resolvable"
-        return False
-    return (candidate / "meta.json").exists()
 
 
 def _generate_event_id() -> str:
@@ -153,31 +125,20 @@ class DecisionGitLog:
         """Derive the default commit target via the placement port (FR-003).
 
         ``decisions.events.jsonl`` is the ``DECISION_LOG`` kind (a
-        COORD-partition kind, WP02) — ``resolve_placement_only`` resolves the
-        SAME coordination-branch ref the classifier already owns.
+        COORD-partition kind, WP02) — uses the shared helper to resolve
+        through the placement port, with caller-supplied degrade ref for
+        the bootstrap-window (no ``meta.json`` yet, or ad-hoc fixture).
 
-        Degrades to the caller-supplied ``destination_ref`` in two cases:
-
-        1. The mission has no primary ``meta.json`` on disk yet (the
-           create→first-write window, or an ad-hoc fixture outside a
-           resolvable mission). ``resolve_placement_only`` does NOT raise for
-           a merely-absent mission — it silently falls through to the repo's
-           generic default branch — so this is an explicit existence gate,
-           not a ref re-derivation, mirroring
-           ``coordination.status_transition._resolve_write_target``'s
-           documented bootstrap-window degrade.
-        2. Resolution raises anyway (a harder failure mode — e.g. an
-           ambiguous/malformed mission) — the same exception classes
-           ``_resolve_write_target`` catches.
+        This method preserves fail-open behavior: the mission events are
+        logged regardless of resolution success (fail-open policy at
+        call site).
         """
-        if not _mission_meta_exists(repo_root, mission_slug):
-            return CommitTarget(ref=destination_ref)
-        try:
-            return resolve_placement_only(
-                repo_root, mission_slug, kind=MissionArtifactKind.DECISION_LOG
-            )
-        except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
-            return CommitTarget(ref=destination_ref)
+        return resolve_write_target_or_degrade(
+            repo_root,
+            mission_slug,
+            kind=MissionArtifactKind.DECISION_LOG,
+            degrade_ref=destination_ref,
+        )
 
     # ------------------------------------------------------------------
     # Decision event methods (git-logged)

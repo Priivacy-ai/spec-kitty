@@ -669,36 +669,50 @@ def _resolve_write_target(
     create window still resolves without deadlock and without guessing off
     whatever branch happens to be checked out. ``coord_branch`` still
     short-circuits first when the caller already has one in hand.
+
+    WP05 / IC-06b / FR-005 / C-004 (pre-gate adoption, real behavior change):
+    this now routes through the shared
+    :func:`mission_runtime.resolve_write_target_or_degrade` helper (WP04),
+    which ADDS the ``_mission_meta_exists`` pre-gate this selector lacked.
+    Before this adoption, the inline ``try`` arm always called
+    ``resolve_placement_only`` even in the no-``meta.json`` bootstrap window;
+    that function never raises for a merely-absent mission (documented
+    contract) — it silently degrades INTERNALLY to
+    ``get_feature_target_branch``, with no awareness of ``coord_branch`` at
+    all, so the ``except`` arm computing ``coord_branch or
+    get_feature_target_branch(...)`` was unreachable there — a caller-
+    supplied ``coord_branch`` was silently discarded in that window. The
+    pre-gate closes this: when ``meta.json`` is absent, resolution is skipped
+    entirely and ``degrade_ref = coord_branch or
+    get_feature_target_branch(...)`` is returned directly, honoring a
+    supplied ``coord_branch`` instead of dropping it (T021). ``STATUS_STATE``
+    stays a coordination kind — for a bootstrapped mission (``meta.json``
+    present) the helper's pre-gate passes through and still consults
+    ``resolve_placement_only``, keeping the coordination-branch routing under
+    coord topology; it is never flattened to the primary target branch
+    (C-004, T023).
     """
     from mission_runtime import (  # noqa: PLC0415
-        ActionContextError,
         MissionArtifactKind,
-        resolve_placement_only,
+        resolve_write_target_or_degrade,
     )
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        StatusReadPathNotFound,
-    )
+    from specify_cli.core.paths import get_feature_target_branch  # noqa: PLC0415
 
-    try:
-        # The STATUS write target MUST keep resolving the coordination branch under
-        # coord topology (write-surface-coherence WP02 / T031 / C-001 / G-2).
-        # STATUS_STATE is a coordination kind, so the kind-aware placement keeps the
-        # topology-routed ref — it MUST NOT be flipped to a primary kind.
-        return resolve_placement_only(
-            repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
-        ).ref
-    except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
-        # Unresolvable mission (pre-meta create window / ad-hoc fixture): route
-        # through the CWD-invariant target-branch resolver instead of the
-        # ambient checkout HEAD (#1716, closed). No git-HEAD read remains here.
-        if coord_branch:
-            return coord_branch
-        from specify_cli.core.paths import get_feature_target_branch  # noqa: PLC0415
+    # cast: follow_imports=skip (specify_cli.* boundary) makes
+    # get_feature_target_branch return Any under a narrow-file mypy
+    # invocation; its real signature returns str.
+    degrade_ref = coord_branch or cast(str, get_feature_target_branch(repo_root, mission_slug))
 
-        # cast: follow_imports=skip (specify_cli.* boundary) makes
-        # get_feature_target_branch return Any under a narrow-file mypy
-        # invocation; its real signature returns str.
-        return cast(str, get_feature_target_branch(repo_root, mission_slug))
+    # The STATUS write target MUST keep resolving the coordination branch under
+    # coord topology (write-surface-coherence WP02 / T031 / C-001 / G-2).
+    # STATUS_STATE is a coordination kind, so the kind-aware placement keeps the
+    # topology-routed ref — it MUST NOT be flipped to a primary kind.
+    return resolve_write_target_or_degrade(
+        repo_root,
+        mission_slug,
+        MissionArtifactKind.STATUS_STATE,
+        degrade_ref=degrade_ref,
+    ).ref
 
 
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:

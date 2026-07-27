@@ -245,12 +245,26 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
     primary-anchored (``kitty-specs/<slug>/traces/...``) regardless of which
     physical surface the bytes were actually read from — it is a stable
     evidence-provenance label, not a filesystem path.
+
+    WP06 (FR-006, C-READ-1): a coord mission whose ``coordination_branch`` is
+    declared in ``meta.json`` but has been deleted from git raises
+    :class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted`
+    from ``read_dir`` (a #1848 data-loss signal, elsewhere handled loudly).
+    Here it is degraded to an empty trace list instead — consistent with this
+    function's documented best-effort contract (FR-007 docstring above) and
+    scoped to this single call site only (C-003); it must not widen to a bare
+    ``Exception`` and must not touch the broader #2922 read-side set.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
-    traces_home = placement_seam(repo_root, feature_dir.name).read_dir(
-        MissionArtifactKind.TRACER_FILE
-    )
+    try:
+        traces_home = placement_seam(repo_root, feature_dir.name).read_dir(
+            MissionArtifactKind.TRACER_FILE
+        )
+    except (CoordinationBranchDeleted, StatusReadPathNotFound):
+        return []
     traces_dir = traces_home / "traces"
     if not traces_dir.is_dir():
         return []
