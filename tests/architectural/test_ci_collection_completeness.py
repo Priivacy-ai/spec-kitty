@@ -296,7 +296,10 @@ def _drop_push_disjunct(expr: str) -> str:
         if not kept:
             return "false"
         rebuilt = " || ".join(_drop_push_disjunct(part) for part in kept)
-        return rebuilt if len(kept) == 1 else f"({rebuilt})"
+        # Always re-parenthesize: the rewritten disjunction may sit inside an
+        # enclosing ``&&``, and a redundant pair of parens around a single
+        # survivor is stripped again by ``normalize_condition``.
+        return f"({rebuilt})"
     conjuncts = gc.split_top_level(inner, "&&")
     if len(conjuncts) > 1:
         return " && ".join(_drop_push_disjunct(part) for part in conjuncts)
