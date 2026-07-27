@@ -120,6 +120,16 @@ def _built_in() -> DRGGraph:
     )
 
 
+def _duplicate_edge_errors(merged: DRGGraph) -> list[str]:
+    """The canonical checker's verdict on repeated ``(source, target, relation)``.
+
+    Filtered out of the public :func:`validate_graph` rather than reaching for
+    the private per-check helper, so this asserts against the API the rest of
+    the codebase uses and cannot false-red when an unrelated check is added.
+    """
+    return [e for e in validate_graph(merged) if e.startswith("Duplicate edge")]
+
+
 def _org_edges(merged: DRGGraph, built_in: DRGGraph) -> list[tuple[str, str, str]]:
     """Return the ``(source, target, relation)`` triples the org layer added."""
     before = {(e.source, e.target, str(e.relation)) for e in built_in.edges}
@@ -598,6 +608,156 @@ class TestDocumentedLineageSnippet:
             for endpoint in (edge["source"], edge["target"]):
                 prefix = endpoint.split(":", 1)[0]
                 assert prefix in kinds, f"documented endpoint {endpoint!r} uses prefix {prefix!r}, which is not a NodeKind — the bridge cannot resolve it"
+
+
+# ---------------------------------------------------------------------------
+# One relationship must yield one edge — the dedup has to key on what the
+# endpoints RESOLVE to, not on the strings the author happened to type.
+# ---------------------------------------------------------------------------
+
+
+def _overlap_pack(root: Path, *, authored_target: str) -> Path:
+    """A pack in the migration-window overlap: one relationship, declared twice.
+
+    ``my-analyst.agent.yaml`` still carries the legacy ``specializes_from:``
+    field (the field-projection path emits ``agent_profile:my-analyst
+    --specializes_from--> agent_profile:researcher-ryan``) AND the fragment
+    hand-authors the same relationship in ``edges:``. This is exactly the
+    overlap the loader's dedup was written for.
+    """
+    pack = root / "overlap-pack"
+    (pack / "drg").mkdir(parents=True)
+    (pack / "agent_profiles").mkdir()
+    (pack / "drg" / "fragment.yaml").write_text(
+        "pack_name: overlap-pack\n"
+        "source_kind: local_path\n"
+        "source_ref: overlap-pack\n"
+        "layer_index: 1\n"
+        "provenance_marker: org\n"
+        "nodes:\n"
+        "  - id: my-analyst\n"
+        "    kind: agent_profiles\n"
+        "    title: My Analyst\n"
+        "edges:\n"
+        "  - source: my-analyst\n"
+        f"    target: {authored_target}\n"
+        "    relation: specializes_from\n",
+        encoding="utf-8",
+    )
+    (pack / "agent_profiles" / "my-analyst.agent.yaml").write_text(
+        "id: my-analyst\nspecializes_from: researcher-ryan\n", encoding="utf-8"
+    )
+    return pack
+
+
+class TestOneRelationshipYieldsOneEdge:
+    """``load_org_pack``'s dedup keys on the RAW, pre-resolution endpoint
+    strings. Once endpoint canonicalisation moved downstream of it, the bare and
+    the qualified spelling of one relationship became two dedup keys that
+    resolve to one triple — so the merged graph carries the edge twice.
+
+    The loader structurally cannot fix this on its own: resolving a bare id that
+    the fragment does not declare requires the BUILT-IN layer (rule 3 of
+    :func:`_resolve_edge_endpoint`), which the loader never sees. Edge identity
+    therefore belongs to the merge, after resolution — one authority, not a
+    partial one at load time that looks complete.
+    """
+
+    @pytest.mark.parametrize(
+        ("authored_target", "why"),
+        [
+            # The natural authoring shape, and the reviewer's repro: bare in
+            # the fragment, qualified from the projection. Only resolvable
+            # against the built-in layer -> undecidable at load time.
+            ("researcher-ryan", "bare vs qualified spelling of one endpoint"),
+            # Both spellings identical: decidable at load time too, so this
+            # must stay collapsed no matter which layer owns the dedup.
+            ("agent_profile:researcher-ryan", "byte-identical restatement"),
+        ],
+    )
+    def test_the_migration_window_overlap_yields_one_edge(
+        self, tmp_path: Path, authored_target: str, why: str
+    ) -> None:
+        fragment = load_org_pack(
+            "overlap-pack", _overlap_pack(tmp_path, authored_target=authored_target), 1
+        )
+
+        built_in = _built_in()
+        merged = merge_three_layers(built_in, [fragment], None)
+
+        assert _org_edges(merged, built_in) == [
+            (
+                "agent_profile:my-analyst",
+                "agent_profile:researcher-ryan",
+                "specializes_from",
+            )
+        ], f"one relationship must yield one edge ({why})"
+        assert _duplicate_edge_errors(merged) == []
+
+    def test_two_packs_declaring_the_same_relationship_yield_one_edge(self) -> None:
+        """Edge identity is the ``(source, target, relation)`` triple.
+
+        The DRG validator already calls a repeated triple an error, so two packs
+        that happen to declare the same relationship must collapse (first pack
+        keeps provenance, mirroring org-vs-org node precedence) rather than
+        produce a graph that fails its own integrity check.
+        """
+        def _pack(name: str) -> OrgDRGFragment:
+            return _fragment(
+                [{"id": "shared-node", "kind": "directives"}],
+                [
+                    {
+                        "source": "shared-node",
+                        "target": "directive:builtin-alpha",
+                        "relation": "requires",
+                    }
+                ],
+                pack_name=name,
+            )
+
+        built_in = _built_in()
+        merged = merge_three_layers(built_in, [_pack("first"), _pack("second")], None)
+
+        assert _org_edges(merged, built_in) == [
+            ("directive:shared-node", "directive:builtin-alpha", "requires")
+        ]
+        assert _duplicate_edge_errors(merged) == []
+        contributed = [e for e in merged.edges if str(e.provenance).startswith("org:")]
+        assert [e.provenance for e in contributed] == ["org:first"], (
+            "the first declaring pack keeps provenance, as it does for nodes"
+        )
+
+    def test_distinct_relationships_are_not_collapsed(self) -> None:
+        """The dedup must key on the whole triple, not a prefix of it."""
+        built_in = _built_in()
+        fragment = _fragment(
+            [{"id": "mine", "kind": "directives"}],
+            [
+                {
+                    "source": "mine",
+                    "target": "directive:builtin-alpha",
+                    "relation": "requires",
+                },
+                {
+                    "source": "mine",
+                    "target": "directive:builtin-alpha",
+                    "relation": "suggests",
+                },
+                {
+                    "source": "mine",
+                    "target": "styleguide:caveman-comments",
+                    "relation": "requires",
+                },
+            ],
+        )
+
+        merged = merge_three_layers(built_in, [fragment], None)
+
+        assert sorted(_org_edges(merged, built_in)) == [
+            ("directive:mine", "directive:builtin-alpha", "requires"),
+            ("directive:mine", "directive:builtin-alpha", "suggests"),
+            ("directive:mine", "styleguide:caveman-comments", "requires"),
+        ]
 
 
 # ---------------------------------------------------------------------------
