@@ -16,7 +16,8 @@ Required-scope map (inline):
 
 Overlay loading:
     The walker loads ``.kittify/doctrine/overlays/calibration-<mission>.yaml``
-    (if present) alongside the built-in ``src/doctrine/graph.yaml``.  Overlay
+    (if present) alongside the built-in ``src/doctrine/*.graph.yaml``
+    fragments.  Overlay
     ``add_edge`` and ``remove_edge`` mutations are applied before resolution.
 """
 
@@ -481,8 +482,8 @@ def walk_mission(
     Args:
         mission_key: One of ``"software-dev"``, ``"research"``,
             ``"documentation"``, or ``"erp-custom"``.
-        repo_root: Repository root containing ``src/doctrine/graph.yaml``
-            and (optionally) ``.kittify/doctrine/overlays/``.
+        repo_root: Repository root containing the ``src/doctrine/*.graph.yaml``
+            fragments and (optionally) ``.kittify/doctrine/overlays/``.
 
     Returns:
         One :class:`CalibrationFinding` per step in the mission.

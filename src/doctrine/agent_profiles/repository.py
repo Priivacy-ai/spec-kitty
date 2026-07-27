@@ -239,7 +239,8 @@ class AgentProfileRepository:
             active_languages: Language filter; None means no filtering
             drg: Doctrine Relationship Graph used to resolve profile lineage
                 (``specializes_from`` edges). When ``None``, the shipped built-in
-                graph (``src/doctrine/graph.yaml``) is loaded. Lineage is read
+                graph (the ``src/doctrine/*.graph.yaml`` fragments) is loaded.
+                Lineage is read
                 exclusively from this graph; the retired ``specializes-from``
                 profile field is no longer consulted (FR-002, C-009).
         """

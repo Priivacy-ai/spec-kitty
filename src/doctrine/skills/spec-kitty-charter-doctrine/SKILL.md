@@ -355,7 +355,7 @@ directive = service.directives.get("DIRECTIVE_034")
 # directive.title → "Test-First Development"
 # directive.severity → "warn"
 # directive.applies_to → ["implement", "review"]
-# All directives: service.directives.list_all() or read src/doctrine/directives/shipped/
+# All directives: service.directives.list_all() or read src/doctrine/directives/built-in/
 ```
 
 **Tactics** — Reusable implementation approaches that describe *how* to do
@@ -455,7 +455,7 @@ service = DoctrineService(shipped_root, project_root)
 directive = service.directives.get("DIRECTIVE_034")
 tactic = service.tactics.get("tdd-red-green-refactor")
 paradigm = service.paradigms.get("<paradigm-id>")
-# Shipped artifacts: src/doctrine/<kind>/shipped/
+# Shipped artifacts: src/doctrine/<kind>/built-in/
 # Project-local overrides: .kittify/<kind>/
 ```
 
@@ -474,7 +474,7 @@ To list agent profiles:
 spec-kitty agent profile list
 ```
 
-Shipped artifacts live in `src/doctrine/<kind>/shipped/`. Project-local
+Shipped artifacts live in `src/doctrine/<kind>/built-in/`. Project-local
 overrides live in `.kittify/<kind>/`. Two-source loading merges both,
 with project artifacts taking precedence on field-level merge.
 
