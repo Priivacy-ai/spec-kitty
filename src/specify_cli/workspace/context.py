@@ -475,9 +475,10 @@ def resolve_active_wp_for_branch(
         MissionArtifactKind.STATUS_STATE
     )
     # PRIMARY leg (C-001): tasks/ WP-frontmatter always lives in the primary checkout.
-    # read-side-placement-seam-migration WP07: routed through
-    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    # instead of the kind-blind ``resolve_planning_read_dir``.
+    # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK through
+    # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
+    # WORK_PACKAGE_TASK is PRIMARY-partition, so resolution is behavior-identical
+    # to the prior resolver — the seam's fail-loud arm (NFR-002) is not reachable.
     planning_dir = placement_seam(repo_root, context.mission_slug).read_dir(
         MissionArtifactKind.WORK_PACKAGE_TASK
     )
@@ -676,9 +677,10 @@ def build_normalized_wp_index(
     callers share one canonical classification result.
     """
     cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    # read-side-placement-seam-migration WP07: routed through
-    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    # instead of the kind-blind ``resolve_planning_read_dir``.
+    # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK through
+    # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
+    # WORK_PACKAGE_TASK is PRIMARY-partition, so this is behavior-identical to
+    # the prior resolver — no fail-loud arm is reachable here.
     tasks_dir = placement_seam(repo_root, mission_slug).read_dir(
         MissionArtifactKind.WORK_PACKAGE_TASK
     ) / "tasks"
@@ -730,9 +732,9 @@ def get_normalized_wp(
             raise error
         raise ValueError(
             f"Work package {wp_id} was not found under "
-            # read-side-placement-seam-migration WP07: routed through
-            # ``placement_seam`` (fail-loud on a deleted-coord mismatch,
-            # NFR-002) instead of the kind-blind ``resolve_planning_read_dir``.
+            # read-side-placement-seam-migration WP07: named via the seam
+            # authority (WORK_PACKAGE_TASK, PRIMARY-partition — no fail-loud
+            # arm reachable) instead of ``resolve_planning_read_dir``.
             f"{placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
         )
     return entry
@@ -772,9 +774,10 @@ def resolve_workspace_for_wp(
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-        # read-side-placement-seam-migration WP07: routed through
-        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-        # instead of the kind-blind ``resolve_planning_read_dir``.
+        # read-side-placement-seam-migration WP07: named via the seam
+        # authority instead of the kind-blind ``resolve_planning_read_dir``;
+        # behavior-identical since LANE_STATE is PRIMARY-partition (no
+        # fail-loud arm reachable here).
         lane_wp_ids: list[str] = []
         lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
             MissionArtifactKind.LANE_STATE
@@ -817,9 +820,10 @@ def resolve_workspace_for_wp(
         )
 
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    # read-side-placement-seam-migration WP07: routed through
-    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    # instead of the kind-blind ``resolve_planning_read_dir``.
+    # read-side-placement-seam-migration WP07: named via the seam authority
+    # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
+    # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
+    # reachable here).
     lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
         MissionArtifactKind.LANE_STATE
     )
@@ -886,9 +890,10 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
             return candidate
 
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    # read-side-placement-seam-migration WP07: routed through
-    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    # instead of the kind-blind ``resolve_planning_read_dir``.
+    # read-side-placement-seam-migration WP07: named via the seam authority
+    # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
+    # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
+    # reachable here).
     lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
         MissionArtifactKind.LANE_STATE
     )

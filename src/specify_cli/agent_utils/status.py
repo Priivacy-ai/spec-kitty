@@ -133,10 +133,10 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # the mission identity (#2186, PRIMARY_METADATA) live ONLY on the PRIMARY
         # checkout post-#2106 — the coord husk carries neither. Both PRIMARY-kinds
         # resolve topology-blind to the same PRIMARY dir via the kind-aware seam.
-        # read-side-placement-seam-migration WP07: routed through
-        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-        # instead of the kind-blind ``resolve_planning_read_dir`` — behavior-
-        # neutral here since WORK_PACKAGE_TASK is PRIMARY-partition.
+        # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK
+        # through the seam authority instead of the kind-blind
+        # ``resolve_planning_read_dir`` — behavior-identical here since
+        # WORK_PACKAGE_TASK is PRIMARY-partition (no fail-loud arm reachable).
         primary_dir = placement_seam(main_repo_root, mission_slug).read_dir(
             MissionArtifactKind.WORK_PACKAGE_TASK
         )

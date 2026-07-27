@@ -115,10 +115,12 @@ def _request_dashboard_sync(repo_root: Path | None) -> None:
 def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | None) -> str | None:
     """Best-effort lookup of the canonical mission_id for a mission slug.
 
-    read-side-placement-seam-migration WP07: routed through
-    ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    instead of the kind-blind ``candidate_feature_dir_for_mission`` — this
-    reads ``meta.json`` only (PRIMARY_METADATA), a topology-blind primary dir.
+    read-side-placement-seam-migration WP07: names PRIMARY_METADATA through
+    the seam authority instead of the kind-blind
+    ``candidate_feature_dir_for_mission`` — this reads ``meta.json`` only.
+    PRIMARY_METADATA is PRIMARY-partition (topology-blind), so this is
+    behavior-identical to the prior resolver; no fail-loud arm is reachable
+    here.
     """
     if repo_root is None or not mission_slug:
         return None
