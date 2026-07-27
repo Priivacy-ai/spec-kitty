@@ -671,11 +671,9 @@ def test_claim_carrier_seeds_only_the_slots_still_missing(tmp_path: Path) -> Non
         for e in read_event_stream(feature_dir).transitions
         if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
     ]
-    assert len(claim_seeds) == 1
-    assert claim_seeds[0].policy_metadata == {
-        "shell_pid": 44821,
-        "shell_pid_created_at": "1784458183.44",
-    }
+    assert [e.policy_metadata for e in claim_seeds] == [
+        {"shell_pid": 44821, "shell_pid_created_at": "1784458183.44"}
+    ], "exactly one carrier, seeding only the two slots authentic history lacked"
     snapshot = materialize_snapshot(feature_dir).work_packages["WP01"]
     assert snapshot["shell_pid"] == 44821
     assert snapshot["agent"] == "claude:opus:pedro"
