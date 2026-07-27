@@ -1,0 +1,91 @@
+{
+  "event_count": 57,
+  "last_event_id": "01KYGXTEN1Z1KDJRQES1X1GKST",
+  "materialized_at": "2026-07-27T04:37:38.081513+00:00",
+  "mission_number": "",
+  "mission_slug": "placement-port-residuals-closure-01KYDEF0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pedro-wp01",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGXT9ZN1CJ7F9RHCMM45ED7",
+      "last_transition_at": "2026-07-27T04:37:33.301056+00:00",
+      "shell_pid": 640713,
+      "shell_pid_created_at": "1785098822.59"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pedro-wp02",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGXTD413CMQ908SQSMXCE5S",
+      "last_transition_at": "2026-07-27T04:37:36.513174+00:00",
+      "shell_pid": 774282,
+      "shell_pid_created_at": "1785101589.8"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "pedro-wp03",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGXTEN1Z1KDJRQES1X1GKST",
+      "last_transition_at": "2026-07-27T04:37:38.081513+00:00",
+      "shell_pid": 802393,
+      "shell_pid_created_at": "1785102161.59"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "pedro-wp04",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYGXTAT287ZXJ7RCCW4ZQS53",
+      "last_transition_at": "2026-07-27T04:37:34.146654+00:00",
+      "shell_pid": 736631,
+      "shell_pid_created_at": "1785100555.11"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "pedro-wp05",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGXTDWCT5X702RRM8CSAPTM",
+      "last_transition_at": "2026-07-27T04:37:37.292576+00:00",
+      "shell_pid": 896471,
+      "shell_pid_created_at": "1785106112.09"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "pedro-wp06",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGXTBJVBS728BXC1KKTCZ1T",
+      "last_transition_at": "2026-07-27T04:37:34.939306+00:00",
+      "shell_pid": 644121,
+      "shell_pid_created_at": "1785098844.99"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "pedro-wp07",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGXTCBB4PTGSGAPRY1J5TT5",
+      "last_transition_at": "2026-07-27T04:37:35.723347+00:00",
+      "shell_pid": 647298,
+      "shell_pid_created_at": "1785098861.59"
+    }
+  }
+}
