@@ -375,9 +375,18 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
 def test_forbidding_mention_would_false_red_without_its_discriminator() -> None:
     """NFR-003 proof for discriminator A2, with its effect set pinned."""
     scan = scan_graph_monolith_paths(_SRC_ROOT)
-    paths = sorted({site.path for site in scan.forbidding_mentions})
-    assert paths == ["src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml"], f"A2's effect set moved: {paths}"
-    assert len(scan.forbidding_mentions) == 1, f"A2 now excludes more than the single forbidding mention it was written for: {_render(scan.forbidding_mentions)}"
+    # (path, matched text) rather than a path set plus a count: a second
+    # forbidding mention in the SAME file collapses out of a path set, and a
+    # different mention swapped in for this one keeps any count unchanged.
+    # ``Site.text`` is gate A's raw ``match.group(0)`` -- the path itself, so it
+    # is stable identity rather than surrounding prose.
+    excluded = sorted((site.path, site.text) for site in scan.forbidding_mentions)
+    assert excluded == [
+        (
+            "src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml",
+            "src/doctrine/graph.yaml",
+        )
+    ], f"A2's effect set moved -- widening it needs a reason: {_render(scan.forbidding_mentions)}"
 
 
 def test_gate_a_rejects_a_planted_violation(tmp_path: Path) -> None:
@@ -422,12 +431,15 @@ def test_no_source_site_references_the_shipped_pack_layer() -> None:
 def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() -> None:
     """NFR-003 proof for discriminator B1, with its effect set pinned."""
     scan = scan_shipped_pack_paths(_SRC_ROOT)
-    excluded = sorted({site.path for site in scan.prose})
+    # A list, not a set: duplicates survive, so a second prose match appearing in
+    # either of these two files goes red instead of collapsing into the same path.
+    # Unlike gate A, ``Site.text`` here is a 24-char prose window built for the
+    # failure message, so it is not part of the pinned identity.
+    excluded = sorted(site.path for site in scan.prose)
     assert excluded == [
         "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
-    ], f"B1's effect set moved: {excluded}"
-    assert len(scan.prose) == 2, f"B1 now excludes more than the two prose sites it was written for: {_render(scan.prose)}"
+    ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
 
 
 def test_gate_b_rejects_a_planted_violation(tmp_path: Path) -> None:

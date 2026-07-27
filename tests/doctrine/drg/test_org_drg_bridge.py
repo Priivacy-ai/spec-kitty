@@ -615,11 +615,13 @@ class TestDocumentedLineageSnippet:
         merged = merge_three_layers(built_in, [fragment], None)
 
         emitted = _org_edges(merged, built_in)
-        assert len(emitted) == 1, f"the documented snippet must yield exactly one edge, got {emitted}"
-        source, target, relation = emitted[0]
-        assert relation == Relation.SPECIALIZES_FROM.value
-        assert source.startswith("agent_profile:")
-        assert target == "agent_profile:researcher-ryan"
+        assert emitted == [
+            (
+                "agent_profile:my-analyst",
+                "agent_profile:researcher-ryan",
+                Relation.SPECIALIZES_FROM.value,
+            )
+        ], f"the documented snippet must yield exactly this one edge, got {emitted}"
 
     def test_the_documented_endpoints_use_a_real_nodekind_prefix(self) -> None:
         """The narrow, fast guard against the exact retired shape."""

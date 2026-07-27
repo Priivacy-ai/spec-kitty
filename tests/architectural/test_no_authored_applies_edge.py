@@ -443,7 +443,11 @@ class TestGateNonVacuity:
         (nested / "planted.graph.yaml").write_text(
             _fragment_text(_edge_block("applies")), encoding="utf-8"
         )
-        assert len(authored_applies_edges(tmp_path)) == 1
+        offenders = authored_applies_edges(tmp_path)
+        assert [str(o) for o in offenders] == [
+            "overlays/planted.graph.yaml: agent_profile:planted "
+            "--applies--> procedure:planted-procedure"
+        ]
 
     def test_a_fragment_without_an_applies_edge_is_not_flagged(
         self, tmp_path: Path
