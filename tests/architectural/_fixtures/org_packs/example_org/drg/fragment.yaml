@@ -9,6 +9,11 @@ nodes:
     title: "SOX Control Framework (example fixture)"
     body_path: directives/sox-controls.directive.yaml
 edges:
+  # WP08 / FR-010: `caveman-comments` is a **styleguide** shipped by the
+  # `very-serious-developers` pack, not a directive and not a node this
+  # fragment declares. Authored as a bare id it was minted as
+  # `directive:caveman-comments` — a phantom node of an invented kind that no
+  # traversal could follow. A cross-pack reference must be fully qualified.
   - source: sox-controls
-    target: caveman-comments
+    target: "styleguide:caveman-comments"
     relation: refines

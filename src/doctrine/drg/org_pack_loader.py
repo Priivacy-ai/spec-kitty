@@ -39,11 +39,12 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
-from doctrine.drg.models import Relation
+from doctrine.drg.models import NodeKind, Relation
 
 __all__ = [
     "AUGMENTATION_ELIGIBLE_KINDS",
     "AUGMENTATION_RELATIONS",
+    "ORG_PLURAL_TO_SINGULAR_KIND",
     "TOPOLOGY_KINDS",
     "OrgDRGFragment",
     "OrgPackMissingError",
@@ -153,6 +154,87 @@ _MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({"mission_types"})
 #: alongside the :class:`ArtifactKind`-derived entries.
 _MISSION_TYPE_SINGULAR = "mission_type"
 _MISSION_TYPE_PLURAL = "mission_types"
+
+
+# ---------------------------------------------------------------------------
+# Plural -> singular URN kind (FR-010, WP08) — derived, never hand-restated
+# ---------------------------------------------------------------------------
+# ``doctrine.drg.merge`` mints an org node's URN as ``<singular>:<node.id>``
+# and so needs the singular form of every canonical plural in the universe
+# above. It used to carry its OWN hand-written copy of that mapping — a fourth
+# hand-restated DRG writer alongside the three catalogued by mission
+# ``doctrine-silence-guards-01KYFV7Q`` — and it had drifted two kinds behind:
+# a pack declaring a ``mission_types`` or ``glossary_packs`` node crashed the
+# merge with a bare ``KeyError``. Deriving the map here, next to the universe
+# it inverts, makes that drift impossible: a plural added to
+# :data:`_ORG_DRG_KIND_ALIASES` either resolves to a singular or fails at
+# IMPORT time — never in the middle of a merge.
+#
+# Two canonical plurals cannot be derived from :class:`ArtifactKind`:
+#
+# * ``mission_types`` — mission types are mission-tier, not an ``ArtifactKind``
+#   member (see :data:`_MISSION_TYPE_SINGULAR` above).
+# * ``mission_steps`` — WP01 of ``charter-doctrine-mission-type-configuration``
+#   renamed the *plural* to ``mission_steps`` while the singular URN kind
+#   stayed ``mission_step_contract`` (``NodeKind`` has no ``mission_step``
+#   member), so ``ArtifactKind.from_plural`` cannot resolve it.
+_IRREGULAR_PLURAL_SINGULARS: dict[str, str] = {
+    _MISSION_TYPE_PLURAL: _MISSION_TYPE_SINGULAR,
+    "mission_steps": ArtifactKind.MISSION_STEP_CONTRACT.value,
+}
+
+
+def _derive_plural_to_singular() -> dict[str, str]:
+    """Invert the canonical plural universe into singular URN kinds.
+
+    Keyed on the CANONICAL plural forms (the alias table's *values*), because
+    ``_OrgDRGNode._validate_kind`` resolves every accepted input form to its
+    canonical value before the merge ever sees it. Keying on input forms
+    instead would leave unreachable entries — the inert-slot smell this
+    mission exists to remove.
+
+    Returns:
+        A ``{canonical_plural: singular_urn_kind}`` map covering the whole
+        universe.
+
+    Raises:
+        ValueError: at import time when a canonical plural resolves to no
+            singular, or resolves to one that is not a :class:`NodeKind`
+            member. Fail-closed by construction (C-009): a kind cannot enter
+            the universe without also teaching the URN minter about it.
+    """
+    resolved: dict[str, str] = {}
+    unmapped: list[str] = []
+    for plural in sorted(set(_ORG_DRG_KIND_ALIASES.values())):
+        irregular = _IRREGULAR_PLURAL_SINGULARS.get(plural)
+        if irregular is not None:
+            resolved[plural] = irregular
+            continue
+        try:
+            resolved[plural] = ArtifactKind.from_plural(plural).value
+        except KeyError:
+            unmapped.append(plural)
+    if unmapped:
+        raise ValueError(
+            f"org-pack plural kind(s) {unmapped} have no singular URN kind: "
+            "they are in the canonical universe but are neither an "
+            "ArtifactKind plural nor listed in _IRREGULAR_PLURAL_SINGULARS. "
+            "Add the mapping (and the matching NodeKind member) before "
+            "admitting the kind to _ORG_DRG_KIND_ALIASES."
+        )
+    node_kinds = {kind.value for kind in NodeKind}
+    not_node_kinds = sorted(set(resolved.values()) - node_kinds)
+    if not_node_kinds:
+        raise ValueError(
+            f"singular URN kind(s) {not_node_kinds} have no NodeKind member, "
+            "so the merge could never mint a valid node for them."
+        )
+    return resolved
+
+
+#: Canonical plural -> singular URN kind for every kind an org pack may declare.
+#: Consumed by ``doctrine.drg.merge`` to mint node URNs. Derived, not restated.
+ORG_PLURAL_TO_SINGULAR_KIND: dict[str, str] = _derive_plural_to_singular()
 
 #: SINGLE SOURCE OF TRUTH (FR-030). Maps the singular URN kind to its plural
 #: directory/universe form for every augmentation-eligible kind. Derived from

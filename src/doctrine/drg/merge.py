@@ -34,14 +34,21 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment
+from doctrine.drg.models import (
+    DRGEdge,
+    DRGGraph,
+    DRGNode,
+    NodeKind,
+    Relation,
+    is_valid_urn,
+)
+from doctrine.drg.org_pack_loader import ORG_PLURAL_TO_SINGULAR_KIND, OrgDRGFragment
 
 # WP04 (org-doctrine-profile-integrity-closeout): ``_tag_source`` is generic
 # over the concrete frozen-model type so callers (DRGNode / DRGEdge) retain
@@ -60,33 +67,15 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
-# Singular form for URN minting at merge time. Mirrors
-# ``doctrine.artifact_kinds._PLURALS`` in inverse direction.
-_PLURAL_TO_SINGULAR: dict[str, str] = {
-    "directives": "directive",
-    "tactics": "tactic",
-    "styleguides": "styleguide",
-    "toolguides": "toolguide",
-    "paradigms": "paradigm",
-    "procedures": "procedure",
-    "agent_profiles": "agent_profile",
-    # Canonical post-WP01 plural → existing singular ``mission_step_contract``.
-    # The doctrine.drg.org_pack_loader validator resolves the legacy
-    # ``mission_step_contracts`` alias to ``mission_steps`` on parse. We keep
-    # the singular as ``mission_step_contract`` here because
-    # ``doctrine.drg.models.NodeKind`` has no ``mission_step`` member yet.
-    # Both plural keys are retained so hand-constructed fragments that bypass
-    # the loader still mint a valid URN.
-    "mission_steps": "mission_step_contract",
-    "mission_step_contracts": "mission_step_contract",
-    # FR-001/FR-007 (asset-kind mission, #2495/#2469): TEMPLATE and ASSET are
-    # node-declarable org-pack DRG kinds (org_pack_loader._ORG_DRG_KIND_ALIASES).
-    # Bare URN minting (D-05 revised) — no ``<pack>/`` qualifier; cross-pack /
-    # cross-layer collisions are caught by the global uniqueness scan below
-    # (_check_node_urn_unique / D-04 revised), not by URN qualification.
-    "templates": "template",
-    "assets": "asset",
-}
+# FR-010 (WP08): the plural -> singular map used to be a hand-restated copy of
+# the org-pack kind universe living HERE, and it had drifted two kinds behind
+# its source — a pack declaring a ``mission_types`` or ``glossary_packs`` node
+# crashed the merge with a bare ``KeyError``. It is now
+# ``ORG_PLURAL_TO_SINGULAR_KIND``, derived beside the universe it inverts
+# (``org_pack_loader._derive_plural_to_singular``), so a kind admitted to
+# ``_ORG_DRG_KIND_ALIASES`` without a singular fails at import rather than
+# mid-merge. Read that name directly at the call site — do NOT re-alias it
+# here, or this module quietly becomes the restatement again.
 
 
 #: Operator-friendly relation aliases mapping a fragment-authored verb to a
@@ -120,6 +109,25 @@ class OrgDRGConflict:
       ``_OrgDRGNode`` in ``doctrine.drg.org_pack_loader``).
     * ``layer_rule_violation`` — a node body_path / import reaches across
       the architectural layer boundary (C-001 binding).
+    * ``unresolved_edge_endpoint`` — FR-010. An edge endpoint names nothing
+      the merge can bind: not a node the fragment declares, not a URN whose
+      kind prefix is a :class:`NodeKind`, and not a bare id present in any
+      already-merged layer. Before WP08 this shape was returned as ``None``
+      and dropped without warning or record — ADR ``2026-07-26-3``'s
+      silent-drop path.
+    * ``ambiguous_edge_endpoint`` — FR-010. A bare endpoint id resolves to
+      more than one kind (e.g. both ``directive:x`` and ``tactic:x`` exist).
+      Before WP08 the directive interpretation always silently won, because
+      an unresolved bare target was minted as ``directive:<id>`` outright.
+    * ``malformed_urn`` — FR-010. A URN the bridge would have to mint or
+      forward is not syntactically valid
+      (``doctrine.drg.models.is_valid_urn``). Before WP08 this escaped as a
+      raw ``pydantic_core.ValidationError`` from inside the merge rather than
+      as a typed pack error.
+
+    ``target_id`` carries the offending token itself for the three FR-010
+    kinds and ``org_value`` the edge/node that declared it — so ``kind`` says
+    *why*, ``target_id`` says *which token*, and ``org_value`` says *where*.
 
     ``resolution_applied`` values:
 
@@ -135,7 +143,13 @@ class OrgDRGConflict:
     """
 
     kind: Literal[
-        "edge_override", "node_override", "kind_mismatch", "layer_rule_violation"
+        "edge_override",
+        "node_override",
+        "kind_mismatch",
+        "layer_rule_violation",
+        "unresolved_edge_endpoint",
+        "ambiguous_edge_endpoint",
+        "malformed_urn",
     ]
     conflicting_layers: list[str]
     target_id: str
@@ -145,6 +159,45 @@ class OrgDRGConflict:
     resolution_applied: Literal[
         "hard_fail", "built_in_wins", "project_wins", "org_override"
     ]
+
+
+#: Per-conflict-class operator remediation, rendered by
+#: :meth:`OrgDRGConflictError._format_message` for the classes actually
+#: present. Every :attr:`OrgDRGConflict.kind` needs an entry — a class with no
+#: remediation hands the operator a label and no way to act on it (the gate is
+#: ``test_every_conflict_class_carries_a_remediation_line``).
+_OVERRIDE_REMEDIATION = (
+    "Remediation (override): remove the override from the org pack, OR "
+    "escalate the built-in invariant change via a spec-kitty governance "
+    "proposal."
+)
+
+_CONFLICT_REMEDIATIONS: dict[str, str] = {
+    "edge_override": _OVERRIDE_REMEDIATION,
+    "node_override": _OVERRIDE_REMEDIATION,
+    "layer_rule_violation": (
+        "Remediation (layer rule): an org-pack node must not reference "
+        "src/specify_cli/ — doctrine sits below the runtime layer."
+    ),
+    "kind_mismatch": (
+        "Remediation (kind): declare the node under a canonical org-pack "
+        "plural kind (doctrine.drg.org_pack_loader._ORG_DRG_KIND_ALIASES)."
+    ),
+    "unresolved_edge_endpoint": (
+        "Remediation (endpoint): an edge endpoint must be either a bare id "
+        "the fragment declares in its own nodes:, or a fully-qualified DRG "
+        "URN '<kind>:<id>' whose <kind> is a NodeKind member (e.g. "
+        "'agent_profile:researcher-ryan'). Nothing else resolves."
+    ),
+    "ambiguous_edge_endpoint": (
+        "Remediation (ambiguity): this bare id exists under more than one "
+        "kind. Qualify it as '<kind>:<id>' to say which one you mean."
+    ),
+    "malformed_urn": (
+        "Remediation (URN syntax): a URN is '<lower_snake_kind>:<id>' where "
+        "the id may contain letters, digits, '_', '/', '.' and '-' only."
+    ),
+}
 
 
 class OrgDRGConflictError(Exception):
@@ -168,10 +221,13 @@ class OrgDRGConflictError(Exception):
                 f"  - kind={c.kind}, target_id={c.target_id}, "
                 f"layers={c.conflicting_layers}, resolution={c.resolution_applied}"
             )
-        lines.append(
-            "Remediation: remove the override from the org pack, OR escalate "
-            "the built-in invariant change via a spec-kitty governance proposal."
-        )
+        # One remediation per conflict class actually present, so an
+        # operator is never told to "remove the override" for what is really
+        # a typo'd edge endpoint (FR-010 — guidance has to be followable).
+        present = {c.kind for c in conflicts}
+        for kind, remediation in _CONFLICT_REMEDIATIONS.items():
+            if kind in present and remediation not in lines:
+                lines.append(remediation)
         return "\n".join(lines)
 
 
@@ -326,14 +382,49 @@ def _built_in_invariant_ids(built_in: DRGGraph) -> frozenset[str]:
 # ---------------------------------------------------------------------------
 
 
-def _bridge_org_node_to_drg_node(node: Any, source: str) -> tuple[str, DRGNode]:
+def _bridge_org_node_to_drg_node(
+    node: Any, source: str
+) -> tuple[str, DRGNode] | OrgDRGConflict:
     """Mint a URN-shaped :class:`DRGNode` from a fragment-side node.
 
     URN convention: ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
-    The ``source`` is attached via :func:`_tag_source`. Returns ``(urn, drg_node)``.
+    The ``source`` is attached via :func:`_tag_source`.
+
+    FR-010: both failure modes now return a typed :class:`OrgDRGConflict`
+    instead of escaping as a raw exception —
+
+    * an unmappable plural kind (``ORG_PLURAL_TO_SINGULAR_KIND`` has no entry)
+      used to raise a bare ``KeyError``;
+    * an ``id`` that cannot form a syntactically valid URN — ``_OrgDRGNode.id``
+      is a free-form ``str`` — used to raise ``pydantic_core.ValidationError``
+      from inside :class:`DRGNode` construction.
+
+    Returns:
+        ``(urn, drg_node)`` on success, or the :class:`OrgDRGConflict` that
+        explains the refusal.
     """
-    singular = _PLURAL_TO_SINGULAR[node.kind]
+    singular = ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind)
+    if singular is None:
+        return OrgDRGConflict(
+            kind="kind_mismatch",
+            conflicting_layers=[source],
+            target_id=node.kind,
+            built_in_value=None,
+            org_value=node.model_dump(),
+            project_value=None,
+            resolution_applied="hard_fail",
+        )
     urn = f"{singular}:{node.id}"
+    if not is_valid_urn(urn):
+        return OrgDRGConflict(
+            kind="malformed_urn",
+            conflicting_layers=[source],
+            target_id=urn,
+            built_in_value=None,
+            org_value=node.model_dump(),
+            project_value=None,
+            resolution_applied="hard_fail",
+        )
     drg_node = DRGNode(urn=urn, kind=NodeKind(singular), label=node.title)
     return urn, _tag_source(drg_node, source)
 
@@ -353,37 +444,147 @@ def _resolve_relation(relation_value: str, source_marker: str) -> Relation:
     raise UnknownRelationError(relation_value, source_marker)
 
 
+#: The ``NodeKind`` prefixes a fully-qualified endpoint may carry. Derived
+#: from the enum so a new kind is addressable the moment it is declared.
+_NODE_KIND_PREFIXES: frozenset[str] = frozenset(kind.value for kind in NodeKind)
+
+#: The subset of :attr:`OrgDRGConflict.kind` an endpoint refusal can produce.
+#: A narrowed alias (rather than the full literal) so the resolver's return
+#: type states exactly which records it is able to emit.
+_EndpointConflictKind = Literal[
+    "unresolved_edge_endpoint",
+    "ambiguous_edge_endpoint",
+    "malformed_urn",
+]
+
+
+class _EndpointResolutionError(Exception):
+    """Internal control-flow signal: an edge endpoint could not be bound.
+
+    Private to this module. :func:`_resolve_edge_endpoint` raises it so its
+    success type stays a plain ``str`` — returning ``(str | None, kind | None)``
+    would force every caller to re-assert a correlation the type system cannot
+    see, and an unreachable "impossible" branch is exactly the inert code this
+    mission removes. :func:`_bridge_org_edge_to_drg_edge` converts it into the
+    caller-visible :class:`OrgDRGConflict`; it never escapes the module.
+    """
+
+    def __init__(self, conflict_kind: _EndpointConflictKind, raw: str) -> None:
+        self.conflict_kind = conflict_kind
+        self.raw = raw
+        super().__init__(f"cannot resolve DRG edge endpoint {raw!r}: {conflict_kind}")
+
+
+def _resolve_edge_endpoint(
+    raw: str,
+    node_id_to_urn: Mapping[str, str],
+    known_urns: Collection[str],
+) -> str:
+    """Resolve one fragment-authored edge endpoint to a canonical URN (FR-010).
+
+    **One policy, both endpoints.** The bridge previously ran two different
+    and asymmetric rules — a source had to be a fragment-local node id (miss →
+    silently dropped) while a target fell back to ``directive:<id>`` (miss → a
+    phantom node of an invented kind). That asymmetry is the structural cause
+    of the mission's D1, D2, D3 and D5 defects, so it is replaced by a single
+    ordered precedence applied to both:
+
+    1. **Fragment-local bare id** — the pack's own node, its nearest scope.
+    2. **Fully-qualified URN** — ``<kind>:<id>`` where ``<kind>`` is a
+       :class:`NodeKind` member and the whole token is syntactically valid.
+       Accepted verbatim: it is unambiguous by construction, and it is exactly
+       what ``org_pack_loader._collect_augmentation_edges`` emits.
+    3. **Bare id resolvable against an already-merged layer** — matched on the
+       id half of a known URN, which recovers the *declared* kind instead of
+       inventing one. Exactly one match resolves; more than one is ambiguous.
+
+    Existence is deliberately NOT required for case 2: a fully-qualified
+    endpoint may legitimately name a node contributed by a later layer, and
+    dangling-endpoint detection belongs to the DRG validator, not the URN
+    minter. What the bridge owes is that it never *invents* a kind and never
+    drops an endpoint in silence.
+
+    Args:
+        raw: The endpoint token exactly as the fragment author wrote it.
+        node_id_to_urn: Bare id -> minted URN for this fragment's own nodes.
+        known_urns: Every URN merged so far (built-in, earlier fragments, and
+            this fragment's own nodes).
+
+    Returns:
+        The canonical URN the endpoint binds to.
+
+    Raises:
+        _EndpointResolutionError: when the endpoint binds to nothing, to more
+            than one kind, or is a malformed URN.
+    """
+    local = node_id_to_urn.get(raw)
+    if local is not None:
+        return local
+
+    prefix, separator, _ = raw.partition(":")
+    if separator and prefix in _NODE_KIND_PREFIXES:
+        if is_valid_urn(raw):
+            return raw
+        # URN-shaped and a real kind, but unparseable — a typed pack error,
+        # not a raw pydantic failure surfacing from DRGEdge construction.
+        raise _EndpointResolutionError("malformed_urn", raw)
+
+    matches = sorted(
+        {urn for urn in known_urns if ":" in urn and urn.partition(":")[2] == raw}
+    )
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise _EndpointResolutionError("ambiguous_edge_endpoint", raw)
+    raise _EndpointResolutionError("unresolved_edge_endpoint", raw)
+
+
+def _endpoint_conflict(
+    conflict_kind: _EndpointConflictKind, raw: str, edge: Any, source: str
+) -> OrgDRGConflict:
+    """Build the typed record for an endpoint the bridge refused to bind."""
+    return OrgDRGConflict(
+        kind=conflict_kind,
+        conflicting_layers=[source],
+        target_id=raw,
+        built_in_value=None,
+        org_value=edge.model_dump(),
+        project_value=None,
+        resolution_applied="hard_fail",
+    )
+
+
 def _bridge_org_edge_to_drg_edge(
     edge: Any,
-    node_id_to_urn: dict[str, str],
+    node_id_to_urn: Mapping[str, str],
+    known_urns: Collection[str],
     source: str,
-) -> DRGEdge | None:
+) -> tuple[DRGEdge | None, OrgDRGConflict | None]:
     """Mint a URN-shaped :class:`DRGEdge` from a fragment-side edge.
 
-    Returns ``None`` only when the source endpoint cannot be resolved to a URN
-    in the fragment-local node index (i.e. the org pack wrote an edge whose
-    ``source:`` does not name a node it declared). Targets MAY point outside
-    the fragment — they typically refer to built-in or project artefacts; in
-    that case the bridge synthesises a target URN using the same
-    ``<singular_kind>:<id>`` convention, defaulting to the ``directive`` kind
-    when the target is not in the fragment-local index.
+    Both endpoints go through :func:`_resolve_edge_endpoint`. An endpoint that
+    cannot be bound yields a typed :class:`OrgDRGConflict` (FR-010) instead of
+    the bare ``None`` this function used to return, so the drop is recorded and
+    the merge hard-fails with an operator-actionable message.
 
-    FR-003: an unknown relation label raises :class:`UnknownRelationError`
-    (via :func:`_resolve_relation`) instead of returning ``None``.
+    FR-003: an unknown relation label still raises
+    :class:`UnknownRelationError` (via :func:`_resolve_relation`).
+
+    Returns:
+        ``(edge, None)`` on success, ``(None, conflict)`` on refusal.
     """
     relation = _resolve_relation(edge.relation, source)
 
-    source_urn = node_id_to_urn.get(edge.source)
-    if source_urn is None:
-        return None
-
-    target_urn = node_id_to_urn.get(edge.target)
-    if target_urn is None:
-        # Cross-layer reference: synthesise a URN using the directive default.
-        target_urn = f"directive:{edge.target}"
+    try:
+        source_urn, target_urn = (
+            _resolve_edge_endpoint(raw, node_id_to_urn, known_urns)
+            for raw in (edge.source, edge.target)
+        )
+    except _EndpointResolutionError as exc:
+        return None, _endpoint_conflict(exc.conflict_kind, exc.raw, edge, source)
 
     drg_edge = DRGEdge(source=source_urn, target=target_urn, relation=relation)
-    return _tag_source(drg_edge, source)
+    return _tag_source(drg_edge, source), None
 
 
 def _resolve_builtin_collision(
@@ -472,7 +673,11 @@ def _merge_org_fragment(
 
     node_id_to_urn: dict[str, str] = {}
     for node in surviving_nodes:
-        urn, drg_node = _bridge_org_node_to_drg_node(node, source_marker)
+        minted = _bridge_org_node_to_drg_node(node, source_marker)
+        if isinstance(minted, OrgDRGConflict):
+            conflicts.append(minted)
+            continue
+        urn, drg_node = minted
         node_id_to_urn[node.id] = urn
         if urn in invariant_urns:
             _resolve_builtin_collision(
@@ -482,8 +687,17 @@ def _merge_org_fragment(
         if urn not in merged_nodes:
             merged_nodes[urn] = drg_node
 
+    # Endpoints resolve against the graph as it stands *after* this fragment's
+    # own nodes are merged, so a pack may reference its own artefacts by bare
+    # id or by URN and any earlier layer the same way — one policy, no
+    # ordering surprise within a fragment.
     for edge in fragment.edges:
-        drg_edge = _bridge_org_edge_to_drg_edge(edge, node_id_to_urn, source_marker)
+        drg_edge, conflict = _bridge_org_edge_to_drg_edge(
+            edge, node_id_to_urn, merged_nodes.keys(), source_marker
+        )
+        if conflict is not None:
+            conflicts.append(conflict)
+            continue
         if drg_edge is not None:
             merged_edges.append(drg_edge)
 
@@ -569,10 +783,13 @@ def _asset_template_candidates(
     the override machinery would otherwise silently resolve in place must
     still be visible to :func:`_check_node_urn_unique` as a duplicate.
 
-    A fragment node that fails the layer-rule check is never reached here:
+    A fragment node that fails the layer-rule check, declares an unmappable
+    kind, or cannot form a valid URN is never reached here:
     :func:`merge_three_layers` raises :class:`OrgDRGConflictError` for any
-    hard-fail conflict (including layer-rule violations) before this
-    function's result is consulted.
+    hard-fail conflict before this function's result is consulted. The
+    :class:`OrgDRGConflict` return from :func:`_bridge_org_node_to_drg_node` is
+    therefore unreachable in practice, but is skipped rather than unpacked so
+    this helper stays total under any future caller ordering.
     """
     candidates: list[DRGNode] = [
         node for node in built_in.nodes if node.kind in _URN_UNIQUENESS_NODE_KINDS
@@ -582,8 +799,10 @@ def _asset_template_candidates(
         for node in fragment.nodes:
             if node.kind not in _URN_UNIQUENESS_ORG_KINDS:
                 continue
-            _, drg_node = _bridge_org_node_to_drg_node(node, source_marker)
-            candidates.append(drg_node)
+            minted = _bridge_org_node_to_drg_node(node, source_marker)
+            if isinstance(minted, OrgDRGConflict):
+                continue
+            candidates.append(minted[1])
     if project is not None:
         candidates.extend(
             node for node in project.nodes if node.kind in _URN_UNIQUENESS_NODE_KINDS
@@ -627,6 +846,16 @@ def merge_three_layers(
     Layer-rule violations (org nodes reaching into ``src/specify_cli/``) always
     hard-fail. An org/project fragment edge with an unrecognised relation label
     raises :class:`UnknownRelationError` (FR-003 — no silent drop).
+
+    FR-010 (WP08): an org edge whose **endpoint** cannot be bound also
+    hard-fails, with an ``unresolved_edge_endpoint`` /
+    ``ambiguous_edge_endpoint`` / ``malformed_urn`` conflict record naming the
+    offending token. Both endpoints obey one resolution policy (see
+    :func:`_resolve_edge_endpoint`): fragment-local bare id, then
+    fully-qualified URN, then a bare id matched against an already-merged
+    layer by its *declared* kind. The bridge no longer drops an unresolvable
+    source in silence and no longer invents a ``directive:`` kind for an
+    unresolvable target.
 
     Every node and edge in the returned graph carries a declared ``provenance``
     field readable via ``node.provenance``:

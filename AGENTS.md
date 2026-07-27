@@ -497,10 +497,12 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 Profile lineage is a DRG edge (C-009 binding constraint), not a per-profile field. Declare in org-pack DRG YAML:
 ```yaml
 edges:
-  - source: "urn:profile:my-analyst"
-    target: "urn:profile:researcher-ryan"
+  - source: "agent_profile:my-analyst"
+    target: "agent_profile:researcher-ryan"
     relation: specializes_from
 ```
+
+**Endpoint form matters.** An endpoint is either a **DRG URN** — `<kind>:<id>`, where `<kind>` is a `NodeKind` member such as `agent_profile`, `directive` or `styleguide` — or a **bare id** that the fragment's own `nodes:` block declares. Anything else is refused at merge time with an `unresolved_edge_endpoint` conflict naming the token. (Before mission `doctrine-silence-guards-01KYFV7Q` this snippet read `urn:profile:…`, a shape that exists nowhere in the vocabulary; the bridge dropped it in silence, so the documented declaration was inert. See `src/doctrine/drg/merge.py:_resolve_edge_endpoint`.)
 
 - Distinct from `delegates_to` (runtime work handoff).
 - Resolved via `AgentProfileRepository.resolve_profile` DRG traversal. Retired per-profile field form rejected at load time.

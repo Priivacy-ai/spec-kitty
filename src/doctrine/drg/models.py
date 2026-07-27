@@ -19,6 +19,22 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 _URN_RE = re.compile(r"^[a-z_]+:[A-Za-z0-9_/.\-]+$")
 
 
+def is_valid_urn(value: str) -> bool:
+    """Return whether *value* is a syntactically valid DRG URN.
+
+    The single public read of :data:`_URN_RE` (FR-010, WP08). Callers that
+    build a URN before handing it to :class:`DRGNode` / :class:`DRGEdge` use
+    this to fail with their own typed, domain-appropriate error instead of
+    letting a raw ``pydantic_core.ValidationError`` escape from the middle of
+    an unrelated operation — the org→DRG bridge is the motivating case.
+
+    Validity is *syntactic only*: it says nothing about whether the URN's kind
+    prefix is a :class:`NodeKind` member or whether a node with that URN
+    exists. Both are separate, deliberately independent checks.
+    """
+    return bool(_URN_RE.match(value))
+
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
