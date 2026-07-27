@@ -1134,9 +1134,9 @@ jobs:
       - name: "Run fast tests — missions"
         run: |
           uv run python -m pytest tests/missions/ tests/specify_cli/missions/ -m "fast and not windows_ci" -q --tb=short \
-            --cov=src/specify_cli/mission \
-            --cov=src/specify_cli/mission_metadata \
-            --cov=src/doctrine/missions \
+            --cov=specify_cli.mission \
+            --cov=specify_cli.mission_metadata \
+            --cov=doctrine.missions \
             --cov-report=xml:out/reports/coverage/coverage-fast-missions.xml
       - name: "Upload fast-missions coverage"
         if: always()
@@ -2354,9 +2354,9 @@ jobs:
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             -n auto --dist loadfile -p no:cacheprovider \
-            --cov=src/specify_cli/mission \
-            --cov=src/specify_cli/mission_metadata \
-            --cov=src/doctrine/missions \
+            --cov=specify_cli.mission \
+            --cov=specify_cli.mission_metadata \
+            --cov=doctrine.missions \
             --cov-report=xml:out/reports/coverage/coverage-integration-missions.xml
       - name: "Upload integration-missions coverage"
         if: always()
