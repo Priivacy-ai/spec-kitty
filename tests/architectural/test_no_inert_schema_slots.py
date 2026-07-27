@@ -159,8 +159,18 @@ Every shipped-tree assertion here is an **absence** assertion — ``new == []``,
 found nothing at all. The ``tmp_path`` self-mutation tests cannot cover this: they
 build their own tree, so the shipped-tree path stays unpinned. Relocate
 ``src/doctrine``, rename the ``models.py`` convention, or land any refactor that
-empties the walk, and this whole module goes inert behind green tests.
+empties either walk, and this whole module goes inert behind green tests.
 ``test_the_scan_actually_sees_the_shipped_tree`` is the floor that pins it.
+
+**Floored per walk, and that revision was earned.** The first floor pinned the
+*union* of the two walks, which caught total collapse and missed partial collapse:
+renaming the ``models.py`` convention kills the model walk — 145 distinct names, 23
+baseline entries — while the surviving schema side (186 / 36) cleared a union floor
+of 180/35, the entry half by exactly one. Review demonstrated it with a four-line
+mutation: **25 passed** with half the gate dead. This docstring asserted the
+opposite at the time, which is the part that mattered — a false coverage claim in
+the gate whose whole job is to stop mechanisms going quietly inert. Both walks are
+now floored independently, and both mutations go red.
 
 Non-vacuity (NFR-001)
 ---------------------
@@ -191,8 +201,11 @@ from tests.architectural._inert_slots import (
     BASELINE_SLOTS,
     DISPOSITIONS,
     MAX_UNASSIGNED_ENTRIES,
-    MINIMUM_BASELINE_ENTRIES_STILL_FOUND,
-    MINIMUM_SCANNED_SLOT_NAMES,
+    MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND,
+    MINIMUM_MODEL_SLOT_NAMES,
+    MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND,
+    MINIMUM_SCHEMA_SLOT_NAMES,
+    is_schema_declared,
     UNASSIGNED_OWNER,
     Baseline,
     BaselineEntry,
@@ -495,28 +508,48 @@ def test_a_typo_owner_does_not_resolve(tmp_path: Path) -> None:
 
 
 def test_the_scan_actually_sees_the_shipped_tree() -> None:
-    """The concrete floor. Without it every other shipped-tree assertion is absence.
+    """The concrete floor — pinned **per walk**, not on their union.
 
     ``new == []`` is green when the tree is clean **and** when the walk found
     nothing, and nothing else in this module can tell those apart.
-    """
-    slot_names = {slot.name for slot in scanned_slots(_REPO_ROOT)}
 
-    assert len(slot_names) >= MINIMUM_SCANNED_SLOT_NAMES, (
-        f"the slot scan found only {len(slot_names)} distinct names under "
-        f"{_REPO_ROOT}; the floor is {MINIMUM_SCANNED_SLOT_NAMES}. Either the "
-        "doctrine tree moved, the models.py convention was renamed, or the walk is "
-        "broken — in every case this gate is now inert and must be repaired, not "
-        "relaxed."
+    The union floor this replaces caught total collapse and missed *partial*
+    collapse. Renaming the ``models.py`` convention kills the model walk — 145
+    distinct names and 23 baseline entries go dark — while the surviving schema
+    side (186 / 36) cleared a union floor of 180/35, the entry half **by a single
+    entry**. Both this module's docstring and the old assertion message claimed
+    that case was caught. It was not. Two walks, two floors.
+    """
+    scanned = list(scanned_slots(_REPO_ROOT))
+    schema_names = {slot.name for slot in scanned if is_schema_declared(slot)}
+    model_names = {slot.name for slot in scanned if not is_schema_declared(slot)}
+
+    assert len(schema_names) >= MINIMUM_SCHEMA_SLOT_NAMES, (
+        f"the schema walk found only {len(schema_names)} distinct names; the floor "
+        f"is {MINIMUM_SCHEMA_SLOT_NAMES}. The doctrine schemas moved or the walk is "
+        "broken — repair it, do not relax the floor."
+    )
+    assert len(model_names) >= MINIMUM_MODEL_SLOT_NAMES, (
+        f"the model walk found only {len(model_names)} distinct names; the floor is "
+        f"{MINIMUM_MODEL_SLOT_NAMES}. The `models.py` convention was renamed or the "
+        "walk is broken. This half can die silently while the schema half keeps the "
+        "suite green, which is exactly why the floors are split."
     )
 
     still_found = set(_shipped()) & load_baseline().slots
-    assert len(still_found) >= MINIMUM_BASELINE_ENTRIES_STILL_FOUND, (
-        f"only {len(still_found)} baseline entries are still detected; the floor is "
-        f"{MINIMUM_BASELINE_ENTRIES_STILL_FOUND}. A genuine burn-down this large "
-        "should lower the floor deliberately in the same change."
-    )
+    schema_entries = {slot for slot in still_found if is_schema_declared(slot)}
+    model_entries = still_found - schema_entries
 
+    assert len(schema_entries) >= MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND, (
+        f"only {len(schema_entries)} schema-declared baseline entries are still "
+        f"detected; the floor is {MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND}. A "
+        "genuine burn-down this large should lower the floor deliberately in the "
+        "same change."
+    )
+    assert len(model_entries) >= MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND, (
+        f"only {len(model_entries)} model-declared baseline entries are still "
+        f"detected; the floor is {MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND}."
+    )
 
 def test_every_named_owner_resolves() -> None:
     """An owner that does not exist reads exactly like an owner that is not done.
@@ -573,6 +606,26 @@ def test_an_owned_entry_may_not_be_provisional_at_load_time(tmp_path: Path) -> N
 
     with pytest.raises(BaselineError, match="cannot stay provisional"):
         load_baseline(path)
+
+
+def test_the_unassigned_cap_is_registered_with_the_charter_ratchet() -> None:
+    """The escape hatch's cap is a ratchet, so it lives where ratchets are governed.
+
+    Without this the cap is a bare module constant: a future PR widens it 23 → 30 on
+    one line with nothing to answer to, while the baseline *total* it guards sits
+    under the charter file's `# justification:` policy. The asymmetry was arbitrary.
+    """
+    recorded = yaml.safe_load(
+        (_REPO_ROOT / "tests" / "architectural" / "_baselines.yaml").read_text(
+            encoding="utf-8"
+        )
+    )["test_no_inert_schema_slots"]["unassigned_entries"]
+
+    assert recorded == MAX_UNASSIGNED_ENTRIES, (
+        f"_baselines.yaml records unassigned_entries={recorded} but the module caps "
+        f"at {MAX_UNASSIGNED_ENTRIES}. Change both, and growing either needs a "
+        "`# justification:` comment per the charter file's own policy."
+    )
 
 
 def test_the_baseline_size_is_registered_with_the_charter_ratchet() -> None:
