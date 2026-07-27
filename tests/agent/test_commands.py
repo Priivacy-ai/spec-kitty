@@ -174,18 +174,17 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(research_module, "get_mission_type", lambda *_args, **_kwargs: "software-dev")
 
     # WP09/FR-001: research.py routed the kind-blind slug resolver onto the
-    # seam — it now resolves the feature dir via ``placement_seam(...).read_dir``
-    # and the planning/scaffold dirs via ``resolve_planning_read_dir(kind=...)``.
-    # Patch those (the retired ``resolve_feature_dir_for_slug`` is gone) so all
-    # resolutions converge on the test's ``feature_dir``.
+    # seam. 2026-07-27 re-pin: the read-surface migration finished the job —
+    # ALL three resolutions (mission dir, planning/scaffold dir, plan read dir)
+    # now go through ``placement_seam(...).read_dir(<MissionArtifactKind>)``,
+    # so the kind-blind ``resolve_planning_read_dir`` stub is gone. Stubbing the
+    # single seam constructor converges every kind on the test's ``feature_dir``
+    # — the same coverage the two-stub form gave, at one boundary.
     class _SeamStub:
         def read_dir(self, *_a: object, **_k: object) -> Path:
             return feature_dir
 
     monkeypatch.setattr(research_module, "placement_seam", lambda *_a, **_k: _SeamStub())
-    monkeypatch.setattr(
-        research_module, "resolve_planning_read_dir", lambda *_a, **_k: feature_dir
-    )
     monkeypatch.setattr(research_module, "resolve_template_path", lambda *_args, **_kwargs: None)
 
     result = runner.invoke(cli_app, ["research", "--mission", "001-demo-feature", "--force"])
