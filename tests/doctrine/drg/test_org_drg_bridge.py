@@ -113,7 +113,11 @@ def _fragment(
         {
             "pack_name": pack_name,
             "source_kind": "local_path",
-            "source_ref": f"/tmp/{pack_name}",
+            # Inert provenance string — never opened, never written. A shared
+            # /tmp literal here would trip the tmp-literal ban (#KWWRW2 FR-002)
+            # for a path that is not a real filesystem target, so use a
+            # non-shared-temp absolute sentinel.
+            "source_ref": f"/nonexistent/org-packs/{pack_name}",
             "layer_index": 1,
             "nodes": nodes,
             "edges": edges,

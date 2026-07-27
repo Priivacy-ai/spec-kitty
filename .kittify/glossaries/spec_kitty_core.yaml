@@ -62,7 +62,7 @@ terms:
       partition of the input when a match fails; patterns with nested or consecutive
       non-possessive repetitions can produce O(2^N) or O(N^c) retry storms. The
       `secure-regex-catastrophic-backtracking` tactic at
-      `src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml`
+      `src/doctrine/tactics/built-in/secure-regex-catastrophic-backtracking.tactic.yaml`
       codifies the four dangerous-shape patterns, the rewrite ladder (bound quantifier →
       refactor nested → possessive/atomic group → negated char class), and the escape
       hatches (drop the regex, re2, multi-pass, bounded-input cap). Every fix requires a
@@ -73,7 +73,7 @@ terms:
     status: active
     see_also:
       - tactic: secure-regex-catastrophic-backtracking
-        path: src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml
+        path: src/doctrine/tactics/built-in/secure-regex-catastrophic-backtracking.tactic.yaml
       - fr: FR-008
         description: Wall-clock regression test requirement for every regex change
 

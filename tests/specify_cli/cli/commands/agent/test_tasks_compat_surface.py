@@ -278,6 +278,10 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
     "_ms_output",
     "_do_mark_status",
     "_resolve_inline_subtasks",
+    # #2962 campsite fix: the authored-roster resolver and the owning-WP
+    # helper its two event-emit call sites share with it.
+    "_resolve_authored_roster",
+    "owning_wp_from_authored_roster",
 )
 
 #: seam-module-name -> imported module object, and -> that seam's required
@@ -488,5 +492,12 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     subprocess's created-path diff now enrols into the tool-artifact owner
     compensator (commit-on-pass via no-op, revert-on-abort via
     ``restore_generated_artifact_snapshots``) instead of being detected and
-    warned about (tasks_move_task 75 -> 76): 156 -> 157."""
-    assert len(SYMBOL_TO_MODULE) == 157  # golden-count: cardinality-is-contract
+    warned about (tasks_move_task 75 -> 76): 156 -> 157. The #2962 campsite
+    fix (doctrine-silence-guards-01KYFV7Q) added the fifth subtask-id
+    resolver ``_resolve_authored_roster`` — the shipped ``software-dev``
+    tasks template instructs authors to write reference rows with no
+    checkbox, a shape none of the four legacy resolvers matched — and
+    ``owning_wp_from_authored_roster``, the owning-WP helper its two
+    event-emit call sites share with it (tasks_mark_status 13 -> 15):
+    157 -> 159."""
+    assert len(SYMBOL_TO_MODULE) == 159  # golden-count: cardinality-is-contract
