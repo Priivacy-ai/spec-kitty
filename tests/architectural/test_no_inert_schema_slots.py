@@ -186,6 +186,53 @@ converted both to ``len(BASELINE_SLOTS filtered by walk)`` — see
 (the correct response to cleared debt) and still catch the 0-producer collapse
 this floor exists for: ``0 >= 28`` fails exactly as hard as ``0 >= 30`` did.
 
+The code-producer path was a silence guard, and it is now recorded
+------------------------------------------------------------------
+Everything above rests on one claim: **the baseline is the only way to make a finding
+go away.** It was not. A slot leaves the findings list the moment *any* code under
+``src/doctrine/`` names it, and review proved that costs one dead line. Plant a
+producerless property, append ``_UNUSED = {"zzzprobeslot": None}`` to
+``artifact_kinds.py``, and the module goes 1-failed → 26-passed with no ``ALLOWLIST``
+entry, no baseline entry, and nothing visible in review. Confirming it turned up two
+more shapes that work identically: a bare binding (``zzzprobeslot = None``) and a
+keyword argument.
+
+That third data point decided the fix. Every rule of the form "which AST node counts
+as a write" is satisfiable by writing that node, so tightening
+``_iter_code_producer_names`` narrows the hole and never closes it. **The producer
+rule is therefore unchanged.** What changes is that the route is no longer silent:
+``find_code_only_suppressions`` computes the slots that leave the findings list on a
+code producer alone, and ``test_the_code_only_suppressions_match_the_frozen_record``
+requires that set to equal the ``code_only_suppressions`` block of
+``_inert_slots_baseline.yaml`` — both directions failing, so a collapsed walk cannot
+satisfy it by finding nothing.
+
+Visibility alone would only make the fake *conspicuous*; the cap is what makes it
+expensive. Each row carries one of three verdicts, and the two that concede the slot
+is really inert (``name-collision``, ``reader-not-producer``) are capped shrink-only
+at their current population by ``MAX_MASKING_SUPPRESSIONS``. So a **new** code-only
+suppression can only enter as ``genuine-producer`` — a positive claim, in a diff,
+beside the code it claims, re-derived from the AST by ``code_producer_writes``.
+
+The measurement behind leaving the rule permissive, because it should not have to be
+re-derived: of the 15 code-only suppressions on the shipped tree, **one** is a real
+production (``payload["action_sequence"] = …``). The other fourteen are same-named
+locals (``lines = text.splitlines()``, ``field_path = ".".join(…)`` in six validation
+modules), ``ArtifactKind`` tokens in ``_PLURALS``/``_PATTERNS``, and a loader's
+read-map. Two of them invert this module's own reader/writer asymmetry outright:
+``RoutingCandidate(effort=profile.effort)`` is a *read* of ``effort`` that the kwarg
+rule scores as a write. In a doctrine layer the load-bearing producer is the authored
+artefact, and that ratio is pinned by
+``test_the_code_producer_path_is_mostly_coincidence`` so a future change that inverts
+it has to re-argue the case rather than inherit it.
+
+What this deliberately does **not** do: it does not enrol those fourteen as baseline
+findings. That is the honest end state and the operator should get there, but it
+needs an ``owner`` and a ``disposition`` per row — the owner's call, not the
+implementer's, which ``_parse_entry`` enforces — and the ``unassigned`` hatch is at
+its cap (23/23) with no headroom by design. The record holds the evidence for that
+adjudication instead of performing it.
+
 Non-vacuity (NFR-001)
 ---------------------
 ``test_planted_producerless_slot_is_flagged`` plants a real violation and asserts RED.
@@ -213,7 +260,10 @@ import yaml
 from tests.architectural._inert_slots import (
     ALLOWLIST,
     BASELINE_SLOTS,
+    CODE_ONLY_SUPPRESSIONS,
+    CODE_ONLY_VERDICTS,
     DISPOSITIONS,
+    MAX_MASKING_SUPPRESSIONS,
     MAX_UNASSIGNED_ENTRIES,
     MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND,
     MINIMUM_MODEL_SLOT_NAMES,
@@ -225,9 +275,12 @@ from tests.architectural._inert_slots import (
     BaselineEntry,
     BaselineError,
     InertSlot,
+    code_only_drift,
+    code_producer_writes,
     find_code_only_suppressions,
     find_inert_slots,
     load_baseline,
+    load_code_only_record,
     owner_exists,
     owner_is_complete,
     ratchet,
@@ -405,6 +458,185 @@ def test_shipped_tree_has_no_inert_slots_beyond_the_frozen_baseline() -> None:
         "_inert_slots_baseline.yaml with a named owner and one of "
         f"{sorted(DISPOSITIONS)} — never to ALLOWLIST."
     )
+
+
+@lru_cache(maxsize=1)
+def _shipped_code_only() -> tuple[InertSlot, ...]:
+    """Memoised shipped-tree scan of the code-only suppression route."""
+    return tuple(find_code_only_suppressions(_REPO_ROOT))
+
+
+def test_the_code_only_suppressions_match_the_frozen_record() -> None:
+    """The second half of the gate: the silent suppression route, made loud.
+
+    ``test_shipped_tree_has_no_inert_slots_beyond_the_frozen_baseline`` above is
+    load-bearing only if the findings list cannot be shortened without ceremony. It
+    could: a slot leaves that list the moment any code under ``src/doctrine/`` names
+    it, and review proved a single dead line is enough. This assertion is what makes
+    that route cost something.
+
+    Both directions fail. An unrecorded suppression is the hole itself. A recorded
+    row that is no longer computed is either cleared debt whose row belongs in the
+    same diff, or a collapsed walk — and the walk case matters, because every other
+    assertion about this route is an absence assertion that a collapsed walk would
+    satisfy. This one is an equality, so it cannot be satisfied by finding nothing.
+    """
+    new, stale = code_only_drift(list(_shipped_code_only()), CODE_ONLY_SUPPRESSIONS)
+
+    assert (new, stale) == ([], []), "\n".join(
+        [
+            *(
+                [
+                    "slots that left the findings list because code names them, with "
+                    "nothing recorded for them:",
+                    *(f"  - {s.name} declared at {s.declared_at}" for s in new),
+                    "",
+                    "This is the shape review used to silence a planted finding with "
+                    "one dead line. If the producer is real, add a row to "
+                    "_inert_slots_baseline.yaml under 'code_only_suppressions' with "
+                    f"verdict: genuine-producer (legal: {sorted(CODE_ONLY_VERDICTS)}) "
+                    "and the file that writes it. If it is not real, the slot is a "
+                    "finding: give it a baseline entry with an owner instead.",
+                ]
+                if new
+                else []
+            ),
+            *(
+                [
+                    "recorded code-only suppressions that are no longer computed:",
+                    *(f"  - {r.name} declared at {r.declared_at}" for r in stale),
+                    "",
+                    "Either the slot gained a real artefact producer or lost its "
+                    "declaration — delete the row in this same change — or a walk "
+                    "collapsed, in which case repair the walk and change nothing here.",
+                ]
+                if stale
+                else []
+            ),
+        ]
+    )
+
+
+def test_every_recorded_code_producer_actually_writes_the_slot() -> None:
+    """A cited producer that writes nothing reads exactly like one that does.
+
+    Same failure ``test_every_named_owner_resolves`` closes for baseline owners: an
+    unverifiable value in the record is indistinguishable from a legitimate one, so
+    a row could name any path at all and still look adjudicated.
+    """
+    unverified = sorted(
+        f"{row.name} -> {row.producer}"
+        for row in CODE_ONLY_SUPPRESSIONS
+        if not code_producer_writes(_REPO_ROOT, row.name, row.producer)
+    )
+
+    assert unverified == [], (
+        f"recorded producers that do not write the slot they are cited for: "
+        f"{unverified}. The path is re-parsed from the AST; a stale citation means "
+        "the row's verdict was reasoned about code that has since moved or changed."
+    )
+
+
+def test_the_masking_verdicts_are_capped_and_shrink_only() -> None:
+    """The cap is what turns a visible route into a closed one.
+
+    Making the suppression route visible stops it being silent. The cap is what
+    stops it being *cheap*: with masking rows at their current population, a new
+    code-only suppression can only enter as ``genuine-producer`` — a positive claim
+    someone signs, next to the code, re-derived from the AST. Raising this number is
+    the single move that re-opens the hole, so it may only ever go down.
+    """
+    masking = [row for row in CODE_ONLY_SUPPRESSIONS if row.masks_a_finding]
+
+    assert len(masking) <= MAX_MASKING_SUPPRESSIONS, (
+        f"{len(masking)} rows carry a masking verdict, above the shrink-only cap of "
+        f"{MAX_MASKING_SUPPRESSIONS}. A new code-only suppression must be a genuine "
+        "producer, or the slot is a finding and belongs in the baseline with an owner."
+    )
+    if len(masking) < MAX_MASKING_SUPPRESSIONS:
+        warnings.warn(
+            f"masking code-only suppressions are down to {len(masking)}; lower "
+            f"MAX_MASKING_SUPPRESSIONS to lock it in.",
+            stacklevel=1,
+        )
+
+
+def test_the_code_producer_path_is_mostly_coincidence() -> None:
+    """The measurement that justifies the record's shape, pinned so it cannot rot.
+
+    In a doctrine layer, slots are filled by YAML authors — the module docstring says
+    so, and this is the number behind it: of the code-only suppressions on the
+    shipped tree, exactly one is a real production and the rest are same-named
+    locals, ArtifactKind tokens, and loader read-maps. A future change that inverts
+    this ratio means the code-producer rule has become load-bearing after all, and
+    the case for keeping it permissive should be re-argued rather than inherited.
+    """
+    genuine = [row for row in CODE_ONLY_SUPPRESSIONS if not row.masks_a_finding]
+
+    assert [row.name for row in genuine] == ["action_sequence"], (
+        "the set of code-only suppressions claimed as real producers changed: "
+        f"{sorted(row.name for row in genuine)}. Re-read the record's header — the "
+        "one-in-fifteen ratio is the evidence the producer rule was left permissive."
+    )
+
+
+def test_an_illegal_code_only_verdict_is_rejected_at_load_time(tmp_path: Path) -> None:
+    """No ``accepted``, for the same reason the disposition vocabulary has none."""
+    path = tmp_path / "b.yaml"
+    path.write_text(
+        "mission: m\nentries: []\ncode_only_suppressions:\n"
+        "  - name: x\n    declared_at: a.yaml\n    producer: b.py\n"
+        "    verdict: accepted\n    note: n\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BaselineError, match="illegal verdict"):
+        load_code_only_record(path)
+
+
+def test_a_missing_code_only_block_is_malformed_not_empty(tmp_path: Path) -> None:
+    """Deleting the record must not read as "there are no suppressions".
+
+    A block that defaults to empty when absent is a gate you disable by deletion,
+    and the deletion looks like tidying.
+    """
+    path = tmp_path / "b.yaml"
+    path.write_text("mission: m\nentries: []\n", encoding="utf-8")
+
+    with pytest.raises(BaselineError, match="must be a list"):
+        load_code_only_record(path)
+
+
+def test_an_artefact_producer_is_not_a_code_only_suppression(tmp_path: Path) -> None:
+    """The record covers the code route only — an authored key is the honest way out.
+
+    Without this the new check would grow a row every time a slot is legitimately
+    populated by doctrine YAML, i.e. it would tax the correct behaviour.
+    """
+    _plant(tmp_path, schema="type: object\nproperties:\n  authored:\n    type: string\n")
+    artefact = tmp_path / "src" / "doctrine" / "styleguides" / "built-in"
+    artefact.mkdir(parents=True, exist_ok=True)
+    (artefact / "x.styleguide.yaml").write_text(
+        "id: x\nauthored: a value\n", encoding="utf-8"
+    )
+    (tmp_path / "src" / "doctrine" / "also.py").write_text(
+        'd["authored"] = 1\n', encoding="utf-8"
+    )
+
+    assert find_inert_slots(tmp_path) == []
+    assert find_code_only_suppressions(tmp_path) == []
+
+
+def test_a_cited_producer_that_does_not_write_the_slot_is_rejected(tmp_path: Path) -> None:
+    """Non-vacuity for :func:`code_producer_writes` — it must answer ``False`` sometimes."""
+    doctrine = tmp_path / "src" / "doctrine"
+    doctrine.mkdir(parents=True)
+    (doctrine / "writes.py").write_text('d["real"] = 1\n', encoding="utf-8")
+    (doctrine / "reads.py").write_text('x = d["real"]\n', encoding="utf-8")
+
+    assert code_producer_writes(tmp_path, "real", Path("src/doctrine/writes.py"))
+    assert not code_producer_writes(tmp_path, "real", Path("src/doctrine/reads.py"))
+    assert not code_producer_writes(tmp_path, "real", Path("src/doctrine/gone.py"))
 
 
 def test_baseline_entries_are_well_formed() -> None:

@@ -405,3 +405,161 @@ entries:
     owner: mission:drg-edge-migration-extractor-retirement-01KYFV8C
     disposition: wire-the-producer
     note: Enforcement field; the one shipped glossary pack does not author it.
+
+# ---------------------------------------------------------------------------
+# CODE-ONLY SUPPRESSIONS
+#
+# A different record for a different problem. The `entries:` above are findings
+# the gate DOES report and someone owes work on. These are slots the gate does
+# NOT report, solely because code under src/doctrine/ names them -- the one
+# suppression route that had no accounting until review fabricated a suppression
+# with a single dead line and took the module from 1 failed to 26 passed.
+#
+# The producer rule itself is unchanged, deliberately. Review's mutation used a
+# dict literal; confirming it found that a bare binding and a keyword argument
+# work identically, and any rule of the form "which AST node counts as a write"
+# is satisfiable by writing that node. So the fix is not a narrower rule, it is
+# the removal of the silence: this computed set must MATCH this record exactly.
+#
+# Ratchet semantics -- BOTH directions fail, unlike the baseline above:
+#   - a suppression not recorded here     -> FAILS (that is the hole)
+#   - a recorded row no longer computed   -> FAILS (delete the row; the same
+#     signal also catches a collapsed walk, which would otherwise empty the
+#     computed set and let every absence assertion in the module pass)
+#
+# `verdict` vocabulary is exactly three values, and only the first is a claim
+# that the code write is real:
+#   genuine-producer     the code really does place a value in this slot
+#   name-collision       an unrelated same-named symbol; the slot IS inert and
+#                        this row is masking a real finding
+#   reader-not-producer  the code contact reads or maps the key rather than
+#                        filling it. The module's central asymmetry ("a reader
+#                        is not a producer") is defeated by the kwarg and
+#                        dict-key rules, which cannot tell `f(x=obj.x)` or a
+#                        loader's key map from a write. Also masking.
+#
+# The latter two are DEBT and are capped shrink-only (MAX_MASKING_SUPPRESSIONS).
+# That cap is what gives this record teeth rather than merely making the route
+# visible: at its current population a NEW code-only suppression can only be
+# admitted as `genuine-producer` -- a positive claim, in a diff, next to the
+# code being claimed, and re-derived from the AST by `code_producer_writes`.
+#
+# `producer` cites ONE file that writes the name; several rows have more (see
+# `field_path`, six identical jsonschema error-path locals). The citation is
+# verified, not exhaustive -- `test_every_recorded_code_producer_actually_writes_the_slot`
+# re-parses that file and fails if the claim is false, closing for this record
+# the same gap `test_every_named_owner_resolves` closes for baseline owners.
+#
+# THE HEADLINE, because it should not need re-deriving: 14 of these 15 rows are
+# masking. The code-producer path suppresses one genuine production and fourteen
+# coincidences. It was never the load-bearing producer form in a doctrine layer
+# -- authored artefacts are -- and this record is the measurement that says so.
+code_only_suppressions:
+  - name: action_sequence
+    declared_at: src/doctrine/missions/models.py
+    producer: src/doctrine/missions/mission_type_repository.py
+    verdict: genuine-producer
+    note: >-
+      `payload["action_sequence"] = projected_sequence or raw.get("action_sequence")`
+      -- a store into the payload the mission-type model is built from, in the
+      same domain as the slot. The one real code producer in this record.
+
+  - name: directive
+    declared_at: src/doctrine/import_candidates/models.py
+    producer: src/doctrine/artifact_kinds.py
+    verdict: name-collision
+    note: >-
+      Suppressed by the `_PLURALS` / `_PATTERNS` dict keys, which are ArtifactKind
+      tokens ("directive" -> "directives", "*.directive.yaml"). The slot is a field
+      of an import candidate. Different domain, same six letters; no artefact
+      authors the field.
+  - name: directive
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    producer: src/doctrine/artifact_kinds.py
+    verdict: name-collision
+    note: Schema twin of the `import_candidates/models.py` row above.
+
+  - name: effort
+    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
+    producer: src/doctrine/model_task_routing/evaluator.py
+    verdict: reader-not-producer
+    note: >-
+      `RoutingCandidate(effort=profile.effort)` READS the profile field and
+      forwards it under the same label; the write lands in RoutingCandidate, not
+      in a profile. The clearest case of the kwarg rule inverting this module's own
+      reader/writer asymmetry. No shipped profile authors `effort`.
+
+  - name: extends
+    declared_at: src/doctrine/missions/models.py
+    producer: src/doctrine/drg/merge.py
+    verdict: name-collision
+    note: >-
+      Suppressed by an `_RELATION_ALIASES` key -- a DRG relation alias token, not
+      the mission model's field.
+
+  - name: field_path
+    declared_at: src/doctrine/schemas/occurrence-map.schema.yaml
+    producer: src/doctrine/agent_profiles/validation.py
+    verdict: name-collision
+    note: >-
+      `field_path = ".".join(str(p) for p in error.path)` -- a jsonschema
+      error-path local, repeated verbatim in six validation modules. A bare
+      binding names a variable, not a slot; nothing is placed anywhere.
+
+  - name: lines
+    declared_at: src/doctrine/import_candidates/models.py
+    producer: src/doctrine/assets/built-in/docs_structural_lint.py
+    verdict: name-collision
+    note: >-
+      `lines = text.splitlines()`, plus two more bare bindings elsewhere. Nothing
+      to do with the import-candidate field.
+  - name: lines
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    producer: src/doctrine/assets/built-in/docs_structural_lint.py
+    verdict: name-collision
+    note: Schema twin of the `import_candidates/models.py` row above.
+
+  - name: paradigm
+    declared_at: src/doctrine/import_candidates/models.py
+    producer: src/doctrine/artifact_kinds.py
+    verdict: name-collision
+    note: ArtifactKind token in `_PLURALS` / `_PATTERNS`; see the `directive` row.
+  - name: paradigm
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    producer: src/doctrine/artifact_kinds.py
+    verdict: name-collision
+    note: Schema twin of the `import_candidates/models.py` row above.
+
+  - name: recommended_model_tier
+    declared_at: src/doctrine/missions/models.py
+    producer: src/doctrine/missions/mission_step_repository.py
+    verdict: reader-not-producer
+    note: >-
+      A key of `_STEP_YAML_TO_MODEL`, the loader's step.yaml -> model READ map
+      ("if src_key in raw"). The reader is wired at both ends and no step.yaml
+      authors the key, which is exactly the shape this gate exists to report.
+  - name: recommended_model_tier
+    declared_at: src/doctrine/schemas/mission.schema.yaml
+    producer: src/doctrine/missions/mission_step_repository.py
+    verdict: reader-not-producer
+    note: Schema twin of the `missions/models.py` row above.
+
+  - name: role
+    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
+    producer: src/doctrine/agent_profiles/capabilities.py
+    verdict: name-collision
+    note: >-
+      `RoleCapabilities(role=Role.IMPLEMENTER)` x8 -- a field of a capability
+      lookup dataclass, not of an agent profile. Profiles author `roles` (plural);
+      the singular schema property is unauthored.
+
+  - name: tactic
+    declared_at: src/doctrine/import_candidates/models.py
+    producer: src/doctrine/artifact_kinds.py
+    verdict: name-collision
+    note: ArtifactKind token in `_PLURALS` / `_PATTERNS`; see the `directive` row.
+  - name: tactic
+    declared_at: src/doctrine/schemas/import-candidate.schema.yaml
+    producer: src/doctrine/artifact_kinds.py
+    verdict: name-collision
+    note: Schema twin of the `import_candidates/models.py` row above.

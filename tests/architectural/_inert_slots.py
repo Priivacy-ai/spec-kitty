@@ -38,8 +38,11 @@ __all__ = [
     "ALLOWLIST",
     "BASELINE_PATH",
     "BASELINE_SLOTS",
+    "CODE_ONLY_SUPPRESSIONS",
+    "CODE_ONLY_VERDICTS",
     "COMPLETED_LANES",
     "DISPOSITIONS",
+    "MAX_MASKING_SUPPRESSIONS",
     "MAX_UNASSIGNED_ENTRIES",
     "MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND",
     "MINIMUM_MODEL_SLOT_NAMES",
@@ -50,9 +53,14 @@ __all__ = [
     "Baseline",
     "BaselineEntry",
     "BaselineError",
+    "CodeOnlySuppression",
     "InertSlot",
+    "code_only_drift",
+    "code_producer_writes",
+    "find_code_only_suppressions",
     "find_inert_slots",
     "load_baseline",
+    "load_code_only_record",
     "owner_exists",
     "owner_is_complete",
     "ratchet",
@@ -285,6 +293,18 @@ def scanned_slots(root: Path) -> set[InertSlot]:
     return {*_schema_slots(root), *_model_slots(root)}
 
 
+def _unproduced(slots: set[InertSlot], producers: set[str]) -> list[InertSlot]:
+    """Slots *producers* does not cover, deterministically ordered."""
+    return sorted(
+        (
+            slot
+            for slot in slots
+            if slot.name not in producers and slot.name not in ALLOWLIST
+        ),
+        key=lambda slot: (slot.name, str(slot.declared_at)),
+    )
+
+
 def find_inert_slots(root: Path) -> list[InertSlot]:
     """Return every declared slot under *root* that no producer populates.
 
@@ -292,14 +312,51 @@ def find_inert_slots(root: Path) -> list[InertSlot]:
     tree — the non-vacuity test points it at a planted ``tmp_path``, which is the
     only reason that test proves anything about the shipped-tree assertion.
     """
-    slots = scanned_slots(root)
     producers = _artefact_producers(root) | _code_producers(root)
-    inert = [
+    return _unproduced(scanned_slots(root), producers)
+
+
+def find_code_only_suppressions(root: Path) -> list[InertSlot]:
+    """Slots kept out of :func:`find_inert_slots` by a code producer and nothing else.
+
+    This is the gate's one silent suppression route, and it was silent in the literal
+    sense: a slot could leave the findings list with no artefact authoring it, no
+    ``ALLOWLIST`` entry and no baseline row. Review demonstrated it by appending
+    ``_UNUSED = {"zzzprobeslot": None}`` under ``src/doctrine/`` — one dead line, gate
+    green. Confirming it found two more shapes that work identically: a bare binding
+    and a keyword argument.
+
+    That third data point is why the fix is here rather than in
+    :func:`_iter_code_producer_names`. Every rule of the form "which AST node counts
+    as a write" is satisfiable by writing that node, so tightening the node set moves
+    the hole rather than closing it. The producer rule is therefore unchanged; what
+    changes is that this route now leaves a trace. The computed set must match the
+    ``code_only_suppressions`` record in the baseline file exactly, so admitting a new
+    one costs a reviewable row carrying a verdict and a note — the ceremony that was
+    missing — and the masking verdicts are capped shrink-only on top of that.
+    """
+    slots = scanned_slots(root)
+    code = _code_producers(root)
+    return [
         slot
-        for slot in slots
-        if slot.name not in producers and slot.name not in ALLOWLIST
+        for slot in _unproduced(slots, _artefact_producers(root))
+        if slot.name in code
     ]
-    return sorted(inert, key=lambda slot: (slot.name, str(slot.declared_at)))
+
+
+def code_producer_writes(root: Path, name: str, producer: Path) -> bool:
+    """Does ``root/producer`` really contain a code write of *name*?
+
+    The record names the file it is claiming as a producer, and this re-derives that
+    claim from the AST instead of trusting it. Without it a row could cite any path
+    at all — the same failure ``test_every_named_owner_resolves`` closes for baseline
+    owners, where an unresolvable value reads exactly like a legitimate one.
+    """
+    path = root / producer
+    if not path.is_file():
+        return False
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return name in set(_iter_code_producer_names(tree))
 
 
 # ------------------------------------------------- the frozen shrink-only baseline
@@ -551,12 +608,135 @@ def unresolved_by_completed_owners(
     return offenders
 
 
+# ------------------------------------- the code-only corroboration record
+#
+# A second, differently-shaped record for a differently-shaped problem. The
+# baseline above holds findings the gate DOES report and someone owes work on. This
+# one holds slots the gate does NOT report, solely because code names them — the
+# route that had no accounting at all until review fabricated a suppression with a
+# single dead line.
+
+#: Exactly three verdicts, and only the first is a claim that the code write is real.
+#: ``name-collision`` and ``reader-not-producer`` both say "this row is masking a
+#: genuine finding" — they are debt, and :data:`MAX_MASKING_SUPPRESSIONS` caps them.
+CODE_ONLY_VERDICTS = frozenset(
+    {"genuine-producer", "name-collision", "reader-not-producer"}
+)
+
+_GENUINE_PRODUCER = "genuine-producer"
+
+#: Shrink-only cap on rows that mask a real finding — 14 of the 15 today. This is
+#: what gives the record teeth rather than merely making the route visible: with the
+#: cap at its current population, a NEW code-only suppression can only be admitted as
+#: ``genuine-producer`` — a positive claim, in a diff, next to the code being
+#: claimed, re-derived from the AST by :func:`code_producer_writes`. Raising it is
+#: the one move that would re-open the hole, and it may only ever go DOWN.
+#:
+#: NOT YET REGISTERED with the charter ratchet, and it should be — every other cap
+#: here is (``test_the_unassigned_cap_is_registered_with_the_charter_ratchet``). The
+#: follow-up is two lines: ``masking_suppressions: 14`` under
+#: ``test_no_inert_schema_slots`` in ``_baselines.yaml``, plus the matching row in
+#: ``test_ratchet_baselines.py``'s explicit ``single_baselines`` list. Both files were
+#: under concurrent edit when this landed, so the change was flagged rather than
+#: dropped into someone else's diff. Until it happens this number is pinned only by
+#: ``test_the_masking_verdicts_are_capped_and_shrink_only``.
+MAX_MASKING_SUPPRESSIONS = 14
+
+_CODE_ONLY_KEY = "code_only_suppressions"
+
+
+@dataclass(frozen=True)
+class CodeOnlySuppression:
+    """One slot the findings list omits because code — and only code — names it."""
+
+    name: str
+    declared_at: Path
+    producer: Path
+    verdict: str
+    note: str
+
+    @property
+    def slot(self) -> InertSlot:
+        return InertSlot(name=self.name, declared_at=self.declared_at)
+
+    @property
+    def masks_a_finding(self) -> bool:
+        """True when the row concedes the slot is inert and the producer is spurious."""
+        return self.verdict != _GENUINE_PRODUCER
+
+
+def _parse_code_only(raw: object, index: int) -> CodeOnlySuppression:
+    if not isinstance(raw, dict):
+        raise BaselineError(f"{_CODE_ONLY_KEY} entry {index} is not a mapping: {raw!r}")
+    verdict = _require_str(raw.get("verdict"), "verdict", index)
+    if verdict not in CODE_ONLY_VERDICTS:
+        raise BaselineError(
+            f"{_CODE_ONLY_KEY} entry {index}: illegal verdict {verdict!r}. Legal "
+            f"values are {sorted(CODE_ONLY_VERDICTS)} — there is no 'accepted'."
+        )
+    return CodeOnlySuppression(
+        name=_require_str(raw.get("name"), "name", index),
+        declared_at=Path(_require_str(raw.get("declared_at"), "declared_at", index)),
+        producer=Path(_require_str(raw.get("producer"), "producer", index)),
+        verdict=verdict,
+        note=_require_str(raw.get("note"), "note", index),
+    )
+
+
+def load_code_only_record(
+    path: Path = BASELINE_PATH,
+) -> tuple[CodeOnlySuppression, ...]:
+    """Parse and validate the ``code_only_suppressions`` block, raising on anything odd.
+
+    A missing block is malformed, not empty: silently reading it as ``()`` would let
+    a delete of the whole record read as "there are none", which is exactly the
+    green-for-the-wrong-reason this module exists to refuse.
+    """
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise BaselineError(f"{path} does not contain a mapping")
+    raw_rows = document.get(_CODE_ONLY_KEY)
+    if not isinstance(raw_rows, list):
+        raise BaselineError(f"{path}: {_CODE_ONLY_KEY!r} must be a list")
+    rows = tuple(_parse_code_only(raw, index) for index, raw in enumerate(raw_rows))
+    seen: set[InertSlot] = set()
+    for row in rows:
+        if row.slot in seen:
+            raise BaselineError(
+                f"duplicate {_CODE_ONLY_KEY} row for {row.name!r} at {row.declared_at}"
+            )
+        seen.add(row.slot)
+    return rows
+
+
+def code_only_drift(
+    found: list[InertSlot], recorded: tuple[CodeOnlySuppression, ...]
+) -> tuple[list[InertSlot], list[CodeOnlySuppression]]:
+    """Split the computed suppressions against the record into ``(new, stale)``.
+
+    Both halves FAIL the gate, for different reasons. ``new`` is the hole: a slot
+    left the findings list with nobody signing for it. ``stale`` is either cleared
+    debt whose row should be deleted in the same change, or — the reason this half
+    is not a mere warning — a collapsed walk, which would otherwise empty ``found``
+    and let every absence assertion in the module pass on a scan that saw nothing.
+    """
+    known = {row.slot for row in recorded}
+    still_found = set(found)
+    new = [slot for slot in found if slot not in known]
+    stale = [row for row in recorded if row.slot not in still_found]
+    return new, stale
+
+
 #: Module-scope frozenset so the charter-named ratchet meta-test
 #: (``test_ratchet_baselines.py`` against ``tests/architectural/_baselines.yaml``)
 #: can introspect this baseline's size exactly as it does every other gated
 #: allowlist: growth above the recorded number FAILS, shrinkage WARNS. Without
 #: this registration nothing pins the file's size at all.
 BASELINE_SLOTS: frozenset[InertSlot] = load_baseline().slots
+
+#: The frozen code-only corroboration record, loaded once at import for the same
+#: reason as :data:`BASELINE_SLOTS`.
+CODE_ONLY_SUPPRESSIONS: tuple[CodeOnlySuppression, ...] = load_code_only_record()
 
 
 def is_schema_declared(slot: InertSlot) -> bool:
