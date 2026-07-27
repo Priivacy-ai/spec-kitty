@@ -87,11 +87,18 @@ def glob_is_live(glob: str, tracked: set[str]) -> bool:
 
 
 def critical_path_backed_by(entry: str, cov_targets: set[str]) -> str | None:
-    """FR-005: a ``--cov`` target that is an ancestor-or-equal of ``entry``, if any."""
+    """FR-005: a ``--cov`` target that is an ancestor-or-equal of ``entry``, if any.
+
+    ``cov_targets`` may hold either shape a ``--cov`` flag takes since #2975
+    (a ``src/``-relative path or a dotted module, e.g.
+    ``specify_cli.charter_runtime``); both are normalized to the same
+    ``src/``-relative form via ``gc.cov_target_repo_path`` before comparing,
+    so a dotted emitter still backs its critical-path entry.
+    """
     package = entry[:-2] if entry.endswith("/*") else entry
     package = package.rstrip("/")
     for cov in cov_targets:
-        target = cov.rstrip("/")
+        target = gc.cov_target_repo_path(cov)
         if package == target or package.startswith(target + "/"):
             return cov
     return None

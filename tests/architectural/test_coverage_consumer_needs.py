@@ -38,11 +38,11 @@ from tests.architectural import _gate_coverage as gc
 pytestmark = [pytest.mark.architectural]
 
 _CI_QUALITY = "ci-quality.yml"
-_SRC_PREFIX = "src/"
 # Jobs that *consume* coverage rather than emit it; excluded from the emitter set
-# (a consumer need not list itself). ``sonarcloud`` also carries a documentation
-# ``--cov=src/<package>`` placeholder in its script that is not a real emitter.
-_CONSUMER_JOBS = frozenset({"sonarcloud", "diff-coverage", "mutation-testing"})
+# (a consumer need not list itself). Canonical set lives on ``_gate_coverage``
+# (``NON_EMITTER_JOBS``) since #2975's coverage-root-collisions guard needs the
+# same exclusion for the same reason (sonarcloud's documentation placeholder).
+_CONSUMER_JOBS = gc.NON_EMITTER_JOBS
 # Graph-ordering / non-test needs that legitimately emit no coverage XML.
 _ORDERING_NEEDS = frozenset({"changes", "lint"})
 
@@ -54,12 +54,18 @@ def ci_model() -> gc.WorkflowModel:
 
 
 def _src_cov_emitters(model: gc.WorkflowModel) -> set[str]:
-    """Jobs emitting a ``--cov`` target under ``src/`` (excluding consumer jobs)."""
+    """Jobs emitting a ``--cov`` target under ``src/`` (excluding consumer jobs).
+
+    ``--cov`` targets come in two shapes since #2975 (a ``src/``-relative path
+    or a dotted module, e.g. ``specify_cli.charter_runtime``) -- both route
+    through ``gc.is_src_cov_target`` so a job that only emits dotted-form
+    targets is not silently dropped from the emitter set.
+    """
     emitters: set[str] = set()
     for job, targets in model.cov_targets.items():
         if job in _CONSUMER_JOBS:
             continue
-        if any(target.startswith(_SRC_PREFIX) for target in targets):
+        if any(gc.is_src_cov_target(target) for target in targets):
             emitters.add(job)
     return emitters
 
