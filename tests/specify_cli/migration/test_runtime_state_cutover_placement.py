@@ -199,3 +199,44 @@ def test_genuine_primary_dir_still_flips(tmp_path: Path) -> None:
     assert result.flipped is True
     assert result.error is None
     assert json.loads((feature_dir / "meta.json").read_text())[_STATUS_PHASE] == "1"
+
+
+def test_placement_home_and_canonicalize_agree_through_symlinked_root(tmp_path: Path) -> None:
+    """Defensive pin (aggregate-review NOTE 2): the FR-001 fail-close compares the
+    port's resolved PRIMARY home against ``canonicalize_feature_dir(feature_dir)``.
+    Its correctness depends on both normalizers producing an identically-formed path.
+    If they ever diverged on symlink/``resolve()`` handling, a genuine mission reached
+    through a symlinked repo root would spuriously raise ``PlacementMismatchError``.
+    Pin the contract: the two normalizers agree, and the flip succeeds through the link.
+    """
+    real_root = tmp_path / "real-repo"
+    _init_bare_git_marker(real_root)
+    feature_dir_real = real_root / "kitty-specs" / _SLUG
+    _build_empty_tasks_leg(feature_dir_real)
+    (feature_dir_real / "meta.json").write_text(
+        json.dumps({"mission_id": _MISSION_ID, "mission_slug": _SLUG, "mission_type": "software-dev"}),
+        encoding="utf-8",
+    )
+
+    # A path that differs textually from the real dir but resolves to the same inode.
+    link_root = tmp_path / "link-repo"
+    link_root.symlink_to(real_root, target_is_directory=True)
+    feature_dir_via_link = link_root / "kitty-specs" / _SLUG
+
+    from mission_runtime import MissionArtifactKind, resolve_artifact_surface
+    from specify_cli.core.paths import resolve_canonical_root
+    from specify_cli.workspace import canonicalize_feature_dir
+
+    repo_root = resolve_canonical_root(feature_dir_via_link)
+    resolved_home = resolve_artifact_surface(
+        repo_root, _SLUG, MissionArtifactKind.PRIMARY_METADATA
+    ).path
+    target = canonicalize_feature_dir(feature_dir_via_link)
+
+    # The load-bearing contract _flip_phase relies on: identical normalization,
+    # so a legitimate mission never fail-closes on a normalization mismatch.
+    assert resolved_home == target
+
+    result = rsc.cutover_mission(feature_dir_via_link)
+    assert result.flipped is True
+    assert result.error is None
