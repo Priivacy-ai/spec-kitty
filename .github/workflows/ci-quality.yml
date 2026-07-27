@@ -1577,8 +1577,9 @@ jobs:
       # test_catch_all_ignore_lists_mirror_owned_roots_live): drift between this
       # list and the shard-owned roots fails tests/architectural/.
       #
-      # --cov=src/mission_runtime (added alongside the pre-existing
-      # integration-tests-core-misc / arch-adversarial instrumentation): the
+      # --cov=mission_runtime (added alongside the pre-existing
+      # integration-tests-core-misc / arch-adversarial instrumentation; dotted
+      # module form since #2975 -- see the coverage-root-collisions guard): the
       # "core-misc" shard's ``paths: ''`` selection includes tests/mission_runtime,
       # but several of that package's own tests carry ONLY ``pytest.mark.fast``
       # (no git_repo/integration/architectural) -- e.g.
@@ -1586,7 +1587,7 @@ jobs:
       # fail-closed-cause-chain assertions are pure-logic/tmp_path-only by
       # design. Before this line, those files ran here (selected by ``-m
       # "fast and not windows_ci"``) but their hits were never attributed to
-      # ``src/mission_runtime`` (only integration/architectural-marked
+      # ``mission_runtime`` (only integration/architectural-marked
       # mission_runtime tests were ever instrumented for it), so the
       # diff-coverage critical-path gate saw them as 0% collected rather than
       # exercised. Mirrors the sibling jobs' instrumentation instead of
@@ -1599,9 +1600,9 @@ jobs:
             -m "fast and not windows_ci" -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
-            --cov=src/specify_cli \
-            --cov=src/glossary \
-            --cov=src/mission_runtime \
+            --cov=specify_cli \
+            --cov=glossary \
+            --cov=mission_runtime \
             --cov-report=xml:out/reports/coverage/coverage-fast-core-misc-${{ matrix.shard }}.xml
       - name: "Upload fast-core-misc coverage"
         if: always()
@@ -1801,8 +1802,8 @@ jobs:
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
-            --cov=src/specify_cli \
-            --cov=src/mission_runtime \
+            --cov=specify_cli \
+            --cov=mission_runtime \
             --cov-report=xml:out/reports/coverage/coverage-integration-core-misc-${{ matrix.shard }}.xml
       - name: "Upload integration-core-misc coverage"
         if: always()
@@ -1933,8 +1934,8 @@ jobs:
               -q --tb=short \
               -n auto --dist loadfile \
               --durations=50 \
-              --cov=src/specify_cli \
-              --cov=src/mission_runtime \
+              --cov=specify_cli \
+              --cov=mission_runtime \
               --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
             ec=$?
             set -e
@@ -1950,8 +1951,8 @@ jobs:
               -q --tb=short \
               -n auto --dist loadfile \
               --durations=50 \
-              --cov=src/specify_cli \
-              --cov=src/mission_runtime \
+              --cov=specify_cli \
+              --cov=mission_runtime \
               --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
           fi
       - name: "Upload arch-adversarial coverage"
@@ -2050,8 +2051,8 @@ jobs:
             -m "fast and not windows_ci" -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
-            --cov=src/charter \
-            --cov=src/specify_cli/charter_runtime \
+            --cov=charter \
+            --cov=specify_cli.charter_runtime \
             --cov-fail-under=55 \
             --cov-report=xml:out/reports/coverage/coverage-fast-charter.xml
       - name: "Upload fast-charter coverage"
@@ -2208,8 +2209,8 @@ jobs:
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             -n auto --dist loadfile -p no:cacheprovider \
-            --cov=src/charter \
-            --cov=src/specify_cli/charter_runtime \
+            --cov=charter \
+            --cov=specify_cli.charter_runtime \
             --cov-report=xml:out/reports/coverage/coverage-integration-charter.xml
       - name: "Upload integration-charter coverage"
         if: always()
@@ -2459,16 +2460,17 @@ jobs:
           # specify-cli-rest shard (its sole owner) to remove the same-tier
           # double-run AND cover the arch-marked coordination boundary tests this
           # job's git_repo/integration marker drops (mission ci-topology-shrink
-          # NFR-003 / SC-004). --cov=src/specify_cli/coordination is retained so
-          # a sync/status change still reports coordination coverage from the
+          # NFR-003 / SC-004). --cov=specify_cli.coordination (dotted module
+          # form since #2975) is retained so a sync/status change still
+          # reports coordination coverage from the
           # union with specify-cli-rest.
           uv run python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
             -m "not windows_ci and (git_repo or integration)" \
             -n auto --dist loadfile -p no:cacheprovider \
-            --cov=src/specify_cli/status \
-            --cov=src/specify_cli/coordination \
+            --cov=specify_cli.status \
+            --cov=specify_cli.coordination \
             --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-status-${{ github.run_id }}.xml
 
@@ -2827,7 +2829,7 @@ jobs:
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
             -n auto --dist loadfile \
             --durations=50 \
-            --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
+            --cov=specify_cli --cov=charter --cov=doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-slow-${{ github.run_id }}.xml \
             || test $? -eq 5
@@ -3012,7 +3014,7 @@ jobs:
             tests/e2e/ tests/cross_cutting/ \
             -m "not distribution and not windows_ci" \
             --durations=50 \
-            --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
+            --cov=specify_cli --cov=charter --cov=doctrine \
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml
 
