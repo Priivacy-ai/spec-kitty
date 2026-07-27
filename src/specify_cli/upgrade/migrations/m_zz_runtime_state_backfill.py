@@ -90,7 +90,11 @@ from pathlib import Path
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.migration.backfill_runtime_state import read_legacy_runtime
-from specify_cli.migration.runtime_state_cutover import CutoverResult, cutover_mission
+from specify_cli.migration.runtime_state_cutover import (
+    CutoverResult,
+    PlacementMismatchError,
+    cutover_mission,
+)
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -198,10 +202,25 @@ def _cutover_corpus(
     clean walk; when set, the walk stopped immediately after appending the
     failing mission's result -- no mission after it was visited (NFR-005: no
     partial flip beyond the boundary of the failure).
+
+    A :class:`PlacementMismatchError` out of ``cutover_mission`` (FR-001's
+    per-mission fail-close, WP01) is caught HERE and folded into a
+    ``CutoverResult(error=...)`` for that one mission, exactly like the
+    pre-existing ``MigrationOrderingError`` / backfill-error paths
+    ``cutover_mission`` already returns as a result rather than raising. Left
+    uncaught it would escape ``apply()`` as a bare traceback instead of this
+    migration's documented abort-with-actionable-message contract
+    (placement-port-residuals-closure-01KYDEF0 finding 1) -- this migration is
+    already stricter than the operator CLI (module docstring, research D-03),
+    so folding it into the SAME abort-on-first-failure path this function
+    already runs is the correct, not a laxer, containment.
     """
     results: list[CutoverResult] = []
     for feature_dir in missions:
-        result = cutover_mission(feature_dir, dry_run=dry_run)
+        try:
+            result = cutover_mission(feature_dir, dry_run=dry_run)
+        except PlacementMismatchError as exc:
+            result = CutoverResult(slug=feature_dir.name, flipped=False, error=str(exc))
         results.append(result)
         if _mission_failed(result, dry_run=dry_run):
             return results, _abort_message(result)

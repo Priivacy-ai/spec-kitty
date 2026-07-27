@@ -210,6 +210,72 @@ def test_apply_aborts_on_first_verify_failure_naming_mission_and_mismatch(
 
 
 # ---------------------------------------------------------------------------
+# Landing-fold finding 1 (P1) -- PlacementMismatchError must not escape apply()
+# ---------------------------------------------------------------------------
+
+
+def test_apply_folds_placement_mismatch_into_abort_without_a_bare_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A PlacementMismatchError out of one mission must not escape ``apply()``.
+
+    ``_cutover_corpus`` calls the shared ``cutover_mission`` helper, which is
+    DOCUMENTED to RAISE ``PlacementMismatchError`` (WP01, C-WRITER-1) rather
+    than fold it into a ``CutoverResult`` -- that stays correct. Before this
+    fix, that raise propagated straight out of ``apply()`` as a bare
+    traceback instead of this migration's own documented
+    abort-with-actionable-message contract (US3.3): it must instead be caught
+    per mission and folded into the SAME ``MigrationResult(success=False,
+    errors=[...])`` shape a real verify failure already produces (see
+    ``test_apply_aborts_on_first_verify_failure_naming_mission_and_mismatch``).
+
+    This migration is deliberately STRICTER than the CLI's ``cutover_repo``
+    walker (module docstring, D-03): it aborts the WHOLE step on the first
+    mission's failure rather than best-effort continuing, so -- exactly like
+    that sibling verify-failure test's "gamma sorts after beta ... never even
+    visited" assertion -- "gamma" (sorted after the mismatched "alpha") stays
+    completely untouched here, not flipped. The distinct containment property
+    this test pins is narrower: the mismatch becomes an ordinary
+    ``MigrationResult`` (naming the mission), not an escaping exception.
+    """
+    from specify_cli.migration.runtime_state_cutover import PlacementMismatchError
+    from specify_cli.upgrade.migrations import m_zz_runtime_state_backfill as migration_module
+
+    alpha = build_mission(tmp_path, slug="alpha")
+    gamma = build_mission(tmp_path, slug="gamma")
+    gamma_meta_before = (gamma / "meta.json").read_bytes()
+    real_cutover_mission = migration_module.cutover_mission
+    mismatch_message = (
+        "_flip_phase refuses to write status_phase for 'alpha': the placement "
+        "port resolved its PRIMARY home elsewhere (fail-closed, FR-001)."
+    )
+
+    def _fake_cutover_mission(feature_dir: Path, *, dry_run: bool = False) -> object:
+        if feature_dir.name == "alpha":
+            raise PlacementMismatchError(mismatch_message)
+        return real_cutover_mission(feature_dir, dry_run=dry_run)
+
+    monkeypatch.setattr(migration_module, "cutover_mission", _fake_cutover_mission)
+
+    migration = RuntimeStateBackfillMigration()
+    result = migration.apply(tmp_path)
+
+    assert result.success is False
+    assert len(result.errors) == 1
+    (error,) = result.errors
+    assert "alpha" in error
+    assert mismatch_message in error
+
+    # alpha failed closed -- the flip never ran; meta.json carries no status_phase.
+    assert not _has_status_phase(alpha)
+    # gamma sorts AFTER alpha -- the abort means it was never even visited
+    # (this migration's own stricter, documented abort-on-first-failure
+    # contract, unchanged by this fix).
+    assert (gamma / "meta.json").read_bytes() == gamma_meta_before
+    assert not _has_status_phase(gamma)
+
+
+# ---------------------------------------------------------------------------
 # INV-5 / C-003 -- no repo-root event file (#2815)
 # ---------------------------------------------------------------------------
 
