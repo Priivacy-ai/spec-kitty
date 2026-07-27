@@ -222,12 +222,29 @@ class TestRatchetTargetsAreWellFormed:
     """
 
     def test_ratchet_covers_exactly_four_distinct_targets(self) -> None:
-        assert len(_REFERENCE_TARGETS) == 4
-        assert len({key for _, key in _REFERENCE_TARGETS}) == 4, (
-            "two targets share a definition key — one of the four enums is not "
-            "actually being checked"
+        assert {filename for filename, _ in _REFERENCE_TARGETS} == {
+            "directive.schema.yaml",
+            "tactic.schema.yaml",
+            "procedure.schema.yaml",
+            "paradigm.schema.yaml",
+        }, "a schema file is duplicated or missing — one of the four enums is not being checked"
+        assert {key for _, key in _REFERENCE_TARGETS} == {
+            "directive_reference",
+            "tactic_reference",
+            "procedure_reference",
+            "paradigm_reference",
+        }, (
+            "two targets share a definition key, or one is misspelled — a "
+            "misspelled key resolves to zero members in a schema that is then "
+            "never checked"
         )
-        assert len({filename for filename, _ in _REFERENCE_TARGETS}) == 4
+        # A wholesale swap (`directive.schema.yaml` paired with
+        # `tactic_reference` and vice versa) keeps both sets above intact while
+        # every enum is read out of the wrong file, so pin the pairing too.
+        assert all(
+            key == f"{filename.removesuffix('.schema.yaml')}_reference"
+            for filename, key in _REFERENCE_TARGETS
+        ), f"a target pairs a schema file with another kind's key: {_REFERENCE_TARGETS}"
 
     def test_baseline_has_an_entry_for_every_target(self) -> None:
         target_keys = {key for _, key in _REFERENCE_TARGETS}

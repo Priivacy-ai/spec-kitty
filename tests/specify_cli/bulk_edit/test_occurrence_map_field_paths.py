@@ -437,7 +437,20 @@ class TestB2RealExemptionSet:
         assert omap.categories["serialized_keys"]["action"] == "manual_review"
 
     def test_governance_occurrences_and_files_match_sc011(self) -> None:
-        """Re-derive SC-011's headline numbers — never hardcode them twice."""
+        """Re-derive SC-011's headline numbers — never hardcode them twice.
+
+        The two occurrence totals below are cardinality contracts: SC-011 states
+        them as *quantities* ("188 GOVERNANCE occurrences across 17 files"), and
+        the claim the criterion makes is about the size of the exemption set a
+        field-path map has to be able to express, not about which individual
+        ``(file, field, detail)`` triples make it up. Naming 188 triples here
+        would restate ``inline_reference_inventory``'s output rather than pin
+        the criterion, and the per-triple contract is already asserted by
+        ``test_every_real_governance_field_is_expressible_as_field_path_exception``
+        below, which iterates every real ``(path, field_name)`` pair. The *file*
+        sets are a different matter and are pinned by name — a file leaving
+        GOVERNANCE while another joins is exactly the drift a count cannot see.
+        """
         inv = _load_inventory_module()
         inventory = inv.collect()
 
@@ -449,18 +462,61 @@ class TestB2RealExemptionSet:
             e.path for e in inventory.entries if e.disposition == inv.MIGRATE
         }
 
-        # Occurrences (SC-011's own units).
-        assert len(gov) == 188
-        assert len(raw) == 14
+        # Occurrences (SC-011's own units) — see the docstring.
+        assert len(gov) == 188  # golden-count: cardinality-is-contract
+        assert len(raw) == 14  # golden-count: cardinality-is-contract
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
-        assert len(gov_files) == 17
-        assert len(raw_files) == 7
+        assert gov_files == {
+            f"agent_profiles/built-in/{name}.agent.yaml"
+            for name in (
+                "architect-alphonso",
+                "curator-carla",
+                "debugger-debbie",
+                "designer-dagmar",
+                "doctrine-daphne",
+                "frontend-freddy",
+                "generic-agent",
+                "implementer-ivan",
+                "java-jenny",
+                "node-norris",
+                "paula-patterns",
+                "planner-priti",
+                "python-pedro",
+                "randy-reducer",
+                "researcher-robbie",
+                "retrospective-facilitator",
+                "reviewer-renata",
+            )
+        }, "the GOVERNANCE file set moved — SC-011's 17 files are the built-in agent profiles"
+        assert raw_files == {
+            f"styleguides/built-in/{name}.styleguide.yaml"
+            for name in (
+                "deployable-skill-authoring",
+                "divio-type-discipline",
+                "plain-language",
+                "planning-and-tracking",
+                "python-conventions",
+                "test-desiderata-and-boundaries",
+                "writing/kitty-glossary-writing",
+            )
+        }, "the RAW_MATERIAL file set moved — SC-011's 7 files are built-in styleguides"
         assert gov_files <= migrate_files, (
             "every GOVERNANCE file must also carry MIGRATE entries — this IS "
             "the inexpressibility this WP exists to fix"
         )
-        assert len(raw_files & migrate_files) == 5
+        # The overlap is the harder half of the same argument: these five files
+        # need per-field disposition, so name them rather than count them.
+        assert raw_files & migrate_files == {
+            f"styleguides/built-in/{name}.styleguide.yaml"
+            for name in (
+                "divio-type-discipline",
+                "plain-language",
+                "planning-and-tracking",
+                "python-conventions",
+                "test-desiderata-and-boundaries",
+            )
+        }, "the RAW_MATERIAL/MIGRATE overlap moved"
 
     def test_every_real_governance_field_is_expressible_as_field_path_exception(
         self,
