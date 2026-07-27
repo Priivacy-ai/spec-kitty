@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import typer
@@ -20,6 +21,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -32,6 +34,8 @@ from specify_cli.task_utils import (
     git_status_lines,
     run_git,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_emit_error_logged(message: str) -> None:
@@ -161,6 +165,64 @@ def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
         if path not in dirty:
             dirty.append(path)
     return dirty
+
+
+def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
+    """Auto-stamp the birth-cutover into the mission branch at the terminal
+    ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
+
+    Mirrors ``merge/executor.py::_run_birth_cutover``'s shape (resolve PRIMARY
+    + COORD legs -> the single-authority
+    :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`, via
+    :func:`~specify_cli.migration.runtime_state_cutover.stamp_accept_cutover`
+    — no forked writer) so the committed corpus is already cut over before
+    the branch can land by ANY path (closing the GitHub-squash/rebase leak,
+    #2917 reopened). Runs only when runtime state is final: the caller only
+    reaches this on the real-commit path, AFTER ``summary.ok`` already gated
+    every WP approved/done (FR-004 — avoids the dual-write vacuity trap).
+
+    Deliberately called BEFORE
+    :func:`_commit_residual_acceptance_artifacts` so this stamp's own writes
+    (PRIMARY ``meta.json`` ``status_phase``, COORD seed events) are swept into
+    that SAME partition-aware residual commit (R4 — the stamp must be a
+    committed artifact, not a working-tree-only write the background status
+    daemon might commit later under an unrelated message). No second
+    committer is introduced here.
+
+    Best-effort / non-fatal for an ordinary cutover failure (mirrors
+    ``_run_birth_cutover``: a stamp failure must not abort an otherwise
+    successful accept — the gap remains repairable via ``migrate
+    backfill-runtime-state`` / ``doctor cutover``). A
+    :class:`~specify_cli.migration.runtime_state_cutover.MissingMissionIdError`
+    (NFR-003/R6 fail-closed) is the one exception that propagates, so the
+    caller aborts the whole ``accept`` command rather than silently landing a
+    slug-namespaced seed.
+    """
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    if not feature_dir.is_dir():
+        return  # nothing to stamp
+
+    from specify_cli.migration.runtime_state_cutover import stamp_accept_cutover
+
+    coord_worktree_root = _coord_worktree_root(repo_root, mission_slug)
+    status_feature_dir = (
+        (coord_worktree_root / "kitty-specs" / mission_slug)
+        if coord_worktree_root is not None
+        else None
+    )
+
+    try:
+        result = stamp_accept_cutover(feature_dir, status_feature_dir=status_feature_dir)
+    except MissingMissionIdError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — best-effort, mirrors _run_birth_cutover
+        logger.warning("birth-cutover stamp failed for %s: %s", mission_slug, exc)
+        return
+
+    if result.error:
+        logger.warning(
+            "birth-cutover for %s did not reconcile: %s", mission_slug, result.error
+        )
 
 
 def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
@@ -605,6 +667,7 @@ def accept(
     result: AcceptanceResult | None = None
     _accept_exc: AcceptanceError | None = None
     _residue_exc: Exception | None = None
+    _stamp_exc: Exception | None = None
     try:
         if commit_required and not json_output:
             tracker.start("commit")
@@ -638,6 +701,19 @@ def accept(
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
     finally:
+        if commit_required and _accept_exc is None:
+            # WP02 (FR-001/FR-004/FR-005): stamp the birth-cutover ONLY on the
+            # real-commit, acceptance-succeeded path -- runtime state is
+            # already final (summary.ok gated all WPs approved/done above).
+            # Deliberately BEFORE the residual-artifacts commit below so its
+            # writes (meta.json status_phase, COORD seed events) are swept
+            # into that SAME partition-aware commit rather than needing a
+            # second committer.
+            try:
+                _stamp_birth_cutover_for_accept(repo_root, mission_slug)
+            except MissingMissionIdError as stamp_exc:
+                _stamp_exc = stamp_exc
+                _safe_emit_error_logged(f"birth-cutover stamp fail-closed: {stamp_exc}")
         if commit_required:
             # The acceptance commit (inside perform_acceptance) only captures
             # meta.json. Derived artifacts materialized during readiness checks
@@ -651,6 +727,13 @@ def accept(
                 _residue_exc = residue_exc
                 _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")
     if _accept_exc is not None:
+        raise typer.Exit(1)
+    if _stamp_exc is not None:
+        error_msg = f"Birth-cutover stamp refused: {_stamp_exc}"
+        if json_output:
+            print(json.dumps({"error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
     if _residue_exc is not None:
         error_msg = f"Residual artifact commit failed: {_residue_exc}"

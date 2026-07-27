@@ -312,6 +312,61 @@ def cutover_mission(
     return CutoverResult(slug=slug, flipped=True, seeded_count=seed.seeded_count, verify=verify)
 
 
+class MissingMissionIdError(RuntimeError):
+    """Fail-closed marker (NFR-003/R6): ``mission_id`` absent from ``meta.json``.
+
+    Raised by :func:`stamp_accept_cutover` BEFORE :func:`cutover_mission` runs
+    when the target mission's ``meta.json`` carries no ``mission_id`` —
+    refusing to stamp rather than seeding under a slug-namespaced identity.
+    :func:`~specify_cli.migration.backfill_runtime_state._mission_id`
+    internally degrades a missing ``mission_id`` to the directory slug (a
+    tolerant fallback appropriate for a one-off corpus migration), but the
+    terminal accept seam is deliberately stricter: a ``mission_id`` minted
+    *later* would change the deterministic-seed namespace
+    (``sha256(mission_id | wp_id | field)``), orphaning or duplicating the
+    seed rows this stamp already committed (data-model.md's seed-determinism
+    section; contract ``MUST`` R6).
+    """
+
+
+def stamp_accept_cutover(
+    feature_dir: Path, *, status_feature_dir: Path | None = None
+) -> CutoverResult:
+    """Terminal-lifecycle accept-time stamp (IC-01 / contracts/stamp-seam.md).
+
+    A thin, fail-closed wrapper over :func:`cutover_mission` — the SAME single
+    authority :func:`~specify_cli.merge.executor._run_birth_cutover` calls at
+    the merge seam (FR-005: no forked writer; this function adds no seeding or
+    flip logic of its own). The only behavior layered on top is the
+    NFR-003/R6 fail-closed assertion below, so the ``accept`` CLI seam and the
+    ``merge`` seam are guaranteed to produce byte-identical seed payloads for
+    the same mission (NFR-004).
+
+    Args:
+        feature_dir: The PRIMARY-partition mission directory — the legacy
+            ``tasks/`` read anchor and the sole ``status_phase`` write target.
+        status_feature_dir: The COORD-partition mission directory — the seed
+            event write/verify anchor. Defaults to *feature_dir* (the
+            flat/single-branch degenerate case, T047).
+
+    Returns:
+        The :class:`CutoverResult` from :func:`cutover_mission`.
+
+    Raises:
+        MissingMissionIdError: *feature_dir*'s ``meta.json`` carries no
+            ``mission_id`` — no seed is written (fail-closed, R6).
+    """
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none") or {}
+    mission_id = meta.get("mission_id")
+    if not mission_id:
+        raise MissingMissionIdError(
+            f"Refusing to stamp birth-cutover for {feature_dir.name!r}: "
+            "meta.json carries no mission_id (fail-closed, NFR-003/R6 — no "
+            "slug-namespaced seed fallback)."
+        )
+    return cutover_mission(feature_dir, status_feature_dir=status_feature_dir, dry_run=False)
+
+
 def cutover_repo(
     repo_root: Path,
     *,
@@ -385,6 +440,8 @@ def cutover_repo(
 
 __all__ = [
     "CutoverResult",
+    "MissingMissionIdError",
     "cutover_mission",
     "cutover_repo",
+    "stamp_accept_cutover",
 ]

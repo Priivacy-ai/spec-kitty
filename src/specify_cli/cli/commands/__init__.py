@@ -198,6 +198,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import charter as charter_module
     from . import config_cmd as config_cmd_module
     from . import context as context_module
+    from . import cutover_guard as cutover_guard_module
     from . import dashboard as dashboard_module
     from . import dispatch as dispatch_module
     from . import docs as docs_module
@@ -247,6 +248,9 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(auth_module.app, name="auth", help="Authentication commands")
     app.add_typer(charter_module.app, name="charter")
     app.add_typer(context_module.app, name="context")
+    app.command(name="cutover-guard", help="Diff-scoped fail-closed cut-over gate (pre-merge required check).")(
+        cutover_guard_module.cutover_guard
+    )
     app.command()(dashboard_module.dashboard)
     app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
     app.add_typer(doctrine_module.app, name="doctrine", help="Manage org-layer doctrine packs")

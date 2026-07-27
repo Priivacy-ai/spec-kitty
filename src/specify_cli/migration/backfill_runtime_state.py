@@ -429,7 +429,7 @@ def _parse_epoch_or_iso(raw: str | None) -> str | None:
     return parsed.isoformat()
 
 
-def _synthesize_claim_anchor(feature_dir: Path, runtime: LegacyWPRuntime) -> str | None:
+def _synthesize_claim_anchor(read_dir: Path, runtime: LegacyWPRuntime) -> str | None:
     """Synthesize a deterministic claim anchor from frontmatter, or ``None``.
 
     Used only when the event log carries no transition for this WP at all — a
@@ -442,6 +442,16 @@ def _synthesize_claim_anchor(feature_dir: Path, runtime: LegacyWPRuntime) -> str
        later than the true claim, but a real, deterministic, always-honest
        lower bound when no per-WP timestamp survived.
 
+    Both sources are read from *read_dir* — the mission's PRIMARY-partition
+    leg, where ``tasks/`` frontmatter and ``meta.json`` canonically live
+    (NFR-004 / R5). This is the pinned canonical leg for anchor synthesis: the
+    caller may be seeding events into a distinct COORD-partition directory
+    (``feature_dir`` in :func:`backfill_runtime_state`), and that COORD leg's
+    own ``meta.json`` — if it carries one at all — must never be consulted
+    here. Reading from any leg other than *read_dir* would let two callers
+    that pass different COORD directories for the same mission synthesize two
+    different anchors, producing a flipped-but-unverifiable corpus.
+
     Returns ``None`` when neither source yields a timestamp — that WP has claim
     *fields* (e.g. a bare ``agent``) but no honest time to anchor them to, so it
     is treated the same as genuinely never-claimed (fail-closed, no fabricated
@@ -450,7 +460,7 @@ def _synthesize_claim_anchor(feature_dir: Path, runtime: LegacyWPRuntime) -> str
     from_shell_pid = _parse_epoch_or_iso(runtime.shell_pid_created_at)
     if from_shell_pid is not None:
         return from_shell_pid
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    meta = load_meta(read_dir, allow_missing=True, on_malformed="none")
     if meta is not None:
         created_at = meta.get("created_at")
         if isinstance(created_at, str) and created_at.strip():
@@ -459,7 +469,7 @@ def _synthesize_claim_anchor(feature_dir: Path, runtime: LegacyWPRuntime) -> str
 
 
 def _resolve_anchor(
-    feature_dir: Path,
+    read_dir: Path,
     wp_id: str,
     runtime: LegacyWPRuntime,
     event_log_anchors: dict[str, str],
@@ -473,13 +483,18 @@ def _resolve_anchor(
     drop a real claim (Defect: #2848). Returns ``(None, False)`` only for a
     genuinely never-claimed WP: no event-log anchor AND no claim state (or claim
     state with no honest timestamp) to synthesize from.
+
+    *read_dir* is the canonical PRIMARY leg passed through to
+    :func:`_synthesize_claim_anchor` (NFR-004 / R5) — see that function's
+    docstring for why the synthesis fallback must never read the COORD
+    write leg's own ``meta.json``.
     """
     anchor = event_log_anchors.get(wp_id)
     if anchor is not None:
         return anchor, False
     if not runtime.has_claim_state():
         return None, False
-    synthesized = _synthesize_claim_anchor(feature_dir, runtime)
+    synthesized = _synthesize_claim_anchor(read_dir, runtime)
     return synthesized, synthesized is not None
 
 
@@ -490,6 +505,7 @@ def _resolve_anchor(
 
 def _build_seed_events(
     feature_dir: Path,
+    read_dir: Path,
     legacy: dict[str, LegacyWPRuntime],
     anchors: dict[str, str],
     warnings: list[str],
@@ -508,6 +524,12 @@ def _build_seed_events(
     a missing/truncated event log never silently drops a real claim (#2848). A
     WP with neither an event-log anchor nor synthesizable claim state is
     genuinely never-claimed and is skipped (warned, not failed).
+
+    *read_dir* is the canonical PRIMARY leg passed through to
+    :func:`_resolve_anchor` for the synthesis fallback (NFR-004 / R5) — it is
+    intentionally distinct from *feature_dir* (the event-write / mission_id
+    leg) so the resolved anchor payload never depends on which COORD
+    directory happens to be seeded.
     """
     slug = feature_dir.name
     mission_id = _mission_id(feature_dir)
@@ -515,7 +537,7 @@ def _build_seed_events(
     annotations: list[InnerStateChanged] = []
 
     for wp_id, runtime in sorted(legacy.items()):
-        anchor, synthesized = _resolve_anchor(feature_dir, wp_id, runtime, anchors)
+        anchor, synthesized = _resolve_anchor(read_dir, wp_id, runtime, anchors)
         if anchor is None:
             if runtime.has_evictable_state():
                 warnings.append(f"{wp_id}: no claim anchor (never-claimed WP) — runtime seed skipped")
@@ -645,7 +667,7 @@ def backfill_runtime_state(
     try:
         legacy = read_legacy_runtime(read_dir)
         anchors = _claim_anchors(feature_dir)
-        transitions, annotations = _build_seed_events(feature_dir, legacy, anchors, warnings)
+        transitions, annotations = _build_seed_events(feature_dir, read_dir, legacy, anchors, warnings)
     except (StoreError, LegacyRuntimeReadError) as exc:
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="error", reason=f"event log unreadable: {exc}", warnings=warnings)
 
@@ -805,6 +827,7 @@ def _seeded_frontmatter_slots(
 
 def _verify_expected_seed_events(
     feature_dir: Path,
+    read_dir: Path,
     legacy: dict[str, LegacyWPRuntime],
     anchors: dict[str, str],
 ) -> list[str]:
@@ -817,9 +840,16 @@ def _verify_expected_seed_events(
     present byte-semantically (same typed ``to_dict`` payload). Later events may
     then replace the current snapshot value without making cutover verification
     falsely reject an already-active mission.
+
+    *read_dir* is threaded through to :func:`_build_seed_events` so the
+    *expected* rows are rebuilt from the same canonical PRIMARY leg the actual
+    seed was written from (NFR-004 / R5) — otherwise a two-leg verify call
+    would rebuild its expectation from the wrong anchor and spuriously report
+    a payload mismatch.
     """
     expected_transitions, expected_annotations = _build_seed_events(
         feature_dir,
+        read_dir,
         legacy,
         anchors,
         [],
@@ -944,7 +974,7 @@ def verify_backfill(feature_dir: Path, *, read_dir: Path | None = None) -> Verif
     seeded_wps = {
         wp_id
         for wp_id, runtime in legacy.items()
-        if runtime.has_evictable_state() and _resolve_anchor(feature_dir, wp_id, runtime, anchors)[0] is not None
+        if runtime.has_evictable_state() and _resolve_anchor(read_dir, wp_id, runtime, anchors)[0] is not None
     }
 
     # Count parity, DATA-LOSS direction: a seeded WP whose snapshot carries no
@@ -966,7 +996,7 @@ def verify_backfill(feature_dir: Path, *, read_dir: Path | None = None) -> Verif
     # The legacy-derived values must exist exactly in their deterministic seed
     # rows. Compare those raw rows rather than the latest-wins snapshot value:
     # an already-active mission can legitimately carry a later reassignment.
-    mismatches.extend(_verify_expected_seed_events(feature_dir, legacy, anchors))
+    mismatches.extend(_verify_expected_seed_events(feature_dir, read_dir, legacy, anchors))
 
     # Preserve the strip-order guard using deterministic seed provenance. Current
     # snapshot values may be ahead of legacy (even at the same timestamp), so
