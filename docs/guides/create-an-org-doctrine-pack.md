@@ -96,14 +96,29 @@ action_scope:
 
 ```yaml
 # agent_profiles/acme-implementer.agent.yaml
-id: acme-implementer
-role: implementer
-identity: |
+profile-id: acme-implementer
+name: ACME Implementer
+description: ACME's security-first implementation persona
+roles:
+  - implementer
+purpose: |
   An ACME engineer adopts this profile during implement actions. They prioritise
   security review, follow the change-intent canvas, and refuse to commit secrets.
-governance_scope:
-  - acme-001-secret-handling
+specialization:
+  primary-focus: Feature implementation under ACME's secret-handling rules
+  avoidance-boundary: Architectural decisions, release management
+directive-references:
+  - code: acme-001-secret-handling
+    name: Never commit credentials to the repository
 ```
+
+**Agent-profile keys are closed.** A key the profile schema does not declare is a
+load error, not a warning — the profile is skipped and the pack is reported
+unhealthy by `spec-kitty doctor doctrine --json` (look for `skipped_profiles`).
+Note in particular that the identifier key is `profile-id` (not `id`), that
+`roles` is a list (not a singular `role`), and that most keys are hyphenated.
+Copy the field names from a built-in profile under
+`src/doctrine/agent_profiles/built-in/` if you are unsure.
 
 ### Namespace your IDs
 
@@ -134,10 +149,21 @@ to a specific mission action), add a fragment under `drg/`:
 # drg/010-security.graph.yaml
 nodes: []   # nodes are inferred from the artifact files
 edges:
-  - source: urn:directive:acme-001-secret-handling
-    target: urn:action:implement
+  - source: action:software-dev/implement
+    target: directive:acme-001-secret-handling
     relation: scope
 ```
+
+**Write endpoints in full: `<kind>:<id>`.** The kind half must be a real node
+kind (`directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`,
+`agent_profile`, `mission_step_contract`, `mission_type`, `template`, `asset`,
+`action`, `glossary_pack`, `anti_pattern`). A bare id with no kind prefix only
+works if the same fragment's own `nodes:` block declares it, or if it matches a
+built-in artifact — it will **not** find an artifact contributed by another pack,
+because pack-to-pack resolution would make the result depend on the order the
+packs are listed in. Anything that cannot be resolved is refused at merge time
+with an `unresolved_edge_endpoint` conflict naming the token; there is no
+`urn:` prefix form.
 
 DRG fragments are **additive only**. They may add new edges and nodes but must not
 remove or modify built-in graph state. Multiple fragment files in `drg/` merge in

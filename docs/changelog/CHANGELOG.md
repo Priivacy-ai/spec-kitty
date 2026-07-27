@@ -19,6 +19,27 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **New checks that catch a change which looks like it worked and did nothing
+  (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
+  failure mode — a declaration that loads, validates, reports success, and then
+  has no effect:
+  - A **zero-producer lint** fails the build when a schema field is declared but
+    no code path ever writes it. Three such fields had shipped in this
+    repository, one of them inert for months behind passing tests. The findings
+    that already exist are frozen as a shrink-only baseline; the list can only
+    get smaller, every entry names an owner and the fix it is waiting on, and a
+    test refuses to let an entry outlive the work that was meant to remove it.
+  - **`scripts/generate_schemas.py --check` now runs in CI**, in the always-on
+    `lint` job rather than behind a path filter, so a model change that leaves
+    its generated YAML schema behind fails immediately. Seven schemas were
+    already stale and are reconciled here.
+  - **`spec-kitty doctor doctrine` now reports org-pack edges that point at
+    nothing** (see Breaking Changes).
+  - **Occurrence maps can protect a single field inside a file that is otherwise
+    migrating.** The `do_not_change` classification used to accept only
+    whole-file path globs, so a file containing both governed keys and keys that
+    should be renamed could not be described. It now accepts a YAML field path.
+
 - **CLI UX: shell autocompletion, a `-h` short-help alias, and alphabetical
   command listing (#2232, #2234, #2235).** Three additive quality-of-life
   improvements to the `spec-kitty` command surface, with no behavior change to
@@ -265,6 +286,86 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     drift apart silently. The gate additionally resolves import aliases, and its
     coverage bounds (including the unpoliced `primary_feature_dir_for_mission`)
     are stated explicitly rather than implied.
+- **Almost the entire test suite was being skipped on pushes to `main` (#2957).**
+  CI decides which test jobs to start by looking at which paths a change
+  touched. That is a sensible optimisation for a pull request, but it was
+  applied to pushes to the protected branch as well — so a merge whose diff
+  happened to match none of the path filters started **10 of 50** test jobs and
+  left **31,547 of 33,822** test cases (93.3%) running nowhere. This was not
+  theoretical: four test files that pin frozen contracts were failing on `main`
+  while `main` CI reported green, because the only jobs that would have run them
+  were filtered out. Path filtering is now a pull-request optimisation only. A
+  push to a protected branch starts 49 of the 50 suite jobs and leaves no test
+  uncollected; pull requests are unchanged. A new check
+  (`tests/architectural/test_ci_collection_completeness.py`) fails if any
+  collected test is left with no job that would run it on a push to `main`. It
+  has no baseline and no allowlist — the only way to satisfy it is to make a job
+  actually run the test.
+
+- **Doctrine packs could declare things that quietly had no effect (mission
+  `doctrine-silence-guards`; ADRs [2026-07-26-1](../adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md),
+  [2026-07-26-2](../adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md),
+  [2026-07-26-3](../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)).**
+  The doctrine layer's characteristic failure was silence rather than error: a
+  declaration was accepted, validated, reported as loaded, and then dropped. Every
+  case below now either works or fails with a message naming what was wrong.
+  - **Five of the sixteen artifact kinds were missing from the doctrine-graph
+    extractor** — `anti_pattern`, `asset`, `glossary`, `glossary_pack` and
+    `glossary_scope` were dropped whenever the graph was rebuilt. All sixteen are
+    handled, and the mapping is now checked for completeness instead of being
+    maintained by hand.
+  - **Two of the twelve org-pack directory names crashed the merge outright**
+    with a bare `KeyError` (`mission_types/`, `glossary_packs/`). One consequence
+    worth naming: the shipped test fixture called `augment-all-kinds-pack` could
+    not be merged at all, so the "all kinds" fixture never exercised all kinds.
+  - **Edges derived automatically from an org pack's agent-profile fields never
+    reached the graph.** The producer emitted fully-qualified `<kind>:<id>`
+    endpoints; the code that consumed them looked up bare ids. Nothing matched,
+    so 100% of that path's output was discarded, silently.
+  - **An edge from a built-in artifact to a pack artifact was dropped** with
+    neither a warning nor an error. It now resolves, or reports a typed error
+    naming the endpoint it could not resolve.
+  - **A bare name that referred to a styleguide was turned into a made-up
+    `directive:<name>` node** rather than the `styleguide:<name>` the author
+    meant.
+  - **Unrecognised keys in agent profiles and in graph nodes and edges were
+    silently ignored**, so a typo or a retired key left an artifact that read
+    one way and behaved another (see Breaking Changes).
+  - **Activating the `doctrine-daphne` agent profile pulled in 76 related
+    artifacts but not the one procedure the profile itself says it runs.** The
+    edge to that procedure used a relation type (`applies`) that nothing
+    traverses, and it was the procedure's only inbound edge, so the profile's own
+    operating procedure was unreachable. The edge is retyped to `requires`, and
+    authoring an `applies` edge into the shipped tree is now rejected.
+  - **Error messages sent operators to files that do not exist** — an inline
+    reference rejection pointed at `src/doctrine/graph.yaml`, split into per-kind
+    fragments long ago, and two operator-facing skill documents told authors to
+    read a `src/doctrine/<kind>/shipped/` layer that has never existed on disk.
+    Both are corrected and both are now guarded.
+  - **The generated schema for the docs structural lint had widened to "any
+    object"**, so a malformed lint configuration validated cleanly and the lint
+    ran on settings nobody had checked. The generator now emits the real
+    ten-key contract.
+  - **The documented example for declaring agent-profile lineage used a syntax
+    that exists nowhere in the vocabulary** (`urn:profile:…`). Anyone who copied
+    it got a declaration that merged without complaint and produced no edge. The
+    example is corrected in `AGENTS.md` / `CLAUDE.md` and in
+    [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md), and
+    the accepted forms are now enforced at merge time.
+
+- **`spec-kitty agent tasks mark-status` could not find subtask ids written the
+  way the shipped template tells you to write them (#2962).** The command
+  resolved a subtask id by matching a row shape in `tasks.md` — a checkbox, a
+  pipe-table row, or an inline `Subtasks: T001, T002` list. The shipped
+  `software-dev` template instructs authors that subtask rows are reference
+  rows and explicitly *not* checkboxes, so a `tasks.md` that follows the
+  template matched none of those shapes and every id came back `NOT_FOUND`.
+  That blocked the review workflow on every work package of every mission using
+  that template. The command now falls back to the authored `subtasks:` roster
+  in work-package frontmatter — the same list the lane-transition guard already
+  treats as canonical, so the two surfaces agree on what a work package's
+  subtasks are. The fallback runs last, so every row shape that worked before
+  resolves exactly as before.
 
 - **Placement-port residuals: partition routing is now enforced by the port, not
   by caller discipline (#2923, #2924, #2926, #2932; epic #2931).** Closes the
@@ -655,6 +756,44 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (lenient) read contracts (#2465). No user-facing behaviour change; pinned by
   seam-only + cores-no-I/O architectural tests and a characterization safety net over
   implement / review / accept / next.
+
+### 💥 Breaking Changes
+
+- **An org doctrine pack whose agent profile carries an unrecognised key now
+  fails to load (mission `doctrine-silence-guards`).** Agent profiles and DRG
+  nodes and edges used to accept keys the code did not know about and drop them,
+  so a typo or a key retired in an earlier release produced an artifact that
+  looked complete and behaved differently from how it read. Those keys are now
+  rejected outright. Silently dropping them is the defect being closed, so this
+  is deliberate — but **if you maintain an org pack, check it before you
+  upgrade**: run `spec-kitty doctor doctrine --json` and read the
+  `skipped_profiles` list. A pack containing an invalid profile is reported
+  unhealthy rather than crashing the command or passing as healthy. The
+  blast-radius check for this change covered this repository only; packs outside
+  it were not surveyed.
+- **Cross-pack references in an org pack must now be written in full.** An edge
+  endpoint in a pack's `drg/` fragment is either `<kind>:<id>` — for example
+  `styleguide:acme-sty-001` — or a bare id declared in that same fragment's own
+  `nodes:` block. A bare id no longer resolves against a *different* pack in the
+  same merge. That old behaviour made the resulting graph depend on the order
+  packs happen to be listed in `organisation_packs:`: the same two packs in two
+  orders produced two different graphs, and nothing was reported either way. An
+  endpoint that cannot be resolved is now refused at merge time with an
+  `unresolved_edge_endpoint` conflict naming the token, instead of being dropped
+  or silently re-pointed at an invented node. See
+  [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md).
+- **A push to a protected branch now starts 49 of 50 test jobs instead of about
+  10.** Pull requests are unaffected — path filtering still narrows a PR to the
+  suites its diff touches. This is a deliberate trade of CI minutes for
+  coverage: filtering is a pull-request optimisation, and the protected branch
+  is precisely where the frozen contracts have to actually run. See the #2957
+  entry under Fixed.
+- **`spec-kitty doctor doctrine` now fails when an org pack declares an edge
+  endpoint that resolves to nothing.** The dangling endpoints are listed in the
+  report and the command exits non-zero. `charter status` reports the same
+  problems in its `errors` array but deliberately keeps exit code 0 — it is a
+  reporting surface, not a gate, and scripts that treat its exit code as a pass
+  or fail signal are unaffected.
 
 ## [3.2.5] - 2026-07-08
 
