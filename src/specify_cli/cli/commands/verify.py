@@ -27,6 +27,21 @@ def _existing_feature_dir(project_root: Path, feature: str | None) -> Path | Non
     Thin existence-gated presentation adapter over
     :meth:`PlacementSeam.read_dir` (``PRIMARY_METADATA``) — verify treats an
     absent slug or a not-yet-materialized directory as "no feature context".
+
+    **CWD-invariant (2026-07-27).** ``read_dir`` anchors to the main repo root
+    (``get_main_repo_root``) before composing, so passing a lane-worktree path
+    as ``project_root`` yields the same answer as passing the main repo root:
+    the planning artifacts under ``<main repo>/kitty-specs/``. The predecessor
+    resolver (``candidate_feature_dir_for_mission``) composed relative to the
+    root it was handed and so returned ``None`` from a worktree, which is a
+    surface with no ``kitty-specs/`` of its own. That difference is invisible
+    to both production callers — :func:`verify_setup` passes
+    ``get_project_root_or_exit(find_repo_root())`` and
+    :func:`_run_diagnostics_mode` passes ``locate_project_root()``, and *both*
+    of those already resolve worktree pointers to the main repo — so the hop is
+    idempotent here. The invariance is nonetheless the contract this helper now
+    guarantees; it is pinned by
+    ``tests/specify_cli/test_active_mission_removal.py``.
     """
     if not feature:
         return None
