@@ -26,7 +26,7 @@ import pytest
 
 from specify_cli.migration import runtime_state_cutover as rsc
 from specify_cli.migration.backfill_runtime_state import read_legacy_runtime
-from tests.unit.migration._backfill_fixture import MISSION_ID, SLUG, build_mission
+from tests.unit.migration._backfill_fixture import build_mission
 
 pytestmark = [pytest.mark.fast]
 
@@ -34,20 +34,23 @@ _STATUS_PHASE = "status_phase"
 _EVENTS_FILE = "status.events.jsonl"
 
 
-def _build_stale_coord_leg(status_dir: Path, *, slug: str = SLUG, mission_id: str = MISSION_ID) -> None:
-    """Materialise an "absent/stale COORD tasks/" leg: just ``meta.json``.
+def _build_stale_coord_leg(status_dir: Path) -> None:
+    """Materialise an "absent/stale COORD tasks/" leg: an otherwise-empty dir.
 
     No ``tasks/`` directory at all — the exact shape the contract's red-first
     repro calls for ("absent/stale COORD ``tasks/``"). No pre-existing
     ``status.events.jsonl`` either, so :func:`~specify_cli.status.store.read_event_stream`
     degrades to an empty stream (no claim anchor from the event log — the
     anchor must synthesize from PRIMARY's own ``shell_pid_created_at``).
+
+    Deliberately no ``meta.json`` is written here: ``meta.json`` is the
+    PRIMARY_METADATA kind and lives on the PRIMARY leg only (see
+    ``core/paths.py`` around ``resolve_target_branch`` — the coordination
+    worktree's mission dir has no ``meta.json``, by construction of the
+    partition split). Writing one onto the COORD leg would certify a corpus
+    shape production never produces.
     """
     status_dir.mkdir(parents=True, exist_ok=True)
-    (status_dir / "meta.json").write_text(
-        json.dumps({"mission_id": mission_id, "mission_slug": slug, "mission_type": "software-dev"}),
-        encoding="utf-8",
-    )
 
 
 # ---------------------------------------------------------------------------
