@@ -174,13 +174,16 @@ through the seam, delete its row here and its descriptor in the gate.
 This ledger, and the gate derived from it, census **two** primitives:
 `candidate_feature_dir_for_mission` and `resolve_planning_read_dir`. A third,
 `primary_feature_dir_for_mission` (`_read_path_resolver.py:1257`), is also
-topology-blind and is **not** policed: an AST census counts **39 real call
+topology-blind and is **not** policed: an AST census counts **40 real call
 sites across 21 files** in `src/` (excluding the definition module) that this
 mission does not classify.
 
 Adding it to the gate's `_TARGET_CALLEE_NAMES` today would demand a
-comparably sized per-site classification pass and ~39 further allow-list
-entries — out of scope here. It is recorded as follow-up work so nobody reads
+comparably sized per-site classification pass and ~40 further allow-list
+entries — out of scope here. Tracked as
+[#3014](https://github.com/Priivacy-ai/spec-kitty/issues/3014) under epic
+#1878, which carries the reproducible census script and the per-file
+breakdown. It is recorded as follow-up work so nobody reads
 the gate's green as proof that *every* kind-blind read has been routed: it
 proves only that no **new** call to the two censused primitives can be added
 outside the sanctioned + allow-listed sets.

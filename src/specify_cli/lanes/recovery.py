@@ -598,6 +598,20 @@ def scan_recovery_state(
     seam = placement_seam(repo_root, mission_slug)
     primary_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
     # STATUS leg: the append-only event log stays coord-aware (C-001 / #2155).
+    # Fail-loud on a DELETED coordination branch is deliberate and specified: the
+    # WP02 classification ledger records this site as `migrate-fail-loud` because
+    # "recovery-state computation genuinely needs to know whether the coord branch
+    # backing a WP's event log was deleted, rather than silently reading a
+    # stale/absent surface". See docs/development/read-side-seam-classification.md
+    # (`lanes/recovery.py` row) and the acceptance test
+    # tests/specify_cli/merge/test_read_seam_migration_merge_lanes.py
+    # ::test_recovery_scan_fails_loud_when_coordination_branch_was_deleted.
+    #
+    # Tracked follow-up (do not "fix" here): reviewers argue `implement --recover`
+    # is the operator's escape hatch from broken state and should render this as a
+    # report finding carrying the exception's `doctor coordination --fix` next_step
+    # rather than raising. That is a deliberate UX contract change and is out of
+    # scope for the read-side seam migration; it needs its own mission.
     coord_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
 
     branches = _list_mission_branches(repo_root, mission_slug)

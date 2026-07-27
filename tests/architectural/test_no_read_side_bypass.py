@@ -22,8 +22,8 @@ conceivable read-side bypass "unrepresentable":
 - **Known gap — ``primary_feature_dir_for_mission``**: a topology-blind sibling
   primitive in the same module with ~40 unpoliced call sites in ``src/``.
   Widening ``_TARGET_CALLEE_NAMES`` to include it would require a comparably
-  sized allow-list census and is tracked follow-up work, NOT covered here. See
-  the ledger's "Known gap" section.
+  sized allow-list census and is tracked as issue #3014 (under epic #1878),
+  NOT covered here. See the ledger's "Known gap" section.
 - **Known gap — local rebinding**: ``_alias = candidate_feature_dir_for_mission``
   followed by ``_alias(...)`` is value-flow, not import aliasing, and is not
   resolved.

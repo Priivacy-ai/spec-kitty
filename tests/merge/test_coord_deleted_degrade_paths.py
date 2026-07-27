@@ -1,29 +1,31 @@
-"""Landing fold (#3012) — best-effort and recovery paths degrade on a DELETED coord branch.
+"""Landing fold (#3012) — best-effort paths degrade on a DELETED coord branch.
 
 PR #3012 routes mission reads through the kind-aware placement seam. COORD-partition
 kinds (``STATUS_STATE``, ``LANE_STATE``) now fail loud with
 :class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted` when the
 declared ``coordination_branch`` is absent from git — a shape the old kind-blind
-resolver could never raise. Three paths propagated that exception where they must not:
+resolver could never raise. Two paths propagated that exception where they must not:
 
 1. ``workflow_executor.review_compute_dependents_warning`` — explicitly best-effort
    (it only computes an advisory warning), but the seam call sat OUTSIDE the existing
    ``try/except``, so ``agent workflow review`` aborted while computing a warning.
-2. ``lanes.recovery.scan_recovery_state`` — ``spec-kitty implement --recover`` is the
-   operator's designated escape hatch, so it must REPORT the broken topology, not
-   crash on it.
-3. ``merge.executor._run_lane_based_merge`` — a traceback mid-merge is the worst UX in
+2. ``merge.executor._run_lane_based_merge`` — a traceback mid-merge is the worst UX in
    the set; it must exit cleanly with the remediation the exception already carries.
+
+``lanes.recovery.scan_recovery_state`` was ALSO folded here and has been reverted:
+the WP02 ledger classifies that site ``migrate-fail-loud`` with a rationale that
+pre-emptively rejects the degrade ("rather than silently reading a stale/absent
+surface"), and the mission ships an acceptance test asserting it raises. The
+operator-experience concern is real but is a contract change to ``implement --recover``
+that needs its own mission; it is tracked as follow-up. Fail-loud coverage for that
+site lives with the mission's own acceptance test in
+``tests/specify_cli/merge/test_read_seam_migration_merge_lanes.py`` — deliberately NOT
+duplicated here, since the tests/merge vs tests/specify_cli/merge split is exactly what
+hid the conflict.
 
 ``CoordinationBranchDeleted`` subclasses ``StatusReadPathNotFound``, which subclasses
 ``Exception`` — so the pre-existing bare ``except Exception`` in (1) does catch it once
-the raising call is moved inside the guard. (2) and (3) catch the specific type.
-
-Each test drives the real DELETED shape through a real git repo (the canonical fixture
-from ``tests/status/test_aggregate_coord_deleted_contract.py``: ``coordination_branch``
-recorded in ``meta.json`` while the branch exists in NO local ref and NO remote, and no
-coord worktree is materialized) and asserts the degrade/report/message behaviour rather
-than a traceback.
+the raising call is moved inside the guard. (2) catches the specific type.
 """
 
 from __future__ import annotations
@@ -163,58 +165,6 @@ def test_dependents_warning_degrades_instead_of_aborting_review(tmp_path: Path) 
     assert any("WP02" in line for line in warning), (
         f"degraded lanes default dependents to planned, so WP02 must be flagged; got {warning}"
     )
-
-
-def test_scan_recovery_state_reports_finding_instead_of_raising(tmp_path: Path) -> None:
-    """FINDING 2: the recovery escape hatch must report the topology it exists to repair.
-
-    Red-first: the unguarded ``read_dir(STATUS_STATE)`` in ``scan_recovery_state`` makes
-    ``spec-kitty implement --recover`` traceback on a deleted coord branch. After the
-    fix the scan completes and returns a synthetic finding carrying the exception's own
-    ``doctor coordination --fix`` remediation.
-    """
-    from specify_cli.lanes.recovery import (
-        COORD_BRANCH_DELETED_ACTION,
-        COORD_FINDING_WP_ID,
-        scan_recovery_state,
-    )
-
-    _build_coord_deleted_mission(tmp_path)
-
-    states = scan_recovery_state(tmp_path, _SLUG_WITH_MID8)
-
-    findings = [s for s in states if s.recovery_action == COORD_BRANCH_DELETED_ACTION]
-    assert len(findings) == 1, f"expected exactly one coord-deleted finding, got {states}"
-    finding = findings[0]
-    assert finding.wp_id == COORD_FINDING_WP_ID
-    assert finding.branch_name == _COORD_BRANCH
-    assert _REMEDIATION in finding.resolution_note, (
-        "the finding must propagate the exception's remediation, not discard it; "
-        f"got {finding.resolution_note!r}"
-    )
-
-
-def test_run_recovery_surfaces_finding_without_treating_it_as_a_wp(tmp_path: Path) -> None:
-    """FINDING 2 (caller leg): ``run_recovery`` reports the finding, repairs nothing.
-
-    The synthetic finding has no worktree, context or status to reconcile, so it must
-    NOT enter the repair loop or land in ``recovered_wps`` — but its remediation must
-    reach the operator through ``report.errors``.
-    """
-    from specify_cli.lanes.recovery import COORD_FINDING_WP_ID, run_recovery
-
-    _build_coord_deleted_mission(tmp_path)
-
-    report = run_recovery(tmp_path, _SLUG_WITH_MID8)
-
-    assert COORD_FINDING_WP_ID not in report.recovered_wps, (
-        "a deleted coord branch is a finding, not a repaired WP"
-    )
-    assert any(_REMEDIATION in err for err in report.errors), (
-        f"the recovery report must carry the remediation; got {report.errors}"
-    )
-    assert report.worktrees_recreated == 0
-    assert report.contexts_recreated == 0
 
 
 def test_lane_based_merge_exits_cleanly_instead_of_tracebacking(
