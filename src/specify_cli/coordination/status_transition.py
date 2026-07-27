@@ -691,25 +691,50 @@ def _resolve_write_target(
     ``resolve_placement_only``, keeping the coordination-branch routing under
     coord topology; it is never flattened to the primary target branch
     (C-004, T023).
+
+    Landing-fold (PR #2963, P2): ``get_feature_target_branch`` is now only
+    ever CALLED from the ``except ActionContextError`` arm below, i.e. lazily
+    — once the helper has genuinely failed to resolve the mission and has no
+    ``degrade_ref`` to fall back on. It is never invoked eagerly on the happy
+    path (a resolvable mission with no ``coord_branch`` in hand), which is
+    every SINGLE_BRANCH/LANES status transition.
     """
     from mission_runtime import (  # noqa: PLC0415
+        ActionContextError,
         MissionArtifactKind,
         resolve_write_target_or_degrade,
     )
     from specify_cli.core.paths import get_feature_target_branch  # noqa: PLC0415
 
-    degrade_ref = coord_branch or get_feature_target_branch(repo_root, mission_slug)
-
-    # The STATUS write target MUST keep resolving the coordination branch under
-    # coord topology (write-surface-coherence WP02 / T031 / C-001 / G-2).
-    # STATUS_STATE is a coordination kind, so the kind-aware placement keeps the
-    # topology-routed ref — it MUST NOT be flipped to a primary kind.
-    return resolve_write_target_or_degrade(
-        repo_root,
-        mission_slug,
-        MissionArtifactKind.STATUS_STATE,
-        degrade_ref=degrade_ref,
-    ).ref
+    # Landing-fold (PR #2963 finding): ``get_feature_target_branch`` is NOT
+    # computed eagerly here. It shells out to
+    # ``resolve_primary_branch``/``git symbolic-ref`` (and, on the ambient-HEAD
+    # fallback path, a further ``get_current_branch`` read) — real cost that
+    # was previously paid on EVERY status transition without a coord branch in
+    # hand (all SINGLE_BRANCH/LANES missions), even on the happy path where the
+    # port resolves and the eager value is discarded. ``degrade_ref`` is now
+    # passed through as-is (``coord_branch`` or ``None``) and
+    # ``get_feature_target_branch`` is only invoked in the ``except`` arm,
+    # i.e. once the port has genuinely failed to resolve — preserving T021's
+    # behaviour that a caller-supplied ``coord_branch`` is still honored
+    # directly in the bootstrap window (the pre-gate returns it before ever
+    # needing the fallback).
+    #
+    # The STATUS write target MUST keep resolving the coordination branch
+    # under coord topology (write-surface-coherence WP02 / T031 / C-001 /
+    # G-2). STATUS_STATE is a coordination kind, so the kind-aware placement
+    # keeps the topology-routed ref — it MUST NOT be flipped to a primary
+    # kind.
+    try:
+        return resolve_write_target_or_degrade(
+            repo_root,
+            mission_slug,
+            MissionArtifactKind.STATUS_STATE,
+            degrade_ref=coord_branch or None,
+        ).ref
+    except ActionContextError:
+        fallback_ref: str = get_feature_target_branch(repo_root, mission_slug)
+        return fallback_ref
 
 
 def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:

@@ -107,6 +107,97 @@ class TestPreGateHonorsCoordBranchInBootstrapWindow:
         assert resolved == get_feature_target_branch(repo, mission_slug) == TARGET_BRANCH
 
 
+class TestDegradeRefStaysLazyOnTheHappyPath:
+    """PR #2963 landing-fold (P2): the call-site's OWN eager
+    ``get_feature_target_branch`` call must be gone from the happy path.
+
+    Before this fix, ``degrade_ref = coord_branch or
+    get_feature_target_branch(...)`` was computed unconditionally at the top
+    of ``_resolve_write_target`` — the ``or`` only short-circuits on a
+    *truthy* ``coord_branch``, so every mission WITHOUT one in hand (all
+    SINGLE_BRANCH/LANES topologies, and even coord-topology callers that
+    genuinely have no ``coord_branch`` handy) paid for a REDUNDANT eager call
+    on every status transition, on top of the ONE call
+    ``resolve_placement_only`` already makes internally to build its
+    ``CommitTarget`` (``resolution.py:1332`` — unconditional, unavoidable,
+    and not part of this fix). Old behavior: 2 calls (1 discarded). Fixed
+    behavior: 1 call (the port's own).
+
+    This pins the fix as an observable call-COUNT: a counting spy on the
+    single origin (``specify_cli.core.paths.get_feature_target_branch`` --
+    both the old call site and the port import it fresh via a
+    function-scoped ``from ... import``, so patching the origin module
+    attribute intercepts either) must see exactly ONE invocation, not two,
+    for a resolvable coord mission with ``coord_branch=None``.
+    """
+
+    def test_no_coord_branch_resolvable_mission_calls_target_branch_lookup_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        coord = build_coord(tmp_path)
+        monkeypatch.chdir(coord.coord_worktree)
+
+        import specify_cli.core.paths as core_paths
+
+        original = core_paths.get_feature_target_branch
+        calls: list[tuple[Path, str]] = []
+
+        def _spy(repo_root: Path, mission_slug: str) -> str:
+            calls.append((repo_root, mission_slug))
+            return original(repo_root, mission_slug)
+
+        monkeypatch.setattr(core_paths, "get_feature_target_branch", _spy)
+
+        resolved = _resolve_write_target(coord.main_root, coord.mission_slug, None)
+
+        # The load-bearing assertion: exactly ONE call (the port's own
+        # internal resolution inside ``resolve_placement_only``), not two
+        # (the retired redundant eager call-site computation this
+        # landing-fold removes). Checked BEFORE any further calls the test
+        # itself might make below, so it reflects only the production call
+        # graph. A regression reintroducing the eager ``coord_branch or
+        # get_feature_target_branch(...)`` at the top of
+        # ``_resolve_write_target`` flips this back to 2.
+        assert len(calls) == 1, (
+            "expected exactly one get_feature_target_branch call (the "
+            f"placement port's own internal resolution); got {len(calls)} "
+            f"calls={calls!r} -- the call-site eager computation has regressed"
+        )
+
+        # The port still resolves to the coord ref -- passing coord_branch=None
+        # must not change the resolved value for a resolvable coord mission;
+        # STATUS_STATE routes to the coordination branch regardless of what
+        # the caller happens to have in hand. (This comparison call is made
+        # AFTER the call-count assertion above, so it does not pollute it.)
+        assert resolved == coord.coord_branch
+        assert (
+            resolved
+            == resolve_placement_only(
+                coord.main_root,
+                coord.mission_slug,
+                kind=MissionArtifactKind.STATUS_STATE,
+            ).ref
+        )
+
+    def test_degrade_path_still_returns_feature_target_branch_when_port_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Companion case: when the port genuinely fails to resolve (no
+        ``meta.json``) and no ``coord_branch`` is supplied, the lazy
+        ``except`` arm still degrades to ``get_feature_target_branch`` --
+        the laziness must not regress the fallback into never firing at all.
+        """
+        repo = tmp_path / "bare-repo-lazy-degrade"
+        _bare_repo(repo)
+        monkeypatch.chdir(repo)
+
+        mission_slug = "no-such-mission-01kwp05lazydegrade"
+
+        resolved = _resolve_write_target(repo, mission_slug, None)
+
+        assert resolved == get_feature_target_branch(repo, mission_slug) == TARGET_BRANCH
+
+
 class TestStatusStateStaysCoordAfterPreGateAdoption:
     """T023 -- C-004: STATUS_STATE keeps degrading to the coord ref, never PRIMARY.
 
