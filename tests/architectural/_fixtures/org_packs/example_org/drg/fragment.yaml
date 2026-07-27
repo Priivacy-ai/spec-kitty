@@ -9,11 +9,19 @@ nodes:
     title: "SOX Control Framework (example fixture)"
     body_path: directives/sox-controls.directive.yaml
 edges:
-  # WP08 / FR-010: `caveman-comments` is a **styleguide** shipped by the
-  # `very-serious-developers` pack, not a directive and not a node this
-  # fragment declares. Authored as a bare id it was minted as
-  # `directive:caveman-comments` — a phantom node of an invented kind that no
-  # traversal could follow. A cross-pack reference must be fully qualified.
+  # WP08 / FR-010: the target is a **styleguide**, not a directive, and not a
+  # node this fragment declares. Authored as a bare id it was minted as
+  # `directive:<id>` — a phantom node of an invented kind that no traversal
+  # could follow. A reference to a node outside the fragment must be fully
+  # qualified; the `<kind>:` prefix is what stops the bridge guessing.
+  #
+  # WP08 fold: this used to name `styleguide:caveman-comments`, the narrative
+  # example org styleguide from the specs — which no pack in this repo ships,
+  # so the edge resolved to nothing. That made the repo's own exemplar an
+  # example of a *broken* configuration, and `spec-kitty doctor doctrine` now
+  # correctly reports it as such. A shared fixture should be the healthy
+  # baseline; the dangling case is exercised deliberately in
+  # tests/specify_cli/cli/commands/test_doctor_doctrine_org_layer.py.
   - source: sox-controls
-    target: "styleguide:caveman-comments"
+    target: "styleguide:plain-language"
     relation: refines
