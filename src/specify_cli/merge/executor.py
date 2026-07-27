@@ -47,6 +47,7 @@ from specify_cli.coordination.coherence import (
     repair_coord_strand,
 )
 from specify_cli.coordination.surface_resolver import (
+    CoordinationBranchDeleted,
     is_under_worktrees_segment,
     resolve_status_surface,
 )
@@ -1536,7 +1537,20 @@ def _run_lane_based_merge(
     # topology-aware resolver so the append-only event log resolves the coord
     # worktree for a coord-topology mission.
     seam = placement_seam(main_repo, mission_slug)
-    feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
+    # Fail-closed, but NOT with a traceback: a deleted coordination branch means
+    # the mission's status authority is gone, so the merge cannot proceed. Render
+    # the exception's own remediation (``doctor coordination --fix``) and exit,
+    # matching the handler shape at ``agent/status.py`` and ``mission_finalize.py``.
+    try:
+        feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
+    except CoordinationBranchDeleted as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        console.print(
+            "[yellow]Merge aborted before any state change.[/yellow] "
+            "Recover the mission's status authority, then re-run "
+            "[bold]spec-kitty merge[/bold]."
+        )
+        raise typer.Exit(1) from exc
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
     # mission identity (PRIMARY_METADATA) and ``lanes.json`` (LANE_STATE) live ONLY
