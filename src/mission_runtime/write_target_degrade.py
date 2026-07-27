@@ -99,9 +99,12 @@ def resolve_write_target_or_degrade(
     Raises:
         ``ActionContextError`` when the mission cannot be resolved AND
         ``degrade_ref`` is ``None`` (fail-closed policy — never silently
-        degrades to a null ref). Also propagates whatever
-        ``resolve_placement_only`` raises on a harder failure outside the
-        caught set (ambiguous/malformed mission, etc.).
+        degrades to a null ref). Note: a *caught-set* resolution failure
+        (``ActionContextError`` / ``StatusReadPathNotFound`` / ``FileNotFoundError``)
+        with ``degrade_ref is None`` is re-raised as a **fresh**
+        ``ActionContextError`` (code ``_WRITE_TARGET_UNRESOLVED_CODE``) — the
+        original exception is not preserved. Only failures *outside* the caught
+        set (ambiguous/malformed mission, etc.) propagate verbatim.
     """
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
