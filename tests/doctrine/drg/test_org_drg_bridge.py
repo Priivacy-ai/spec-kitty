@@ -58,6 +58,7 @@ resolution rules under test.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -741,6 +742,115 @@ class TestOneRelationshipYieldsOneEdge:
         contributed = [e for e in merged.edges if str(e.provenance).startswith("org:")]
         assert [e.provenance for e in contributed] == ["org:first"], (
             "the first declaring pack keeps provenance, as it does for nodes"
+        )
+
+    def test_a_discarded_distinct_rationale_is_not_lost_in_silence(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Collapsing two AUTHORED rationales into one is information loss.
+
+        The collapse itself is correct — one relationship, one edge — but the
+        loser's ``reason:`` never reaches the graph, and before this the
+        operator was never told. Two governance authors documenting the same
+        relationship for different stated reasons, one silently discarded, is
+        precisely the defect class this mission exists to close; the docstring's
+        old defence (org-vs-org *node* collisions are equally silent) argues the
+        node path is also wrong, not that this one is right.
+        """
+        def _pack(name: str, reason: str) -> OrgDRGFragment:
+            return _fragment(
+                [{"id": "shared-node", "kind": "directives"}],
+                [
+                    {
+                        "source": "shared-node",
+                        "target": "directive:builtin-alpha",
+                        "relation": "requires",
+                        "reason": reason,
+                    }
+                ],
+                pack_name=name,
+            )
+
+        built_in = _built_in()
+        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+            merged = merge_three_layers(
+                built_in,
+                [_pack("first", "SOX 404 evidence"), _pack("second", "GDPR Art. 30")],
+                None,
+            )
+
+        assert _org_edges(merged, built_in) == [
+            ("directive:shared-node", "directive:builtin-alpha", "requires")
+        ], "the collapse itself is still correct"
+        assert "GDPR Art. 30" in caplog.text, (
+            f"the discarded rationale must be named; got {caplog.text!r}"
+        )
+        assert "org:second" in caplog.text, (
+            f"the warning must name the pack whose reason was dropped; got {caplog.text!r}"
+        )
+
+    @pytest.mark.parametrize(
+        ("first_reason", "second_reason", "why"),
+        [
+            (
+                "SOX 404 evidence",
+                "SOX 404 evidence",
+                "identical rationales — nothing is lost by keeping one",
+            ),
+            (
+                "SOX 404 evidence",
+                None,
+                "the restatement documented nothing, so nothing was discarded",
+            ),
+            (
+                None,
+                None,
+                "the plain restatement: the sanctioned bare/qualified authoring shape",
+            ),
+        ],
+    )
+    def test_a_plain_restatement_collapses_without_a_warning(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        first_reason: str | None,
+        second_reason: str | None,
+        why: str,
+    ) -> None:
+        """The warning must discriminate, not fire on every dedup.
+
+        Restating one relationship is *routine* and correct: a field projection
+        and an explicit declaration, or a bare and a qualified spelling, are
+        both sanctioned authoring shapes that collapse on every healthy merge.
+        A warning that fired on those would be noise on correct packs — a gate
+        that flags everything. Only a genuinely discarded rationale is loud.
+        """
+        def _pack(name: str, reason: str | None) -> OrgDRGFragment:
+            edge: dict[str, str] = {
+                "source": "shared-node",
+                "target": "directive:builtin-alpha",
+                "relation": "requires",
+            }
+            if reason is not None:
+                edge["reason"] = reason
+            return _fragment(
+                [{"id": "shared-node", "kind": "directives"}],
+                [edge],
+                pack_name=name,
+            )
+
+        built_in = _built_in()
+        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+            merged = merge_three_layers(
+                built_in,
+                [_pack("first", first_reason), _pack("second", second_reason)],
+                None,
+            )
+
+        assert _org_edges(merged, built_in) == [
+            ("directive:shared-node", "directive:builtin-alpha", "requires")
+        ]
+        assert "discard" not in caplog.text.lower(), (
+            f"no rationale was lost ({why}); got {caplog.text!r}"
         )
 
     def test_distinct_relationships_are_not_collapsed(self) -> None:
