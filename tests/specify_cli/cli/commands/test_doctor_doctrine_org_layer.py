@@ -304,12 +304,18 @@ def test_collect_org_layer_data_reports_no_dangling_endpoint_when_clean(
     sanctioned cross-fragment authoring shape — so an unmodified pack must come
     back clean. Without this, the test above would pass on a check that flagged
     everything.
+
+    The clean signal is an EMPTY ``dangling_endpoints``, not an absent one. This
+    assertion previously read ``is None`` and so pinned the key's conditional
+    presence — under which "the check ran and found nothing" and "the check
+    never ran" produced the identical payload. See
+    ``test_doctrine_hard_fail_surfacing.test_dangling_endpoints_key_is_always_present``.
     """
     from specify_cli.cli.commands.doctor import _collect_org_layer_data
 
     result = _collect_org_layer_data(tmp_repo_with_org_pack)
 
-    assert result.get("dangling_endpoints") is None, result
+    assert result.get("dangling_endpoints") == [], result
     assert result.get("errors") == []
 
 

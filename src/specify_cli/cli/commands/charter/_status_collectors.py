@@ -462,12 +462,48 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     if not fragments:
         return result
 
-    # Run merge to surface collision warnings AND graph completeness.
+    # Run merge to surface collision warnings AND graph completeness. The merge
+    # is the only statement in the try: the completeness check below needs an
+    # assembled graph, and leaving it inside meant a hard-fail raise aborted the
+    # block before it ran — so a pack with BOTH a refused endpoint and a dangling
+    # one reported strictly fewer findings than the dangling one alone.
+    merged = None
     try:
         built_in = load_built_in_graph()
         merged = merge_three_layers(
             built_in=built_in, org_fragments=fragments, project=None
         )
+    except OrgDRGConflictError as exc:
+        # The typed records go to ``collision_warnings``; the subset that made
+        # the merge REFUSE also goes to ``errors``. A conflict resolved by
+        # precedence is a warning, but a conflict the merge refused to resolve
+        # means there is no merged graph at all — reporting that as an advisory
+        # is how ``charter status`` came to print a clean org layer for a pack
+        # ``charter lint`` rejects outright. The partition is read from
+        # ``OrgDRGConflictError`` so the three collectors cannot drift.
+        for conflict in exc.conflicts:
+            result["collision_warnings"].append(
+                {
+                    "kind": conflict.kind,
+                    "target_id": conflict.target_id,
+                    "conflicting_layers": conflict.conflicting_layers,
+                    "resolution": conflict.resolution_applied,
+                }
+            )
+        result["errors"].extend(exc.hard_failure_messages)
+    except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
+        # A check that could not RUN is not a check that PASSED. This handler
+        # used to be a bare ``pass``, so a crashed merge left ``errors: []`` —
+        # indistinguishable from a verified-clean org layer. Report it on the
+        # same channel the load failure above already uses (``status`` renders
+        # every entry and never gates on it), so the read degrades loudly.
+        result["errors"].append(f"org-layer merge check failed: {exc}")
+
+    if merged is None:
+        # No graph to inspect; ``errors`` already says why.
+        return result
+
+    try:
         # This merge is the real shipped built-in against every configured pack
         # — the COMPLETE graph — which is exactly the predicate under which
         # ``validate_dangling_references`` may escalate a dangling endpoint from
@@ -478,22 +514,9 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
         # bill for an unclean graph, on the very array built to carry the
         # finding, while ``doctor doctrine`` reported it from identical inputs.
         result["errors"].extend(validate_dangling_references(merged))
-    except OrgDRGConflictError as exc:
-        for conflict in exc.conflicts:
-            result["collision_warnings"].append(
-                {
-                    "kind": conflict.kind,
-                    "target_id": conflict.target_id,
-                    "conflicting_layers": conflict.conflicting_layers,
-                    "resolution": conflict.resolution_applied,
-                }
-            )
     except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
-        # A check that could not RUN is not a check that PASSED. This handler
-        # used to be a bare ``pass``, so a crashed merge left ``errors: []`` —
-        # indistinguishable from a verified-clean org layer. Report it on the
-        # same channel the load failure above already uses (``status`` renders
-        # every entry and never gates on it), so the read degrades loudly.
-        result["errors"].append(f"org-layer merge check failed: {exc}")
+        # Attributed separately from the merge above: the merge succeeded, so
+        # naming it here would point the operator at the wrong artefact.
+        result["errors"].append(f"org-layer completeness check failed: {exc}")
 
     return result

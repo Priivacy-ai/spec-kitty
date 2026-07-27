@@ -211,11 +211,61 @@ class OrgDRGConflictError(Exception):
     Carries one or more :class:`OrgDRGConflict` records. The message is
     operator-actionable and lists each conflict's kind, target, layers,
     and applied resolution.
+
+    **Mixed payload.** :func:`merge_three_layers` accumulates *every* conflict
+    it finds and raises with the whole list as soon as any one of them is
+    ``hard_fail``, so an instance routinely carries advisory records
+    (``org_override`` and friends — permitted precedence the operator should
+    still see) next to the fatal refusals that caused the raise. Splitting this
+    into two exception types was considered and rejected: the merge would have
+    to either discard the advisory records or raise a type carrying both
+    anyway, which is this type. What was actually missing is a *reader* for the
+    ``resolution_applied`` discriminant — every consumer had to re-derive the
+    partition from a ``Literal`` string and every consumer skipped it, which is
+    how a refused pack came to be reported healthy. :attr:`hard_failures` and
+    :attr:`advisory_conflicts` put that partition on the type that owns the
+    invariant, so a caller routes by severity instead of by convention.
     """
 
     def __init__(self, conflicts: list[OrgDRGConflict]):
         self.conflicts = list(conflicts)
         super().__init__(self._format_message(self.conflicts))
+
+    @property
+    def hard_failures(self) -> list[OrgDRGConflict]:
+        """The conflicts that made the merge refuse — never empty in practice.
+
+        These are fatal: the merged graph does not exist, so anything a caller
+        would have computed *from* it (completeness checks, override
+        adjudication) did not run either. A caller must surface these on
+        whatever channel its health verdict reads, not on an advisory one.
+        """
+        return [c for c in self.conflicts if c.resolution_applied == "hard_fail"]
+
+    @property
+    def advisory_conflicts(self) -> list[OrgDRGConflict]:
+        """The conflicts that were resolved by precedence, not refused.
+
+        ``built_in_wins`` / ``project_wins`` / ``org_override`` — reportable for
+        operator visibility, but they did not cause the raise and must not be
+        escalated to an error by a caller that cannot tell them apart.
+        """
+        return [c for c in self.conflicts if c.resolution_applied != "hard_fail"]
+
+    @property
+    def hard_failure_messages(self) -> list[str]:
+        """One flat operator-readable line per fatal refusal.
+
+        The CLI collectors report findings on a ``list[str]`` errors channel
+        (that is what ``DoctrineHealthReport.healthy`` reads). Formatting lives
+        here, next to :meth:`_format_message`, so the three collectors share one
+        wording instead of each inventing its own.
+        """
+        return [
+            f"org-DRG hard failure: {c.kind} target={c.target_id} "
+            f"layers={c.conflicting_layers}"
+            for c in self.hard_failures
+        ]
 
     @staticmethod
     def _format_message(conflicts: list[OrgDRGConflict]) -> str:
