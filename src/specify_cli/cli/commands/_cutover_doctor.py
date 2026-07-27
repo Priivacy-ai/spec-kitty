@@ -40,9 +40,13 @@ from specify_cli.migration.runtime_state_cutover import CutoverResult, cutover_r
 
 from ._doctor_shared import console
 
+# ``run_cutover_audit`` is the one symbol an src/ caller consumes (the
+# ``doctor cutover`` @app.command shell in ``doctor.py``). ``CutoverAuditEntry``
+# and ``collect_cutover_audit`` are this module's own internals -- exporting
+# them tripped the symbol-level dead-code gate, since nothing outside imports
+# them. They stay module-level (tests reach them by direct attribute access);
+# they are simply not part of the public surface.
 __all__ = [
-    "CutoverAuditEntry",
-    "collect_cutover_audit",
     "run_cutover_audit",
 ]
 

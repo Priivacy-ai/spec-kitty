@@ -234,6 +234,18 @@ from .doctor_husks import (
     registered_worktree_paths,
     scan_workspace_husks,
 )
+# WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
+# predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
+# this package surface, not by importing the submodule directly -- the status
+# boundary is load-bearing here, since ``cutover_eligibility`` already carries a
+# deferred local import of ``migration.backfill_runtime_state`` to break a cycle.
+# Only the two symbols an src/ caller actually consumes are re-exported; the
+# corpus-lock helpers stay submodule-private so the dead-symbol gate keeps
+# holding them honest.
+from .cutover_eligibility import (
+    CutOverVerdict,
+    is_cut_over,
+)
 
 
 def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path) -> str:
@@ -253,6 +265,7 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
 
 __all__ = [
     "ActiveWPStatus",
+    "CutOverVerdict",
     "AgentAssignment",
     "actor_identity_str",
     "ALLOWED_TRANSITIONS",
@@ -265,6 +278,7 @@ __all__ = [
     "append_annotations_atomic_verified",
     "build_claim_policy_metadata",
     "build_resolved_actor",
+    "is_cut_over",
     "parse_agent_boundary_string",
     "emit_inner_state_changed",
     "emit_resolved_binding",
