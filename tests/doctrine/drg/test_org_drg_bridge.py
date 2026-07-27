@@ -27,6 +27,26 @@ D5   field-projection auto-emitted edge                   dropped: 100% of the
                                                           path never landed
 ===  ===================================================  =====================
 
+Root-cause accounting (corrected — an earlier write-up said "one fix, not
+five", which overstates the unification by one):
+
+* **D1, D2, D3, D5 — one root cause, one fix.** The bridge ran two asymmetric
+  endpoint policies (a source had to be fragment-local, miss → silent drop; a
+  target fell back to ``directive:<id>``, miss → invented kind), and neither
+  accepted the URN form the pack's own emitter produces. All four collapse
+  into the single ordered precedence in
+  ``doctrine.drg.merge._resolve_edge_endpoint``.
+* **D4 — a second root cause, a different mechanism, a different module.** A
+  hand-restated *node*-kind map, fixed by deriving it beside the universe it
+  inverts (``org_pack_loader._derive_plural_to_singular``). Nothing to do with
+  endpoint policy.
+* The node-side ``malformed_urn`` return in
+  ``_bridge_org_node_to_drg_node`` is a third, smaller fix on the node side.
+
+So: four of five behind one endpoint policy, plus a second root cause on the
+node-minting side. The code was always structured as two fixes in two modules;
+only the description overreached.
+
 ADR ``2026-07-26-3`` makes this file's fixes a precondition for mission B1:
 adding ``Relation.IMPACTS`` to a bridge with a silent-drop path ships a
 relation that works for built-ins and silently fails for external packs.
@@ -45,11 +65,7 @@ from typing import Any
 import pytest
 import yaml
 
-from doctrine.drg.merge import (
-    OrgDRGConflictError,
-    _bridge_org_edge_to_drg_edge,
-    merge_three_layers,
-)
+from doctrine.drg.merge import OrgDRGConflictError, merge_three_layers
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
 from doctrine.drg.validator import validate_dangling_references, validate_graph
@@ -1054,18 +1070,40 @@ class TestResolutionPrecedence:
 
         assert _org_edges(merged, built_in) == [("directive:other", "directive:shared", "requires")]
 
-    def test_the_bridge_helper_reports_the_unresolved_endpoint_directly(self) -> None:
-        """Unit-level floor on the helper the merge delegates to."""
-        resolved, conflict = _bridge_org_edge_to_drg_edge(
-            _fragment(
-                [{"id": "a", "kind": "directives"}],
-                [{"source": "a", "target": "ghost", "relation": "requires"}],
-            ).edges[0],
-            {"a": "directive:a"},
-            {"directive:a"},
-            "org:probe-pack",
+    def test_every_unresolvable_endpoint_is_reported_not_just_the_first(
+        self,
+    ) -> None:
+        """Re-anchored by the WP08 fold — this was the weakest of the 20 reds.
+
+        It used to call ``_bridge_org_edge_to_drg_edge`` positionally and went
+        red with ``TypeError: takes 3 positional arguments but 4 were given``.
+        That is an ARITY red, not a behaviour red: it pinned a private helper's
+        signature, so it would have false-flagged any refactor of that seam
+        while proving nothing an operator can observe.
+
+        Re-pointed at the contract that actually matters and was NOT covered:
+        conflict reporting is per-endpoint, so a pack with several bad tokens
+        is told about all of them in one pass. Failing on the first would make
+        fixing a pack an N-round guessing game — a slower shape of the same
+        "you are not told what is wrong" problem this WP exists to close.
+        """
+        fragment = _fragment(
+            [{"id": "a", "kind": "directives"}],
+            [
+                {"source": "a", "target": "ghost-one", "relation": "requires"},
+                {"source": "ghost-two", "target": "a", "relation": "requires"},
+                {"source": "a", "target": "nosuchkind:ghost-three", "relation": "requires"},
+            ],
         )
-        assert resolved is None
-        assert conflict is not None
-        assert conflict.kind == "unresolved_edge_endpoint"
-        assert conflict.target_id == "ghost"
+
+        with pytest.raises(OrgDRGConflictError) as excinfo:
+            merge_three_layers(_built_in(), [fragment], None)
+
+        assert sorted(c.target_id for c in excinfo.value.conflicts) == [
+            "ghost-one",
+            "ghost-two",
+            "nosuchkind:ghost-three",
+        ]
+        message = str(excinfo.value)
+        for token in ("ghost-one", "ghost-two", "nosuchkind:ghost-three"):
+            assert token in message, f"{token!r} missing from the operator message"
