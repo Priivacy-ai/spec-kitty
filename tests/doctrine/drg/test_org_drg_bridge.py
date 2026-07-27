@@ -598,6 +598,173 @@ class TestDocumentedLineageSnippet:
 
 
 # ---------------------------------------------------------------------------
+# The deferral has to be collected — a qualified endpoint is only accepted
+# verbatim because a LATER layer may still supply the node, and nothing was
+# re-checking once every layer was in.
+# ---------------------------------------------------------------------------
+
+
+class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
+    """:func:`_resolve_edge_endpoint` accepts a fully-qualified endpoint without
+    proving it exists, on the stated grounds that existence "belongs to the DRG
+    validator, not the URN minter". The reasoning is right and the deferral is
+    sound — but the control it defers to has to actually run somewhere, and it
+    did not: no production caller of :func:`merge_three_layers`
+    (``_doctrine_collect``, ``charter.lint``, ``_profile_health_render``,
+    ``charter._status_collectors``) called
+    :func:`doctrine.drg.validator.validate_graph` or ``assert_valid``. Measured
+    consequence: a one-character typo in a qualified endpoint merged clean.
+
+    ``merge_three_layers`` assembles all three layers, so by the time it
+    returns there IS no later layer — it is the first point at which existence
+    is knowable and the last point that still knows which pack authored the
+    token. The re-check therefore lands here, and reports through the bridge's
+    own :class:`OrgDRGConflict` vocabulary rather than a second error channel.
+    """
+
+    def test_a_typo_in_a_qualified_endpoint_does_not_merge_clean(self) -> None:
+        """The measured hole: ``builtin-alpha`` mistyped as ``builtin-alfa``.
+
+        Before this fix the merge returned a graph carrying
+        ``directive:mine --requires--> directive:builtin-alfa`` — an endpoint
+        naming nothing, which every downstream traversal silently fails to
+        follow. ``validate_graph`` would have reported it; nothing called it.
+        """
+        fragment = _fragment(
+            [{"id": "mine", "kind": "directives"}],
+            [
+                {
+                    "source": "mine",
+                    "target": "directive:builtin-alfa",
+                    "relation": "requires",
+                }
+            ],
+        )
+
+        with pytest.raises(OrgDRGConflictError) as excinfo:
+            merge_three_layers(_built_in(), [fragment], None)
+
+        offending = [
+            c
+            for c in excinfo.value.conflicts
+            if c.target_id == "directive:builtin-alfa"
+        ]
+        assert offending, (
+            "a qualified endpoint that names no node in ANY merged layer must "
+            "be reported against the token the author wrote; got "
+            f"{[(c.kind, c.target_id) for c in excinfo.value.conflicts]}"
+        )
+        assert offending[0].kind == "unresolved_edge_endpoint", (
+            "the post-assembly miss must speak the bridge's existing endpoint "
+            "vocabulary, not a second error language"
+        )
+        assert offending[0].resolution_applied == "hard_fail"
+        assert "org:probe-pack" in offending[0].conflicting_layers
+        assert offending[0].org_value["relation"] == "requires"
+
+    def test_the_named_compensating_control_agrees_with_the_merge(self) -> None:
+        """Executable form of the docstring's claim.
+
+        The bridge defers existence to :mod:`doctrine.drg.validator`. Pin that
+        the two now agree: whatever ``merge_three_layers`` returns carries no
+        dangling reference for the validator to find.
+        """
+        from doctrine.drg.validator import _validate_dangling_references
+
+        built_in = _built_in()
+        fragment = _fragment(
+            [{"id": "sox-controls", "kind": "directives"}],
+            [
+                {
+                    "source": "sox-controls",
+                    "target": "agent_profile:researcher-ryan",
+                    "relation": "requires",
+                },
+                {
+                    "source": "sox-controls",
+                    "target": "caveman-comments",
+                    "relation": "refines",
+                },
+            ],
+        )
+
+        merged = merge_three_layers(built_in, [fragment], None)
+
+        assert _validate_dangling_references(merged) == []
+
+    def test_the_shipped_built_in_graph_is_a_clean_baseline(self) -> None:
+        """The post-assembly check is only affordable because the shipped graph
+        is already clean — measured, not assumed."""
+        from charter.drg import load_built_in_graph
+        from doctrine.drg.validator import validate_graph
+
+        built_in = load_built_in_graph()
+        assert validate_graph(merge_three_layers(built_in, [], None)) == []
+
+    def test_a_qualified_endpoint_may_still_name_a_later_layers_node(self) -> None:
+        """The deferral must survive — this is WHY mint-time existence is wrong.
+
+        An org pack legitimately references a node the PROJECT layer supplies.
+        The project layer is merged after the org layer, so this only resolves
+        post-assembly. A check that ran at mint time would reject it.
+        """
+        project = _graph(DRGNode(urn="directive:from-project", kind=NodeKind.DIRECTIVE))
+        fragment = _fragment(
+            [{"id": "mine", "kind": "directives"}],
+            [
+                {
+                    "source": "mine",
+                    "target": "directive:from-project",
+                    "relation": "requires",
+                }
+            ],
+        )
+
+        built_in = _built_in()
+        merged = merge_three_layers(built_in, [fragment], project)
+
+        assert (
+            "directive:mine",
+            "directive:from-project",
+            "requires",
+        ) in _org_edges(merged, built_in)
+
+    def test_the_post_assembly_check_would_catch_a_reintroduced_hole(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Self-mutation (standing order 5): prove the check is load-bearing.
+
+        Neuter the post-assembly detector and assert the typo goes back to
+        merging clean — i.e. the gate above is what is catching it, not some
+        incidental refusal elsewhere in the merge.
+        """
+        import doctrine.drg.merge as merge_mod
+
+        monkeypatch.setattr(
+            merge_mod,
+            "_dangling_org_endpoint_conflicts",
+            lambda contributions, merged_nodes: [],
+            raising=True,
+        )
+
+        fragment = _fragment(
+            [{"id": "mine", "kind": "directives"}],
+            [
+                {
+                    "source": "mine",
+                    "target": "directive:builtin-alfa",
+                    "relation": "requires",
+                }
+            ],
+        )
+        built_in = _built_in()
+        merged = merge_three_layers(built_in, [fragment], None)
+        assert ("directive:mine", "directive:builtin-alfa", "requires") in _org_edges(
+            merged, built_in
+        ), "the mutation must restore the defect, otherwise the gate is decorative"
+
+
+# ---------------------------------------------------------------------------
 # Regression floor for the resolution policy itself
 # ---------------------------------------------------------------------------
 
