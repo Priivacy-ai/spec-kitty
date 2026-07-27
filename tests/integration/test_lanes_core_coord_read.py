@@ -41,6 +41,7 @@ WP03 ROUTE / KEEP map (re-resolved on the lane-c tree, verified)
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 from typing import Any, NoReturn
 
 import pytest
@@ -366,24 +367,35 @@ def test_show_kanban_status_identity_leg_reads_primary(
 
 
 def _revert_lanes_read_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Patch ``lifecycle_sync.resolve_planning_read_dir`` to the coord-aware resolver.
+    """Patch the placement seam's read projection to the coord-aware resolver.
 
-    The EXECUTED pre-#2185 revert: a kind-blind resolver that returns the
+    The EXECUTED pre-#2185 revert: a kind-BLIND read that returns the
     topology-aware candidate dir (the STATUS-only ``-coord`` husk for a coord
     mission), exactly as the pre-fix code did by trusting the threaded
     coord-aware ``feature_dir``. The routed LANE_STATE read then lands on the husk
     (no ``lanes.json``) and the auto-rebase silently skips.
+
+    Patched at the SEAM boundary — :meth:`mission_runtime.PlacementSeam.read_dir`
+    — because ``lifecycle_sync`` now resolves its lanes dir via
+    ``placement_seam(...).read_dir(MissionArtifactKind.LANE_STATE)`` rather than
+    the retired module-level ``resolve_planning_read_dir`` name. The fake's
+    signature MATCHES the real callee ``read_dir(self, kind)``; it does not
+    absorb extras with ``**kwargs``, so seam drift fails loudly here.
     """
+    from mission_runtime import MissionArtifactKind, PlacementSeam
     from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
-    def _coord_aware(repo_root: Any, mission_slug: str, *, kind: Any) -> Any:
-        return candidate_feature_dir_for_mission(repo_root, mission_slug)
+    def _coord_aware(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
+        # Kind-BLIND by construction — the pre-#2185 resolver ignored ``kind``.
+        _ = kind
+        resolved: Path = candidate_feature_dir_for_mission(
+            self.repo_root, self.mission_slug
+        )
+        return resolved
 
-    monkeypatch.setattr(
-        "specify_cli.lanes.lifecycle_sync.resolve_planning_read_dir", _coord_aware
-    )
+    monkeypatch.setattr(PlacementSeam, "read_dir", _coord_aware)
 
 
 def test_lifecycle_sync_reads_primary_lanes_not_coord_husk(
@@ -405,7 +417,7 @@ def test_lifecycle_sync_reads_primary_lanes_not_coord_husk(
     and ``attempt_auto_rebase`` is NEVER called.
 
     NFR-004: no primary-dir stub — the PRIMARY-vs-coord routing decision
-    (``resolve_planning_read_dir(LANE_STATE)``) runs inside production code; the
+    (``placement_seam(...).read_dir(LANE_STATE)``) runs inside production code; the
     auto-rebase spy only CAPTURES the lane and the worktree shell is pre-created so
     the test exercises the lanes READ, not the (separately-covered) rebase git
     mechanics.
