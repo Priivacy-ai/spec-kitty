@@ -10,6 +10,7 @@
   "purpose_context": "Mission B2 of five, split from doctrine-canonical-structure-remediation-01KYEYSD. The heaviest mission: a committed baseline manifest and in-process ablation harness, the localized <kind>.edges.yaml source with the aggregate graph as a generated cache, the profile-field collapse, aliases on 102 artefacts, the 559 inline entries across 169 files, the 215 structural edges, deletion of both Python edge registries and the calibrator, and full retirement of the extractor's edge production. Node discovery stays derived. This is the bulk-edit mission: it carries change_mode and the occurrence map.",
   "purpose_tldr": "Make all 774 DRG edges authored, and retire every mechanism that re-derives them.",
   "slug": "drg-edge-migration-extractor-retirement-01KYFV8C",
+  "status_phase": "1",
   "target_branch": "remediation/drg-edge-migration",
   "topology": "single_branch"
 }
