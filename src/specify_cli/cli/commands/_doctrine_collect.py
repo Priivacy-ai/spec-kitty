@@ -479,8 +479,8 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         load_built_in_graph,
         load_org_drg,
         merge_three_layers,
+        validate_dangling_references,
     )
-    from doctrine.drg.validator import validate_dangling_references  # noqa: PLC0415
 
     result: dict[str, object] = {
         "configured_packs": [],
@@ -527,12 +527,18 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         # accepts a fully-qualified endpoint verbatim (a sibling pack or a later
         # layer may supply the node) and only WARNs when it binds to nothing,
         # because it cannot know whether its caller merged the whole graph or a
-        # deliberate subset — ``charter lint`` merges against an EMPTY built-in
-        # on purpose. THIS call site is the one that holds a graph it can call
-        # complete: the real shipped built-in against the operator's real
-        # configured packs. So it is the surface that escalates a dangling
-        # endpoint from a warning to an error, using the canonical check rather
-        # than a doctor-local restatement of "dangling".
+        # deliberate subset.
+        #
+        # The rule for running the escalation is a predicate on the merge, not a
+        # property of this command: run it iff you merged the COMPLETE graph —
+        # the real shipped built-in against every configured pack. The merge two
+        # lines up satisfies that, so a dangling endpoint is an error here. Its
+        # two siblings (``_render_org_layer_section``, ``_collect_org_layer_status``)
+        # build the same merge from the same inputs and run it for the same
+        # reason; ``charter lint`` merges against an intentionally EMPTY built-in
+        # and therefore must not. The predicate lives on
+        # ``validate_dangling_references``; use the canonical check rather than a
+        # doctor-local restatement of "dangling".
         dangling = validate_dangling_references(merged)
         if dangling:
             result["dangling_endpoints"] = dangling
@@ -563,8 +569,14 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
             }
             for c in exc.conflicts
         ]
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001 — doctor must not crash on a bad pack
+        # A check that could not RUN is not a check that PASSED. This handler
+        # used to be a bare ``pass``; since the block also decides org-layer
+        # completeness, swallowing meant a crashed merge produced ``errors: []``
+        # and ``DoctrineHealthReport.healthy`` read that as clean — RC=0 having
+        # verified nothing. Report it on the same channel the load failure above
+        # already uses, so the diagnostic degrades loudly instead of silently.
+        _append_org_errors(result, [f"org-layer merge check failed: {exc}"])
 
     return result
 

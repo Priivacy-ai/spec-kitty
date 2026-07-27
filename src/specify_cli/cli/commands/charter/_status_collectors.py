@@ -398,8 +398,16 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     """Collect org-layer state for ``charter status`` (FR-002).
 
     Returns a structured dict describing the configured organisation-tier
-    DRG packs, their fetched/missing state, node/edge counts, and any
-    collision warnings surfaced by ``merge_three_layers``.
+    DRG packs, their fetched/missing state, node/edge counts, any collision
+    warnings surfaced by ``merge_three_layers``, and — because this collector
+    merges the COMPLETE graph — any org edge endpoint that binds to nothing.
+
+    Dangling endpoints land in the existing ``errors`` array rather than a
+    dedicated key. ``doctor doctrine``'s collector keeps a separate
+    ``dangling_endpoints`` list because its renderer reads it; nothing renders
+    such a key here, and an unread payload slot is the inert-schema-slot defect
+    this mission ratchets elsewhere. ``status`` already prints every ``errors``
+    entry, so one channel serves both the human and the JSON view.
 
     When no packs are configured, returns ``{"packs": [], "has_built_in": True}``.
     The caller (``status``) always emits this key in JSON output so operators
@@ -420,6 +428,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
         load_built_in_graph,
         load_org_drg,
         merge_three_layers,
+        validate_dangling_references,
     )
 
     result: dict[str, Any] = {
@@ -453,10 +462,22 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     if not fragments:
         return result
 
-    # Run merge to surface collision warnings (best-effort).
+    # Run merge to surface collision warnings AND graph completeness.
     try:
         built_in = load_built_in_graph()
-        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=fragments, project=None
+        )
+        # This merge is the real shipped built-in against every configured pack
+        # — the COMPLETE graph — which is exactly the predicate under which
+        # ``validate_dangling_references`` may escalate a dangling endpoint from
+        # the merge's WARNING to a reported error (see its docstring; ``charter
+        # lint`` merges against an intentionally EMPTY built-in and must not).
+        # Without this, ``charter status --json`` returned ``org_layer.errors:
+        # []`` for a graph whose edge named nothing — a machine-readable clean
+        # bill for an unclean graph, on the very array built to carry the
+        # finding, while ``doctor doctrine`` reported it from identical inputs.
+        result["errors"].extend(validate_dangling_references(merged))
     except OrgDRGConflictError as exc:
         for conflict in exc.conflicts:
             result["collision_warnings"].append(
@@ -467,7 +488,12 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
                     "resolution": conflict.resolution_applied,
                 }
             )
-    except Exception:  # noqa: BLE001 — collision check is advisory in doctor/status
-        pass
+    except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
+        # A check that could not RUN is not a check that PASSED. This handler
+        # used to be a bare ``pass``, so a crashed merge left ``errors: []`` —
+        # indistinguishable from a verified-clean org layer. Report it on the
+        # same channel the load failure above already uses (``status`` renders
+        # every entry and never gates on it), so the read degrades loudly.
+        result["errors"].append(f"org-layer merge check failed: {exc}")
 
     return result
