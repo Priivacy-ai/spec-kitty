@@ -292,6 +292,33 @@ def test_the_withholding_set_names_only_real_model_fields() -> None:
     assert declared >= extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
 
 
+def test_the_withholding_set_is_exactly_provenance_and_nothing_else() -> None:
+    """Shrink-only: the withholding set is an allowlist, so it must not be paddable.
+
+    Without this, the totality assertion above has a free escape. An author who
+    adds a field to :class:`DRGEdge` meets a red
+    ``test_every_declared_edge_field_is_emitted_unless_explicitly_withheld`` and
+    has two ways to answer it: emit the field (correct), or name it here (which
+    silently reinstates the exact write-side drop this module exists to close).
+    Review found that padding the set with a *new* field passed all 277 tests in
+    ``tests/doctrine/drg/`` — the second answer was free, and the module docstring
+    legitimises it as one of two valid responses without saying it reinstates the
+    bug.
+
+    Pinning the content makes that answer cost a deliberate, diff-visible edit to
+    this assertion with a written rationale, which is what Standing Order 5's
+    shrink-only allowlist requires. ``provenance`` is the only legitimate member:
+    no shipped node or edge carries the key, and no writer reachable from
+    ``_dump_graph_document`` sets it, so withholding it is lossless today.
+    """
+    assert frozenset({"provenance"}) == extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT, (
+        "The withholding set is an allowlist against silent write-side field "
+        "drops. Adding a member here re-opens that hole for the named field — "
+        "if that is genuinely intended, change this assertion in the same commit "
+        "and say why the field must never reach *.graph.yaml."
+    )
+
+
 def test_provenance_is_withheld_so_graph_output_stays_stable() -> None:
     """FR-013's merge-time marker must not leak into ``*.graph.yaml``."""
     node = DRGNode(urn="tactic:a", kind=NodeKind.TACTIC, provenance="org:acme")
