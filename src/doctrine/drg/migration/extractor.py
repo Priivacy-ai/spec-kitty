@@ -231,10 +231,18 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:traceable-decisions",
         Relation.REQUIRES,
     ),
+    # WP09 (doctrine-silence-guards-01KYFV7Q, FR-012): this edge was authored as
+    # ``Relation.APPLIES`` and was the procedure's ONLY inbound edge, so the profile's
+    # declared operating procedure was unreachable -- no context resolution, charter
+    # cascade or reference walk follows ``applies``. Retyped to ``REQUIRES``: the profile
+    # states it runs this procedure, which is a hard dependency, and ``requires`` is what
+    # ``resolve_context`` walks transitively and what ``charter activate --cascade``
+    # follows. Cardinality is unchanged (774 edges before and after) -- the relation
+    # changed, nothing else. See tests/architectural/test_no_authored_applies_edge.py.
     (
         "agent_profile:doctrine-daphne",
         "procedure:onboard-external-agent-to-pack",
-        Relation.APPLIES,
+        Relation.REQUIRES,
     ),
 )
 
