@@ -133,6 +133,58 @@ File counts below are **site-containing** (a mixed file such as
   this ledger performs, not real calls). Recorded here so WP03 does not
   over-scope its `workflow.py` slice against the inflated textual figure.
 
+## Stay-lenient allow-list index (machine-checked)
+
+This table is the **authoritative membership list** for the read-side gate's
+allow-list. `tests/architectural/test_no_read_side_bypass.py` parses it
+(`_ledger_stay_lenient_index`) and asserts set equality against its
+`_ALLOW_LIST_SEED`, and parses the § Summary table
+(`_ledger_summary_counts`) for the stay-lenient site/file counts. Editing a row
+here — or the `stay-lenient` numbers in § Summary — REDS that gate. The gate's
+seed carries only the per-site content descriptors (token substring + condensed
+rationale) that markdown cannot express; it never declares its own membership
+or cardinality.
+
+Rows are the AST-verified `(rel_path, enclosing qualname)` of each
+stay-lenient site in § Full ledger, one row per **site** (a file with two
+lenient sites gets two rows). Shrink-only: when a residual is finally routed
+through the seam, delete its row here and its descriptor in the gate.
+
+| rel_path | qualname |
+|---|---|
+| `src/specify_cli/cli/commands/agent/tasks_move_task.py` | `_coord_status_events_path` |
+| `src/specify_cli/cli/commands/agent/tasks_status_cmd.py` | `_st_resolve_dirs` |
+| `src/specify_cli/cli/commands/archive.py` | `create` |
+| `src/specify_cli/cli/commands/_coordination_doctor.py` | `_finding_for_reconcile_marker` |
+| `src/specify_cli/cli/commands/_coordination_doctor.py` | `_heal_one_strand` |
+| `src/specify_cli/cli/commands/reconcile.py` | `reconcile_mission_dossier` |
+| `src/specify_cli/cli/commands/retrospect.py` | `_canonical_events_path` |
+| `src/specify_cli/cli/commands/retrospect.py` | `summary_cmd` |
+| `src/specify_cli/dashboard/scanner.py` | `_resolve_identity_primary_first` |
+| `src/specify_cli/dashboard/scanner.py` | `_resolve_planning_dir_primary_first` |
+| `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_overview` |
+| `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_snapshot_export` |
+| `src/specify_cli/dossier/api.py` | `DossierAPIHandler._load_dossier` |
+| `src/specify_cli/retrospective/summary.py` | `_read_proposal_events` |
+| `src/specify_cli/status/aggregate.py` | `MissionStatus._find_meta_path` |
+| `src/specify_cli/manifest.py` | `WorktreeStatus.get_feature_status` |
+
+## Known gap — `primary_feature_dir_for_mission` (tracked follow-up)
+
+This ledger, and the gate derived from it, census **two** primitives:
+`candidate_feature_dir_for_mission` and `resolve_planning_read_dir`. A third,
+`primary_feature_dir_for_mission` (`_read_path_resolver.py:1257`), is also
+topology-blind and is **not** policed: an AST census counts **39 real call
+sites across 21 files** in `src/` (excluding the definition module) that this
+mission does not classify.
+
+Adding it to the gate's `_TARGET_CALLEE_NAMES` today would demand a
+comparably sized per-site classification pass and ~39 further allow-list
+entries — out of scope here. It is recorded as follow-up work so nobody reads
+the gate's green as proof that *every* kind-blind read has been routed: it
+proves only that no **new** call to the two censused primitives can be added
+outside the sanctioned + allow-listed sets.
+
 ## Full ledger
 
 Columns: `file` · `symbol(s)` · `sites` (file:line) · `family` · `verdict` ·

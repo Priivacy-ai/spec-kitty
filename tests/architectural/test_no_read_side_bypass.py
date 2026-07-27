@@ -1,13 +1,32 @@
 """Structural read-side gate — no read-side placement-seam bypass (WP08 / IC-06).
 
 read-side-placement-seam-migration-01KYHP67, FR-005 / FR-006 / NFR-003 /
-NFR-004: the CAPSTONE structural gate that makes new read-side bypasses of
-``PlacementSeam.read_dir(kind)`` unrepresentable, mirroring the write-side
-structural gate (``test_no_write_side_rederivation.py``'s
+NFR-004: the CAPSTONE structural gate over the TWO read-bypass primitives this
+mission censused — ``candidate_feature_dir_for_mission`` and
+``resolve_planning_read_dir`` — mirroring the write-side structural gate
+(``test_no_write_side_rederivation.py``'s
 ``test_adopted_and_residual_modules_have_no_checkout_derived_commit_target``
 whole-tree AST scan). This is NOT modeled on the *behavioral*
 ``test_read_surface_placement_guard.py`` — it is the symmetric structural
 analog of the write gate.
+
+Scope of the guarantee (honest bounds — do NOT overstate)
+----------------------------------------------------------
+This gate makes a new call to **either of the two ledger-censused primitives**
+un-addable outside the sanctioned + allow-listed sets. It does NOT make every
+conceivable read-side bypass "unrepresentable":
+
+- **Covered**: bare-``Name`` calls, ``Attribute.attr`` calls (``mod.symbol(...)``),
+  and **import-aliased** calls (``from ... import X as _alias`` → ``_alias(...)``),
+  which ``_import_alias_map`` resolves back to the origin symbol.
+- **Known gap — ``primary_feature_dir_for_mission``**: a topology-blind sibling
+  primitive in the same module with ~40 unpoliced call sites in ``src/``.
+  Widening ``_TARGET_CALLEE_NAMES`` to include it would require a comparably
+  sized allow-list census and is tracked follow-up work, NOT covered here. See
+  the ledger's "Known gap" section.
+- **Known gap — local rebinding**: ``_alias = candidate_feature_dir_for_mission``
+  followed by ``_alias(...)`` is value-flow, not import aliasing, and is not
+  resolved.
 
 Contract: ``kitty-specs/read-side-placement-seam-migration-01KYHP67/
 contracts/read-side-gate.md``.
@@ -28,20 +47,25 @@ Finding grammar
 ----------------
 AST-based (``ast.Call``): flags any callee resolving to
 ``candidate_feature_dir_for_mission`` or ``resolve_planning_read_dir`` (bare
-``Name`` or ``Attribute.attr``). Callee identity IS the finding — reads have no
+``Name``, ``Attribute.attr``, or an ``ImportFrom``/``Import`` alias resolved
+back to its origin symbol). Callee identity IS the finding — reads have no
 ``ref`` argument to value-flow-trace, so no "seam-derived" discriminator is
 needed (unlike the write gate's ``CommitTarget(ref=...)`` grammar). A
 docstring/comment merely NAMING one of these symbols never becomes an
 ``ast.Call`` node and is therefore never flagged (the bite test below proves
 this).
 
-Allow-list (T018)
-------------------
-Every entry mirrors a ``stay-lenient`` row in
-``docs/development/read-side-seam-classification.md`` (WP02, the authoritative
-per-site ledger) — 16 sites across 11 files, reconciled 1:1 against the
-ledger's AST-verified census (see the module-level ``_LEDGER_STAY_LENIENT_SITE_COUNT``
-pin below). Content-descriptor allow-listing (``_ratchet_keys.resolve_descriptor``,
+Allow-list (T018) — the ledger is the ONE authority, mechanically
+------------------------------------------------------------------
+``docs/development/read-side-seam-classification.md`` (WP02) is the single
+authority for WHICH sites stay lenient and HOW MANY there are. This module
+does not restate those numbers: it PARSES the ledger (``_ledger_summary_counts``
++ ``_ledger_stay_lenient_index``) and reconciles ``_ALLOW_LIST_SEED`` against
+it, so editing the ledger's Summary table or its machine-checked stay-lenient
+index REDS this gate. ``_ALLOW_LIST_SEED`` contributes only the per-site
+*content descriptors* (token substrings + condensed rationale) that markdown
+cannot carry; its membership and cardinality are ledger-derived, not
+independently declared. Content-descriptor allow-listing (``_ratchet_keys.resolve_descriptor``,
 the SAME resolver WS1/WS2/WS3/checkout-grammar entries in the write gate use):
 ``(rel_path, qualname, token_substring)`` resolves LIVE to exactly one finding's
 ``(rel_path, qualname, token_line)`` composite key — never a bare path (C-003:
@@ -154,11 +178,42 @@ def _read_side_scan_scope() -> list[Path]:
     ]
 
 
-def _callee_name(call: ast.Call) -> str | None:
-    """Return the callee identifier for bare-name OR attribute call forms."""
+def _import_alias_map(tree: ast.Module) -> dict[str, str]:
+    """Map every module-level import ALIAS to the origin symbol it binds.
+
+    ``from ..._read_path_resolver import candidate_feature_dir_for_mission as _cfd``
+    binds the local name ``_cfd`` to the origin symbol
+    ``candidate_feature_dir_for_mission``. Without this map a call to ``_cfd(...)``
+    presents as an unrelated ``Name.id`` and silently un-polices the site (and
+    invalidates any content-descriptor allow-list entry keyed on the old token
+    line). Resolving the alias back to its origin closes that escape.
+
+    Only ``Name`` callees are alias-resolved by the caller; ``Attribute.attr``
+    lives in a different namespace (``obj.attr``), so applying the same map
+    there could false-positive on an unrelated method of the same name.
+    """
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.asname:
+                    aliases[alias.asname] = alias.name
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname:
+                    aliases[alias.asname] = alias.name.rsplit(".", 1)[-1]
+    return aliases
+
+
+def _callee_name(call: ast.Call, aliases: dict[str, str]) -> str | None:
+    """Return the origin callee identifier for bare-name OR attribute call forms.
+
+    A bare ``Name`` is resolved through ``aliases`` (the module's import-alias
+    map) so an ``import ... as _alias`` rename cannot un-police a call site.
+    """
     func = call.func
     if isinstance(func, ast.Name):
-        return func.id
+        return aliases.get(func.id, func.id)
     if isinstance(func, ast.Attribute):
         return func.attr
     return None
@@ -189,15 +244,20 @@ def _scan_read_bypass(source: str, path: Path) -> list[_Finding]:
     inert prose (never an ``ast.Call`` node) and is never flagged -- this is
     exactly the discrimination the WP02 ledger's own AST census had to get
     right (90 real call sites vs. 93 raw textual grep hits, 3 false positives).
+
+    Import aliases are resolved back to their origin symbol first (see
+    :func:`_import_alias_map`), so an ``import ... as _alias`` rename cannot
+    hide a call site from this walk.
     """
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError:
         return []
+    aliases = _import_alias_map(tree)
     findings: list[_Finding] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
-            callee = _callee_name(node)
+            callee = _callee_name(node, aliases)
             if callee in _TARGET_CALLEE_NAMES:
                 findings.append(_Finding(path, node.lineno, callee, source))
     return findings
@@ -211,15 +271,79 @@ def _scan_read_bypass_module(path: Path) -> list[_Finding]:
 # T018 — allow-list: every stay-lenient residual from the WP02 ledger.
 # ---------------------------------------------------------------------------
 
-#: Ledger-pinned count (docs/development/read-side-seam-classification.md
-#: Summary table): 16 stay-lenient sites across 11 files. A change to this
-#: number without a corresponding ledger update is a drift signal.
-_LEDGER_STAY_LENIENT_SITE_COUNT = 16
+#: The WP02 classification ledger -- the ONE authority for which sites stay
+#: lenient and how many there are. Parsed live below (never restated here as a
+#: hand-synced literal): perturbing either the § Summary counts or the
+#: § "Stay-lenient allow-list index (machine-checked)" table REDS this gate.
+_LEDGER_PATH = _REPO_ROOT / "docs" / "development" / "read-side-seam-classification.md"
+
+#: Heading of the ledger's machine-checked ``rel_path | qualname`` index table.
+_LEDGER_INDEX_HEADING = "## Stay-lenient allow-list index (machine-checked)"
+
+#: Heading of the ledger's verdict-count Summary table.
+_LEDGER_SUMMARY_HEADING = "## Summary"
+
+
+def _markdown_table_rows(text: str, heading: str) -> list[list[str]]:
+    """Return the pipe-table cell rows under ``heading`` (header + separator dropped).
+
+    Reads only the FIRST table in the section and stops at the next ``##``
+    heading, so an unrelated later table can never be silently absorbed. Cells
+    are stripped of surrounding whitespace, backticks and bold markers so the
+    ledger stays human-readable markdown while remaining machine-checkable.
+    """
+    lines = text.splitlines()
+    try:
+        start = lines.index(heading)
+    except ValueError as exc:
+        raise AssertionError(
+            f"ledger {_LEDGER_PATH.name} has no {heading!r} section -- the gate "
+            "parses it as the authority for the stay-lenient census"
+        ) from exc
+    rows: list[list[str]] = []
+    for line in lines[start + 1 :]:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            break
+        if not stripped.startswith("|"):
+            if rows:
+                break
+            continue
+        cells = [cell.strip().strip("`").strip("*").strip() for cell in stripped.strip("|").split("|")]
+        if all(set(cell) <= {"-", ":"} and cell for cell in cells):
+            continue  # the |---|---| separator row
+        rows.append(cells)
+    return rows[1:] if rows else rows  # drop the header row
+
+
+def _ledger_stay_lenient_index(text: str) -> frozenset[tuple[str, str]]:
+    """The ledger's authoritative ``(rel_path, qualname)`` stay-lenient membership."""
+    rows = _markdown_table_rows(text, _LEDGER_INDEX_HEADING)
+    return frozenset((row[0], row[1]) for row in rows if len(row) >= 2)
+
+
+def _ledger_summary_counts(text: str) -> dict[str, tuple[int, int]]:
+    """Parse the ledger's § Summary verdict table into ``verdict -> (sites, files)``.
+
+    Rows whose site/file cells are not both plain integers (the ``No real call
+    site`` / ``Grand total`` rows carry a blank cell) are skipped -- only the
+    three verdict rows and the total row are needed.
+    """
+    counts: dict[str, tuple[int, int]] = {}
+    for row in _markdown_table_rows(text, _LEDGER_SUMMARY_HEADING):
+        if len(row) < 3:
+            continue
+        verdict, sites, files = row[0], row[1], row[2]
+        if sites.isdigit() and files.isdigit():
+            counts[verdict] = (int(sites), int(files))
+    return counts
+
 
 #: Content-descriptor allow-list (T018): each entry is a ``stay-lenient``
 #: residual from the WP02 classification ledger, derived site-for-site (never
-#: invented) -- 16 sites across 11 files. Every rationale is condensed from
-#: the ledger's own per-row rationale; see the ledger for the full reasoning.
+#: invented). Membership and cardinality are ledger-DERIVED (asserted below
+#: against the parsed ledger index); the entries add only the token substring
+#: and condensed rationale that markdown cannot carry.
 _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="src/specify_cli/cli/commands/agent/tasks_move_task.py",
@@ -483,19 +607,92 @@ def test_no_read_side_bypass_outside_sanctioned_and_allow_listed() -> None:
     )
 
 
-def test_allow_list_reconciles_with_the_wp02_ledger_stay_lenient_count() -> None:
-    """The allow-list has exactly the ledger's 16 stay-lenient sites -- no more, no fewer.
+def _ledger_text() -> str:
+    assert _LEDGER_PATH.exists(), f"WP02 classification ledger missing: {_LEDGER_PATH}"
+    return _LEDGER_PATH.read_text(encoding="utf-8")
 
-    Derived site-for-site from ``read-side-seam-classification.md``'s Summary
-    table (72 migrate + 16 stay-lenient + 2 sanction-infra = 90 real sites). A
-    count drift here means either a genuine ledger update was not mirrored
-    here, or an entry was invented that the ledger does not mark stay-lenient
-    (forbidden -- this mission's instructions require deriving the allow-list
-    from the ledger, never classifying ad hoc).
+
+def test_allow_list_membership_is_exactly_the_ledgers_stay_lenient_index() -> None:
+    """The allow-list IS the ledger's stay-lenient index -- parsed, not hand-synced.
+
+    The ledger (``docs/development/read-side-seam-classification.md``,
+    § "Stay-lenient allow-list index (machine-checked)") is the ONE authority
+    for WHICH sites stay lenient. This test parses that table and asserts
+    ``(rel_path, qualname)`` set equality with ``_ALLOW_LIST_SEED``, so:
+
+    - deleting/editing/adding a ledger row without touching the seed REDS here;
+    - adding a seed entry the ledger does not sanction REDS here.
+
+    That is the mechanical link the previous count-only pin lacked (both sides
+    of it lived five lines apart in THIS file, so the ledger could drift freely).
     """
-    assert len(_ALLOW_LIST_SEED) == _LEDGER_STAY_LENIENT_SITE_COUNT, (
-        f"expected {_LEDGER_STAY_LENIENT_SITE_COUNT} allow-list entries "
-        f"(the WP02 ledger's stay-lenient count), got {len(_ALLOW_LIST_SEED)}"
+    ledger_index = _ledger_stay_lenient_index(_ledger_text())
+    seed_index = frozenset((d.rel_path, d.qualname) for d in _ALLOW_LIST_SEED)
+
+    assert seed_index == ledger_index, (
+        "the read gate's allow-list no longer matches the WP02 ledger's "
+        "stay-lenient index (the authority).\n"
+        f"  in the ledger only: {sorted(ledger_index - seed_index)}\n"
+        f"  in the gate only:   {sorted(seed_index - ledger_index)}\n"
+        "Fix the LEDGER first (it is the authority), then mirror the change here."
+    )
+    # One row per site: a file with two lenient sites must contribute two rows,
+    # so a de-duplicating typo in the ledger cannot shrink the census silently.
+    assert len(_ALLOW_LIST_SEED) == len(seed_index), (
+        "duplicate (rel_path, qualname) in _ALLOW_LIST_SEED -- the ledger index "
+        "is one row per SITE and cannot address two sites in one qualname"
+    )
+
+
+def test_ledger_parser_fails_loud_when_the_authority_section_is_removed() -> None:
+    """Deleting the ledger's machine-checked section REDS -- it never parses to empty.
+
+    The dangerous failure mode for a parse-the-docs gate is a SILENT one: if a
+    missing heading yielded an empty row list, ``ledger_index`` would be the
+    empty set and the membership assertion would degrade into "the seed must
+    also be empty" -- or worse, a renamed section would quietly un-police the
+    allow-list. ``_markdown_table_rows`` raises instead.
+    """
+    text_without_index = _ledger_text().replace(_LEDGER_INDEX_HEADING, "## Something Else")
+
+    with pytest.raises(AssertionError, match="Stay-lenient allow-list index"):
+        _ledger_stay_lenient_index(text_without_index)
+
+
+def test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves() -> None:
+    """The ledger's § Summary stay-lenient counts bind the allow-list's shape.
+
+    Two independent reconciliations, both against the PARSED ledger:
+
+    1. ``stay-lenient`` sites/files == the allow-list's site count and distinct
+       file count. Editing ``| stay-lenient | 16 | 11 |`` REDS here.
+    2. The ledger is internally consistent: migrate + stay-lenient +
+       sanction-infra sites/files == the ``Total real call sites`` row, so a
+       Summary edit cannot be "balanced" by silently mis-stating the total.
+    """
+    counts = _ledger_summary_counts(_ledger_text())
+    for verdict in ("migrate-fail-loud", "stay-lenient", "sanction-infra", "Total real call sites"):
+        assert verdict in counts, (
+            f"ledger § Summary has no parseable {verdict!r} row; parsed {sorted(counts)}"
+        )
+
+    lenient_sites, lenient_files = counts["stay-lenient"]
+    assert lenient_sites == len(_ALLOW_LIST_SEED), (
+        f"ledger § Summary declares {lenient_sites} stay-lenient sites but the "
+        f"allow-list carries {len(_ALLOW_LIST_SEED)} entries"
+    )
+    assert lenient_files == len({d.rel_path for d in _ALLOW_LIST_SEED}), (
+        f"ledger § Summary declares {lenient_files} stay-lenient files but the "
+        f"allow-list spans {len({d.rel_path for d in _ALLOW_LIST_SEED})}"
+    )
+
+    verdict_sites = sum(
+        counts[v][0] for v in ("migrate-fail-loud", "stay-lenient", "sanction-infra")
+    )
+    total_sites, _total_files = counts["Total real call sites"]
+    assert verdict_sites == total_sites, (
+        f"ledger § Summary verdict rows sum to {verdict_sites} sites but the "
+        f"total row declares {total_sites} -- the census no longer adds up"
     )
 
 
@@ -547,6 +744,56 @@ def test_ratchet_bites_on_a_planted_kind_aware_lenient_read_call() -> None:
     )
 
 
+def test_ratchet_bites_on_an_import_aliased_bypass() -> None:
+    """An ``import ... as _alias`` rename must NOT un-police a call site.
+
+    Before ``_import_alias_map``, this exact fixture returned ZERO findings:
+    ``_callee_name`` matched only the literal ``Name.id`` / ``Attribute.attr``
+    token, so renaming the import at the top of a module silently removed the
+    site from the gate's view AND invalidated any content-descriptor allow-list
+    entry keyed on the old token line. Both alias forms (``from X import Y as
+    Z`` and a plain module ``import ... as``) are covered.
+    """
+    fixture_source = (
+        "from ..._read_path_resolver import candidate_feature_dir_for_mission as _cfd\n"
+        "from ..._read_path_resolver import resolve_planning_read_dir as _rpd\n"
+        "\n"
+        "def _aliased_bypass(root, slug, kind):\n"
+        "    a = _cfd(root, slug)\n"
+        "    b = _rpd(root, slug, kind=kind)\n"
+        "    return a, b\n"
+    )
+    findings = _scan_read_bypass(
+        fixture_source, _REPO_ROOT / "src" / "specify_cli" / "manifest.py"
+    )
+    callees = sorted(f.callee for f in findings)
+    assert callees == ["candidate_feature_dir_for_mission", "resolve_planning_read_dir"], (
+        f"the gate failed to resolve import-aliased read bypasses; found {callees}"
+    )
+
+
+def test_ratchet_does_not_flag_an_alias_that_shadows_a_target_name() -> None:
+    """Aliasing is resolved to the ORIGIN symbol, not matched on the local name.
+
+    ``from x import unrelated as candidate_feature_dir_for_mission`` binds a
+    target-looking local name to a non-target origin. Resolving to the origin
+    (rather than pattern-matching the token) keeps the grammar honest in both
+    directions -- no false positive here, and no false negative above.
+    """
+    fixture_source = (
+        "from somewhere import unrelated_helper as candidate_feature_dir_for_mission\n"
+        "\n"
+        "def _not_a_bypass(root, slug):\n"
+        "    return candidate_feature_dir_for_mission(root, slug)\n"
+    )
+    findings = _scan_read_bypass(
+        fixture_source, _REPO_ROOT / "src" / "specify_cli" / "manifest.py"
+    )
+    assert findings == [], (
+        f"an alias bound to a NON-target origin symbol was flagged: {findings!r}"
+    )
+
+
 def test_ratchet_ignores_a_prose_only_mention() -> None:
     """A docstring/comment mention of either symbol stays GREEN.
 
@@ -595,33 +842,19 @@ def _imports_shared_scan_scope(source: str) -> bool:
 
 
 def test_read_and_write_gates_share_the_same_scan_scope() -> None:
-    """Symmetry meta-test: the read gate and write gate consume the SAME
-    ``scan_scope()`` object -- not merely an equal-valued copy.
+    """Symmetry meta-test: the write gate consumes the SAME shared walker this
+    gate does -- never a forked second walk.
 
-    Proven two ways:
-
-    1. Runtime identity on THIS module's own import: ``_whole_tree_scan_scope``
-       (this gate's alias) IS the ``_placement_whole_tree_scan.scan_scope``
-       function object -- Python caches modules, so every importer of a given
-       module-level name gets the SAME object, never a copy.
-    2. Structural proof for the write gate: its source imports ``scan_scope``
-       from the identical shared module (never a re-implementation) -- parsed
-       via AST rather than reaching into the write gate module's private
-       runtime alias (which strict mypy correctly refuses to treat as a public
-       re-export; a source-level check avoids that private-interface reach
-       entirely while still proving the SAME shared function is consumed, by
-       Python's own module-caching guarantee).
-
-    Together these rule out a future refactor that quietly forks a second
-    walker in either gate.
+    This gate's own consumption is proven by its module-level ``from
+    tests.architectural._placement_whole_tree_scan import scan_scope`` (an
+    identity assertion on that import would be true by construction and cannot
+    fail, so it is not made here). What CAN drift is the write gate: its source
+    is parsed via AST to confirm it still imports ``scan_scope`` from the
+    identical shared module, rather than reaching into the write gate module's
+    private runtime alias (which strict mypy correctly refuses to treat as a
+    public re-export). Python's module cache then guarantees both importers
+    hold the same function object.
     """
-    import tests.architectural._placement_whole_tree_scan as _placement_whole_tree_scan
-
-    assert _whole_tree_scan_scope is _placement_whole_tree_scan.scan_scope, (
-        "this gate's imported scan_scope is not the shared "
-        "_placement_whole_tree_scan.scan_scope function object"
-    )
-
     assert _WRITE_GATE_PATH.exists(), f"write gate module missing: {_WRITE_GATE_PATH}"
     write_gate_source = _WRITE_GATE_PATH.read_text(encoding="utf-8")
     assert _imports_shared_scan_scope(write_gate_source), (
@@ -635,21 +868,6 @@ def test_read_and_write_gates_share_the_same_scan_scope() -> None:
 # ---------------------------------------------------------------------------
 # Sanctioned-module meta-tests (FR-003: asserted, not silently skipped).
 # ---------------------------------------------------------------------------
-
-
-def test_read_sanctioned_modules_carry_a_rationale() -> None:
-    """Every ``_READ_SANCTIONED_MODULES`` entry has a non-empty inline rationale.
-
-    A sanctioned exclusion with no rationale is unauditable -- it cannot be
-    told apart from a lazy escape hatch (mirrors the write gate's
-    ``test_sanctioned_modules_carry_a_rationale``).
-    """
-    for rel, rationale in _READ_SANCTIONED_MODULES.items():
-        assert isinstance(rationale, str) and rationale.strip(), (
-            f"_READ_SANCTIONED_MODULES entry {rel!r} has no non-empty inline "
-            "rationale -- every sanctioned-primitive exclusion must carry a "
-            "justification."
-        )
 
 
 def test_read_sanctioned_modules_are_excluded_from_the_read_scan_scope() -> None:
@@ -687,58 +905,16 @@ def test_read_sanctioned_modules_have_real_findings_that_would_otherwise_red() -
 
 
 # ---------------------------------------------------------------------------
-# Allow-list shape + non-vacuity meta-tests.
+# Allow-list staleness twin-guard.
+#
+# (The former ``test_allow_list_is_content_addressed_not_a_blanket_file_escape``
+# is gone: its tuple-shape asserts were true by construction -- ``CompositeKey``
+# IS a 3-tuple of non-empty strings by the resolver's own contract -- and its
+# one load-bearing assertion, that ``dossier/api.py`` is allow-listed at THREE
+# distinct qualnames rather than as a whole file, is now subsumed by
+# ``test_allow_list_membership_is_exactly_the_ledgers_stay_lenient_index``,
+# which pins every (rel_path, qualname) pair against the ledger by set equality.)
 # ---------------------------------------------------------------------------
-
-
-def test_allow_list_is_content_addressed_not_a_blanket_file_escape() -> None:
-    """The allow-list keys are ``(rel_path, qualname, token_line)`` composites,
-    never bare paths (C-003: no file-scoped blanket exemptions).
-
-    ``dossier/api.py`` carries THREE distinct allow-list entries (different
-    qualnames, same file) -- proof this is qualname/line-scoped granularity,
-    not a whole-file escape: a fourth, un-listed bypass added anywhere else in
-    that file would still red the main ratchet.
-    """
-    assert _ALLOW_LIST, "the allow-list must seed the ledger's stay-lenient residuals"
-    for entry in _ALLOW_LIST:
-        # A fixed-arity tuple shape check (the composite key IS always a
-        # 3-tuple by construction, per CompositeKey) -- genuinely
-        # cardinality-only, not a nameable-member collection a set/frozenset
-        # equality could strengthen.
-        assert isinstance(entry, tuple) and len(entry) == 3, (  # golden-count: cardinality-is-contract
-            f"allow-list entry must be a (rel_path, qualname, token_line) "
-            f"composite, got {entry!r}"
-        )
-        rel_path, qualname, token_line = entry
-        assert isinstance(rel_path, str) and rel_path, (
-            f"rel_path component must be a non-empty str, got {rel_path!r}"
-        )
-        assert isinstance(qualname, str) and qualname, (
-            f"qualname component must be a non-empty str, got {qualname!r}"
-        )
-        assert isinstance(token_line, str) and token_line, (
-            "token_line component must be a non-empty code line, never a "
-            f"whole-file wildcard, got {token_line!r}"
-        )
-
-    dossier_api_qualnames = {
-        descriptor.qualname
-        for descriptor in _ALLOW_LIST_SEED
-        if descriptor.rel_path == "src/specify_cli/dossier/api.py"
-    }
-    # Exact member-name equality (not a bare count): pins WHICH three handlers
-    # are allow-listed, so a rename/drop/add of any one of them fails loudly
-    # here rather than silently passing at an unchanged count.
-    assert dossier_api_qualnames == {
-        "DossierAPIHandler.handle_dossier_overview",
-        "DossierAPIHandler.handle_dossier_snapshot_export",
-        "DossierAPIHandler._load_dossier",
-    }, (
-        "expected exactly these 3 qualname-scoped entries for dossier/api.py "
-        f"(proof of line-scoping, not a file-scoped escape), got "
-        f"{dossier_api_qualnames!r}"
-    )
 
 
 @pytest.mark.parametrize(
