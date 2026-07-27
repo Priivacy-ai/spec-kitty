@@ -611,7 +611,9 @@ class _OrgEdgeCollector:
     second dedup on raw strings as well would just recreate the drift.
 
     The collapse keeps the FIRST contribution and drops the rest, so the loser's
-    authored ``reason:`` never reaches the graph. That is silent for the routine
+    authored ``reason:`` is not the contribution of record — the merged
+    :class:`DRGEdge` carries the endpoints and the relation, not either
+    declaration's prose. That is silent for the routine
     restatements (see :func:`_warn_discarded_edge_rationale`) and loud for the
     one case where it destroys something an author wrote.
     """
@@ -658,14 +660,28 @@ def _warn_discarded_edge_rationale(
     What is not routine is a restatement that carries its OWN authored
     ``reason:``, different from the survivor's. Then the collapse is not
     deduplication, it is information loss: two governance authors documented the
-    same relationship for different stated reasons and only the first reaches
-    the graph. An earlier revision defended that silence by pointing at
-    org-vs-org *node* collisions, which are equally quiet. But that argues the
-    node path is also wrong, not that this one is right — and a silent
-    difference is the defect class this bridge exists to close. Both sides must
-    have written something for this to fire: a generated projection reason
-    losing to a hand-authored edge that documented nothing discards no author's
-    words.
+    same relationship for different stated reasons and only the first survives
+    as the contribution of record. An earlier revision defended that silence by
+    pointing at org-vs-org *node* collisions, which are equally quiet. But that
+    argues the node path is also wrong, not that this one is right — and a
+    silent difference is the defect class this bridge exists to close.
+
+    **Both sides must have been written by an author.** The predicate reads
+    ``reason``, which
+    :class:`doctrine.drg.org_pack_loader._OrgDRGEdge` reserves for the author's
+    own words: a field-projection edge carries its machine provenance on
+    :class:`~doctrine.drg.org_pack_loader._ProjectedOrgDRGEdge`'s separate
+    ``generated_reason``, and ``extra="forbid"`` keeps YAML from writing there.
+    So "has a ``reason``" IS "an author wrote a reason", structurally, with no
+    string-matching against text this codebase itself emits.
+
+    That matters because the shape it excludes is *healthy*, not marginal: a
+    legacy ``enhances:`` field plus the explicit fragment edge that documents
+    and will replace it is exactly what the loader's retained projection path
+    exists to support during the migration window. Warning there discarded no
+    author's words, named one pack as if it were two, and proposed the opposite
+    of the right remedy (mint a second relationship, rather than delete the
+    legacy field).
 
     Visible, not fatal — the merged edge is correct either way; only the
     operator's record of *why* is incomplete, and that is theirs to reconcile.
@@ -677,12 +693,25 @@ def _warn_discarded_edge_rationale(
     if discarded_reason == surviving_reason:
         return
     edge = kept.minted
+    if source_marker == kept.source_marker:
+        _logger.warning(
+            "Org doctrine %r declares the edge (%s --%s--> %s) twice with "
+            "different reasons, so it is collapsed to one edge and only the "
+            "first rationale survives. Discarded: %r (kept: %r). Keep one "
+            "declaration and fold both rationales into it.",
+            source_marker,
+            edge.source,
+            edge.relation.value,
+            edge.target,
+            discarded_reason,
+            surviving_reason,
+        )
+        return
     _logger.warning(
         "Org doctrine %r restates the edge (%s --%s--> %s) already contributed "
-        "by %r, so it is collapsed to one edge — but the two declarations give "
-        "different reasons, and only the first is kept. Discarded reason from "
-        "%r: %r (kept: %r). Reconcile the two packs, or move the distinct "
-        "rationale onto a relationship of its own.",
+        "by %r, so it is collapsed to one edge and only the first rationale "
+        "survives. Discarded reason from %r: %r (kept: %r). Reconcile the two "
+        "packs onto a single rationale — the triple can only carry one edge.",
         source_marker,
         edge.source,
         edge.relation.value,

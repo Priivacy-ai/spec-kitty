@@ -383,9 +383,15 @@ class _OrgDRGEdge(BaseModel):
     Mirrors the contract YAML example shape: ``source`` + ``target`` +
     ``relation`` (free-form string label; the merge bridges to
     ``doctrine.drg.models.Relation`` when possible, handled in
-    ``charter.drg``). The optional ``reason`` field captures provenance for
-    auto-emitted edges (FR-014, WP06 T036) and is accepted on hand-authored
-    edges for audit purposes.
+    ``charter.drg``).
+
+    ``reason`` is the **author's own rationale** and nothing else. Machine
+    provenance lives on :class:`_ProjectedOrgDRGEdge.generated_reason`, a field
+    this class does not declare — so with ``extra="forbid"`` a fragment cannot
+    write one, and anything reaching ``reason`` came from a governance author.
+    That is the whole discriminator :func:`doctrine.drg.merge
+    ._warn_discarded_edge_rationale` needs; see that docstring for why reading
+    "has a reason" as "an author wrote a reason" was a defect.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -394,6 +400,25 @@ class _OrgDRGEdge(BaseModel):
     target: str
     relation: str
     reason: str | None = None
+
+
+class _ProjectedOrgDRGEdge(_OrgDRGEdge):
+    """A projection edge minted from an artifact field, never author-written.
+
+    The FR-014 / WP06-T036 provenance string ("declared via
+    ``<kind>.<field>`` field") records *how* the edge came to exist, which the
+    operator needs when a conflict record names this edge but no ``edges:``
+    entry in the pack produced it. It is machine text, not an author's
+    rationale, so it gets its own field rather than borrowing ``reason``.
+
+    Sharing one field for both meanings is what made a healthy pack — a legacy
+    ``enhances:`` field plus the explicit fragment edge that documents and will
+    replace it — look like two authors disagreeing. Separating them means the
+    distinction cannot be lost by anyone reading ``reason``, and cannot be
+    faked from YAML: this subclass is only ever constructed here, in Python.
+    """
+
+    generated_reason: str
 
 
 # ---------------------------------------------------------------------------
@@ -520,7 +545,13 @@ def load_org_pack(
     # endpoints MEAN rather than to how they were typed. Emitting both edges
     # here is the honest report of what the pack declares; collapsing them is
     # the merge's job.
-    authored_edges = list(fragment_data.get("edges") or [])
+    #
+    # The two paths ARE distinguished by type: the projection edges arrive as
+    # already-constructed :class:`_ProjectedOrgDRGEdge` instances (which
+    # ``model_validate`` passes through untouched) so that downstream code can
+    # tell machine provenance from an author's ``reason:`` without matching on
+    # the generated text — a string the emitter above owns and could reword.
+    authored_edges: list[Any] = list(fragment_data.get("edges") or [])
     fragment_data["edges"] = authored_edges + _collect_augmentation_edges(pack_root)
 
     try:
@@ -564,13 +595,19 @@ def _augmentation_files(type_dir: Path, plural: str, glob: str) -> list[Path]:
     )
 
 
-def _projection_edges_for_file(yaml_file: Path, urn_kind: str) -> list[dict[str, str]]:
+def _projection_edges_for_file(
+    yaml_file: Path, urn_kind: str
+) -> list[_ProjectedOrgDRGEdge]:
     """Emit projection edges for one artifact file (best-effort).
 
     Reads the artifact's ``id`` and any augmentation/lineage field present,
-    yielding one edge dict per declared relation. Malformed YAML or files
-    missing the required keys are skipped silently — the pack validator
-    surfaces those errors through its own paths.
+    yielding one edge per declared relation. Malformed YAML or files missing
+    the required keys are skipped silently — the pack validator surfaces those
+    errors through its own paths.
+
+    Returns :class:`_ProjectedOrgDRGEdge` instances rather than plain dicts:
+    the type IS the marker that says "machine-minted", and a dict would be
+    validated into the plain author-facing :class:`_OrgDRGEdge` and lose it.
     """
     try:
         data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
@@ -581,23 +618,23 @@ def _projection_edges_for_file(yaml_file: Path, urn_kind: str) -> list[dict[str,
     art_id = data.get("id")
     if not isinstance(art_id, str) or not art_id:
         return []
-    edges: list[dict[str, str]] = []
+    edges: list[_ProjectedOrgDRGEdge] = []
     for field_name, relation in _PROJECTION_FIELD_TO_RELATION.items():
         target = data.get(field_name)
         if not isinstance(target, str) or not target:
             continue
         edges.append(
-            {
-                "source": f"{urn_kind}:{art_id}",
-                "target": f"{urn_kind}:{target}",
-                "relation": relation.value,
-                "reason": f"declared via {urn_kind}.{field_name} field",
-            }
+            _ProjectedOrgDRGEdge(
+                source=f"{urn_kind}:{art_id}",
+                target=f"{urn_kind}:{target}",
+                relation=relation.value,
+                generated_reason=f"declared via {urn_kind}.{field_name} field",
+            )
         )
     return edges
 
 
-def _collect_augmentation_edges(pack_root: Path) -> list[dict[str, str]]:
+def _collect_augmentation_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdge]:
     """Collect projection edges for every augmentation-eligible kind.
 
     Iterates the single-source :data:`AUGMENTATION_ELIGIBLE_KINDS` mapping so
@@ -605,7 +642,7 @@ def _collect_augmentation_edges(pack_root: Path) -> list[dict[str, str]]:
     project edges at parity with the original five (T015). Mission types carry
     no per-file glob and are authored as fragment edges only.
     """
-    edges: list[dict[str, str]] = []
+    edges: list[_ProjectedOrgDRGEdge] = []
     for urn_kind, plural in AUGMENTATION_ELIGIBLE_KINDS.items():
         glob = _AUGMENTATION_GLOBS.get(plural, "")
         for yaml_file in _augmentation_files(pack_root / plural, plural, glob):
