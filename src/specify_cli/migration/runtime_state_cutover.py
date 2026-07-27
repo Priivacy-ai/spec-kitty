@@ -25,9 +25,14 @@ Fail-closed contract (FR-003 / NFR-001 / INV-1):
   (:func:`~mission_runtime.resolve_artifact_surface`): a resolved PRIMARY home
   that disagrees with the write target fails closed
   (:class:`PlacementMismatchError`, writes nothing); a resolver *failure* (no
-  enclosing git repo, an ambiguous handle, a deleted coordination branch) on a
-  well-formed legacy mission degrades to the caller-supplied target instead of
-  aborting the cutover (NFR-002).
+  enclosing git repo, an ambiguous handle, a deleted coordination branch, or an
+  unresolvable action context) on a well-formed legacy mission degrades to the
+  caller-supplied target instead of aborting the cutover (NFR-002).
+  :func:`cutover_mission` itself still RAISES :class:`PlacementMismatchError`
+  (per-mission fail-close, C-WRITER-1) — the corpus walkers
+  (:func:`cutover_repo` and the upgrade migration's ``_cutover_corpus``) catch
+  it PER MISSION so one mis-routed mission never strands the missions sorted
+  after it (landing-fold finding 1).
 
 Idempotency (NFR-002 / INV-4): the backfill mints byte-identical deterministic
 seed ids (a re-run seeds nothing) and :func:`_flip_phase` short-circuits when the
@@ -138,14 +143,20 @@ def _resolve_primary_home_or_degrade(feature_dir: Path) -> Path | None:
     well-formed legacy corpus mission — no enclosing git repo
     (:class:`~specify_cli.core.paths.WorkspaceRootNotFound`), an ambiguous
     handle (:class:`~specify_cli.missions._read_path_resolver.MissionSelectorAmbiguous`),
-    or a deleted coordination branch
-    (:class:`~specify_cli.missions._read_path_resolver.StatusReadPathNotFound`)
-    — must NOT abort the cutover (NFR-002); :func:`_flip_phase` falls back to
-    its own ``canonicalize_feature_dir`` target in that case. A genuine port
-    ANSWER (this function's non-``None`` return) is compared for equality by
-    the caller — that comparison, not this function, decides the fail-close.
+    a deleted coordination branch
+    (:class:`~specify_cli.missions._read_path_resolver.StatusReadPathNotFound`),
+    or an unresolvable action context
+    (:class:`~mission_runtime.ActionContextError`) — must NOT abort the
+    cutover (NFR-002); :func:`_flip_phase` falls back to its own
+    ``canonicalize_feature_dir`` target in that case. This mirrors the
+    structurally equivalent projection over the same resolver,
+    :func:`~mission_runtime.coord_read_dir_for`, which degrades on the same
+    three exception classes for the same reason (a resolver *failure*, not a
+    genuine port answer). A genuine port ANSWER (this function's non-``None``
+    return) is compared for equality by the caller — that comparison, not
+    this function, decides the fail-close.
     """
-    from mission_runtime import MissionArtifactKind, resolve_artifact_surface
+    from mission_runtime import ActionContextError, MissionArtifactKind, resolve_artifact_surface
     from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
@@ -157,7 +168,12 @@ def _resolve_primary_home_or_degrade(feature_dir: Path) -> Path | None:
         return resolve_artifact_surface(
             repo_root, feature_dir.name, MissionArtifactKind.PRIMARY_METADATA
         ).path
-    except (WorkspaceRootNotFound, MissionSelectorAmbiguous, StatusReadPathNotFound) as exc:
+    except (
+        WorkspaceRootNotFound,
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        ActionContextError,
+    ) as exc:
         logger.debug(
             "Placement-port resolution degraded for %s (%s); falling back to "
             "the canonicalized write target.",
@@ -310,6 +326,13 @@ def cutover_repo(
     (per-mission best-effort — research D-03). Keeping the walk here (not in the
     CLI body) keeps the command thin and the walk unit-testable.
 
+    A :class:`PlacementMismatchError` out of :func:`cutover_mission` (FR-001's
+    fail-close) is caught PER MISSION and folded into that mission's
+    :class:`CutoverResult` (``flipped=False``, ``error`` set) — it must not
+    abort the whole corpus walk, or one mis-routed mission would silently
+    strand every mission sorted after it unvisited (placement-port-residuals-
+    closure-01KYDEF0 finding 1).
+
     Args:
         repo_root: Absolute path to the repository root.
         dry_run: When True, seed/flip nothing; report would-seed counts.
@@ -349,7 +372,15 @@ def cutover_repo(
                     entry,
                 )
 
-    return [cutover_mission(feature_dir, dry_run=dry_run) for feature_dir in candidates]
+    results: list[CutoverResult] = []
+    for feature_dir in candidates:
+        try:
+            results.append(cutover_mission(feature_dir, dry_run=dry_run))
+        except PlacementMismatchError as exc:
+            results.append(
+                CutoverResult(slug=feature_dir.name, flipped=False, error=str(exc))
+            )
+    return results
 
 
 __all__ = [

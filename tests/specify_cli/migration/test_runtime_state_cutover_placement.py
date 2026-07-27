@@ -240,3 +240,125 @@ def test_placement_home_and_canonicalize_agree_through_symlinked_root(tmp_path: 
     result = rsc.cutover_mission(feature_dir_via_link)
     assert result.flipped is True
     assert result.error is None
+
+
+# ---------------------------------------------------------------------------
+# Landing-fold finding 1 (P1) — corpus walkers must contain the fail-close
+# ---------------------------------------------------------------------------
+
+
+def test_cutover_repo_continues_past_placement_mismatch_and_stays_non_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One placement-mismatched mission must not abort the whole corpus walk.
+
+    ``cutover_mission`` itself is DOCUMENTED to RAISE ``PlacementMismatchError``
+    (C-WRITER-1, T001) rather than fold it into a ``CutoverResult`` — that stays
+    correct (a divergent-home mission must never silently flip). The walker
+    built on top of it (``cutover_repo``) must catch that raise PER MISSION:
+    "alpha" (sorted first) is injected with a mismatch while "beta" (sorted
+    after) is a genuinely healthy mission — proving the walk still reaches
+    beta AND the overall corpus result stays fail-closed (a non-``None``
+    ``error`` is exactly the signal both the CLI's ``_cutover_failed`` and the
+    upgrade migration's ``_mission_failed`` predicates key on for a non-zero
+    outcome).
+    """
+    alpha = build_mission(tmp_path, slug="alpha")
+    beta = build_mission(tmp_path, slug="beta")
+    real_cutover_mission = rsc.cutover_mission
+    mismatch_message = (
+        "_flip_phase refuses to write status_phase for 'alpha': the placement "
+        "port resolved its PRIMARY home elsewhere (fail-closed, FR-001)."
+    )
+
+    def _fake_cutover_mission(
+        feature_dir: Path,
+        *,
+        status_feature_dir: Path | None = None,
+        dry_run: bool = False,
+    ) -> rsc.CutoverResult:
+        if feature_dir.name == "alpha":
+            raise rsc.PlacementMismatchError(mismatch_message)
+        return real_cutover_mission(
+            feature_dir, status_feature_dir=status_feature_dir, dry_run=dry_run
+        )
+
+    monkeypatch.setattr(rsc, "cutover_mission", _fake_cutover_mission)
+
+    results = rsc.cutover_repo(tmp_path)
+
+    assert sorted(r.slug for r in results) == ["alpha", "beta"]
+    alpha_result = next(r for r in results if r.slug == "alpha")
+    beta_result = next(r for r in results if r.slug == "beta")
+
+    # alpha: fails closed, folded into a CutoverResult — never escapes the walk
+    # as a raised exception.
+    assert alpha_result.flipped is False
+    assert alpha_result.error == mismatch_message
+    assert _STATUS_PHASE not in json.loads((alpha / "meta.json").read_text())
+
+    # beta sorts AFTER alpha but was still visited and flipped — the walk did
+    # not abort at alpha (NFR-005-style containment for THIS error class too).
+    assert beta_result.flipped is True
+    assert json.loads((beta / "meta.json").read_text())[_STATUS_PHASE] == "1"
+
+    # The corpus-level signal both consumers key on for a non-zero outcome.
+    assert any(r.error is not None for r in results)
+
+
+# ---------------------------------------------------------------------------
+# Landing-fold finding 2 (P2) — degrade catch set aligned with coord_read_dir_for
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_primary_home_or_degrade_absorbs_action_context_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``ActionContextError`` degrades exactly like the other resolver failures.
+
+    ``mission_runtime.coord_read_dir_for`` — the structurally equivalent
+    projection over the SAME resolver — already catches
+    ``(StatusReadPathNotFound, MissionSelectorAmbiguous, ActionContextError)``.
+    Before this fix, ``_resolve_primary_home_or_degrade`` caught a narrower set
+    and let an ``ActionContextError`` escape as a hard abort, contradicting its
+    own docstring ("a resolver failure ... must NOT abort the cutover,
+    NFR-002").
+    """
+    import mission_runtime
+
+    feature_dir = build_mission(tmp_path)
+    # A real resolvable git root, so the function reaches
+    # resolve_artifact_surface instead of degrading earlier on
+    # WorkspaceRootNotFound.
+    _init_bare_git_marker(tmp_path)
+
+    def _raise_action_context_error(*_args: object, **_kwargs: object) -> object:
+        raise mission_runtime.ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED", "synthetic unresolvable action context"
+        )
+
+    monkeypatch.setattr(mission_runtime, "resolve_artifact_surface", _raise_action_context_error)
+
+    assert rsc._resolve_primary_home_or_degrade(feature_dir) is None
+
+
+def test_flip_phase_degrades_on_action_context_error_and_still_flips(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End-to-end sibling: the ``ActionContextError`` degrade must not block the flip."""
+    import mission_runtime
+
+    feature_dir = build_mission(tmp_path)
+    _init_bare_git_marker(tmp_path)
+    rsc._seed_phase(feature_dir, dry_run=False)
+
+    def _raise_action_context_error(*_args: object, **_kwargs: object) -> object:
+        raise mission_runtime.ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED", "synthetic unresolvable action context"
+        )
+
+    monkeypatch.setattr(mission_runtime, "resolve_artifact_surface", _raise_action_context_error)
+
+    rsc._flip_phase(feature_dir)  # must not raise
+
+    assert json.loads((feature_dir / "meta.json").read_text())[_STATUS_PHASE] == "1"
