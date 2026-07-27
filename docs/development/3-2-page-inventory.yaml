@@ -1748,6 +1748,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/read-side-seam-classification.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/red-main-and-release-readiness.md
   tag: current
   divio_type: explanation
