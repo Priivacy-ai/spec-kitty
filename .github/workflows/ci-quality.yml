@@ -89,6 +89,33 @@ permissions:
   contents: read
 
 jobs:
+  # ===========================================================================
+  # PATH FILTERING IS A PULL-REQUEST OPTIMISATION, NOT A MAIN-BRANCH ONE.
+  #
+  # Every suite job below that is gated on a `needs.changes.outputs.<group>`
+  # filter also carries `|| github.event_name == 'push'`. On a pull request the
+  # dorny filters keep doing their job — only the affected suites run. On a push
+  # to a protected branch every suite runs, because the branch is what the
+  # frozen contracts protect and a job that never starts there protects nothing.
+  #
+  # This closes issue #2957. Four frozen-contract files under
+  # `tests/specify_cli/cli/` and `tests/cli/` broke on main and main stayed
+  # green: their only jobs were gated on the `cli` filter, and the merge commit's
+  # diff did not touch `src/specify_cli/cli/**`. Before the disjuncts, a push to
+  # main whose diff matched no filter group started 10 of 50 suite jobs and left
+  # 31,540 of 33,771 collected test nodes (93.4%) running nowhere.
+  #
+  # The `needs.changes.outputs.<group>` reference is KEPT in every condition,
+  # deliberately: deleting it would leave the group gating no test-running job
+  # and red `test_src_filter_coverage.py`'s FR-010c invariant. `slow-tests` and
+  # `e2e-cross-cutting` already used this exact disjunct form.
+  #
+  # Enforced by `tests/architectural/test_ci_collection_completeness.py`, which
+  # fails if any collected node is left uncollectable on a push to main. It has
+  # no baseline and no allowlist — the only way to satisfy it is to make a job
+  # collect the test.
+  # ===========================================================================
+
   # ---------------------------------------------------------------------------
   # changes: detect which modules were touched so per-module jobs can skip.
   # ---------------------------------------------------------------------------
@@ -486,6 +513,16 @@ jobs:
         run: |
           mkdir -p out/reports/static-analysis
           mkdir -p out/reports/security
+
+      # WP05's SC-004 deliverable. The Pydantic models under src/doctrine are the
+      # single source of truth for the YAML schemas in src/doctrine/schemas/;
+      # --check regenerates them in memory and fails if the committed files have
+      # drifted. Deliberately placed in `lint`, the always-on job: a freshness
+      # gate behind a paths filter is the same silence #2957 is about — a model
+      # change that forgot to touch a filtered path would skip its own gate.
+      - name: "[ENFORCED] Verify generated doctrine schemas are up to date"
+        run: |
+          uv run python scripts/generate_schemas.py --check
 
       - name: "[ENFORCED] Determine commit range and cutoff date"
         id: commit_range
@@ -910,7 +947,9 @@ jobs:
   kernel-tests:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.kernel == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.kernel == 'true' || github.event_name == 'push')
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -968,7 +1007,10 @@ jobs:
   fast-tests-doctrine:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, kernel-tests]
-    if: always() && needs.changes.outputs.doctrine == 'true' && needs.kernel-tests.result != 'failure'
+    if: >-
+      always()
+      && (needs.changes.outputs.doctrine == 'true' || github.event_name == 'push')
+      && needs.kernel-tests.result != 'failure'
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -1017,7 +1059,9 @@ jobs:
   fast-tests-sync:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.sync == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1074,7 +1118,9 @@ jobs:
   fast-tests-sync-orphan-sweep:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.sync == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1100,7 +1146,9 @@ jobs:
   fast-tests-merge:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.merge == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.merge == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1123,7 +1171,9 @@ jobs:
   fast-tests-missions:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.missions == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.missions == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1148,7 +1198,9 @@ jobs:
   fast-tests-post-merge:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.post_merge == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.post_merge == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1173,7 +1225,9 @@ jobs:
   fast-tests-release:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.release == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.release == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1202,10 +1256,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-sync]
     if: >-
-      always() &&
-      (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true') &&
-      needs.fast-tests-sync.result != 'failure'
-
+      always()
+      && (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true' || github.event_name == 'push')
+      && needs.fast-tests-sync.result != 'failure'
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -1259,9 +1312,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-status]
     if: >-
-      always() &&
-      (needs.changes.outputs.review == 'true' || needs.changes.outputs.status == 'true') &&
-      needs.fast-tests-status.result != 'failure'
+      always()
+      && (needs.changes.outputs.review == 'true' || needs.changes.outputs.status == 'true' || github.event_name == 'push')
+      && needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1285,9 +1338,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-status]
     if: >-
-      always() &&
-      (needs.changes.outputs.next == 'true' || needs.changes.outputs.status == 'true') &&
-      needs.fast-tests-status.result != 'failure'
+      always()
+      && (needs.changes.outputs.next == 'true' || needs.changes.outputs.status == 'true' || github.event_name == 'push')
+      && needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1319,9 +1372,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-next]
     if: >-
-      always() &&
-      (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.platform == 'true') &&
-      needs.fast-tests-next.result != 'failure'
+      always()
+      && (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
+      && needs.fast-tests-next.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1348,10 +1401,10 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-status, fast-tests-merge]
     if: >-
-      always() &&
-      (needs.changes.outputs.lanes == 'true' || needs.changes.outputs.status == 'true' || needs.changes.outputs.merge == 'true') &&
-      needs.fast-tests-status.result != 'failure' &&
-      needs.fast-tests-merge.result != 'failure'
+      always()
+      && (needs.changes.outputs.lanes == 'true' || needs.changes.outputs.status == 'true' || needs.changes.outputs.merge == 'true' || github.event_name == 'push')
+      && needs.fast-tests-status.result != 'failure'
+      && needs.fast-tests-merge.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1375,9 +1428,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-status]
     if: >-
-      always() &&
-      (needs.changes.outputs.dashboard == 'true' || needs.changes.outputs.status == 'true') &&
-      needs.fast-tests-status.result != 'failure'
+      always()
+      && (needs.changes.outputs.dashboard == 'true' || needs.changes.outputs.status == 'true' || github.event_name == 'push')
+      && needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1403,9 +1456,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-status]
     if: >-
-      always() &&
-      (needs.changes.outputs.upgrade == 'true' || needs.changes.outputs.status == 'true') &&
-      needs.fast-tests-status.result != 'failure'
+      always()
+      && (needs.changes.outputs.upgrade == 'true' || needs.changes.outputs.status == 'true' || github.event_name == 'push')
+      && needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1432,8 +1485,8 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-lanes, fast-tests-next, fast-tests-review, fast-tests-dashboard, fast-tests-upgrade]
     if: >-
-      always() &&
-      needs.changes.outputs.cli == 'true'
+      always()
+      && (needs.changes.outputs.cli == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1486,10 +1539,10 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
-      always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true') &&
-      needs.kernel-tests.result != 'failure' &&
-      needs.fast-tests-doctrine.result != 'failure'
+      always()
+      && (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
+      && needs.kernel-tests.result != 'failure'
+      && needs.fast-tests-doctrine.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
@@ -1627,7 +1680,9 @@ jobs:
   fast-tests-docs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
-    if: always() && needs.changes.outputs.docs == 'true'
+    if: >-
+      always()
+      && (needs.changes.outputs.docs == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1674,18 +1729,9 @@ jobs:
     # ``arch-adversarial`` job below.
     needs: [changes]
     if: >-
-      always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true') &&
-      (
-        github.event_name != 'pull_request' ||
-        (
-          github.event.pull_request.draft == false &&
-          !startsWith(github.event.pull_request.title, 'WIP') &&
-          !startsWith(github.event.pull_request.title, '[WIP]')
-        ) ||
-        contains(github.event.pull_request.labels.*.name, 'ci:full') ||
-        contains(github.event.pull_request.labels.*.name, 'ready-for-ci')
-      )
+      always()
+      && (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
+      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false && !startsWith(github.event.pull_request.title, 'WIP') && !startsWith(github.event.pull_request.title, '[WIP]') || contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ready-for-ci'))
     strategy:
       fail-fast: false
       matrix:
@@ -2026,10 +2072,10 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
-      always() &&
-      needs.changes.outputs.charter == 'true' &&
-      needs.kernel-tests.result != 'failure' &&
-      needs.fast-tests-doctrine.result != 'failure'
+      always()
+      && (needs.changes.outputs.charter == 'true' || github.event_name == 'push')
+      && needs.kernel-tests.result != 'failure'
+      && needs.fast-tests-doctrine.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2079,10 +2125,10 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
-      always() &&
-      needs.changes.outputs.agent == 'true' &&
-      needs.kernel-tests.result != 'failure' &&
-      needs.fast-tests-doctrine.result != 'failure'
+      always()
+      && (needs.changes.outputs.agent == 'true' || github.event_name == 'push')
+      && needs.kernel-tests.result != 'failure'
+      && needs.fast-tests-doctrine.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2117,9 +2163,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-agent]
     if: >-
-      always() &&
-      needs.changes.outputs.agent == 'true' &&
-      needs.fast-tests-agent.result == 'success'
+      always()
+      && (needs.changes.outputs.agent == 'true' || github.event_name == 'push')
+      && needs.fast-tests-agent.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2146,10 +2192,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-doctrine]
     if: >-
-      always() &&
-      needs.changes.outputs.doctrine == 'true' &&
-      needs.fast-tests-doctrine.result == 'success'
-
+      always()
+      && (needs.changes.outputs.doctrine == 'true' || github.event_name == 'push')
+      && needs.fast-tests-doctrine.result == 'success'
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -2189,9 +2234,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-charter]
     if: >-
-      always() &&
-      needs.changes.outputs.charter == 'true' &&
-      needs.fast-tests-charter.result == 'success'
+      always()
+      && (needs.changes.outputs.charter == 'true' || github.event_name == 'push')
+      && needs.fast-tests-charter.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2236,9 +2281,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-sync]
     if: >-
-      always() &&
-      needs.changes.outputs.sync == 'true' &&
-      needs.fast-tests-sync.result == 'success'
+      always()
+      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
+      && needs.fast-tests-sync.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2276,9 +2321,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-sync]
     if: >-
-      always() &&
-      needs.changes.outputs.sync == 'true' &&
-      needs.fast-tests-sync.result == 'success'
+      always()
+      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
+      && needs.fast-tests-sync.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2309,9 +2354,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-merge]
     if: >-
-      always() &&
-      needs.changes.outputs.merge == 'true' &&
-      needs.fast-tests-merge.result == 'success'
+      always()
+      && (needs.changes.outputs.merge == 'true' || github.event_name == 'push')
+      && needs.fast-tests-merge.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2338,9 +2383,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-missions]
     if: >-
-      always() &&
-      needs.changes.outputs.missions == 'true' &&
-      needs.fast-tests-missions.result == 'success'
+      always()
+      && (needs.changes.outputs.missions == 'true' || github.event_name == 'push')
+      && needs.fast-tests-missions.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2369,9 +2414,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-post-merge]
     if: >-
-      always() &&
-      needs.changes.outputs.post_merge == 'true' &&
-      needs.fast-tests-post-merge.result == 'success'
+      always()
+      && (needs.changes.outputs.post_merge == 'true' || github.event_name == 'push')
+      && needs.fast-tests-post-merge.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2399,9 +2444,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-release]
     if: >-
-      always() &&
-      needs.changes.outputs.release == 'true' &&
-      needs.fast-tests-release.result == 'success'
+      always()
+      && (needs.changes.outputs.release == 'true' || github.event_name == 'push')
+      && needs.fast-tests-release.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2410,9 +2455,18 @@ jobs:
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — release"
+        # `or not fast` closes the last collection hole on a push to main:
+        # tests/release/test_dogfood_command_set.py carries no tier marker at
+        # all, so `git_repo or integration` skipped it and the only job that ran
+        # it was release.yml's build-release — which triggers on `v*.*.*` tags,
+        # never on a push to main. Paired with fast-tests-release's
+        # `-m 'fast and not windows_ci'`, the two selections now cover
+        # tests/release/ completely. The real root cause is the missing marker
+        # on that file; this keeps the tests running while that is fixed at the
+        # taxonomy level.
         run: |
           uv run python -m pytest tests/release/ \
-            -m 'not windows_ci and (git_repo or integration)' \
+            -m 'not windows_ci and (git_repo or integration or not fast)' \
             -q --tb=short \
             -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/release \
@@ -2433,10 +2487,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-status]
     if: >-
-      always() &&
-      (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true') &&
-      needs.fast-tests-status.result == 'success'
-
+      always()
+      && (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true' || github.event_name == 'push')
+      && needs.fast-tests-status.result == 'success'
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -2485,9 +2538,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-review]
     if: >-
-      always() &&
-      needs.changes.outputs.review == 'true' &&
-      needs.fast-tests-review.result == 'success'
+      always()
+      && (needs.changes.outputs.review == 'true' || github.event_name == 'push')
+      && needs.fast-tests-review.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2530,9 +2583,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-next]
     if: >-
-      always() &&
-      needs.changes.outputs.next == 'true' &&
-      needs.fast-tests-next.result == 'success'
+      always()
+      && (needs.changes.outputs.next == 'true' || github.event_name == 'push')
+      && needs.fast-tests-next.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -2580,9 +2633,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-lanes]
     if: >-
-      always() &&
-      needs.changes.outputs.lanes == 'true' &&
-      needs.fast-tests-lanes.result == 'success'
+      always()
+      && (needs.changes.outputs.lanes == 'true' || github.event_name == 'push')
+      && needs.fast-tests-lanes.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2609,9 +2662,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-dashboard]
     if: >-
-      always() &&
-      needs.changes.outputs.dashboard == 'true' &&
-      needs.fast-tests-dashboard.result == 'success'
+      always()
+      && (needs.changes.outputs.dashboard == 'true' || github.event_name == 'push')
+      && needs.fast-tests-dashboard.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2639,9 +2692,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-upgrade]
     if: >-
-      always() &&
-      needs.changes.outputs.upgrade == 'true' &&
-      needs.fast-tests-upgrade.result == 'success'
+      always()
+      && (needs.changes.outputs.upgrade == 'true' || github.event_name == 'push')
+      && needs.fast-tests-upgrade.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2668,9 +2721,9 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-cli]
     if: >-
-      always() &&
-      needs.changes.outputs.cli == 'true' &&
-      needs.fast-tests-cli.result == 'success'
+      always()
+      && (needs.changes.outputs.cli == 'true' || github.event_name == 'push')
+      && needs.fast-tests-cli.result == 'success'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2851,7 +2904,11 @@ jobs:
     name: doctor restart-daemon NFR-002 timing (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     needs: [changes]
-    if: ${{ (always() && ( github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cli == 'true' )) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    if: >-
+      ${{ always()
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cli == 'true' || github.event_name == 'push')
+      && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
+      && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     strategy:
       fail-fast: false
