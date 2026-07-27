@@ -89,7 +89,6 @@ guard's exact reconciliation purpose.
 | cli/commands/accept.py:226 | _stamp_birth_cutover_for_accept | ( coord_worktree_root / KITTY_SPECS_DIR / mission_slug ) | mission_slug | Path-join (/) | routed-through-seam | `_stamp_birth_cutover_for_accept` calls `assert_safe_path_segment(mission_slug)` immediately before this join (fail-closed). The root is not user input: `coord_worktree_root` is resolved by the affirmative `mission_runtime.resolve_artifact_surface` seam. The PRIMARY leg of the same function uses the blessed `primary_feature_dir_for_mission` primitive; this COORD leg cannot, because that primitive re-anchors through `get_main_repo_root` and would collapse the PRIMARY/COORD split. |
 | cli/commands/cutover_guard.py:135 | evaluate_touched_missions | mission_dir = corpus / slug | slug (diff-derived, from `touched_mission_slugs` `parts[1]`) | Path-join (/) then `.is_dir()` + event-log reads | routed-through-seam | Genuinely untrusted: the slug is lifted verbatim out of a PR diff path. `evaluate_touched_missions` now calls `assert_safe_path_segment(slug)` before the join and records a fail-CLOSED `CutOverVerdict` on rejection, consistent with every other uncertainty in the loop (NFR-003) — a rejected slug can never be silently skipped into a passing guard. |
 
-
 ## Disposition summary
 
 | disposition | count | meaning |
