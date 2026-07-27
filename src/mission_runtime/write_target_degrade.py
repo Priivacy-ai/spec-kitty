@@ -25,13 +25,21 @@ See spec: FR-005, C-004; plan IC-06a, IC-06b.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from mission_runtime import (
+from mission_runtime.artifacts import MissionArtifactKind
+from mission_runtime.context import CommitTarget
+from mission_runtime.resolution import (
+    _FEATURE_CONTEXT_UNRESOLVED_CODE,
     ActionContextError,
-    CommitTarget,
-    MissionArtifactKind,
     resolve_placement_only,
 )
+
+if TYPE_CHECKING:
+    # Type-checking-only: satisfies the ``StatusReadPathNotFound`` annotation
+    # below without a real module-level import (see the deferred-import note
+    # further down for why a runtime module-level import here is unsafe).
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 __all__ = ["resolve_write_target_or_degrade"]
 
@@ -55,12 +63,6 @@ __all__ = ["resolve_write_target_or_degrade"]
 # import to call time (well after both modules have finished initializing)
 # closes that hole exactly the way every sibling ``resolution.py`` call site
 # already does.
-
-# Mirrors mission_runtime.resolution's private ``_FEATURE_CONTEXT_UNRESOLVED_CODE``
-# (not exported at the package root) for the fail-closed error raised below when
-# a caller supplies no ``degrade_ref`` and the mission genuinely cannot resolve.
-_WRITE_TARGET_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
-
 
 def resolve_write_target_or_degrade(
     repo_root: Path,
@@ -99,28 +101,62 @@ def resolve_write_target_or_degrade(
     Raises:
         ``ActionContextError`` when the mission cannot be resolved AND
         ``degrade_ref`` is ``None`` (fail-closed policy — never silently
-        degrades to a null ref). Note: a *caught-set* resolution failure
+        degrades to a null ref). When a *caught-set* resolution failure
         (``ActionContextError`` / ``StatusReadPathNotFound`` / ``FileNotFoundError``)
-        with ``degrade_ref is None`` is re-raised as a **fresh**
-        ``ActionContextError`` (code ``_WRITE_TARGET_UNRESOLVED_CODE``) — the
-        original exception is not preserved. Only failures *outside* the caught
-        set (ambiguous/malformed mission, etc.) propagate verbatim.
+        is what triggered the fail-closed path, the fresh ``ActionContextError``
+        raised here preserves that failure's concrete ``error_code`` (or
+        ``.code`` for an ``ActionContextError``) and chains it as the cause
+        (``from exc``) — mirroring ``mission_runtime.resolution``'s own
+        boundary-translation idiom (e.g. ``resolve_action_context`` /
+        ``resolve_placement_only``: ``raise ActionContextError(exc.error_code,
+        str(exc)) from exc``) — so a data-loss signal like
+        ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass)
+        never gets flattened into a generic, chain-less error. Only failures
+        *outside* the caught set (ambiguous/malformed mission, etc.) propagate
+        verbatim.
     """
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
+    resolution_exc: ActionContextError | StatusReadPathNotFound | FileNotFoundError | None = None
     if _mission_meta_exists(repo_root, mission_slug):
         try:
             return resolve_placement_only(repo_root, mission_slug, kind=kind)
-        except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
-            pass
+        except (ActionContextError, StatusReadPathNotFound, FileNotFoundError) as exc:
+            resolution_exc = exc
     if degrade_ref is None:
-        raise ActionContextError(
-            _WRITE_TARGET_UNRESOLVED_CODE,
-            f"resolve_write_target_or_degrade: mission {mission_slug!r} requires "
-            "a degrade-path ref because it could not be resolved via the "
-            "placement port and no degrade_ref was supplied (fail-closed).",
-        )
+        raise _fail_closed_error(mission_slug, resolution_exc) from resolution_exc
     return CommitTarget(ref=degrade_ref)
+
+
+def _fail_closed_error(
+    mission_slug: str,
+    resolution_exc: ActionContextError | StatusReadPathNotFound | FileNotFoundError | None,
+) -> ActionContextError:
+    """Build the fail-closed ``ActionContextError``, preserving a caught cause's
+    concrete ``error_code``/``.code`` when one triggered the fail-closed path.
+
+    ``resolution_exc`` is ``None`` when the mission had no ``meta.json`` at all
+    (nothing was caught to preserve); it is the concrete caught exception when
+    ``resolve_placement_only`` genuinely failed. Chaining (``from
+    resolution_exc``) is the caller's job (:func:`resolve_write_target_or_degrade`)
+    since ``raise ... from ...`` cannot be expressed inside a plain constructor
+    call.
+    """
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    if isinstance(resolution_exc, ActionContextError):
+        return ActionContextError(resolution_exc.code, str(resolution_exc))
+    if isinstance(resolution_exc, StatusReadPathNotFound):
+        # Covers ``CoordinationBranchDeleted`` too (a ``StatusReadPathNotFound``
+        # subclass) -- its distinct ``error_code`` (``COORDINATION_BRANCH_DELETED``)
+        # survives instead of being collapsed into the generic unresolved code.
+        return ActionContextError(resolution_exc.error_code, str(resolution_exc))
+    return ActionContextError(
+        _FEATURE_CONTEXT_UNRESOLVED_CODE,
+        f"resolve_write_target_or_degrade: mission {mission_slug!r} requires "
+        "a degrade-path ref because it could not be resolved via the "
+        "placement port and no degrade_ref was supplied (fail-closed).",
+    )
 
 
 def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
