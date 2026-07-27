@@ -12,7 +12,6 @@ Ledger authority: ``docs/development/read-side-seam-classification.md`` (§ WP06
 
 from __future__ import annotations
 
-import ast
 import json
 import subprocess
 from pathlib import Path
@@ -38,49 +37,12 @@ MISSION_DIR_NAME = f"{MISSION_SLUG}-{MID8}"
 COORD_BRANCH = f"kitty/mission-{MISSION_DIR_NAME}-coord"
 WP_SLUG = "WP01"
 
-_BYPASS_NAMES = frozenset(
-    {
-        "candidate_feature_dir_for_mission",
-        "resolve_planning_read_dir",
-    }
-)
-
-# Owned modules that the ledger assigns real call sites to (writer.py is no-site).
-_OWNED_MODULE_FILES = {
-    "status_transition.py": Path(status_transition.__file__).resolve(),
-    "aggregate.py": Path(status_aggregate.__file__).resolve(),
-    "cycle.py": Path(review_cycle.__file__).resolve(),
-    "scanner.py": Path(scanner.__file__).resolve(),
-    "summary.py": Path(retrospective_summary.__file__).resolve(),
-    "api.py": Path(dossier_api.__file__).resolve(),
-    "service.py": Path(decisions_service.__file__).resolve(),
-}
-
-# Content-descriptor allow-list seed for WP08 (file, enclosing function, symbol).
-# Rationale lives in the classification ledger § WP06; keep this set shrink-only.
-_EXPECTED_LENIENT_SITES: frozenset[tuple[str, str, str]] = frozenset(
-    {
-        (
-            "scanner.py",
-            "_resolve_identity_primary_first",
-            "resolve_planning_read_dir",
-        ),
-        (
-            "scanner.py",
-            "_resolve_planning_dir_primary_first",
-            "resolve_planning_read_dir",
-        ),
-        ("aggregate.py", "_find_meta_path", "candidate_feature_dir_for_mission"),
-        ("summary.py", "_read_proposal_events", "candidate_feature_dir_for_mission"),
-        ("api.py", "handle_dossier_overview", "candidate_feature_dir_for_mission"),
-        (
-            "api.py",
-            "handle_dossier_snapshot_export",
-            "candidate_feature_dir_for_mission",
-        ),
-        ("api.py", "_load_dossier", "candidate_feature_dir_for_mission"),
-    }
-)
+# NOTE: the former ``test_diagnostic_cluster_retains_only_ledger_approved_lenient_sites``
+# and its private AST visitor lived here. Both are gone: the whole-tree
+# structural gate ``tests/architectural/test_no_read_side_bypass.py`` already
+# scans every module under ``src/`` (these modules included) with the SAME
+# grammar, reconciles the residuals against the WP02 ledger, and REDS on any
+# un-allow-listed bypass. This file keeps only behavioural pins.
 
 
 def _git(repo_root: Path, *args: str) -> None:
@@ -117,50 +79,6 @@ def _seed_repo(tmp_path: Path, *, deleted_coord: bool) -> Path:
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-qm", "seed mission")
     return mission_dir
-
-
-def _bypass_descriptors(path: Path) -> set[tuple[str, str, str]]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    descriptors: set[tuple[str, str, str]] = set()
-
-    class _Visitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.function = "<module>"
-
-        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-            previous = self.function
-            self.function = node.name
-            self.generic_visit(node)
-            self.function = previous
-
-        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-            previous = self.function
-            self.function = node.name
-            self.generic_visit(node)
-            self.function = previous
-
-        def visit_Call(self, node: ast.Call) -> None:
-            name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", None)
-            if name in _BYPASS_NAMES:
-                descriptors.add((path.name, self.function, name))
-            self.generic_visit(node)
-
-    _Visitor().visit(tree)
-    return descriptors
-
-
-# ---------------------------------------------------------------------------
-# T013 — residual bypass pin (WP08 allow-list seed)
-# ---------------------------------------------------------------------------
-
-
-def test_diagnostic_cluster_retains_only_ledger_approved_lenient_sites() -> None:
-    """After WP06 migration, only ledger stay-lenient residuals remain as bypasses."""
-    descriptors: set[tuple[str, str, str]] = set()
-    for path in _OWNED_MODULE_FILES.values():
-        descriptors.update(_bypass_descriptors(path))
-
-    assert descriptors == _EXPECTED_LENIENT_SITES
 
 
 # ---------------------------------------------------------------------------

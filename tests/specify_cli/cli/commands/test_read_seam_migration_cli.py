@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import json
 import subprocess
 from pathlib import Path
@@ -23,38 +22,12 @@ MISSION_SLUG = "read-seam-cli"
 MISSION_DIR_NAME = f"{MISSION_SLUG}-{MID8}"
 COORD_BRANCH = f"kitty/mission-{MISSION_DIR_NAME}"
 
-_BYPASS_NAMES = {
-    "candidate_feature_dir_for_mission",
-    "resolve_planning_read_dir",
-}
-
-# Files WP04 owns that had real bypass call sites (ledger § WP04).
-_MIGRATION_MODULES = {
-    "archive.py",
-    "_coordination_doctor.py",
-    "merge.py",
-    "mission_type.py",
-    "next_cmd.py",
-    "reconcile.py",
-    "research.py",
-    "retrospect.py",
-    "validate_tasks.py",
-    "verify.py",
-}
-
-# Ledger-approved stay-lenient residuals (file, enclosing function, symbol).
-_EXPECTED_LENIENT_SITES = {
-    ("archive.py", "create", "candidate_feature_dir_for_mission"),
-    (
-        "_coordination_doctor.py",
-        "_finding_for_reconcile_marker",
-        "resolve_planning_read_dir",
-    ),
-    ("_coordination_doctor.py", "_heal_one_strand", "resolve_planning_read_dir"),
-    ("reconcile.py", "reconcile_mission_dossier", "candidate_feature_dir_for_mission"),
-    ("retrospect.py", "_canonical_events_path", "candidate_feature_dir_for_mission"),
-    ("retrospect.py", "summary_cmd", "candidate_feature_dir_for_mission"),
-}
+# NOTE: the former ``test_cli_command_cluster_retains_only_ledger_approved_lenient_sites``
+# and its private AST visitor lived here. Both are gone: the whole-tree
+# structural gate ``tests/architectural/test_no_read_side_bypass.py`` already
+# scans every module under ``src/`` (this directory included) with the SAME
+# grammar, reconciles the residuals against the WP02 ledger, and REDS on any
+# un-allow-listed bypass. This file keeps only behavioural pins.
 
 
 def _git(repo_root: Path, *args: str) -> None:
@@ -88,53 +61,6 @@ def _seed_repo(tmp_path: Path, *, deleted_coord: bool) -> Path:
     (mission_dir / "research.md").write_text("# research\n", encoding="utf-8")
     (mission_dir / "plan.md").write_text("# plan\n", encoding="utf-8")
     return mission_dir
-
-
-def _bypass_descriptors(path: Path) -> set[tuple[str, str, str]]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    descriptors: set[tuple[str, str, str]] = set()
-
-    class _Visitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.function = "<module>"
-
-        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-            previous = self.function
-            self.function = node.name
-            self.generic_visit(node)
-            self.function = previous
-
-        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-            previous = self.function
-            self.function = node.name
-            self.generic_visit(node)
-            self.function = previous
-
-        def visit_Call(self, node: ast.Call) -> None:
-            name = (
-                node.func.id
-                if isinstance(node.func, ast.Name)
-                else getattr(node.func, "attr", None)
-            )
-            if name in _BYPASS_NAMES:
-                descriptors.add((path.name, self.function, name))
-            self.generic_visit(node)
-
-    _Visitor().visit(tree)
-    return descriptors
-
-
-def test_cli_command_cluster_retains_only_ledger_approved_lenient_sites() -> None:
-    """WP04 migrate-fail-loud calls leave only the ledger's stay-lenient residuals."""
-    commands_dir = Path(verify.__file__).resolve().parent
-    descriptors: set[tuple[str, str, str]] = set()
-    for path in commands_dir.glob("*.py"):
-        if path.name in _MIGRATION_MODULES:
-            descriptors.update(_bypass_descriptors(path))
-    widen_path = Path(_widen.__file__).resolve()
-    descriptors.update(_bypass_descriptors(widen_path))
-
-    assert descriptors == _EXPECTED_LENIENT_SITES
 
 
 def test_primary_metadata_handle_resolution_preserves_canonical_slug(tmp_path: Path) -> None:

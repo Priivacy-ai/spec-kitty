@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import json
 import subprocess
 from pathlib import Path
@@ -19,26 +18,6 @@ MID8 = MISSION_ID[:8]
 MISSION_SLUG = "read-seam-agent"
 MISSION_DIR_NAME = f"{MISSION_SLUG}-{MID8}"
 COORD_BRANCH = f"kitty/mission-{MISSION_DIR_NAME}"
-_BYPASS_NAMES = {
-    "candidate_feature_dir_for_mission",
-    "resolve_planning_read_dir",
-}
-_MIGRATION_MODULES = {
-    "status.py",
-    "tasks.py",
-    "tasks_dependency_graph.py",
-    "tasks_map_requirements.py",
-    "tasks_materialization.py",
-    "tasks_parsing_validation.py",
-    "tasks_shared.py",
-    "tasks_status_cmd.py",
-    "workflow.py",
-    "workflow_executor.py",
-}
-_EXPECTED_LENIENT_SITES = {
-    ("tasks_move_task.py", "_coord_status_events_path", "candidate_feature_dir_for_mission"),
-    ("tasks_status_cmd.py", "_st_resolve_dirs", "candidate_feature_dir_for_mission"),
-}
 
 
 def _git(repo_root: Path, *args: str) -> None:
@@ -68,41 +47,12 @@ def _seed_repo(tmp_path: Path, *, deleted_coord: bool) -> Path:
     return mission_dir
 
 
-def _bypass_descriptors(path: Path) -> set[tuple[str, str, str]]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    descriptors: set[tuple[str, str, str]] = set()
-
-    class _Visitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.function = "<module>"
-
-        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-            previous = self.function
-            self.function = node.name
-            self.generic_visit(node)
-            self.function = previous
-
-        visit_AsyncFunctionDef = visit_FunctionDef
-
-        def visit_Call(self, node: ast.Call) -> None:
-            name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", None)
-            if name in _BYPASS_NAMES:
-                descriptors.add((path.name, self.function, name))
-            self.generic_visit(node)
-
-    _Visitor().visit(tree)
-    return descriptors
-
-
-def test_agent_command_cluster_retains_only_ledger_approved_lenient_sites() -> None:
-    """All WP03 migrate-fail-loud calls leave only the two approved fallbacks."""
-    agent_dir = Path(status.__file__).resolve().parent
-    descriptors: set[tuple[str, str, str]] = set()
-    for path in agent_dir.glob("*.py"):
-        if path.name in _MIGRATION_MODULES or path.name == "tasks_move_task.py":
-            descriptors.update(_bypass_descriptors(path))
-
-    assert descriptors == _EXPECTED_LENIENT_SITES
+# NOTE: the former ``test_agent_command_cluster_retains_only_ledger_approved_lenient_sites``
+# and its private AST visitor lived here. Both are gone: the whole-tree
+# structural gate ``tests/architectural/test_no_read_side_bypass.py`` already
+# scans every module under ``src/`` (this directory included) with the SAME
+# grammar, reconciles the residuals against the WP02 ledger, and REDS on any
+# un-allow-listed bypass. This file keeps only behavioural pins.
 
 
 def test_primary_metadata_handle_resolution_preserves_the_canonical_slug(tmp_path: Path) -> None:
