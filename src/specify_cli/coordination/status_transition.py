@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -698,10 +698,7 @@ def _resolve_write_target(
     )
     from specify_cli.core.paths import get_feature_target_branch  # noqa: PLC0415
 
-    # cast: follow_imports=skip (specify_cli.* boundary) makes
-    # get_feature_target_branch return Any under a narrow-file mypy
-    # invocation; its real signature returns str.
-    degrade_ref = coord_branch or cast(str, get_feature_target_branch(repo_root, mission_slug))
+    degrade_ref = coord_branch or get_feature_target_branch(repo_root, mission_slug)
 
     # The STATUS write target MUST keep resolving the coordination branch under
     # coord topology (write-surface-coherence WP02 / T031 / C-001 / G-2).
