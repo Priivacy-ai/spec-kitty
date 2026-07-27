@@ -36,12 +36,12 @@ and MUST be caught by both consumers.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import load_meta
 from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
 from specify_cli.status.store import StoreError, read_event_stream
 
@@ -63,28 +63,46 @@ RUNTIME_SLOTS: tuple[str, ...] = (
 )
 
 
+def _read_meta(mission_dir: Path) -> dict[str, Any]:
+    """Read *mission_dir*'s ``meta.json`` through the ONE canonical reader.
+
+    Routes through :func:`~specify_cli.mission_metadata.load_meta` rather than
+    an inline ``json.loads`` (the inline-meta-read gate) for a correctness
+    reason, not merely a structural one: the hand-rolled read decoded strict
+    ``utf-8``, so a BOM-prefixed ``meta.json`` raised ``JSONDecodeError`` and
+    both readers below silently degraded to ``None``. For :func:`status_phase`
+    that degradation reads as "phase not flipped", which flips
+    :func:`is_cut_over` to ``False`` and makes the pre-merge guard reject a
+    mission that is in fact fully cut over — a fail-closed verdict in the
+    WRONG direction, on a drift this repo has already shipped a fix for once
+    (``status.json`` UTF-8 BOM drift, #1440).
+
+    ``encoding="utf-8-sig"`` decodes BOM-prefixed and plain UTF-8 alike;
+    ``on_malformed="empty"`` preserves the never-raise contract both callers
+    were written against.
+    """
+    return (
+        load_meta(
+            mission_dir,
+            allow_missing=True,
+            on_malformed="empty",
+            encoding="utf-8-sig",
+        )
+        or {}
+    )
+
+
 def status_phase(mission_dir: Path) -> int | None:
     """Return the parsed ``status_phase`` from ``meta.json`` (``None`` if absent)."""
-    meta_path = mission_dir / "meta.json"
-    if not meta_path.exists():
-        return None
     try:
-        raw = json.loads(meta_path.read_text(encoding="utf-8")).get("status_phase")
-        return int(str(raw).strip())
-    except (ValueError, TypeError, json.JSONDecodeError):
+        return int(str(_read_meta(mission_dir).get("status_phase")).strip())
+    except (ValueError, TypeError):
         return None
 
 
 def read_mission_id(mission_dir: Path) -> str | None:
     """Return the ``mission_id`` from ``meta.json`` (``None`` if absent/unreadable)."""
-    meta_path = mission_dir / "meta.json"
-    if not meta_path.exists():
-        return None
-    try:
-        raw = json.loads(meta_path.read_text(encoding="utf-8")).get("mission_id")
-    except (TypeError, json.JSONDecodeError):
-        return None
-    mission_id = str(raw or "").strip()
+    mission_id = str(_read_meta(mission_dir).get("mission_id") or "").strip()
     return mission_id or None
 
 
