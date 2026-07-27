@@ -101,18 +101,25 @@ FLOOR_MARGIN = 2
 
 # WP16 SC-004-equivalent anti-mass-allow-list guard: the number of call sites
 # routed through load_meta/load_meta_strict/load_meta_or_empty has its own
-# floor and can only rise. Live routed census on this tree is 120 (includes
+# floor and can only rise. Live routed census on this tree is 123 (includes
 # mission_metadata.py's own internal call sites — e.g. load_meta_strict/
 # load_meta_or_empty delegating to load_meta, and the module's many other
 # public helpers reading meta.json through the one canonical primitive; those
 # ARE genuine routed-usage evidence, not the read implementation itself, which
 # is why mission_metadata.py is excluded from the INLINE scan but NOT from this
 # routed-usage census — plus the import-history SCAN's own load_meta_or_empty
-# call, #2262). Floor (117) sits 3 below the live count (within MARGIN(4)) and
+# call, #2262). Floor (120) sits 3 below the live count (within MARGIN(4)) and
 # strictly below it, so the anti-vacuity check proves the census is not merely
 # equal to a hand-entered value.
+#
+# Raised 117 -> 120 by mission runtime-state-birth-cutover-all-paths-01KYH654:
+# the live census rose 120 -> 123 because this mission routed NEW reads through
+# the canonical primitive instead of adding inline ones — the ratchet moving in
+# its intended direction. The companion INLINE_META_READ_FLOOR was deliberately
+# NOT touched: routing ``status.cutover_eligibility`` through ``load_meta``
+# drained the inline census back under its existing ceiling on its own.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 117
+ROUTED_LOAD_META_FLOOR = 120
 
 
 # --------------------------------------------------------------------------- #
