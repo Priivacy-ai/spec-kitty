@@ -24,8 +24,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from specify_cli.migration.backfill_runtime_state import backfill_runtime_state
 from tests.unit.migration._backfill_fixture import MISSION_ID, SLUG, build_mission
+
+# Matches the sibling migration suites (e.g. test_cutover_partition_decouple.py).
+# Without a module-level marker this file is selected by ZERO CI gates, so the
+# WP01 anchor determinism it was written to lock would never actually be
+# enforced -- the regression could silently return.
+pytestmark = [pytest.mark.fast]
 
 _UNPARSEABLE_SHELL_PID_CREATED_AT = "not-a-timestamp"
 _PRIMARY_CREATED_AT = "2026-01-01T00:00:00+00:00"
