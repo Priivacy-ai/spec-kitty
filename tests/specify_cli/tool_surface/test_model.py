@@ -67,7 +67,7 @@ def test_surface_plan_accepts_empty_instances() -> None:
 
 def test_native_agent_profile_fields() -> None:
     profile = NativeAgentProfile(
-        profile_urn="urn:profile:architect-alphonso",
+        profile_urn="agent_profile:architect-alphonso",
         source_layer="builtin",
         tool_key="claude",
         output_path=Path(".claude/agents/architect-alphonso.md"),
