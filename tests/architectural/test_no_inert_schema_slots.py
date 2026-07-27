@@ -376,7 +376,7 @@ def test_a_dead_code_write_cannot_silence_a_new_finding(
     ``test_planted_slot_with_an_authored_producer_is_not_flagged`` exercises the
     *artefact* producer path. The **code** producer path — the fakeable one — had no
     test in either direction, so NFR-001's easy question ("does the gate fire?") was
-    answered and the hard one ("can it be silenced without ceremony?") was not.
+    answered and the hard one ("can it be silenced without leaving a trace?") was not.
 
     Review demonstrated the gap on the shipped tree: plant a producerless property,
     then append ``_UNUSED = {"zzzprobeslot": None}`` to ``artifact_kinds.py``, and the
@@ -470,7 +470,7 @@ def test_the_code_only_suppressions_match_the_frozen_record() -> None:
     """The second half of the gate: the silent suppression route, made loud.
 
     ``test_shipped_tree_has_no_inert_slots_beyond_the_frozen_baseline`` above is
-    load-bearing only if the findings list cannot be shortened without ceremony. It
+    load-bearing only if the findings list cannot be shortened silently. It
     could: a slot leaves that list the moment any code under ``src/doctrine/`` names
     it, and review proved a single dead line is enough. This assertion is what makes
     that route cost something.
