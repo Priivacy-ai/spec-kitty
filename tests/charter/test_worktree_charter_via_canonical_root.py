@@ -163,6 +163,14 @@ def test_dashboard_charter_path_from_worktree_points_at_main(tmp_path: Path) -> 
     from specify_cli.dashboard.charter_path import resolve_project_charter_path
 
     main_root = _init_main_checkout(tmp_path / "main").resolve()
+    # charter-preflight-remediation (WP04 cycle 2): the dashboard resolver's
+    # presence answer is now gated on charter.yaml (R-001), not charter.md
+    # alone -- this fixture's intent (does the resolver anchor at the main
+    # checkout, not the worktree) predates R-001 and is unaffected by which
+    # file gates presence, so add the companion file at the canonical root.
+    (main_root / ".kittify" / "charter" / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n", encoding="utf-8"
+    )
     worktree_root = _add_linked_worktree(
         main_root,
         (tmp_path / "worktree-c").resolve(),

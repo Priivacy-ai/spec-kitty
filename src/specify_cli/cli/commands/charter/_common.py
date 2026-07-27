@@ -25,17 +25,36 @@ def default_interview(*args: Any, **kwargs: Any) -> Any:
 
 
 def _resolve_charter_path(repo_root: Path) -> Path:
-    """Find charter.md in canonical location only.
+    """Find charter.md in canonical location, gated on canonical charter presence.
 
-    Does not fall back to legacy locations. Users with pre-charter state
-    must run 'spec-kitty upgrade' first (handled by the charter-rename migration).
+    charter-preflight-remediation (WP04 / T018): presence is answered by
+    the canonical, non-mutating seam (:func:`charter.bundle.
+    charter_yaml_present`) rather than a raw ``charter.md`` existence
+    check (R-001 / DIRECTIVE_044), so this resolver agrees with the
+    freshness gate (``charter_runtime.freshness.computer``) on every
+    fixture shape -- including a legacy bundle (``charter.md`` present,
+    ``charter.yaml`` absent), the mission's trigger state. Does not fall
+    back to legacy locations: users with pre-charter or legacy-bundle
+    state must run 'spec-kitty charter interview'/'spec-kitty upgrade'
+    first. Both callers of this function (``charter status``,
+    ``charter sync``) already catch ``TaskCliError`` and degrade to a
+    reported state rather than letting it reach the operator as a
+    traceback (NFR-004).
     """
+    from charter.bundle import CHARTER_YAML, charter_yaml_present
+
     charter_path = repo_root / ".kittify" / "charter" / "charter.md"
-    if charter_path.exists():
+    if charter_yaml_present(repo_root):
         return charter_path
 
+    # Report the file the check actually tested. Naming the ``charter.md`` path
+    # here while gating on ``charter.yaml`` told every legacy-bundle operator
+    # "Charter not found at <path>" about a file sitting at that exact path --
+    # a false statement, emitted to precisely the operators this mission exists
+    # to unblock (C-001). The remedy line already covers both states; only the
+    # path was wrong.
     raise TaskCliError(
-        f"Charter not found at {charter_path}\n"
+        f"Charter not found at {repo_root / CHARTER_YAML}\n"
         "  Run 'spec-kitty charter interview' to create one,\n"
         "  or 'spec-kitty upgrade' if migrating from an older version."
     )

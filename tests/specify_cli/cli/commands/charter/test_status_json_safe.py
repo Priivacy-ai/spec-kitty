@@ -67,6 +67,18 @@ def _build_charter_bundle(repo_root: Path) -> None:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001 / WP04) -- without it _resolve_charter_path (used by
+    # _collect_charter_sync_status) reports "not found" before ever
+    # reaching the datetime-serialization path this fixture exercises.
+    # ``metadata.bundle_schema_version`` is what _assert_bundle_compatible
+    # now reads (doctrine.versioning.get_bundle_schema_version) -- keep it
+    # compatible so `charter status --json`'s full CLI path still reaches
+    # the serialization line under test.
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\nmetadata:\n  bundle_schema_version: 2\n",
+        encoding="utf-8",
+    )
     (charter_dir / "metadata.yaml").write_text(
         dedent(
             f"""\

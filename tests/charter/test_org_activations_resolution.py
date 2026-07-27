@@ -89,6 +89,9 @@ def _write_project_fixture(repo_root: Path, *, governance_yaml: str) -> None:
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(governance_yaml, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001) -- without it the presence seam reports "missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
 
 def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = _ORG_PACK_NAME) -> None:

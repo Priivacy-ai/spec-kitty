@@ -353,6 +353,14 @@ class TestFetchSelectorRecovery:
             "Consult docs/context before approving a terminology cutover.\n",
             encoding="utf-8",
         )
+        # charter-preflight-remediation (WP04 / R-001): charter.yaml, not
+        # charter.md, is the authoritative presence source. A charter.md-only
+        # project is the legacy-bundle trigger state (F2) and must now
+        # report absent -- see
+        # ``test_section_selector_reports_absent_for_legacy_bundle_without_charter_yaml``
+        # below for that (corrected) behaviour. This test now pins the
+        # genuine round-trip: both files present.
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
         text = context_module.build_charter_context_include(
             tmp_path,
@@ -362,11 +370,35 @@ class TestFetchSelectorRecovery:
         assert "### Regression Vigilance" in text
         assert "Consult docs/context" in text
 
+    def test_section_selector_reports_absent_for_legacy_bundle_without_charter_yaml(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """F2 regression guard (WP04 / T021b): charter.md present, charter.yaml
+        absent -- the legacy-bundle trigger state User Story 2 describes --
+        must now report absent, agreeing with the freshness gate, instead of
+        rendering content while the gate blocks.
+        """
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n"
+            "## Regression Vigilance\n\n"
+            "Consult docs/context before approving a terminology cutover.\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="No charter found"):
+            context_module.build_charter_context_include(
+                tmp_path,
+                "section:regression-vigilance",
+            )
+
     def test_section_selector_fails_closed_without_charter(
         self,
         tmp_path: Path,
     ) -> None:
-        with pytest.raises(ValueError, match="No charter.md found"):
+        with pytest.raises(ValueError, match="No charter found"):
             context_module.build_charter_context_include(
                 tmp_path,
                 "section:regression-vigilance",
@@ -382,6 +414,7 @@ class TestFetchSelectorRecovery:
             "# Project Charter\n\n## Purpose\n\nNo critical sections.\n",
             encoding="utf-8",
         )
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
         with pytest.raises(ValueError, match="No charter section found"):
             context_module.build_charter_context_include(

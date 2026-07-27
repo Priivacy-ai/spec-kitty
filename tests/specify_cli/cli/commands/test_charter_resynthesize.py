@@ -149,6 +149,11 @@ def test_collect_charter_sync_status_passes_metadata_path_to_stale_check(
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001 / WP04) -- without it _resolve_charter_path (used by
+    # _collect_charter_sync_status) reports "not found" before ever
+    # reaching the is_stale() call this test pins.
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
     (charter_dir / "governance.yaml").write_text("governance: true\n", encoding="utf-8")
     (charter_dir / "directives.yaml").write_text("directives: []\n", encoding="utf-8")
     metadata_path = charter_dir / "metadata.yaml"

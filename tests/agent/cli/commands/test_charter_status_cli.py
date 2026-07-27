@@ -231,7 +231,15 @@ class TestCharterStatus:
 
         assert status_result.exit_code == 0, status_result.output
         data = json.loads(status_result.output)
-        assert data["charter_sync"]["available"] is False
+        # charter-preflight-remediation (WP04 / R-001): charter.yaml, not
+        # charter.md, is the authoritative presence source. This "generated
+        # host" fixture (_seed_complete_bundle) seeds charter.yaml without
+        # a companion charter.md -- a project with a genuinely usable,
+        # synthesizable charter -- so charter_sync is now correctly
+        # reported as available (previously this asserted False, encoding
+        # the pre-fix bug where such a project was wrongly reported as
+        # having no charter at all).
+        assert data["charter_sync"]["available"] is True
         assert data["synthesis"]["generation_state"] == "promoted"
         assert data["synthesis"]["manifest"]["state"] == "valid"
         assert data["synthesis"]["generated_inputs"]["counts"]["directive"] == 1

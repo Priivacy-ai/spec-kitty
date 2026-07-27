@@ -495,9 +495,19 @@ class TestBuildContextV2:
         assert "Toolguides:" not in result.text
 
     def test_missing_charter_file(self, tmp_path: Path) -> None:
-        """When charter.md is missing, returns mode='missing'."""
+        """When charter.yaml is missing, returns mode='missing'.
+
+        charter-preflight-remediation (WP04 / R-001): ``charter.yaml``, not
+        ``charter.md``, is the authoritative resolving source post-
+        inversion, so it is ``charter.yaml``'s absence that must flip this
+        resolver's presence answer to ``missing`` (agreeing with the
+        freshness gate). This test previously unlinked ``charter.md``
+        instead -- the exact bug this WP fixes -- see
+        ``test_missing_companion_charter_md_degrades_to_compact`` below for
+        the (now corrected) charter.md-only behaviour.
+        """
         _setup_fixture_repo(tmp_path)
-        (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").unlink()
 
         from io import StringIO
 
@@ -520,6 +530,42 @@ class TestBuildContextV2:
 
         assert result.mode == "missing"
         assert "Charter file not found" in result.text
+
+    def test_missing_companion_charter_md_degrades_to_compact(self, tmp_path: Path) -> None:
+        """charter.yaml present, charter.md absent -> compact, NOT missing.
+
+        charter-preflight-remediation (WP04 / T020): a canonical bundle
+        always ships charter.md alongside charter.yaml, so this is a
+        content-loading concern, not a presence gate -- charter.yaml's
+        presence (checked via the canonical seam) already answered "does
+        the charter exist". Missing the companion degrades to the compact
+        render rather than reporting "missing" (NFR-004), mirroring
+        ``_compact_section_block``'s degrade pattern.
+        """
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
+
+        from io import StringIO
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        def patched_load_graph(path: Path) -> DRGGraph:
+            return mock_graph
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2)
+
+        assert result.mode == "compact"
+        assert result.text.strip()
 
     def test_references_count(self, tmp_path: Path) -> None:
         """references_count reflects filtered references."""
@@ -626,6 +672,9 @@ class TestBuildContextV2:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+        # charter.yaml, not charter.md, is the authoritative presence source
+        # (R-001 / WP04) -- "present" below is answered off charter.yaml.
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
         from charter.sync import SyncResult
 
         sync_result = SyncResult(
@@ -1012,3 +1061,82 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
 
     assert isinstance(service, StubDoctrineService)
     assert calls == {"active_languages": ["rust"]}
+
+
+# ---------------------------------------------------------------------------
+# NFR-004 degrade paths on the WP04-converged surfaces
+#
+# Both branches below are the "reports rather than raises" half of the mission's
+# contract: presence is answered by the canonical seam, but the *content* reads
+# that follow it can still fail on a real filesystem (a race with `upgrade`, a
+# permission change, a vanished worktree). Neither may surface as a traceback to
+# the operator, and neither had a test -- they were the only uncovered lines the
+# critical-path diff-coverage gate found in this mission's changes.
+# ---------------------------------------------------------------------------
+
+
+def _seed_canonical_charter(root: Path) -> Path:
+    """Write the minimum shape the presence seam accepts: charter.yaml + charter.md."""
+    charter_dir = root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text(
+        "metadata:\n  bundle_schema_version: 2\n", encoding="utf-8"
+    )
+    (charter_dir / "charter.md").write_text(
+        "# Project Charter\n\n## Purpose\n\nBody text.\n", encoding="utf-8"
+    )
+    return charter_dir
+
+
+def test_section_include_raises_actionable_error_when_charter_md_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unreadable charter.md degrades to a named error, not an OSError traceback.
+
+    Presence is satisfied (charter.yaml is present), so this exercises the
+    content-loading safeguard *after* the seam -- the case a raw `.exists()`
+    check could never distinguish.
+    """
+    from charter.context import build_charter_context_include
+
+    _seed_canonical_charter(tmp_path)
+
+    real_read_text = Path.read_text
+
+    def _unreadable(self: Path, *args: object, **kwargs: object) -> str:
+        if self.name == "charter.md":
+            raise OSError("simulated unreadable charter.md")
+        return real_read_text(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", _unreadable)
+
+    with pytest.raises(ValueError, match="No charter found for section selector"):
+        build_charter_context_include(tmp_path, "section:purpose")
+
+
+def test_project_charter_json_block_degrades_when_stat_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed stat drops the optional field rather than raising (NFR-004).
+
+    The block must still report the presence verdict it already resolved --
+    degrading must not turn a present charter into an absent one, which would
+    reintroduce exactly the gate/diagnostic disagreement WP04 closed.
+    """
+    from charter.context import _project_charter_json_block
+
+    _seed_canonical_charter(tmp_path)
+
+    real_stat = Path.stat
+
+    def _stat_fails(self: Path, *args: object, **kwargs: object) -> object:
+        if self.name == "charter.md":
+            raise OSError("simulated stat failure")
+        return real_stat(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "stat", _stat_fails)
+
+    block = _project_charter_json_block(tmp_path)
+
+    assert block["present"] is True, "a stat failure must not flip the presence verdict"
+    assert "bytes" not in block, "the unavailable field is omitted, not guessed"

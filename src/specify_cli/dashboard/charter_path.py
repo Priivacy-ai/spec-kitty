@@ -15,14 +15,22 @@ def resolve_project_charter_path(project_dir: Path) -> Path | None:
     chokepoint) so the canonical-root resolver picks up the main checkout
     even when the dashboard scans a worktree path. The return value is the
     absolute path to ``<canonical_root>/.kittify/charter/charter.md`` when
-    present, ``None`` otherwise. Does not fall back to legacy locations —
-    those must be migrated via ``spec-kitty upgrade``.
+    the project has a charter, ``None`` otherwise. Does not fall back to
+    legacy locations — those must be migrated via ``spec-kitty upgrade``.
 
-    Per ``contracts/chokepoint.contract.md`` Invariant 5, the chokepoint
-    returns ``None`` when ``charter.md`` does not exist at the canonical
-    root; we surface that as ``None`` here to preserve the dashboard's
-    "no charter" UI signal.
+    charter-preflight-remediation (WP04 cycle 2): presence is answered by
+    the canonical, non-mutating seam (:func:`charter.bundle.
+    charter_yaml_present`), not by a raw ``charter.md`` existence check —
+    the same separation of "is charter.yaml present" (gate) from "path to
+    charter.md for content-loading" (the resolved value) already
+    established in ``cli/commands/charter/_common.py::_resolve_charter_path``.
+    Before this fix, a legacy bundle (``charter.md`` present,
+    ``charter.yaml`` absent) made this resolver report "present" while the
+    freshness gate reported "missing" — the mission's User Story 2 symptom,
+    reproduced live on the dashboard's HTTP API and per-feature scanner
+    output.
     """
+    from charter.bundle import charter_yaml_present
     from charter.resolution import (
         GitCommonDirUnavailableError,
         NotInsideRepositoryError,
@@ -49,7 +57,7 @@ def resolve_project_charter_path(project_dir: Path) -> Path | None:
     if sync_result is None or sync_result.canonical_root is None:
         return None
 
-    charter_path = sync_result.canonical_root / ".kittify" / "charter" / "charter.md"
-    if charter_path.exists():
-        return charter_path
-    return None
+    if not charter_yaml_present(sync_result.canonical_root):
+        return None
+
+    return sync_result.canonical_root / ".kittify" / "charter" / "charter.md"

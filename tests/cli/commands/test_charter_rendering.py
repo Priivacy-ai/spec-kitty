@@ -26,6 +26,12 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 _MINIMAL_CHARTER = "# Test Charter\n\n## Purpose\n\nTest.\n"
+# A minimal but bundle-COMPATIBLE charter.yaml: charter.yaml's presence now
+# gates `_assert_bundle_compatible` (status.py/resynthesize.py/charter_bundle.py
+# validate, WP04 / T018-T019), which reads `metadata.bundle_schema_version`
+# (doctrine.versioning.get_bundle_schema_version) -- omitting it reports
+# MISSING_VERSION and turns every real (non-mocked) CLI invocation red.
+_MINIMAL_CHARTER_YAML = "schema_version: '2.0.0'\nmetadata:\n  bundle_schema_version: 2\n"
 
 
 def _project(tmp_path: Path, *, with_charter: bool = True) -> Path:
@@ -33,6 +39,9 @@ def _project(tmp_path: Path, *, with_charter: bool = True) -> Path:
     kittify.mkdir(parents=True)
     if with_charter:
         (kittify / "charter.md").write_text(_MINIMAL_CHARTER, encoding="utf-8")
+        # charter.yaml, not charter.md, is the authoritative presence source
+        # (R-001) -- without it the presence seam reports "missing"/"not found".
+        (kittify / "charter.yaml").write_text(_MINIMAL_CHARTER_YAML, encoding="utf-8")
     return tmp_path
 
 

@@ -147,6 +147,9 @@ def fixture_project(tmp_path: Path) -> Path:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_FIXTURE_CHARTER_MD, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001) -- without it the presence seam reports "missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
     # The authority-paths renderer is existence-gated: it only emits
     # ``docs/context/`` and ``docs/adr/3.x/`` when those
     # directories exist on disk. The template promises both unconditionally,

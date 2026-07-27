@@ -30,7 +30,7 @@ from charter._catalog_miss import (
 )
 from charter._doctrine_paths import resolve_project_root
 from charter.activations import ActivationEntry, _activation_identity_key
-from charter.bundle import CHARTER_MD, CHARTER_YAML
+from charter.bundle import CHARTER_MD, CHARTER_YAML, charter_yaml_present
 from charter.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
@@ -191,13 +191,7 @@ def build_charter_context(
     # operator even when the caller does not catch the exception.
     missing_pack_diagnostic = _missing_pack_diagnostic(repo_root)
 
-    from charter.sync import ensure_charter_bundle_fresh
-
-    sync_result = ensure_charter_bundle_fresh(repo_root)
-    canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
-
     normalized = action.strip().lower()
-    charter_path = canonical_root / CHARTER_MD
 
     def _augment(text: str) -> str:
         if missing_pack_diagnostic:
@@ -219,10 +213,18 @@ def build_charter_context(
 
     state_bundle = _prepare_context_state(repo_root, normalized, depth)
 
-    if not charter_path.exists():
+    # charter-preflight-remediation (WP04 / T020): the presence QUESTION is
+    # answered by the canonical, non-mutating seam (R-001 / DIRECTIVE_044) --
+    # NOT by ``ensure_charter_bundle_fresh``/``charter.md`` existence, which
+    # is a content-loading concern handled below, only once presence is
+    # confirmed. This is what makes this resolver agree with the freshness
+    # gate on a legacy bundle (``charter.md`` present, ``charter.yaml``
+    # absent) -- the mission's trigger state -- instead of rendering full
+    # governance content while the gate blocks.
+    if not charter_yaml_present(repo_root):
         text = (
             "Charter Context:\n"
-            "  - Charter file not found at `.kittify/charter/charter.md`.\n"
+            "  - Charter file not found at `.kittify/charter/charter.yaml`.\n"
             "  - Run `spec-kitty charter interview` then `spec-kitty charter generate`."
         )
         return CharterContextResult(
@@ -247,6 +249,18 @@ def build_charter_context(
             references_count=0,
             depth=state_bundle.effective_depth,
         )
+
+    # Content-loading path (charter.yaml presence already confirmed above).
+    # ``ensure_charter_bundle_fresh`` is legitimate here -- it resolves the
+    # canonical (main-checkout) root for a worktree caller -- but it no
+    # longer decides *whether* the charter exists (T020); it only runs on
+    # the path that actually needs ``canonical_root`` to load content,
+    # instead of unconditionally at the top of every call.
+    from charter.sync import ensure_charter_bundle_fresh
+
+    sync_result = ensure_charter_bundle_fresh(repo_root)
+    canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
+    charter_path = canonical_root / CHARTER_MD
 
     # WP06 — when the caller did not supply an explicit ``org_root``,
     # fall back to the first existing pack path discovered via the
@@ -273,7 +287,29 @@ def build_charter_context(
         mission_type=mission_type,
         feature_dir=feature_dir,
     )
-    charter_content = charter_path.read_text(encoding="utf-8")
+    try:
+        # A canonical bundle always ships ``charter.md`` alongside
+        # ``charter.yaml`` (bundle.py ``tracked_files``); this is a
+        # content-loading safeguard, not a second presence gate (NFR-004) --
+        # ``charter.yaml`` presence was already confirmed above. Degrades to
+        # the compact render rather than raising, mirroring
+        # ``_compact_section_block``'s degrade pattern (R-007: a missing
+        # file here changes the *content* rendered, not the presence
+        # answer).
+        charter_content = charter_path.read_text(encoding="utf-8")
+    except OSError:
+        if mark_loaded and state_bundle.first_load:
+            _mark_action_loaded(state_bundle.state, state_bundle.state_path, normalized)
+        return CharterContextResult(
+            action=normalized,
+            mode="compact",
+            first_load=state_bundle.first_load,
+            text=_augment(
+                _render_compact_governance(repo_root, profile=profile_record, action=normalized)
+            ),
+            references_count=0,
+            depth=state_bundle.effective_depth,
+        )
     summary = _extract_policy_summary(charter_content)
     references = _load_references(canonical_root)
     doctrine_selection = _load_doctrine_selection(repo_root)
@@ -337,11 +373,27 @@ def build_charter_context_include(
         raise ValueError("Expected --include selector in '<kind>:<id>' form.")
 
     if kind == "section":
+        # charter-preflight-remediation (WP04 / T021b): presence is answered
+        # by the canonical seam (R-001), not a raw ``charter.md`` check, so
+        # this agrees with the freshness gate on a legacy bundle (charter.md
+        # present, charter.yaml absent) -- previously this rendered content
+        # successfully while the gate blocked. The raise below is caught and
+        # reported at the CLI boundary (``cli/commands/charter/context.py``'s
+        # ``except ValueError`` handler), consistent with every other
+        # ``--include`` selector kind's "not found" contract in this
+        # function (NFR-004: reported, never a raw traceback).
+        if not charter_yaml_present(repo_root):
+            raise ValueError("No charter found for section selector.")
         canonical_root = _bundle_root_for_json(repo_root)
         charter_path = canonical_root / CHARTER_MD
-        if not charter_path.exists():
-            raise ValueError("No charter.md found for section selector.")
-        charter_content = charter_path.read_text(encoding="utf-8")
+        try:
+            # Content-loading safeguard, not a second presence gate: a
+            # canonical bundle always ships charter.md alongside
+            # charter.yaml (bundle.py tracked_files); presence was already
+            # confirmed above.
+            charter_content = charter_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValueError("No charter found for section selector.") from exc
         section = render_critical_section_include(
             charter_content,
             identifier,
@@ -2973,20 +3025,45 @@ def _relative_json_path(path: Path, root: Path) -> str:
 
 
 def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
-    """Describe the project-local charter loaded by the context renderer."""
-    bundle_root = _bundle_root_for_json(repo_root)
-    charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
+    """Describe the project-local charter loaded by the context renderer.
+
+    charter-preflight-remediation (WP04 / T021): ``present`` is answered by
+    the canonical, non-mutating seam (R-001 / DIRECTIVE_044) so this field
+    agrees with the freshness gate on every fixture shape -- INCLUDING the
+    legacy-bundle trigger state (``charter.md`` present, ``charter.yaml``
+    absent). Previously ``_bundle_root_for_json`` short-circuited to raw
+    ``repo_root`` only when ``charter.md`` was absent, so this block
+    reported ``present: True`` for a legacy bundle exactly where the gate
+    reports ``missing`` -- the User Story 2 symptom this field must not
+    reproduce.
+
+    The remaining ``charter.md`` reads below are a content-loading concern,
+    not a second presence gate: a canonical bundle always ships
+    ``charter.md`` alongside ``charter.yaml`` (bundle.py ``tracked_files``),
+    and any read failure degrades this block rather than raising (NFR-004),
+    mirroring ``_compact_section_block``'s degrade pattern.
+    """
+    present = charter_yaml_present(repo_root)
+    # ``ensure_charter_bundle_fresh`` (inside ``_bundle_root_for_json``) is a
+    # canonical-root resolution concern for worktree callers -- only worth
+    # invoking once presence is confirmed; when absent, there is no bundle
+    # to resolve a canonical root for.
+    bundle_root = _bundle_root_for_json(repo_root) if present else repo_root
     charter_path = bundle_root / CHARTER_MD
-    metadata_path = charter_dir / "metadata.yaml"
 
     block: dict[str, object] = {
-        "present": charter_path.exists(),
+        "present": present,
         "path": _relative_json_path(charter_path, bundle_root),
     }
-    if not charter_path.exists():
+    if not present:
         return block
 
-    block["bytes"] = charter_path.stat().st_size
+    charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
+    metadata_path = charter_dir / "metadata.yaml"
+    try:
+        block["bytes"] = charter_path.stat().st_size
+    except OSError:
+        return block
     if not metadata_path.exists():
         return block
 

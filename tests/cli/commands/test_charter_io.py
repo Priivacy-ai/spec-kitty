@@ -35,13 +35,16 @@ from specify_cli.task_utils import TaskCliError
 pytestmark = [pytest.mark.integration]
 
 def test_resolve_charter_path_returns_path_when_file_exists(tmp_path: Path) -> None:
-    """Arrange: charter.md exists at canonical location;
+    """Arrange: charter.md AND charter.yaml exist at canonical location
+    (charter.yaml, not charter.md, is the authoritative presence source --
+    R-001 / WP04);
     Act: resolve;
-    Assert: returned path points to the file."""
+    Assert: returned path points to the charter.md file."""
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     charter_file = charter_dir / "charter.md"
     charter_file.write_text("# Charter\n", encoding="utf-8")
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
     result = _resolve_charter_path(tmp_path)
 

@@ -27,6 +27,7 @@ from charter.bundle import (
     CANONICAL_MANIFEST,
     BundleValidationResult,
     CharterBundleManifest,
+    charter_yaml_present,
     validate_synthesis_state,
 )
 from charter.resolution import (
@@ -360,7 +361,9 @@ def validate(
     # bundle_schema_version``). Gate the compatibility check on ``charter.yaml``
     # so an incompatible bundle is still caught — keying off the now-retired
     # ``metadata.yaml`` would silently skip the check for every v2 bundle.
-    if (charter_dir / "charter.yaml").exists():
+    # charter-preflight-remediation (WP04 / T019): presence answered via the
+    # canonical seam (R-001), not a raw ``.exists()`` check.
+    if charter_yaml_present(canonical_root):
         compatibility_error = _bundle_compatibility_error(charter_dir)
 
     manifest = CANONICAL_MANIFEST

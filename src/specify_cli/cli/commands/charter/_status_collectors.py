@@ -59,21 +59,26 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         # The write commands (charter sync / charter generate) legitimately call
         # ensure_charter_bundle_fresh; the status READ path does not.
         canonical_root = repo_root
+        # charter-preflight-remediation (WP04 / T018): ``_resolve_charter_path``
+        # now gates on the canonical seam (``charter.bundle.charter_yaml_present``,
+        # R-001) rather than a raw ``charter.md`` check, so reaching this line
+        # already proves ``charter.yaml`` exists.
         charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
-        charter_yaml_path = output_dir / CHARTER_YAML_FILENAME
 
         # consolidate-charter-bundle (#2773): the charter.md<->metadata.yaml hash
         # staleness model is retired (metadata.yaml folded into charter.yaml).
         # charter.yaml is the authoritative bundle and freshness is reported
         # separately (read-only) via compute_freshness. When metadata.yaml is
-        # absent (post-migration), report presence of charter.yaml rather than a
-        # misleading perpetual "stale".
+        # absent (post-migration), the sync-status view is never stale here:
+        # ``_resolve_charter_path`` above already proved charter.yaml exists
+        # (WP04 converges this former raw ``charter_yaml_path.exists()`` check
+        # onto the same single seam rather than repeating it here — C-002).
         if metadata_path.exists():
             stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
         else:
-            stale, current_hash, stored_hash = (not charter_yaml_path.exists()), "", ""
+            stale, current_hash, stored_hash = False, "", ""
 
         files_info: list[dict[str, str | bool | float]] = []
         for filename in [CHARTER_YAML_FILENAME, "charter.md"]:
