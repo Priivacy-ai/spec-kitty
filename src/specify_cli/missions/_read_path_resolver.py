@@ -1178,9 +1178,15 @@ def candidate_feature_dir_for_mission(
     legacy mission, ``topology is None``) keeps its historical husk-consulting
     behaviour (C-006), so a genuine coord mission still reads the coord worktree.
 
-    Like the historical implementation it never raises ``StatusReadPathNotFound``
-    on a missing directory — it returns the best-known primary candidate so the
-    caller can render its own diagnostic. It DOES propagate
+    In the ordinary missing-directory case it does not raise — it returns the
+    best-known primary candidate so the caller can render its own diagnostic.
+    The one exception is the corrupt-meta fail-closed window (``topology is
+    None`` and ``primary_candidate.exists()`` and ``mid8`` set and
+    ``coord_state is EMPTY`` and ``_declares_coordination_branch(...)`` all
+    true): that arm still raises ``StatusReadPathNotFound``, deliberately, even
+    though ``require_exists=False`` here. See :func:`_resolve_not_found`, whose
+    ``if fail_closed or require_exists`` guard triggers on ``fail_closed``
+    independently of ``require_exists``. It DOES propagate
     :class:`MissionSelectorAmbiguous` (C-CTX-4 / C-009 — an ambiguous selector is
     a structured error, never a silent wrong-but-plausible directory).
 
