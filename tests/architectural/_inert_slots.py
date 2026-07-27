@@ -41,8 +41,11 @@ __all__ = [
     "COMPLETED_LANES",
     "DISPOSITIONS",
     "MAX_UNASSIGNED_ENTRIES",
-    "MINIMUM_BASELINE_ENTRIES_STILL_FOUND",
-    "MINIMUM_SCANNED_SLOT_NAMES",
+    "MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND",
+    "MINIMUM_MODEL_SLOT_NAMES",
+    "MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND",
+    "MINIMUM_SCHEMA_SLOT_NAMES",
+    "is_schema_declared",
     "UNASSIGNED_OWNER",
     "Baseline",
     "BaselineEntry",
@@ -319,7 +322,7 @@ _MISSION_OWNER_PREFIX = "mission:"
 _MISSIONS_DIR = "kitty-specs"
 _EVENT_LOG = "status.events.jsonl"
 
-#: Shrink-only cap on ``unassigned`` entries (25 today). ``unassigned`` is the one
+#: Shrink-only cap on ``unassigned`` entries (23 today). ``unassigned`` is the one
 #: owner the anti-weasel test can never fire for, so an uncapped hatch lets a new
 #: finding satisfy the growth rule without anyone taking responsibility for it.
 #: This number may only ever go DOWN.
@@ -328,12 +331,25 @@ MAX_UNASSIGNED_ENTRIES = 23
 #: Concrete floors (charter §5, ``architectural-gate-non-vacuity`` failure mode #1).
 #: Every shipped-tree assertion in this gate is an *absence* assertion — ``new ==
 #: []``, ``offenders == {}``, ``name not in flagged`` — so all of them pass on a
-#: scan that saw nothing at all. Relocate ``src/doctrine``, rename the ``models.py``
-#: convention, or land any refactor that empties the walk, and the gate goes 100%
-#: inert behind green tests. These pin that the scan actually found the tree.
-#: Today: 216 distinct slot names, 59 baseline entries all still present.
-MINIMUM_SCANNED_SLOT_NAMES = 180
-MINIMUM_BASELINE_ENTRIES_STILL_FOUND = 35
+#: scan that saw nothing at all.
+#:
+#: **Floored per walk, deliberately, and this is the second revision.** A single
+#: union floor caught total collapse and missed *partial* collapse: renaming the
+#: ``models.py`` convention kills the model walk entirely — 145 distinct names and
+#: 23 baseline entries go dark — and the surviving schema side alone (186 names,
+#: 36 entries) cleared a union floor of 180/35. It cleared the entry floor **by
+#: one**, which is the tell that the number was a round fraction of the total
+#: rather than a calibration against the scenario. The module's own docstring and
+#: assertion message both promised that exact case was caught. Review disproved it
+#: with a four-line mutation.
+#:
+#: Two walks, two floors, each ~80% of today's count:
+#:   schema  186 names / 36 baseline entries
+#:   model   145 names / 23 baseline entries
+MINIMUM_SCHEMA_SLOT_NAMES = 150
+MINIMUM_MODEL_SLOT_NAMES = 120
+MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND = 30
+MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND = 18
 
 #: A WP counts as complete at ``approved``, not only at ``done``. ``done`` lands
 #: at merge, so a ``done``-only gate would fire on the mainline after the fact.
@@ -541,3 +557,13 @@ def unresolved_by_completed_owners(
 #: allowlist: growth above the recorded number FAILS, shrinkage WARNS. Without
 #: this registration nothing pins the file's size at all.
 BASELINE_SLOTS: frozenset[InertSlot] = load_baseline().slots
+
+
+def is_schema_declared(slot: InertSlot) -> bool:
+    """True when *slot* was declared by the schema walk rather than the model walk.
+
+    Exposed so the floor test can pin each walk independently. Deriving this in
+    the test would let the two definitions drift, which is the failure mode this
+    module exists to catch.
+    """
+    return f"/{_SCHEMAS}/" in str(slot.declared_at).replace("\\", "/")
