@@ -336,7 +336,21 @@ def test_the_migration_hint_names_a_fragment_that_exists() -> None:
         named = [token for token in hint.split() if token.endswith(".graph.yaml")]
         if len(named) != 1 or not (_REPO_ROOT / named[0]).is_file():
             unfollowable.append(f"{kind}: {hint}")
-    assert not unfollowable, "Migration hints naming a file that is not on disk:\n" + "\n".join(unfollowable)
+            continue
+        # Existence alone is too weak: every per-kind fragment exists, so a hint
+        # hard-coded to any one of them passes an is_file() check for all seven.
+        # Review proved it by replacing the interpolation with a constant
+        # "tactic.graph.yaml" -- 61 tests stayed green while an operator holding
+        # a directive-sourced edge was sent to the tactic shard. Edges shard by
+        # SOURCE kind (extractor._partition_by_kind), verified against all 774
+        # shipped edges, so the named fragment must be the source kind's own.
+        expected = f"src/doctrine/{kind}.graph.yaml"
+        if named[0] != expected:
+            unfollowable.append(f"{kind}: names {named[0]}, but its edges shard into {expected}")
+    assert not unfollowable, (
+        "Migration hints that do not name the fragment the operator must open:\n"
+        + "\n".join(unfollowable)
+    )
 
 
 def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> None:
@@ -478,7 +492,16 @@ def test_cross_link_scope_is_pinned() -> None:
     assert skipped.is_dir()
     in_scope = {_rel(path, _DOCTRINE_ROOT) for path in _DOCTRINE_ROOT.rglob("*.md") if skipped not in path.parents}
     assert not any(path.startswith("src/doctrine/missions/") for path in in_scope)
-    assert len(in_scope) >= 20
+    # Pinned near the live count (157), not at a token floor. The exclusion is
+    # subtree-shaped, so this assertion is the only thing standing between Gate C
+    # and a silencing move: at a floor of 20, 137 files could be relocated under
+    # the one skipped subtree before anything noticed. Measured 2026-07-27; the
+    # gap to 157 is slack for ordinary authoring, not for a migration.
+    assert len(in_scope) >= 150, (
+        f"Gate C's in-scope set fell to {len(in_scope)} from a measured 157. "
+        "Moving files under src/doctrine/missions/ removes them from link "
+        "checking entirely — if that is intended, say why and re-pin."
+    )
 
 
 def test_gate_c_rejects_a_planted_broken_link(tmp_path: Path) -> None:
