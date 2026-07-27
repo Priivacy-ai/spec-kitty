@@ -7,9 +7,9 @@ used to resolve the mission dir twice — once via the coord-aware
 ``_find_feature_directory`` (which drives the placement-ref + dirty-tree preflight,
 a KEEP) and AGAIN via a manual ``primary_feature_dir_for_mission`` call to obtain the
 PRIMARY write dir. SPEC is a PRIMARY-partition kind, so routing that second resolve
-through WP01's single ``resolve_planning_read_dir`` seam resolves to the SAME primary dir —
+through the single kind-aware placement seam resolves to the SAME primary dir —
 there is NO observable behavior delta. A behavioral red-first CANNOT go RED on the
-un-collapsed code, and an ``assert read_dir == resolve_planning_read_dir(...)`` /
+un-collapsed code, and an ``assert read_dir == placement_seam(...).read_dir(...)`` /
 resolver-spy assertion would be tautological (green-before-and-after, pinning the
 implementation to itself). The honest proof is therefore a **structural guard**: the
 manual coord-then-primary double-resolution code path is GONE.
@@ -22,8 +22,11 @@ The guard asserts, by AST-scanning the ``record_analysis`` function body:
 
 1. The planning-read leg no longer calls ``primary_feature_dir_for_mission`` — the
    manual primary double-resolution is removed.
-2. The single kind-aware seam ``resolve_planning_read_dir`` IS called (the read flows
-   through the one chokepoint).
+2. The single kind-aware seam ``placement_seam(...).read_dir(<kind>)`` IS called (the
+   read flows through the one chokepoint). Re-pinned 2026-07-27: the chokepoint moved
+   from the kind-blind ``resolve_planning_read_dir`` to the kind-aware placement seam
+   when ~72 mission read sites were migrated; the contract is identical, only the
+   symbol carrying it changed.
 3. The analysis-report WRITE target is preserved (``write_feature_dir`` is assigned
    from the seam and handed to ``write_analysis_report``).
 
@@ -51,9 +54,25 @@ _MISSION_PY = (
 )
 
 _PRIMARY_ANCHOR = "primary_feature_dir_for_mission"
-# The canonical kind-aware read seam (WP01 chokepoint) — ``tasks.py`` and
-# ``_commit_to_branch`` route every planning read/write onto this one authority.
-_SEAM = "resolve_planning_read_dir"
+# The canonical kind-aware read chokepoint.
+#
+# 2026-07-27 re-pin (read-surface migration): this guard used to pin the
+# chokepoint to the kind-blind ``resolve_planning_read_dir`` helper. That helper
+# was retired when ~72 mission read sites moved onto the kind-AWARE placement
+# seam, ``placement_seam(repo_root, slug).read_dir(<MissionArtifactKind>)``.
+# The *contract* this test guards is unchanged — "record_analysis must consume
+# the ONE resolution chokepoint rather than reconstruct a resolution" — only the
+# identity of that chokepoint moved. The pin therefore follows it rather than
+# being deleted.
+#
+# The re-pin is also STRICTER than the old one: the write target must be
+# assigned from ``placement_seam(...).read_dir(...)`` specifically, i.e. a
+# ``read_dir`` attribute call whose receiver is a fresh ``placement_seam(...)``
+# construction. A bare ``something.read_dir(...)`` on an unrelated object no
+# longer satisfies the guard (see
+# ``test_scanner_flags_read_dir_on_non_seam_receiver``).
+_SEAM = "placement_seam"
+_SEAM_READ = "read_dir"
 _WRITE_TARGET = "write_feature_dir"
 _WRITE_CALL = "write_analysis_report"
 
@@ -85,27 +104,39 @@ def _called_names(func: ast.AST) -> set[str]:
     return names
 
 
+def _is_seam_read_call(node: ast.AST) -> bool:
+    """True iff *node* is exactly ``placement_seam(...).read_dir(...)``.
+
+    The kind-aware chokepoint shape: a ``read_dir`` attribute call whose receiver
+    is a ``placement_seam(...)`` construction. Rejects both a bare
+    ``read_dir(...)`` and a ``read_dir`` taken off some other object.
+    """
+    if not isinstance(node, ast.Call):
+        return False
+    attr = node.func
+    if not isinstance(attr, ast.Attribute) or attr.attr != _SEAM_READ:
+        return False
+    receiver = attr.value
+    return (
+        isinstance(receiver, ast.Call)
+        and isinstance(receiver.func, ast.Name)
+        and receiver.func.id == _SEAM
+    )
+
+
 def _assigns_write_target_from_seam(func: ast.AST) -> bool:
-    """True iff ``write_feature_dir = _planning_read_dir(...)`` appears in *func*.
+    """True iff ``write_feature_dir = placement_seam(...).read_dir(...)`` appears in *func*.
 
     Proves the WRITE anchor is preserved (record-analysis still resolves a primary
-    dir for the write) AND that it now flows through the single seam rather than a
-    bespoke ``primary_feature_dir_for_mission`` call.
+    dir for the write) AND that it flows through the single kind-aware seam rather
+    than a bespoke ``primary_feature_dir_for_mission`` call.
     """
     for node in ast.walk(func):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
             targets = {t.id for t in node.targets if isinstance(t, ast.Name)}
             if _WRITE_TARGET not in targets:
                 continue
-            call_target = node.value.func
-            callee = (
-                call_target.id
-                if isinstance(call_target, ast.Name)
-                else call_target.attr
-                if isinstance(call_target, ast.Attribute)
-                else None
-            )
-            if callee == _SEAM:
+            if _is_seam_read_call(node.value):
                 return True
     return False
 
@@ -154,8 +185,18 @@ _COLLAPSED_SINGLE_SEAM = """
 def record_analysis():
     feature_dir = _find_feature_directory(repo_root)
     placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir)
-    # collapsed onto the single kind-aware seam (the post-WP04 shape):
-    write_feature_dir = resolve_planning_read_dir(repo_root, feature_dir.name, kind=_kind_for_artifact("spec"))
+    # collapsed onto the single kind-aware placement seam (the post-migration shape):
+    write_feature_dir = placement_seam(repo_root, feature_dir.name).read_dir(_kind_for_artifact("spec"))
+    result = write_analysis_report(feature_dir=write_feature_dir, repo_root=repo_root)
+"""
+
+# 2026-07-27: a near-miss that the OLD name-only pin would have accepted — the
+# write target is resolved by a ``read_dir`` call on some *other* object, i.e. a
+# reconstructed resolution rather than the one chokepoint.
+_ROGUE_READ_DIR_ON_NON_SEAM = """
+def record_analysis():
+    feature_dir = _find_feature_directory(repo_root)
+    write_feature_dir = some_other_resolver(repo_root).read_dir(_kind_for_artifact("spec"))
     result = write_analysis_report(feature_dir=write_feature_dir, repo_root=repo_root)
 """
 
@@ -168,6 +209,18 @@ def test_scanner_flags_synthetic_double_resolution() -> None:
     # NOT route through the seam — the scanner must distinguish it.
     assert _PRIMARY_ANCHOR in called
     assert _SEAM not in called
+    assert not _assigns_write_target_from_seam(func)
+
+
+def test_scanner_flags_read_dir_on_non_seam_receiver() -> None:
+    """Anti-vacuity: a ``read_dir`` call on a NON-seam receiver is FLAGGED.
+
+    Guards the 2026-07-27 re-pin against being satisfied by any object that
+    happens to expose ``read_dir`` — only ``placement_seam(...).read_dir(...)``
+    counts as consuming the chokepoint.
+    """
+    func = _extract_function(_ROGUE_READ_DIR_ON_NON_SEAM, "record_analysis")
+    assert _SEAM not in _called_names(func)
     assert not _assigns_write_target_from_seam(func)
 
 
@@ -190,8 +243,10 @@ def test_record_analysis_double_resolution_collapsed() -> None:
     """The real ``record_analysis`` no longer double-resolves the planning-read leg.
 
     Structural dedup guard (FR-009): the manual coord-then-primary double-resolution
-    is gone — the planning-read leg flows through the single ``resolve_planning_read_dir``
-    seam, and the analysis-report WRITE target is preserved.
+    is gone — the planning-read leg flows through the single kind-aware
+    ``placement_seam(...).read_dir(...)`` chokepoint (re-pinned 2026-07-27 from the
+    retired ``resolve_planning_read_dir``), and the analysis-report WRITE target is
+    preserved.
     """
     source = _MISSION_PY.read_text(encoding="utf-8")
     func = _extract_function(source, "record_analysis")
@@ -204,14 +259,15 @@ def test_record_analysis_double_resolution_collapsed() -> None:
     )
     # (2) The single kind-aware seam carries the planning read.
     assert _SEAM in called, (
-        "record_analysis no longer routes the planning read through resolve_planning_read_dir "
-        "— the collapse must consume the WP01 chokepoint, not reconstruct a resolution."
+        "record_analysis no longer routes the planning read through placement_seam "
+        "— the collapse must consume the kind-aware chokepoint, not reconstruct a resolution."
     )
     # (3) The WRITE target is preserved and sourced from the seam, then handed to the
     #     writer (record-analysis write-to-primary KEEP, now via the one seam).
     assert _assigns_write_target_from_seam(func), (
-        "write_feature_dir must be assigned from resolve_planning_read_dir (the seam) — the "
-        "write-to-primary KEEP is preserved, the duplicate resolution removed."
+        "write_feature_dir must be assigned from placement_seam(...).read_dir(...) (the "
+        "kind-aware seam) — the write-to-primary KEEP is preserved, the duplicate "
+        "resolution removed."
     )
     assert _hands_write_target_to_writer(func), (
         "write_analysis_report must still receive feature_dir=write_feature_dir — the "

@@ -529,6 +529,21 @@ def _repo_root_workspace(*, wp_id: str) -> ResolvedWorkspace:
     )
 
 
+def _seam_stub(read_dir: Path) -> SimpleNamespace:
+    """A :class:`PlacementSeam` double whose ``.read_dir(kind)`` returns *read_dir*.
+
+    2026-07-27 re-pin: ``_resolve_review_context`` used to resolve the mission
+    dir through the kind-blind ``workflow.resolve_planning_read_dir``; the
+    read-surface migration routed every workflow.py read onto
+    ``_workflow_placement_seam(...).read_dir(<MissionArtifactKind>)``. Stubbing
+    the seam *constructor* (rather than the per-read wrapper) keeps the tests
+    exercising the production ``_resolve_workflow_read_dir`` kind routing while
+    isolating them from real filesystem/topology resolution — the same
+    isolation the old ``resolve_planning_read_dir`` stub provided.
+    """
+    return SimpleNamespace(read_dir=lambda _kind: read_dir)
+
+
 class TestResolveReviewContext:
     """Branch matrix over workspace existence / resolution_kind / base-ref discovery."""
 
@@ -550,7 +565,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
 
         def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
@@ -574,7 +589,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(0, ""))
 
@@ -589,7 +604,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
 
         def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
@@ -609,7 +624,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: None)
 
@@ -624,7 +639,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr(
             "specify_cli.lanes.persistence.read_lanes_json",
             lambda _fd: SimpleNamespace(mission_branch="kitty/mission-x"),
@@ -661,7 +676,7 @@ class TestResolveReviewContext:
         monkeypatch.setattr(
             workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a", context=wctx)
         )
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
         monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(0, "2"))
@@ -683,7 +698,7 @@ class TestResolveReviewContext:
             return current if wp_id == "WP02" else dependency
 
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", _fake_resolve)
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-b")
 
@@ -712,7 +727,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
 
@@ -736,7 +751,7 @@ class TestResolveReviewContext:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         monkeypatch.setattr("specify_cli.core.git_ops.get_current_branch", lambda _wp: "kitty/mission-x-lane-a")
         monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(1, ""))
@@ -758,7 +773,7 @@ class TestResolveReviewContext:
         monkeypatch.setattr(
             workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a")
         )
-        monkeypatch.setattr(workflow_module, "resolve_planning_read_dir", lambda *_a, **_k: tmp_path / "kitty-specs" / "trio-mission")
+        monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr(
             "specify_cli.lanes.persistence.read_lanes_json",
             lambda _fd: SimpleNamespace(mission_branch="kitty/mission-x"),
