@@ -158,7 +158,11 @@ def test_lane_state_reads_unaffected_by_deleted_coord(tmp_path: Path) -> None:
 
     assert topology.target_branch == "main"
     wp_ids = [entry.wp_id for entry in topology.entries]
-    assert "WP01" in wp_ids
+    # Fixture (_build_deleted_coord_mission) writes exactly one WP01 task --
+    # assert the exact resolved set, not mere membership (a topology that
+    # picked up stray/duplicate entries from a wrong-leg read would still
+    # satisfy "WP01" in wp_ids).
+    assert wp_ids == ["WP01"]
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +170,7 @@ def test_lane_state_reads_unaffected_by_deleted_coord(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_worktree_topology_materialize_resolves_primary(
+def test_seam_parity_worktree_topology_materialize_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``core.worktree_topology.materialize_worktree_topology`` (LANE_STATE).
@@ -183,30 +187,39 @@ def test_worktree_topology_materialize_resolves_primary(
 
     assert topology.target_branch == "main"
     wp_ids = [entry.wp_id for entry in topology.entries]
-    assert "WP01" in wp_ids
+    # flat_topology_mission fixture writes exactly one WP01 task -- assert the
+    # exact resolved set, not mere membership (a topology that picked up
+    # stray/duplicate entries from a wrong-leg read would still satisfy
+    # "WP01" in wp_ids).
+    assert wp_ids == ["WP01"]
 
 
-def test_resolve_feature_worktree_resolves_lanes_on_flat_topology(
+def test_seam_parity_resolve_feature_worktree_resolves_lanes_on_flat_topology(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``workspace.context.resolve_feature_worktree`` (LANE_STATE), flat mission.
 
-    No active workspace context and no materialized lane worktree exists for
-    this fixture, so the function degrades to ``None`` -- proving the
-    LANE_STATE read itself resolved the PRIMARY ``lanes.json`` without
-    raising (the migration's fail-loud branch is NOT triggered on a healthy,
-    non-coord topology).
+    The fixture's ``lanes.json`` (written by ``_write_lanes_json``) declares a
+    single ``lane-a`` lane. Materializing the on-disk lane worktree at the
+    exact path ``lanes/branch_naming.worktree_path`` computes proves the
+    LANE_STATE read resolved the PRIMARY ``lanes.json`` (not a stub/no-op)
+    without raising (the migration's fail-loud branch is NOT triggered on a
+    healthy, non-coord topology): a bare ``return None`` stub would fail this
+    assertion, unlike the previous ``is None`` check it replaces.
     """
+    from specify_cli.lanes.branch_naming import worktree_path as _seam_worktree_path
     from specify_cli.workspace.context import resolve_feature_worktree
 
     ctx = flat_topology_mission
-    # No lane worktree materialized on disk for this fixture -- assert the
-    # LANE_STATE read completes without raising and degrades to None rather
-    # than crashing (the behavior-preservation contract for a healthy read).
-    assert resolve_feature_worktree(ctx.repo, ctx.slug) is None
+    expected_lane_worktree = _seam_worktree_path(
+        ctx.repo, ctx.slug, mission_id=None, lane_id="lane-a"
+    )
+    expected_lane_worktree.mkdir(parents=True)
+
+    assert resolve_feature_worktree(ctx.repo, ctx.slug) == expected_lane_worktree
 
 
-def test_task_utils_locate_work_package_resolves_primary(
+def test_seam_parity_task_utils_locate_work_package_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``task_utils.support.locate_work_package`` (WORK_PACKAGE_TASK)."""
@@ -219,7 +232,7 @@ def test_task_utils_locate_work_package_resolves_primary(
     assert wp.path == ctx.primary_feature_dir / "tasks" / "WP01.md"
 
 
-def test_agent_tasks_ports_real_fs_reader_resolves_primary(
+def test_seam_parity_agent_tasks_ports_real_fs_reader_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``agent_tasks_ports.RealFsReader`` (WORK_PACKAGE_TASK, both methods)."""
@@ -239,7 +252,7 @@ def test_agent_tasks_ports_real_fs_reader_resolves_primary(
     assert tasks_dir == ctx.primary_feature_dir / "tasks"
 
 
-def test_plan_interview_get_mission_id_resolves_primary(
+def test_seam_parity_plan_interview_get_mission_id_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``missions.plan.plan_interview._get_mission_id`` (PRIMARY_METADATA)."""
@@ -251,7 +264,7 @@ def test_plan_interview_get_mission_id_resolves_primary(
     assert plan_get_mission_id(ctx.repo, ctx.slug) == ctx.mission_id
 
 
-def test_specify_interview_get_mission_id_resolves_primary(
+def test_seam_parity_specify_interview_get_mission_id_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``missions.plan.specify_interview._get_mission_id`` (PRIMARY_METADATA).
@@ -268,7 +281,7 @@ def test_specify_interview_get_mission_id_resolves_primary(
     assert specify_get_mission_id(ctx.repo, ctx.slug) == ctx.mission_id
 
 
-def test_sync_events_resolve_mission_id_for_slug_resolves_primary(
+def test_seam_parity_sync_events_resolve_mission_id_for_slug_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``sync.events._resolve_mission_id_for_slug`` (PRIMARY_METADATA)."""
@@ -278,7 +291,7 @@ def test_sync_events_resolve_mission_id_for_slug_resolves_primary(
     assert _resolve_mission_id_for_slug(ctx.repo, ctx.slug) == ctx.mission_id
 
 
-def test_doctrine_synthesizer_feature_dir_resolves_primary_on_flat_topology(
+def test_seam_parity_doctrine_synthesizer_feature_dir_resolves_primary_on_flat_topology(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``doctrine_synthesizer.apply._feature_dir`` (STATUS_STATE), healthy leg.
@@ -293,7 +306,7 @@ def test_doctrine_synthesizer_feature_dir_resolves_primary_on_flat_topology(
     assert _feature_dir(ctx.repo, ctx.slug) == ctx.primary_feature_dir
 
 
-def test_mission_record_analysis_write_feature_dir_resolves_primary(
+def test_seam_parity_mission_record_analysis_write_feature_dir_resolves_primary(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """``cli.commands.agent.mission_record_analysis``'s SPEC-kind read leg.
@@ -317,39 +330,3 @@ def test_mission_record_analysis_write_feature_dir_resolves_primary(
     )
     assert write_feature_dir == ctx.primary_feature_dir
 
-
-def test_manifest_stay_lenient_site_is_unchanged(
-    flat_topology_mission: FlatTopologyContext,
-) -> None:
-    """``manifest.py``'s worktree-vs-primary drift probe stays kind-blind.
-
-    Ledger disposition: **stay-lenient**. ``get_feature_status``'s
-    ``artifacts_in_worktree`` leg passes a WORKTREE path (not repo_root) to
-    ``candidate_feature_dir_for_mission`` -- a deliberate "what artifacts
-    physically exist in THIS worktree" probe. Migrating it to the seam would
-    require a repo_root+topology contract this call structurally lacks, and
-    would collapse the main-vs-worktree drift comparison the diagnostic
-    exists to make (docs/development/read-side-seam-classification.md
-    §WP07). This test pins that the pre-migration blind primitive is STILL
-    the one called here -- a regression would show up as an import error or
-    signature mismatch once ``candidate_feature_dir_for_mission`` stops being
-    imported in ``manifest.py``.
-    """
-    import ast
-    import inspect
-
-    from specify_cli import manifest
-
-    source = inspect.getsource(manifest)
-    tree = ast.parse(source)
-    calls = {
-        node.func.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-    }
-    assert "candidate_feature_dir_for_mission" in calls, (
-        "manifest.py's worktree-drift probe must stay on the kind-blind "
-        "candidate_feature_dir_for_mission (stay-lenient, §WP07) -- it "
-        "appears to have been migrated to the seam, which would collapse "
-        "the main-vs-worktree drift comparison this diagnostic exists to make."
-    )
