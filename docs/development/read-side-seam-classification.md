@@ -1,6 +1,6 @@
 ---
 title: Read-side placement-seam classification ledger
-description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind), the spine WP03-WP08 of the read-side-placement-seam-migration mission consume."
+description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
 updated: '2026-07-27'
 type: reference
