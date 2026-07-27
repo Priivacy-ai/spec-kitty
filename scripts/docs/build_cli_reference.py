@@ -54,8 +54,16 @@ __all__ = [
 ]
 
 
-DEFAULT_REFERENCE_PATH: Final[str] = "docs/reference/cli-commands.md"
-DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/reference/agent-subcommands.md"
+# The canonical CLI reference pages live under docs/api/. docs/reference/ was
+# retired for them by Mission B WP16 — check_docs_freshness.py's sibling
+# constants were repointed then; these two (and the pair in
+# check_cli_reference_freshness.py) were missed. Left at docs/reference/, a bare
+# invocation does not fail loudly: it silently WRITES duplicate, untracked
+# cli-commands.md / agent-subcommands.md into the still-existing docs/reference/
+# tree (which legitimately holds agent_profiles/), while the real pages under
+# docs/api/ go stale and the freshness gate reds on REF-MISSING.
+DEFAULT_REFERENCE_PATH: Final[str] = "docs/api/cli-commands.md"
+DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/api/agent-subcommands.md"
 
 BEGIN_MARKER: Final[str] = "<!-- BEGIN GENERATED -->"
 END_MARKER: Final[str] = "<!-- END GENERATED -->"
@@ -275,7 +283,7 @@ def partition_paths(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="build_cli_reference",
-        description="Build docs/reference/cli-commands.md from the live Typer surface.",
+        description="Build docs/api/cli-commands.md from the live Typer surface.",
     )
     parser.add_argument(
         "--output",

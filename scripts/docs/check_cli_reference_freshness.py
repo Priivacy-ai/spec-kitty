@@ -47,8 +47,13 @@ __all__ = [
 ]
 
 
-DEFAULT_REFERENCE_PATH: Final[str] = "docs/reference/cli-commands.md"
-DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/reference/agent-subcommands.md"
+# docs/api/ is canonical for the CLI reference; docs/reference/ was retired for
+# these pages by Mission B WP16. Left stale, a bare invocation validates a
+# non-existent file and short-circuits to INPUT-MISSING instead of actually
+# checking the live pages — the same failure the sibling constants in
+# check_docs_freshness.py were repointed to avoid.
+DEFAULT_REFERENCE_PATH: Final[str] = "docs/api/cli-commands.md"
+DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/api/agent-subcommands.md"
 
 Severity = Literal["error", "warning"]
 
@@ -441,7 +446,7 @@ def evaluate_reference(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="check_cli_reference_freshness",
-        description="Validate docs/reference/cli-commands.md against the live Typer surface.",
+        description="Validate docs/api/cli-commands.md against the live Typer surface.",
     )
     parser.add_argument(
         "--reference",
