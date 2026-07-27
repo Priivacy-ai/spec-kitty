@@ -234,6 +234,17 @@ from tests.architectural._inert_slots import (
     unresolved_by_completed_owners,
 )
 
+# CI's arch pole ANDs two clauses:
+#   -m '<shard> and not windows_ci and (git_repo or integration or architectural) and not timing'
+# The conftest hook auto-applies ``arch_shard_N`` to everything under the arch
+# roots, so the shard half is satisfied automatically — but the second clause is
+# not, and an unmarked file is deselected despite having its shard. Without this
+# marker every test in this module collected ZERO in all three shards: the gate
+# that exists to prove other gates are not inert was itself inert in CI.
+# ``test_arch_shard_marker_completeness.py`` does not catch it — it checks the
+# shard half of the partition only, never the clause CI ANDs on.
+pytestmark = [pytest.mark.architectural]
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
