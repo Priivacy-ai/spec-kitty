@@ -1,0 +1,89 @@
+{
+  "mission_slug": "mission-surface-resolver-safety-net-01KVN754",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Deletion-safety gate green at every WP boundary; _XFAIL_* retired without weakening type(a) is type(b) AND error_code assertion.",
+      "proof_type": "automated_test",
+      "evidence": "tests/missions/test_surface_resolution_equivalence.py reads 13 passed / 0 xfailed; the type+error_code equality assertion is intact (no _XFAIL_* constants remain).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP01/WP04/WP05 drained 9/4 -> 10/3 -> 13/0."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Reroute the 2 external callers of resolve_mission_read_path onto resolve_handle_to_read_path (byte-identical) and privatize the primitive.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (commit 6bf167a54): acceptance/__init__.py + mission_runtime/resolution.py rerouted; resolve_mission_read_path -> _resolve_mission_read_path; shim preserves old public alias. NFR-005 zero-external-caller test green.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP01 approved."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Coord-empty Option B: fall back to primary + loud warning; delete CoordinationWorktreeEmpty + _is_coord_empty_condition + _canonicalize_or_enrich_coord_empty.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (commit 7c6c17156): surface_resolver.py coord-empty -> primary with logger.warning(_COORD_EMPTY_FALLBACK_WARNING); the three deleted symbols are gone; warning-fires test asserts it.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP04 approved; ADR 2026-06-19-1 amended to Option B."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Coord-deleted converged: propagate CoordinationBranchDeleted verbatim through aggregate._resolve_read_dir; fold _coord_branch_exists into the read-path leg; keep CoordAuthorityUnavailable exported.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (commit 11159fa35): aggregate.py except CoordinationBranchDeleted re-raised before StatusReadPathNotFound; read-path fold hard-fails coord-deleted; CoordAuthorityUnavailable still exported (C-003).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP05 approved."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Public-contract migration in the same slice: CoordinationBranchDeleted in the two except tuples in cli/commands/agent/status.py; inverted/re-pointed tests; converged coord-deleted aggregate-contract test.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (commit 11159fa35): both except tuples carry CoordinationBranchDeleted; migrated aggregate tests green; C6 split-brain clone deleted.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP05 approved; agent status CLI green."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Extract pure topology-aware _resolve_lanes_dir(repo_root, mission_slug) from implement.py with a zero-mock unit test (#2052).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (commit 44e54ca2f): pure _resolve_lanes_dir extracted; zero-mock tmp_path unit test; zero behavior change.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP03 approved."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Remove inverted package dependency in commit_router.py: import is_under_worktrees_segment from coordination/surface_resolver (not cli/commands/merge), byte-identical (#2061).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (commit c28f8f8d0): commit_router routes to surface_resolver.is_under_worktrees_segment; import-direction guard test added; zero coordination/ -> cli/ reach-ins.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP02 approved."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Regression-guard the closed #2046 read-CLI unification: the differential matrix coord-*/bare cells confirm bare-slug -> coord and a mutation flips a cell.",
+      "proof_type": "automated_test",
+      "evidence": "WP01: the four coord-*/bare cells in test_surface_resolution_equivalence.py are live (passing) and mutation-sensitive; regression-guards the resolve_handle_to_read_path mid8 cascade.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-06-21",
+      "notes": "WP01 approved."
+    }
+  ],
+  "negative_invariants": []
+}

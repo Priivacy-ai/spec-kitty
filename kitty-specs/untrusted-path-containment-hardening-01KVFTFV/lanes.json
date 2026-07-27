@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "mission_slug": "untrusted-path-containment-hardening-01KVFTFV",
+  "mission_id": "01KVFTFVQCQS88M0S78M59APB0",
+  "mission_branch": "kitty/mission-untrusted-path-containment-hardening-01KVFTFV",
+  "target_branch": "automation/sonar-security-20260619",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/untrusted_path_audit/RULESET.md",
+        "tests/architectural/untrusted_path_audit/audit.py",
+        "tests/architectural/untrusted_path_audit/audited-surfaces.md",
+        "tests/architectural/untrusted_path_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/loopback_http.py",
+        "tests/core/test_loopback_http.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/status/lifecycle.py",
+        "src/specify_cli/status/store.py",
+        "src/specify_cli/status/views.py",
+        "tests/status/test_derived_view_slug_traversal.py",
+        "tests/status/test_store.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/dossier/drift_detector.py",
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "src/specify_cli/post_merge/review_artifact_consistency.py",
+        "src/specify_cli/review/arbiter.py",
+        "src/specify_cli/review/cycle.py",
+        "tests/dossier/test_drift_detector.py",
+        "tests/migration/test_mission_state_repair.py",
+        "tests/post_merge/test_review_artifact_consistency.py",
+        "tests/review/test_arbiter.py",
+        "tests/review/test_cycle.py",
+        "tests/specify_cli/coordination/test_surface_resolver.py",
+        "tests/specify_cli/events/test_decision_log.py",
+        "tests/specify_cli/missions/test_read_path_resolver_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_untrusted_path_containment.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-19T12:48:56.124072+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,319 @@
+# Module Interface Contracts
+# Path: kitty-specs/004-modular-code-refactoring/contracts/module-interfaces.yaml
+
+openapi: 3.0.0
+info:
+  title: Spec-Kitty Module Interfaces
+  version: 1.0.0
+  description: Interface contracts for refactored spec-kitty modules
+
+paths:
+  # These represent the module boundaries and contracts
+
+  /core/config:
+    get:
+      summary: Configuration constants
+      description: No functions, only exported constants
+      responses:
+        '200':
+          description: Configuration data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  AI_CHOICES:
+                    type: object
+                  MISSION_CHOICES:
+                    type: object
+                  AGENT_TOOL_REQUIREMENTS:
+                    type: object
+                  SCRIPT_TYPE_CHOICES:
+                    type: array
+                  BANNER:
+                    type: string
+
+  /core/git_ops/is_git_repo:
+    post:
+      summary: Check if path is git repo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+      responses:
+        '200':
+          description: Is git repo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_repo:
+                    type: boolean
+
+  /core/git_ops/init_git_repo:
+    post:
+      summary: Initialize git repository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                quiet:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Repo initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /cli/ui/select_with_arrows:
+    post:
+      summary: Interactive selection menu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                options:
+                  type: array
+                  items:
+                    type: array
+                    items:
+                      type: string
+                    minItems: 2
+                    maxItems: 2
+                multi:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: User selection
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: array
+                    items:
+                      type: string
+
+  /template/manager/copy_base:
+    post:
+      summary: Copy .kittify base structure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  enum: [local, package]
+                repo_root:
+                  type: string
+                project_path:
+                  type: string
+                script_type:
+                  type: string
+                  enum: [sh, ps]
+      responses:
+        '200':
+          description: Base copied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commands_dir:
+                    type: string
+
+  /template/renderer/render:
+    post:
+      summary: Render template with variables
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                template_path:
+                  type: string
+                variables:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '200':
+          description: Rendered content
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /dashboard/ensure_running:
+    post:
+      summary: Ensure dashboard is running
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project_dir:
+                  type: string
+                verbose:
+                  type: boolean
+                  default: false
+                open_browser:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Dashboard status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  port:
+                    type: integer
+                  token:
+                    type: string
+
+  /dashboard/api/features:
+    get:
+      summary: Get all features
+      responses:
+        '200':
+          description: Feature list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    branch:
+                      type: string
+                    status:
+                      type: string
+                    artifacts:
+                      type: object
+                    kanban_stats:
+                      type: object
+
+  /dashboard/api/diagnostics:
+    get:
+      summary: Run diagnostics
+      responses:
+        '200':
+          description: Diagnostic results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  branch:
+                    type: string
+                  worktrees:
+                    type: array
+                  integrity:
+                    type: object
+                  features:
+                    type: array
+                  observations:
+                    type: array
+
+components:
+  schemas:
+    StepInfo:
+      type: object
+      properties:
+        label:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, complete, error, skipped]
+        detail:
+          type: string
+          nullable: true
+        substeps:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/StepInfo'
+
+    DashboardMetadata:
+      type: object
+      properties:
+        url:
+          type: string
+        port:
+          type: integer
+        token:
+          type: string
+        pid:
+          type: integer
+          nullable: true
+
+    FeatureInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        branch:
+          type: string
+        status:
+          type: string
+        artifacts:
+          type: object
+        kanban_stats:
+          type: object
+        worktree_exists:
+          type: boolean
+
+    DiagnosticResult:
+      type: object
+      properties:
+        category:
+          type: string
+        status:
+          type: string
+          enum: [ok, warning, error]
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true

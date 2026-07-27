@@ -1,0 +1,89 @@
+{
+  "mission_slug": "decompose-agent-tasks-god-module-01KVWVAR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Public `agent tasks` CLI surface (commands, flags, exit codes, --json envelope) unchanged after decomposition",
+      "proof_type": "automated_test",
+      "evidence": "Golden CLI characterization test tests/specify_cli/cli/commands/agent/test_tasks_cli_contract.py (27 tests) captured the contract pre-refactor (WP01) and stayed green through WP02-WP07; full agent/ suite 515 passed/2 xfailed on the integrated branch.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "Byte-identical surface; golden contract asserts all 9 commands, flag subsets, exit codes 0/1/2, and --json envelope shapes."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Top-of-file decomposition pointer comment referencing #2058 added to agent/tasks.py",
+      "proof_type": "code_review",
+      "evidence": "WP07 commit ff788c379 adds the #2058 decomposition-pointer header to src/specify_cli/cli/commands/agent/tasks.py (matches #2056/#1623 convention); confirmed by reviewer (head -5).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "Convention matches agent/mission.py (#2056) and doctor.py (#1623)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Module decomposed into cohesive, independently-importable seams; 6 mega-functions internally decomposed",
+      "proof_type": "code_review",
+      "evidence": "5 seam modules created: tasks_outline.py (WP02), tasks_materialization.py (WP03), tasks_finalize_validation.py (WP04), tasks_dependency_graph.py (WP05), tasks_parsing_validation.py (WP06). The 348-LOC _validate_ready_for_review sub-split into 9 helpers all <=15 CC. One-way imports verified (seams never import tasks.py).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "Each seam reviewed as a behavior-preserving move; integration branch imports all 5 seams; no import cycles."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Each extracted seam carries focused tests executing its logic directly, >=90% coverage on new code",
+      "proof_type": "automated_test",
+      "evidence": "Per-seam direct unit tests: test_tasks_outline.py (50 tests, 100%), test_tasks_materialization.py (100%), test_tasks_finalize_validation.py (32 tests, 100%), test_tasks_dependency_readiness.py (16 tests, 97%), test_tasks_parsing_validation.py (32 tests, ~90-93%). All >=90% on the new modules.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "Tests drive real parser/validator/gating logic, not synthetic fixtures; reviewers confirmed they fail if logic breaks."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "agent/tasks.py reduced toward a thin command-registration shim delegating to seams",
+      "proof_type": "code_review",
+      "evidence": "tasks.py reduced 4633 -> 3346 LOC; ~1290 LOC of helper logic relocated into 5 seams; every function maxCC <=15 (ruff C901 clean). Binding constraint NFR-001 (maxCC<=15) met everywhere.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "DEVIATION (documented, non-blocking): NFR-004's ~1200-LOC target not reached (actual 3346). That figure was an optimistic research estimate; the residual is large because the command BODIES (move_task/status/map_requirements orchestration) carry genuine sequential logic with low branching (CC<=15) and were not extracted. Binding constraint is maxCC<=15, which holds. Further body thinning is a candidate follow-up."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The 3 planning-commit tails route through commit_for_mission instead of open-coded safe_commit/_planning_commit_worktree",
+      "proof_type": "automated_test",
+      "evidence": "WP07 commit ff788c379 routes move_task / mark_status / map_requirements tails through commit_for_mission; tail 3 threads target_branch=. AST guard in test_wp03_bypass_writers_fr008.py asserts ZERO safe_commit call sites and no _planning_commit_worktree usage in tasks.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "commit_for_mission is the single git-commit surface for all 3 tails; reviewer confirmed via grep + AST test (21 passed)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Delete the now-dead bespoke is_protected pre-checks once tails route through commit_for_mission",
+      "proof_type": "code_review",
+      "evidence": "DEVIATION (reviewer-validated): the pre-checks _skip_target_branch_commit / _protected_branch_status_commit_error are NOT dead. move_task retains a LIVE coord-topology arm (coord active + protected primary -> silent skip, exit 0) that commit_for_mission cannot reproduce (router refuses -> exit 1). Deleting them would change behavior and break pinning tests (test_move_task_guard.py T021-26, test_issue_1615_1616_1617_1618.py -- 36 passed). FR-007's premise was factually incorrect (same class as the '3 tails not 4' discovery).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "Literal deletion deferred as the correct engineering call: FR-006 centralization (the requirement's intent) is fully achieved; C-003 byte-identity preserved. Reviewer independently verified the coord-skip arm is live and ran the pinning tests. Revisit deletion only if the coord-topology silent-skip behavior is itself redesigned."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Regression test proves tails route only via commit_for_mission and protected-primary message/exit code are byte-identical",
+      "proof_type": "automated_test",
+      "evidence": "Extended tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py: TestTasksTailsRouteThroughCommitForMission (AST: no safe_commit call sites) + TestTasksTailsProtectedPrimaryByteIdentical (each of 3 commands on protected main asserts error field byte-identical to pre-refactor message + exit 1, and commit_for_mission never reached on protected primary). 21 passed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-24T17:06:21+00:00",
+      "notes": "Byte-identity proven for all 3 tails; router-only proven by AST guard."
+    }
+  ],
+  "negative_invariants": []
+}

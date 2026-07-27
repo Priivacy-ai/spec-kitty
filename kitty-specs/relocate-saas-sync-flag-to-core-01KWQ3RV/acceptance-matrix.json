@@ -1,0 +1,69 @@
+{
+  "mission_slug": "relocate-saas-sync-flag-to-core-01KWQ3RV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The pure flag reader (is_saas_sync_enabled, saas_sync_disabled_message, SAAS_SYNC_ENV_VAR, _TRUTHY_VALUES, _DISABLED_MESSAGE) is relocated to CORE module core/saas_sync_config.py, which is the single canonical definition (stdlib-only import: os).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 review (reviewer-renata, indep.): AST walk confirms new module imports only `from __future__ import annotations` + `import os`, carries __all__; grep -rn '^def is_saas_sync_enabled|^def saas_sync_disabled_message' src/ = exactly one of each, both in core/saas_sync_config.py. Scoped pytest test_integration_boundary.py+tests/saas/ = 56 passed; ruff + mypy --strict clean.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T19:00:39Z",
+      "notes": "Green commit 04a96715e."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The sole CORE-set importer readiness/coordinator.py:237 is repointed to core.saas_sync_config; no CORE-set module imports saas.rollout or any INTEGRATION module.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 review: grep -rn 'specify_cli.saas' src/specify_cli/{core,status,readiness,invocation}/ => no matches (exit 1); coordinator now imports core.saas_sync_config. test_no_core_imports_integration GREEN at final commit; independently reproduced RED at red-commit f4e6f0c2e (coordinator still on saas.rollout, module absent) → genuine red-on-base.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T19:00:39Z",
+      "notes": "ATDD red-first confirmed non-vacuous."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "saas/rollout.py retained as a thin re-export shim (C-002); all re-export surfaces (saas/__init__, sync/tracker feature_flags, facades) keep resolving to the SAME objects (identity preserved).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 review: saas.rollout, saas.__init__, sync.feature_flags, tracker.feature_flags all satisfy `is core` (same function objects). git diff -- tests/saas/test_rollout.py is EMPTY (unchanged) and its is-identity assertions pass within the 56-test run. saas/__init__.py untouched.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T19:00:39Z",
+      "notes": "NFR-001 (tests pass unchanged) satisfied objectively."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "test_integration_boundary.py: ALLOWLIST emptied; test_allowlist_count_ratchet asserts len(ALLOWLIST) == 0 (not <= 1); stale positive-control removed; negative-control injection proof RETAINED (scanner non-vacuous).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 review: ALLOWLIST = frozenset(); ratchet asserts == 0; negative-control (non-allowlisted sync.events import driven through real _scan_trees, asserted reported) retained ~lines 228-252; positive-control block removed; prose sweep grep clean. Boundary suite 56 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T19:00:39Z",
+      "notes": "NFR-004 zero-exemption + teeth."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "ADR docs/adr/3.x/2026-06-26-1-core-integration-boundary.md records the exemption resolved: allowlist table empty, ratchet ==0, Confirmation items 2/3 resolved, negative bullet resolved, shim-depth note added, #2252 referenced.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 review (reviewer-renata, indep.): cross-line grep -nzoE sweep of ADR => no stale <=1/single-remaining/exactly-one/at-most-one/one-structural-coupling; exemptions table empty (marker-only row); Confirmation item 2 = 'zero', item 3 checked + names #2252 + core/saas_sync_config.py; 'Exactly one exemption existed…' line verified past/resolved not current-state; shim-depth trade-off note present. test_no_legacy_terminology 3 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T19:00:39Z",
+      "notes": "Commit 0a11b9645."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Stability contract saas_rollout.md updated: Module line -> core/saas_sync_config.py (rollout.py noted as shim), semantics updated, rollout.py added to Backwards-Compatibility-Shims, version bumped + 'relocated by #2252'; frozen disabled-message text unchanged (C-003); file stays prose-only (round-trip parse-valid).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 review: Module line names core/saas_sync_config.py; Version: 2 bump + 'relocated by #2252'; shims section updated; byte-frozen disabled message (line 39) UNTOUCHED in diff (C-003 preserved); grep -c '```' = 0 (prose-only, stays legacy-allowlisted). tests/contract/test_example_round_trip.py 24 passed / 3 skipped.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T19:00:39Z",
+      "notes": "Out-of-map FR-006 edit, rationale recorded in commit."
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,149 @@
+{
+  "mission_slug": "common-docs-structural-move-01KW3SBK",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Two-root collapse verified on the assembled tree: architecture/ folded into the 13-section docs/ root (WP03/WP04); architecture/ reduced to ADR-trees only; tests/docs/ 571 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "117 unique ADRs preserved under docs/adr/<era>/: census==117 + raw-byte content-invariance (test_adr_content_invariance green, WP06); 71 back-compat symlinks dereferenced, no dangling.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Bare-status MADR frontmatter conversion via the 5-dialect converter (WP05/WP06); all 117 converted, 0 hard-errors; status distribution Accepted 93/Proposed 13/Superseded 11.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Unified unversioned living architecture at docs/architecture/ (WP03 + WP16 explanation fold).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "All doc-path references rewritten: anchored via bulk_ref_rewrite (WP08, era-twin healed) + 633 bare-relative body links via relative_link_fixer (WP18); body-link gate 0 dead; only accepted prose/historical residuals remain.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "DocFX redirect stubs for URL continuity (WP07); redirect_map regenerated to 136 entries against the full occurrence_map; baseline URLs covered, no stub->404.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docfx.json globs + every toc.yml + llms.txt + index.md rewritten to the 13-section layout (WP09).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Shadow trees resolved (WP10): docs/1x+2x deleted+redirected, docs/3x distilled+moved+redirected to docs/context (C-004 content-preservation verified byte-identical); single-root invariant SC-001 holds.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Source->target mapping applied incl. the Divio re-section (WP16: how-to+tutorials->guides, reference->api, explanation->architecture, recovery->operations; 125 files byte-reconciled); glossary+audiences->context, CHANGELOG relocate-with-alias.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Per-page frontmatter backfilled (WP12): 415 pages, description_length_check --strict 0 violations, related_validator --strict 0 dangling/562 edges; lockfile regenerated drift 0 (WP13).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "3 rulers flipped to blocking (WP14): anti-sprawl + related via --strict, lockfile gate via the 3 code changes (severity error, default-on); wired into docs-freshness.yml; all 5 gates green on the clean tree.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "#2054 durable-vs-ephemeral re-section resolved (WP04): docs/development+engineering_notes per-file classified, inventory stayed put + regression guard.",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Reconciliation ADR Neutral note amended -> 3 doctrine tactics (WP15, sanctioned self-amendment at the moved path, scoped out of the invariance check).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "LEAK-FRONTMATTER-MISMATCH retired cleanly (WP15) now the lockfile gate is proven blocking; no dead handler; no enforcement gap (lockfile gate still reds on drift).",
+      "pass_fail": "pass",
+      "verified_by": "claude:orchestrator",
+      "verified_at": "2026-06-27T19:31:15.895247+00:00",
+      "notes": "Verified on the assembled integration tree (docs/2165-mission-b-structural-move); 571 docs tests + 5 blocking gates green; C-005 RED-per-class proven."
+    }
+  ],
+  "negative_invariants": []
+}

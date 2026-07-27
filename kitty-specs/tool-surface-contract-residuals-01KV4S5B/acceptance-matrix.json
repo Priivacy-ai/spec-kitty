@@ -1,0 +1,100 @@
+{
+  "mission_slug": "tool-surface-contract-residuals-01KV4S5B",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved \u2014 4 profile finding codes (profile-source-invalid/-name-invalid/-overlay-conflict/-sentinel-skipped) emit at their conditions and reach `doctor tool-surfaces --json` via production caller agent_profiles.py:211; per-code emit tests + live-path integration test `test_diagnose_code_reaches_doctor_tool_surfaces_json`.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved \u2014 8-field manifest provenance (source_path/source_hash/projection_version) with raw.get backward-read of legacy 6-field entries + two-hash distinction tests.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved \u2014 SKILL_ONLY_AGENTS/VALID_AGENTS derive from single leaf-module `_agent_roster.py` authority (no cycle); config.py literal deleted (grep-proof); monkeypatch-derivation test.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved \u2014 non-stub 'configured Claude with session presence' test exercising the real SurfacePresenceIndex registry path.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved \u2014 docs-contract lint collected by CI: tool_surface/** added to the `core_misc` filter the integration-tests-core-misc job `if:` evaluates + test re-marked integration; adversarial drift test discriminates (registered\u21920, drift\u2192FINDING_UNREGISTERED_PATH); collection proven.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP05 approved \u2014 `docs/how-to/tool-surface-upgrade-and-repair.md` shipped, in TOC + 3-2-page-inventory.yaml, docs-lint-clean.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved \u2014 SPECIFY_REPO_ROOT authoritative in core/paths.py (C-003-safe; determinism from resolver, not monkeypatch); doctor-skills frozen envelope byte-identical (doctor.py untouched).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008 satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP01 approved (protection net + dead-code pre-clean) + issue-matrix.md resolved to terminal verdicts (#1940/#1941/#1942/#1944/#1965 fixed; #1945 deferred operator-owned). Each child issue verified against approved WP code. NFR-001 (frozen doctor-skills/agent-config baselines byte-identical) and NFR-002 (ruff + mypy --strict clean, no suppressions) were verified per-WP during reviewer-renata review (see WP02/WP03/WP04/WP05 activity logs) and are re-gated by CI at merge.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00",
+      "notes": "Verified during WP implement-review; reviewer-renata approved the delivering WP."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NFR-003",
+      "description": "Terminology canon: no forbidden legacy terms (ceremony/feature*) reach canonical/user-facing prose; Tool/Agent/Tool Surface distinct. Re-verified by the architectural terminology guard on every accept run.",
+      "verification_method": "custom_command",
+      "verification_command": "python -m pytest tests/architectural/test_no_legacy_terminology.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed in 0.10s",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-15T06:44:53.517878+00:00"
+    }
+  ]
+}

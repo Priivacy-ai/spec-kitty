@@ -1,0 +1,88 @@
+# Shim Registry Schema Contract
+# Mission: migration-shim-ownership-rules-01KPDYDW
+# Spec refs: FR-007, FR-010, FR-011, C-004
+#
+# This file is a human-readable JSON-Schema-style description of the
+# architecture/2.x/shim-registry.yaml format. The FR-011 pytest asserts
+# every entry in the live registry conforms to this contract.
+#
+# Schema version: 1
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: Shim Registry
+description: |
+  Machine-readable enumeration of every compatibility shim under src/specify_cli/
+  that re-exports from a canonical package. One entry per shim; the FR-010 scanner
+  test asserts every on-disk shim appears here.
+
+type: object
+required: [shims]
+additionalProperties: false
+properties:
+  shims:
+    type: array
+    description: List of shim entries. Order is not significant.
+    items:
+      $ref: "#/definitions/ShimEntry"
+
+definitions:
+  ShimEntry:
+    type: object
+    required:
+      - legacy_path
+      - canonical_import
+      - introduced_in_release
+      - removal_target_release
+      - tracker_issue
+      - grandfathered
+    additionalProperties: false
+    properties:
+      legacy_path:
+        type: string
+        pattern: "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+        description: |
+          Dotted Python import path of the shim module, e.g. "specify_cli.charter".
+          Acts as the entry's primary key. Unique within the registry.
+      canonical_import:
+        oneOf:
+          - type: string
+            pattern: "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+          - type: array
+            minItems: 1
+            items:
+              type: string
+              pattern: "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+        description: |
+          Target canonical import. String for single-target shims; list for umbrella
+          shims that re-export from multiple canonicals (spec edge-case #3).
+      introduced_in_release:
+        type: string
+        pattern: "^\\d+\\.\\d+\\.\\d+(?:[a-z]\\d+)?$"
+        description: Release in which the shim was first introduced.
+      removal_target_release:
+        type: string
+        pattern: "^\\d+\\.\\d+\\.\\d+(?:[a-z]\\d+)?$"
+        description: |
+          Release in which the shim must be removed. Must be >= introduced_in_release
+          (semver-aware comparison). One-release deprecation window is the default;
+          larger windows require extension_rationale.
+      tracker_issue:
+        type: string
+        pattern: "^(#\\d+|https?://.+)$"
+        description: GitHub issue reference. Either "#NNN" shorthand or full URL.
+      grandfathered:
+        type: boolean
+        description: |
+          True for pre-existing shims that do not fully match the new rules but
+          are allowed to persist under explicit rationale. No new entry should
+          set this to true after mission 615 lands (FR-008 one-shot exception).
+      extension_rationale:
+        type: string
+        minLength: 1
+        description: |
+          Required when removal_target_release has been extended beyond the
+          original one-release deprecation window. Free-text rationale reviewed
+          like any architecture PR.
+      notes:
+        type: string
+        description: Optional free-text annotations.

@@ -1,0 +1,79 @@
+{
+  "mission_slug": "tmp-literal-offender-burndown-01KWWRW2",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Category-A write-leaks converted to tmp_path/fixtures (real isolation).",
+      "proof_type": "automated_test",
+      "evidence": "Census found 0 category-A in the 97 baselined files — all were category-B path-literals; reviewer-renata confirmed no write-leak misclassified (real disk writes already route through tmp_path).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01-07."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Category-B path-literals converted to non-/tmp sentinels, semantics preserved.",
+      "proof_type": "automated_test",
+      "evidence": "97 files → /nonexistent/ sentinels; reviewer-renata verified assertion lockstep (incl. cross-file conftest↔test_events pair) + POSIX-absolute preserved for path-validation tests; each lane green (88+113+229+285+177+191+604 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01-07."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Ratchet baseline emptied (with an automated guard).",
+      "proof_type": "automated_test",
+      "evidence": "WP08 5b5917f2: tmp_ratchet_baseline.txt comment-only; _load_baseline()==frozenset(); test_baseline_is_empty red-first proven (append a path → FAIL).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP08 T0801."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Ratchet flipped to a self-consistent hard gate (gate file genuinely literal-free, all 14 lines + __file__ self-exclude).",
+      "proof_type": "automated_test",
+      "evidence": "grep -rn '/tmp/' tests/ (no --exclude) = 0 including the gate file; needle \"/\"+\"tmp\"+\"/\", /var/tmp split \"/var/\"+\"tmp/\"; test_gate_file_itself_is_literal_free; __file__ exclude secondary.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP08 T0802."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Every converted test stays green; full ratchet gate reports 0 violations.",
+      "proof_type": "automated_test",
+      "evidence": "_collect_violations(_load_baseline()) over tests/ = 0; each conversion lane green; WP08 gate 6 passed; ruff+mypy clean.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01-08."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Non-vacuous proof: the positive self-test exercises the real empty-baseline gate path (not scan_file_for_tmp_literal).",
+      "proof_type": "automated_test",
+      "evidence": "WP08: injectable tests_root/repo_root; test_collect_violations_flags_synthetic_offender_with_empty_baseline flags exactly the synthetic offender + [] when removed; mutation-sensitive (neuter → self-test reds); reviewer independently confirmed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP08 T0803."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Real isolation not evasion: evasion-vector gate reds on /dev/shm//scratch//var/tmp/ literals.",
+      "proof_type": "automated_test",
+      "evidence": "WP08: test_no_evasion_vector_literals_in_tests quote-anchored; red-first proven (planted /dev/shm/ → FAIL); no false-positive on .worktrees/scratch/; consolidated review confirmed 0 evasion vectors across the 7 conversion lanes.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP08 T0804 + conversion review."
+    }
+  ],
+  "negative_invariants": []
+}

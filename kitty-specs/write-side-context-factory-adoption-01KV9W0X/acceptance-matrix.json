@@ -1,0 +1,140 @@
+{
+  "mission_slug": "write-side-context-factory-adoption-01KV9W0X",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Write-side feature_dir.parent.parent root walks (emit/wpl/lifecycle_events/store/coord R5) deleted; root sourced from resolve_canonical_root/get_main_repo_root; WP01 net + tests/status + tests/specify_cli/coordination green (verification-by-deletion).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/write_side/test_characterization_root_walks.py (coord/primary/submodule root-walk sites converge on resolve_canonical_root); WP02 26161f631 + WP03 ba87b2733 deleted the walks; boundary ratchet finds zero un-allow-listed parent.parent in adopted modules.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "Verified on the integrated lane-h tree (WP02-06 + WP08); 68 adoption tests green."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "core/worktree.py placement joins compose from resolve_placement_only; before/after on-disk placement path byte-identical (idempotency).",
+      "proof_type": "automated_test",
+      "evidence": "WP04 9829d0621 composes placement from _compose_worktree_feature_dir (idempotent path preserved); tests/specify_cli/core/test_worktree.py green on the integrated tree.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "Verified on the integrated lane-h tree (WP04 merged)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "status-transition write surface = resolve_status_surface (coord authority); positive assertion surface==coord-dir AND !=primary_root under coord topology.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/write_side/test_characterization_root_walks.py::test_coord_status_write_surface_is_coord_authority_never_primary (surface under .worktrees, NOT under primary kitty-specs); WP05 5c33ff5a1.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "Verified on the integrated lane-h tree (WP05 merged)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "write-target = resolve_placement_only(...).destination_ref; the WP01 topology-true oracle AND test_save_supports_identity_bearing_legacy_mission flip from the buggy git-HEAD value to CWD-invariant target_branch; before/after on-disk-target idempotency proven.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/write_side/test_characterization_write_target.py (oracle flipped to CWD-invariant target_branch; coord arm agrees); WP05 5c33ff5a1; keystone test_flat_write_target_is_cwd_invariant_base_not_head confirms the adopted resolver stays on base off-target.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "Verified on the integrated lane-h tree (WP05 merged). Deferred residual: the BookkeepingTransaction legacy-override on git HEAD (#1716, C-003) is NOT this seam and does not bite the genuine simple case (HEAD==base) \u2014 see issue-matrix #1716 row + keystone docstring."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "tests/architectural/test_no_write_side_rederivation.py (required, line-scoped allow-list, with a 'ratchet bites' self-test) passes on the post-adoption tree.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_write_side_rederivation.py (7 tests: ratchet passes on the integrated tree; bites on planted root_walk/mid8/HEAD-selector; ignores prose; allow-list is line-scoped, seeded ONLY with the deferred S2 #1716 line status_transition.py:295).",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "WP08-owned. Green on the integrated lane-h tree."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "prompt_source fragment + __init__ export + surface= read-param deleted; the 3 contract-encoding test rows retired atomically; suite green.",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved (commit d901a265f): prompt_source fragment + __init__ export + surface= read-param deleted; 3 contract-test rows retired atomically; 0 live src readers re-verified; 63 pass.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-17",
+      "notes": "Owned by WP07 (fragment-retirement), NOT merged into the lane-h WP08 integration tree; verified on the WP07 lane and at full-mission accept after all lanes merge."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "_identity_for_request reduced to consume the resolvers; grep shows no surviving inline .parent.parent / coord_branch-or-_current_branch / mid8 recompute (only the deferred S2 ladder, allow-listed).",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_write_side_rederivation.py confirms _identity_for_request / status_transition.py carries only the one allow-listed deferred S2 ladder line (status_transition.py:295); no other inline parent.parent / mid8[:8] / HEAD-selector survives in the adopted modules.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "The bounded _identity_for_request reduction (WP05) is verified by the ratchet on the integrated tree; the FR-006 dead-fragment export deletion is WP07 (see FR-006 row)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "lanes-dir write routes via resolve_status_surface->resolve_lanes_dir; lanes.json on coord authority under coord topology, flat under no-coord; idempotency preserved.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/write_side/test_characterization_root_walks.py::test_lanes_dir_under_coord_resolves_to_coord_authority + test_lanes_dir_flat_resolves_to_primary_specs; keystone test_flat_every_adopted_fragment_resolves_to_base pins the flat lanes-dir under primary specs; WP06 5700e7383.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro (WP08)",
+      "verified_at": "2026-06-17",
+      "notes": "Verified on the integrated lane-h tree (WP06 merged)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "docs/explanation/branch-target-routing.md exists with the routing table + simple case; docs-freshness green; inventoried.",
+      "proof_type": "automated_test",
+      "evidence": "WP09 approved (commit 689bee437): docs/explanation/branch-target-routing.md (routing table + simple case) + page-inventory row; docs-freshness 70 green; no jargon leak.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-17",
+      "notes": "Owned by WP09 (branch-target-user-docs), NOT merged into the lane-h WP08 integration tree; verified on the WP09 lane and at full-mission accept after all lanes merge."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-1",
+      "description": "No adopted write op changes on-disk worktree/coord topology before/after (NFR-004 idempotency).",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/specify_cli/coordination/test_simple_case_flat_topology.py tests/specify_cli/coordination/test_status_transition_adoption.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ................                                                         [100%]\n16 passed in 23.94s"
+    },
+    {
+      "invariant_id": "NI-2",
+      "description": "No coord write ever resolves its surface to primary_root (C-007; never flatten a coord write).",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/specify_cli/coordination/test_status_transition_adoption.py tests/architectural/test_no_write_side_rederivation.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ...................                                                      [100%]\n19 passed in 24.14s"
+    },
+    {
+      "invariant_id": "NI-3",
+      "description": "In the all-base/flat case, ZERO .worktrees/ or coordination-surface paths are read or written (NFR-006/SC-007).",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/specify_cli/coordination/test_simple_case_flat_topology.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ....                                                                     [100%]\n4 passed in 23.31s"
+    },
+    {
+      "invariant_id": "NI-4",
+      "description": "No flattened write resolves destination_ref to git HEAD (the FR-004 latent bug); it is CWD-invariant target_branch.",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/specify_cli/write_side/test_characterization_write_target.py tests/specify_cli/coordination/test_status_transition_adoption.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ................                                                         [100%]\n16 passed in 23.60s"
+    },
+    {
+      "invariant_id": "NI-5",
+      "description": "No new authority/resolver/factory field is introduced; resolution.py is touched only by FR-006 deletion (C-001).",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_no_write_side_rederivation.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: .......                                                                  [100%]\n7 passed in 22.39s"
+    }
+  ]
+}

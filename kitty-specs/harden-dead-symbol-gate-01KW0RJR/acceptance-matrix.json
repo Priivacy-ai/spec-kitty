@@ -1,0 +1,79 @@
+{
+  "mission_slug": "harden-dead-symbol-gate-01KW0RJR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_extract_all_literal continues on non-__all__ AnnAssign; 3 unit tests; 57 modules un-blinded.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "4 anchored detectors (alias-map module-attr, getattr-str, facade) added; detector spot-check confirmed load-bearing (re-flags 11 on revert).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "sync.owner::_daemon_root deleted (dead re-export).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "residue DEMOTED from __all__ (61 symbols / 23 modules); verified no import-* breakage, all modules import clean.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "BANNED_FLAGS enforced in parse_and_validate_policy; parametrized --yolo/--full-auto rejection test passes.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "auth.transport trio + client/exception classes allowlisted-as-deferred (6 entries, _CATEGORY_B_T001_UNBLINDED).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "no net ratchet growth: category_a/b baselines unchanged (12/286); only +6 genuine-public allowlist; live frozensets shrank.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T08:20:37.227626+00:00",
+      "notes": "Verified in WP01 opus review (cycle 2); full suite green, ratchet flat."
+    }
+  ],
+  "negative_invariants": []
+}

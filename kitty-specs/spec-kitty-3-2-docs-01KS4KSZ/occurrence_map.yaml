@@ -1,0 +1,137 @@
+# occurrence_map.yaml — bulk-edit guardrail for the 3.2 docs frontmatter rollout
+#
+# Governance: this file is the bulk-edit-classification artifact required by
+# the `spec-kitty-bulk-edit-classification` skill before any dependent WP
+# performs a multi-file edit on docs/**. See:
+#   - skill: spec-kitty-bulk-edit-classification
+#   - data-model: kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md
+#       §"OccurrenceMap (bulk-edit guardrail)"
+#   - spec C-008: bulk-edit workstreams must carry change_mode: bulk_edit
+#       plus this occurrence map before a dependent WP starts.
+#   - research R-008: blast-radius justification for treating the
+#       version_tag frontmatter rollout as a bulk edit.
+#
+# Consumers (planned):
+#   - WP02 (frontmatter rollout)  → reads serialized_keys + filesystem_paths
+#   - WP09 (archive/migration moves) → reads filesystem_paths + user_facing_strings
+#
+# All 8 standard categories are present below. `not_applicable` rows are
+# explicit and intentional — they tell the guardrail "we considered this
+# axis and the bulk edit does not touch it." Removing a category is a
+# guardrail-breaking change.
+
+change_mode: bulk_edit
+identifier: version_tag
+mission_slug: spec-kitty-3-2-docs-01KS4KSZ
+authoring_wp: WP01
+
+categories:
+
+  # 1. Code symbols (Python identifiers, class names, function names, etc.)
+  code_symbols:
+    action: not_applicable
+    rationale: >-
+      The 3.2 docs refresh authors markdown and YAML only. No Python
+      identifier renames are in scope. The VersionTag enum already exists
+      in data-model.md as a planned shape; its eventual implementation
+      lives in a separate runtime mission and is out of scope here.
+
+  # 2. Import paths (module-level imports, package paths)
+  import_paths:
+    action: not_applicable
+    rationale: >-
+      No Python or TypeScript modules are added, removed, or renamed by
+      this mission. The docs site generator's imports are untouched.
+
+  # 3. Filesystem paths (directory moves, file renames)
+  filesystem_paths:
+    action: rewrite
+    rationale: >-
+      docs/1x/** and docs/2x/** move under docs/archive/** so the 3.2-current
+      navigation stops surfacing 1.x/2.x material at the top level. WP09
+      executes the moves; WP01 only declares the mapping here so the
+      guardrail can validate the change set before it lands.
+    occurrences:
+      - path: docs/1x/**
+        from_pattern: docs/1x/
+        to_pattern: docs/archive/1x/
+        executor_wp: WP09
+        notes: >-
+          All 6 files under docs/1x/ as of the 2026-05-21 inventory survey.
+          Banner injection happens in the user_facing_strings category.
+      - path: docs/2x/**
+        from_pattern: docs/2x/
+        to_pattern: docs/archive/2x/
+        executor_wp: WP09
+        notes: >-
+          All 9 files under docs/2x/ as of the 2026-05-21 inventory survey.
+          Banner injection happens in the user_facing_strings category.
+
+  # 4. Serialized keys (YAML keys, JSON fields, env-var names, config keys)
+  serialized_keys:
+    action: add
+    rationale: >-
+      The 3.2 taxonomy adds a `version_tag` frontmatter key to every
+      inventoried docs page. WP02 owns the rollout against
+      docs/development/3-2-page-inventory.yaml. Pages on the
+      deferred-frontmatter exception list inside the inventory are excluded
+      from this round.
+    occurrences:
+      - file_glob: docs/**/*.md
+        key: version_tag
+        rule: >-
+          Tag value for each page is read from the corresponding row in
+          docs/development/3-2-page-inventory.yaml. Pages flagged
+          `deferred_frontmatter: true` in the inventory are skipped this
+          round.
+        executor_wp: WP02
+        allowed_values:
+          - current
+          - supported
+          - archival
+          - migration
+          - internal
+
+  # 5. CLI commands (command names, subcommands, flags, options)
+  cli_commands:
+    action: not_applicable
+    rationale: >-
+      No Typer command code, command names, or flag names change during
+      this mission (constraint C-002). The CLI reference text is rewritten
+      against the live tree per FR-007, but the underlying CLI surface is
+      not touched.
+
+  # 6. User-facing strings (error messages, banners, UI text, page headings)
+  user_facing_strings:
+    action: review
+    rationale: >-
+      Pages moved into docs/archive/1x/** and docs/archive/2x/** must carry
+      an archive banner matching the regex in
+      contracts/version_leakage_check.md
+      (^>\s*(?:Archive notice|Migration note)\b) within the first 20
+      non-empty lines. Banner text is reviewer-curated, not mechanically
+      injected.
+    occurrences:
+      - context: archive banner on moved 1.x pages
+        target_glob: docs/archive/1x/**/*.md
+        banner_regex: '^>\s*(?:Archive notice|Migration note)\b'
+        executor_wp: WP09
+      - context: archive banner on moved 2.x pages
+        target_glob: docs/archive/2x/**/*.md
+        banner_regex: '^>\s*(?:Archive notice|Migration note)\b'
+        executor_wp: WP09
+
+  # 7. Tests and fixtures (test files, fixture data, golden outputs)
+  tests_fixtures:
+    action: not_applicable
+    rationale: >-
+      No test code or fixtures change during the 3.2 docs refresh. The
+      eventual leakage-check tooling (FR-005, FR-020) will land in a
+      follow-up mission and own its own test suite.
+
+  # 8. Logs and telemetry (log lines, telemetry event names, metric names)
+  logs_telemetry:
+    action: not_applicable
+    rationale: >-
+      No log lines, telemetry events, or metric names are added, removed,
+      or renamed by this mission. Docs are the only artifact in scope.

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "cli-decision-moment-widen-mode-readiness-01KRC12S",
+  "mission_id": "01KRC12SN9TNDD11SPPRRJRZ1C",
+  "mission_branch": "kitty/mission-cli-decision-moment-widen-mode-readiness-01KRC12S",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/test_plan_widen.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-11T17:50:29.677374+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

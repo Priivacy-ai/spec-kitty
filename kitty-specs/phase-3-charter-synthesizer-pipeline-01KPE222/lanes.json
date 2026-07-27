@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "mission_slug": "phase-3-charter-synthesizer-pipeline-01KPE222",
+  "mission_id": "01KPE222CD1MMCYEGB3ZCY51VR",
+  "mission_branch": "kitty/mission-phase-3-charter-synthesizer-pipeline-01KPE222",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "architecture/adrs/2026-04-17-1-charter-synthesizer-adapter-seam.md",
+        "architecture/adrs/2026-04-17-2-charter-synthesizer-atomicity.md",
+        "src/charter/synthesizer/__init__.py",
+        "src/charter/synthesizer/adapter.py",
+        "src/charter/synthesizer/errors.py",
+        "src/charter/synthesizer/fixture_adapter.py",
+        "src/charter/synthesizer/orchestrator.py",
+        "src/charter/synthesizer/path_guard.py",
+        "src/charter/synthesizer/request.py",
+        "tests/charter/fixtures/synthesizer/**",
+        "tests/charter/synthesizer/__init__.py",
+        "tests/charter/synthesizer/conftest.py",
+        "tests/charter/synthesizer/test_adapter_contract.py",
+        "tests/charter/synthesizer/test_fixture_adapter.py",
+        "tests/charter/synthesizer/test_path_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/synthesizer/interview_mapping.py",
+        "src/charter/synthesizer/synthesize_pipeline.py",
+        "src/charter/synthesizer/targets.py",
+        "tests/charter/synthesizer/test_interview_mapping.py",
+        "tests/charter/synthesizer/test_orchestrator_synthesize.py",
+        "tests/charter/synthesizer/test_schema_conformance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "src/charter/synthesizer/manifest.py",
+        "src/charter/synthesizer/provenance.py",
+        "src/charter/synthesizer/staging.py",
+        "src/charter/synthesizer/write_pipeline.py",
+        "tests/charter/synthesizer/test_bundle_validate_extension.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/charter/synthesizer/test_provenance.py",
+        "tests/charter/synthesizer/test_staging_atomicity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/compiler.py",
+        "src/charter/context.py",
+        "src/charter/synthesizer/project_drg.py",
+        "src/charter/synthesizer/validation_gate.py",
+        "tests/charter/synthesizer/test_charter_compile_project_root.py",
+        "tests/charter/synthesizer/test_context_reflects_synthesis.py",
+        "tests/charter/synthesizer/test_project_drg.py",
+        "tests/charter/synthesizer/test_validation_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/synthesizer/resynthesize_pipeline.py",
+        "src/charter/synthesizer/topic_resolver.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "tests/agent/cli/commands/test_charter_resynthesize_cli.py",
+        "tests/agent/cli/commands/test_charter_synthesize_cli.py",
+        "tests/charter/synthesizer/test_orchestrator_resynthesize.py",
+        "tests/charter/synthesizer/test_performance_envelopes.py",
+        "tests/charter/synthesizer/test_topic_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-17T16:55:12.430632+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

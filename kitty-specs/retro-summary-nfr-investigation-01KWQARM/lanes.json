@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "retro-summary-nfr-investigation-01KWQARM",
+  "mission_id": "01KWQARM328C0ZK43W4ZSCDRAZ",
+  "mission_branch": "kitty/mission-retro-summary-nfr-investigation-01KWQARM",
+  "target_branch": "fix/retro-summary-nfr-investigation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/plans/engineering-notes/2342-retro-summary-nfr/report.md",
+        "src/specify_cli/retrospective/reader.py",
+        "src/specify_cli/retrospective/schema.py",
+        "src/specify_cli/retrospective/summary.py",
+        "tests/retrospective/test_summary_tolerance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-04T23:21:06.464357+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

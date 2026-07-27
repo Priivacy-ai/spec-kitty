@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "implement-review-loop-recovery-01KXG2TD",
+  "mission_id": "01KXG2TDVPTZSYY58E578T5RX3",
+  "mission_branch": "kitty/mission-implement-review-loop-recovery-01KXG2TD",
+  "target_branch": "fix/implement-review-loop-recovery",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/review/test_pre_review_gate_integration.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_escape_hatch.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-14T12:21:48.452211+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

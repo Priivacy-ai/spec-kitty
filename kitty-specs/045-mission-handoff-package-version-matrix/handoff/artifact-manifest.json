@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "mission_type": "software-dev",
+  "manifest_version": "1",
+  "required_always": [],
+  "required_by_step": {
+    "discovery": [],
+    "specify": [
+      {
+        "artifact_key": "input.spec.main",
+        "artifact_class": "input",
+        "path_pattern": "spec.md",
+        "blocking": true
+      }
+    ],
+    "plan": [
+      {
+        "artifact_key": "output.plan.main",
+        "artifact_class": "output",
+        "path_pattern": "plan.md",
+        "blocking": true
+      },
+      {
+        "artifact_key": "output.tasks.list",
+        "artifact_class": "output",
+        "path_pattern": "tasks.md",
+        "blocking": true
+      }
+    ],
+    "implement": [],
+    "review": [],
+    "done": []
+  },
+  "optional_always": [
+    {
+      "artifact_key": "evidence.research",
+      "artifact_class": "evidence",
+      "path_pattern": "research.md",
+      "blocking": false
+    },
+    {
+      "artifact_key": "evidence.gap-analysis",
+      "artifact_class": "evidence",
+      "path_pattern": "gap-analysis.md",
+      "blocking": false
+    },
+    {
+      "artifact_key": "evidence.quickstart",
+      "artifact_class": "evidence",
+      "path_pattern": "quickstart.md",
+      "blocking": false
+    },
+    {
+      "artifact_key": "evidence.data-model",
+      "artifact_class": "evidence",
+      "path_pattern": "data-model.md",
+      "blocking": false
+    }
+  ],
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "captured_at": "2026-02-23T19:45:18Z"
+}

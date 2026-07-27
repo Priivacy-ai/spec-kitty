@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "mission_slug": "synthesized-drg-stale-refresh-01KXN8KZ",
+  "mission_id": "01KXN8KZYA1MY8RTXJR5BKH1TR",
+  "mission_branch": "kitty/mission-synthesized-drg-stale-refresh-01KXN8KZ",
+  "target_branch": "fix/2681-synthesized-drg-stale",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "src/charter/synthesizer/manifest.py",
+        "src/specify_cli/cli/commands/charter/_fresh_doctrine.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/charter/test_bundle_content_hash.py",
+        "tests/integration/test_charter_synthesize_fresh.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/synthesizer/project_drg.py",
+        "src/charter/synthesizer/resynthesize_pipeline.py",
+        "src/charter/synthesizer/write_pipeline.py",
+        "tests/charter/synthesizer/test_orchestrator_resynthesize.py",
+        "tests/charter/synthesizer/test_write_pipeline.py",
+        "tests/integration/test_charter_synthesize_built_in_only.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/freshness/computer.py",
+        "tests/integration/test_charter_status_freshness.py",
+        "tests/specify_cli/charter_freshness/test_computer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/charter/synthesizer/test_performance_envelopes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-16T14:45:50.020498+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,109 @@
+{
+  "mission_slug": "gate-read-surface-completion-01KVW9B0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 setup_plan reads PRIMARY via the kind-aware seam (test_setup_plan_read_surface.py); two-surface net green",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 accept-gate planning reads \u2192 primary, status reads kept on coord (test_accept_gate_read_surface.py); both-surface anti-mutant",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 self-bookkeeping allowlist disjoint from coord-residue; stale primary spec still real dirt G-5 (test_self_bookkeeping_allowlist.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "All gate reads+commit via the seam; finalize-tasks/paths.py/git_ops.py write twin (WP00) + read sites (WP01/04); enforced by the FR-010 ratchet",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 in-mission meta-reader sweep through load_meta; contract-pin guard (test_meta_reader_sweep.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 red-first guard for #2091 next-mid8 (empty when mission_id is None); revert-proof RED",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08 red-first guard for #2088 dependency-ordered ownership-overlap exemption; revert-proof RED",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09 test_mid8_direct_routing re-pinned to production-shaped meta.json fixture (#2074)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Consolidation: bespoke planning-surface workarounds retired onto the one seam (WP00/01/04); no parallel impl survives (FR-010 ratchet green)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 literal-ban architectural ratchet (read+write arms) + mandatory synthetic-AST self-test; green on the consolidated tree (caught the dropped-WP02 regression)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata",
+      "verified_at": "2026-06-24T17:29:33Z",
+      "notes": "Reviewer-renata-grounded: each WP reviewed with red-first/anti-mutant re-run; arch-gate 489/0; behavioral two-surface net + flattened regression green."
+    }
+  ],
+  "negative_invariants": []
+}

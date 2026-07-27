@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "review-regression-gate-01KWX6DF",
+  "mission_id": "01KWX6DF0PW3JYFAHRT2EXGR1A",
+  "mission_branch": "kitty/mission-review-regression-gate-01KWX6DF",
+  "target_branch": "fix/review-regression-gate",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/pre_review_gate.py",
+        "tests/architectural/test_pre_review_scope_singlesource.py",
+        "tests/review/test_pre_review_gate_engine.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/review/test_pre_review_gate_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-07T03:06:44.907880+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

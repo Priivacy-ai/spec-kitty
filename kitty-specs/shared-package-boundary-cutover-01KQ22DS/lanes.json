@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "mission_slug": "shared-package-boundary-cutover-01KQ22DS",
+  "mission_id": "01KQ22DSP6D1F7QCF7N87T8B66",
+  "mission_branch": "kitty/mission-shared-package-boundary-cutover-01KQ22DS",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        ".github/workflows/protect-main.yml",
+        "CHANGELOG.md",
+        "CLAUDE.md",
+        "README.md",
+        "architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md",
+        "constraints.txt",
+        "docs/development/local-overrides.md",
+        "docs/development/mission-next-compatibility.md",
+        "docs/development/mutation-testing-findings.md",
+        "docs/host-surface-parity.md",
+        "docs/migration/shared-package-boundary-cutover.md",
+        "pyproject.toml",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/decisions/emit.py",
+        "src/specify_cli/glossary/events.py",
+        "src/specify_cli/next/_internal_runtime/**",
+        "src/specify_cli/next/runtime_bridge.py",
+        "src/specify_cli/spec_kitty_events/**",
+        "src/specify_cli/sync/diagnose.py",
+        "tests/architectural/test_pyproject_shape.py",
+        "tests/architectural/test_shared_package_boundary.py",
+        "tests/contract/spec_kitty_events_consumer/**",
+        "tests/contract/spec_kitty_tracker_consumer/**",
+        "tests/contract/test_handoff_fixtures.py",
+        "tests/contract/test_packaging_no_vendored_events.py",
+        "tests/fixtures/clean_install_fixture_mission/**",
+        "tests/fixtures/runtime_parity/**",
+        "tests/integration/test_clean_install_next.py",
+        "tests/next/test_decision_unit.py",
+        "tests/next/test_internal_runtime_parity.py",
+        "tests/next/test_next_command_integration.py",
+        "tests/next/test_runtime_bridge_unit.py",
+        "tests/specify_cli/cli/commands/test_charter_decision_integration.py",
+        "tests/specify_cli/decisions/test_emit.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-25T10:44:47.691890+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP02"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP02"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP08",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP08"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP02"
+      }
+    ],
+    "total_merges": 9,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 9
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "topology-aware-legacy-warning-01KWQ8WH",
+  "mission_id": "01KWQ8WHM1W8QWG33TWWHZ4YTE",
+  "mission_branch": "kitty/mission-topology-aware-legacy-warning-01KWQ8WH",
+  "target_branch": "fix/topology-aware-legacy-warning",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/migrations/legacy-to-coordination.md",
+        "src/specify_cli/coordination/transaction.py",
+        "tests/integration/test_legacy_mission_fallback.py",
+        "tests/specify_cli/coordination/test_legacy_warning_classifier.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-04T19:40:01.802398+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

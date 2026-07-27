@@ -1,0 +1,32 @@
+contract: sync-diagnostics-output
+version: 1
+mission: release-320-workflow-reliability-01KQKV85
+local_success_rule:
+  statement: After a local state mutation is durable, non-fatal final-sync failure must not convert the local command result into a red command failure.
+stdout_rules:
+  text_commands:
+    statement: Human stdout may describe local success; non-fatal sync diagnostics render on stderr.
+  json_commands:
+    statement: stdout must remain valid JSON parseable by a standard JSON parser.
+    allowed_diagnostic_locations:
+      - stderr
+      - explicit_json_field
+diagnostic_shape:
+  required_fields:
+    - severity
+    - diagnostic_code
+    - message
+    - fatal
+    - sync_phase
+dedupe:
+  scope: per_invocation
+  key_fields:
+    - diagnostic_code
+    - sync_phase
+    - normalized_message
+test_fixtures:
+  - final_sync_failure_after_local_success
+  - strict_json_stdout_with_sync_warning
+  - duplicate_sync_lock_shutdown_messages
+environment_rule:
+  local_machine: Commands that exercise SaaS, tracker, hosted auth, or sync behavior use SPEC_KITTY_ENABLE_SAAS_SYNC=1.

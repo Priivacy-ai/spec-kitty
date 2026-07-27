@@ -1,0 +1,79 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "spec-kitty://charter/synthesizer/provenance/v1"
+title: "ProvenanceEntry (Charter Synthesizer) v1"
+description: >
+  Per-artifact provenance sidecar for a synthesized charter artifact.
+  One file per artifact at .kittify/charter/provenance/<kind>-<slug>.yaml
+  (synthesis BOOKKEEPING tree). The artifact the sidecar describes lives
+  under the synthesized DOCTRINE tree at .kittify/doctrine/<kind-dir>/
+  with a filename matching the existing repository glob for that kind
+  (*.directive.yaml, *.tactic.yaml, *.styleguide.yaml).
+  Cross-reference: data-model.md §E-4.
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - artifact_urn
+  - artifact_kind
+  - artifact_slug
+  - artifact_content_hash
+  - inputs_hash
+  - adapter_id
+  - adapter_version
+  - source_urns
+  - generated_at
+properties:
+  schema_version:
+    type: string
+    const: "1"
+  artifact_urn:
+    type: string
+    pattern: "^(directive|tactic|styleguide):[a-z][a-z0-9-]*$"
+  artifact_kind:
+    type: string
+    enum: [directive, tactic, styleguide]
+  artifact_slug:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+  artifact_content_hash:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+    description: "blake3-256 hex digest of the committed artifact YAML bytes."
+  inputs_hash:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+    description: "blake3-256 hex digest of the normalized SynthesisRequest."
+  adapter_id:
+    type: string
+    minLength: 1
+  adapter_version:
+    type: string
+    minLength: 1
+  source_section:
+    type: [string, "null"]
+    description: "Interview section label this artifact derives from (if any)."
+  source_urns:
+    type: array
+    items:
+      type: string
+      pattern: "^[a-z_]+:[A-Za-z0-9_.-]+$"
+    description: "DRG URNs this artifact derives from. May be empty only if source_section is set."
+  generated_at:
+    type: string
+    format: date-time
+    description: "ISO 8601 UTC timestamp from AdapterOutput.generated_at."
+  adapter_notes:
+    type: [string, "null"]
+    description: "Verbatim copy of AdapterOutput.notes; never used for validation."
+allOf:
+  - description: "At least one of source_section or source_urns must be non-empty."
+    anyOf:
+      - required: [source_section]
+        properties:
+          source_section:
+            type: string
+            minLength: 1
+      - properties:
+          source_urns:
+            type: array
+            minItems: 1

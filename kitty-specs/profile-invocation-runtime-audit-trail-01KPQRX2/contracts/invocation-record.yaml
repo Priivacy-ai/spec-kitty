@@ -1,0 +1,87 @@
+title: InvocationRecord (v1 JSONL schema)
+description: |
+  The Tier 1 minimal viable trail record. Each invocation produces one JSONL
+  file at `.kittify/events/profile-invocations/<profile_id>-<invocation_id>.jsonl`
+  containing exactly two event lines: `started` (written at invoke time) and
+  `completed` (appended when `profile-invocation complete` is called).
+  Lines are append-only and immutable after write.
+version: "1.0"
+storage_path_pattern: ".kittify/events/profile-invocations/{invocation_id}.jsonl"
+storage_path_note: |
+  Filename is invocation_id ONLY (no profile_id prefix). This enables
+  profile-invocation complete to locate the file with --invocation-id alone.
+  Profile filtering in invocations list reads profile_id from file content.
+
+events:
+  started:
+    description: Written by ProfileInvocationExecutor.invoke() before returning to caller.
+    type: object
+    required:
+      - event
+      - invocation_id
+      - profile_id
+      - action
+      - request_text
+      - governance_context_hash
+      - governance_context_available
+      - actor
+      - started_at
+    properties:
+      event:
+        const: "started"
+      invocation_id:
+        type: string
+        description: ULID (26 chars, Crockford base32)
+      profile_id:
+        type: string
+      action:
+        type: string
+        description: Canonical action token
+      request_text:
+        type: string
+        description: Original request string
+      governance_context_hash:
+        type: string
+        description: First 16 hex chars of SHA-256 of governance_context_text
+      governance_context_available:
+        type: boolean
+      actor:
+        type: string
+        enum: [claude, operator, unknown]
+      router_confidence:
+        type: ["string", "null"]
+        enum: [exact, canonical_verb, domain_keyword, null]
+      started_at:
+        type: string
+        description: ISO-8601 UTC timestamp
+        example: "2026-04-21T10:20:47Z"
+
+  completed:
+    description: Appended by InvocationWriter.write_completed() via `profile-invocation complete`.
+    type: object
+    required:
+      - event
+      - invocation_id
+      - completed_at
+    properties:
+      event:
+        const: "completed"
+      invocation_id:
+        type: string
+        description: Must match the `started` event in this file
+      outcome:
+        type: ["string", "null"]
+        enum: [done, failed, abandoned, null]
+      evidence_ref:
+        type: ["string", "null"]
+        description: Relative path to EvidenceArtifact directory, or null
+        example: ".kittify/evidence/01KPQRX2EVGMRVB4Q1JQBAZJV3"
+      completed_at:
+        type: string
+        description: ISO-8601 UTC timestamp
+
+validation_rules:
+  - duplicate_started: Writer raises InvocationWriteError; reader skips second started event with warning.
+  - invocation_id_mismatch: Reader skips the completed event with warning.
+  - missing_completed: Valid open record. `invocations list` shows status as "open".
+  - corrupt_json_line: Reader skips the line with warning; does not fail entire scan.

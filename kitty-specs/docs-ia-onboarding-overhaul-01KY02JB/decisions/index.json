@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-20T15:57:37.575845Z",
+      "decision_id": "01KY03YGX7GQEBKV45Q2Q8FXK3",
+      "final_answer": "Post-process rendered HTML output at build time (like seo_postprocess.py); markdown source stays untouched.",
+      "input_key": "glossary_linker_mechanism",
+      "mission_id": "01KY02JBGCYS2H0EFDS76WDRFR",
+      "mission_slug": "docs-ia-onboarding-overhaul-01KY02JB",
+      "opened_by": "cli",
+      "options": [
+        "Rewrite markdown source",
+        "Post-process rendered HTML",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should the glossary auto-linker rewrite markdown source files directly (baking [term](link) markup into .md prose), or run as a build-time post-processing pass over DocFX's rendered HTML output (like the existing seo_postprocess.py), leaving markdown source untouched?",
+      "rationale": null,
+      "resolved_at": "2026-07-20T16:04:19.200603Z",
+      "resolved_by": null,
+      "slot_key": "plan.glossary.linker-mechanism",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KY02JBGCYS2H0EFDS76WDRFR",
+  "version": 1
+}

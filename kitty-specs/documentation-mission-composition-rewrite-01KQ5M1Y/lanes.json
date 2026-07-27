@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "mission_slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
+  "mission_id": "01KQ5M1Y190VANF39KMBWZP6SD",
+  "mission_branch": "kitty/mission-documentation-mission-composition-rewrite-01KQ5M1Y",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/evidence/lint.md",
+        "kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/evidence/regression.md",
+        "kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/evidence/smoke.md",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/mission_step_contracts/shipped/documentation-audit.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/documentation-design.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/documentation-discover.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/documentation-generate.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/documentation-publish.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/documentation-validate.step-contract.yaml",
+        "src/doctrine/missions/documentation/actions/audit/guidelines.md",
+        "src/doctrine/missions/documentation/actions/audit/index.yaml",
+        "src/doctrine/missions/documentation/actions/design/guidelines.md",
+        "src/doctrine/missions/documentation/actions/design/index.yaml",
+        "src/doctrine/missions/documentation/actions/discover/guidelines.md",
+        "src/doctrine/missions/documentation/actions/discover/index.yaml",
+        "src/doctrine/missions/documentation/actions/generate/guidelines.md",
+        "src/doctrine/missions/documentation/actions/generate/index.yaml",
+        "src/doctrine/missions/documentation/actions/publish/guidelines.md",
+        "src/doctrine/missions/documentation/actions/publish/index.yaml",
+        "src/doctrine/missions/documentation/actions/validate/guidelines.md",
+        "src/doctrine/missions/documentation/actions/validate/index.yaml",
+        "src/doctrine/missions/documentation/mission-runtime.yaml",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "src/specify_cli/missions/documentation/mission-runtime.yaml",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/integration/test_documentation_runtime_walk.py",
+        "tests/specify_cli/mission_step_contracts/test_documentation_composition.py",
+        "tests/specify_cli/next/test_runtime_bridge_documentation_composition.py",
+        "tests/specify_cli/test_documentation_drg_nodes.py",
+        "tests/specify_cli/test_documentation_template_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-26T19:56:08.797072+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

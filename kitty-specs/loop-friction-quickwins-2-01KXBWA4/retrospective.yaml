@@ -1,0 +1,218 @@
+schema_version: 1
+mission_id: 01KXBWA43FCFWNMGDG8RN6N8WY
+mission_slug: loop-friction-quickwins-2-01KXBWA4
+mission_number: 176
+friendly_name: Implement-Loop Friction Quick-Wins II
+mission_type: software-dev
+target_branch: feat/loop-friction-quickwins-2
+created_at: '2026-07-12T23:07:00.456002+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-12T23:07:00.456002+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-014
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-002
+  category: tooling
+  summary: 'Tracer: K-1 (NFR-005, C-001): guards keep their true-positive.'
+  evidence_refs:
+  - e-015
+  details: "- **K-1 (NFR-005, C-001): guards keep their true-positive.** Every fix removes a false positive only.\n  Substantive
+    spec/plan/task change still stales the analysis report; genuine bulk edit still trips;\n  populated-but-insufficient plan
+    still `blocked`; pre-review gate still enforces by default. Each pinned\n  by a red-first regression."
+- id: n-003
+  category: tooling
+  summary: 'Tracer: K-2 (C-004): the interpreter fix must be un-maskable.'
+  evidence_refs:
+  - e-015
+  details: "- **K-2 (C-004): the interpreter fix must be un-maskable.** Existing real-subprocess gate tests run under\n  a
+    pytest-equipped interpreter and hide #2570.3 — a pytest-lacking regression is mandatory."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: K-3 (NFR-004): manifest reader stays both-forms tolerant.'
+  evidence_refs:
+  - e-015
+  details: "- **K-3 (NFR-004): manifest reader stays both-forms tolerant.** In-memory `output_path` + internal key\n  stay
+    absolute; only the on-disk JSON goes relative; legacy absolute manifests load with zero migration."
+- id: n-005
+  category: tooling
+  summary: 'Tracer: K-4 (C-002): STATUS_STATE placement is untouchable.'
+  evidence_refs:
+  - e-015
+  details: "- **K-4 (C-002): STATUS_STATE placement is untouchable.** WP-E routes staging only; coord placement\n  semantics
+    (merged #168) must be byte-for-byte unchanged — no second split-brain."
+- id: n-006
+  category: tooling
+  summary: "Tracer: K-5 (C-005): complement, don't re-tread the fast-follow."
+  evidence_refs:
+  - e-015
+  details: "- **K-5 (C-005): complement, don't re-tread the fast-follow.** Do not touch #2581/#2573-shipped/#2549B/\n  #2577
+    surfaces; FR-003/004/005 complement #2573's skip-flag/progress, not duplicate.\n\n### Forward alignment\n\n- IC-01/IC-04
+    are incremental steps toward **#2093** (runtime state → event-log authority); keep the\n  exclusion scoped to today's
+    fields so the #2093 retirement is a clean follow-on, not a rework.\n- IC-05 is scoped to stay *inside* the **#2160** coord-authority
+    envelope, deferring to the draft\n  coord mission on anything beyond planning-artifact staging.\n\n## Append (implement)\n\
+    \n- [2026-07-12][plan] **KEEP-set additions from post-plan squad:**"
+- id: n-007
+  category: tooling
+  summary: 'Tracer: K-6 (alphonso F3):'
+  evidence_refs:
+  - e-015
+  details: "- **K-6 (alphonso F3):** IC-07 must NOT add a `commit_guard.block_mission_specs` exemption — WP-file\n    commits
+    already route to primary via `commit_router`; an exemption weakens partition-lock #168's\n    close-by-construction guard
+    for zero benefit. Route at the staging layer only."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: K-7 (alphonso F5, Directive-044):'
+  evidence_refs:
+  - e-015
+  details: "- **K-7 (alphonso F5, Directive-044):** IC-07 reuses IC-01's `resolve_planning_artifact_staging` seam —\n    the
+    \"should this kitty-specs diff block?\" decision must live in ONE place, not fork into move-task."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: K-8 (priti F13):'
+  evidence_refs:
+  - e-015
+  details: "- **K-8 (priti F13):** FR-001's runtime field set comes from the canonical `frontmatter.py::WP_FIELD_ORDER`,\n\
+    \    not a fresh inline tuple (no 4th divergent definition)."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: K-9 (priti F3):'
+  evidence_refs:
+  - e-015
+  details: "- **K-9 (priti F3):** the contention lock's acquire-timeout is DECOUPLED from the 300s subprocess timeout\n  \
+    \  (a lock-wait charged to the run timeout re-creates the exact false `no_coverage` FR-004 removes).\n\n<!-- record any
+    further KEEP-set pressure during implement: a fix that tempted a guard-weakening shortcut -->\n\n## Assess (close)\n\n\
+    <!-- did all KEEP invariants hold? did the #2093 / #2160 forward alignment survive contact with code? -->"
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP01-allocator-runtime-frontmatter.md
+- id: e-006
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP02-freshness-pipe-table.md
+- id: e-007
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP03-gate-runner-hardening.md
+- id: e-008
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP04-manifest-relative-path.md
+- id: e-009
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP05-diagnostics-papercuts.md
+- id: e-010
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP06-scaffold-block-ergonomics.md
+- id: e-011
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP07-movetask-authority-staging.md
+- id: e-012
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/tasks/WP08-solo-coord-surface-routing.md
+- id: e-013
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/status.events.jsonl
+- id: e-014
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/analysis-report.md
+- id: e-015
+  kind: file
+  path: kitty-specs/loop-friction-quickwins-2-01KXBWA4/traces/design-trace.md
+generator_version: '1.0'
+provenance_history: []

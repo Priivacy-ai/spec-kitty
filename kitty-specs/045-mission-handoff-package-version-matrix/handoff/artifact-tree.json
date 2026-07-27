@@ -1,0 +1,114 @@
+{
+  "schema_version": "1",
+  "feature_slug": "045-mission-handoff-package-version-matrix",
+  "root_path": "kitty-specs/045-mission-handoff-package-version-matrix",
+  "source_commit": "21ed0738f009ca35a2927528238a48778e41f1d4",
+  "captured_at": "2026-02-23T19:45:18Z",
+  "entries": [
+    {
+      "path": "checklists/requirements.md",
+      "sha256": "bd64cbd9376c8016c1acc606255728f7805603ba4ef3f9f6180cd6e38d2f812a",
+      "size_bytes": 1563,
+      "status": "present"
+    },
+    {
+      "path": "data-model.md",
+      "sha256": "347b644508e12bee958064f70deb2578a6b36dcca99fa4f9ec2a539e6ac50397",
+      "size_bytes": 9275,
+      "status": "present"
+    },
+    {
+      "path": "meta.json",
+      "sha256": "5e03650282720ce814f428a249af9f1cc8dd20c245e9ebb94bbdccbbb0c5bf01",
+      "size_bytes": 739,
+      "status": "present"
+    },
+    {
+      "path": "plan.md",
+      "sha256": "0e71c5eced7b24001394afb4782f2e814b6b65a5a9ee615503ee6263e4ef085b",
+      "size_bytes": 8780,
+      "status": "present"
+    },
+    {
+      "path": "quickstart.md",
+      "sha256": "570fa46c38ad6f7060401a6305630a4af480d645169101377ce044efc357cc50",
+      "size_bytes": 3788,
+      "status": "present"
+    },
+    {
+      "path": "research.md",
+      "sha256": "79c7c86e155547e16fae3819a41cd53ee3a4cc11fbd325fcdc4c16f9af441f94",
+      "size_bytes": 6348,
+      "status": "present"
+    },
+    {
+      "path": "spec.md",
+      "sha256": "823bdb8e2ad54d1172963e5c003ccb2f5f57e71ffb200a6862993f00d5d6186e",
+      "size_bytes": 14286,
+      "status": "present"
+    },
+    {
+      "path": "tasks/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0,
+      "status": "present"
+    },
+    {
+      "path": "tasks/README.md",
+      "sha256": "5ec285a6e3f205f0152a3a69bf0234075a1d7961d123d00843a4478201f058d4",
+      "size_bytes": 1417,
+      "status": "present"
+    },
+    {
+      "path": "tasks/WP01-handoff-scaffold-namespace-tuple.md",
+      "sha256": "14e429e9b9fb5303eb2f01a6ae9e18dc91cbc80dc8264324acbd1b1905a6cb5f",
+      "size_bytes": 7697,
+      "status": "present"
+    },
+    {
+      "path": "tasks/WP02-artifact-manifest-and-tree.md",
+      "sha256": "f3759d9a959120ef66dadc0124f696e8bd6d79e35bcaa8d57e7f22036dbb5d15",
+      "size_bytes": 11523,
+      "status": "present"
+    },
+    {
+      "path": "tasks/WP03-event-stream-export.md",
+      "sha256": "e164c1a1b9fa1f3b7dabc277c2340f3a41884b5688c0aa5ca3961eedd9e03e06",
+      "size_bytes": 7375,
+      "status": "present"
+    },
+    {
+      "path": "tasks/WP04-generator-script.md",
+      "sha256": "54bc802110fe03886fa9903e62c4dda89d1312b1a007695bf5a900a94900df1f",
+      "size_bytes": 15335,
+      "status": "present"
+    },
+    {
+      "path": "tasks/WP05-version-matrix-note.md",
+      "sha256": "c1ecffdf1eba8edfa54bb42f448034e2f6d048d1092a2761f472e16faec6ecfe",
+      "size_bytes": 10029,
+      "status": "present"
+    },
+    {
+      "path": "tasks/WP06-test-verification-note.md",
+      "sha256": "980bf0ec71c4944c0824ebd7218592256d001585c1584008f5512087c9bbdacb",
+      "size_bytes": 11432,
+      "status": "present"
+    },
+    {
+      "path": "tasks.md",
+      "sha256": "7761d128d807b5ca03b142fdfb2f8f890254982d627b9681c498540da3348b6d",
+      "size_bytes": 16438,
+      "status": "present"
+    },
+    {
+      "path": "gap-analysis.md",
+      "sha256": null,
+      "size_bytes": null,
+      "status": "absent"
+    }
+  ],
+  "total_files": 17,
+  "present_count": 16,
+  "absent_count": 1
+}

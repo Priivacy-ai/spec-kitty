@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "mission_slug": "name-vs-authority-remediation-01KTYGTE",
+  "mission_id": "01KTYGTE9JV0212WFJ2K82BQ8J",
+  "mission_branch": "kitty/mission-name-vs-authority-remediation-01KTYGTE",
+  "target_branch": "feat/name-vs-authority-remediation-01KTYGTE",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/missions/_substantive.py",
+        "tests/integration/test_p0_pinning_regressions.py",
+        "tests/specify_cli/missions/test_substantive_gate_formats.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/**",
+        "src/specify_cli/cli/commands/accept.py",
+        "tests/specify_cli/acceptance/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/status_service.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/work_package_lifecycle.py",
+        "src/specify_cli/workspace/root_resolver.py",
+        "tests/specify_cli/coordination/test_worktree_topology*.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/core/vcs/detection.py",
+        "src/specify_cli/lanes/branch_naming.py",
+        "src/specify_cli/lanes/compute.py",
+        "src/specify_cli/lanes/recovery.py",
+        "src/specify_cli/manifest.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "tests/specify_cli/lanes/test_branch_naming*.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/procedures/built-in/tracker-organisation-workflow.procedure.yaml",
+        "src/doctrine/styleguides/built-in/planning-and-tracking.styleguide.yaml",
+        "src/doctrine/toolguides/built-in/GITHUB_TRACKER.md",
+        "src/doctrine/toolguides/built-in/github-tracker.toolguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".agent/workflows/**",
+        ".agents/skills/**",
+        ".amazonq/prompts/**",
+        ".augment/commands/**",
+        ".claude/commands/**",
+        ".cursor/commands/**",
+        ".gemini/commands/**",
+        ".github/prompts/**",
+        ".kilocode/workflows/**",
+        ".kiro/prompts/**",
+        ".kittify/charter/charter.md",
+        ".opencode/command/**",
+        ".qwen/commands/**",
+        ".roo/commands/**",
+        ".windsurf/workflows/**",
+        "architecture/3.x/adr/2026-06-11-1-*.md",
+        "src/charter/context_renderers/authority_paths.py",
+        "src/doctrine/missions/mission-steps/software-dev/implement/prompt.md",
+        "src/doctrine/missions/mission-steps/software-dev/review/prompt.md",
+        "tests/charter/**",
+        "tests/specify_cli/regression/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/schemas/toolguide.schema.yaml",
+        "tests/doctrine/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/status/aggregate.py",
+        "tests/integration/test_cross_seam_consumers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/architectural/test_topology_resolution_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-12T19:21:16.582995+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

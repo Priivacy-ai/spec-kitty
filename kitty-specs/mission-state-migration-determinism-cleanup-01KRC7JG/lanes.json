@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "mission_slug": "mission-state-migration-determinism-cleanup-01KRC7JG",
+  "mission_id": "01KRC7JG0A5AAJWES96G8YRNAZ",
+  "mission_branch": "kitty/mission-mission-state-migration-determinism-cleanup-01KRC7JG",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/rebuild_state.py",
+        "tests/specify_cli/migration/test_rebuild_state.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/mission_state.py",
+        "tests/migration/test_mission_state_repair.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-11T19:25:44.020978+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,20 @@
+# Tracer — Approach
+
+Mission: `test-suite-friction-remediation-01KXDKBX` · #2620.
+Seeded at planning. Append dated entries when the approach changes or a planned approach meets reality.
+
+## Planned approach (2026-07-13)
+- **Test-first, non-fakeable DoD per WP** (NFR-002): every guard change ships a failing-first proof that the NEW failure mode is caught and the OLD false-red is gone. Deshim deletes prove safety via the (IC-01-upgraded) dead-code gate + `git grep <symbol> = 0`.
+- **Four lanes**: Lane 0 serial deshim chain (IC-01→02→03); Lane A parallel small fixes (IC-04/05/06/07/08); Lane C golden-count sweep (IC-14, batch WPs); Lane B CI guards (IC-10→11/12, IC-13).
+- **Golden-count sweep (IC-14) method**: AST inventory of `len(x)==int` in `tests/` → classify keep (cardinality-is-contract) vs convert (set-equality expresses it) → recurrence guard (fails on new un-annotated golden-count, escape hatch `# golden-count: cardinality-is-contract`) → baselined burndown in per-directory batch WPs. The baseline strictly decreases; the guard stops regrowth.
+- **Ratchet/parity assessment method** (feeds tracer-design-decisions catalog): do NOT remediate wholesale in this mission. For each pinning/parity suite a WP touches, apply the invariant-vs-shape discriminator and record a keep/consolidate/retire verdict with CaaCS evidence; the close-out synthesis becomes a follow-up mission.
+
+## Watch — where the approach is most likely to bend
+- IC-02's ~157-site runtime_bridge surface may split into multiple WPs if the forwarding-vs-real-seam classification is larger than one WP.
+- IC-06's 3 siblings may turn out to be already-clean (paula's read) — approach: audit-then-fix-only-if-real, do not manufacture re-points.
+- IC-14 batch sizing is unknown until the inventory runs — the inventory WP output resizes the remaining Lane-C WPs.
+
+## Appended entries (during implement)
+- _2026-07-13 (seed): no implement entries yet._
+- **2026-07-13 (WP16, IC-10/FR-011/#2621 — no bend):** the planned `register()`/`all_groups()` seam landed as scoped. One design refinement the plan left implicit: the T079 "removing the `_next_shard_map` registration" regression is proven via an **isolated** `ShardRegistry()` instance (register only `arch`, assert `get_group("next")` raises the diagnosable message) rather than by actually mutating the real shared registry mid-test-run — mutating the global singleton to simulate a missing import would either leak across the rest of the same pytest session (registry is a module-level default) or require fragile `importlib.reload`/monkeypatch gymnastics. Making `ShardRegistry` an instantiable class (not just a bare module dict, as the pre-seam `SHARD_GROUPS` was) is what makes this regression cheap and non-fakeable without global-state risk. Carried WP11's `test_golden_count_ban.py` registration forward from the old `SHARD_GROUPS`-dict idiom into the new `register()` call verbatim (no site moved shard).
+- **2026-07-13 (WP11, IC-14 sizing resolved):** the inventory ran; batch sizing matches the plan closely rather than bending it. Raw `len(<collection>)==<int>` site counts pulled from the live tree during implement: WP12's 4 dirs = 264 (plan's ~261), all three batches' dirs combined = 804 (plan's IC-14 ~773), tree-wide = 2034 across ~646 files (plan's ~2102/~646) — all within the expected order of magnitude of the planning-time estimate, so WP12/WP13/WP14 do not need resizing. The one approach detail the plan left open — "classify keep vs convert" — resolved to a documented, auditable word-vocabulary heuristic (see `tests/architectural/test_golden_count_ban.py` docstring) rather than a per-site semantic judgement across ~2000 sites, which is the closest a single WP can get to "non-fakeable" at this scale: the heuristic is testable and auditable, and batch WPs re-judge individual sites in context as they convert (a misclassified `convert` they determine is actually cardinality-only gets the escape-hatch annotation instead of a conversion, which narrows the baseline exactly the same way).

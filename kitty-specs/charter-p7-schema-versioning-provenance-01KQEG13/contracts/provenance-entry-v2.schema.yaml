@@ -1,0 +1,126 @@
+# ProvenanceEntry v2 YAML sidecar contract
+# Storage: .kittify/charter/provenance/<kind>-<slug>.yaml
+# Phase 7 additions: synthesizer_version, source_input_ids, produced_at,
+#   corpus_snapshot_id promoted to required, synthesis_run_id added.
+# schema_version bumped from "1" to "2".
+
+$schema: "https://json-schema.org/draft/2020-12"
+title: ProvenanceEntry
+description: Per-artifact provenance sidecar (v2, Phase 7 hardened)
+type: object
+
+required:
+  - schema_version
+  - artifact_urn
+  - artifact_kind
+  - artifact_slug
+  - artifact_content_hash
+  - inputs_hash
+  - adapter_id
+  - adapter_version
+  - synthesizer_version
+  - source_input_ids
+  - generated_at
+  - produced_at
+  - corpus_snapshot_id
+  - synthesis_run_id
+
+properties:
+  schema_version:
+    type: string
+    const: "2"
+    description: "Sidecar format version. Must be '2' for Phase 7 sidecars."
+
+  artifact_urn:
+    type: string
+    description: "Fully-qualified URN identifying the artifact."
+
+  artifact_kind:
+    type: string
+    enum: ["directive", "tactic", "styleguide"]
+
+  artifact_slug:
+    type: string
+    description: "Human-readable kebab-case slug of the artifact."
+
+  artifact_content_hash:
+    type: string
+    minLength: 1
+    description: "BLAKE3-256 or SHA-256 hex digest of canonical_yaml(body) bytes."
+
+  inputs_hash:
+    type: string
+    minLength: 1
+    description: "Full hex digest of the normalized SynthesisRequest."
+
+  adapter_id:
+    type: string
+    minLength: 1
+    description: "Identifier of the synthesis adapter that generated this artifact."
+
+  adapter_version:
+    type: string
+    minLength: 1
+    description: "Version of the synthesis adapter."
+
+  synthesizer_version:
+    type: string
+    minLength: 1
+    description: "spec-kitty-cli version string at synthesis time (e.g. '3.2.0a5'). '(pre-phase7-migration)' is the sentinel for migrated v1 sidecars."
+
+  source_section:
+    type: ["string", "null"]
+    description: "Charter section that was the primary source. At least one of source_section or source_urns must be non-empty (existing invariant)."
+
+  source_urns:
+    type: array
+    items:
+      type: string
+    description: "List of source URNs. At least one of source_section or source_urns must be non-empty."
+
+  source_input_ids:
+    type: array
+    items:
+      type: string
+    description: "Ordered list of source input identifiers used by the adapter. Phase 7 initializes this from source_urns."
+
+  generated_at:
+    type: string
+    description: "ISO 8601 UTC timestamp when the adapter generated the artifact content."
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+
+  produced_at:
+    type: string
+    description: "ISO 8601 UTC timestamp when the provenance sidecar was written to disk."
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+
+  corpus_snapshot_id:
+    type: string
+    minLength: 1
+    description: "ID of the source corpus snapshot. '(none)' when synthesis ran without a corpus snapshot."
+
+  synthesis_run_id:
+    type: string
+    minLength: 1
+    description: "run_id ULID from StagingDir, linking this sidecar to the SynthesisManifest. '(pre-phase7-migration)' is the sentinel for migrated v1 sidecars."
+
+  evidence_bundle_hash:
+    type: ["string", "null"]
+    description: "SHA-256 hex digest of the serialized EvidenceBundle. null when no evidence bundle was used."
+
+  adapter_notes:
+    type: ["string", "null"]
+    description: "Free-form notes from the adapter."
+
+allOf:
+  - description: "At least one of source_section or source_urns must be non-empty."
+    if:
+      properties:
+        source_section:
+          type: "null"
+    then:
+      properties:
+        source_urns:
+          minItems: 1
+
+additionalProperties: false

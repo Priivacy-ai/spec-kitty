@@ -1,0 +1,88 @@
+{
+  "mission_slug": "charter-deadcode-noop-campsite-01KXW0NY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Delete charter.generator module (CharterDraft/build_charter_draft/write_charter) + its __init__ import and __all__ entries.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (commit d5b8324f9): src/charter/generator.py deleted; src/charter/__init__.py import (was line 31) + 3 __all__ entries removed. git grep finds zero live src refs. uv run pytest tests/charter/test_generator.py tests/architectural/test_no_dead_modules.py -> 6 passed. Net -156 LOC.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "Reviewer confirmed the implementer's extra removal of an unused load_doctrine_catalog import was a legitimate ruff-F401 fix (its only consumer was the deleted test). LM-4 clear: no charter.md scaffold path dropped."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Retire the generator dead-API tests while preserving the live write_compiled_charter symlink-guard tests.",
+      "proof_type": "automated_test",
+      "evidence": "WP01: tests/charter/test_generator.py surgically edited (not deleted, LM-3) -> generator import + 4 generator-API tests removed; the 4 write_compiled_charter symlink-guard tests survive and pass.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "C-003 preserved: no live coverage deleted to go green."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Delete charter.extractor module + its test-only references (dedicated tests retired; incidental fixtures reconstructed).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (commit 8a0a1fcf2): src/charter/extractor.py (577 LOC) + 5 dedicated test files deleted. The 2 incidental fixtures (test_activate_resolves_no_answers_edit.py, test_charter_context_spdd_reasons.py) RECONSTRUCTED inline (GovernanceConfig/DoctrineSelectionConfig from interview.selected_*/compiled.*) so the live is_spdd_reasons_active assertions survive (31 passed). Net -1685/+55 LOC.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "Reviewer verified is_spdd_reasons_active reads charter.yaml off disk (real production path, not a synthetic fixture). A live sync() guard in the deleted test_sync_references.py is preserved by test_sync.py."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Remove the deferred extractor allowlist entries across all four gate surfaces; dead-code baseline shrinks downward.",
+      "proof_type": "automated_test",
+      "evidence": "WP02: _baselines.yaml category_5_wp_in_flight_adapters 1->0 (downward); test_no_dead_modules _CATEGORY_5 frozenset emptied; test_no_dead_symbols Extractor SymbolKey frozenset + its union term removed; test_chokepoint_coverage _CARVE_OUTS extractor line removed (4th gate, squad-found). uv run pytest test_no_dead_modules test_no_dead_symbols test_ratchet_baselines test_chokepoint_coverage -> 32 passed; no stale/dangling/missing.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "LM-2 atomicity held across all four surfaces; baseline never green-washed upward."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Render path (build_charter_context) stays no-op-stable, pinned by a regression guard.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (commit e0784757b): tests/charter/test_context_noop_stability.py -> G1 single render + G3 render-twice both leave 0 tracked-doctrine diffs; asserts first_load True->False (real path re-ran). 3 passed. Zero production change (already fixed by #2773).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "Fixture clones the repo so it observes the committed .gitignore (doctrine tracked), defeating the local .git/info/exclude mask; a fail-loud soundness test guards against reverting to a masked fixture."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Preflight/synthesize surface is no-op-stable, pinned by a regression guard (no behavioral change).",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (commit 42e574725): tests/specify_cli/charter_runtime/test_preflight_noop_stability.py -> two run_charter_preflight(auto_refresh=True) runs on a real-synthesized doctrine-tracked committed-clean fixture leave git clean + synthesize uninvoked (zero non-git subprocess). 2 passed. ZERO src change (verified by reviewer).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "Post-tasks squad refuted a behavioral fix: already ensured by #2732 (charter.yaml content-hash freshness) + #1912 (four _substantively_equal promote guards). Fixture uses make_fresh_repo (built_in_only=False), not masked."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "No-op-stability guards assert against a real-synthesized, doctrine-tracked fixture (not the masked/built_in_only checkout).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 uses a fresh git clone (empty .git/info/exclude -> committed .gitignore tracks doctrine) + a fail-loud fixture-soundness test. WP04 uses make_fresh_repo with a manifest bundle_content_hash computed from real charter.yaml (not built_in_only). Both reviewer-verified as genuinely tracked, not vacuous.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "LM-1 (this checkout masks doctrine churn via .git/info/exclude and is built_in_only) neutralized in both guards."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Close #2373 with a terminal issue-matrix verdict backed by a regression guard.",
+      "proof_type": "manual",
+      "evidence": "issue-matrix.md #2373 -> verified-already-fixed (render by #2773; preflight by #2732/#1912). Regression guards landed and approved: WP03 (render) + WP04 (preflight/INV-2). WP04 T013 additionally asserts a genuine charter.yaml edit still synthesizes (anti-over-suppression, INV-2).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator synthesis",
+      "verified_at": "2026-07-19T03:20:00+00:00",
+      "notes": "in-mission -> verified-already-fixed flip is terminal; #1797/#1914/#2467/#2216/#2539 remain deferred-with-followup with handles; #2773/#2732/#1912 verified-already-fixed."
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+ "mission_slug": "coord-authority-gate-hardening-01KW4T2F",
+ "mission_number": "",
+ "mission_type": "software-dev",
+ "overall_verdict": "pass",
+ "criteria": [
+  {
+   "criterion_id": "FR-001",
+   "description": "FR-001 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP01 lane-a (approved). One-hop cross-function detection: `_COORD_AWARE_CALLSHAPE_RESOLVERS` widened to align with `_TOPOLOGY_ROUTED_READ_RESOLVERS` + `_resolve_setup_plan_feature_dir`; module-scoped caller index added to `callshape_violations`. `_VIOLATION_CROSS_FUNCTION` self-mutation test proven RED only via the one-hop machinery (does NOT flag without `module=`), GREEN on primary-fold counterpart. Reviewer traced non-vacuity. `pytest tests/architectural/test_gate_read_literal_ban.py` 30 passed. Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003). Mission-level negative invariants C-001 (no STATUS leg moved to PRIMARY), NFR-001/CT7 (zero new file:line anchors), NFR-004 (zero false positives) were each verified in the per-WP adversarial reviews (incl. an executed production-revert for C-001/SC-002) and are reconfirmed by the post-merge full tests/architectural/ run recorded in the PR body."
+  },
+  {
+   "criterion_id": "FR-002",
+   "description": "FR-002 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP02 lane-b (approved). IDENTITY scan family widened to merge/+lanes/+core/worktree_topology.py via shared base. SC-006 live-scope proof: an injected identity read in merge/executor.py is now in-scope/flaggable (both param and attribute shapes). `pytest tests/architectural/test_coord_read_residuals_closeout.py` 13 passed. Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  },
+  {
+   "criterion_id": "FR-003",
+   "description": "FR-003 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP02 lane-b (approved). Named shrink-only census with per-arm stale-pin split (`_IDENTITY_/_LANES_CALLSHAPE_KNOWN_RESIDUALS`). Route-or-pin ledger: `_run_documentation_wiring` PINNED #2214 (asserted both pinned AND live-flagged); 3 runtime_bridge get_mission_type reads ROUTED/CLEAN (asserted absent + not pinned). Read-func-scoped exclusions (C-007) proven by positive flag pair. Reviewer added a fake identity-only pin \u2192 only identity stale check reacted (isolation proven). Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  },
+  {
+   "criterion_id": "FR-004",
+   "description": "FR-004 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP03 lane-c (approved). `runtime_bridge.py::_build_finalized_override_query_decision` re-pointed onto the PRIMARY/STATUS leg-split (planning_dir via resolve_planning_read_dir kind=WORK_PACKAGE_TASK; status_dir via candidate_feature_dir_for_mission). Caller-only (discovery.py untouched), single call site, repo_root threaded. C-001 preserved (status leg stays coord-aware). Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  },
+  {
+   "criterion_id": "FR-005",
+   "description": "FR-005 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP02 lane-b (approved). Both scan arms extended to src/runtime/next/ with a runtime/next-ONLY read-site floor (`_RUNTIME_NEXT_IDENTITY_READ_FLOOR=3`, derived from scope\u2229runtime/next). Reviewer removed runtime/next from scope \u2192 floor went RED (executed revert-sensitivity), proving non-vacuity (NFR-003). Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  },
+  {
+   "criterion_id": "FR-006",
+   "description": "FR-006 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP04 lane-d (approved). Net-new machine-read `PARTITION_RATIONALE` map (one entry per MissionArtifactKind); exhaustive + split-equality vs live frozensets + parametrized all-14-kinds anti-mutant via resolve_placement_only. Extended (not cloned) the existing test machinery; no line-pins. `pytest tests/architectural/test_write_surface_placement_guard.py` green. Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  },
+  {
+   "criterion_id": "FR-007",
+   "description": "FR-007 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP04 lane-d (approved). `check_pre30_layout` no-op proven against (a) production-shaped STATUS-only husk (real status payload, not empty dir) and (b) tasks/-present-non-legacy variant \u2014 both via rglob before/after snapshot (no-raise AND no-mutation), exercising distinct is_legacy_format branches. New fixture variant owned by WP04. Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  },
+  {
+   "criterion_id": "FR-008",
+   "description": "FR-008 verified via its owning WP's adversarial review (non-vacuity confirmed).",
+   "proof_type": "automated_test",
+   "evidence": "WP01 lane-a (approved). ast.Attribute branch added to `callshape_violations`; `resolve_mission_identity(run.feature_dir)` \u2192 flagged, `.target_feature_dir` (`_SANCTIONED_PRIMARY_ATTRS`) \u2192 not flagged (exact-list assertions). SC-006 executor attribute shape proven in-scope live in WP02. Command: `PWHEADLESS=1 pytest tests/architectural/ tests/integration/test_next_preview_primary_routing.py tests/integration/test_pre30_layout_coord_husk_noop.py`.",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + orchestrator synthesis",
+   "verified_at": "2026-06-27T18:40:07Z",
+   "notes": "Per-WP review did live edit-and-revert non-vacuity verification. Integrated full-suite run captured post-merge for the PR body (NFR-003)."
+  }
+ ],
+ "negative_invariants": []
+}

@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "mission_slug": "naming-identity-routing-rider-01KV7SFD",
+  "mission_id": "01KV7SFD56KRZBDV977S9FMQMM",
+  "mission_branch": "kitty/mission-naming-identity-routing-rider-01KV7SFD",
+  "target_branch": "feat/naming-rider-3-2-1",
+  "lanes": [
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/status/aggregate.py",
+        "tests/specify_cli/test_mid8_contract_sensitive_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/runtime/next/_internal_runtime/retrospective_terminus.py",
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/context/mission_resolver.py",
+        "src/specify_cli/doctrine_synthesizer/apply.py",
+        "src/specify_cli/git/sparse_checkout.py",
+        "src/specify_cli/retrospective/generator.py",
+        "tests/specify_cli/test_mid8_direct_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/core/worktree.py",
+        "tests/specify_cli/core/test_2000_compose_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/ownership/validation.py",
+        "tests/specify_cli/core/test_locate_project_root_convergence.py",
+        "tests/specify_cli/ownership/test_validation_existence.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "scripts/docs/_typer_walker.py",
+        "src/doctrine/missions/mission-steps/software-dev/plan/prompt.md",
+        "src/doctrine/skills/spec-kitty-charter-doctrine/SKILL.md",
+        "src/doctrine/skills/spec-kitty-mission-system/SKILL.md",
+        "tests/architectural/test_docs_cli_reference_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/branch_naming.py",
+        "tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_worktree_name_guess.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-16T12:14:28.669352+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

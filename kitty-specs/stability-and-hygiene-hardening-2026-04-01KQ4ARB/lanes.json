@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "mission_slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
+  "mission_id": "01KQ4ARB0P4SFB0KCDMVZ6BXC8",
+  "mission_branch": "kitty/mission-stability-and-hygiene-hardening-2026-04-01KQ4ARB",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".agents/skills/spec-kitty-mission-review/**",
+        ".github/workflows/release.yml",
+        "architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md",
+        "architecture/2.x/adr/2026-04-26-2-auth-transport-boundary.md",
+        "architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md",
+        "docs/development/contract-pinning.md",
+        "docs/migration/cross-repo-e2e-gate.md",
+        "kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md",
+        "scripts/snapshot_events_envelope.py",
+        "src/specify_cli/auth/**",
+        "src/specify_cli/charter/compact.py",
+        "src/specify_cli/charter/context.py",
+        "src/specify_cli/cli/commands/_branch_strategy_gate.py",
+        "src/specify_cli/cli/commands/mark_status.py",
+        "src/specify_cli/cli/commands/plan.py",
+        "src/specify_cli/cli/commands/specify.py",
+        "src/specify_cli/cli/commands/tasks.py",
+        "src/specify_cli/dashboard/**",
+        "src/specify_cli/intake/**",
+        "src/specify_cli/lanes/**",
+        "src/specify_cli/merge/**",
+        "src/specify_cli/missions/_legacy_aliases.py",
+        "src/specify_cli/missions/plan/mission-runtime.yaml",
+        "src/specify_cli/next/**",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/transitions.py",
+        "src/specify_cli/sync/queue.py",
+        "src/specify_cli/sync/replay.py",
+        "src/specify_cli/sync/tracker_client_glue.py",
+        "src/specify_cli/workspace/__init__.py",
+        "src/specify_cli/workspace/assert_initialized.py",
+        "src/specify_cli/workspace/root_resolver.py",
+        "tests/architectural/test_auth_transport_singleton.py",
+        "tests/architectural/test_events_tracker_public_imports.py",
+        "tests/architectural/test_no_runtime_pypi_dep.py",
+        "tests/contract/snapshots/**",
+        "tests/contract/test_canonical_root_when_in_worktree.py",
+        "tests/contract/test_charter_compact_includes_section_anchors.py",
+        "tests/contract/test_events_envelope_matches_resolved_version.py",
+        "tests/contract/test_mark_status_input_shapes.py",
+        "tests/contract/test_next_no_implicit_success.py",
+        "tests/contract/test_next_no_unknown_state.py",
+        "tests/contract/test_plan_mission_yaml_validates.py",
+        "tests/integration/test_branch_strategy_gate.py",
+        "tests/integration/test_dashboard_counters.py",
+        "tests/integration/test_fail_loud_uninitialized_repo.py",
+        "tests/integration/test_intake_atomic_writes.py",
+        "tests/integration/test_intake_size_cap.py",
+        "tests/integration/test_lane_db_isolation.py",
+        "tests/integration/test_legacy_feature_alias.py",
+        "tests/integration/test_merge_lane_planning_data_loss.py",
+        "tests/integration/test_merge_resume.py",
+        "tests/integration/test_mission_review_contract_gate.py",
+        "tests/integration/test_offline_queue_overflow.py",
+        "tests/integration/test_planning_artifact_wp.py",
+        "tests/integration/test_post_merge_custom_mission_loader.py",
+        "tests/integration/test_post_merge_index_refresh.py",
+        "tests/integration/test_post_merge_unrelated_untracked.py",
+        "tests/integration/test_release_gate_downstream_consumer.py",
+        "tests/integration/test_replay_tenant_collision.py",
+        "tests/integration/test_status_emit_on_alloc_failure.py",
+        "tests/integration/test_token_refresh_dedup.py",
+        "tests/integration/test_tracker_bidirectional_retry.py",
+        "tests/unit/intake/**",
+        "tests/unit/lanes/test_dependent_wp_scheduling.py",
+        "tests/unit/status/test_review_claim_transition.py",
+        "tests/unit/workspace/test_root_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-26T07:46:30.836784+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP01"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP02"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP03"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP05"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP07"
+      }
+    ],
+    "total_merges": 7,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 7
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-01T05:59:45.193036Z",
+      "decision_id": "01KQH1Y998EFVR48WNZP1FP384",
+      "final_answer": "Method on TokenManager (e.g. await token_manager.rehydrate_membership_if_needed()). Raw /api/v1/me HTTP fetch lives as a small private helper/module so transport and state mutation stay separable; TokenManager owns lock semantics, single-flight, negative cache, and StoredSession persistence.",
+      "input_key": "rehydrate_module_location",
+      "mission_id": "01KQH03YSS4H9PQVJ5YCTGZYMR",
+      "mission_slug": "private-teamspace-ingress-safeguards-01KQH03Y",
+      "options": [
+        "new_dedicated_module:auth/session_rehydrate.py",
+        "extend:auth/http/transport.py",
+        "method_on:auth/manager.AuthManager",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where should the /api/v1/me rehydrate function live?",
+      "rationale": null,
+      "resolved_at": "2026-05-01T06:22:45.711193Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.rehydrate-module-location",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-01T06:00:07.956097Z",
+      "decision_id": "01KQH1YZGKKMJPJ7DGKKSKJ7XS",
+      "final_answer": "Both: asyncio.Lock in TokenManager during attempt, plus a process-lifetime negative cache so one broken session causes exactly one /api/v1/me GET per process. Negative cache is cleared/bypassed when (a) stored session identity changes, (b) a fresh login completes, or (c) a forced repair / auth-doctor path explicitly requests rehydrate.",
+      "input_key": "rehydrate_single_flight",
+      "mission_id": "01KQH03YSS4H9PQVJ5YCTGZYMR",
+      "mission_slug": "private-teamspace-ingress-safeguards-01KQH03Y",
+      "options": [
+        "asyncio_lock_in_token_manager",
+        "once_per_process_negative_cache",
+        "both_lock_and_cache",
+        "no_coordination_each_call_site_attempts",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should concurrent rehydrate attempts (batch + websocket + queue + emitter all firing) be coordinated within one CLI process?",
+      "rationale": null,
+      "resolved_at": "2026-05-01T06:22:47.573921Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.rehydrate-single-flight",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQH03YSS4H9PQVJ5YCTGZYMR",
+  "version": 1
+}

@@ -1,0 +1,106 @@
+{
+  "mission_slug": "decompose-doctor-god-module-01KVXHFB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "AC-001",
+      "description": "I-1: the spec-kitty doctor CLI surface (16 subcommand names, per-subcommand flags/arity, per-subcommand --help, exit codes) stays byte-identical across the decomposition.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py (38 passed) \u2014 green at HEAD and re-run after every extraction WP.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Golden harness pins names by set-equality, param arity, --help snapshots, and the 3 load-bearing names (skills/restart-daemon/sparse-checkout)."
+    },
+    {
+      "criterion_id": "AC-002",
+      "description": "I-3: a single console / guard home \u2014 exactly one Console() instance backs the whole doctor surface (no per-module Console()).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_shared.py \u2014 single-Console identity asserted across import sites; git grep 'Console()' shows one instantiation in the doctor cluster (_profile_health_render).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "_doctor_shared re-exports the single console from _profile_health_render."
+    },
+    {
+      "criterion_id": "AC-003",
+      "description": "I-4: every function in the decomposed doctor surface is <=15 cyclomatic complexity (no C901 findings, no suppressions).",
+      "proof_type": "automated_test",
+      "evidence": "ruff check --select C901 src/specify_cli/cli/commands/ \u2014 All checks passed. The skills/identity/sparse-checkout/drift/mission-state mega-functions and state_roots were decomposed; the mission-state C901 suppression was dropped.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Zero new suppressions across all 10 modules."
+    },
+    {
+      "criterion_id": "AC-004",
+      "description": "I-5 / FR-006: the test-facing private symbols (app, SlashCommandGap + 14 helpers) re-export from the doctor shim so the 58 doctor test files keep resolving.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_shim_reexports.py + full doctor suite (428 passed) \u2014 all contracted imports resolve from specify_cli.cli.commands.doctor.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Re-validated against git grep 'from specify_cli.cli.commands.doctor import' in WP11."
+    },
+    {
+      "criterion_id": "AC-005",
+      "description": "I-6 / H2: merge.path_is_under_worktrees import stays function-local; no doctor<->merge module-load cycle.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_coordination_doctor.py \u2014 AST 'not module-level' test + import-cycle regression test; the import is indented inside _check_tracked_worktrees_content.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "import specify_cli.cli.commands.doctor; import specify_cli.cli.commands.merge runs clean."
+    },
+    {
+      "criterion_id": "AC-006",
+      "description": "I-7: the compat safety predicates + __init__ argv fast-paths still fire (keyed on the byte-preserved doctor skills / restart-daemon / sparse-checkout names).",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli_gate/test_doctor_modes.py + tests/cli_gate/test_safe_commands.py (50 passed) + the restart-daemon argv fast-path test in test_doctor_restart_daemon.py.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Subcommand names owned by the @app.command shells; unchanged."
+    },
+    {
+      "criterion_id": "AC-007",
+      "description": "FR-003/FR-004: behavior-preserving extraction \u2014 exit-code contracts of all 16 subcommands unchanged; per-sibling coverage >=90%; ruff + mypy --strict clean.",
+      "proof_type": "automated_test",
+      "evidence": "full doctor suite 428 passed; per-sibling focused tests >=90% (doctor_shared 100%, doctrine_collect 92%, identity_audit 99%, command_surface 90%, mission_state 95%, coordination 91%, sparse_checkout 98%, workspace_husk 100%, daemon 100%); ruff + mypy --strict clean on all 10 modules.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "doctor.py reduced 3434 -> 1053 LOC (orchestration shim)."
+    },
+    {
+      "criterion_id": "AC-008",
+      "description": "#1623: the doctrine-health MODEL/RENDER/COLLECT triad is completed \u2014 the collectors #1623 left in doctor.py moved to _doctrine_collect (in-mission verdict reached).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 _doctrine_collect.py + the byte-pinned doctrine-selections snapshot (test_doctor_doctrine_selections_snapshot) green; issue-matrix #1623 verdict in-mission -> satisfied.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "_doctrine_health.py / _profile_health_render.py left untouched as required."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "I-6/H2: no module-level import of the merge module in _coordination_doctor (would reintroduce the doctor<->merge cycle).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -nE '^from specify_cli.cli.commands.merge' src/specify_cli/cli/commands/_coordination_doctor.py",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "No new blanket lint/type suppressions introduced to pass the gates; the pre-existing mission-state C901 suppression was removed.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE '# noqa: C901' src/specify_cli/cli/commands/doctor.py src/specify_cli/cli/commands/_mission_state_doctor.py",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    }
+  ]
+}

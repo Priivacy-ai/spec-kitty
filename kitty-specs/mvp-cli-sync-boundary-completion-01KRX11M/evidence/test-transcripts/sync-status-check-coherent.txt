@@ -1,0 +1,244 @@
+
+Spec Kitty Sync Status
+
+ Queue        2869 event(s)                                                     
+ SaaS Sync    Disabled (SPEC_KITTY_ENABLE_SAAS_SYNC=1)                          
+ Daemon       Running                                                           
+ Daemon URL   http://127.0.0.1:9404                                             
+ Daemon PID   88471                                                             
+ Daemon Port  9404                                                              
+ Sync Mode    Global daemon                                                     
+ WebSocket    Offline                                                           
+ Last Sync    Never                                                             
+ Auth         Disabled by feature flag                                          
+ Server URL   https://spec-kitty-dev.fly.dev                                    
+ Config File  /Users/robert/.spec-kitty/config.toml                             
+ Ping         Disabled                                                          
+              Hosted SaaS sync is not enabled on this machine. Set              
+              `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in.                        
+ Singleton    27 orphan daemon(s) detected                                      
+
+Other live ``run_sync_daemon`` processes detected outside the registered 
+singleton (#1071):
+  PID 15244: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.venv/
+bin/python3 -c from specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9417, '2c7918c6b2e98a216f2ac35cc4cc8e71')
+
+  PID 18654: 
+/Users/robert/.cache/uv/archive-v0/p8A7cjlVYmVjmRLeos_xH/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9427, 'b9ad162e1c6e1c550d9c5a13a01356f9')
+
+  PID 18994: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.venv/
+bin/python3 -c from specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9418, 'bf1383f98192a52ecf1c3cd84a12d388')
+
+  PID 37331: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-161351-nNtfEd/spec-kitty/.workt
+rees/backward-transition-cli-emit-01KRV8GC-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9406, '5bc2d3467a429d770755dcd4c38a75c2')
+
+  PID 41622: 
+/Users/robert/.cache/uv/archive-v0/p8A7cjlVYmVjmRLeos_xH/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9422, '796d5d8386325010cf0ecc52aede7c41')
+
+  PID 57854: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9407, '1e36672d33ea49f527506b9357bde184')
+
+  PID 58539: 
+/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/
+3.11/Resources/Python.app/Contents/MacOS/Python -c from specify_cli.sync.daemon 
+import run_sync_daemon
+run_sync_daemon(9400, '777f457019de7200cebf35b4d09d239c')
+
+  PID 58606: 
+/Users/robert/.cache/uv/archive-v0/p8A7cjlVYmVjmRLeos_xH/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9423, '2c3bc5d78fcbd9ab543e627a87aa9daf')
+
+  PID 60785: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9408, 'c3f9a02a354c2178e3bd14ac372f4bbb')
+
+  PID 61277: 
+/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3
+.14/Resources/Python.app/Contents/MacOS/Python -c from specify_cli.sync.daemon 
+import run_sync_daemon
+run_sync_daemon(9419, '272e274802ac7ed7abed0613fb26befc')
+
+  PID 61507: 
+/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/
+3.11/Resources/Python.app/Contents/MacOS/Python -c from specify_cli.sync.daemon 
+import run_sync_daemon
+run_sync_daemon(9402, 'f1d36889f715327bdcbc463d14908c38')
+
+  PID 63146: 
+/Users/robert/.cache/uv/archive-v0/p8A7cjlVYmVjmRLeos_xH/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9424, 'a0605b2ddb8924e759405e56176f9d70')
+
+  PID 63870: 
+/Users/robert/.cache/uv/archive-v0/p8A7cjlVYmVjmRLeos_xH/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9425, '6c3281ec43e18fff603e36b537440faa')
+
+  PID 64577: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9409, '131985c4ee12b684b489bcbd9eb878f3')
+
+  PID 64953: 
+/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/
+3.11/Resources/Python.app/Contents/MacOS/Python -c from specify_cli.sync.daemon 
+import run_sync_daemon
+run_sync_daemon(9403, 'cb71b846cfbeac7ec2c6a4b4cdeb3f7a')
+
+  PID 66206: 
+/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3
+.14/Resources/Python.app/Contents/MacOS/Python -c from specify_cli.sync.daemon 
+import run_sync_daemon
+run_sync_daemon(9420, '80a842ce0d93777259e68b41c3707387')
+
+  PID 67083: 
+/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3
+.14/Resources/Python.app/Contents/MacOS/Python -c from specify_cli.sync.daemon 
+import run_sync_daemon
+run_sync_daemon(9421, '4663334e60a948181b65ca390bb36096')
+
+  PID 67146: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9410, '2bdf2321e19ef92717e096838bac0255')
+
+  PID 67860: 
+/Users/robert/.cache/uv/archive-v0/p8A7cjlVYmVjmRLeos_xH/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9426, '64888a2507793bcb1d3db55d4c52fb46')
+
+  PID 70184: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9411, '8e283e69cd793d48e3b4a338aebf9434')
+
+  PID 73844: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9412, 'b57ff70d4acfadb896795d4cc97ec941')
+
+  PID 77493: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9413, 'f7ff12ec6e19f365b68751b74a6fa337')
+
+  PID 79537: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260515-212823-pP5AW7/spec-kitty/.venv/
+bin/python -c from specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9401, '98e9bff9f351b50ba5ccd817213a1900')
+
+  PID 81350: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9414, 'f8d33405e8e0199f9368e039a2f6bdbb')
+
+  PID 82009: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260515-212823-pP5AW7/spec-kitty/.venv/
+bin/python -c from specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9405, 'a210492635e12d5a168ff30ec76c1a30')
+
+  PID 85091: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.workt
+rees/mvp-sync-boundary-cli-01KRVCQS-lane-a/.venv/bin/python3 -c from 
+specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9415, '710172b1893635037740bb33d4468797')
+
+  PID 89067: 
+/Users/robert/spec-kitty-dev/spec-kitty-20260517-165635-WafwWc/spec-kitty/.venv/
+bin/python3 -c from specify_cli.sync.daemon import run_sync_daemon
+run_sync_daemon(9416, '0168207d0e7a3e6ca20281e0731752bb')
+
+Run `spec-kitty sync doctor` for a guided cleanup, or kill the rogue processes 
+manually.
+
+╭──────────── Queue Health ────────────╮
+│ Queue Depth: 2,869 / 100,000 (3%)    │
+│ Retried:    0                        │
+│ Oldest Event: 2d 16h ago             │
+│ Drain Ready: 0 ready / 2,869 blocked │
+╰──────────────────────────────────────╯
+                                 Drain Blockers                                 
+┏━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Reason        ┃ Count ┃ Remediation                                          ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ no_auth       │  2858 │ Not authenticated — run `spec-kitty auth login`.     │
+│ sync_disabled │    11 │ SaaS sync disabled for this checkout — run           │
+│               │       │ `spec-kitty sync opt-in`.                            │
+└───────────────┴───────┴──────────────────────────────────────────────────────┘
+ Retry Distribution  
+┏━━━━━━━━━━━┳━━━━━━━┓
+┃ Bucket    ┃ Count ┃
+┡━━━━━━━━━━━╇━━━━━━━┩
+│ 0 retries │  2869 │
+└───────────┴───────┘
+             Top Event Types              
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Event Type                     ┃ Count ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ MissionDossierArtifactIndexed  │  1881 │
+│ MissionDossierSnapshotComputed │   441 │
+│ WPStatusChanged                │   390 │
+│ BuildRegistered                │   117 │
+│ WPCreated                      │    16 │
+└────────────────────────────────┴───────┘
+
+                               Identity Boundary                                
+ Foreground:                                                                    
+   Package version      3.2.0rc11                                               
+   Executable path      /Users/robert/.local/share/uv/python/cpython-3.11.11-m… 
+   Source path          /Users/robert/spec-kitty-dev/spec-kitty-20260518-08280… 
+   Server URL           <unset>                                                 
+   Team/User            <unset>                                                 
+   Queue DB path        /Users/robert/.spec-kitty/queue.db                      
+ Daemon owner record:                                                           
+   Status               absent                                                  
+   PID                  <absent>                                                
+   Port                 <absent>                                                
+   Package version      <absent>                                                
+   Executable path      <absent>                                                
+   Source path          <absent>                                                
+   Server URL           <absent>                                                
+   Team/User            <absent>                                                
+   Queue DB path        <absent>                                                
+ Active queue:                                                                  
+   Path                 /Users/robert/.spec-kitty/queue.db                      
+   Event count          2869                                                    
+   Body upload cnt      1282                                                    
+ Legacy queue:                                                                  
+   Path                 /Users/robert/.spec-kitty/queue.db                      
+   Event count          2869                                                    
+   Body upload cnt      1282                                                    
+   Rows in scope        4151                                                    
+ Mismatches             0                                                       
+ Orphan records         0                                                       
+ Legacy queue rows      2869 event(s), 1282 body upload(s)                      
+ Mismatched fields      none                                                    
+ Orphan daemon records  0                                                       
+
+Identity boundary check FAILED:
+  ! legacy queue DB /Users/robert/.spec-kitty/queue.db has 4151 row(s) pending 
+migration (queue=2869, body_upload_queue=1282)
+

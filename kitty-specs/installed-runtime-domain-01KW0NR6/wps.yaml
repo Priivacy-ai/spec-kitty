@@ -1,0 +1,178 @@
+work_packages:
+  - id: WP01
+    title: "Domain types + history-store schema gate"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/compat/_detect/runtime.py"
+      - "src/specify_cli/compat/remediation.py"
+      - "src/specify_cli/compat/history.py"
+      - "src/specify_cli/compat/install_events.py"
+      - "tests/specify_cli/compat/test_runtime.py"
+      - "tests/specify_cli/compat/test_install_events.py"
+    requirement_refs:
+      - FR-001
+      - FR-004
+      - FR-012
+      - FR-016
+      - C-004
+      - C-008
+      - NFR-007
+      - NFR-010
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: null
+
+  - id: WP02
+    title: "UvReceiptReader + detect_runtime() shim + UpgradeAttemptStore"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/compat/_adapters/uv_receipt.py"
+      - "tests/specify_cli/compat/test_uv_receipt_reader.py"
+      - "tests/specify_cli/compat/test_history_store.py"
+    requirement_refs:
+      - FR-002
+      - FR-003
+      - FR-007
+      - FR-013
+      - FR-015
+      - FR-017
+      - NFR-001
+      - NFR-003
+      - NFR-005
+      - NFR-006
+      - NFR-009
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+
+    prompt_file: null
+
+  - id: WP03
+    title: "plan_remediation() + build_upgrade_hint() on planner"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/compat/upgrade_hint.py"
+      - "tests/specify_cli/compat/test_remediation.py"
+    requirement_refs:
+      - FR-005
+      - FR-006
+      - FR-009
+      - FR-011
+      - FR-018
+      - NFR-002
+      - NFR-004
+      - C-002
+      - C-005
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T014
+      - T015
+      - T016
+      - T017
+      - T018
+    prompt_file: null
+
+  - id: WP04
+    title: "Migrate review/__init__.py (delete Set A helpers)"
+    dependencies:
+      - WP03
+    owned_files:
+      - "src/specify_cli/cli/commands/review/__init__.py"
+      - "tests/specify_cli/compat/test_review_migration.py"
+    requirement_refs:
+      - FR-008
+      - FR-010
+      - FR-019
+      - NFR-008
+      - C-001
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T019
+      - T020
+      - T021
+      - T022
+    prompt_file: null
+
+  - id: WP05
+    title: "Migrate upgrade_ux.py + event emission + history records"
+    dependencies:
+      - WP04
+    owned_files:
+      - "src/specify_cli/readiness/upgrade_ux.py"
+      - "tests/specify_cli/readiness/test_upgrade_ux_migration.py"
+    requirement_refs:
+      - FR-008
+      - FR-010
+      - FR-012
+      - FR-014
+      - FR-020
+      - NFR-007
+      - NFR-008
+      - C-001
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+      - T028
+    prompt_file: null
+
+  - id: WP06
+    title: "Fold hardcoded upgrade strings in version_checker + schema_version (optional)"
+    dependencies:
+      - WP05
+    owned_files:
+      - "src/specify_cli/core/version_checker.py"
+      - "src/specify_cli/migration/schema_version.py"
+    requirement_refs:
+      - FR-021
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T029
+      - T030
+      - T031
+    prompt_file: null
+
+  - id: WP07
+    title: "Retire detect_install_method() shim — migrate all 7 call sites"
+    dependencies:
+      - WP06
+    owned_files:
+      - "src/specify_cli/cli/commands/upgrade.py"
+      - "src/specify_cli/compat/planner.py"
+      - "src/specify_cli/compat/__init__.py"
+    requirement_refs:
+      - FR-022
+      - NFR-008
+    plan_concern_refs:
+      - IC-07
+    subtasks:
+      - T032
+      - T033
+      - T034
+      - T035
+      - T036
+      - T037
+    prompt_file: null

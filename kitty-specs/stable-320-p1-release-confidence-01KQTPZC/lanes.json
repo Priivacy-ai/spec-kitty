@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "mission_slug": "stable-320-p1-release-confidence-01KQTPZC",
+  "mission_id": "01KQTPZCNQT0M1G3P1YFN2SE86",
+  "mission_branch": "kitty/mission-stable-320-p1-release-confidence-01KQTPZC",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_utils/status.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/status/progress.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_status_progress.py",
+        "tests/specify_cli/status/test_progress.py",
+        "tests/specify_cli/status/test_progress_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/check-spec-kitty-events-alignment.yml",
+        ".github/workflows/ci-quality.yml",
+        ".github/workflows/release-readiness.yml",
+        ".github/workflows/release.yml",
+        "scripts/release/check_exact_install.py",
+        "scripts/release/check_shared_package_drift.py",
+        "tests/release/test_check_shared_package_drift.py",
+        "tests/release/test_exact_install_drift_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/deferrals.md",
+        "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/issue-closure-notes.md",
+        "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/release-evidence.md",
+        "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/smoke-artifacts/**",
+        "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/smoke-evidence.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-05T00:21:33.654384+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03",
+    "WP04"
+  ]
+}

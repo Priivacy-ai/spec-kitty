@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "mission_slug": "mission-type-doctrine-authority-01KXH6GE",
+  "mission_id": "01KXH6GEGW9631GGZFK3FHS9MR",
+  "mission_branch": "kitty/mission-mission-type-doctrine-authority-01KXH6GE",
+  "target_branch": "mission/883-mission-type-governance-profiles",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission_types/documentation.yaml",
+        "src/doctrine/missions/mission_types/plan.yaml",
+        "src/doctrine/missions/mission_types/research.yaml",
+        "src/doctrine/missions/mission_types/software-dev.yaml",
+        "src/doctrine/missions/models.py",
+        "src/specify_cli/cli/commands/mission_type.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_key.py",
+        "src/specify_cli/mission.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/documentation/expected-artifacts.yaml",
+        "src/doctrine/missions/research/expected-artifacts.yaml",
+        "src/doctrine/missions/software-dev/expected-artifacts.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/__init__.py",
+        "src/charter/mission_type_profiles.py",
+        "src/runtime/next/prompt_builder.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "src/charter/scope_router.py",
+        "tests/charter/test_context.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_profile_repository.py",
+        "src/doctrine/base.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/step_contracts.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/documentation/actions/**",
+        "src/doctrine/missions/documentation/governance-profile.yaml",
+        "src/doctrine/styleguides/built-in/divio-type-discipline.styleguide.yaml",
+        "src/doctrine/styleguides/built-in/docs-accessibility.styleguide.yaml",
+        "src/doctrine/styleguides/built-in/docs-freshness-sla.styleguide.yaml",
+        "src/doctrine/styleguides/built-in/plain-language.styleguide.yaml",
+        "src/doctrine/styleguides/built-in/publication-authority.styleguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/research/actions/**",
+        "src/doctrine/missions/research/governance-profile.yaml",
+        "src/doctrine/procedures/built-in/spike-timebox-policy.procedure.yaml",
+        "src/doctrine/styleguides/built-in/research-citation-discipline.styleguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/plan/actions/**",
+        "src/doctrine/missions/plan/governance-profile.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/repository.py",
+        "src/specify_cli/dossier/indexer.py",
+        "src/specify_cli/dossier/manifest.py",
+        "src/specify_cli/sync/namespace.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e",
+        "lane-i"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "src/doctrine/graph.yaml",
+        "tests/doctrine/test_mission_type_governance_isolation.py",
+        "tests/integration/test_mission_type_resolution_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-f",
+        "lane-g",
+        "lane-h",
+        "lane-k"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-14T22:08:00.123742+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

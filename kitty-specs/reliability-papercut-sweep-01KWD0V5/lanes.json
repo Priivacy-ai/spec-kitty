@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "mission_slug": "reliability-papercut-sweep-01KWD0V5",
+  "mission_id": "01KWD0V560PCDYFGXYY8WNNJH0",
+  "mission_branch": "kitty/mission-reliability-papercut-sweep-01KWD0V5",
+  "target_branch": "fix/reliability-papercut-sweep",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/merge/git_probes.py",
+        "src/specify_cli/review/dirty_classifier.py",
+        "tests/mission_runtime/test_self_bookkeeping_allowlist.py",
+        "tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/migration/backfill_topology.py",
+        "tests/specify_cli/coordination/test_coord_never_created.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/lanes/compute.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/review/prompt_metadata.py",
+        "tests/runtime/test_runtime_bridge_identity.py",
+        "tests/specify_cli/events/test_decision_log.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/git_ops.py",
+        "src/specify_cli/core/paths.py",
+        "tests/agent/test_orchestrator_merge_target.py",
+        "tests/specify_cli/core/test_target_branch_primitive.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "tests/specify_cli/cli/commands/agent/test_lane_hygiene_content_diff.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/cli/commands/_workspace_husk_doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_coordination.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_materialization.py",
+        "src/specify_cli/post_merge/review_artifact_consistency.py",
+        "src/specify_cli/review/artifacts.py",
+        "tests/specify_cli/post_merge/test_approve_over_rejected_coord_artifact.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-06-30T20:59:16.393388+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

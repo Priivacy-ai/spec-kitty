@@ -1,0 +1,158 @@
+# Mission Runtime Schema Contract
+# This file defines the expected structure for mission-runtime.yaml in the plan mission
+
+mission:
+  key:
+    type: string
+    value: "plan"
+    description: "Unique identifier for this mission"
+    required: true
+
+  title:
+    type: string
+    description: "Human-readable title for the mission"
+    example: "Planning Mission"
+    required: true
+
+  description:
+    type: string
+    description: "Detailed description of the mission purpose"
+    example: "Plan and design software features through structured phases"
+    required: true
+
+  steps:
+    type: array[Step]
+    description: "Ordered list of steps in the mission"
+    minItems: 2
+    maxItems: 10
+    required: true
+
+    items:
+      Step:
+        id:
+          type: string
+          description: "Unique step identifier (lowercase, no spaces)"
+          pattern: "^[a-z_]+$"
+          examples: ["specify", "research", "plan", "review"]
+          required: true
+
+        name:
+          type: string
+          description: "Human-readable step name"
+          examples: ["Specify", "Research", "Plan", "Review"]
+          required: true
+
+        description:
+          type: string
+          description: "What this step accomplishes"
+          required: true
+
+        order:
+          type: integer
+          description: "Sequential order (1-based)"
+          minimum: 1
+          required: true
+
+        depends_on:
+          type: array[string]
+          description: "IDs of previous steps that must complete first (empty for first step)"
+          items: string
+          default: []
+          examples: [[], ["specify"], ["research"], ["plan"]]
+          required: false
+
+  runtime:
+    type: object
+    description: "Runtime execution configuration"
+    required: true
+
+    properties:
+      loop_type:
+        type: string
+        enum: ["sequential", "parallel", "conditional"]
+        description: "How steps are executed (sequential = one at a time)"
+        required: true
+
+      step_transition:
+        type: string
+        enum: ["automatic", "manual", "agent-decision"]
+        description: "How transitions between steps occur"
+        examples: ["manual (user calls next)", "automatic (no wait)"]
+        required: true
+
+      prompt_template_dir:
+        type: string
+        description: "Relative directory containing command templates"
+        default: "command-templates"
+        required: true
+
+      terminal_step:
+        type: string
+        description: "ID of the final step that completes the mission"
+        required: true
+
+---
+
+## Plan Mission Concrete Schema
+
+The `src/specify_cli/missions/plan/mission-runtime.yaml` file MUST match:
+
+```yaml
+mission:
+  key: "plan"
+  title: "Planning Mission"
+  description: "Plan and design software features through structured phases"
+
+  steps:
+    - id: "specify"
+      name: "Specify"
+      description: "Prepare and specify the feature definition"
+      order: 1
+      depends_on: []
+
+    - id: "research"
+      name: "Research"
+      description: "Gather research inputs and technical context"
+      order: 2
+      depends_on: ["specify"]
+
+    - id: "plan"
+      name: "Plan"
+      description: "Design and create planning artifacts"
+      order: 3
+      depends_on: ["research"]
+
+    - id: "review"
+      name: "Review"
+      description: "Review and validate planning artifacts"
+      order: 4
+      depends_on: ["plan"]
+
+  runtime:
+    loop_type: "sequential"
+    step_transition: "manual"
+    prompt_template_dir: "command-templates"
+    terminal_step: "review"
+```
+
+## Validation Rules
+
+The runtime bridge MUST validate:
+
+✅ mission.key == "plan"
+✅ steps array has exactly 4 items
+✅ steps are ordered 1-4
+✅ step IDs are: specify, research, plan, review
+✅ step names match IDs
+✅ dependencies form a linear chain (no cycles)
+✅ first step has no dependencies
+✅ each subsequent step depends on previous step only
+✅ runtime.terminal_step == "review"
+✅ runtime.loop_type == "sequential"
+✅ runtime.step_transition == "manual"
+
+## References
+
+- Data Model: [../data-model.md](../data-model.md)
+- Feature Spec: [../spec.md](../spec.md)
+- Implementation Plan: [../plan.md](../plan.md)

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "mission_slug": "sonar-qa-config-remediation-01KWYCX7",
+  "mission_id": "01KWYCX7F3MB2QQS7DQK901483",
+  "mission_branch": "kitty/mission-sonar-qa-config-remediation-01KWYCX7",
+  "target_branch": "feat/sonar-qa-config-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "scripts/ci/sonar_project_version.py",
+        "tests/ci/test_sonar_project_version.py",
+        "tests/ci/test_sonar_projectversion_wired.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "scripts/ci/sonarcloud_branch_review.sh",
+        "tests/ci/fixtures/sonarcloud/**",
+        "tests/ci/test_sonarcloud_branch_review.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/guides/coverage-signals.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-07T14:32:23.763241+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

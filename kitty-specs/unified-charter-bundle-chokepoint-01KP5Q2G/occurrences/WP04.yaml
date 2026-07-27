@@ -1,0 +1,152 @@
+# Occurrence-Classification Artifact for WP04 — migration
+# m_3_2_3_unified_bundle.py, FR-013 fixture-matrix tests, CHANGELOG entry.
+#
+# Contract: ../contracts/occurrence-artifact.schema.yaml
+# Spec:     ../spec.md (FR-007, FR-008, FR-013, FR-015; C-001, C-008,
+#           C-011, C-012; D-12)
+# Plan:     ../plan.md (WP2.4 — Migration)
+#
+# WP04 lands the narrowly-scoped migration module plus its FR-013
+# fixture-matrix test and CHANGELOG entry. The migration is explicitly
+# NOT a worktree scanner, a symlink remover, or a .gitignore reconciler
+# — those were artifacts of the pre-design-review scope that C-011 /
+# C-012 removed. This artifact pins the narrow scope via
+# ``must_be_zero_after``: the dropped field names MUST NOT appear in the
+# migration report, the migration module, or the test module.
+
+wp_id: WP04
+mission_slug: unified-charter-bundle-chokepoint-01KP5Q2G
+requires_merged:
+  - WP01
+  - WP02
+  - WP03
+verifier_command: >-
+  python scripts/verify_occurrences.py
+  kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/WP04.yaml
+
+categories:
+  # ---------------------------------------------------------------------
+  # 1. filesystem_path_literal — the migration module + tests + the
+  # CHANGELOG entry all land at predictable paths.
+  # ---------------------------------------------------------------------
+  - name: filesystem_path_literal
+    strings:
+      - "m_3_2_3_unified_bundle"
+    include_globs:
+      - "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py"
+      - "tests/upgrade/test_unified_bundle_migration.py"
+      - "CHANGELOG.md"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+    # File path appears literally: module filename (self-reference in
+    # docstring + MIGRATION_ID constant), test-file import, and the
+    # CHANGELOG entry's migration-name reference. Exact count is less
+    # interesting than presence — the verifier confirms occurrences
+    # exist at every declared site.
+    expected_final_count: 6
+    to_change:
+      - file: src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py
+        snippet: 'MIGRATION_ID = "m_3_2_3_unified_bundle"'
+        action: leave
+      - file: tests/upgrade/test_unified_bundle_migration.py
+        snippet: "from specify_cli.upgrade.migrations.m_3_2_3_unified_bundle import"
+        action: leave
+      - file: CHANGELOG.md
+        snippet: "Migration `m_3_2_3_unified_bundle`"
+        action: leave
+
+  # ---------------------------------------------------------------------
+  # 2. symbol_name — the migration class + the registry decorator.
+  # ---------------------------------------------------------------------
+  - name: symbol_name
+    strings:
+      - "UnifiedBundleMigration"
+    include_globs:
+      - "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py"
+      - "tests/upgrade/test_unified_bundle_migration.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+    expected_final_count: 4
+    to_change:
+      - file: src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py
+        snippet: "class UnifiedBundleMigration(BaseMigration):"
+        action: leave
+
+  # ---------------------------------------------------------------------
+  # 3. test_identifier — the FR-013 fixture matrix + invariants.
+  # ---------------------------------------------------------------------
+  - name: test_identifier
+    strings:
+      - "test_fixture_"
+    include_globs:
+      - "tests/upgrade/test_unified_bundle_migration.py"
+    exclude_globs: []
+    # Five fixture tests: a/b/c/d/e.
+    expected_final_count: 5
+    to_change: []
+
+# Carve-outs — files WP04 deliberately leaves untouched.
+carve_outs:
+  - path: src/specify_cli/core/worktree.py
+    action: leave
+    reason: >-
+      C-011: .kittify/memory + .kittify/AGENTS.md symlinks are
+      documented-intentional (src/specify_cli/templates/AGENTS.md:168-179).
+      The migration never scans or edits worktrees. Verification:
+      ``git diff kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G..HEAD -- src/specify_cli/core/worktree.py``
+      is empty.
+  - path: src/charter/compiler.py
+    action: leave
+    reason: >-
+      C-012: compiler pipeline owns references.yaml. Out of v1.0.0
+      manifest scope. Verification:
+      ``git diff kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G..HEAD -- src/charter/compiler.py``
+      is empty.
+  - path: .gitignore
+    action: leave
+    reason: >-
+      D-12: v1.0.0 manifest required entries match the current
+      .gitignore verbatim. The migration is a no-op on .gitignore.
+
+# Scope-narrowing verification: the dropped field names from the
+# pre-design-review migration schema MUST NOT appear in the migration
+# code, the migration report, or the test module. These are symbolic
+# literals — the verifier greps for them across src/specify_cli/upgrade/
+# and tests/upgrade/. Any hit fails WP04 review.
+must_be_zero_after:
+  - "worktrees_scanned"
+  - "symlinks_removed"
+  - "copies_removed"
+  - "git_exclude_entries_removed"
+  - "gitignore_reconciled"
+
+verification_notes: |
+  WP04 pins the narrow migration scope. The ``must_be_zero_after``
+  entries verify that the migration's JSON report does not include the
+  dropped fields from the pre-design-review schema, and that the
+  migration module never references them as variable names, attributes,
+  or documentation.
+
+  Design-review corrections embodied here:
+    * C-008: filename is ``m_3_2_3_unified_bundle.py`` (slots 3.2.0 /
+      3.2.1 / 3.2.2 are taken on main).
+    * C-011: no worktree scanning, no symlink removal.
+    * C-012: v1.0.0 manifest scope only — three derived files.
+    * D-12: .gitignore is not reconciled by the migration.
+
+  Idempotency: the migration is a clean no-op on second apply against
+  an already-upgraded project. Proof: fixture (c) test runs the
+  migration twice and asserts ``applied=False, chokepoint_refreshed=False,
+  errors=[]`` on the second run.
+
+permitted_exceptions:
+  - pattern: "scripts/verify_occurrences.py"
+    reason: "Verifier itself is allowed to mention forbidden literals."
+    owner_wp: WP04
+  - pattern: "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/"
+    reason: >-
+      Mission planning artifacts may reference dropped-field literals
+      (``worktrees_scanned``, etc.) as historical context.
+    owner_wp: WP04

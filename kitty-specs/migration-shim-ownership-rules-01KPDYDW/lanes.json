@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "mission_slug": "migration-shim-ownership-rules-01KPDYDW",
+  "mission_id": "01KPDYDWVF8W838HNJK7FC3S7T",
+  "mission_branch": "kitty/mission-migration-shim-ownership-rules-01KPDYDW",
+  "target_branch": "kitty/mission-migration-shim-ownership-rules-01KPDYDW",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "pyproject.toml",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/compat/**",
+        "tests/architectural/test_shim_registry_schema.py",
+        "tests/architectural/test_unregistered_shim_scanner.py",
+        "tests/doctor/test_shim_registry.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "architecture/2.x/06_migration_and_shim_rules.md",
+        "architecture/2.x/shim-registry.yaml"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-19T12:59:04.543020+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP03"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

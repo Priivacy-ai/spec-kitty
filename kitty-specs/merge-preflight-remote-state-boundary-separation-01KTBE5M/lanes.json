@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "mission_slug": "merge-preflight-remote-state-boundary-separation-01KTBE5M",
+  "mission_id": "01KTBE5MPD24VTVFHXKCF8MGHN",
+  "mission_branch": "kitty/mission-merge-preflight-remote-state-boundary-separation-01KTBE5M",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "architecture/3.x/adr/2026-06-05-1-merge-publish-layer-boundary.md",
+        "src/specify_cli/merge/push_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/merge/preflight.py",
+        "src/specify_cli/merge/state.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/merge/test_push_preflight.py",
+        "tests/merge/test_target_branch_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-05T09:37:34.516000+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

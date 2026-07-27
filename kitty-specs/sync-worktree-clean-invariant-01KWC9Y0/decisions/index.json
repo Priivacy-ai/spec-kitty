@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-30T13:05:19.476595Z",
+      "decision_id": "01KWCA4N3MEA9S89GB1QA6S4C0",
+      "final_answer": "Comprehensive, test-driven: fix every read/background path that can dirty the worktree, enforced by a parametrized no-dirty-tree test across the full command surface {emit, sync pull/push/run/status, tracker status/map list, dashboard daemon tick}.",
+      "input_key": "scope_breadth",
+      "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+      "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+      "opened_by": "cli",
+      "options": [
+        "Comprehensive test-driven",
+        "Narrow two-source only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How broad should the worktree-clean fix scope be?",
+      "rationale": "The bug was not isolated to one writer: identity resolution, tracker binding upgrades, and background fan-out all had read-like entrypoints that could mutate .kittify/config.yaml. A narrow fix would leave adjacent read paths free to reintroduce DIRTY_WORKTREE, so the mission chose a contract test over the full covered surface and kept write authority only at explicit init/bind boundaries.",
+      "resolved_at": "2026-06-30T13:05:20.763868Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.breadth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-30T13:15:41.940844Z",
+      "decision_id": "01KWCAQMZMNZW3N8VZ7WQ23V2H",
+      "final_answer": "Option C \u2014 Deterministic build_id. Keep project_uuid generation unchanged; when build_id is the missing field, derive it deterministically as uuid5(namespace, project_uuid + ':' + node_id) so resolve_identity returns a stable identity with NO config.yaml write. Migrate the 8 read-path ensure_identity call sites to resolve_identity; keep ensure_identity only at init/write-authorized boundaries. SaaS research confirms server-safety: Project keyed on (team,project_uuid); Build keyed on (team,project,build_id) with no global uniqueness and idempotent race-guarded find-or-create; missions/WPs never join on Build, so deterministic build_id is constraint-safe and drift cannot strand work. Rejected A (changes project_uuid semantics \u2014 clones collapse into one project, a deliberate product decision not to bundle into a P1 bug) and B (does not guarantee NFR-001 without a user-run backfill).",
+      "input_key": "identity_stability_approach",
+      "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+      "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+      "opened_by": "cli",
+      "options": [
+        "Hybrid deterministic build_id (C)",
+        "Deterministic minting (A)",
+        "Persist-at-write-boundary (B)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should read/emit paths keep project identity stable (NFR-001) without writing config.yaml, given with_defaults mints random uuid4 for project_uuid and build_id?",
+      "rationale": "project_uuid is the project identity anchor and must only be minted at a write-authorized boundary. Persisting on read would dirty the worktree, while deterministically minting project_uuid would change clone/project semantics. The safe compromise is to require an existing project_uuid on read paths, derive only the missing build_id from stable (project_uuid, node_id) inputs, and make uninitialized reads no-op or ask the operator to run init.",
+      "resolved_at": "2026-06-30T13:56:20.184919Z",
+      "resolved_by": null,
+      "slot_key": "plan.identity.stability-approach",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+  "version": 1
+}

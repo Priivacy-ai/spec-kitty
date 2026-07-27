@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-05T10:14:15.510814Z",
+      "decision_id": "01KWRWB0PPF5TQPNYF5D07XY3W",
+      "final_answer": "N=3 shards minimum, functional/module-level slicing (whole test files kept intact, not split), routed via dedicated pytest markers (not raw --ignore path lists) applied consistently across the arch-adversarial matrix.",
+      "input_key": "arch_shard_split",
+      "mission_id": "01KWRTB2ZF0DJYPQ09PYRNP013",
+      "mission_slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+      "opened_by": "cli",
+      "options": [
+        "N=2 (architectural-a / architectural-b+misc)",
+        "N=3 (architectural-a / architectural-b / misc)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should arch-adversarial be split: N=2 shards (dominant tests/architectural directory bisected in half + the three small dirs bundled with one half) or N=3 shards (tests/architectural bisected + a dedicated misc shard for adversarial/architecture/lint)?",
+      "rationale": null,
+      "resolved_at": "2026-07-05T10:18:43.356496Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.arch-shard-split",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWRTB2ZF0DJYPQ09PYRNP013",
+  "version": 1
+}

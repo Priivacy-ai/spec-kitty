@@ -1,0 +1,159 @@
+{
+ "mission_slug": "execution-context-unification-01KTPKST",
+ "mission_number": "",
+ "mission_type": "software-dev",
+ "overall_verdict": "pass",
+ "criteria": [
+  {
+   "criterion_id": "FR-001",
+   "description": "MissionExecutionContext as doc-09 fragment/op-composite; mid8 single-derived; CommitTarget",
+   "proof_type": "automated_test",
+   "evidence": "WP03 approved; parity identity/branch fragment tests green",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-002",
+   "description": "All command surfaces route through one resolver; duplicate resolvers collapsed",
+   "proof_type": "automated_test",
+   "evidence": "WP04+WP05 approved; SC-4 one-resolver; parity green",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-003",
+   "description": "Status & durable state behind MissionStatus OHS facade (adoption)",
+   "proof_type": "code_review",
+   "evidence": "WP02 approved; no raw primary/coord status reads remain",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-004",
+   "description": "Single artifact-placement invariant (one destination_ref)",
+   "proof_type": "automated_test",
+   "evidence": "WP06 approved; SC-2 mutation-tested (paused 01KTNWFC blockers don't reproduce)",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-005",
+   "description": "Runtime writers never re-materialize tracked status during a git op",
+   "proof_type": "automated_test",
+   "evidence": "WP07 approved; SC-5 real-rebase no-clobber",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-006",
+   "description": "Retrospect read/write on canonical surface; record committable",
+   "proof_type": "automated_test",
+   "evidence": "WP08 cycle-2 approved; #1735 routed + #1771 record relocated (git check-ignore test)",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-007",
+   "description": "Merge coord-topology seams consume the context",
+   "proof_type": "code_review",
+   "evidence": "WP08 audit \u2014 seams already strangled by WP02-07",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-008",
+   "description": "Status visibility parity + lock-serialized coord resolve",
+   "proof_type": "automated_test",
+   "evidence": "WP02 approved; #1572/#1737/#1357; concurrency test",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-009",
+   "description": "analysis-report staleness keying context-aware",
+   "proof_type": "automated_test",
+   "evidence": "WP06 approved; #1764",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-010",
+   "description": "occurrence-map models multi-path structural moves (backward-compatible)",
+   "proof_type": "automated_test",
+   "evidence": "WP10 approved; C-OMAP-1 backward-compat test",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-011",
+   "description": "Parity ratchet extended (dual-CWD + flattened); FULLY GREEN",
+   "proof_type": "automated_test",
+   "evidence": "WP01 + F-008 closeout fb9e1a5 \u2014 21 passed, 0 xfailed",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-012",
+   "description": "Missed seams: mid8/target_branch single-derivation, prompt_source, no-silent-fallback, materialize stale-key",
+   "proof_type": "automated_test",
+   "evidence": "WP03/WP04/WP07 approved; F-001/F-003/F-004 regression tests",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-013",
+   "description": "Dead status_service symbols removed (strangler-ordered)",
+   "proof_type": "code_review",
+   "evidence": "WP09 approved \u2014 2 deleted, 3 de-exported (premise partly stale post-#1614)",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Verified at closeout; owning WP approved via independent review."
+  },
+  {
+   "criterion_id": "FR-014",
+   "description": "Sync daemon + dashboard facade consumers; singleton one-per-host",
+   "proof_type": "automated_test",
+   "evidence": "WP11 (dashboard read-only) + WP12 (singleton) approved; #1789/#1071",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Added post-scaffold (FR-014/015 folded in during mission); verified at closeout."
+  },
+  {
+   "criterion_id": "FR-015",
+   "description": "Three duplicate orphan-reapers collapsed to one; liveness/health-probe deduped",
+   "proof_type": "automated_test",
+   "evidence": "WP12 approved; SC-7 one-reaper assertion",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata (per-WP) + closeout",
+   "verified_at": "2026-06-10T05:44:03Z",
+   "notes": "Added post-scaffold (FR-014/015 folded in during mission); verified at closeout."
+  }
+ ],
+ "negative_invariants": []
+}

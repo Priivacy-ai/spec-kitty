@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "sync-rejection-classification-and-queue-retry-hygiene-01KRC3TV",
+  "mission_id": "01KRC3TVXE9PZG7MSA6V7KZ5V1",
+  "mission_branch": "kitty/mission-sync-rejection-classification-and-queue-retry-hygiene-01KRC3TV",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/batch.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/sync/test_batch_retry_hygiene.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-11T18:16:06.111642+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

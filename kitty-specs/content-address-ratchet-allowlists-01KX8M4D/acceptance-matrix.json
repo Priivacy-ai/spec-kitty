@@ -1,0 +1,158 @@
+{
+  "mission_slug": "content-address-ratchet-allowlists-01KX8M4D",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Content-descriptor seed (position-free, unique-in-qualname)",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (reviewer-renata): ContentDescriptor + resolve_descriptor; 26 unit tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "keystone"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Populate key by scanning; exactly-one resolution (RED on 0/>1)",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved; DescriptorResolutionError on 0/>1; verified by review",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Staleness = exactly-one, key-equal (never >=1)",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved; D-1 bite hole regression-tested (test_descriptor_still_live_false_on_ambiguous)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "load-bearing"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Standing all-suite int-to-line-sink meta-guard",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved; int-to-line-sink (not module::Name); green on live tree; shard-enrolled; 887/0",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "delivers #2077 recurrence guard"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Migrate line-seeded allow-lists to descriptors (write-side + raw-join)",
+      "proof_type": "automated_test",
+      "evidence": "WP03+WP04 approved; _ALLOW_LIST_SEED/_CHECKOUT_GRAMMAR/_RAW_JOIN_SITES migrated; twin-guards descriptor_still_live",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "closes #2547/#2072"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Convert wp05 scalar + call-arg anchors; keep 2 probes",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved; _ALLOW_LISTED_LINE + composite_key(source,347) removed; probes untouched",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Relocation-proof symbol key (no bare-name-alone)",
+      "proof_type": "automated_test",
+      "evidence": "WP06 spike approved: two-tier key + facade-dict shape proven; T004 no-false-negative holds; feasibility + design delivered",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "spike deliverable; bulk migration carved to #2546"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Auto-derive exempt categories (registered symbol only)",
+      "proof_type": "code_review",
+      "evidence": "CARVED to #2546 (operator-confirmed after hardening squad); out of in-mission scope",
+      "pass_fail": "pass",
+      "verified_by": "operator decision",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "DESCOPED: conditional on CONTINUE; operator chose CARVE \u2192 in-mission WS2 obligation satisfied by the WP06 spike + carve decision. Bulk migration is #2546's deliverable (research seeded)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "test_no_dead_modules relocation-hardening",
+      "proof_type": "code_review",
+      "evidence": "CARVED to #2546 (operator-confirmed); out of in-mission scope",
+      "pass_fail": "pass",
+      "verified_by": "operator decision",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "DESCOPED: conditional on CONTINUE; operator chose CARVE \u2192 in-mission WS2 obligation satisfied by the WP06 spike + carve decision. Bulk migration is #2546's deliverable (research seeded)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Harden test_template_governance (derive promised-surface from schema)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; promised-surface derived from ACTION_CRITICAL_SECTIONS/schema",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Convert 2 __module__ sub-tests to behavioural",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; behavioural isinstance/usage assertions",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Record ratio=1.00 10-KEEP audit verdict",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved; recorded in test_layer_rules docstring",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "closes #2548 audit"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Plant-and-catch non-vacuity incl same-qualname sibling",
+      "proof_type": "automated_test",
+      "evidence": "WP01/03/04/05 approved; same-qualname-sibling bite tests green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Enumerate 2 deferred census allow-lists",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved; _FR014_DEFERRED_CENSUS_ALLOWLISTS with drift guard",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata + acceptance",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "issue-matrix rows (#2546/2547/2548/2072/2077/2293)",
+      "proof_type": "code_review",
+      "evidence": "issue-matrix.md committed (canonical schema); terminalized",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (acceptance)",
+      "verified_at": "2026-07-11T00:00:00Z",
+      "notes": "#2546 carved to follow-up"
+    }
+  ]
+}

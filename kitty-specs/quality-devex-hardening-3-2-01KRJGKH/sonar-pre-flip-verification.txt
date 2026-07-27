@@ -1,0 +1,128 @@
+WP07 — T037 Sonar Gate Pre-Flip Verification
+============================================
+Verification run: 2026-05-14
+Agent: claude:sonnet:python-pedro:implementer
+Branch: main
+Project: Priivacy-ai_spec-kitty
+
+=== Quality Gate ===
+status: ERROR
+
+metric                              status   comparator    threshold      actual
+new_reliability_rating              OK       GT                    1           1
+new_security_rating                 OK       GT                    1           1
+new_maintainability_rating          OK       GT                    1           1
+new_coverage                        ERROR    LT                   80        58.9
+new_duplicated_lines_density        OK       GT                    3         0.5
+new_security_hotspots_reviewed      ERROR    LT                  100         0.0
+
+=== HALT DECISION ===
+
+T037 FAILED. Two conditions are ERROR:
+  1. new_coverage: 58.9% (threshold: 80%) — BELOW THRESHOLD by 21.1 percentage points
+  2. new_security_hotspots_reviewed: 0% (threshold: 100%) — all 4 hotspots unreviewed
+
+T038 (trigger flip) is NOT executed. The Sonar gate must be OK before the flip lands.
+
+=== Coverage Gap Analysis (Item B) ===
+
+The new_coverage is 58.9% across 356,486 new lines (19,192 uncovered of 46,642 to-cover).
+
+Top contributing files below 80% threshold (highest uncovered line count first):
+
+  FILE                                                         | UNC  | TOT  | COV%  | NOTE
+  -------------------------------------------------------------|------|------|-------|------
+  src/specify_cli/cli/commands/charter.py                      |  645 |  891 | 27.6% | WP05 scope (see below)
+  src/specify_cli/cli/commands/doctor.py                       |  418 |  464 |  9.9% | not in any WP's owned scope
+  src/specify_cli/next/_internal_runtime/engine.py             |  303 |  502 | 39.6% | WP05 scope
+  src/specify_cli/doc_analysis/gap_analysis.py                 |  273 |  339 | 19.5% | not in WP scope
+  src/doctrine/drg/migration/extractor.py                      |  239 |  261 |  8.4% | not in WP scope
+  src/specify_cli/dashboard/static/dashboard/dashboard.js      |  192 |  192 |  0.0% | JS — not instrumentable by pytest
+  src/specify_cli/cli/commands/charter_bundle.py               |  177 |  208 | 14.9% | WP05 scope
+  src/specify_cli/orchestrator_api/commands.py                 |  176 |  203 | 13.3% | not in WP scope
+  src/specify_cli/cli/commands/agent/config.py                 |  171 |  187 |  8.6% | WP05 scope
+  src/specify_cli/next/_internal_runtime/discovery.py          |  103 |  159 | 35.2% | WP05 scope
+  src/specify_cli/core/file_lock.py                            |  125 |  177 | 29.4% | WP01/02 scope
+  src/specify_cli/auth/loopback/callback_server.py             |   61 |   89 | 31.5% | WP03 scope
+
+WP05 coverage delta (per mission review board):
+  - next/_internal_runtime/engine.py:      29% (WP05 reported)
+  - cli/commands/charter.py:               25% (WP05 reported)
+  - cli/commands/agent/config.py:          51% (WP05 reported)
+  - cli/commands/charter_bundle.py:        64% (WP05 reported)
+  - next/_internal_runtime/discovery.py:   74% (WP05 reported)
+
+These WP05-touched files alone account for the bulk of the 21.1pp shortfall.
+The Sonar new_coverage metric is computed over ALL new lines on the branch,
+not per-WP; every low-coverage file contributed to the 58.9% aggregate.
+
+=== Hotspot Review Gap ===
+
+4 hotspots remain TO_REVIEW in the Sonar UI:
+  - AZ12J6Ty_lKMvCuaCZvj  callback_server.py:115  encrypt-data
+  - AZ12J6Ty_lKMvCuaCZvk  callback_server.py:115  encrypt-data (duplicate)
+  - AZ0QUf1nmOedRvCFo5GK  dashboard/server.py:75  encrypt-data
+  - AZ1ZVYN5Ubbqgtr7cvkz  sync/daemon.py:556      encrypt-data
+
+Draft rationales for all four are in sonar-hotspot-rationales.md (WP07 section).
+The operator must apply these in the Sonar UI before the hotspot condition can be OK.
+This is a Sonar UI action — the implementer cannot do this programmatically.
+
+=== Three Options for Operator Decision (Coverage Gap) ===
+
+OPTION A — Defer T038 flip until a follow-up WP raises coverage.
+
+  Scope: A new WP (or WP05 patch) must add tests for the low-coverage files before
+  the flip. Estimated effort: significant — the files are large (charter.py: 891
+  lines, engine.py: 502 lines) and currently at 25-40% coverage. To lift the
+  aggregate above 80%, approximately 7,000+ new covered lines are needed.
+
+  Risk: Coverage work may introduce test-environment dependencies or require
+  architectural changes to make the CLI commands testable in isolation.
+
+  Recommended if: The operator wants full gate-green before enabling push Sonar.
+
+OPTION B — Renegotiate Sonar threshold (tiered or lowered).
+
+  Approach: In SonarCloud project settings, reduce new_coverage threshold
+  temporarily (e.g., to 60% matching the actual new-code coverage), or configure
+  per-file exclusions for untestable surfaces (dashboard.js, generated code).
+
+  The research artifact (work/findings/595-sonar-coverage-debt.md) documents
+  Pedro's prior recommendation against resetting the new-code baseline. Tiering
+  (different thresholds per file type) is the middle path.
+
+  Risk: Lowering the gate makes future coverage regressions invisible. The gate
+  loses its teeth as a quality signal.
+
+  Recommended if: The operator accepts a temporary threshold relaxation and plans
+  to tighten it incrementally.
+
+OPTION C — Reset the new-code baseline.
+
+  Approach: In SonarCloud, set a new baseline date so the new-code window starts
+  from the current commit. Sonar re-computes new_coverage against only code added
+  after that date, which would show a different (likely higher) coverage percentage
+  for fresh additions.
+
+  Risk (Pedro's note from research §2): Resetting the baseline hides accumulated
+  coverage debt. Subsequent PRs will appear green even if large debt remains in
+  "old code." This is the operator's decision to make.
+
+  Recommended if: The operator concludes the current debt is an acceptable baseline
+  and wants a clean slate for new contributions.
+
+=== T038 Status ===
+
+HELD. T038 will not be executed until:
+  (a) new_coverage is OK (via option A, B, or C above), AND
+  (b) new_security_hotspots_reviewed is OK (operator applies 4 rationales in Sonar UI).
+
+=== Next Steps for Operator ===
+
+1. Choose one of Option A/B/C for the coverage gap.
+2. Apply the 4 loopback hotspot rationales from sonar-hotspot-rationales.md in the Sonar UI.
+3. After both conditions are resolved, re-run T037 verification and then execute T038.
+
+The trigger flip commit is ready to author (the change is 5 lines in ci-quality.yml);
+it is not committed because T037 must pass first.

@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "mission_slug": "stable-320-release-blocker-cleanup-01KQW4DF",
+  "mission_id": "01KQW4DFAWRMK2PM22CHZYBJ26",
+  "mission_branch": "kitty/mission-stable-320-release-blocker-cleanup-01KQW4DF",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/batch.py",
+        "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/sync/diagnostics.py",
+        "tests/e2e/test_mission_create_clean_output.py",
+        "tests/sync/test_final_sync_diagnostics.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "tests/git_ops/test_mark_status_pipe_table.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_mark_status.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "target_repository": "spec-kitty-end-to-end-testing",
+      "target_repo_root": "/Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing",
+      "path_base": "target_repo_root",
+      "write_scope": [
+        "scenarios/contract_drift_caught.py",
+        "support/nested_env.py",
+        "tests/test_nested_env_helper.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "tests/merge/test_merge_preflight_mission_branch.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-05T13:51:05.248300+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

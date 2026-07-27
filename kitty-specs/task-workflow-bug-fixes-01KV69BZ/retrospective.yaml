@@ -1,0 +1,102 @@
+schema_version: 1
+mission_id: 01KV69BZEHXDSGGMR6J3QN0J2E
+mission_slug: task-workflow-bug-fixes-01KV69BZ
+mission_number: 139
+friendly_name: 'Task Workflow Bug Fixes: Spec Path and Error Hint'
+mission_type: software-dev
+target_branch: fix/task-workflow-bug-fixes
+created_at: '2026-06-15T19:48:18.099542+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-15T19:48:18.099542+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-007
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-007
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-008
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but data-model.md is missing. A data model document clarifies domain entity relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/tasks/WP01-map-requirements-spec-path-fix.md
+- id: e-006
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/tasks/WP02-validate-glob-matches-create-intent-hint.md
+- id: e-007
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/status.events.jsonl
+- id: e-008
+  kind: file
+  path: kitty-specs/task-workflow-bug-fixes-01KV69BZ/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

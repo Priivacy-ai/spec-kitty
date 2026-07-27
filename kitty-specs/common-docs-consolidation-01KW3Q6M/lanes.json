@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "mission_slug": "common-docs-consolidation-01KW3Q6M",
+  "mission_id": "01KW3Q6MP9900A9824JDTQPA8P",
+  "mission_branch": "kitty/mission-common-docs-consolidation-01KW3Q6M",
+  "target_branch": "docs/2165-consolidation-research",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "architecture/3.x/adr/2026-06-27-1-common-docs-reconciliation.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/directive/**",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/styleguide/**",
+        "src/doctrine/tactic/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "scripts/docs/related_validator.py",
+        "tests/docs/test_related_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "scripts/docs/check_docs_freshness.py",
+        "scripts/docs/inventory_lockfile.py",
+        "tests/docs/test_inventory_lockfile.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        ".agents/skills/spec-kitty.common-docs-find/**",
+        ".agents/skills/spec-kitty.common-docs-scaffold/**",
+        ".agents/skills/spec-kitty.common-docs-write/**",
+        ".kittify/command-skills-manifest.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "scripts/docs/anti_sprawl_ratchet.py",
+        "tests/docs/test_anti_sprawl_ratchet.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-27T06:19:09.517227+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

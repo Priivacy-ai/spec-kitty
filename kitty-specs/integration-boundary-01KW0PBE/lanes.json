@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "mission_slug": "integration-boundary-01KW0PBE",
+  "mission_id": "01KW0PBEA9RK5HDWZQSBSCT2JR",
+  "mission_branch": "kitty/mission-integration-boundary-01KW0PBE",
+  "target_branch": "feat/integration-boundary",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/invocation/__init__.py",
+        "src/specify_cli/invocation/adapters.py",
+        "src/specify_cli/invocation/propagator.py",
+        "tests/invocation/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/__init__.py",
+        "src/specify_cli/core/adapters.py",
+        "src/specify_cli/core/mission_creation.py",
+        "tests/core/**",
+        "tests/status/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/tracker/__init__.py",
+        "src/specify_cli/tracker/origin_consumer.py",
+        "tests/sync/**",
+        "tests/tracker/**"
+      ],
+      "predicted_surfaces": [
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "architecture/"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-06-26T01:25:16.388371+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

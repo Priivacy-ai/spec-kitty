@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "mission_slug": "release-320-workflow-reliability-01KQKV85",
+  "mission_id": "01KQKV85G0STH8VF1RB66TW8DJ",
+  "mission_branch": "kitty/mission-release-320-workflow-reliability-01KQKV85",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "src/specify_cli/cli/commands/review.py",
+        "src/specify_cli/merge/**",
+        "src/specify_cli/ownership/**",
+        "src/specify_cli/policy/commit_guard.py",
+        "src/specify_cli/policy/commit_guard_hook.py",
+        "src/specify_cli/post_merge/**",
+        "src/specify_cli/review/**",
+        "src/specify_cli/status/**",
+        "src/specify_cli/sync/**",
+        "src/specify_cli/workspace/context.py",
+        "tests/contract/test_body_sync.py",
+        "tests/integration/review/**",
+        "tests/integration/test_merge_resume.py",
+        "tests/integration/test_mission_review_contract_gate.py",
+        "tests/merge/**",
+        "tests/policy/test_commit_guard.py",
+        "tests/post_merge/**",
+        "tests/reliability/fixtures/**",
+        "tests/reliability/test_workflow_fixture_smoke.py",
+        "tests/review/**",
+        "tests/runtime/test_workspace_context_unit.py",
+        "tests/status/**",
+        "tests/sync/**",
+        "tests/tasks/test_move_task_git_validation_unit.py",
+        "tests/tasks/test_pre_commit_wp_guard_unit.py",
+        "tests/unit/status/test_review_claim_transition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-02T08:16:37.609270+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}

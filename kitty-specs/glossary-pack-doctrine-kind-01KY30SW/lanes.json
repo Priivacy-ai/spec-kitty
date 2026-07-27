@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "mission_slug": "glossary-pack-doctrine-kind-01KY30SW",
+  "mission_id": "01KY30SWEX1F4TVWW969P9H69Z",
+  "mission_branch": "kitty/mission-glossary-pack-doctrine-kind-01KY30SW",
+  "target_branch": "research/glossary-doctrine-artefact",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/artifact_kinds.py",
+        "src/doctrine/drg/models.py",
+        "tests/architectural/test_glossary_pack_urn.py",
+        "tests/doctrine/test_glossary_pack_kind.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/glossary_packs/__init__.py",
+        "src/doctrine/glossary_packs/models.py",
+        "src/doctrine/glossary_packs/repository.py",
+        "src/doctrine/service.py",
+        "tests/architectural/test_glossary_pack_boundary.py",
+        "tests/doctrine/glossary_packs/test_models.py",
+        "tests/doctrine/glossary_packs/test_repository.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/glossary_pack.graph.yaml",
+        "src/doctrine/glossary_packs/built-in/**",
+        "tests/architectural/test_glossary_pack_no_regression.py",
+        "tests/architectural/test_glossary_pack_parity.py",
+        "tests/doctrine/glossary_packs/test_builtin_pack_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/activations.py",
+        "src/charter/consistency_check.py",
+        "src/charter/drg.py",
+        "src/charter/pack_context.py",
+        "src/doctrine/drg/org_pack_loader.py",
+        "tests/charter/test_glossary_pack_activation.py",
+        "tests/charter/test_pack_context.py",
+        "tests/charter/test_pack_manager.py",
+        "tests/charter/test_pack_manager_catalog.py",
+        "tests/doctrine/test_org_pack_augmentation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_doctrine_collect.py",
+        "src/specify_cli/cli/commands/_doctrine_health.py",
+        "tests/doctrine/test_doctrine_health_glossary_pack.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-21T19:33:33.012845+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.local/schemas/widen-pending-entry/v1",
+  "title": "WidenPendingEntry",
+  "description": "One line in widen-pending.jsonl. Represents a widened DecisionPoint that the interview has moved past (user chose [c]ontinue). Owned by specify_cli.widen.state.WidenPendingStore.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "decision_id",
+    "mission_slug",
+    "question_id",
+    "question_text",
+    "entered_pending_at",
+    "widen_endpoint_response"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Must be 1 for this version of the sidecar format."
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ULID of the DecisionPoint in the decisions index."
+    },
+    "mission_slug": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Mission slug, e.g. 'cli-widen-mode-and-write-back-01KPXFGJ'."
+    },
+    "question_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dotted step_id of the interview question, e.g. 'charter.technical_constraints'."
+    },
+    "question_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Full human-readable question text as shown in the interview prompt."
+    },
+    "entered_pending_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp when the user pressed [c] and the question was parked."
+    },
+    "widen_endpoint_response": {
+      "type": "object",
+      "description": "Raw JSON response from POST /api/v1/decision-points/{id}/widen (spec-kitty-saas #110). Stored for debug/audit. Exact shape owned by #110.",
+      "required": ["decision_id", "widened_at"],
+      "properties": {
+        "decision_id": {
+          "type": "string"
+        },
+        "widened_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "slack_thread_url": {
+          "type": ["string", "null"]
+        },
+        "invited_count": {
+          "type": ["integer", "null"]
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

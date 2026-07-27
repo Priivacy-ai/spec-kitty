@@ -1,0 +1,39 @@
+contract: review-prompt-metadata
+version: 1
+mission: release-320-workflow-reliability-01KQKV85
+prompt_identity:
+  required_fields:
+    - invocation_id
+    - repo_root
+    - mission_id
+    - mission_slug
+    - work_package_id
+    - lane_worktree
+    - mission_branch
+    - lane_branch
+    - base_ref
+    - prompt_path
+    - created_at
+path_requirements:
+  uniqueness_components:
+    - repo_root_hash_or_safe_identifier
+    - mission_id_or_slug
+    - work_package_id
+    - invocation_id
+validation:
+  - id: RPM-001
+    statement: Dispatcher compares requested repo_root, mission, work_package_id, and worktree with prompt metadata before review launch.
+  - id: RPM-002
+    statement: Any metadata mismatch fails closed and prevents reviewer dispatch.
+  - id: RPM-003
+    statement: Diff commands use base_ref, mission_branch, and lane_branch from canonical state, not slug reconstruction.
+test_fixtures:
+  - concurrent_prompts_two_repos
+  - concurrent_prompts_two_missions
+  - mission_slug_prefixed_with_mission
+failure_diagnostics:
+  required_fields:
+    - diagnostic_code
+    - requested_context
+    - prompt_context
+    - prompt_path

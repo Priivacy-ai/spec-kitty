@@ -1,0 +1,85 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "spec-kitty://charter/synthesizer/manifest/v1"
+title: "SynthesisManifest (Charter Synthesizer) v1"
+description: >
+  Authoritative commit marker for a synthesis run. Written last in the
+  stage→promote pipeline (KD-2). The manifest itself lives under the
+  synthesis BOOKKEEPING tree (.kittify/charter/) but lists content paths
+  under the synthesized DOCTRINE tree (.kittify/doctrine/) — it is the
+  explicit bridge between the two trees. The live tree is authoritative
+  only when this file is present AND all listed content_hash values match
+  on-disk artifact bytes at their .kittify/doctrine/ paths.
+  Location: .kittify/charter/synthesis-manifest.yaml
+  Cross-reference: data-model.md §E-6.
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - created_at
+  - run_id
+  - adapter_id
+  - adapter_version
+  - artifacts
+properties:
+  schema_version:
+    type: string
+    const: "1"
+  mission_id:
+    type: [string, "null"]
+    description: "Optional: mission that ran the synthesis. ULID."
+  created_at:
+    type: string
+    format: date-time
+  run_id:
+    type: string
+    description: "ULID. Matches the staging dir under .kittify/charter/.staging/."
+  adapter_id:
+    type: string
+    description: >
+      Primary adapter id for the run. May be empty string for mixed-identity
+      runs (per-artifact provenance is authoritative in that case).
+  adapter_version:
+    type: string
+    description: >
+      Primary adapter version for the run. May be empty string for
+      mixed-identity runs.
+  artifacts:
+    type: array
+    items:
+      $ref: "#/$defs/ManifestArtifactEntry"
+$defs:
+  ManifestArtifactEntry:
+    type: object
+    additionalProperties: false
+    required:
+      - kind
+      - slug
+      - path
+      - provenance_path
+      - content_hash
+    properties:
+      kind:
+        type: string
+        enum: [directive, tactic, styleguide]
+      slug:
+        type: string
+        pattern: "^[a-z][a-z0-9-]*$"
+      path:
+        type: string
+        description: >
+          Repo-relative path to the synthesized artifact YAML under the
+          .kittify/doctrine/ tree. Filename matches the existing repository
+          glob for the artifact kind:
+            directive  → .kittify/doctrine/directives/<NNN>-<slug>.directive.yaml
+            tactic     → .kittify/doctrine/tactics/<slug>.tactic.yaml
+            styleguide → .kittify/doctrine/styleguides/<slug>.styleguide.yaml
+      provenance_path:
+        type: string
+        description: >
+          Repo-relative path to the provenance sidecar under the
+          .kittify/charter/ tree:
+            .kittify/charter/provenance/<kind>-<slug>.yaml
+      content_hash:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+        description: "blake3-256 hex over the emitted artifact YAML bytes."

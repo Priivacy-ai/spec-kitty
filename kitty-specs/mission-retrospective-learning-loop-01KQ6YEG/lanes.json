@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "mission_slug": "mission-retrospective-learning-loop-01KQ6YEG",
+  "mission_id": "01KQ6YEGT4YBZ3GZF7X680KQ3V",
+  "mission_branch": "kitty/mission-mission-retrospective-learning-loop-01KQ6YEG",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11"
+      ],
+      "write_scope": [
+        ".kittify/doctrine/overlays/calibration-documentation.yaml",
+        ".kittify/doctrine/overlays/calibration-erp-custom.yaml",
+        ".kittify/doctrine/overlays/calibration-research.yaml",
+        ".kittify/doctrine/overlays/calibration-software-dev.yaml",
+        "architecture/calibration/README.md",
+        "architecture/calibration/documentation.md",
+        "architecture/calibration/erp-custom.md",
+        "architecture/calibration/research.md",
+        "architecture/calibration/software-dev.md",
+        "src/doctrine/agent_profiles/shipped/retrospective-facilitator.yaml",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/missions/documentation/actions/retrospect.yaml",
+        "src/doctrine/missions/research/actions/retrospect.yaml",
+        "src/doctrine/missions/software-dev/actions/retrospect.yaml",
+        "src/specify_cli/calibration/__init__.py",
+        "src/specify_cli/calibration/inequality.py",
+        "src/specify_cli/calibration/walker.py",
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/doctrine_synthesizer/__init__.py",
+        "src/specify_cli/doctrine_synthesizer/apply.py",
+        "src/specify_cli/doctrine_synthesizer/conflict.py",
+        "src/specify_cli/doctrine_synthesizer/provenance.py",
+        "src/specify_cli/next/_internal_runtime/retrospective_hook.py",
+        "src/specify_cli/next/_internal_runtime/retrospective_terminus.py",
+        "src/specify_cli/retrospective/__init__.py",
+        "src/specify_cli/retrospective/cli.py",
+        "src/specify_cli/retrospective/events.py",
+        "src/specify_cli/retrospective/gate.py",
+        "src/specify_cli/retrospective/lifecycle.py",
+        "src/specify_cli/retrospective/mode.py",
+        "src/specify_cli/retrospective/reader.py",
+        "src/specify_cli/retrospective/schema.py",
+        "src/specify_cli/retrospective/summary.py",
+        "src/specify_cli/retrospective/writer.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/status/reducer.py",
+        "tests/architectural/test_no_prompt_filtering_added.py",
+        "tests/architectural/test_retrospective_events_boundary.py",
+        "tests/calibration/__init__.py",
+        "tests/calibration/test_inequality.py",
+        "tests/calibration/test_walker.py",
+        "tests/cli/test_agent_retrospect_synthesize.py",
+        "tests/doctrine/test_retrospective_drg.py",
+        "tests/doctrine_synthesizer/__init__.py",
+        "tests/doctrine_synthesizer/test_apply.py",
+        "tests/doctrine_synthesizer/test_conflict_failclosed.py",
+        "tests/doctrine_synthesizer/test_provenance.py",
+        "tests/integration/retrospective/__init__.py",
+        "tests/integration/retrospective/conftest.py",
+        "tests/integration/retrospective/fixtures/**",
+        "tests/integration/retrospective/test_autonomous_terminus_e2e.py",
+        "tests/integration/retrospective/test_hic_terminus_e2e.py",
+        "tests/integration/retrospective/test_lifecycle_hook.py",
+        "tests/integration/retrospective/test_next_mission_sees_change.py",
+        "tests/integration/retrospective/test_silent_auto_run_blocked.py",
+        "tests/integration/retrospective/test_silent_skip_blocked.py",
+        "tests/retrospective/__init__.py",
+        "tests/retrospective/test_events_shapes.py",
+        "tests/retrospective/test_gate_decision.py",
+        "tests/retrospective/test_mode_detection.py",
+        "tests/retrospective/test_reader_tolerance.py",
+        "tests/retrospective/test_reducer_integration.py",
+        "tests/retrospective/test_schema_roundtrip.py",
+        "tests/retrospective/test_summary_cli.py",
+        "tests/retrospective/test_summary_tolerance.py",
+        "tests/retrospective/test_writer_atomicity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "architecture/2.x/adr/2026-04-27-1-retrospective-gate-shared-module.md",
+        "docs/migration/retrospective-events-upstream.md",
+        "docs/retrospective-learning-loop.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-27T08:35:06.810669+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP12"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP02"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP07"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP02"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP01"
+      },
+      {
+        "wp_a": "WP11",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP11 depends on WP06"
+      }
+    ],
+    "total_merges": 10,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 10
+    }
+  }
+}

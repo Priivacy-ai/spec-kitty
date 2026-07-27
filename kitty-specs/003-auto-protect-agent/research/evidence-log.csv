@@ -1,0 +1,8 @@
+Date,Finding,Source,Impact,Decision
+2025-11-10,"Existing ensure_gitignore_entries() function at line 689","src/specify_cli/__init__.py:689","High - Core functionality to build upon","Reuse and extend this function"
+2025-11-10,"handle_codex_security() only protects .codex/ directory","src/specify_cli/__init__.py:729-780","High - Shows current limitation","Refactor into comprehensive system"
+2025-11-10,"Agent directory map exists at lines 1835-1848","src/specify_cli/__init__.py:1835-1848","High - Provides complete agent list","Use as basis for registry"
+2025-11-10,"Existing test coverage for gitignore management","tests/test_gitignore_management.py","Medium - Shows testing patterns","Extend test suite"
+2025-11-10,".github/ directory dual use (Actions + Copilot)","src/specify_cli/__init__.py:1845","Medium - Special handling needed","Document dual use, add with warning"
+2025-11-10,"Marker comment system already in place","src/specify_cli/__init__.py:705","Low - Established pattern","Maintain consistency"
+2025-11-10,"Line ending preservation logic exists","src/specify_cli/__init__.py:699-724","Low - Platform compatibility","Preserve existing approach"

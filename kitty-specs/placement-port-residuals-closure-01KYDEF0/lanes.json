@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "mission_slug": "placement-port-residuals-closure-01KYDEF0",
+  "mission_id": "01KYDEF0F4H4HNFMXQG26AS4DE",
+  "mission_branch": "kitty/mission-placement-port-residuals-closure-01KYDEF0",
+  "target_branch": "placement-port-residuals",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "src/specify_cli/migration/runtime_state_cutover.py",
+        "tests/specify_cli/migration/test_cutover_partition_decouple.py",
+        "tests/specify_cli/migration/test_runtime_state_cutover_placement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/mission_runtime/__init__.py",
+        "src/mission_runtime/write_target_degrade.py",
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/git/bookkeeping_commit.py",
+        "tests/architectural/test_mission_runtime_surface.py",
+        "tests/mission_runtime/test_write_target_degrade.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/retrospective/generator.py",
+        "tests/specify_cli/retrospective/test_load_traces_deleted_coord.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_repair.py",
+        "tests/architectural/test_no_raw_mission_spec_paths.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_cli_golden_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/executor.py",
+        "tests/cli/commands/test_merge_status_commit.py",
+        "tests/integration/test_merge_lane_planning_data_loss.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/status_transition.py",
+        "tests/specify_cli/coordination/test_status_transition_degrade.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/_placement_whole_tree_scan.py",
+        "tests/architectural/test_guard_capability_call_sites.py",
+        "tests/architectural/test_no_write_side_rederivation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-26T20:33:56.778882+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

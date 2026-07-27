@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-17T20:20:42.218287Z",
+      "decision_id": "01KXRVT2KA1Y3M4XQAYVQ3HHXF",
+      "final_answer": "fail-closed-preflight: keep the 4-file content-hash; when references.yaml is absent surface a single actionable 'run charter generate first' preflight instead of a dead-end None. Leaves #2773's references.yaml deprecation clean (no stopgap). No dual-edit, no manifest derived-set change.",
+      "input_key": "references_hash_fork",
+      "mission_id": "01KXRSDNM9G3QG0E8QSGXZX8YE",
+      "mission_slug": "doctrine-activation-freshness-01KXRSDN",
+      "opened_by": "cli",
+      "options": [
+        "fail-closed-preflight",
+        "narrow-to-triad",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should #2758 fix the references.yaml permanent-stale (references.yaml is in the 4-file content-hash but sync never writes it)?",
+      "rationale": null,
+      "resolved_at": "2026-07-17T20:26:26.596912Z",
+      "resolved_by": null,
+      "slot_key": "plan.freshness.references-hash-fork",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KXRSDNM9G3QG0E8QSGXZX8YE",
+  "version": 1
+}

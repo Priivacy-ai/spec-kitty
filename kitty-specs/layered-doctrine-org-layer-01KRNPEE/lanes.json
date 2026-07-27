@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
+  "mission_id": "01KRNPEE69Q0T540T7PRWSZ6CB",
+  "mission_branch": "kitty/mission-layered-doctrine-org-layer-01KRNPEE",
+  "target_branch": "feat/org-doctrine-layer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        "docs/explanation/org-doctrine-layer.md",
+        "docs/how-to/create-an-org-doctrine-pack.md",
+        "docs/migration/doctrine-local-overlay-to-org-layer.md",
+        "docs/toc.yml",
+        "src/charter/_drg_helpers.py",
+        "src/charter/compiler.py",
+        "src/charter/context.py",
+        "src/charter/interview.py",
+        "src/charter/reference_resolver.py",
+        "src/charter/synthesizer/project_drg.py",
+        "src/charter/synthesizer/resynthesize_pipeline.py",
+        "src/charter/synthesizer/validation_gate.py",
+        "src/charter/synthesizer/write_pipeline.py",
+        "src/doctrine/agent_profiles/built-in/**",
+        "src/doctrine/agent_profiles/repository.py",
+        "src/doctrine/base.py",
+        "src/doctrine/directives/built-in/**",
+        "src/doctrine/directives/repository.py",
+        "src/doctrine/drg/__init__.py",
+        "src/doctrine/drg/loader.py",
+        "src/doctrine/mission_step_contracts/built-in/**",
+        "src/doctrine/mission_step_contracts/repository.py",
+        "src/doctrine/paradigms/built-in/**",
+        "src/doctrine/paradigms/repository.py",
+        "src/doctrine/procedures/built-in/**",
+        "src/doctrine/procedures/repository.py",
+        "src/doctrine/service.py",
+        "src/doctrine/styleguides/built-in/**",
+        "src/doctrine/styleguides/repository.py",
+        "src/doctrine/tactics/built-in/**",
+        "src/doctrine/tactics/repository.py",
+        "src/doctrine/toolguides/built-in/**",
+        "src/doctrine/toolguides/repository.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "src/specify_cli/doctrine/__init__.py",
+        "src/specify_cli/doctrine/config.py",
+        "src/specify_cli/doctrine/org_charter.py",
+        "src/specify_cli/doctrine/pack_assembler.py",
+        "src/specify_cli/doctrine/pack_validator.py",
+        "src/specify_cli/doctrine/snapshot.py",
+        "src/specify_cli/doctrine/sources/__init__.py",
+        "src/specify_cli/doctrine/sources/api_source.py",
+        "src/specify_cli/doctrine/sources/git_source.py",
+        "src/specify_cli/doctrine/sources/https_source.py",
+        "src/specify_cli/doctrine/sources/protocol.py",
+        "tests/doctrine/drg/test_loader_multifile.py",
+        "tests/doctrine/test_base_org_layer.py",
+        "tests/doctrine/test_service_org_layer.py",
+        "tests/specify_cli/doctrine/__init__.py",
+        "tests/specify_cli/doctrine/test_config.py",
+        "tests/specify_cli/doctrine/test_org_charter.py",
+        "tests/specify_cli/doctrine/test_pack_assembler.py",
+        "tests/specify_cli/doctrine/test_pack_validator.py",
+        "tests/specify_cli/doctrine/test_snapshot.py",
+        "tests/specify_cli/doctrine/test_sources.py",
+        "tests/specify_cli/test_provenance_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-15T13:16:12.265552+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP03"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP03"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP05"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP03"
+      }
+    ],
+    "total_merges": 9,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 9
+    }
+  }
+}

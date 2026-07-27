@@ -1,0 +1,81 @@
+# C-4 — Banned Terms YAML v1 Schema
+#
+# This file is a YAML-formatted schema description, NOT the production banned_terms.yaml
+# that ships in src/charter/neutrality/. It documents the contract that implementations
+# must satisfy. A JSON Schema representation may be added in a future mission if needed.
+#
+# Covers: FR-008, FR-014
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "contracts:banned-terms.v1"
+title: "Banned Terms Config v1"
+description: >
+  Declares regex and literal terms that the neutrality lint rejects in
+  generic-scoped doctrine artifacts. Contributors edit this file directly to
+  extend the ban list (NFR-006 self-documenting).
+
+type: object
+required: [schema_version, terms]
+additionalProperties: false
+
+properties:
+  schema_version:
+    type: string
+    const: "1"
+    description: "Version gate; v2 may introduce breaking schema changes."
+
+  terms:
+    type: array
+    minItems: 1
+    description: "The list of banned-term entries. Empty list disables the lint entirely — if that is desired, delete the lint test instead."
+    items:
+      type: object
+      required: [id, kind, pattern, rationale]
+      additionalProperties: false
+
+      properties:
+        id:
+          type: string
+          pattern: "^[A-Z]{2,4}-\\d{3}$"
+          description: "Stable unique identifier. Convention: LANG-NNN (e.g., PY-001). MUST be unique within terms[]."
+
+        kind:
+          type: string
+          enum: [literal, regex]
+          description: >
+            literal: exact substring match (case-sensitive by default).
+            regex:   Python re.MULTILINE pattern. Must compile at lint startup.
+
+        pattern:
+          type: string
+          minLength: 1
+          description: "The literal substring or regex source. Regex is validated at lint startup."
+
+        rationale:
+          type: string
+          minLength: 8
+          description: "Human-readable justification. Forces contributors to explain any new ban."
+
+        added_in:
+          type: string
+          description: "Release version when the term was introduced. Informational only."
+
+        case_sensitive:
+          type: boolean
+          default: true
+          description: "If false, literal matches and regex patterns ignore case."
+
+# Initial payload example (ships in src/charter/neutrality/banned_terms.yaml):
+#
+# schema_version: "1"
+# terms:
+#   - id: PY-001
+#     kind: literal
+#     pattern: "pytest"
+#     rationale: "Primary offender in pre-3.1.5 generic prompts; Python test framework name."
+#     added_in: "3.2.0"
+#   - id: PY-003
+#     kind: regex
+#     pattern: "\\bpip install\\b"
+#     rationale: "Python package-install command; leaks Python assumption into generic guidance."
+#     added_in: "3.2.0"

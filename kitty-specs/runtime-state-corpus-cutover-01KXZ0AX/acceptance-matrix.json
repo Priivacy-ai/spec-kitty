@@ -1,0 +1,449 @@
+{
+  "mission_slug": "runtime-state-corpus-cutover-01KXZ0AX",
+  "mission_number": "185",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The runtime-state backfill is exposed through an invocable CLI with a write-free dry-run mode.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py::test_dry_run_writes_nothing and ::test_cutover_repo_walks_whole_corpus",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Focused migration suite and dogfood corpus guard passed during closeout."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Backfill verification is fail-closed on count or value parity mismatches.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py::test_refuse_to_flip_on_conflicting_seed_leaves_meta_untouched and ::test_strip_before_verify_maps_to_error_no_flip",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Fault-injected conflicting and missing runtime state abort before the phase flip."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "A mission flips to snapshot authority only after seed and verification succeed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py::test_happy_path_seeds_verifies_and_flips, ::test_malformed_wp_aborts_without_phase_flip, and ::test_flip_phase_is_byte_idempotent",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Malformed authored data and verification failures leave meta.json unflipped."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Runtime reads and writes use the event-derived snapshot unconditionally.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py and tests/specify_cli/migration/test_dogfood_corpus_backfilled.py",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "The complete eligible dogfood corpus is backfilled and verifies under unconditional snapshot reads."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The phase-1 snapshot-authority predicate and its public facade alias are deleted.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_predicate_has_zero_occurrences_in_owned_files and tests/architectural/test_2093_authority_invariant.py::test_phase1_gate_is_deleted_from_the_status_facade",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "The distinct legacy lane-mirror gate remains intact per C-004."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Review feedback and done evidence are reconstructed from event state without frontmatter fallback.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_emit.py done-evidence contract coverage and tests/specify_cli/cli/commands/agent/test_workflow_canonical_cleanup.py",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Event-only review and completion paths are exercised by the consolidated status suite."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Former bypass consumers resolve evicted runtime fields through the canonical snapshot seam.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_workpackage_runtime_properties_are_snapshot_sourced and tests/specify_cli/status/test_reconstruct_wp_view.py::test_three_consumers_return_same_resolved_state",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Dashboard, task status, and WorkPackage consumers share the reconstructed view."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The #2093 invariant rejects every frontmatter runtime-authority read, including attribute access.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_2093_authority_invariant.py::test_no_frontmatter_authority_reader_survives and ::test_detector_flags_dashboard_style_frontmatter_attribute_read",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "The sanctioned-reader set is empty and both scalar and attribute-read mutations are detected."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The status test suite represents the single post-cutover authority model.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status and tests/specify_cli/status full consolidated suite",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Legacy split expectations were replaced with unconditional snapshot and event-only assertions."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The upgrade migration is auto-discovered, idempotent, fresh-install safe, and fail-closed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_runtime_state_backfill_migration.py and tests/architectural/test_ratchet_baselines.py",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "The migration inventory ratchet was advanced with the registered runtime-state migration."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Inert WP metadata runtime fields and cosmetic field-order slots are removed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_inert_field_reduction.py::test_removed_field_has_zero_live_readers and ::test_removed_field_is_gone_from_schema",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "The optional reduction was completed; retained snapshot carrier fields and status_phase remain covered."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "One canonical reader reconstructs dynamic WP state and keeps authored recommendations distinct.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_reconstruct_wp_view.py::test_reader_surfaces_resolved_and_authored_as_distinct_groups, ::test_three_consumers_return_same_resolved_state, and ::test_workpackage_reads_runtime_from_separate_status_partition",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Coord topology reads planning metadata from primary and runtime state from the status partition."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Actual role, profile, profile version, model, and provider are event-recorded and reduce latest-wins.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_resolved_binding_linkage.py::test_latest_wins_across_implement_then_review_claim and tests/specify_cli/status/test_resolved_binding_reducer.py::test_resolved_binding_folds_latest_wins",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Resolved binding is never copied from authored frontmatter. Historical authored-derived seed rows were precisely removed by their deterministic resolved_binding seed IDs."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Dispatch-resolved model and profile data are threaded into implement, review, and reassignment claims.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_resolved_binding_linkage.py::test_implement_claim_records_resolver_binding_not_frontmatter and tests/status/test_work_package_lifecycle.py::test_real_implement_and_review_claims_persist_structured_latest_binding",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Bare claims persist explicit absence; supplied invocation identifiers fail closed when unresolved."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Resolved binding round-trips in structured transition actors and atomic annotations for SaaS fan-out.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_saas_resolved_binding_fanout.py, tests/specify_cli/status/test_resolved_binding_linkage.py, and tests/status/test_work_package_lifecycle.py::test_real_implement_and_review_claims_persist_structured_latest_binding",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Local transition plus annotation persistence is atomic; optional first-class package fan-out remains version-gated."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Subtask completion is event-sourced and canonical task templates no longer emit checkbox rows.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_subtask_rows_snapshot.py, tests/specify_cli/status/test_infer_subtasks_primary.py, and tests/specify_cli/core/test_subtask_rows_snapshot.py::test_source_tasks_templates_have_no_checkbox_rows",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T13:16:08Z",
+      "notes": "Authored roster discovery fails closed while completion comes only from snapshot subtasks."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Parity mismatches abort before phase flip with zero tolerated data loss.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py::test_refuse_to_flip_on_conflicting_seed_leaves_meta_untouched and ::test_strip_before_verify_maps_to_error_no_flip",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Both value conflict and missing-state fault injection leave meta.json byte-stable."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Backfill and upgrade migration reruns are deterministic no-ops.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py::test_idempotent_rerun_seeds_and_flips_nothing and tests/specify_cli/upgrade/test_runtime_state_backfill_migration.py::test_apply_twice_is_a_clean_noop_second_time",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Deterministic seed IDs make the second run byte-stable."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "Runtime transitions leave work-package Markdown byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_claim_writes_zero_bytes_to_wp_file and ::test_inner_state_annotation_writes_zero_bytes_to_wp_file",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Claim and off-axis annotation paths are both event-only."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "The status and architectural gates add no new regressions or suppressions; changed Python is Ruff- and Mypy-clean.",
+      "proof_type": "automated_test",
+      "evidence": "1243 status tests passed; 63 final architectural ratchet tests passed; all mission-owned findings from the broad and architectural runs passed focused reruns; Ruff passed; strict Mypy passed for all 37 changed Python files; tests/architectural/test_no_dead_symbols.py reports only specify_cli.core.env::SYNC_DISABLE_ENV_VARS",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "No blanket suppression was added. The sole remaining dead-symbol failure is identically red at the mission baseline commit 77e1a2fa6c096909425c5920f23830e2ef778882; this record does not claim the entire architectural suite is green."
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Upgrade verification failure aborts with an actionable mission-specific mismatch and no phase flip.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_runtime_state_backfill_migration.py::test_apply_aborts_on_first_verify_failure_naming_mission_and_mismatch",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The migration stops at the first invalid mission instead of partially flipping it."
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "Corpus backfill is a linear local filesystem pass with no network I/O.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/migration/runtime_state_cutover.py::cutover_repo and tests/specify_cli/migration/test_dogfood_corpus_backfilled.py",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The implementation walks each mission once and uses only local event/frontmatter reads and writes."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "Cutover order is backfill, fail-closed verify, phase flip, fallback deletion, then reduction.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py and tests/specify_cli/merge/test_done_evidence_snapshot.py::test_event_only_mission_reaches_done_with_snapshot_evidence",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Snapshot evidence is proven before the legacy fallback is absent."
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "The production end state is unconditional; the phase-1 predicate is deleted.",
+      "proof_type": "negative_invariant",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_predicate_has_zero_occurrences_in_owned_files and ::test_facade_export_import_raises",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "No runtime toggle remains for snapshot authority."
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "Migration writes resolve through the canonical mission directory and never the repository root.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_runtime_state_cutover.py::test_flip_target_resolved_via_canonicalize_feature_dir and ::test_no_repo_root_artifacts_after_cutover",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The library selector also rejects unsafe path segments before composition."
+    },
+    {
+      "criterion_id": "C-004",
+      "description": "Frontmatter lane mirroring remains separately scoped and was not evicted by this mission.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_lane_mirror_activation_does_not_change_lane_read",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The legacy lane-mirror mechanism remains; a distinct follow-up is required for its removal."
+    },
+    {
+      "criterion_id": "C-005",
+      "description": "No-data-loss claims are bounded to reduced count/value parity, not historical timestamp fidelity.",
+      "proof_type": "code_review",
+      "evidence": "kitty-specs/runtime-state-corpus-cutover-01KXZ0AX/data-model.md and tests/specify_cli/migration/test_runtime_state_cutover.py::test_verify_phase_ok_after_seed",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Seed IDs are content-namespaced and clamped timestamps are not consumed as completion chronology."
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "The wired backfill symbols leave the deferred dead-symbol allowance without widening suppressions.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_dead_symbols.py and tests/architectural/test_2093_authority_invariant.py::test_no_frontmatter_authority_reader_survives",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Mission-owned symbols are live or unexported; the invariant sanctioned-reader set is empty. The unrelated baseline SYNC_DISABLE_ENV_VARS finding remains."
+    },
+    {
+      "criterion_id": "C-007",
+      "description": "Resolved binding originates from dispatch/profile resolution, never copied authored frontmatter.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_resolved_binding_linkage.py::test_implement_claim_records_resolver_binding_not_frontmatter",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Unavailable resolver fields use explicit absence sentinels rather than fabricated values."
+    },
+    {
+      "criterion_id": "C-008",
+      "description": "Authored recommendations and resolved actuals remain distinctly labelled in the canonical WP view.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_reconstruct_wp_view.py::test_reader_surfaces_resolved_and_authored_as_distinct_groups",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "An authored-only WP exposes an empty resolved group."
+    },
+    {
+      "criterion_id": "C-009",
+      "description": "The field-authority decision is ratified in the ADR of record before the event vocabulary.",
+      "proof_type": "code_review",
+      "evidence": "docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md and docs/context/identity.md",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The addendum defines authored intent and resolved binding as separate canonical authorities."
+    },
+    {
+      "criterion_id": "C-010",
+      "description": "Historical checkbox completion was seeded before task-template checkbox removal.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_subtask_rows_snapshot.py::test_backfill_seed_reader_still_folds_legacy_checkboxes and tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_all_eligible_missions_snapshot_non_empty_and_verify_ok",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Migration keeps its legacy checkbox seed reader while runtime/template authorities no longer use checkboxes."
+    },
+    {
+      "criterion_id": "C-011",
+      "description": "Historical authored assignment is never fabricated into resolved-actual seed events.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_corpus_contains_no_authored_derived_resolved_binding_seed_rows and tests/specify_cli/status/test_resolved_binding_linkage.py authored-only legacy coverage",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Closeout precisely removed 1,154 deterministic fabricated rows across 185 missions; the regression forbids those namespaced seed IDs from returning without touching genuine runtime events."
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "Every eligible corpus mission verifies with zero parity mismatch before cutover.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_all_eligible_missions_snapshot_non_empty_and_verify_ok and conflicting-seed fault injection",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The committed dogfood corpus is non-vacuously populated and verifies."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "The phase-1 authority predicate and facade export have zero source occurrences.",
+      "proof_type": "negative_invariant",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_predicate_has_zero_occurrences_in_owned_files",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The symbol and alias are deleted."
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "The #2093 invariant has an empty tolerated-reader set and mutation coverage.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_2093_authority_invariant.py::test_no_frontmatter_authority_reader_survives and mutation detector tests",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Both scalar and attribute-access frontmatter authority mutations are detected."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "Runtime state transitions write zero bytes to WP Markdown.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_cutover_byte_stability.py::test_claim_writes_zero_bytes_to_wp_file and ::test_inner_state_annotation_writes_zero_bytes_to_wp_file",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The unconditional event-only path is byte-stable."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "Upgrade migration is idempotent, fresh-install safe, and fail-closed with actionable diagnostics.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_runtime_state_backfill_migration.py",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Auto-discovery, ordering, second-run no-op, fresh-install no-op, and failure abort are covered."
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Mission-owned status, architecture, lint, and type gates introduce no new red.",
+      "proof_type": "automated_test",
+      "evidence": "1243 status tests and 63 final architectural ratchet tests passed; Ruff and strict Mypy passed for all 37 changed Python source files",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The complete dead-symbol file retains only the exact mission-baseline SYNC_DISABLE_ENV_VARS failure; no blanket green claim is made."
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "Dashboard, task-status board, and WorkPackage share one reconstructed resolved state.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_reconstruct_wp_view.py::test_three_consumers_return_same_resolved_state",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Parity covers lane, agent, assignee, shell identity, subtasks, review, role, profile/version, model, and provider."
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "Implement then review claim reconstructs the latest actual while preserving authored intent and WP bytes.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_reconstruct_wp_view.py::test_latest_actual_after_review_claim_with_zero_bytes_to_wp_file and tolerate-absent coverage",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Review P2/M2 wins; authored P0/M0 stays separately labelled; never-claimed resolved actual stays empty."
+    },
+    {
+      "criterion_id": "SC-009",
+      "description": "The invariant flags dashboard-style attribute access and passes only after snapshot rerouting.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_2093_authority_invariant.py::test_detector_flags_dashboard_style_frontmatter_attribute_read and ::test_no_frontmatter_authority_reader_survives",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "The mutation guard is non-vacuous."
+    },
+    {
+      "criterion_id": "SC-010",
+      "description": "Subtask completion is snapshot-only; guards and templates no longer depend on checkbox rows.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_subtask_rows_snapshot.py and command-renderer/twelve-agent snapshot suites",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Guard block/unblock, fail-closed roster resolution, dashboard progress, checkbox absence, mark-status guidance, and generated surfaces are covered."
+    },
+    {
+      "criterion_id": "SC-011",
+      "description": "Resolved binding records the genuine dispatch model or explicit absence, never an authored fabrication.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_resolved_binding_linkage.py and tests/status/test_work_package_lifecycle.py::test_real_implement_and_review_claims_persist_structured_latest_binding",
+      "pass_fail": "pass",
+      "verified_by": "codex:closeout-review",
+      "verified_at": "2026-07-21T15:04:39Z",
+      "notes": "Invalid explicit binding inputs fail closed; unavailable optional fields clear prior values through explicit absence sentinels."
+    }
+  ],
+  "negative_invariants": []
+}

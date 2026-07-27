@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.priivacy.ai/contracts/charter/synthesis-envelope.schema.json",
+  "title": "Charter Synthesis CLI JSON Envelope",
+  "description": "Stable contract for stdout of `spec-kitty charter synthesize ... --json`. The four contracted fields are required on every success and dry-run envelope. Legacy compatibility fields are permitted but not required.",
+  "type": "object",
+  "required": ["result", "adapter", "written_artifacts", "warnings"],
+  "properties": {
+    "result": {
+      "type": "string",
+      "enum": ["success", "failure", "dry_run"],
+      "description": "Outcome label. 'dry_run' is used only when the run was invoked with --dry-run."
+    },
+    "adapter": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier of the synthesis adapter (e.g. 'fixture')."
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Adapter version string (semver, model name, or snapshot identifier)."
+        }
+      }
+    },
+    "written_artifacts": {
+      "type": "array",
+      "description": "Artifacts staged or promoted by this run. May be empty. For result == 'dry_run', byte-equal entries to what a real run with the same SynthesisRequest would produce. Sourced from typed staged-artifact entries; never derived from kind:slug reconstruction.",
+      "items": {
+        "$ref": "#/$defs/WrittenArtifact"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Non-fatal warnings (e.g. evidence-gathering warnings). Stored inside the envelope so callers reading only stdout still see them. May be empty.",
+      "items": { "type": "string" }
+    },
+    "target_kind": { "type": "string", "description": "Legacy compatibility field (optional)." },
+    "target_slug": { "type": "string", "description": "Legacy compatibility field (optional)." },
+    "inputs_hash": { "type": "string", "description": "Legacy compatibility field (optional)." },
+    "adapter_id": { "type": "string", "description": "Legacy compatibility field (optional, duplicates adapter.id)." },
+    "adapter_version": { "type": "string", "description": "Legacy compatibility field (optional, duplicates adapter.version)." }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "WrittenArtifact": {
+      "type": "object",
+      "required": ["path", "kind", "slug", "artifact_id"],
+      "additionalProperties": true,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative POSIX path of the staged-or-promoted artifact. For result == 'dry_run', byte-equal to the path the non-dry-run would write."
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Doctrine kind (e.g. 'directive', 'tactic', 'styleguide')."
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Slug component used in the artifact filename."
+        },
+        "artifact_id": {
+          "type": ["string", "null"],
+          "description": "Concrete artifact identifier. Non-null for kinds that carry an ID. MUST NOT be the placeholder 'PROJECT_000' on user-visible output.",
+          "not": { "const": "PROJECT_000" }
+        }
+      }
+    }
+  }
+}

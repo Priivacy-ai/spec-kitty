@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "merge-dry-run-blocker",
+  "title": "merge --dry-run --json missing-branch blocker",
+  "description": "Schema for spec-kitty merge --dry-run --json output when the expected mission branch is absent (FR-016, FR-017). The ready field is false; blocker, expected_branch, and remediation are required.",
+  "type": "object",
+  "required": ["ready", "blocker", "expected_branch", "remediation"],
+  "additionalProperties": true,
+  "properties": {
+    "ready": {
+      "type": "boolean",
+      "const": false,
+      "description": "Always false when any blocker is present."
+    },
+    "blocker": {
+      "type": "string",
+      "const": "missing_mission_branch",
+      "description": "Stable identifier for this blocker type."
+    },
+    "expected_branch": {
+      "type": "string",
+      "pattern": "^kitty/mission-.+",
+      "description": "Full local branch name that was expected to exist."
+    },
+    "remediation": {
+      "type": "string",
+      "description": "Complete shell command the user can copy-paste to create the missing branch."
+    }
+  },
+  "examples": [
+    {
+      "ready": false,
+      "blocker": "missing_mission_branch",
+      "expected_branch": "kitty/mission-stable-320-release-blocker-cleanup-01KQW4DF",
+      "remediation": "git branch kitty/mission-stable-320-release-blocker-cleanup-01KQW4DF abc1234def5"
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "mission_slug": "mission-step-creatability-01KXQA6R",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "SC-001",
+      "description": "All four built-in mission types — including documentation/research/plan — are creatable end-to-end (mission create succeeds; /plan-setup resolves), closing the #2689 regression.",
+      "proof_type": "automated_test",
+      "evidence": "WP02/03/04 authored per-type template refs (artifact_key spec/plan) + content; red-first proofs: documentation create produces a 7306-byte spec.md, research create succeeds end-to-end, plan create + /plan-setup both resolve. project_template_set now non-null for all 4 types.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "documentation/research promoted from guidelines.md; plan author-fresh (no guidelines source). Genuine per-type content confirmed by reviewer reading all 16 prompts."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "Zero persisted/authorable MissionType.template_set field references remain; a mission_types/*.yaml authoring template_set: fails loudly.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 removed the field (models.py) + the raw-YAML overlay; grep confirms no surviving model-field read. Pack-fails-loud regression test proves an authored template_set: raises ValidationError (extra=forbid). Commit ff7d410bd.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "Behavior-preserving cutover: software-dev filename + canonical --json order parity green (TestSoftwareDevProjectionParity retained)."
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "The 16 seeded-blank step prompts all carry genuine per-type content; the emptiness scaffold is retired and replaced by a positive assertion.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 retired _SEEDED_BLANK_STEPS scaffold → positive structural floor over all 21 sequence-step prompts (non-empty + no TODO/PLACEHOLDER/FIXME + $ARGUMENTS + heading + min-len), anti-vacuity-guarded. Substance is a reviewer gate (NFR-004 hook present). 483 passed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP02/03/04 content + WP05 floor)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "Machine floor necessary-not-sufficient; genuine substance verified per-type in WP02/03/04 review."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "The mission_type -> step -> template chain is graph-backed; every authored template resolves by name and by URN; DRG freshness green with the asserted +N/+N delta and orphans=10.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 added extract_template_instantiation_edges (consumes WP01 iter_template_refs, single traversal); N=8 -> 288 nodes / 765 edges / 10 orphans, byte-identical fresh; positive instantiates assertion; 16 bare exemplars untouched. WP07 added the resolve-by-URN lane with by-URN==by-name + override-wins tests. Commits cb3242daa, 307dcd1db/58422cbb5.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP06, WP07)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "Orphans genuinely 10 (recomputed from shipped graph). Resolves #883, delivers the deferred mission_type->template edge class."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "software-dev behavior is unchanged (byte-for-byte template-resolution + --json parity).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 T007 parity proofs green; TestSoftwareDevProjectionParity retained; --json template_set key order canonicalizes to sequence_index order (deterministic, CLI-test baseline updated). Repo constructs + projects {spec,plan} identically.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "Proven behavior-preserving byte-for-byte; the cutover changed the projection's SOURCE (field -> steps), not its values."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Intentional, computable DRG delta: +N nodes/edges (N=8), orphans stay 10, every arch marker re-baselined, freshness green.",
+      "proof_type": "automated_test",
+      "evidence": "WP06: _EXPECTED_NODE_COUNT 280->288, _EXPECTED_EDGE_COUNT 757->765, orphans=10; orphan-residual ceiling 14 unchanged; template cardinality golden-count unchanged; _ARCH_SHARD_N_FILES not tripped; regenerate-graph --check fresh; tests/architectural 1021 passed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP06)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "N computed post-authoring (never pinned upfront): software-dev 2 + documentation 2 + research 2 + plan 2."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "The step-projection consumption seam performs exactly one mission-steps/ resolution per (mission_type, pack_context) (shared cache).",
+      "proof_type": "automated_test",
+      "evidence": "WP01: module-level functools.cache on resolve_all_for_mission_type keyed (builtin_root, mission_type, pack_context), shared across both consumers + .cache_clear() seam; one-walk spy test proves cross-instance single walk.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "Cache is on the filesystem-walk function, not slot-local, not merely default()."
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "Cross-type template_file uniqueness guard: no two mission types project the same template_file.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 added tests/doctrine/missions/test_template_file_uniqueness.py iterating the 4 types' project_template_set with anti-vacuity guard; per-type filenames verified distinct.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP05)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "Prevents the plan/software-dev name-collision contaminating a filename."
+    },
+    {
+      "criterion_id": "C-004",
+      "description": "Name<->URN compatibility contract: resolve-by-name and resolve-by-URN are two lanes; the 5-tier override chain works for both; creation path untouched.",
+      "proof_type": "automated_test",
+      "evidence": "WP07: resolve_template_by_urn added alongside resolve_configured_template (signature unchanged, name path untouched); by-URN==by-name equivalence + .kittify override-wins on the URN lane both proven; both converge on Stage-2 resolve_template. C-002 scalar-fence arch test green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP07)",
+      "verified_at": "2026-07-17T00:00:00+00:00",
+      "notes": "URN lane's production consumer (charter context --include template:) tracked in follow-up #2761; symbols allowlisted (designed-ahead public API)."
+    }
+  ]
+}

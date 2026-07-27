@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-05-05T00:00:31.416377+00:00",
+  "friendly_name": "Stable 3.2.0 P1 Release Confidence",
+  "mission_id": "01KQTPZCNQT0M1G3P1YFN2SE86",
+  "mission_number": 113,
+  "mission_slug": "stable-320-p1-release-confidence-01KQTPZC",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission picks up the post-PR #972 P1 stabilization tranche for the Spec Kitty CLI: consistent task-board progress semantics, dependency environment drift evidence or guardrails, fresh local and SaaS-enabled workflow smokes, and explicit release evidence with #971 recorded as included or deferred.",
+  "purpose_tldr": "Close the remaining high-confidence release-readiness gaps before stable 3.2.0.",
+  "slug": "stable-320-p1-release-confidence-01KQTPZC",
+  "source_description": "../start-here.md",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git"
+}

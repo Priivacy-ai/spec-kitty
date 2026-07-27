@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mission_slug": "mvp-sync-boundary-cli-01KRVCQS",
+  "mission_id": "01KRVCQS1J90ZFS9B6K2RD8BSD",
+  "mission_branch": "kitty/mission-mvp-sync-boundary-cli-01KRVCQS",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/sync/owner.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/runtime/test_setup_plan_sync_evidence.py",
+        "tests/sync/test_daemon_owner_record.py",
+        "tests/sync/test_queue_row_level_migration.py",
+        "tests/sync/test_sync_status_boundary_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-17T16:46:01.097092+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 3
+    }
+  }
+}

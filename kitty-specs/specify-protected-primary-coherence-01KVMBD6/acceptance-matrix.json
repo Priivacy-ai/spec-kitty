@@ -1,0 +1,119 @@
+{
+  "mission_slug": "specify-protected-primary-coherence-01KVMBD6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP07: Mission-aware spec-commit entrypoint materializes the coord worktree on a protected primary; e2e test_protected_primary_spec_commit mutation-verified (positive RED when materializer no-ops)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: commit_for_mission reuses CoordinationWorkspace.resolve + resolve_placement_only \u2014 no parallel materializer (C-001); reviewer-confirmed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: Actionable refusal error (T008); materialize-then-retry, never points at an unmaterialized worktree",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: .kittify protection config; 4-row resolution matrix tests (absent/explicit/empty/malformed) green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP07: Unprotected primary -> direct commit; config-honoring test (protected->worktree, []->direct)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP07: SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS hatch preserved; #1828 symmetry pin + end-to-end hatch test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP02/WP03: Protection set resolved once at the boundary via ProtectionPolicy.resolve; callsites read from it; NFR-003 spy",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: Standalone frozen ProtectionPolicy value (protected_branches + operator_hatch_active + is_protected)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP04: ~8 callsites routed through ProtectionPolicy (grep protected_branches(=0 at rerouted sites); accept/acceptance via commit_for_mission",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: Single-resolver architectural guard (call-form, allowlist=resolver+delegate); mutation-verified RED on a stray call; not over-broad",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: software-dev specify runbook re-pointed to `spec-kitty spec-commit`; signature matches WP02; terminology guard green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (claude:opus) per-WP review",
+      "verified_at": "2026-06-21T11:40:00+00:00",
+      "notes": "Verified via per-WP reviewer-renata approval + mutation-verified tests"
+    }
+  ],
+  "negative_invariants": []
+}

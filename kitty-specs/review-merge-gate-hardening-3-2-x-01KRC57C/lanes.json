@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+  "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+  "mission_branch": "kitty/mission-review-merge-gate-hardening-3-2-x-01KRC57C",
+  "target_branch": "fix/3.2.x-review-merge-gate-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP07",
+        "WP01",
+        "WP03"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml",
+        "docs/development/**",
+        "docs/quickstart.md",
+        "kitty-specs/charter-golden-path-e2e-tranche-1-01KQ806X/issue-matrix.md",
+        "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/issue-matrix.md",
+        "kitty-specs/release-3-2-0a6-tranche-2-01KQ9MKP/issue-matrix.md",
+        "kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md",
+        "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/issue-matrix.md",
+        "kitty-specs/stable-320-release-blocker-cleanup-01KQW4DF/issue-matrix.md",
+        "src/specify_cli/cli/commands/_test_env_check.py",
+        "src/specify_cli/cli/commands/review.py",
+        "src/specify_cli/cli/commands/review/ERROR_CODES.md",
+        "src/specify_cli/cli/commands/review/__init__.py",
+        "src/specify_cli/cli/commands/review/_ble001_audit.py",
+        "src/specify_cli/cli/commands/review/_dead_code.py",
+        "src/specify_cli/cli/commands/review/_diagnostics.py",
+        "src/specify_cli/cli/commands/review/_issue_matrix.py",
+        "src/specify_cli/cli/commands/review/_lane_gate.py",
+        "src/specify_cli/cli/commands/review/_mode.py",
+        "src/specify_cli/cli/commands/review/_report.py",
+        "src/specify_cli/missions/software-dev/command-templates/review.md",
+        "tests/README.md",
+        "tests/conftest.py",
+        "tests/integration/test_pytest_venv_concurrency.py",
+        "tests/specify_cli/cli/commands/review/test_diagnostic_codes_documented.py",
+        "tests/specify_cli/cli/commands/review/test_existing_matrix_remediation.py",
+        "tests/specify_cli/cli/commands/review/test_issue_matrix_validator.py",
+        "tests/specify_cli/cli/commands/review/test_mode_resolution.py",
+        "tests/specify_cli/cli/commands/test_review*.py",
+        "tests/specify_cli/cli/commands/test_test_env_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/merge/state.py",
+        "tests/merge/test_mission_number_idempotency.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/git/repo_root.py",
+        "src/specify_cli/status/lane_reader.py",
+        "tests/status/test_status_read_worktree_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP06",
+        "WP08"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/charter/ERROR_CODES.md",
+        "src/charter/_diagnostics.py",
+        "src/charter/_io.py",
+        "src/charter/compiler.py",
+        "src/charter/interview.py",
+        "src/charter/sync.py",
+        "src/specify_cli/cli/commands/migrate/__init__.py",
+        "src/specify_cli/cli/commands/migrate/charter_encoding.py",
+        "tests/charter/test_encoding_chokepoint.py",
+        "tests/charter/test_provenance_dual_storage.py",
+        "tests/charter/test_unsafe_bypass.py",
+        "tests/migrate/test_charter_encoding_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-12T12:02:03.730515+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP01 depends on WP07"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

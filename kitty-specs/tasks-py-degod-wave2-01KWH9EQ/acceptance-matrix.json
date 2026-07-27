@@ -1,0 +1,128 @@
+{
+  "mission_slug": "tasks-py-degod-wave2-01KWH9EQ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "All five command families (orchestrator + glue + State + port factory each) relocated verbatim to per-family sibling modules; tasks.py wrappers are thin delegates.",
+      "proof_type": "automated_test",
+      "evidence": "43/43 contract-harness cases + 13/13 byte-freeze cases green unmodified on the final tree; grep census: zero _do_*/_mt_*/_mr_*/_st_*/_ms_*/_ft_* defs remain in tasks.py; new modules tasks_move_task.py / tasks_map_requirements.py / tasks_status_cmd.py / tasks_mark_status.py / tasks_finalize.py exist (WP05-WP08 diffs).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Verbatim-move discipline reviewed per WP; any parity delta was revert-and-redo. | Accept-time verification: WP05-WP08 reviews (reviewer-renata): AST per-symbol body diffs verbatim-modulo-routing; zero family defs in tasks.py; 43+14 harness/byte cases green each WP."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Patch interception preserved across every relocation via the lazy _tasks.<attr> seam bridge; per-WP seam checklists complete.",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_shared_seam.py interception + is-identity tests green; committed seam-checklist.md covers every D7 symbol each WP moved/called; full tasks-domain suite (~370 patch sites) green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Interception evidence, not mere test-pass, per parity-contract Layer 4. | Accept-time verification: WP02/03/05-08 reviews: seam batteries 38+29+40+29+30+17 green; committed seam-checklist.md rows per WP; interception sentinel tests verified by reviewers."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The ~28 cross-family shared helpers live in tasks_shared.py; none duplicated per family; none left in tasks.py outside the registration surface.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 diff + T007 enumerated move-set in seam-checklist.md; final tasks.py def census (WP09 T039 taxonomy) shows only wrappers/small-bodies/seam surface.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Expected count ~28 (two symbols were already extracted to tasks_parsing_validation.py in Wave 1). | Accept-time verification: WP02 review: 21-symbol move-set with call-site partition evidence; WP09 review: final def census = 9 wrappers only."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Coord-router adapter classes live in tasks_command_adapters.py with no import cycle.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 diff; import-in-isolation proof; coord harness (16 cases) green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Accept-time verification: WP03 review: verbatim moves, no-cycle import proof, coord harness 16/16."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Byte-freeze suite committed BEFORE routing; all 12 compact sites routed through Render.json_envelope with byte-identical output.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py (13 cases) green with fixtures unmodified since WP01; git history shows the suite landed before WP04's routing commits.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Accept-time verification: WP01 review: 13 byte cases frozen pre-change (commit 3f89130bf); WP04 review: 12 sites routed, fixtures untouched, byte suite green throughout."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Render seam indent parameterized on RealRender (constructor); _StatusRender deleted; status leg byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "grep -rn _StatusRender src/ tests/ returns empty; status indent=2 byte case green; test_tasks_ports.py RealRender indent cases green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "One production Render adapter (C-004). | Accept-time verification: WP04 review: _StatusRender deleted (grep empty), RealRender(indent=2) constructor param, Protocol unchanged, status byte case green."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "AST gate asserts 0 inline json.dumps (all evasion forms) across the command-surface directory glob, non-vacuously.",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_command_surface.py AST gate green on the final tree + one theater test per evasion form (attr call / from-import / module alias / rebinding) + string-immunity proof, all driving the real detector. NUANCE (WP09 review): all 16 tasks*.py files at 0 inline dumps sites (hard tasks*-exclusion assert); 9 pre-existing NON-tasks siblings (~28 sites, #2289-#2293 unshim surface, blame predates the mission) are quarantined via the contract's shrink-only exception mechanism (count ratchet <=9 + stale-entry eviction).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "SC-002 holds unconditionally for the mission's remit (tasks family); whole-glob zero deferred to the unshim cluster. | Accept-time verification: WP09 review: gate + 4 per-form theater tests + string immunity verified driving the real detector; tasks*-exclusion assert fired on synthetic entry; 9 pre-existing siblings quarantined shrink-only (blame predates mission)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "tasks.py reduced to registration shim; tasks_ports.py 7-line shim disposition decided and executed with recorded rationale.",
+      "proof_type": "manual_review",
+      "evidence": "WP09 T039 def-census: tasks.py = 1206 LOC, exactly the 9 @app.command wrappers + 4 small bodies + seam surface. T041: tasks_ports.py shim DELETED (zero-importer census reproduced by the reviewer); rationale in tracers/design-decisions.md #12.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Accept-time verification: WP09 review: tasks.py 1206 LOC def-census reproduced; shim deletion zero-importer census reproduced by reviewer; tracer #12."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Tasks-domain test surface fully gate-visible with non-gameable evidence (committed census; no baseline absorption).",
+      "proof_type": "automated_test",
+      "evidence": "marker-census.md artifact (zero unselected files over the committed glob) + test_tasks_domain_gate_visibility.py baseline-growth assertion green with theater test.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Accept-time verification: WP10 review: census reproduced byte-identical (43 files/754 tests/0 unselected) via canonical _gate_coverage parser; baseline untouched by mission (git log empty); standing assertion + theater green."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "#2034 refreshed upstream with the re-census and structural options.",
+      "proof_type": "manual_review",
+      "evidence": "Spec-time refresh comment (posted 2026-07-02) + the WP10 final-census draft posted at mission review; #2283 named as structural parent.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Repo-wide fix stays out of scope. | Accept-time verification: Spec-time refresh posted 2026-07-02; final draft (2034-refresh-draft.md) review-verified; posted by orchestrator at mission review."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Whole-file LOC gate enforces ceiling min(achieved, 1400) with non-vacuity proof and delta-from-4569 rationale; >1400 escalated, never self-certified.",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_command_surface.py: _CEILING assert green + the standing cap assertion (_CEILING <= 1400, landed at WP09) + self-mutation test + the ceiling comment block with ratchet history.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Accept-time verification: WP09 review: _CEILING=1206==actual, cap assert (<=1400) present, ratchet history 4569->1206 recorded; self-mutation test green; per-WP same-commit ratchets verified in WP02-WP09 reviews. | SUPERSEDED post-accept (operator ruling 2026-07-03): the standing LOC gate is retired on PR #2308 \u2014 size enforcement delegated to Sonar; the ratchet-down protocol fulfilled its mission-time purpose (4569->1205 verified at accept). See tracers/design-decisions.md #17."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Branch-coverage ratchet re-pointed (never deleted/lowered) to each relocated orchestrator, non-vacuously (total>0 asserted; demonstrated red fire).",
+      "proof_type": "automated_test",
+      "evidence": "Coord-harness ratchet block diff (floors unchanged; {function: module} plumbing); the total>0 non-vacuity assertion; recorded RED-fire demonstration per re-point WP (WP05/WP06/WP07 activity logs).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
+      "verified_at": "2026-07-02T20:30:00+00:00",
+      "notes": "Vacuous-100 fallback (total==0 -> 100.0) eliminated as part of WP05 plumbing. | Accept-time verification: WP05 review: vacuity claim independently confirmed, single-home falsification experiment run, RED fire reproduced ({'move_task': (75.9, 90.0)}); WP06/WP07 reviews reproduced their RED fires (49.1/51.7); floors byte-identical 65/48/46 across all diffs."
+    }
+  ]
+}

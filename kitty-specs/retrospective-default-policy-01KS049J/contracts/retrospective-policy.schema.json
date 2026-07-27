@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.example/contracts/retrospective-default-policy-01KS049J/retrospective-policy.schema.json",
+  "title": "RetrospectivePolicy",
+  "description": "Durable policy controlling retrospective generation behavior. Resolved from charter frontmatter and .kittify/config.yaml at mission boundaries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "enabled",
+    "timing",
+    "failure_policy",
+    "write_record",
+    "generate_proposals",
+    "apply_proposals",
+    "permissions"
+  ],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether retrospective generation runs at mission boundaries."
+    },
+    "timing": {
+      "type": "string",
+      "enum": ["post_completion", "before_completion"],
+      "default": "post_completion",
+      "description": "When generation runs relative to mission completion."
+    },
+    "failure_policy": {
+      "type": "string",
+      "enum": ["warn", "block"],
+      "default": "warn",
+      "description": "What to do when generation fails."
+    },
+    "write_record": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the generator persists the record to disk."
+    },
+    "generate_proposals": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the generator emits proposals[]."
+    },
+    "apply_proposals": {
+      "type": "string",
+      "enum": ["require_human", "low_risk_auto"],
+      "default": "require_human",
+      "description": "Whether the runtime may auto-apply low-risk proposals."
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "write_record",
+        "inspect_mission_artifacts",
+        "propose_glossary_changes",
+        "propose_drg_changes",
+        "propose_doctrine_changes",
+        "apply_low_risk_changes",
+        "apply_structural_changes"
+      ],
+      "properties": {
+        "write_record": {"type": "boolean", "default": true},
+        "inspect_mission_artifacts": {"type": "boolean", "default": true},
+        "propose_glossary_changes": {"type": "boolean", "default": true},
+        "propose_drg_changes": {"type": "boolean", "default": true},
+        "propose_doctrine_changes": {"type": "boolean", "default": true},
+        "apply_low_risk_changes": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, the runtime may auto-apply proposals whose risk_class == 'low'. Currently only flag_not_helpful qualifies."
+        },
+        "apply_structural_changes": {
+          "type": "boolean",
+          "default": false,
+          "description": "MUST stay false unless the operator explicitly opts in. Built-in defaults never set this true."
+        }
+      }
+    },
+    "precedence": {
+      "type": "string",
+      "enum": ["charter", "config"],
+      "description": "Only meaningful in charter frontmatter. Default behavior: charter wins. Set 'config' to delegate authority to .kittify/config.yaml."
+    },
+    "generator": {
+      "type": "string",
+      "enum": ["python"],
+      "default": "python",
+      "description": "Forward-compatible. Currently the runtime supports only 'python' (pure-Python module). Profile invocation may land in a future release."
+    }
+  }
+}

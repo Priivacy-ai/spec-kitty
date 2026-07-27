@@ -1,0 +1,88 @@
+{
+  "mission_slug": "sonar-qa-config-remediation-01KWYCX7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The sonarcloud job wires sonar.projectVersion from pyproject.toml (SC-001a static YAML-parse assertion) and the extraction returns pyproject's version",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (319cc5c): tests/ci/test_sonar_projectversion_wired.py + tests/ci/test_sonar_project_version.py, 14 red\u2192green; reviewer re-ran red-first against base",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "SC-001b (live baseline reset) is a labelled post-merge observation on the next nightly cron / dispatch, not a PR-gate criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Version is single-sourced from pyproject.toml (no hardcode/duplicate); survives a bump; extraction raises, never emits empty",
+      "proof_type": "automated_test",
+      "evidence": "WP01: test_projectversion_is_not_hardcoded reds a hardcoded-literal mutant; a silent-'' mutant reds exactly 7 raises-not-empty tests; workflow guards [ -z \"$version\" ] && exit 1",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "green-but-broken guard proven by mutation"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Sonar-vs-internal coverage scope investigated (unauthenticated API) and reconciled in a committed doc; config change only if a genuine misconfig (none found \u2014 C-002)",
+      "proof_type": "code_review",
+      "evidence": "WP03 (c1137e5): docs/guides/coverage-signals.md \u2014 file-set + philosophy both differ, no sources/exclusions misconfig; evidence gathered via WP02 tool, no SONAR_TOKEN; no code scope-narrowing (would mask debt)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "documentation deliverable \u2014 artifact inspection, not an automated test"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The coverage-scope doc is discoverable (linked from docs/guides/index.md), not orphaned",
+      "proof_type": "code_review",
+      "evidence": "WP03: docs/guides/index.md links coverage-signals.md (Contributor guides + related: frontmatter)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "single minimal within-docs/guides/ index edit"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "scripts/ci/sonarcloud_branch_review.sh authored, tracked, read-only (GET-only), 5 subcommands incl. version/analyses",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (3942b1c): read-only proven statically (grep: no POST/PUT/DELETE/-X) + at runtime (stubbed-curl call-log asserts every call is --get); shellcheck clean",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "single centralized _http_get seam; version/analyses backs SC-001b"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The tool has a token-free, offline (fixture-backed) smoke test that passes in CI",
+      "proof_type": "automated_test",
+      "evidence": "Runs in the named CI shard integration-tests-core-misc `misc` (.github/workflows/ci-quality.yml): the file carries pytest.mark.integration and `tests/ci` is a positional path of that shard, whose selector `not windows_ci and (git_repo or integration or architectural)` collects all 20 smoke tests. Proven token-free/offline: `env -u SONAR_TOKEN pytest tests/ci/test_sonarcloud_branch_review.py` \u2192 20 passed, no network (unmapped endpoint \u2192 exit 99), 6 jq-valid fixtures. Collection proof: `pytest tests/ci -m 'not windows_ci and (git_repo or integration or architectural)' --collect-only` \u2192 20/34 (was 0/34 pre-fix). scripts/ci/** + tests/ci/** are in the core_misc dorny group and on.push/pull_request.paths so a tool/extractor change re-runs the shard.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "Pre-merge CI-topology fix (refs #2421/#2422): the marker-less smoke test was collected by NO CI shard; it is now integration-marked and routed into the integration-tests-core-misc `misc` shard. tests/architectural orphan gate (test_no_new_orphan_surfaces) + zero-orphan gate (test_split_preserves_zero_orphans) + marker-convention gate now green."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NFR-001",
+      "description": "No new SONAR_TOKEN / secret requirement is introduced; the projectVersion extraction path takes no token and the tool's smoke test passes with the token unset",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rn 'SONAR_TOKEN' scripts/ci/sonar_project_version.py",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 — the new projectVersion extraction path has no SONAR_TOKEN dependency; WP02 smoke test separately passes under env -u SONAR_TOKEN (20 passed)",
+      "scope": "mission"
+    },
+    {
+      "invariant_id": "NFR-002",
+      "description": "No suppression / ratchet / allowlist introduced; no real SonarCloud finding masked (the coverage work clarifies interpretation, it does not narrow Sonar scope)",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE 'noqa|type: ignore|NOSONAR|shellcheck disable' scripts/ci/sonar_project_version.py scripts/ci/sonarcloud_branch_review.sh tests/ci/ docs/guides/coverage-signals.md",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 — no suppressions in any new file; sonar-project.properties sources/exclusions untouched (WP03 explicitly declined to narrow scope)",
+      "scope": "mission"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "cli-saas-fanout-preserves-local-at-01KRNS87",
+  "mission_id": "01KRNS87258Q1CSZS8HESTRBDK",
+  "mission_branch": "kitty/mission-cli-saas-fanout-preserves-local-at-01KRNS87",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/events.py",
+        "tests/specify_cli/sync/test_emitter_occurrence_time.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-15T12:22:06.843502+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

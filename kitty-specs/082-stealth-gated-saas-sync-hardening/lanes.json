@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "mission_slug": "082-stealth-gated-saas-sync-hardening",
+  "mission_id": "01KNXJ5MREJK8ZBRABRE401W39",
+  "mission_branch": "kitty/mission-082-stealth-gated-saas-sync-hardening",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "architecture/ADR-saas-rollout-and-readiness.md",
+        "architecture/README.md",
+        "src/specify_cli/cli/commands/__init__.py",
+        "src/specify_cli/cli/commands/tracker.py",
+        "src/specify_cli/dashboard/handlers/api.py",
+        "src/specify_cli/dashboard/server.py",
+        "src/specify_cli/saas/__init__.py",
+        "src/specify_cli/saas/readiness.py",
+        "src/specify_cli/saas/rollout.py",
+        "src/specify_cli/sync/config.py",
+        "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/sync/feature_flags.py",
+        "src/specify_cli/tracker/feature_flags.py",
+        "tests/agent/cli/commands/test_tracker.py",
+        "tests/agent/cli/commands/test_tracker_discover.py",
+        "tests/agent/cli/commands/test_tracker_status.py",
+        "tests/saas/__init__.py",
+        "tests/saas/conftest.py",
+        "tests/saas/test_readiness_integration.py",
+        "tests/saas/test_readiness_unit.py",
+        "tests/saas/test_rollout.py",
+        "tests/sync/test_config_background_daemon.py",
+        "tests/sync/test_daemon_intent_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-11T06:36:31.259426+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}

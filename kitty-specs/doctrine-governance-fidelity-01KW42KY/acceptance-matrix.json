@@ -1,0 +1,139 @@
+{
+  "mission_slug": "doctrine-governance-fidelity-01KW42KY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: tests/charter/test_compiler_documentation_policy.py @ 207103462 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "documentation_policy interpolated into charter directive; red-first verified by revert"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: tests/charter/test_compiler_documentation_policy.py @ 207103462 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "empty-answer branch emits no directive line (regression guard)"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: tests/specify_cli/invocation/test_org_profiles.py @ 0251c0adc (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "resolve_activated_org_profiles returns ResolvedOrgProfile via reused activation gate"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: tests/specify_cli/invocation/test_registry_org_visibility.py @ e9f73e992 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "dispatch routing catalog includes charter-activated org profiles; project-wins collision"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: tests/charter/test_context_org_governance.py @ e9f73e992 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "--profile org agent loads org-doctrine governance context (sentinel-asserted)"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04: tests/specify_cli/tool_surface/test_projection_org_visibility.py @ 43e608551 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "projection emits org agents with source_layer=org + source_path (#2166)"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: tests/specify_cli/invocation/test_org_profiles.py @ 0251c0adc (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "existing .kittify/profiles + .kittify/doctrine/agent_profiles project layers preserved"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: tests/architectural/test_org_activation_seam.py @ 3759e0730 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "AST gate forbids raw org_dirs splice; live-mutation RED/revert-GREEN; floor=3"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07: tests/doctrine/drg/test_override_policy_predicates.py @ d8d959c98 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "override adjudication predicates promoted to production (byte-for-byte)"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08: tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py @ 847ce823e (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "doctor doctrine flags unsanctioned built-in overrides; healthy flips RC=1"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09: tests/architectural/test_no_dead_symbols.py @ a3892eee1 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "override_policy __all__ narrowed; allowlists retired; category_7 baseline 7->6"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08: tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py @ 847ce823e (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "project-tier overrides intentionally ungoverned; boundary documented"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: tests/specify_cli/cli/commands/charter/test_activation_layout.py @ f697d1c24 (reviewer-renata APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T11:24:04Z",
+      "notes": "layout-tolerant resolver: charter activate works on flat <pack>/agent_profiles/"
+    }
+  ],
+  "negative_invariants": []
+}

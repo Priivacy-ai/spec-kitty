@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "mission_slug": "profile-roles-as-value-object-01KPRJRY",
+  "mission_id": "01KPRJRY9WC8Q7PVRJ6AKTY109",
+  "mission_branch": "kitty/mission-profile-roles-as-value-object-01KPRJRY",
+  "target_branch": "doctrine/profile_reinforcement",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/capabilities.py",
+        "src/doctrine/agent_profiles/profile.py",
+        "src/doctrine/agent_profiles/repository.py",
+        "src/doctrine/agent_profiles/schema_models.py",
+        "src/doctrine/agent_profiles/shipped/*.agent.yaml",
+        "src/doctrine/agent_profiles/shipped/README.md",
+        "src/doctrine/agent_profiles/validation.py",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/schemas/agent-profile.schema.yaml",
+        "tests/charter/test_catalog.py",
+        "tests/doctrine/test_profile_repository.py",
+        "tests/doctrine/test_role_value_object.py",
+        "tests/doctrine/test_schema_validation.py",
+        "tests/doctrine/test_service.py",
+        "tests/doctrine/test_shipped_profiles.py",
+        "tests/specify_cli/status/test_wp_metadata.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_*_kittify_profile_handoff*.py",
+        "tests/specify_cli/test_migrations/test_kittify_profile_handoff_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/missions/software-dev/command-templates/implement.md",
+        "src/specify_cli/missions/software-dev/command-templates/review.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-21T21:07:08.721997+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

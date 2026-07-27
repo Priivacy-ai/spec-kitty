@@ -1,0 +1,69 @@
+{
+  "mission_slug": "review-regression-gate-01KWX6DF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "for_review gate hook: warn-default, opt-in block (review.fail_on_pre_review_regression), --force recorded; blocks before commit (status_calls==[]); evidence on policy_metadata. WP02 7d1f1a21.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 63bbd8e8 / WP02 7d1f1a21"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Group-shape derivation (per-shard tests/** globs + composite _COMPOSITE_ROUTING cone_roots), catch-alls excluded (status/emit.py\u2192status not core_misc, windows_critical mechanically excluded). WP01 63bbd8e8; FR-006 mutation-proven.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 63bbd8e8 / WP02 7d1f1a21"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "New-failure verdict via baseline.py _parse_junit_xml + diff_baseline (reused unchanged); head-runner net-new; baseline-uncomputable\u2192unverified warn. Reviewer confirmed real subprocess, not mocked.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 63bbd8e8 / WP02 7d1f1a21"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Override precedence frontmatter pre_review_test_scope > config review.pre_review_test_command > census default; tested at all 3 tiers.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 63bbd8e8 / WP02 7d1f1a21"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Bounded \u2014 affected shards only (catch-alls excluded); empty affected set \u2192 no_coverage warn (SC-007), never a full-tree run.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 63bbd8e8 / WP02 7d1f1a21"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Single-source invariant guards BOTH shapes (aggregate_filter_groups + _COMPOSITE_ROUTING); mutation-bites (patching out cone_roots reds it). Empty-cone composites \u2192 no_coverage (SC-007).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 63bbd8e8 / WP02 7d1f1a21"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,35 @@
+contract: merge-ship-preflight
+version: 1
+mission: release-320-workflow-reliability-01KQKV85
+branch_preflight:
+  required_inputs:
+    - local_target_branch
+    - remote_tracking_branch
+    - merge_target_branch
+    - mission_owned_refs_or_files
+  blocking_conditions:
+    - local_target_branch_diverged_from_remote_tracking_branch
+  remediation:
+    required: true
+    statement: Provide a deterministic focused PR branch synthesis path based on mission-owned files or commits.
+review_artifact_consistency:
+  required_inputs:
+    - work_package_id
+    - canonical_lane
+    - latest_review_cycle_path
+    - latest_review_cycle_verdict
+  blocking_conditions:
+    - canonical_lane_in_approved_or_done_and_latest_verdict_rejected
+  allowed_outcomes:
+    - fail_before_signoff
+    - warn_hard_before_signoff_with_required_resolution
+test_fixtures:
+  - local_main_diverged_from_origin_main
+  - approved_wp_latest_review_rejected
+  - done_wp_latest_review_rejected
+diagnostics:
+  required_fields:
+    - diagnostic_code
+    - branch_or_work_package
+    - violated_invariant
+    - remediation

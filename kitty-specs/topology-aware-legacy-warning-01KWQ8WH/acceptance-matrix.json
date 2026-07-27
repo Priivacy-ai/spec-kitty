@@ -1,0 +1,59 @@
+{
+  "mission_slug": "topology-aware-legacy-warning-01KWQ8WH",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "New _warrants_legacy_warning classifier reads the non-deriving stored_topology_from_meta (transaction.py); classifier unit + transaction integration matrix cover all 4 topology members + malformed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T20:20:00+00:00",
+      "notes": "Verified by independent review (WP01 approved)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "single_branch/lanes matrix cases assert the legacy-topology warning line is ABSENT and no marker written.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T20:20:00+00:00",
+      "notes": "Verified by independent review (WP01 approved)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "flattened case asserts the warning is ABSENT.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T20:20:00+00:00",
+      "notes": "Verified by independent review (WP01 approved)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "genuine-legacy (+malformed) cases assert the warning is PRESENT citing BOTH the runbook AND spec-kitty migrate backfill-topology, with marker written.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T20:20:00+00:00",
+      "notes": "Verified by independent review (WP01 approved)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "Routing-invariance test asserts worktree_root, destination_ref, _legacy_mode, and EventLogWriteTarget identical across genuine-legacy/single_branch/lanes; git diff confirms _is_legacy_mission/:719-729/:831/:909 byte-for-byte unchanged (C-005).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T20:20:00+00:00",
+      "notes": "Verified by independent review (WP01 approved)."
+    }
+  ],
+  "negative_invariants": []
+}

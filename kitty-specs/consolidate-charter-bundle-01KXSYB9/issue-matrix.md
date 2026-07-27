@@ -1,0 +1,18 @@
+# Issue matrix — consolidate-charter-bundle-01KXSYB9
+
+Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue referenced in spec.md.
+
+| Issue | Title | Verdict | Evidence ref |
+|-------|-------|---------|--------------|
+| #2773 | Consolidate the compiled charter bundle: deprecate references.yaml, charter.yaml authoritative | fixed | All 9 WPs approved. `charter.yaml` is now the authoritative structured charter (governance/directives/catalog + activation); the four legacy bundle files (governance/directives/metadata/references.yaml) are retired; the prose→triad extractor is retired; manifest bumped to schema 2.0.0; `config.yaml` carries a one-line `charter:` pointer; a deterministic idempotent fail-loud `upgrade` migration folds bundle+activation into `charter.yaml`. ADR 2026-07-18-1. |
+| #2519 | Epic: Charter authoring & lifecycle robustness | deferred-with-followup | Follow-up: #2519 — parent umbrella epic stays open; this mission is one slice under it (remaining children #2520/#2521/#2522/#2526/#2773). |
+| #2772 | charter refresh must not clobber curated charter.md | fixed | Folded (FR-007 / WP03): the `compiler.py` `charter.md` clobber writer is removed — `charter generate --force` no longer regenerates `charter.md`, which is now a never-written curated companion. Regression test `test_generate_force_preserves_curated_charter_prose_2772` green and un-tagged. |
+| #2758 | synthesized_drg freshness: missing bundle file → permanent-stale | verified-already-fixed | Closed by PR #2781 (merged). This mission removes the now-moot fail-closed preflight (WP03 re-messages `_synthesis.py`; the `first_missing_bundle_file` guard auto-narrows to a charter.yaml existence check). |
+| #2759 | Freshness blind spot: charter activate mutates config without refreshing the signal | verified-already-fixed | Closed by PR #2781 (merged). This mission removes the now-moot references-parity read (WP06 `_activation_parity_drift_reason`), superseded by the single charter.yaml content-hash. |
+| #2530 | corrupt/unreadable references.yaml → fail-closed verification error | verified-already-fixed | Fail-closed semantics already implemented; this mission preserves + re-homes `ReferenceCatalogError`/`ReferencesCorruptError` onto charter.yaml (WP04). No regression. |
+| #2732 | charter content-identity (BOM/CRLF hash recipe, write-side stamps) | verified-already-fixed | Already implemented; preserved by NFR-001 (single `content_hash_files` point composes with the recipe). Regression-guarded across WPs. |
+| #2554 | agent profiles cite bdd-scenario-lifecycle PROCEDURE under tactic-references (CharterCatalogMiss) | verified-already-fixed | Pre-plan squad (research/pre-plan-grounding.md) confirmed already remediated — all profiles use the correct procedure form; `tests/architectural/test_template_governance_payload_contract.py` passes clean (10 passed, 0 warnings). Different parity axis than this mission. Closeable. |
+| #2373 | build_charter_context regenerates tracked doctrine artifacts as a render side-effect (dirty-tree) | deferred-with-followup | Follow-up: #1914 — strictly follow-up; orthogonal doctrine-synthesis pipeline (`synthesizer/write_pipeline.py`), not the charter-bundle surface this mission rewrites. |
+| #2781 | fix: activate⇒refresh-or-fail-closed freshness seam (delivered #2758/#2759) | verified-already-fixed | Merged PR (context) — the seam this mission builds on; its stopgaps are the now-moot code paths removed here (WP03/WP06). |
+
+Valid `Verdict` values: `fixed`, `verified-already-fixed`, `deferred-with-followup`, `in-mission` (being fixed by a later WP in this mission; must reach a terminal verdict before mission `done`).

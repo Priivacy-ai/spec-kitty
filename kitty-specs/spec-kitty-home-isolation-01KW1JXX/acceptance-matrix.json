@@ -1,0 +1,139 @@
+{
+  "mission_slug": "spec-kitty-home-isolation-01KW1JXX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Sync config writes under SPEC_KITTY_HOME when set; ~/.spec-kitty/config.toml absent",
+      "proof_type": "automated_test",
+      "evidence": "tests/sync/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Auth session store (POSIX+Windows) resolves under the runtime root",
+      "proof_type": "automated_test",
+      "evidence": "tests/auth/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Token refresh lock resolves under the runtime root",
+      "proof_type": "automated_test",
+      "evidence": "tests/auth/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Unauthenticated event-queue DB resolves under the runtime root",
+      "proof_type": "automated_test",
+      "evidence": "tests/sync/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Scoped queue DB + active queue scope resolve under the runtime root",
+      "proof_type": "automated_test",
+      "evidence": "tests/sync/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Daemon state/log/lock resolve under the runtime root (POSIX flat preserved)",
+      "proof_type": "automated_test",
+      "evidence": "tests/sync/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Lamport clock resolves under the runtime root",
+      "proof_type": "automated_test",
+      "evidence": "tests/sync/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Tracker credentials + DB resolve under the runtime root (single-root)",
+      "proof_type": "automated_test",
+      "evidence": "tests/tracker/test_spec_kitty_home_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "state doctor reports the same global-sync root the runtime uses",
+      "proof_type": "automated_test",
+      "evidence": "tests/state/test_doctor_spec_kitty_home.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "No module hand-rolls Path.home()/'.spec-kitty' for global state (architectural guard)",
+      "proof_type": "automated_test",
+      "evidence": "tests/audit/test_no_legacy_path_literals.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "get_runtime_root honors SPEC_KITTY_HOME on linux/darwin/win32; defaults preserved when unset",
+      "proof_type": "automated_test",
+      "evidence": "tests/paths/test_runtime_root_spec_kitty_home.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Empty SPEC_KITTY_HOME falls through to platform default",
+      "proof_type": "automated_test",
+      "evidence": "tests/paths/test_runtime_root_spec_kitty_home.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "spk-team-upsun-cli-sync SKILL.md describes true isolation + verification; terminology canon preserved",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_legacy_terminology.py + tests/integration/test_spec_kitty_home_cli.py (SC-001/SC-002)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-26T13:17:56Z",
+      "notes": "Verified green during WP review (all 6 WPs approved)."
+    }
+  ],
+  "negative_invariants": []
+}

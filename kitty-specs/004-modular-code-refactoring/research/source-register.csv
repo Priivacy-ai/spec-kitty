@@ -1,0 +1,11 @@
+source_id,source_type,title,author,url,date_accessed,relevance_score,notes
+SR001,Book,"Clean Code: A Handbook of Agile Software Craftsmanship","Robert C. Martin",,2025-11-11,10,"Primary reference for module size limits and single responsibility"
+SR002,Book,"Refactoring: Improving the Design of Existing Code","Martin Fowler",,2025-11-11,10,"Key patterns for safe refactoring of large files"
+SR003,Standard,"PEP 8 -- Style Guide for Python Code","Python Software Foundation",https://www.python.org/dev/peps/pep-0008/,2025-11-11,9,"Python coding conventions and module organization"
+SR004,Standard,"PEP 257 -- Docstring Conventions","Python Software Foundation",https://www.python.org/dev/peps/pep-0257/,2025-11-11,8,"Documentation standards for modules and functions"
+SR005,Guide,"Google Python Style Guide","Google",https://google.github.io/styleguide/pyguide.html,2025-11-11,9,"Industry best practices for Python projects"
+SR006,Article,"The Magical Number Seven Plus or Minus Two","George A. Miller",,2025-11-11,7,"Cognitive load theory supporting small module sizes"
+SR007,Documentation,"Python Packaging User Guide","Python Packaging Authority",https://packaging.python.org/,2025-11-11,8,"Package structure and import best practices"
+SR008,Tool Documentation,"Typer Documentation","Sebastián Ramírez",https://typer.tiangolo.com/,2025-11-11,9,"CLI framework patterns and command structure"
+SR009,Tool Documentation,"Rich Documentation","Will McGugan",https://rich.readthedocs.io/,2025-11-11,8,"Terminal UI components and progress tracking"
+SR010,Article,"Monolith to Microservices","Sam Newman",,2025-11-11,7,"Patterns for decomposing monolithic systems"

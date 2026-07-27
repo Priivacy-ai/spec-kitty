@@ -1,0 +1,184 @@
+schema_version: 1
+mission_id: 01KXP11CXX5QKTQ7Y2YVBR5ZX6
+mission_slug: primary-merge-vocabulary-01KXP11C
+mission_number: 181
+friendly_name: Primary & Merge Vocabulary Disambiguation
+mission_type: software-dev
+target_branch: feat/terminology-primary-merge-disambiguation
+created_at: '2026-07-16T20:14:14.309264+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-16T20:14:14.309264+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-006
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-017
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-005
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-016
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-002
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: process
+  summary: WP04 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP04 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-003
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity 
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks/WP01-glossary-sense-entries.md
+- id: e-006
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks/WP02-prose-help-docstring-sweep.md
+- id: e-007
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks/WP03-glossary-infra-cleanup.md
+- id: e-008
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks/WP04-resolve-primary-branch-consolidation.md
+- id: e-009
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks/WP05-internal-helper-renames.md
+- id: e-010
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/tasks/WP06-enforcement-and-verification.md
+- id: e-011
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/status.events.jsonl
+  range: 01KXP6Y57PHSBXTVXSBMC6CGS6
+- id: e-013
+  kind: event_range
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/status.events.jsonl
+  range: 01KXP6XDE5JXKKM9R0G70GFYH4..01KXP76BHGC1MSHK0NEEZ02F2K
+- id: e-014
+  kind: event_range
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/status.events.jsonl
+  range: 01KXP6Y57PHSBXTVXSBMC6CGS6
+- id: e-015
+  kind: event_range
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/status.events.jsonl
+  range: 01KXP8XR7ZCFTSC0B9XM57SG1Y..01KXP8Y8TA9E9DVT1Z79G38WEG
+- id: e-016
+  kind: event_range
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/status.events.jsonl
+  range: implementation_cycles
+- id: e-017
+  kind: file
+  path: kitty-specs/primary-merge-vocabulary-01KXP11C/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

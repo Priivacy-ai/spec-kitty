@@ -1,0 +1,198 @@
+schema_version: 1
+mission_id: 01KVGCE8GSJE3BPCG6K5WNCH9B
+mission_slug: single-mission-surface-resolver-01KVGCE8
+mission_number: 144
+friendly_name: Single Mission-Surface Resolver
+mission_type: software-dev
+target_branch: feat/single-mission-surface-resolver
+created_at: '2026-06-20T12:42:27.923984+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-20T12:42:27.923984+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-020
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-005
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-018
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-006
+  category: implementation
+  summary: WP06 needed 2 implementation cycles
+  evidence_refs:
+  - e-019
+  details: WP WP06 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-003
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP02 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP06 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP01-surface-resolution-audit.md
+- id: e-006
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP02-differential-equivalence-test.md
+- id: e-007
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP03-unify-resolver-primitives.md
+- id: e-008
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP04-aggregate-consolidation.md
+- id: e-009
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP05-typed-error-passthrough.md
+- id: e-010
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP06-collapse-and-hardfail.md
+- id: e-011
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP07-retire-feature-dir-resolver-shim.md
+- id: e-012
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/tasks/WP08-load-bearing-guard.md
+- id: e-013
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+  range: 01KVGGHXJ8SM8GJA7RDQCMPHHP
+- id: e-015
+  kind: event_range
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+  range: 01KVJBDRZH3C4JP80WX6T8DR97
+- id: e-016
+  kind: event_range
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+  range: 01KVGGHXJ8SM8GJA7RDQCMPHHP
+- id: e-017
+  kind: event_range
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+  range: 01KVJBDRZH3C4JP80WX6T8DR97
+- id: e-018
+  kind: event_range
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+  range: implementation_cycles
+- id: e-019
+  kind: event_range
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/status.events.jsonl
+  range: implementation_cycles
+- id: e-020
+  kind: file
+  path: kitty-specs/single-mission-surface-resolver-01KVGCE8/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

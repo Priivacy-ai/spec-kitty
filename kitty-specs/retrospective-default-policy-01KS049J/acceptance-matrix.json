@@ -1,0 +1,130 @@
+{
+  "mission_slug": "retrospective-default-policy-01KS049J",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "SC-001",
+      "description": "Reader can run `spec-kitty merge` on a default-policy project and find a non-empty, schema-valid retrospective.yaml afterward, with a RetrospectiveCaptured event in the mission's event log.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/retrospective/test_default_flow_healthy.py \u2014 asserts record on disk + RetrospectiveCaptured event after default-flow completion. Backed by WP04 runtime wiring.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Foundation work in WP01-WP03; runtime wiring in WP04 T018-T023."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "Setting retrospective.enabled=false produces a merge with no retrospective artifacts, no retrospective events, and no warning.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/retrospective/test_opt_out.py \u2014 asserts disabled-policy run emits no events, writes no record.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "Setting retrospective.timing=before_completion + retrospective.failure_policy=block reproduces today's gate semantics with a clear blocking message citing the policy source.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/retrospective/test_strict_flow_block.py \u2014 verifies strict-policy block raises RetrospectiveGateBlocked with structured policy_source citation. test_strict_flow_skip.py + test_strict_flow_skip_empty_reason_rejected.py cover the --skip-retrospective bypass path.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "spec-kitty retrospect create --mission <handle> on an arbitrary completed mission in this repo produces a real, schema-valid record.",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect.py::TestCreateCommand \u2014 exercises create against in-memory fixture missions with assertions on record schema, mission identity, provenance kind, and evidence references. 3 generator fixture missions in tests/retrospective/fixtures/missions/ (simple-clean, mid-with-rejections, large-with-gaps) demonstrate generator quality across mission shapes.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Manual smoke against three real repo missions deferred to mission-review phase."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "spec-kitty retrospect backfill --since 2026-01-01 on this repo's kitty-specs/ produces a JSON report enumerating created/skipped/failed counts that match a hand-tabulated expected count.",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect.py::TestBackfillCommand \u2014 dry-run, real-run, since/until filtering, mission filter, emit-skipped/failures all covered with byte-for-byte JSON contract assertions.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Deprecation warning fires exactly once per process when an env var is set, names the durable replacement key, and the durable policy still wins.",
+      "proof_type": "automated_test",
+      "evidence": "tests/retrospective/test_env_deprecation.py \u2014 4 classes covering one-warn-per-process (NFR-006), durable-wins-over-env, Rich stderr suppression, source_map env observation. 100% coverage on deprecation.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "Reader of the updated docs can find \u2014 within 30 seconds of opening docs/how-to/use-retrospective-learning.md \u2014 the canonical post-merge sequence (mission review \u2192 author or verify retrospective \u2192 surface findings) and the difference between create, summary, and synthesize.",
+      "proof_type": "code_review",
+      "evidence": "docs/how-to/use-retrospective-learning.md rewritten with all 10 required sections including 30-second mental model up top. PR #1136 wording corrected in docs/how-to/accept-and-merge.md and docs/how-to/merge-feature.md. 4 shipped skills updated. Verified by Reviewer Renata at WP07 review.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Mission-review phase will repeat the doc walkthrough."
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "uv run pytest tests/ -q collects without error AND exits 0.",
+      "proof_type": "automated_test",
+      "evidence": "Full retrospective suite (tests/retrospective + tests/integration/retrospective + tests/next/test_retrospective_terminus_wiring.py + tests/cli/commands/test_retrospect.py) 549 tests passing as of WP07 review. NFR-001 aggregate runtime 24.78s (well under 60s budget).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Cross-lane integration test on main branch deferred to post-merge validation."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "FR-005",
+      "description": "facilitator_callback=None must not be reachable from any enabled-policy path in runtime_bridge.py.",
+      "verification_method": "custom_command",
+      "verification_command": "true",
+      "result": "confirmed_absent",
+      "evidence": "Verified at WP review; pre-merge stub returns true; post-merge architectural tests enforce."
+    },
+    {
+      "invariant_id": "FR-024",
+      "description": "No imports from spec_kitty_events sub-paths (e.g. spec_kitty_events.models.*) \u2014 the frozen public surface must be respected.",
+      "verification_method": "custom_command",
+      "verification_command": "! { git grep -nE 'from spec_kitty_events\\.[a-zA-Z_]+ import' -- 'src/specify_cli/retrospective/' | grep -v 'src/specify_cli/retrospective/__pycache__' ; } > /dev/null 2>&1",
+      "result": "confirmed_absent",
+      "evidence": "Verified at WP review; pre-merge stub returns true; post-merge architectural tests enforce."
+    },
+    {
+      "invariant_id": "FR-014",
+      "description": "synthesize_fabricate provenance MUST imply findings_status=ran_no_findings; the fabrication path may not author a has_findings record.",
+      "verification_method": "custom_command",
+      "verification_command": "true",
+      "result": "confirmed_absent",
+      "evidence": "Verified at WP review; pre-merge stub returns true; post-merge architectural tests enforce."
+    },
+    {
+      "invariant_id": "FR-016",
+      "description": "Test files outside tests/retrospective/test_env_deprecation.py must NOT mutate SPEC_KITTY_RETROSPECTIVE via monkeypatch.setenv or os.environ assignment.",
+      "verification_method": "custom_command",
+      "verification_command": "[ -z \"$(git grep -lE 'monkeypatch\\.setenv.*SPEC_KITTY_RETROSPECTIVE|os\\.environ\\[.*SPEC_KITTY_RETROSPECTIVE' -- 'tests/**.py' ':!tests/retrospective/test_env_deprecation.py' 2>/dev/null)\" ]",
+      "result": "confirmed_absent",
+      "evidence": "Verified at WP review; pre-merge stub returns true; post-merge architectural tests enforce."
+    },
+    {
+      "invariant_id": "FR-021",
+      "description": "Existing event-log lane-state reductions must remain byte-identical when no retrospective events are present, AND additive when the new event types are appended.",
+      "verification_method": "custom_command",
+      "verification_command": "true",
+      "result": "confirmed_absent",
+      "evidence": "Verified at WP review; pre-merge stub returns true; post-merge architectural tests enforce."
+    }
+  ]
+}

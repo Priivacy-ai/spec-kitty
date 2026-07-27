@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-26T09:15:49.488836Z",
+      "decision_id": "01KW1KDHVGWZ0QERDMV1CRJ15S",
+      "final_answer": "Normalize all Windows surfaces onto the single platformdirs app-data base via get_runtime_root().base. Leaking surfaces (sync config, queue, clock, tracker DB) move from ~/.spec-kitty to platformdirs base on unset Windows; documented as intended normalization in CHANGELOG. No auto-migration (C-001). POSIX unset behavior stays byte-identical.",
+      "input_key": "windows_base_normalization",
+      "mission_id": "01KW1JXXTH8YVMADWF0G80H765",
+      "mission_slug": "spec-kitty-home-isolation-01KW1JXX",
+      "opened_by": "cli",
+      "options": [
+        "Normalize all Windows surfaces onto platformdirs base",
+        "Strictly preserve current per-surface Windows paths",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "On unset Windows, several surfaces (sync config, queue, clock, tracker DB) currently leak to ~/.spec-kitty instead of the platformdirs app-data base used by daemon/auth/tracker-creds. Should the fix normalize ALL Windows surfaces onto the single platformdirs base, or strictly preserve each surface's exact current Windows path and only add the SPEC_KITTY_HOME override?",
+      "rationale": null,
+      "resolved_at": "2026-06-26T11:01:18.332584Z",
+      "resolved_by": null,
+      "slot_key": "plan.windows-compat.normalize-base",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KW1JXXTH8YVMADWF0G80H765",
+  "version": 1
+}

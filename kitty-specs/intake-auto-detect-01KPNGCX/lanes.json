@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "intake-auto-detect-01KPNGCX",
+  "mission_id": "01KPNGCX8BQQ0JDNQ2KFKA1GDC",
+  "mission_branch": "kitty/mission-intake-auto-detect-01KPNGCX",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/reference/agent-plan-artifacts.md",
+        "src/specify_cli/intake_sources.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/intake.py",
+        "src/specify_cli/mission_brief.py",
+        "tests/specify_cli/cli/commands/test_intake.py",
+        "tests/specify_cli/test_intake_sources.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-20T13:23:31.026571+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mission_slug": "landing-hygiene-01KWYRE1",
+  "mission_id": "01KWYRE129WNYSSPYJ38PSKWF1",
+  "mission_branch": "kitty/mission-landing-hygiene-01KWYRE1",
+  "target_branch": "fix/landing-hygiene",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/prompt_metadata.py",
+        "tests/specify_cli/review/test_prompt_retention.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "tests/architectural/test_ci_quality_path_filters.py",
+        "tests/release/test_diff_coverage_policy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-07T17:56:56.665526+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
