@@ -4406,18 +4406,19 @@ pages:
     - {slug: "added", text: "✨ Added", level: 3}
     - {slug: "fixed", text: "🐛 Fixed", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
+    - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-5-2026-07-08", text: "[3.2.5] - 2026-07-08", level: 2}
     - {slug: "added-2", text: "✨ Added", level: 3}
     - {slug: "fixed-2", text: "🐛 Fixed", level: 3}
     - {slug: "changed-2", text: "♻️ Changed", level: 3}
-    - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
-    - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
     - {slug: "breaking-changes-2", text: "💥 Breaking Changes", level: 3}
+    - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
+    - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
     - {slug: "changed-3", text: "♻️ Changed", level: 3}
     - {slug: "fixed-3", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-3-2026-06-29", text: "[3.2.3] - 2026-06-29", level: 2}
     - {slug: "added-3", text: "✨ Added", level: 3}
-    - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
+    - {slug: "breaking-changes-4", text: "💥 Breaking Changes", level: 3}
     - {slug: "fixed-4", text: "🐛 Fixed", level: 3}
     - {slug: "changed-4", text: "♻️ Changed", level: 3}
     - {slug: "3-2-2-2026-06-24", text: "[3.2.2] - 2026-06-24", level: 2}
@@ -4496,7 +4497,7 @@ pages:
     - {slug: "3-2-0rc27-2026-05-26", text: "[3.2.0rc27] - 2026-05-26", level: 2}
     - {slug: "fixed-22", text: "Fixed", level: 3}
     - {slug: "3-2-0rc26-2026-05-26", text: "[3.2.0rc26] - 2026-05-26", level: 2}
-    - {slug: "breaking-changes-4", text: "Breaking changes", level: 3}
+    - {slug: "breaking-changes-5", text: "Breaking changes", level: 3}
     - {slug: "changed-18", text: "Changed", level: 3}
     - {slug: "added-15", text: "Added", level: 3}
     - {slug: "3-2-0rc25-2026-05-23", text: "[3.2.0rc25] - 2026-05-23", level: 2}
@@ -4679,7 +4680,7 @@ pages:
     - {slug: "3-0-1-2026-03-31", text: "[3.0.1] - 2026-03-31", level: 2}
     - {slug: "fixed-62", text: "Fixed", level: 3}
     - {slug: "3-0-0-2026-03-30", text: "[3.0.0] - 2026-03-30", level: 2}
-    - {slug: "breaking-changes-5", text: "Breaking Changes", level: 3}
+    - {slug: "breaking-changes-6", text: "Breaking Changes", level: 3}
     - {slug: "added-41", text: "Added", level: 3}
     - {slug: "removed-6", text: "Removed", level: 3}
     - {slug: "fixed-63", text: "Fixed", level: 3}
@@ -4813,7 +4814,7 @@ pages:
     - {slug: "fixed-97", text: "🐛 Fixed", level: 3}
     - {slug: "added-57", text: "✨ Added", level: 3}
     - {slug: "migration-upgrade-path", text: "📚 Migration & Upgrade Path", level: 3}
-    - {slug: "breaking-changes-6", text: "🔒 Breaking Changes", level: 3}
+    - {slug: "breaking-changes-7", text: "🔒 Breaking Changes", level: 3}
     - {slug: "0-10-8-2025-12-30", text: "[0.10.8] - 2025-12-30", level: 2}
     - {slug: "fixed-98", text: "🐛 Fixed", level: 3}
     - {slug: "changed-52", text: "🔧 Changed", level: 3}
@@ -4838,7 +4839,7 @@ pages:
     - {slug: "migration", text: "🚀 Migration", level: 3}
     - {slug: "0-9-0-2025-12-17", text: "[0.9.0] - 2025-12-17", level: 2}
     - {slug: "major-release-frontmatter-only-lane-management", text: "🎯 Major Release: Frontmatter-Only Lane Management", level: 3}
-    - {slug: "breaking-changes-7", text: "⚠️ Breaking Changes", level: 3}
+    - {slug: "breaking-changes-8", text: "⚠️ Breaking Changes", level: 3}
     - {slug: "added-60", text: "🆕 Added", level: 3}
     - {slug: "changed-55", text: "🔧 Changed", level: 3}
     - {slug: "documentation-10", text: "📚 Documentation", level: 3}
@@ -4851,7 +4852,7 @@ pages:
     - {slug: "0-8-1-2025-12-17", text: "[0.8.1] - 2025-12-17", level: 2}
     - {slug: "fixed-105", text: "Fixed", level: 3}
     - {slug: "0-8-0-2025-12-15", text: "[0.8.0] - 2025-12-15", level: 2}
-    - {slug: "breaking-changes-8", text: "Breaking Changes", level: 3}
+    - {slug: "breaking-changes-9", text: "Breaking Changes", level: 3}
     - {slug: "added-62", text: "Added", level: 3}
     - {slug: "changed-56", text: "Changed", level: 3}
     - {slug: "deprecated-2", text: "Deprecated", level: 3}
