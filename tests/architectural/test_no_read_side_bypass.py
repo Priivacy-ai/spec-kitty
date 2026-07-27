@@ -92,7 +92,10 @@ from tests.architectural._ratchet_keys import (
     resolve_descriptor,
 )
 
-pytestmark = pytest.mark.architectural
+# ``docs_scoped``: this gate parses the classification ledger under ``docs/``
+# as its authority for the stay-lenient allow-list, so a docs-only PR must
+# still select it.
+pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
