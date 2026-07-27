@@ -358,6 +358,31 @@ _NEEDS_RESULT_RE = re.compile(r"needs\.([A-Za-z0-9_-]+)\.result")
 _FILTER_OUTPUT_RE = re.compile(r"needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)")
 # ``--cov=<target>`` emitters inside run scripts (FR-005).
 _COV_TARGET_RE = re.compile(r"--cov=([^\s\\'\"]+)")
+# Jobs that *consume* coverage XML rather than emit real pytest --cov data.
+# ``sonarcloud`` in particular carries prose ``--cov=...`` examples inside its
+# own step comments and heredoc documentation (see the "Normalize coverage
+# XML..." step) -- ``_COV_TARGET_RE`` has no way to distinguish a documentation
+# mention from a real flag, so the job is excluded wholesale rather than
+# taught to parse comments. Any consumer of ``cov_targets`` that means "jobs
+# that actually run pytest --cov" (not "jobs whose script mentions --cov")
+# must exclude this set.
+NON_EMITTER_JOBS: frozenset[str] = frozenset(
+    {"sonarcloud", "diff-coverage", "mutation-testing"}
+)
+# Top-level packages declared in [build-system].packages (pyproject.toml) --
+# the only names a bare/dotted (no "/") --cov target can legitimately resolve
+# to under src/ (#2975's cov_target_repo_path normalizer).
+_TOP_LEVEL_SRC_PACKAGES: frozenset[str] = frozenset(
+    {
+        "kernel",
+        "glossary",
+        "mission_runtime",
+        "runtime",
+        "specify_cli",
+        "doctrine",
+        "charter",
+    }
+)
 # The diff-coverage job's ``critical_paths=( ... )`` shell array (FR-005).
 _CRITICAL_PATHS_RE = re.compile(r"critical_paths=\((.*?)\)", re.DOTALL)
 _SHELL_QUOTED_RE = re.compile(r"'([^']*)'|\"([^\"]*)\"")
@@ -569,6 +594,39 @@ def load_workflow_model(path: Path) -> WorkflowModel:
         pull_request_paths=_trigger_tuple(on_section, "pull_request", "paths"),
         push_paths=_trigger_tuple(on_section, "push", "paths"),
     )
+
+
+def cov_target_repo_path(target: str) -> str:
+    """Normalize a ``--cov`` target to its ``src/``-relative repo path.
+
+    ``--cov`` targets come in two shapes (#2975): a ``src/``-relative path
+    (single-root invocations, e.g. ``src/kernel``) or a dotted importable
+    module (multi-root invocations, converted to dotted form so
+    coverage.py's ``XmlReporter.source_paths`` stays empty and same-basename
+    files across roots cannot collide, e.g. ``specify_cli.charter_runtime``).
+    Both name the same on-disk location; every consumer of ``cov_targets``
+    that compares against a filesystem path (FR-005's critical-path backing,
+    the src-coverage-emitter set) must go through this normalizer instead of
+    assuming one shape, or a dotted target silently stops matching.
+    """
+    if "/" in target:
+        return target.rstrip("/")
+    return "/".join(("src", *target.split(".")))
+
+
+def is_src_cov_target(target: str) -> bool:
+    """Whether a ``--cov`` target measures a ``src/`` package (dotted or path).
+
+    True for both shapes as long as the top-level segment is one of the
+    packages declared in ``[build-system].packages`` (pyproject.toml) -- the
+    only names coverage.py can resolve a bare/dotted target against. False
+    for non-src targets like ``scripts/docs``.
+    """
+    path = cov_target_repo_path(target)
+    if not path.startswith("src/"):
+        return False
+    top_level = path.split("/", 2)[1]
+    return top_level in _TOP_LEVEL_SRC_PACKAGES
 
 
 def discover_pytest_workflows(workflows_dir: Path | None = None) -> frozenset[str]:

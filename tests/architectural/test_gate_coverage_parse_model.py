@@ -213,6 +213,50 @@ def test_workflow_model_parses_cov_targets_and_critical_paths(tmp_path: Path) ->
 
 
 # ---------------------------------------------------------------------------
+# cov_target_repo_path / is_src_cov_target (#2975: dotted vs path-form --cov)
+# ---------------------------------------------------------------------------
+
+
+def test_cov_target_repo_path_passes_through_path_form() -> None:
+    """A ``src/``-relative path target is returned unchanged (trailing slash stripped)."""
+    assert gc.cov_target_repo_path("src/specify_cli/lanes") == "src/specify_cli/lanes"
+    assert gc.cov_target_repo_path("src/kernel/") == "src/kernel"
+    assert gc.cov_target_repo_path("scripts/docs") == "scripts/docs"
+
+
+def test_cov_target_repo_path_expands_dotted_form() -> None:
+    """A dotted module target expands to its ``src/``-relative path form.
+
+    Both a bare top-level name (single segment) and a dotted subpackage/module
+    (multiple segments) must expand — #2975 converted single-root AND
+    multi-root invocations alike (``--cov=charter``,
+    ``--cov=specify_cli.charter_runtime``, ``--cov=specify_cli.mission``).
+    """
+    assert gc.cov_target_repo_path("charter") == "src/charter"
+    assert (
+        gc.cov_target_repo_path("specify_cli.charter_runtime")
+        == "src/specify_cli/charter_runtime"
+    )
+    assert gc.cov_target_repo_path("specify_cli.mission") == "src/specify_cli/mission"
+
+
+def test_is_src_cov_target_recognizes_both_shapes() -> None:
+    """A src-package target is recognized whether path-form or dotted."""
+    assert gc.is_src_cov_target("src/specify_cli")
+    assert gc.is_src_cov_target("specify_cli")
+    assert gc.is_src_cov_target("specify_cli.charter_runtime")
+    assert gc.is_src_cov_target("mission_runtime")
+
+
+def test_is_src_cov_target_rejects_non_src_targets() -> None:
+    """``scripts/docs`` (not importable, not under src/) is never a src target."""
+    assert not gc.is_src_cov_target("scripts/docs")
+    # A dotted top-level name that isn't a declared src package (typo/rogue
+    # addition) must not be silently accepted as src-backed either.
+    assert not gc.is_src_cov_target("not_a_real_package")
+
+
+# ---------------------------------------------------------------------------
 # WorkflowModel: on: triggers — pull_request types + outer paths (FR-012 / FR-013)
 # ---------------------------------------------------------------------------
 
