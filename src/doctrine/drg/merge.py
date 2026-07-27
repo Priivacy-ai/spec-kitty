@@ -609,11 +609,16 @@ class _OrgEdgeCollector:
     never sees. Identity therefore belongs *here*, after resolution — one
     authority rather than a partial one upstream that looked complete. Keying a
     second dedup on raw strings as well would just recreate the drift.
+
+    The collapse keeps the FIRST contribution and drops the rest, so the loser's
+    authored ``reason:`` never reaches the graph. That is silent for the routine
+    restatements (see :func:`_warn_discarded_edge_rationale`) and loud for the
+    one case where it destroys something an author wrote.
     """
 
     def __init__(self) -> None:
         self._contributions: list[_OrgEdgeContribution] = []
-        self._seen: set[tuple[str, str, str]] = set()
+        self._kept: dict[tuple[str, str, str], _OrgEdgeContribution] = {}
 
     def add(self, minted: DRGEdge, authored: Any, source_marker: str) -> bool:
         """Record *minted* unless its triple was already contributed.
@@ -622,18 +627,71 @@ class _OrgEdgeCollector:
         graph, ``False`` when it is a restatement of one already there.
         """
         key = (minted.source, minted.target, minted.relation.value)
-        if key in self._seen:
+        kept = self._kept.get(key)
+        if kept is not None:
+            _warn_discarded_edge_rationale(kept, authored, source_marker)
             return False
-        self._seen.add(key)
-        self._contributions.append(
-            _OrgEdgeContribution(minted, authored, source_marker)
-        )
+        contribution = _OrgEdgeContribution(minted, authored, source_marker)
+        self._kept[key] = contribution
+        self._contributions.append(contribution)
         return True
 
     @property
     def contributions(self) -> list[_OrgEdgeContribution]:
         """The surviving org contributions, in declaration order."""
         return self._contributions
+
+
+def _warn_discarded_edge_rationale(
+    kept: _OrgEdgeContribution,
+    authored: Any,
+    source_marker: str,
+) -> None:
+    """WARN when collapsing a restated edge would discard a distinct rationale.
+
+    The dedup itself stays silent by design, and deliberately so: restating one
+    relationship is *routine*. A field projection plus an explicit declaration,
+    or a bare plus a qualified spelling, are both sanctioned authoring shapes
+    that collapse on every healthy merge, so warning on the collapse would fire
+    on correct packs — a gate that flags everything tells you nothing.
+
+    What is not routine is a restatement that carries its OWN authored
+    ``reason:``, different from the survivor's. Then the collapse is not
+    deduplication, it is information loss: two governance authors documented the
+    same relationship for different stated reasons and only the first reaches
+    the graph. An earlier revision defended that silence by pointing at
+    org-vs-org *node* collisions, which are equally quiet. But that argues the
+    node path is also wrong, not that this one is right — and a silent
+    difference is the defect class this bridge exists to close. Both sides must
+    have written something for this to fire: a generated projection reason
+    losing to a hand-authored edge that documented nothing discards no author's
+    words.
+
+    Visible, not fatal — the merged edge is correct either way; only the
+    operator's record of *why* is incomplete, and that is theirs to reconcile.
+    """
+    discarded_reason = getattr(authored, "reason", None)
+    surviving_reason = getattr(kept.authored, "reason", None)
+    if not discarded_reason or not surviving_reason:
+        return
+    if discarded_reason == surviving_reason:
+        return
+    edge = kept.minted
+    _logger.warning(
+        "Org doctrine %r restates the edge (%s --%s--> %s) already contributed "
+        "by %r, so it is collapsed to one edge — but the two declarations give "
+        "different reasons, and only the first is kept. Discarded reason from "
+        "%r: %r (kept: %r). Reconcile the two packs, or move the distinct "
+        "rationale onto a relationship of its own.",
+        source_marker,
+        edge.source,
+        edge.relation.value,
+        edge.target,
+        kept.source_marker,
+        source_marker,
+        discarded_reason,
+        surviving_reason,
+    )
 
 
 def _dangling_org_endpoints(
@@ -660,11 +718,13 @@ def _dangling_org_endpoints(
 
     What the merge does owe — and now discharges — is that nothing lands in
     silence: every dangling endpoint gets a WARNING naming the pack and the
-    token, whichever caller ran the merge. The surface that owns graph
-    completeness (``spec-kitty doctor doctrine``, which merges the real
-    built-in against the real configured packs) escalates the same finding to a
-    structured error via
-    :func:`doctrine.drg.validator.validate_dangling_references`.
+    token, whichever caller ran the merge. Any caller that merged the COMPLETE
+    graph — the real shipped built-in against every configured pack — escalates
+    the same finding to a structured error via
+    :func:`doctrine.drg.validator.validate_dangling_references`, whose docstring
+    carries the predicate. Today that is ``doctor doctrine`` (both its JSON
+    collector and its human section) and ``charter status``; it is a rule about
+    the merge, not a property of a particular command.
 
     Scoped to org contributions on purpose. Built-in and project edges are not
     minted by this bridge; adjudicating them here would report defects the
