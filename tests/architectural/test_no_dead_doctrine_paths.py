@@ -180,6 +180,64 @@ _SHIPPED_PATH_RE = re.compile(r"(?:<[A-Za-z_][\w-]*>|[A-Za-z_][\w-]*)/shipped/")
 #: The same class with B1 removed -- used only to prove B1 does work.
 _SHIPPED_NAIVE_RE = re.compile(r"shipped/")
 
+#: The whole dead path, not just its ``<segment>/shipped/`` core. Discriminator
+#: B2 compares this token against the frozen seed, so a pack that *invented* a
+#: sibling dead path under the same segment cannot ride the seed's coat-tails.
+_SHIPPED_FULL_PATH_RE = re.compile(
+    r"[\w./<>-]*(?:<[A-Za-z_][\w-]*>|[A-Za-z_][\w-]*)/shipped/[\w./-]*"
+)
+
+#: Discriminator B2 -- built-in glossary packs mirroring a hash-pinned seed.
+#:
+#: ``src/doctrine/glossary_packs/built-in/<pack-id>.glossary-pack.yaml`` is a
+#: field-for-field migration of the read-only seed
+#: ``.kittify/glossaries/<pack-id>.yaml`` (the ``{scope.value}.yaml`` layout
+#: ``glossary.scope.load_seed_file`` resolves). Two standing gates make the pack
+#: text non-editable in BOTH directions: ``test_glossary_pack_parity`` requires
+#: every seed-present field to round-trip byte-identically, and
+#: ``test_glossary_pack_no_regression`` pins the seed's sha256 under C-003 ("the
+#: seed is READ, never modified"). A stale doctrine path quoted inside that prose
+#: is therefore a *frozen historical inaccuracy*, not a live defect: it cannot be
+#: corrected on the pack side without breaking parity, nor on the seed side
+#: without breaking the C-003 content pin. Dead path, frozen artefact -- different
+#: problems, and a dead-path sweep owns only the first.
+#:
+#: The exclusion is derived, not declared: it fires only for a token that is
+#: present VERBATIM in the seed the pack mirrors. It is also self-retiring --
+#: when Mission C retires the seed, the token stops resolving and every pack site
+#: reverts to a violation with no edit here.
+_GLOSSARY_PACK_SUBTREE = "doctrine/glossary_packs/built-in"
+_GLOSSARY_PACK_SUFFIX = ".glossary-pack.yaml"
+_GLOSSARY_SEED_DIR = _REPO_ROOT / ".kittify" / "glossaries"
+
+
+@lru_cache(maxsize=8)
+def _frozen_seed_text(seed_path: Path) -> str:
+    return seed_path.read_text(encoding="utf-8")
+
+
+def _frozen_seed_for_pack(path: Path) -> Path | None:
+    """The hash-pinned migration seed *path* mirrors, or ``None``.
+
+    Anchored at ``_REPO_ROOT`` rather than the scan root on purpose: the seed
+    lives under ``.kittify/``, outside every root gate B is pointed at.
+    """
+    if not path.name.endswith(_GLOSSARY_PACK_SUFFIX):
+        return None
+    if _GLOSSARY_PACK_SUBTREE not in path.parent.as_posix():
+        return None
+    pack_id = path.name[: -len(_GLOSSARY_PACK_SUFFIX)]
+    seed = _GLOSSARY_SEED_DIR / f"{pack_id.replace('-', '_')}.yaml"
+    return seed if seed.is_file() else None
+
+
+def _full_path_token(line: str, naive: re.Match[str]) -> str | None:
+    """The whole path literal enclosing a bare ``shipped/`` match."""
+    for hit in _SHIPPED_FULL_PATH_RE.finditer(line):
+        if hit.start() <= naive.start() and naive.end() <= hit.end():
+            return hit.group(0)
+    return None
+
 
 @dataclass(frozen=True)
 class ShippedLayerScan:
@@ -187,16 +245,18 @@ class ShippedLayerScan:
 
     violations: tuple[Site, ...]
     prose: tuple[Site, ...]
+    frozen_mirrors: tuple[Site, ...]
 
     @property
     def naive(self) -> tuple[Site, ...]:
-        return tuple(sorted(self.violations + self.prose))
+        return tuple(sorted(self.violations + self.prose + self.frozen_mirrors))
 
 
 def scan_shipped_pack_paths(root: Path) -> ShippedLayerScan:
     """Classify every ``shipped/`` occurrence under *root*."""
     violations: list[Site] = []
     prose: list[Site] = []
+    frozen_mirrors: list[Site] = []
     for path, lines in _text_files(root):
         for number, line in enumerate(lines, start=1):
             for match in _SHIPPED_NAIVE_RE.finditer(line):
@@ -204,10 +264,22 @@ def scan_shipped_pack_paths(root: Path) -> ShippedLayerScan:
                 window = line[:start]
                 as_path = any(hit.end() == match.end() for hit in _SHIPPED_PATH_RE.finditer(line))
                 site = Site(_rel(path, root), number, (window[-24:] + match.group(0)).strip())
-                (violations if as_path else prose).append(site)
+                if not as_path:
+                    prose.append(site)
+                    continue
+                token = _full_path_token(line, match)
+                seed = _frozen_seed_for_pack(path)
+                if token is not None and seed is not None and token in _frozen_seed_text(seed):
+                    # Site.text is the full path token here (not the prose window
+                    # the other buckets carry): it is what B2 actually matched on,
+                    # so it is stable identity for the effect-set pin below.
+                    frozen_mirrors.append(Site(_rel(path, root), number, token))
+                    continue
+                violations.append(site)
     return ShippedLayerScan(
         violations=tuple(sorted(violations)),
         prose=tuple(sorted(prose)),
+        frozen_mirrors=tuple(sorted(frozen_mirrors)),
     )
 
 
@@ -440,6 +512,73 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
         "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
+
+
+def test_frozen_seed_mirror_would_false_red_without_its_discriminator() -> None:
+    """NFR-003 proof for discriminator B2, with its effect set pinned.
+
+    A list of ``(path, token)`` pairs, duplicates intact: the pack quotes the
+    same dead path twice (once in the term's ``definition`` prose, once in its
+    ``see_also`` entry) and both must stay excluded. Collapsing to a set would
+    let one of the two silently become a violation.
+    """
+    scan = scan_shipped_pack_paths(_SRC_ROOT)
+    excluded = sorted((site.path, site.text) for site in scan.frozen_mirrors)
+    pack = "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml"
+    dead_path = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
+    assert excluded == [(pack, dead_path), (pack, dead_path)], (
+        "B2's effect set moved. It may only exclude a pack site whose dead path "
+        "is verbatim in the hash-pinned seed it mirrors -- widening it needs a "
+        f"reason, not a regex tweak: {_render(scan.frozen_mirrors)}"
+    )
+
+
+def test_frozen_seed_mirror_discriminator_is_anchored_in_the_live_seed() -> None:
+    """B2 is only sound while the seed really does carry the dead path.
+
+    Reads the seed directly rather than trusting the scan: if the seed were
+    edited to "fix" the path (the C-003 violation this discriminator exists to
+    make unnecessary), B2 would go quietly inert and the pack sites would flip
+    to violations with no explanation. This fails first, and says why.
+    """
+    seed = _GLOSSARY_SEED_DIR / "spec_kitty_core.yaml"
+    assert seed.is_file(), f"the mirrored migration seed is missing: {seed}"
+    dead_path = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
+    assert dead_path in _frozen_seed_text(seed), (
+        f"the seed no longer carries {dead_path!r}. The seed is READ, never "
+        "modified (C-003, pinned by test_glossary_pack_no_regression) -- if it "
+        "was legitimately retired, drop discriminator B2 and fix the pack."
+    )
+
+
+def test_gate_b_frozen_mirror_discriminator_requires_the_seed_to_carry_the_path(
+    tmp_path: Path,
+) -> None:
+    """B2 must not degrade into a subtree escape for the glossary-pack dir.
+
+    Three planted sites in the pack subtree, one excluded: only the path the
+    real seed actually carries. A sibling dead path under the same
+    ``tactics/shipped/`` segment, and a pack whose id maps to no seed at all,
+    both stay violations.
+    """
+    pack_dir = tmp_path / "doctrine" / "glossary_packs" / "built-in"
+    pack_dir.mkdir(parents=True)
+    mirrored = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
+    (pack_dir / "spec-kitty-core.glossary-pack.yaml").write_text(
+        f"a: {mirrored}\nb: src/doctrine/tactics/shipped/invented.tactic.yaml\n",
+        encoding="utf-8",
+    )
+    (pack_dir / "no-such-seed.glossary-pack.yaml").write_text(
+        f"a: {mirrored}\n", encoding="utf-8"
+    )
+    scan = scan_shipped_pack_paths(tmp_path)
+    assert [(site.path, site.line) for site in scan.frozen_mirrors] == [
+        ("doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml", 1)
+    ]
+    assert [(site.path, site.line) for site in scan.violations] == [
+        ("doctrine/glossary_packs/built-in/no-such-seed.glossary-pack.yaml", 1),
+        ("doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml", 2),
+    ]
 
 
 def test_gate_b_rejects_a_planted_violation(tmp_path: Path) -> None:
