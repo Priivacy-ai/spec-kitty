@@ -260,7 +260,13 @@ def _path_literal_reach(node: ast.AST) -> set[str]:
     and ``root / "…json"`` are not.
     """
     if isinstance(node, ast.Call):
-        operands: list[ast.expr] = list(node.args)
+        # Keyword arguments are call arguments too. Reading only ``node.args``
+        # let ``open(file="…_baseline.json")`` escape BOTH halves of the proof:
+        # the static reader missed it, and the behavioural half cannot see it
+        # either because it never goes through the module whose attributes that
+        # half sabotages. Review found this; it is the one escape that defeated
+        # the backstop as well as the reader.
+        operands: list[ast.expr] = [*node.args, *(kw.value for kw in node.keywords)]
     elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
         operands = [node.left, node.right]
     else:
@@ -268,10 +274,29 @@ def _path_literal_reach(node: ast.AST) -> set[str]:
     return {
         f"literal path {name}"
         for operand in operands
-        if isinstance(operand, ast.Constant) and isinstance(operand.value, str)
+        for text in _string_parts(operand)
         for name in _BASELINE_FILENAMES
-        if name in operand.value
+        if name in text
     }
+
+
+def _string_parts(node: ast.expr) -> list[str]:
+    """Static string content of *node*: a plain literal or an f-string's fixed parts.
+
+    ``Path(f"{root}/_gate_coverage_baseline.json")`` is a ``JoinedStr``, not a
+    ``Constant``, so reading only ``Constant`` let it slip past. The interpolated
+    slots are unknowable statically; the literal segments around them are not,
+    and the filename lives in one of those.
+    """
+    if isinstance(node, ast.Constant):
+        return [node.value] if isinstance(node.value, str) else []
+    if isinstance(node, ast.JoinedStr):
+        return [
+            part.value
+            for part in node.values
+            if isinstance(part, ast.Constant) and isinstance(part.value, str)
+        ]
+    return []
 
 
 def baseline_reaches(source: str) -> set[str]:
@@ -283,11 +308,21 @@ def baseline_reaches(source: str) -> set[str]:
     module, ``from … import`` of a baseline symbol, ``getattr`` with a string
     constant, and path construction from a baseline filename.
 
-    Residual, stated rather than papered over: a name assembled at runtime
-    (``"load_" + "baseline"``) or a filename bound to a variable before being
-    passed to ``Path`` defeats a static reader. That is what the behavioural half
-    of :func:`test_gate_reads_no_ratchet_baseline` is for — it sabotages the
-    reader itself and requires the computation to complete anyway.
+    Residual, stated rather than papered over: **any binding this static reader
+    cannot follow** defeats it — a name assembled at runtime
+    (``"load_" + "baseline"``), a filename bound to a variable before reaching
+    ``Path``, ``importlib.import_module``, ``__import__``, ``sys.modules[…]``, a
+    module returned from a function, and tuple-unpack or walrus alias binding
+    (``a, b = gc, None``; ``(alias := gc)``). Review enumerated these; chasing
+    them statically is unbounded.
+
+    **The behavioural half is the load-bearing half**, and the module-identity
+    family above is precisely what it covers: every one of those bindings
+    resolves to the same module object, so
+    :func:`test_gate_reads_no_ratchet_baseline`'s ``monkeypatch.setattr`` on
+    ``load_baseline`` bites them all and still requires the computation to
+    complete. The static half exists to make an *accidental* reintroduction
+    legible in review, not to defeat a determined adversary.
     """
     tree = ast.parse(source)
     aliases = _module_aliases(tree)
@@ -564,6 +599,17 @@ _BASELINE_ESCAPES: dict[str, str] = {
     "literal path by joining": (
         "from pathlib import Path\n"
         "data = Path('tests/architectural') / '_gate_coverage_baseline.json'\n"
+    ),
+    # The two below defeated BOTH halves of trap 1 until review found them: the
+    # static reader missed them, and the behavioural half never sees them because
+    # they bypass the module whose attributes it sabotages.
+    "literal path as a keyword argument": (
+        "open(file='tests/architectural/_gate_coverage_baseline.json').read()\n"
+    ),
+    "literal path inside an f-string": (
+        "from pathlib import Path\n"
+        "root = 'tests/architectural'\n"
+        "data = Path(f'{root}/_gate_coverage_baseline.json').read_text()\n"
     ),
 }
 

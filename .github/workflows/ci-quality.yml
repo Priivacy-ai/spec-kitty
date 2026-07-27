@@ -1733,7 +1733,7 @@ jobs:
     if: >-
       always()
       && (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
-      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false && !startsWith(github.event.pull_request.title, 'WIP') && !startsWith(github.event.pull_request.title, '[WIP]') || contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ready-for-ci'))
+      && (github.event_name != 'pull_request' || (github.event.pull_request.draft == false && !startsWith(github.event.pull_request.title, 'WIP') && !startsWith(github.event.pull_request.title, '[WIP]')) || contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ready-for-ci'))
     strategy:
       fail-fast: false
       matrix:
