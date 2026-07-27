@@ -508,3 +508,193 @@ def test_precondition_no_reliance_on_seed_ulid_chronology(tmp_path: Path) -> Non
     snap_b = materialize_snapshot(fd_b).work_packages["WP01"]
     for slot in ("shell_pid", "agent", "assignee", "tracker_refs", "subtasks", "review"):
         assert snap_a.get(slot) == snap_b.get(slot), slot
+
+
+# ---------------------------------------------------------------------------
+# #2985 — the retroactive claim seed must never move a WP's lane backwards
+# ---------------------------------------------------------------------------
+
+
+def _terminal_only_mission(tmp_path: Path, *, terminal_at: str) -> Path:
+    """A finished WP whose log holds ONE ``planned -> done`` and no ``claimed``.
+
+    This is the real-corpus shape behind #2985: a force-jumped (or history-pruned)
+    WP. ``_claim_anchors`` has no ``claimed`` event to anchor on and falls back to
+    the WP's earliest transition — which for this WP IS its terminal one — so the
+    seed collides with the terminal event on ``at`` and the reducer's
+    ``(at, event_id)`` tiebreak decides the WP's lane by lexical luck.
+    """
+    feature_dir = build_mission(tmp_path, with_transitions=False)
+    append_events_atomic_verified(
+        feature_dir,
+        [
+            StatusEvent(
+                # Sorts BEFORE the hash-derived seed id on the tiebreak, exactly
+                # like the real ULIDs in the corpus (they all begin "01").
+                event_id="01TERMINALDONEEVENT0000001",
+                mission_slug=feature_dir.name,
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.DONE,
+                at=terminal_at,
+                actor="test-agent",
+                force=True,
+                execution_mode="direct_repo",
+            )
+        ],
+    )
+    return feature_dir
+
+
+def test_seed_claim_never_rewinds_a_finished_wp(tmp_path: Path) -> None:
+    """#2985: backfilling a finished WP leaves its canonical lane at ``done``."""
+    terminal_at = "2026-03-04T04:45:39.033459+00:00"
+    feature_dir = _terminal_only_mission(tmp_path, terminal_at=terminal_at)
+
+    result = b.backfill_runtime_state(feature_dir)
+    assert result.action == "wrote"
+
+    seeds = [e for e in read_event_stream(feature_dir).transitions if e.actor == b.BACKFILL_ACTOR]
+    assert seeds, "expected the claim carrier to still be seeded (no data loss)"
+    assert all(seed.at < terminal_at for seed in seeds), (
+        "the retroactive claim seed must sort strictly before recorded history"
+    )
+    assert materialize_snapshot(feature_dir).work_packages["WP01"]["lane"] == Lane.DONE
+
+
+def test_seed_claim_ordering_is_stable_across_reruns(tmp_path: Path) -> None:
+    """The shifted anchor is derived from AUTHENTIC history, so it never drifts."""
+    feature_dir = _terminal_only_mission(tmp_path, terminal_at="2026-03-04T04:45:39.033459+00:00")
+    b.backfill_runtime_state(feature_dir)
+    first = [e.to_dict() for e in read_event_stream(feature_dir).transitions]
+
+    second_run = b.backfill_runtime_state(feature_dir)
+    assert second_run.action == "skip"
+    assert second_run.seeded_count == 0
+    assert [e.to_dict() for e in read_event_stream(feature_dir).transitions] == first
+    assert b.verify_backfill(feature_dir).ok is True
+
+
+@pytest.mark.parametrize(
+    ("anchor", "earliest", "expected"),
+    [
+        # Anchor genuinely predates recorded history — left verbatim.
+        ("2026-01-01T00:00:00+00:00", "2026-01-02T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
+        # Collision — shifted one microsecond earlier so the fold order is decided.
+        ("2026-01-02T00:00:00+00:00", "2026-01-02T00:00:00+00:00", "2026-01-01T23:59:59.999999+00:00"),
+        # Anchor AFTER recorded history — also pinned before it.
+        ("2026-01-03T00:00:00+00:00", "2026-01-02T00:00:00+00:00", "2026-01-01T23:59:59.999999+00:00"),
+        # No recorded history to order against — anchor kept verbatim.
+        ("2026-01-02T00:00:00+00:00", None, "2026-01-02T00:00:00+00:00"),
+        # Unparseable history timestamp — never raise, keep the anchor.
+        ("2026-01-02T00:00:00+00:00", "not-a-timestamp", "2026-01-02T00:00:00+00:00"),
+    ],
+)
+def test_retro_claim_at_pins_the_seed_before_history(
+    anchor: str, earliest: str | None, expected: str
+) -> None:
+    assert b._retro_claim_at(anchor, earliest) == expected
+
+
+def test_instant_before_returns_none_for_an_unparseable_timestamp() -> None:
+    assert b._instant_before("not-a-timestamp") is None
+    assert b._instant_before("2026-01-02T00:00:00Z") == "2026-01-01T23:59:59.999999+00:00"
+
+
+# ---------------------------------------------------------------------------
+# #2985 corroborating red — accept stays event-count neutral
+# ---------------------------------------------------------------------------
+
+
+def _mission_with_modern_claim(tmp_path: Path, *, policy_metadata: dict[str, object]) -> Path:
+    """A mission whose AUTHENTIC ``planned -> claimed`` already carries a sidecar.
+
+    ``policy_metadata`` on the claim transition is the modern write path
+    (``reducer._claim_state``, FR-004) — the runtime slots it names are already
+    in the canonical model, so the migration has nothing left to migrate for them.
+    """
+    feature_dir = build_mission(tmp_path, with_transitions=False)
+    append_events_atomic_verified(
+        feature_dir,
+        [
+            StatusEvent(
+                event_id="01AUTHENTICMODERNCLAIM0001",
+                mission_slug=feature_dir.name,
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.CLAIMED,
+                at=CLAIMED_AT,
+                actor="test-agent",
+                force=False,
+                execution_mode="worktree",
+                policy_metadata=dict(policy_metadata),
+            )
+        ],
+    )
+    return feature_dir
+
+
+def test_no_claim_carrier_when_authentic_history_already_carries_the_slots(
+    tmp_path: Path,
+) -> None:
+    """Nothing left to migrate → no lane-shaped carrier is minted at all."""
+    feature_dir = _mission_with_modern_claim(
+        tmp_path,
+        policy_metadata={
+            "shell_pid": 44821,
+            "shell_pid_created_at": "1784458183.44",
+            "agent": "claude:opus:pedro",
+        },
+    )
+
+    b.backfill_runtime_state(feature_dir)
+
+    claim_seeds = [
+        e
+        for e in read_event_stream(feature_dir).transitions
+        if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
+    ]
+    assert claim_seeds == [], "a fully-migrated claim must not be re-seeded as a transition"
+    assert b.verify_backfill(feature_dir).ok is True
+
+
+def test_claim_carrier_seeds_only_the_slots_still_missing(tmp_path: Path) -> None:
+    """Partial coverage still migrates the remainder — no silent data loss."""
+    feature_dir = _mission_with_modern_claim(
+        tmp_path, policy_metadata={"agent": "claude:opus:pedro"}
+    )
+
+    b.backfill_runtime_state(feature_dir)
+
+    claim_seeds = [
+        e
+        for e in read_event_stream(feature_dir).transitions
+        if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
+    ]
+    assert len(claim_seeds) == 1
+    assert claim_seeds[0].policy_metadata == {
+        "shell_pid": 44821,
+        "shell_pid_created_at": "1784458183.44",
+    }
+    snapshot = materialize_snapshot(feature_dir).work_packages["WP01"]
+    assert snapshot["shell_pid"] == 44821
+    assert snapshot["agent"] == "claude:opus:pedro"
+
+
+def test_unmigrated_claim_slots_drops_only_already_present_slots() -> None:
+    runtime = b.LegacyWPRuntime(
+        wp_id="WP01",
+        shell_pid=44821,
+        shell_pid_created_at="1784458183.44",
+        agent="claude:opus:pedro",
+    )
+    assert b._unmigrated_claim_slots(runtime, frozenset()) == {
+        "shell_pid": 44821,
+        "shell_pid_created_at": "1784458183.44",
+        "agent": "claude:opus:pedro",
+    }
+    assert b._unmigrated_claim_slots(runtime, frozenset({"agent"})) == {
+        "shell_pid": 44821,
+        "shell_pid_created_at": "1784458183.44",
+    }
+    assert b._unmigrated_claim_slots(runtime, frozenset(b._CLAIM_SLOTS)) == {}
