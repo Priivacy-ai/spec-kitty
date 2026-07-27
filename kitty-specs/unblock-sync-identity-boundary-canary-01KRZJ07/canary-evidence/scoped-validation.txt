@@ -1,0 +1,74 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.4, pytest-9.0.3, pluggy-1.6.0 -- /private/tmp/sk-merged-canary/.venv-scoped/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /private/tmp/sk-merged-canary
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: timeout-2.4.0, respx-0.23.1, anyio-4.13.0
+collecting ... collected 58 items
+
+tests/specify_cli/cli/commands/test_sync_status_check_paths.py::test_non_tty_capture_shows_every_path_verbatim PASSED [  1%]
+tests/specify_cli/cli/commands/test_sync_status_check_paths.py::test_long_path_renders_without_ellipsis PASSED [  3%]
+tests/specify_cli/cli/commands/test_sync_status_check_paths.py::test_narrow_console_does_not_wrap_path_rows PASSED [  5%]
+tests/specify_cli/cli/commands/test_sync_status_check_paths.py::test_text_form_paths_match_json_form_byte_for_byte PASSED [  6%]
+tests/specify_cli/cli/commands/test_sync_status_check_paths.py::test_canary_parser_compat_smoke PASSED [  8%]
+tests/sync/test_sync_status_boundary_check.py::test_check_exits_zero_when_boundary_is_coherent PASSED [ 10%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_when_daemon_version_disagrees PASSED [ 12%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_when_legacy_body_upload_backlog_exists PASSED [ 13%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_when_orphan_daemon_record_exists PASSED [ 15%]
+tests/sync/test_sync_status_boundary_check.py::test_status_without_check_is_read_only_even_when_incoherent PASSED [ 17%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_per_canonical_field[overrides0-package_version] PASSED [ 18%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_per_canonical_field[overrides1-executable_path] PASSED [ 20%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_per_canonical_field[overrides2-source_path] PASSED [ 22%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_per_canonical_field[overrides3-server_url] PASSED [ 24%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_per_canonical_field[overrides4-team_or_user] PASSED [ 25%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_per_canonical_field[overrides5-queue_db_path] PASSED [ 27%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_on_legacy_event_rows_for_scope PASSED [ 29%]
+tests/sync/test_sync_status_boundary_check.py::test_check_fails_on_legacy_body_upload_rows_for_scope PASSED [ 31%]
+tests/sync/test_sync_status_boundary_check.py::test_check_json_mode_emits_documented_shape_for_coherent_host PASSED [ 32%]
+tests/sync/test_sync_status_boundary_check.py::test_check_json_mode_emits_non_empty_mismatches_for_split_brain_host PASSED [ 34%]
+tests/sync/test_sync_status_boundary_check.py::test_status_prints_all_fr005_fields PASSED [ 36%]
+tests/sync/test_sync_status_boundary_check.py::test_check_human_exits_two_when_saas_enabled_without_auth PASSED [ 37%]
+tests/sync/test_sync_status_boundary_check.py::test_check_json_exits_two_when_saas_enabled_without_auth PASSED [ 39%]
+tests/sync/test_sync_status_boundary_check.py::test_check_json_exits_zero_when_saas_disabled_and_unauthenticated PASSED [ 41%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_lifecycle_row_with_aggregate_and_event_type PASSED [ 43%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_lifecycle_row_specify_started PASSED [ 44%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_event_type_without_aggregate_is_not_lifecycle PASSED [ 46%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_aggregate_without_event_type_is_not_lifecycle PASSED [ 48%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_aggregate_with_empty_event_type_is_not_lifecycle PASSED [ 50%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_aggregate_with_non_string_event_type_is_not_lifecycle PASSED [ 51%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_non_mapping_input_is_not_lifecycle PASSED [ 53%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestIsMissionLifecycleRow::test_other_aggregate_is_not_lifecycle PASSED [ 55%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_status_transition_row_passes PASSED [ 56%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_lifecycle_row_mission_created_skipped PASSED [ 58%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_lifecycle_row_specify_started_skipped PASSED [ 60%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_event_type_without_aggregate_is_flagged PASSED [ 62%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_aggregate_without_event_type_passes PASSED [ 63%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_malformed_transition_with_event_type_is_flagged PASSED [ 65%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_event_name_without_aggregate_is_flagged PASSED [ 67%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestDetectForbiddenKeysRowFamily::test_lifecycle_row_with_event_name_still_skipped PASSED [ 68%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestRunAuditRowFamily::test_fresh_mission_lifecycle_rows_yield_no_forbidden_key_findings PASSED [ 70%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestRunAuditRowFamily::test_malformed_transition_row_still_flagged_in_run_audit PASSED [ 72%]
+tests/specify_cli/audit/test_detectors_row_family.py::TestRunAuditRowFamily::test_mixed_rows_only_flag_the_malformed_one PASSED [ 74%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_happy_path_exits_zero_and_reports_new_pid PASSED [ 75%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_no_owner_exits_one_and_directs_to_sync_now PASSED [ 77%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_stop_failure_exits_three_and_skips_launch PASSED [ 79%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_respawn_failure_exits_two PASSED [ 81%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_respawn_skipped_exits_two PASSED [ 82%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_foreground_binding_uses_remote_required_intent PASSED [ 84%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_human_render_includes_pid_summary PASSED [ 86%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_stale_owner_cleaned_still_exits_zero PASSED [ 87%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_doctor_help_lists_restart_daemon PASSED [ 89%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_restart_daemon_help_exits_zero PASSED [ 91%]
+tests/specify_cli/cli/commands/test_doctor_restart_daemon.py::test_runs_outside_project_does_not_crash PASSED [ 93%]
+tests/specify_cli/sync/test_preflight_remediation_hints.py::test_every_hint_command_resolves_under_help PASSED [ 94%]
+tests/specify_cli/sync/test_preflight_remediation_hints.py::test_doctor_restart_daemon_appears_in_hint_surface PASSED [ 96%]
+tests/specify_cli/sync/test_preflight_remediation_hints.py::test_restart_class_hints_share_canonical_phrase PASSED [ 98%]
+tests/specify_cli/sync/test_preflight_remediation_hints.py::test_no_unknown_commands_in_hints PASSED [100%]
+
+=============================== warnings summary ===============================
+src/specify_cli/migration/normalize_mission_lifecycle.py:20
+  /private/tmp/sk-merged-canary/src/specify_cli/migration/normalize_mission_lifecycle.py:20: DeprecationWarning: specify_cli.migration.rebuild_state is deprecated; use specify_cli.migration.mission_state.repair_repo for canonical, deterministic mission-state repair.
+    from specify_cli.migration.rebuild_state import rebuild_event_log
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 58 passed, 1 warning in 11.57s ========================

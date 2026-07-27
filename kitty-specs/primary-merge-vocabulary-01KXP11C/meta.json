@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "f95fc8cb97160da68419ec949c0aea63aa35c35c",
+  "created_at": "2026-07-16T17:54:21.757653+00:00",
+  "flattened": false,
+  "friendly_name": "Primary & Merge Vocabulary Disambiguation",
+  "mission_id": "01KXP11CXX5QKTQ7Y2YVBR5ZX6",
+  "mission_number": 181,
+  "mission_slug": "primary-merge-vocabulary-01KXP11C",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty overloads two words: 'primary' means four things (artifact partition, default/Primary branch, repository-root checkout, commit target) and 'merge' means three (local lane consolidation, git branch integration, publish to origin/main). The overload nearly caused a wrong fix (a 'primary partition' verdict almost implemented as 'route to primary branch=main'). Track 1 fixes the cheap, low-risk surface: one canonical glossary term per sense in docs/context, a prose/help/docstring disambiguation sweep, repair of the stale glossary README pointer plus folding legacy glossary prose into docs/context, and two safe code cleanups (fold duplicate resolve_primary_branch; rename internal merge/partition helpers). Every shipped identifier, serialized key, and CLI/command name stays byte-identical. The heavier Sense-C 'repository root checkout' code rename is a separate isolated Track 2 mission; the src/glossary runtime-package removal is tracked as #2727.",
+  "purpose_tldr": "Give overloaded 'primary' (4 senses) and 'merge' (3 senses) one canonical term each across glossary + prose + safe code — no shipped-identifier renames.",
+  "slug": "primary-merge-vocabulary-01KXP11C",
+  "status_phase": "1",
+  "target_branch": "feat/terminology-primary-merge-disambiguation",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-16T19:06:38.075711+00:00"
+}

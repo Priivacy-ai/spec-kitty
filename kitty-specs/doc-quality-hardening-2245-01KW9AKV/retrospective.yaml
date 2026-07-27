@@ -1,0 +1,299 @@
+schema_version: 1
+mission_id: 01KW9AKV1KNKYVHSHVP30K6TQW
+mission_slug: doc-quality-hardening-2245-01KW9AKV
+mission_number: 154
+friendly_name: Documentation Quality Hardening Gate
+mission_type: software-dev
+target_branch: design/doc-quality-hardening-2245
+created_at: '2026-06-30T19:06:09.600297+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-30T19:06:09.600297+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-011
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-024
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand
+    documented issues and decisions.
+- id: n-008
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-021
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured
+    as a documented review rejection; the WP scope or contract may need refinement.
+- id: n-009
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-022
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured
+    as a documented review rejection; the WP scope or contract may need refinement.
+- id: n-010
+  category: implementation
+  summary: WP06 needed 2 implementation cycles
+  evidence_refs:
+  - e-023
+  details: WP WP06 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured
+    as a documented review rejection; the WP scope or contract may need refinement.
+- id: n-004
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate
+    the runtime guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate
+    the runtime guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP05 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP05 required 3 operator-driven --force lane transition(s). Force overrides typically indicate
+    the runtime guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP06 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP06 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback
+    flow.
+- id: n-007
+  category: process
+  summary: WP06 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP06 required 3 operator-driven --force lane transition(s). Force overrides typically indicate
+    the runtime guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP02 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP05 was sent back from review to planning 1 time(s).
+gaps: []
+proposals:
+- id: pr-001
+  kind: tooling
+  category: tooling
+  summary: Add first-class support (or a runbook) for rebasing a mission's coord branch + lanes when the
+    planning branch is rebased onto a moved base mid-mission.
+  risk: structural
+  status: proposed
+  change_type: feature
+- id: pr-002
+  kind: tooling
+  category: tooling
+  summary: Lane-hygiene guard should compare kitty-specs by CONTENT vs the planning branch, not commit-history,
+    to avoid false-positives after legitimate rebases.
+  risk: low
+  status: proposed
+  change_type: bugfix
+- id: pr-003
+  kind: tooling
+  category: tooling
+  summary: move-task --to approved over a rejected latest artifact should persist an approved review-cycle
+    artifact in the coord worktree (or the merge gate should read the lane's verdict), closing the lane/coord
+    review-artifact split.
+  risk: low
+  status: proposed
+  change_type: bugfix
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP01-gate-strengthening.md
+- id: e-006
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP02-gate-flip-unify.md
+- id: e-007
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP03-changelog-link-repair.md
+- id: e-008
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP04-changelog-sync.md
+- id: e-009
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP05-adr-link-migration.md
+- id: e-010
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP06-comparator-census.md
+- id: e-011
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP07-prose-triage.md
+- id: e-012
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/tasks/WP08-terminology-policy.md
+- id: e-013
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCXR38ZZCX76MXZR09AKSNW
+- id: e-015
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCTP5NMGWDAH5EDGZGDA8Y2
+- id: e-016
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCV3RMGV9FM2J12XYZD4QPH
+- id: e-017
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCXR38ZZCX76MXZR09AKSNW
+- id: e-018
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCVX1KW9YQMMNGAW9GCPE19
+- id: e-019
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCTP5NMGWDAH5EDGZGDA8Y2..01KWCVV7EXBPG9VM4H5P25XS97
+- id: e-020
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: 01KWCV3RMGV9FM2J12XYZD4QPH..01KWCVRQTY63XDXFRZE592NMTH
+- id: e-021
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: implementation_cycles
+- id: e-022
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: implementation_cycles
+- id: e-023
+  kind: event_range
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/status.events.jsonl
+  range: implementation_cycles
+- id: e-024
+  kind: file
+  path: kitty-specs/doc-quality-hardening-2245-01KW9AKV/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
+hindered:
+- id: hn-001
+  category: tooling
+  summary: Mid-mission rebase of the planning/design branch onto a moved upstream base desynced the coord
+    branch + all lane worktrees (they stayed on the pre-rebase base). spec-kitty has no first-class 'rebase
+    mission onto moved base' operation; recovery required a manual coord-branch rebuild (reset to design
+    base + overlay the preserved status ledger) plus per-lane re-stacking of verified code diffs.
+  evidence_refs: []
+- id: hn-002
+  category: tooling
+  summary: 'Merge-forwarding upstream/main into lane worktrees to freshen them dragged in OTHER active
+    missions'' kitty-specs/ planning dirs (they live on the shared trunk), tripping the lane-hygiene guard.
+    Lesson: do not merge the shared trunk into a lane; grab only the specific files needed, or rebase
+    the mission branch wholesale.'
+  evidence_refs: []
+- id: hn-003
+  category: tooling
+  summary: 'Lane-hygiene guard false-positives after a planning-branch rebase: it flags kitty-specs files
+    by COMMIT-HISTORY, not content. Files byte-identical to the planning branch (diff=0) still blocked
+    move-task because the rebase left the lane sharing only an ancient merge-base. Required documented
+    --force overrides.'
+  evidence_refs: []
+- id: hn-004
+  category: tooling
+  summary: 'Review-artifact consistency split: the per-WP approve-over-rejected guard checks the LANE
+    worktree (no review-cycle artifact there -> approval passes), but the merge gate checks the COORD
+    worktree (rejected cycle-1 artifact -> merge blocked). A cycle-1 re-review approval recorded the status
+    event but persisted no approved review-cycle artifact, so merge failed REJECTED_REVIEW_ARTIFACT_CONFLICT
+    until the approved artifact was written by hand.'
+  evidence_refs: []
+- id: hn-005
+  category: process
+  summary: WP01's D-1 escape guard was over-scoped (flagged links escaping docs/ instead of the repo-root
+    invariant the retired checkers enforced). It passed WP01 review AND the post-tasks squad; only surfaced
+    at WP02 integration when EXCLUDE_PREFIXES flipped and the CI gate went red on 103 in-repo refs. Integration-point
+    semantics deserve explicit review when one WP's behavior only manifests after a later WP's change.
+  evidence_refs: []

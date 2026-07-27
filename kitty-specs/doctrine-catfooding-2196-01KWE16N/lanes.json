@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-catfooding-2196-01KWE16N",
+  "mission_id": "01KWE16N220EGF1Z5FPZ6V4SC0",
+  "mission_branch": "kitty/mission-doctrine-catfooding-2196-01KWE16N",
+  "target_branch": "design/doctrine-catfooding-2196",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/quality-and-tech-debt-standing-orders.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/043-close-defect-class-by-construction.directive.yaml",
+        "src/doctrine/tactics/built-in/architectural-gate-non-vacuity.tactic.yaml",
+        "src/doctrine/tactics/built-in/frozen-baseline-shrink-only-ratchet.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/procedures/built-in/mission-tracer-files.procedure.yaml",
+        "src/doctrine/templates/mission-tracer-files/approach.md",
+        "src/doctrine/templates/mission-tracer-files/design-decisions.md",
+        "src/doctrine/templates/mission-tracer-files/tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/044-canonical-sources-and-unification.directive.yaml",
+        "src/doctrine/tactics/built-in/canonical-source-unification.tactic.yaml",
+        "src/doctrine/toolguides/built-in/TERMINOLOGY_GUARD.md",
+        "src/doctrine/toolguides/built-in/terminology-guard.toolguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/045-prs-only-and-read-intent.directive.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/doctrine/tactics/built-in/pr-agent-worktree-isolation.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml",
+        "src/doctrine/styleguides/built-in/adversarial-squad-cadence.styleguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/041-tests-as-scaffold-not-friction.directive.yaml",
+        "src/doctrine/styleguides/built-in/testing-principles.styleguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/doctrine/styleguides/built-in/planning-and-tracking.styleguide.yaml",
+        "src/doctrine/tactics/built-in/ownership-map-leeway.tactic.yaml",
+        "src/doctrine/tactics/built-in/reviewer-implementer-role-separation.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/procedures/built-in/post-merge-arch-gate-adjudication.procedure.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/025-boy-scout-rule.directive.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/built-in/",
+        "src/doctrine/graph.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h",
+        "lane-i",
+        "lane-j",
+        "lane-k"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-m",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        ".kittify/charter/",
+        ".kittify/config.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-l"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-01T08:52:18.783518+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

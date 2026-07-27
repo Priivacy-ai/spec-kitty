@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-19T01:43:56.243822Z",
+      "decision_id": "01KXW0PN2KDS5M5GR9CMDPWV5F",
+      "final_answer": "Bundle deep fix: delete generator + extractor (dead-code), add red-first render-cleanliness guard, AND fix the residual no-op churn in the preflight auto-refresh -> charter synthesize surface (freshness-misfire in charter_runtime/freshness/computer.py + preflight runner + synthesizer no-op ratchets). Reproduce red-first where doctrine is tracked (this checkout masks it via .git/info/exclude).",
+      "input_key": "item3_scope",
+      "mission_id": "01KXW0NY335CXZTP3KXAGFV8EQ",
+      "mission_slug": "charter-deadcode-noop-campsite-01KXW0NY",
+      "opened_by": "cli",
+      "options": [
+        "Bundle deep fix",
+        "Guard and close",
+        "Dead-code only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Given #2373's render-path bug is already fixed by #2773, how should item 3 (no-op-stability) be scoped: guard+close, bundle the deep freshness/preflight fix, or dead-code-only?",
+      "rationale": null,
+      "resolved_at": "2026-07-19T01:43:57.242053Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.item3-bundle-vs-split",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KXW0NY335CXZTP3KXAGFV8EQ",
+  "version": 1
+}

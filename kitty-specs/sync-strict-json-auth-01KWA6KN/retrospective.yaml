@@ -1,0 +1,102 @@
+schema_version: 1
+mission_id: 01KWA6KNJZSYQ764MC086QPFS1
+mission_slug: sync-strict-json-auth-01KWA6KN
+mission_number: 153
+friendly_name: Fix sync strict-JSON ingress-skip auth
+mission_type: software-dev
+target_branch: fix/sync-strict-json-auth
+created_at: '2026-06-29T18:33:26.742305+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-29T18:33:26.742305+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-006
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-007
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity 
+    relationships.
+- id: g-001
+  category: spec_quality
+  summary: Unresolved clarification marker in spec.md (line 22)
+  evidence_refs:
+  - e-002
+  details: Found '[NEEDS CLARIFICATION:' marker at line 22 of spec.md. This indicates a specification gap that was not 
+    resolved before implementation.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/tasks/WP01-repin-sync-strict-json-seeding.md
+- id: e-006
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/status.events.jsonl
+- id: e-007
+  kind: file
+  path: kitty-specs/sync-strict-json-auth-01KWA6KN/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

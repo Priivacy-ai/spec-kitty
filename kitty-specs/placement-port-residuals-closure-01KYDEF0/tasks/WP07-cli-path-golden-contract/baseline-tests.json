@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP07",
+  "captured_at": "2026-07-26T20:52:52Z",
+  "base_branch": "placement-port-residuals",
+  "base_commit": "4315a667032f1790fb76ab9108098273956d04e3",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

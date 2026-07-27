@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-14T06:12:05.998147Z",
+      "decision_id": "01KRJHT7QD7XQMY33Y5TDTQ80V",
+      "final_answer": "A_fix_existing_target",
+      "input_key": "mypy_strict_scope",
+      "mission_id": "01KRJGKH4DJCSF277K9QV3WBE7",
+      "mission_slug": "quality-devex-hardening-3-2-01KRJGKH",
+      "options": [
+        "A_fix_existing_target",
+        "B_narrow_target",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Mypy strict gate scope: fix the existing target (A) or narrow it (B)?",
+      "rationale": null,
+      "resolved_at": "2026-05-14T06:12:57.847519Z",
+      "resolved_by": null,
+      "slot_key": "plan.mypy-strict.scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KRJGKH4DJCSF277K9QV3WBE7",
+  "version": 1
+}

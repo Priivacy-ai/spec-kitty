@@ -1,0 +1,69 @@
+{
+  "mission_slug": "session-reaper-and-tmp-leak-hygiene-01KWWAE7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Controller-gated pytest_sessionfinish snapshot-delta reaper reaps test-created test-feature-* dirs/branches + git-unregistered .worktrees/ husks; never touches pre-existing.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 tests/architectural/test_session_reaper.py: test_snapshot_delta_reaps_new_and_preserves_preexisting, test_new_registered_worktree_is_not_reaped_only_husk_is, test_controller_gate_worker_never_snapshots_or_reaps (13 passed). reviewer-renata mutation-verified both directions + controller gate.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-06",
+      "notes": "Commits 5784dddd + 625b5d4e."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Reaper sweeps the current run's /tmp prompt residue (next/implement|review/composed via WP02 namespace) + spec-kitty-test-homes/<run_uid>/ (N1), keyed to the run.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 test_tmp_sweep_reaps_this_runs_test_home_by_name_and_preserves_other_runs (red-first vs old delta) + e2e net-new=0 serial (215->215) and xdist -n2 (226->226); prompt sweep imports WP02 prompt_tmp_dir.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-06",
+      "notes": "N1 fix re-verified through real pytest_sessionfinish wiring."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "All three flat-/tmp prompt writers (prompt_builder.py, decision.py x2, workflow.py) route through one shared per-repo-namespaced temp-root constant.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 tests/runtime/test_tmp_prompt_namespace.py (13 tests): each writer's output is_relative_to(prompt_tmp_dir(repo_root)); import-identity guard; 3632 passed / 0 failed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-06",
+      "notes": "Commit 2aa9d296. Single source of truth = runtime.next._tmp_namespace.prompt_tmp_dir."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": ".gitignore:143-144 test-feature-* masks retired; reap-then-assert pollution assertion reds on a seeded leak.",
+      "proof_type": "automated_test",
+      "evidence": "WP01: masks removed; assert_no_leaked_test_residue + test_pytest_sessionfinish_reds_and_selfheals_on_leak (exitstatus flips 0->1 on leak, self-heals), mutation-verified both ways.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-06",
+      "notes": "Replaces mask-that-hides with reap-then-surface."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Workspace-context JSON tombstoned on merge-completion + cancel (coord-correct seam, targeted delete_context); 14 committed 059/060 orphans removed.",
+      "proof_type": "automated_test",
+      "evidence": "WP03: cancel hook on emit_status_transition_transactional (coord+fallback), merge hook in executor.py; 8 tests incl. coord-topology cancel mutation-proof; git ls-files .kittify/workspaces/ = 0 (was 14); 61+ passed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-06",
+      "notes": "Commit 48ea09fc. C-004 preserved (only CANCELED transition fires the hook)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Non-vacuous proof for reaper + namespacing + tombstone (mutation-checkable red-first).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 seed-vs-preserve + pollution red-first; WP02 drift-proof is_relative_to test; WP03 coord-cancel + merge mutation proofs (neuter delete_context -> orphan survives -> RED). All independently re-verified by reviewer-renata.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-06",
+      "notes": "One review-cycle rejection (WP01 N1 false-green) caught + remediated with a genuine red-first test."
+    }
+  ],
+  "negative_invariants": []
+}

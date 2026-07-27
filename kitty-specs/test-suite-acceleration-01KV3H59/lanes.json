@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "mission_slug": "test-suite-acceleration-01KV3H59",
+  "mission_id": "01KV3H590RHSQHF8XV843X5YHA",
+  "mission_branch": "kitty/mission-test-suite-acceleration-01KV3H59",
+  "target_branch": "feat/test-suite-acceleration",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "pytest.ini",
+        "tests/charter/test_integration.py",
+        "tests/mission_metadata/test_mission_identity.py",
+        "tests/sync/test_final_sync_diagnostics.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/_support/coverage_safety/**",
+        "tests/architectural/test_real_home_isolation_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/agent/conftest.py",
+        "tests/conftest.py",
+        "tests/test_worker_home_isolation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/conftest.py",
+        "tests/doctrine/conftest.py",
+        "tests/doctrine/test_drg_relations.py",
+        "tests/specify_cli/integration/test_migration_e2e.py",
+        "tests/status/test_transitions.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/_support/git_template/**",
+        "tests/architectural/test_no_prompt_filtering_added.py",
+        "tests/sync/test_daemon_self_retirement.py",
+        "tests/sync/test_edge_cases.py",
+        "tests/sync/test_offline_replay.py",
+        "tests/sync/test_orphan_sweep.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/development/testing-parallel.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-14T17:23:37.024812+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

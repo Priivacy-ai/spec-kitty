@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "mission_slug": "unshim-wave2-01KWMCAX",
+  "mission_id": "01KWMCAXDFA14T0BYWF14BWMH1",
+  "mission_branch": "kitty/mission-unshim-wave2-01KWMCAX",
+  "target_branch": "tidy/unshim-wave2",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/specify_cli/cli/commands/test_selector_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/preflight/runner.py",
+        "src/specify_cli/cli/commands/charter/lint.py",
+        "src/specify_cli/cli/commands/charter/status.py",
+        "tests/agent/cli/commands/test_implement_preflight.py",
+        "tests/agent/cli/commands/test_next_preflight.py",
+        "tests/architectural/test_no_shipped_layer_label.py",
+        "tests/charter/test_org_drg_edge_source_urn_preserved.py",
+        "tests/integration/test_charter_synthesize_fresh.py",
+        "tests/integration/test_quickstart_end_to_end.py",
+        "tests/specify_cli/charter_freshness/test_computer.py",
+        "tests/specify_cli/charter_lint/checks/test_contradiction.py",
+        "tests/specify_cli/charter_lint/checks/test_orphan.py",
+        "tests/specify_cli/charter_lint/checks/test_reference_integrity.py",
+        "tests/specify_cli/charter_lint/checks/test_staleness.py",
+        "tests/specify_cli/charter_lint/test_drg_fallback.py",
+        "tests/specify_cli/charter_lint/test_engine.py",
+        "tests/specify_cli/charter_preflight/test_config.py",
+        "tests/specify_cli/charter_preflight/test_performance.py",
+        "tests/specify_cli/charter_preflight/test_runner.py",
+        "tests/specify_cli/cli/commands/charter/test_status_json_safe.py",
+        "tests/specify_cli/cli/commands/test_charter_lint.py",
+        "tests/specify_cli/test_provenance_integration.py",
+        "tests/test_dashboard/test_dashboard_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/architectural/test_layer_rules.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/next/"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/agent/test_implement_command.py",
+        "tests/agent/test_workflow_charter_context.py",
+        "tests/contract/test_machine_facing_canonical_fields.py",
+        "tests/contract/test_next_no_implicit_success.py",
+        "tests/contract/test_next_no_unknown_state.py",
+        "tests/contract/test_plan_mission_yaml_validates.py",
+        "tests/fixtures/runtime_parity/_capture_baselines.py",
+        "tests/integration/retrospective/test_autonomous_terminus_e2e.py",
+        "tests/integration/retrospective/test_default_flow_generator_failure.py",
+        "tests/integration/retrospective/test_default_flow_healthy.py",
+        "tests/integration/retrospective/test_hic_terminus_e2e.py",
+        "tests/integration/retrospective/test_latency_budget.py",
+        "tests/integration/retrospective/test_lifecycle_hook.py",
+        "tests/integration/retrospective/test_next_mission_sees_change.py",
+        "tests/integration/retrospective/test_opt_out.py",
+        "tests/integration/retrospective/test_policy_source_attribution.py",
+        "tests/integration/retrospective/test_strict_flow_block.py",
+        "tests/integration/retrospective/test_wp04_coverage_branches.py",
+        "tests/integration/test_coord_loop_workflow.py",
+        "tests/integration/test_custom_mission_runtime_walk.py",
+        "tests/integration/test_dashboard_counters.py",
+        "tests/integration/test_documentation_runtime_walk.py",
+        "tests/integration/test_implement_review_retrospect_smoke.py",
+        "tests/integration/test_internal_runtime_engine.py",
+        "tests/integration/test_mission_run_command.py",
+        "tests/integration/test_mission_type_profile_live_wiring.py",
+        "tests/integration/test_planning_artifact_wp.py",
+        "tests/integration/test_research_runtime_walk.py",
+        "tests/integration/test_slice_f_cross_axis.py",
+        "tests/integration/test_workflow_sequence_runtime.py",
+        "tests/perf/test_loader_perf.py",
+        "tests/retrospective/test_gate_decision.py",
+        "tests/specify_cli/events/test_decision_log.py",
+        "tests/specify_cli/missions/test_mission_template_consistency.py",
+        "tests/specify_cli/next/test_decision_dispatch.py",
+        "tests/specify_cli/next/test_decision_validation.py",
+        "tests/specify_cli/next/test_runtime_bridge.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py",
+        "tests/specify_cli/next/test_runtime_bridge_dispatch.py",
+        "tests/specify_cli/next/test_runtime_bridge_documentation_composition.py",
+        "tests/specify_cli/next/test_runtime_bridge_research_composition.py",
+        "tests/specify_cli/next/test_workflow_registry.py",
+        "tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py",
+        "tests/specify_cli/next/test_wp_prompt_governance_contract.py",
+        "tests/specify_cli/status/test_progress_integration.py",
+        "tests/specify_cli/test_documentation_template_resolution.py",
+        "tests/specify_cli/test_operational_context_wiring.py",
+        "tests/unit/mission_loader/test_command.py",
+        "tests/unit/mission_loader/test_contract_synthesis.py",
+        "tests/unit/mission_loader/test_loader_facade.py",
+        "tests/unit/mission_loader/test_registry.py",
+        "tests/unit/mission_loader/test_retrospective_marker.py",
+        "tests/unit/mission_loader/test_validator_errors.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_freshness/",
+        "src/specify_cli/charter_lint/",
+        "src/specify_cli/charter_preflight/",
+        "tests/architectural/test_charter_runtime_shim_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/migrations/shim-registry.yaml",
+        "src/specify_cli/glossary/",
+        "src/specify_cli/next/",
+        "tests/architectural/test_shim_registry_schema.py",
+        "tests/glossary/test_legacy_import_shim.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/frontmatter.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_dead_symbols.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/architecture/05_ownership_manifest.yaml",
+        "docs/architecture/05_ownership_map.md",
+        "docs/plans/degod-unshim-roadmap.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-f",
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-03T17:23:56.984055+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

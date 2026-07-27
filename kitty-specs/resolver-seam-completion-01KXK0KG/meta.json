@@ -1,0 +1,20 @@
+{
+  "baseline_merge_commit": "059daa275ea2d6a90e43175e9a4b4d523bcacb1e",
+  "coordination_branch": "kitty/mission-resolver-seam-completion-01KXK0KG",
+  "created_at": "2026-07-15T13:49:03.302799+00:00",
+  "flattened": false,
+  "friendly_name": "Mission-Type DRG Node + Cross-Grain Integrity Gate (S0 + seam completion)",
+  "mission_id": "01KXK0KGE6MSVWDDC8JQ1M5ZY2",
+  "mission_number": 179,
+  "mission_slug": "resolver-seam-completion-01KXK0KG",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Bundles #2651 (resolver-seam completion) with the first step of ADR S0. Per the ADR-anchored adjudication, cross-grain disjointness (FR-013) belongs in a doctrine-integrity/DRG consistency gate on real content, not a swallowed hot-resolver raise, and its home requires mission_type to be a first-class DRG node. So this mission makes mission_type a DRG node, enforces cross-grain integrity as a gate with a non-vacuity twin, wires the live action-grain lazily (retiring _EMPTY_GRAIN, overlay-aware root), reconciles the two test-side unions, and campsites the seam - keeping activation gating byte-identical. A precursor that de-risks S3.",
+  "purpose_tldr": "Make mission_type a first-class DRG node and land cross-grain integrity as a doctrine-integrity gate on real content, wiring the live action-grain lazily and retiring _EMPTY_GRAIN - activation gating byte-identical.",
+  "slug": "resolver-seam-completion-01KXK0KG",
+  "status_phase": "1",
+  "target_branch": "feat/2651-resolver-seam-completion",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-15T15:44:02.530913+00:00"
+}

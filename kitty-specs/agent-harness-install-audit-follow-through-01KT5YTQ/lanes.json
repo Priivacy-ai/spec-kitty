@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "mission_slug": "agent-harness-install-audit-follow-through-01KT5YTQ",
+  "mission_id": "01KT5YTQ9HXWAFSEHSFZ61K3HX",
+  "mission_branch": "kitty/mission-agent-harness-install-audit-follow-through-01KT5YTQ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/explanation/ai-agent-architecture.md",
+        "docs/how-to/setup-codex-spec-kitty-launcher.md",
+        "docs/how-to/upgrade-project.md",
+        "docs/reference/environment-variables.md",
+        "docs/reference/supported-agents.md",
+        "docs/reference/upgrade-lifecycle.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission-steps/**/implement/prompt.md",
+        "tests/specify_cli/skills/__snapshots__/codex/**",
+        "tests/specify_cli/skills/__snapshots__/vibe/**",
+        "tests/specify_cli/skills/test_command_renderer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/how-to/harnesses/antigravity.md",
+        "docs/how-to/harnesses/kiro.md",
+        "docs/reference/supported-harnesses.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-03T06:26:36.116841+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

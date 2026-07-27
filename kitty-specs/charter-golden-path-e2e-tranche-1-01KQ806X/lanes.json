@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
+  "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
+  "mission_branch": "kitty/mission-charter-golden-path-e2e-tranche-1-01KQ806X",
+  "target_branch": "test/charter-e2e-827-tranche-1",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/e2e/conftest.py",
+        "tests/e2e/test_charter_epic_golden_path.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-27T18:24:10.011982+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}

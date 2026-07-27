@@ -1,0 +1,139 @@
+{
+  "mission_slug": "name-vs-authority-remediation-01KTYGTE",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "#1884 placement-authority gate: is_committed verifies via resolve_placement_only ref",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved (opus renata, P0 rigor); tests/integration/test_p0_pinning_regressions.py C-GATE-1 pin mutation-proofed RED-on-revert; fail-closed paths verified",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "#1883 accept idempotency across all modes",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved; tests/specify_cli/acceptance/test_accept_idempotency.py 5 tests, RED\u2192GREEN on no_commit mode; adversarial over-exclusion probe passed (exact mission-scoped relpaths only)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "#1885 residual: unresolvable handle \u2192 structured error",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; QueryModeValidationError with error_code+next_step replaces silent mission=unknown stub; mutation-proofed; no remaining silent query stub (line-2423 decide_next adjudicated in-scope-exempt)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verification pins for #1889 + #1885 symptom (fixed by PR #1850)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; 8 real-git pinning regressions (no mocks) verified by reviewer; repro proofs recorded in review notes",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Topology authority seam + 7-site migration",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (cycle 2); WorktreeTopology/classify/is_registered_coord_worktree in surface_resolver; 18 seam tests + lock-root regression RED-on-mutation verified independently by reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Branch-identity authority seam, dual-era, 8 cluster-B sites",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved; mission_branch_name_required + BranchIdentityUnresolved; 21 tests; over-rejection probe passed (legacy+mid8 both resolve); orchestrator_api:771 exemption adjudicated sound",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Fabrication idiom eradicated from both surviving sites",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved; resolve_transaction_mid8 fail-closed cascade, topology-gated; routing-level mis-route impossibility verified by reviewer; grep-zero idiom repo-wide in src/",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "#1889 decision table incl. R3 branch-deleted row",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved; CoordinationBranchDeleted distinct loud structured error; 7 decision-table pins incl. test_r3_never_falls_back_to_primary; composes with #1848 carve-out",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Ratchet test_topology_resolution_boundary.py, 3 assertions",
+      "proof_type": "automated_test",
+      "evidence": "WP09 approved; reviewer ran her OWN 3 rogue injections (all RED) + anti-false-positive probe + bidirectional staleness proof; 353 architectural green",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Doctrine refinements #1865/#1866/#1867 + addenda",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved; deltas trace 1:1 to research-fold-cluster \u00a71; doctrine validate OK; DIRECTIVE_018 additive; references blocks unchanged; terminology guard green",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Authority-path flip, 7-link chain atomic",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved; all links verified in one commit; 26 parity baselines sole-change-proven; ADR amended append-only; 350 architectural + 1585 charter/regression green",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "#1863 extractor walk + toolguide schema references field",
+      "proof_type": "automated_test",
+      "evidence": "WP08 approved; +24 suggests edges byte-stable double-regen; 33 unit tests; 2195 doctrine tests; deviations (+2 nodes) adjudicated",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "#1896 substantive-plan gate bullet tolerance + actionable blocked_reason",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; pinning test RED-on-revert (regex reverted \u2192 3 pins fail); 8 format tests",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP review) / orchestrator aggregation",
+      "verified_at": "2026-06-12T21:30:00+00:00",
+      "notes": "Verified via approved WP review on lane; see kitty-specs review notes + WP activity log"
+    }
+  ],
+  "negative_invariants": []
+}

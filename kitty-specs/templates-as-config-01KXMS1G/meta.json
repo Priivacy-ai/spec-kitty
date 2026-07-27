@@ -1,0 +1,35 @@
+{
+  "accept_commit": "0c9526d0c980ed9a84842c503a3502be160c35e3",
+  "acceptance_history": [
+    {
+      "accept_commit": "0c9526d0c980ed9a84842c503a3502be160c35e3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-16T10:09:44.931239+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "dfb55dc5c734d69f4b9628e5c21a112824d9949e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-16T10:09:44.931239+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "dfb55dc5c734d69f4b9628e5c21a112824d9949e",
+  "baseline_merge_commit": "6bd1d4b1b5be5318d323bfd666b7bc155087b7de",
+  "coordination_branch": "kitty/mission-templates-as-config-01KXMS1G",
+  "created_at": "2026-07-16T06:15:22.876043+00:00",
+  "flattened": false,
+  "friendly_name": "Templates as Mission Configuration",
+  "mission_id": "01KXMS1GZVEZ4TPWW9S8G9W9FD",
+  "mission_number": 180,
+  "mission_slug": "templates-as-config-01KXMS1G",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty maintainers need template resolution to follow the same doctrine-to-charter-to-core authority chain as other mission-type configuration. This mission fills the reserved template-set contract for issue 2658 while preserving current software-dev behavior and excluding the epic's later enumeration and tree-retirement slices.",
+  "purpose_tldr": "Make each activated mission type own its template selection without software-dev defaults.",
+  "slug": "templates-as-config-01KXMS1G",
+  "source_description": "Priivacy-ai/spec-kitty issue 2658: specify_cli/missions retirement — Templates-as-config: fill the template_set slot (#2652-T)",
+  "status_phase": "1",
+  "target_branch": "feat/templates-as-config",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-16T07:31:07.887629+00:00"
+}

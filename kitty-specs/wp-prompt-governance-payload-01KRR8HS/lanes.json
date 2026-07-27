@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "mission_slug": "wp-prompt-governance-payload-01KRR8HS",
+  "mission_id": "01KRR8HS66A7NFV64HHPXG2JJE",
+  "mission_branch": "kitty/mission-wp-prompt-governance-payload-01KRR8HS",
+  "target_branch": "feat/org-doctrine-layer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        ".kittify/charter/charter.md",
+        "scripts/measure-wp-prompt.py",
+        "src/charter/context.py",
+        "src/charter/context_renderers/authority_paths.py",
+        "src/charter/context_renderers/fetch_stanza.py",
+        "src/charter/context_renderers/section_bodies.py",
+        "src/charter/context_renderers/token_budget.py",
+        "src/charter/extractor.py",
+        "src/charter/schemas.py",
+        "src/charter/sync.py",
+        "src/specify_cli/missions/software-dev/command-templates/implement.md",
+        "src/specify_cli/missions/software-dev/command-templates/review.md",
+        "src/specify_cli/next/prompt_builder.py",
+        "tests/architectural/test_template_governance_payload_contract.py",
+        "tests/charter/test_context_authority_paths.py",
+        "tests/charter/test_context_profile.py",
+        "tests/charter/test_context_section_bodies.py",
+        "tests/charter/test_context_token_budget.py",
+        "tests/charter/test_schemas_additive_fields.py",
+        "tests/charter/test_sync_authority_paths.py",
+        "tests/charter/test_sync_references.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-16T11:48:53.111737+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP03"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP02"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

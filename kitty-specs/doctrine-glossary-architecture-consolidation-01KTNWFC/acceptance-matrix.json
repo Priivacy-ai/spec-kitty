@@ -1,0 +1,129 @@
+{
+  "mission_slug": "doctrine-glossary-architecture-consolidation-01KTNWFC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Tracker-organisation procedure authored (9 steps, 7 anti-patterns) encoding the operator canon.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: schema-valid, doctor healthy, 2149 doctrine tests; content fidelity verified verbatim vs canon; validated live by WP11 dogfood.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Tactics iterative-deepening-review + moscow-scoping-lens authored; MoSCoW=scoping lens, never priority:Px.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: 'translate, do not conflate' boundary verified crisp; tactic-compliance suite green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Planning/tracking styleguide authored (10 principles/4 patterns/3 anti-patterns).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: line-by-line fidelity vs source traces; schema-valid; 2144 doctrine tests.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "GitHub tracker toolguide authored (sub-issues API, node-vs-db ids, rate-limit traps, auth).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: db-id/node-id distinction verified CORRECT incl. the corrected -F lesson; gotchas fired as documented in WP11 (self-validating).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Glossary reconciled: single canonical top-level surface; residual architecture/glossary pointer deleted; planning-and-tracking context page added.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: C-005 single-surface verified; 197 glossary tests; both seeds valid; re-scope per operator decision (move would have re-forked).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Living-architecture layout: vision/ + diagrams/ at top, boundary+decay rules, history slots, ARCHITECTURE_DOCS_GUIDE current-track=3.x.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: review confirmed 'the delivered layout IS the #1805 restructure'; markdownlint 0/277 files; #1843 non-foreclosure DoD line verified present.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Ops ADR 2026-06-11-1: Op as first-class execution artifact; three-tier model; #1802 lifecycle folded as intake/correction Ops; canonical-shapes section.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved: every factual ground of the authority-path deferral verified true; zero retired-shape endorsements; 333 architectural tests.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "org-charter extends: canonical charter.org_extends resolver (fail-closed cycle/missing-base), parallel DFS deleted, legacy contract preserved.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 approved: reframe adjudicated legitimate (activation_engine has zero extends notion); 216 tests; layer purity verified; contract example round-trips vs shipped model.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "DRG closure: deterministic regenerate-graph CLI (--check freshness twin) + symmetric profile-edge validation + lineage DAG check; 5 new artifacts wired (+8 edges).",
+      "proof_type": "automated_test",
+      "evidence": "WP09 approved (independent strictness proofs: asymmetric edges flagged both directions, lineage 2-cycle caught, delegates cycles allowed) + WP10 approved (graph 561 edges, zero removals, idempotent; extractor walk gap flagged for upstream).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "C4 refresh: 12 Mermaid diagrams across L1/L2/L3 depicting current canonical shapes (commit_guard, CommitTarget(ref,kind), mission_runtime, single authorities, 9-lane FSM).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: 8/8 code spot-checks PASS, 12/12 renders clean, zero retired-shape endorsements; org_extends merge-time enhancement recorded.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Runtime GlossaryScope for the planning-and-tracking subset DEFERRED with recorded follow-up (#1418).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: defer recorded in seed header + context page; GlossaryScope enum verified untouched; issue-matrix row deferred-with-followup.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Doctrine dogfood: #391 organized end-to-end using ONLY the new doctrine; #391 stays OPEN (operator decision 2026-06-11, SC-6 amended); 3 doctrine gaps fed back.",
+      "proof_type": "automated_test",
+      "evidence": "WP11 approved: three-surface verification (deliverable, live tracker incl. deferral respect + canonical tree intact, method traceability); SC-1 PASS, SC-6-as-amended PASS.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-11T19:30:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved first-cycle."
+    }
+  ],
+  "negative_invariants": []
+}

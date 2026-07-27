@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "mission_slug": "ci-topology-shrink-01KWQAVX",
+  "mission_id": "01KWQAVXZGH1G36HB9QKWMYXGD",
+  "mission_branch": "kitty/mission-ci-topology-shrink-01KWQAVX",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/ci_topology_census.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_arch_pole_deserialized.py",
+        "tests/architectural/test_arch_unblind_matrix.py",
+        "tests/architectural/test_ci_topology_worklist.py",
+        "tests/architectural/test_coverage_consumer_needs.py",
+        "tests/architectural/test_job_count_ceiling.py",
+        "tests/architectural/test_same_tier_uniqueness.py",
+        "tests/architectural/test_serial_port_preservation.py",
+        "tests/architectural/test_shard_universe_bounded.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-windows.yml"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/release/ci_topology_timings_postshrink.json",
+        "tests/release/test_coverage_topology_ownership.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/_gate_coverage_baseline.json",
+        "tests/architectural/test_ci_quality_path_filters.py",
+        "tests/architectural/test_ci_architectural_gate_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-04T21:39:18.716047+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

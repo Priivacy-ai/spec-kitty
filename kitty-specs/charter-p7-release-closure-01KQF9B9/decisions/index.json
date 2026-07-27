@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-30T13:54:27.317853Z",
+      "decision_id": "01KQFAPRVNBB7V1QWN1E4C2VJ7",
+      "final_answer": "Nested synthesis_state key + mirror errors into top-level errors list",
+      "input_key": "synthesis_state_json_shape",
+      "mission_id": "01KQF9B97EV87WK6753J9KTGEC",
+      "mission_slug": "charter-p7-release-closure-01KQF9B9",
+      "options": [
+        "Nested synthesis_state key only",
+        "Nested synthesis_state key + mirror errors into top-level errors list",
+        "Flat merge into top-level errors list only"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should synthesis-state validation results appear in the charter bundle validate --json output?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T13:54:31.384843Z",
+      "resolved_by": null,
+      "slot_key": "plan.json-contract.synthesis-state-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQF9B97EV87WK6753J9KTGEC",
+  "version": 1
+}

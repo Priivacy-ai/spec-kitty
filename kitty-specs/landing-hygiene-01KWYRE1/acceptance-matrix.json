@@ -1,0 +1,59 @@
+{
+  "mission_slug": "landing-hygiene-01KWYRE1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "fail",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Review-prompt files are capped + pruned within a repo; current invocation never deleted",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (5793777): tests/specify_cli/review/test_prompt_retention.py \u2014 exceed-cap + future-mtime (current preserved) tests green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Retention is configurable + fail-safe (prune never raises; scoped to the review-prompts subtree; scheme unchanged)",
+      "proof_type": "automated_test",
+      "evidence": "WP01: DEFAULT_REVIEW_PROMPT_RETENTION + keyword-only retention param; scandir + unlink raise-path tests green (write still returns, no exception)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The phantom allowlist entry corrected with a recorded determination, across BOTH authorities in lockstep",
+      "proof_type": "code_review",
+      "evidence": "WP02 (601da98): ADD lanes/branch_naming.py (no ancestor path covers it; cov-backed by fast/integration-tests-lanes) in ci-quality.yml AND test_diff_coverage_policy.py, same commit; parser-comment hazard neutralized (10 entries parsed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "determination recorded: repointed, not bare-removed"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Glob-aware existence guard (reuses the canonical parser); reds specifically on the phantom",
+      "proof_type": "automated_test",
+      "evidence": "WP02: test_diff_coverage_critical_paths_all_resolve_to_existing_files \u2014 globs \u2192 Path.glob \u22651 match, literals \u2192 .exists(); red-first names mission_detection.py only; 34 passed post-fix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NFR-001-002",
+      "description": "No NEW suppression introduced in this mission's new surfaces; no path-scheme regression",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE 'noqa|type: ignore|NOSONAR' tests/specify_cli/review/test_prompt_retention.py",
+      "result": "confirmed_absent",
+      "evidence": "Both reviewers (reviewer-renata) confirmed no new suppression in either WP: WP01's prune added none (BLE not in ruff select); WP02's guard/test none. The only noqa in prompt_metadata.py is the PRE-EXISTING line-107 TID251 (sha256 owner), untouched. `<repo-id>`/path scheme (#959) unchanged; prune fail-safe.",
+      "scope": "mission"
+    }
+  ]
+}

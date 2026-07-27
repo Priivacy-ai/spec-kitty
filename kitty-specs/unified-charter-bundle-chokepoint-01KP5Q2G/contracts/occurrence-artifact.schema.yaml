@@ -1,0 +1,149 @@
+# Occurrence-classification artifact schema (per #393 / FR-015)
+#
+# This schema is inherited verbatim from Phase 1 (`excise-doctrine-curation-and-
+# inline-references-01KP54J6/contracts/occurrence-artifact.schema.yaml`). It is
+# re-published here for reading convenience; the Phase 1 file remains the
+# authoritative source. The verifier script `scripts/verify_occurrences.py`
+# (introduced in Phase 1 WP1.1) is reused without modification.
+#
+# Purpose: declare, per WP and per mission, every string / symbol / path
+# occurrence that the WP intends to change or delete, classify it into a
+# category with explicit include/exclude rules, and assert at merge time that
+# the "to-change" set is empty on disk (verification-by-completeness). This
+# replaces hand-reviewed semantic diffs for bulk-edit categories.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://spec-kitty.dev/schemas/occurrence-artifact/1.0.0"
+title: OccurrenceArtifact
+description: >
+  Per-work-package declaration of occurrences the WP edits or deletes.
+  Consumed by scripts/verify_occurrences.py at WP PR merge time.
+
+type: object
+additionalProperties: false
+required:
+  - wp_id
+  - mission_slug
+  - requires_merged
+  - categories
+  - carve_outs
+  - must_be_zero_after
+properties:
+  wp_id:
+    type: string
+    pattern: "^WP[0-9]+\\.[0-9]+$"
+    description: >
+      Work package identifier (e.g., "WP2.1"). Matches the WP section in
+      plan.md.
+  mission_slug:
+    type: string
+    description: >
+      Full mission slug for cross-referencing against kitty-specs/<slug>/.
+      Example: "unified-charter-bundle-chokepoint-01KP5Q2G".
+  requires_merged:
+    type: array
+    items:
+      type: string
+      pattern: "^WP[0-9]+\\.[0-9]+$"
+    description: >
+      WP IDs that must be merged before this WP's verifier will run green.
+      Encodes the strict-sequencing contract from C-007.
+  categories:
+    type: object
+    description: >
+      Map of category key to category definition. Keys are stable identifiers
+      (e.g., "import_path", "symbol_name", "filesystem_path_literal",
+      "yaml_key", "cli_command_name", "docstring_comment",
+      "skill_template_reference", "test_identifier").
+    additionalProperties:
+      type: object
+      additionalProperties: false
+      required:
+        - description
+        - include
+        - exclude
+        - occurrences
+      properties:
+        description:
+          type: string
+          description: What this category covers.
+        include:
+          type: array
+          items:
+            type: string
+          description: >
+            Glob patterns / regex patterns that describe what the verifier
+            should scan.
+        exclude:
+          type: array
+          items:
+            type: string
+          description: >
+            Patterns to exclude from the scan (e.g., test fixtures, carved-out
+            files).
+        occurrences:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - path
+              - pattern
+              - action
+            properties:
+              path:
+                type: string
+                description: File path or path glob.
+              pattern:
+                type: string
+                description: Exact string or regex the occurrence matches.
+              action:
+                type: string
+                enum: ["delete", "rewrite", "leave"]
+                description: >
+                  What the WP does with this occurrence. "delete" means the
+                  occurrence must be absent after merge; "rewrite" means the
+                  occurrence is replaced by a new string (the new form is
+                  documented in the rewrite_to field if present); "leave"
+                  means this occurrence is an explicit carve-out and must
+                  remain unchanged.
+              rewrite_to:
+                type: string
+                description: >
+                  If action is "rewrite", the new string the occurrence is
+                  replaced with. Informational; verifier does not act on it.
+              rationale:
+                type: string
+                description: Human-readable rationale for the chosen action.
+  carve_outs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - path
+        - reason
+      properties:
+        path:
+          type: string
+          description: File path or path glob that the verifier must exclude from must_be_zero_after checks.
+        reason:
+          type: string
+          description: Human-readable rationale for the carve-out.
+    description: >
+      Mission-level or WP-level carve-outs that are allowed to retain strings
+      in the must_be_zero_after list.
+  must_be_zero_after:
+    type: array
+    items:
+      type: string
+    description: >
+      Strings or regex patterns that must NOT appear anywhere under src/ and
+      tests/ (outside carve_outs) after this WP merges. Verifier fails the
+      PR if any match is found.
+  verification_notes:
+    type: string
+    description: >
+      Optional free-text notes for the reviewer about how completeness was
+      verified (e.g., "AST walk used in addition to grep because symbol
+      references can be indirect").

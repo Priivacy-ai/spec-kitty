@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-27T17:19:24.833994Z",
+      "decision_id": "01KSN75F51THRV26XGR10M498J",
+      "final_answer": "Fail entire scope with actionable error \u2014 no partial loads, DDD aggregate consistency",
+      "input_key": "error_recovery_behavior",
+      "mission_id": "01KSN75286D6P9X62N2ZYPD5QG",
+      "mission_slug": "glossary-seed-file-schema-validation-01KSN752",
+      "options": [
+        "Fail entire scope with actionable error",
+        "Skip invalid terms and load valid ones with warning",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When validation catches invalid glossary data at load time, should it fail the entire scope or skip invalid terms?",
+      "rationale": null,
+      "resolved_at": "2026-05-27T17:19:36.570148Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.error-recovery",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-27T17:26:30.827978Z",
+      "decision_id": "01KSN7JF5A2KQXDPKXYNBKP22R",
+      "final_answer": "Pydantic \u2014 glossary should move closer to being a native part of doctrine",
+      "input_key": "validation_model_style",
+      "mission_id": "01KSN75286D6P9X62N2ZYPD5QG",
+      "mission_slug": "glossary-seed-file-schema-validation-01KSN752",
+      "options": [
+        "Pydantic (align with doctrine)",
+        "Dataclasses (match existing glossary)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should glossary validation models use Pydantic (doctrine pattern) or dataclasses (existing glossary pattern)?",
+      "rationale": null,
+      "resolved_at": "2026-05-27T17:26:36.533132Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.model-style",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KSN75286D6P9X62N2ZYPD5QG",
+  "version": 1
+}

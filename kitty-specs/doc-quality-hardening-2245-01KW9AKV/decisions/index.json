@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-29T09:16:23.316953Z",
+      "decision_id": "01KW9AMQWMA537JG8JTBPETB5M",
+      "final_answer": "One cohesive mission (~4 lanes): Lane A body-link gate, Lane B CHANGELOG sync+links, Lane C ADR migration+census, Lane D prose sweep+policy. Items 1/2/3 are coupled through the gate's adr/changelog coverage, so splitting would duplicate resolver work.",
+      "input_key": "mission_scope",
+      "mission_id": "01KW9AKV1KNKYVHSHVP30K6TQW",
+      "mission_slug": "doc-quality-hardening-2245-01KW9AKV",
+      "opened_by": "cli",
+      "options": [
+        "One cohesive mission (~4 lanes)",
+        "Split: gate now / cleanup later",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should the mission for #2245 be sliced?",
+      "rationale": null,
+      "resolved_at": "2026-06-29T09:16:34.546336Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.slicing",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-29T09:16:35.428736Z",
+      "decision_id": "01KW9AN3Q4WAE4CTEQKMPMVEZK",
+      "final_answer": "One-time C-002-waived migration: rewrite the ~26 dead links in ADR bodies to live targets in a sanctioned pass, amend 2026-06-27-1-common-docs-reconciliation.md with the waiver+before/after rationale, and re-pin the byte-invariance baseline. Preferred over a redirect-tolerant gate for a clean end-state with no link indirection; lets the new gate cover docs/adr/ with no special tolerance afterward.",
+      "input_key": "adr_link_approach",
+      "mission_id": "01KW9AKV1KNKYVHSHVP30K6TQW",
+      "mission_slug": "doc-quality-hardening-2245-01KW9AKV",
+      "opened_by": "cli",
+      "options": [
+        "Redirect-aware tolerant gate",
+        "One-time C-002-waived migration",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "For the ~26 broken links inside byte-invariant ADR bodies, which approach?",
+      "rationale": null,
+      "resolved_at": "2026-06-29T09:16:55.154826Z",
+      "resolved_by": null,
+      "slot_key": "specify.adr.link-approach",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KW9AKV1KNKYVHSHVP30K6TQW",
+  "version": 1
+}

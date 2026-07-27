@@ -1,0 +1,142 @@
+{
+  "mission_slug": "single-authority-topology-cleanup-01KVRJ6P",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "CommitTargetKind type eradicated: .kind collapsed to routes_through_coordination over stored topology; CommitTarget is ref-only (C-007); enum deleted.",
+      "proof_type": "automated_test",
+      "evidence": "WP02/03/04/14/15/16 approved; `rg CommitTargetKind src/` -> nothing; tests/architectural/test_commit_target_kind_guard.py green-by-emptiness.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "CommitTargetKind.FLATTENED neutralized (producers -> plain CommitTarget(ref=...)) and deleted with the enum; flattened meta-flag (C-006) preserved.",
+      "proof_type": "automated_test",
+      "evidence": "WP05+WP16 approved; FLATTENED AST-verified write-only-dead; meta.setdefault('flattened') intact.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Dead ensure_topology persist shim removed; tests retargeted onto read_topology + backfill_mission_topology.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved; tests/specify_cli/migration/test_backfill_topology.py (absent-field absorption cell).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "topology=None absorbed at the read-path boundary; un-backfilled flattened resolves PRIMARY not the stale-coord husk (extends #2062); ~8 husk-arms collapsed.",
+      "proof_type": "automated_test",
+      "evidence": "WP06+WP17 approved; tests/missions/test_surface_resolution_equivalence.py NFR-002 repro GREEN (red-first verified).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Six coord-routing predicates + four frozensets collapsed to one routes_through_coordination(topology) + one frozenset.",
+      "proof_type": "automated_test",
+      "evidence": "WP02+WP17 approved; test_wp02_coord_routing_consolidation.py + 6th-predicate-gone AST proof.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Meta-readers unified onto one polymorphic load_meta(dir,*,allow_missing,on_malformed) + 2 adapters; named clusters swept.",
+      "proof_type": "automated_test",
+      "evidence": "WP08/09/10/17/18 approved; tests/specify_cli/test_mission_metadata.py + per-cluster contract cells.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "task_helpers shadow module retired to a thin re-export of task_utils/support.py (-393 LOC); acceptance_support compat preserved.",
+      "proof_type": "automated_test",
+      "evidence": "WP11 approved; tests/specify_cli/scripts/test_task_helpers.py (behavioral-equality + importer coverage).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "accept dirty-tree gate made topology-aware (converges on routes_through_coordination + is_coordination_artifact_residue_path); ACCEPT_OWNED_PATHS unchanged.",
+      "proof_type": "automated_test",
+      "evidence": "WP12 approved; tests/specify_cli/test_acceptance.py coord-passes/flat-blocks both-sided cells.",
+      "pass_fail": "pass",
+      "verified_by": "pre-merge adversarial squad (alphonso/debbie/renata/priti) + operator-delegated finalizer",
+      "verified_at": "2026-06-23T18:00:00+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs. | PRE-MERGE SQUAD CATCH: the per-WP pass was premature \u2014 the gate called routes_through_coordination(CommitTarget) (always-False -> inert). REMEDIATED (commit 691a5391e): routes_through_coordination(resolve_topology(repo_root, feature)); the mission's own RED residue-allowance test now passes. Genuinely topology-aware."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Unchecked-tasks completion derived from WP terminal status (approved/done) instead of redundant checkbox bookkeeping.",
+      "proof_type": "automated_test",
+      "evidence": "WP12 approved; test_acceptance orchestrated-passes / near-terminal-blocks cells.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Differential classify-on-read == backfill-then-read cell asserted GREEN over the (topology x transient) matrix + absolute anchor.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; test_surface_resolution_equivalence.py::test_classify_on_read_equals_backfill_then_read.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Non-fakeable AST guard against CommitTargetKind / FLATTENED.value reintroduction (composite-key ratchet, planted-offender self-test).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved; tests/architectural/test_commit_target_kind_guard.py (now green-by-emptiness post-WP16).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Merge-path residue gates converged onto the single is_coordination_artifact_residue_path authority; auto_rebase 4th site + drifting subset removed.",
+      "proof_type": "automated_test",
+      "evidence": "WP13 approved; tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py (13 cells, expressed-once guard).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review, profile-loaded)",
+      "verified_at": "2026-06-23T13:46:04.304958+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "CommitResult made JSON-serializable (worktree_root Path -> str) so map-requirements --json emits valid JSON (#1891).",
+      "proof_type": "automated_test",
+      "evidence": "WP07 approved; test_map_requirements_commit_result_json.py (CLI --json parses).",
+      "pass_fail": "pass",
+      "verified_by": "pre-merge adversarial squad (alphonso/debbie/renata/priti) + operator-delegated finalizer",
+      "verified_at": "2026-06-23T18:00:00+00:00",
+      "notes": "Verified via the approved WP review(s) + cited automated test; FR mapped 1:1 to WP(s) in finalize requirement_refs. | PRE-MERGE SQUAD CATCH: the regression test was DOA (imported the deleted CommitTargetKind -> aborted suite collection) and had a drifted fake signature. REMEDIATED (commit 691a5391e): ref-only CommitTarget + 3-arg fake; non-vacuous CommitResult.to_dict() serialization proof confirmed."
+    }
+  ],
+  "negative_invariants": [],
+  "overall_verdict_verified_by": "pre-merge adversarial squad (alphonso/debbie/renata/priti) + operator-delegated finalizer",
+  "overall_verdict_verified_at": "2026-06-23T18:00:00+00:00",
+  "overall_verdict_rationale": "All 13 FR criteria pass. The pre-merge adversarial squad (2026-06-23) confirmed the mission sound: CommitTargetKind eradication complete (AST-guarded, zero src/ refs), topology=None read-path absorption live and RED-first proven, C1/C6 dedup real (not abstraction-over-dupes), residue authority single-sourced, and the KEEP-set C-001..C-007 transients preserved. Two squad-caught BLOCKERs were remediated before this verdict (commit 691a5391e): FR-008's dead accept-gate and a DOA FR-013 test that aborted suite collection. Honesty caveats accepted: FR-006 C2 inline-read sweep is partial (~62 reads remain; burn-down #2100 \u2014 the load_meta authority itself is complete and correct); the #2085 acceptance-matrix-gate half is intentionally out of scope (C-010). Operator delegated this C-010 verdict to the agent reviewers (2026-06-23)."
+}

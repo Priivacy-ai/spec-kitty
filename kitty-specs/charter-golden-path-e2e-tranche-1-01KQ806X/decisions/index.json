@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-27T17:36:45.675721Z",
+      "decision_id": "01KQ807NKAS36HJPG6WBQN5C6G",
+      "final_answer": "fresh_e2e_project (new fixture). User confirmed the point of this tranche is proving operator-path behavior from a clean project; copying .kittify from the source checkout would weaken the test and preserve the exact class of hidden-coupling failures we want to catch.",
+      "input_key": "fresh_project_fixture_choice",
+      "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
+      "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
+      "options": [
+        "fresh_e2e_project (new fixture)",
+        "e2e_project (reuse existing)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the golden-path test use a new fresh_e2e_project fixture (public spec-kitty init from scratch) or reuse the existing e2e_project fixture (which copies .kittify from the source checkout)?",
+      "rationale": null,
+      "resolved_at": "2026-04-27T17:36:51.908445Z",
+      "resolved_by": null,
+      "slot_key": "specify.fixture.choice",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-04-27T17:45:20.987691Z",
+      "decision_id": "01KQ80QCTTFP9KJZTFTQY363QJ",
+      "final_answer": "Pin to one mission chosen during research. Rationale: a golden-path E2E should be a stable product contract, not a runtime fallback harness. If the chosen mission later breaks, the test should fail loudly rather than pass via fallback and hide the regression. Resilience is next's job, not the test's.",
+      "input_key": "composed_mission_strategy",
+      "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
+      "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
+      "options": [
+        "Pin to one mission chosen during research",
+        "Runtime fallback chain",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should research commit to ONE composed mission (validated during Phase 0 against the live public CLI) and pin the test to it, or should the test implement a runtime fallback chain (software-dev \u2192 documentation \u2192 custom)?",
+      "rationale": null,
+      "resolved_at": "2026-04-27T17:58:54.870154Z",
+      "resolved_by": null,
+      "slot_key": "plan.mission-strategy.choice",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
+  "version": 1
+}

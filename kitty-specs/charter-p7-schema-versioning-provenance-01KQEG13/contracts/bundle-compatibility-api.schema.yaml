@@ -1,0 +1,91 @@
+# Bundle Compatibility API contract
+# Module: src/doctrine/versioning.py (new file)
+# Describes the public interface of the compatibility registry.
+
+title: BundleCompatibilityAPI
+description: |
+  Public interface of src/doctrine/versioning.py.
+  Consumed by: charter subcommands (reader check) and spec-kitty upgrade (migration).
+
+constants:
+  CURRENT_BUNDLE_SCHEMA_VERSION:
+    type: integer
+    value: 2
+    description: "The bundle schema version Phase 7 synthesis writes."
+
+  MIN_READABLE_BUNDLE_SCHEMA:
+    type: integer
+    value: 1
+    description: "Oldest bundle version this CLI can process (with migration)."
+
+  MAX_READABLE_BUNDLE_SCHEMA:
+    type: integer
+    value: 2
+    description: "Newest bundle version this CLI can read natively."
+
+enums:
+  BundleCompatibilityStatus:
+    values:
+      COMPATIBLE: "Bundle version matches supported range. Proceed normally."
+      NEEDS_MIGRATION: "Bundle version < current; registered migration exists. Block + run spec-kitty upgrade."
+      INCOMPATIBLE_OLD: "Bundle version < min; no migration registered. Block + contact support."
+      INCOMPATIBLE_NEW: "Bundle version > max. Block + upgrade CLI."
+      MISSING_VERSION: "bundle_schema_version absent from metadata.yaml. Treated as v1 (NEEDS_MIGRATION path)."
+
+dataclasses:
+  BundleCompatibilityResult:
+    fields:
+      status: BundleCompatibilityStatus
+      bundle_version: "int | None"
+      supported_min: int
+      supported_max: int
+      message: "str  # human-readable, includes remediation instruction"
+      exit_code: "int  # 0 = COMPATIBLE, 1 = all other statuses"
+    properties:
+      is_compatible: "bool  # status == COMPATIBLE"
+      needs_migration: "bool  # status in (NEEDS_MIGRATION, MISSING_VERSION)"
+
+functions:
+  check_bundle_compatibility:
+    signature: "(bundle_version: int | None) -> BundleCompatibilityResult"
+    description: |
+      Pure function. No filesystem I/O. Called by charter subcommands after reading
+      bundle_schema_version from metadata.yaml.
+      - bundle_version=None → MISSING_VERSION (treated as v1, NEEDS_MIGRATION path)
+      - bundle_version==2 (current) → COMPATIBLE
+      - 1 <= bundle_version < 2 → NEEDS_MIGRATION (migration registered)
+      - bundle_version > 2 → INCOMPATIBLE_NEW
+      - bundle_version < 1 → INCOMPATIBLE_OLD
+
+  get_bundle_schema_version:
+    signature: "(charter_dir: Path) -> int | None"
+    description: |
+      Read bundle_schema_version integer from <charter_dir>/metadata.yaml.
+      Returns None if file absent or field missing.
+      Pure filesystem read; no validation side-effects.
+
+  run_migration:
+    signature: "(from_version: int, bundle_root: Path, dry_run: bool = False) -> MigrationResult"
+    description: |
+      Apply the registered migration from from_version to from_version+1 (and chain
+      if multiple versions to bridge). Idempotent: running twice produces same result.
+      Returns MigrationResult with changes_made list and any errors.
+      Raises KeyError if no migration registered for from_version.
+      Called exclusively by spec-kitty upgrade migration step.
+
+registered_migrations:
+  - from_version: 1
+    to_version: 2
+    function: migrate_v1_to_v2
+    description: |
+      Upgrades v1 sidecars (Phase 3 baseline) to v2 (Phase 7 hardened).
+      Adds sentinel values for fields that were not captured in v1:
+        synthesizer_version: "(pre-phase7-migration)"
+        synthesis_run_id: "(pre-phase7-migration)"
+        produced_at: file mtime in ISO 8601 UTC, or "(pre-phase7-migration)"
+        source_input_ids: copy of existing source_urns
+        corpus_snapshot_id: existing value or "(none)" if was null
+      Upgrades manifest schema_version from "1" to "2" and adds
+        synthesizer_version: "(pre-phase7-migration)"
+        manifest_hash: computed from upgraded manifest content
+      Stamps bundle_schema_version: 2 in metadata.yaml.

@@ -1,0 +1,210 @@
+{
+  "mission_slug": "test-stabilization-and-debt-pass-01KSF9HJ",
+  "mission_id": "01KSF9HJBFKRBC617JVHKZXNE2",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "verdict_summary": "12 of 12 work packages approved. Fix-here clusters (C1-C11) resolved; pre-existing C99 cluster (90 failures) filed as 10 DIR-013 sub-issues #1301-#1310 per FR-005/C-005/C-006. Architectural debt LD-1/LD-3/LD-5 + MS-1 closed. NFR-001 ceiling is documented as post-merge re-baseline pending until WP05-WP08 lane code lands.",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Triage MUST cluster all 249 baseline failures by root cause with named owner WPs.",
+      "proof_type": "live_artifact",
+      "evidence": "docs/01KSF9HJ-triage/triage.md commit 257b6f41f. Buckets 249 failures across 13 clusters (C1-C12 + C99 sub-buckets a-j). Assigns WP02/WP03/WP04 owners and flags DIR-013 issue plan.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 reviewer-renata.",
+      "verified_at": "2026-05-25T17:30:00Z",
+      "notes": "Cluster counts: 102 events-package drift, 25 cascade, 33 surgical, 90 C99 pre-existing."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "WP02 MUST resolve the shared-package events drift cluster (C1).",
+      "proof_type": "test_evidence",
+      "evidence": "Commit 2a74cb29b on lane-a. uv sync --frozen --all-extras aligned installed spec_kitty_events 5.0.0 -> 5.2.0 (uv.lock pin). Snapshot tests/contract/snapshots/spec-kitty-events-5.2.0.json regenerated via scripts/snapshot_events_envelope.py. Slice: tests/sync + tests/contract = 1934 pass / 2 fail (DIR-013 residual).",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata.",
+      "verified_at": "2026-05-25T17:40:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "WP02 MUST add src/specify_cli/sync/restart.py to test_daemon_intent_gate ALLOWED_CALL_SITES with comment cross-referencing WP04 caller-audit row.",
+      "proof_type": "code_evidence",
+      "evidence": "tests/sync/test_daemon_intent_gate.py ALLOWED_CALL_SITES entry with comment. Test passes post-change.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata.",
+      "verified_at": "2026-05-25T17:40:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "WP03 MUST fix the move-task commit-message assertion (T009).",
+      "proof_type": "test_evidence",
+      "evidence": "Commit 8648373c8 on lane-b. monkeypatch.setenv(SPEC_KITTY_TEST_MODE) added to autouse fixture in tests/tasks/test_move_task_git_validation_unit.py. Slice: 13/13 + 23/23 = 36/36 pass.",
+      "pass_fail": "pass",
+      "verified_by": "WP03 reviewer-renata.",
+      "verified_at": "2026-05-25T17:45:00Z",
+      "notes": "Production code (scanner.py, move_task.py) untouched per WP03's narrow owned_files contract."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "WP04 MUST file the DIR-013 sub-issues for pre-existing failures NOT owned by this mission.",
+      "proof_type": "live_artifact",
+      "evidence": "10 GitHub issues filed: #1301-#1310. Recorded in docs/01KSF9HJ-triage/dir013-issues.md. #1298 final-delta comment posted: https://github.com/Priivacy-ai/spec-kitty/issues/1298#issuecomment-4539987148",
+      "pass_fail": "pass",
+      "verified_by": "WP04 self-review (arbiter).",
+      "verified_at": "2026-05-26T17:30:00Z",
+      "notes": "Verified via 'gh issue list --search 01KSF9HJ'."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "WP05 MUST consolidate _apply_org_overrides + _apply_project_overrides into _apply_overlay_layer (LD-1).",
+      "proof_type": "code_evidence",
+      "evidence": "Commit 2648548b3 on lane-c. Single _apply_overlay_layer function replacing two near-duplicate helpers.",
+      "pass_fail": "pass",
+      "verified_by": "WP05 reviewer-renata.",
+      "verified_at": "2026-05-25T15:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "WP06 MUST split src/specify_cli/cli/commands/charter.py (3328 lines) into per-subcommand package under 500 lines per module (MS-1).",
+      "proof_type": "code_evidence",
+      "evidence": "Cycle 1 commit b66e603c9 + cycle 2 fix ad6fdea46 on lane-d. All modules <= 500 lines. Legacy charter.py deleted. ruff clean. _charter_pkg shim pattern preserves mock.patch contract for tests. Charter test slice back to planning baseline (10 failures, same as pre-WP06).",
+      "pass_fail": "pass",
+      "verified_by": "WP06 reviewer-renata (cycle 2).",
+      "verified_at": "2026-05-25T17:10:00Z",
+      "notes": "Cycle 1 rejected because 4 modules bypassed shim pattern; cycle 2 routed all 4 through _charter_pkg."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "WP11 MUST parametrise augmentation field tests (LD-2 stretch).",
+      "proof_type": "test_evidence",
+      "evidence": "WP11 commit on planning lane. Augmentation field tests parametrised over the matrix.",
+      "pass_fail": "pass",
+      "verified_by": "WP11 reviewer-renata.",
+      "verified_at": "2026-05-25T15:30:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "WP09 MUST scaffold issue-matrix.md when spec.md cites GitHub issues (closes #1163).",
+      "proof_type": "code_evidence",
+      "evidence": "WP09 commit on planning lane. /spec-kitty.tasks scaffold writes issue-matrix.md when spec.md frontmatter has linked issues.",
+      "pass_fail": "pass",
+      "verified_by": "WP09 reviewer-renata.",
+      "verified_at": "2026-05-25T15:40:00Z",
+      "notes": "Closes #1163."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "WP10 MUST mine retro from the mission's status events.",
+      "proof_type": "code_evidence",
+      "evidence": "WP10 composite commit on planning lane. Retrospective generator mines status.events.jsonl.",
+      "pass_fail": "pass",
+      "verified_by": "WP10 reviewer-renata.",
+      "verified_at": "2026-05-25T15:55:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "WP10 MUST add tracker_refs field to WPMetadata.",
+      "proof_type": "code_evidence",
+      "evidence": "WP10 composite commit on planning lane. WPMetadata.tracker_refs accepts list[str].",
+      "pass_fail": "pass",
+      "verified_by": "WP10 reviewer-renata.",
+      "verified_at": "2026-05-25T15:55:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "WP10 MUST document the bulk-edit-gate 4-action vocabulary.",
+      "proof_type": "doc_evidence",
+      "evidence": "WP10 composite commit on planning lane. Documentation updated with do_not_change | manual_review | rename | rename_if_user_visible.",
+      "pass_fail": "pass",
+      "verified_by": "WP10 reviewer-renata.",
+      "verified_at": "2026-05-25T15:55:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "WP07 MUST route src/specify_cli/charter_freshness/computer.py manifest+graph reads through the canonical charter chokepoint (LD-3).",
+      "proof_type": "code_evidence",
+      "evidence": "Commit 9aa598f5a on lane-e. Uses charter.synthesizer.manifest.{MANIFEST_PATH, load_yaml} and charter.bundle.DOCTRINE_DIR — the typed read-only chokepoint API. Public compute_freshness(repo_root) -> CharterFreshness unchanged. §6 conflict test passes. 17/17 + 19/19 in targeted slices.",
+      "pass_fail": "pass",
+      "verified_by": "WP07 reviewer-renata.",
+      "verified_at": "2026-05-25T18:15:00Z",
+      "notes": "Implementer correctly chose read-only chokepoint over refresh-side-effect ensure_charter_bundle_fresh."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "WP08 MUST group charter_lint, charter_freshness, charter_preflight under src/specify_cli/charter_runtime/ umbrella (LD-5).",
+      "proof_type": "code_evidence",
+      "evidence": "Lane-f commits. 3 packages moved via git rename + charter_runtime.facade reserved-stub. Shims at all 3 old paths use sys.modules aliasing to preserve legacy dotted-path submodule imports. tests/architectural/test_charter_runtime_shim_paths.py (3 tests, all PASS) locks the contract. Charter slice 5/1105 fails vs 10 baseline (improvement).",
+      "pass_fail": "pass",
+      "verified_by": "WP08 self-review (arbiter).",
+      "verified_at": "2026-05-26T17:20:00Z",
+      "notes": "Cycle 1 implementer hit session limit mid-work; orchestrator completed shims + sys.modules aliasing + architectural test inline."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "WP12 MUST add fix-locks (regression tests) for the finalize-tasks linter fixes.",
+      "proof_type": "test_evidence",
+      "evidence": "WP12 commit on planning lane. Regression tests cover the explicit-empty owned_files preservation + lane-depth cycle guard.",
+      "pass_fail": "pass",
+      "verified_by": "WP12 reviewer-renata.",
+      "verified_at": "2026-05-25T16:25:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Post-mission pytest failure count MUST be <= 75.",
+      "proof_type": "test_evidence",
+      "evidence": "WP04 mid-merge baseline: 194 failed / 19,426 passed (-55 vs 249 baseline). Full delta will land post-merge once WP05-WP08 lane code merges. Residual 90 C99 pre-existing failures are filed as DIR-013 issues #1301-#1310 to be owned by subsequent missions.",
+      "pass_fail": "deferred",
+      "verified_by": "WP04 closeout.",
+      "verified_at": "2026-05-26T17:30:00Z",
+      "notes": "Verdict 'deferred' because the post-merge baseline is the canonical NFR-001 measurement, and that can only be measured after spec-kitty merge completes."
+    },
+    {
+      "criterion_id": "C-005",
+      "description": "Mission MUST NOT fix pre-existing C99 failures owned by other features.",
+      "proof_type": "process_evidence",
+      "evidence": "WP02/WP03/WP04 stayed within owned_files contracts. The 90 C99 failures were filed as DIR-013 sub-issues, not fixed in-mission.",
+      "pass_fail": "pass",
+      "verified_by": "WP02/WP03/WP04 reviewers.",
+      "verified_at": "2026-05-26T17:30:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "All DIR-013 sub-issues MUST reference parent #1298.",
+      "proof_type": "live_artifact",
+      "evidence": "All 10 issues #1301-#1310 reference #1298. Final delta comment posted on #1298: https://github.com/Priivacy-ai/spec-kitty/issues/1298#issuecomment-4539987148",
+      "pass_fail": "pass",
+      "verified_by": "WP04 closeout.",
+      "verified_at": "2026-05-26T17:30:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-007",
+      "description": "WP07 LD-3 routing MUST preserve compute_freshness public API.",
+      "proof_type": "test_evidence",
+      "evidence": "Signature (repo_root: Path) -> CharterFreshness unchanged. Dataclass fields charter_source/synced_bundle/synthesized_drg unchanged. 17/17 + 19/19 in test slices. §6 conflict test passes.",
+      "pass_fail": "pass",
+      "verified_by": "WP07 reviewer-renata.",
+      "verified_at": "2026-05-25T18:15:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-008",
+      "description": "WP08 charter_runtime umbrella MUST preserve legacy import paths via shim re-exports.",
+      "proof_type": "test_evidence",
+      "evidence": "tests/architectural/test_charter_runtime_shim_paths.py (3 tests, all PASS) verifies (a) canonical paths import, (b) legacy paths still import, (c) legacy submodule dotted-path imports resolve to identical modules via sys.modules. CHANGELOG entry per C-008 deprecation contract.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 self-review (arbiter).",
+      "verified_at": "2026-05-26T17:20:00Z",
+      "notes": null
+    }
+  ]
+}

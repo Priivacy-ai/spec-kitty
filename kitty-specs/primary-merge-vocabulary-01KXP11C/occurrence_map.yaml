@@ -1,0 +1,125 @@
+# Occurrence map — Primary & Merge Vocabulary Disambiguation (Track 1 / #2653)
+# change_mode: bulk_edit (DIRECTIVE_035). This mission disambiguates TWO overloaded
+# terms — "primary" (4 senses) and "merge" (3 operations). The schema models a single
+# `target.term`; the per-category actions + exceptions below apply to BOTH terms.
+# There is NO blanket replacement (replacement: null) — the correct term is
+# sense-dependent (see spec FR-001..FR-011, C-001..C-006). The map's job here is to
+# fence what may change (internal renames + prose) vs what is byte-exact exempt vs
+# what is deferred to Track 2.
+
+target:
+  term: primary
+  replacement: null        # sense-dependent; no blanket find-replace
+  operation: rename
+
+categories:
+  code_symbols:
+    action: manual_review
+    note: >-
+      Per-symbol human decision. RENAME (genuinely internal only): merge_lane_to_mission,
+      merge_mission_to_target (lanes/merge.py); _primary_ref_for (implement_cores.py);
+      optional _resolve_primary_target_branch (commit_router.py). CONSOLIDATE (FR-007):
+      _resolve_primary_branch_for_recommendation -> canonical resolve_primary_branch
+      (fold-with-bias-param OR scope-out with rationale); tasks_shared shim = compat
+      re-export decision. EXEMPT (do not rename): is_primary_artifact_kind (public
+      __all__), resolve_primary_branch NAME (D1), resolve_merge_target_branch,
+      Surface.PRIMARY, WorktreeTopology.PRIMARY. DEFER to Track 2 (#2730):
+      primary_feature_dir_for_mission, primary_dir, primary_anchor,
+      _canonicalize_primary_read_handle and the rest of the Sense-C checkout cluster.
+      DO NOT TOUCH (unrelated): primaryColor*, primary_language, primary_adapter_*,
+      primary_focus, primary_agent, charter-synth primary_target, merge_layers,
+      merge_three_layers, merge_topology_artifact, merge_base*.
+  import_paths:
+    action: manual_review
+    note: >-
+      Only imports that follow a renamed internal symbol are updated; NO module-path
+      renames. The runtime glossary package `src/glossary/` is NOT removed here (#2727).
+  filesystem_paths:
+    action: manual_review
+    note: >-
+      Legacy glossary prose relocates to docs/context/ (see moves[]); glossary/README.md
+      is repointed in place (not moved). No source-code file renames.
+  serialized_keys:
+    action: do_not_change
+    note: >-
+      ALL byte-exact exempt. merge: merge_target_branch (WP frontmatter/meta key, pinned
+      by audit/shape_registry), MergeState 13 keys, MergeStrategy literals merge/squash/
+      rebase, merged_into, merge_phase, MERGE_BOOKKEEPING, merge_postcondition, merge-state.json/
+      state.json. primary: primary_branch / PRIMARY_BRANCH / current_is_primary template
+      vars, Surface.PRIMARY="primary", MissionArtifactKind.PRIMARY_METADATA="primary_metadata",
+      primary_repo_root (accept-gate JSON), primary_candidate (orchestrator-api error data),
+      WorktreeTopology.PRIMARY="primary", PRIMARY_CHECKOUT / PRIMARY_CHECKOUT_APPEND.
+  cli_commands:
+    action: do_not_change
+    note: >-
+      `spec-kitty merge` command + all subcommand names unchanged; only their --help
+      prose is clarified (classified under user_facing_strings).
+  user_facing_strings:
+    action: rename_if_user_visible
+    note: >-
+      Clarify prose to name the specific sense: merge --help, mission_accept_merge.py
+      accept->merge help (--target/--push/--keep-branch), lanes/merge.py + merge.py
+      docstrings, merge-step doctrine prompts, ADR 2026-06-24-2 conflating paragraph,
+      CLAUDE.md (3 warnings -> 1 glossary pointer that STILL names the partition-vs-branch
+      footgun). EXEMPT: any string asserted byte-exact in a test — update the assertion in
+      lockstep or treat the string as a stable contract.
+  tests_fixtures:
+    action: manual_review
+    note: >-
+      Update tests pinning renamed internal symbols: ~13 merge-helper importers,
+      test_precondition_ref_unification, test_partition_authority_characterization,
+      test_tasks_compat_surface (compat re-export), write_candidate_classification.yaml
+      (arch fixture). Do NOT weaken exempt-surface pins: test_mission_runtime_surface,
+      test_shared_package_boundary, test_gate_read_literal_ban (Track-2 Sense-C).
+  logs_telemetry:
+    action: do_not_change
+    note: >-
+      No log field / event-name renames. PRIMARY_CHECKOUT* status-service op-kinds are
+      serialized StrEnum values — exempt.
+
+moves:
+  - from:
+      - glossary/historical-terms.md
+      - glossary/naming-decision-tool-vs-agent.md
+    to: docs/context/
+    reason: >-
+      FR-006 — fold legacy glossary prose into the canonical docs/context/ home (charter
+      FR-009). glossary/README.md is repointed (FR-005) in place. Fix inbound references +
+      ../ relative links; re-add any .github symlinks with -f. Downstream consumers of the
+      glossary/ surface: #1341 (event-log SoT), #648 (static-site gen).
+
+exceptions:
+  - path: src/mission_runtime/artifacts.py
+    action: do_not_change
+    reason: >-
+      is_primary_artifact_kind (public __all__, pinned by test_mission_runtime_surface +
+      test_shared_package_boundary) and Surface.PRIMARY are public/serialized — C-001.
+  - path: src/specify_cli/merge/state.py
+    action: do_not_change
+    reason: MergeState serialized keys + MergeStrategy literals are byte-exact — C-001.
+  - path: src/specify_cli/missions/_read_path_resolver.py
+    action: do_not_change
+    reason: Sense-C primary_feature_dir_* / _canonicalize_primary_read_handle — Track 2 (#2730).
+  - path: src/specify_cli/coordination/surface_resolver.py
+    action: do_not_change
+    reason: WorktreeTopology.PRIMARY + Sense-C primary_anchor cluster — Track 2 (#2730).
+  - path: tests/architectural/test_gate_read_literal_ban.py
+    action: do_not_change
+    reason: pins the literal "primary_feature_dir_for_mission" — Track 2 lockstep (#2730).
+  - path: tests/architectural/resolution_gate_allowlist.yaml
+    action: do_not_change
+    reason: freezes verbatim Sense-C token lines — Track 2 lockstep (#2730).
+  - path: src/specify_cli/core/paths.py
+    action: do_not_change
+    reason: resolve_merge_target_branch + merge_target_branch key are shipped contracts — C-001.
+
+status:
+  change_mode: bulk_edit
+  terms_in_scope: [primary, merge]
+  track: 1
+  epic: "#2653"
+  siblings: {track_2: "#2730 (Sense-C code rename, blocked-by this)", glossary_pkg_removal: "#2727"}
+  enforcement: >-
+    No automated primary/merge sense-guard in Track 1 (terminology guard is a hardcoded
+    2-literal grep). Sense-correctness is review-enforced against this map. Durable
+    alias-ban guard deferred to Track 2 (FR-011).

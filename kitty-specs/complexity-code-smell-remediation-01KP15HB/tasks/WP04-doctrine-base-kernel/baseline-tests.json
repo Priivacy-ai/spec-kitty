@@ -1,0 +1,18 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-04-14T08:30:39Z",
+  "base_branch": "feat/complexity-debt-remediation",
+  "base_commit": "d5a1f13bdd934d7674c989c731415ba60cccc3b4",
+  "test_runner": "pytest",
+  "total": 11478,
+  "passed": 11417,
+  "failed": 1,
+  "skipped": 60,
+  "failures": [
+    {
+      "test": "tests.missions.test_mission_v1_guards_unit.TestGuardRegistry.test_registry_keys",
+      "error": "AssertionError: assert {'all_wp_stat...rovided', ...} == {'all_wp_stat...put_provided'}",
+      "file": "unknown:?"
+    }
+  ]
+}

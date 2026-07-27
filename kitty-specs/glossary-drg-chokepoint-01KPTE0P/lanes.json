@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mission_slug": "glossary-drg-chokepoint-01KPTE0P",
+  "mission_id": "01KPTE0P5JVQFWESWV07R0XG4M",
+  "mission_branch": "kitty/mission-glossary-drg-chokepoint-01KPTE0P",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "architecture/adrs/2026-04-22-5-glossary-chokepoint-p95-measurement.md",
+        "docs/**",
+        "docs/how-to/setup-codex-spec-kitty-launcher.md",
+        "docs/trail-model.md",
+        "src/doctrine/drg/models.py",
+        "src/specify_cli/glossary/chokepoint.py",
+        "src/specify_cli/glossary/drg_builder.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/writer.py",
+        "tests/doctrine/drg/test_glossary_node_kind.py",
+        "tests/specify_cli/glossary/bench_chokepoint.py",
+        "tests/specify_cli/glossary/test_chokepoint.py",
+        "tests/specify_cli/glossary/test_drg_builder.py",
+        "tests/specify_cli/invocation/test_executor_glossary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-22T11:51:41.157631+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

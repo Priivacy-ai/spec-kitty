@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "local-custom-mission-loader-01KQ2VNJ",
+  "mission_id": "01KQ2VNJFYFT4371K45VMR8GPD",
+  "mission_branch": "kitty/mission-local-custom-mission-loader-01KQ2VNJ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "docs/reference/missions.md",
+        "pyproject.toml",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/mission_loader/__init__.py",
+        "src/specify_cli/mission_loader/command.py",
+        "src/specify_cli/mission_loader/contract_synthesis.py",
+        "src/specify_cli/mission_loader/errors.py",
+        "src/specify_cli/mission_loader/registry.py",
+        "src/specify_cli/mission_loader/retrospective.py",
+        "src/specify_cli/mission_loader/validator.py",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "src/specify_cli/next/_internal_runtime/discovery.py",
+        "src/specify_cli/next/_internal_runtime/schema.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/fixtures/missions/erp-integration/mission.yaml",
+        "tests/fixtures/missions/missing-retrospective/mission.yaml",
+        "tests/fixtures/missions/reserved-shadow/mission.yaml",
+        "tests/integration/test_custom_mission_runtime_walk.py",
+        "tests/integration/test_mission_run_command.py",
+        "tests/next/test_composition_gate_widening.py",
+        "tests/next/test_prompt_step_schema_extensions.py",
+        "tests/perf/__init__.py",
+        "tests/perf/test_loader_perf.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py",
+        "tests/unit/mission_loader/__init__.py",
+        "tests/unit/mission_loader/test_command.py",
+        "tests/unit/mission_loader/test_contract_synthesis.py",
+        "tests/unit/mission_loader/test_loader_facade.py",
+        "tests/unit/mission_loader/test_registry.py",
+        "tests/unit/mission_loader/test_retrospective_marker.py",
+        "tests/unit/mission_loader/test_validator_errors.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-25T18:07:27.367703+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP05"
+      }
+    ],
+    "total_merges": 7,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 7
+    }
+  }
+}

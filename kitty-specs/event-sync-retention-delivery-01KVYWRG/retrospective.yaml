@@ -1,0 +1,267 @@
+schema_version: 1
+mission_id: 01KVYWRGF148VXAXDJ90MECYRR
+mission_slug: event-sync-retention-delivery-01KVYWRG
+mission_number: 153
+friendly_name: event sync retention delivery
+mission_type: software-dev
+target_branch: mission/event-sync-retention-delivery
+created_at: '2026-06-29T12:52:05.425513+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-06-29T12:52:05.425513+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-010
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-011
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-017
+- id: h-012
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-017
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-024
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP02 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP02 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP09 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP09 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP10 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP10 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP11 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP11 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP12 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP12 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: review_loop
+  summary: mission-review-report.md present with findings
+  evidence_refs:
+  - e-025
+  details: A mission-review-report.md artifact is present for this mission. Review its findings to understand documented
+    review outcomes.
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity 
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design 
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP01-target-authority-resolver.md
+- id: e-006
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP02-wire-surfaces-target-authority.md
+- id: e-007
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP03-event-journal-capture-first.md
+- id: e-008
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP04-delivery-target-registry.md
+- id: e-009
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP05-delivery-ledger.md
+- id: e-010
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP06-delivery-receiver-contract.md
+- id: e-011
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP07-sync-dispatcher.md
+- id: e-012
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP08-coalescing-immutability.md
+- id: e-013
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP09-event-sync-config.md
+- id: e-014
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP10-migrate-hash-scoped-queues.md
+- id: e-015
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP11-status-gc-archive.md
+- id: e-016
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks/WP12-sync-cli-wiring.md
+- id: e-017
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+- id: e-018
+  kind: event_range
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+  range: 01KW9847128NJB2C9SXE2T26WJ..01KW9BAW419MSK26QVBJ6W17G4
+- id: e-019
+  kind: event_range
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+  range: 01KW9BYP0SBQ3NP5Q8E3T5YZP0
+- id: e-020
+  kind: event_range
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+  range: 01KW9C176G1VH0T8V652JQRB3C
+- id: e-021
+  kind: event_range
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+  range: 01KW9BJ10RRTF6SB9VMZTADVC6..01KW9CBDSFW9NYM002RFZGGT3M
+- id: e-022
+  kind: event_range
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+  range: 01KW9DQKEZW5XZZYW36E17T8VS..01KW9E3Q7G6FQBYZPXAYWP4PXH
+- id: e-023
+  kind: event_range
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/status.events.jsonl
+  range: 01KW9G0GX7KTB9ZD7SR5XY4HR1..01KW9GF0PF0X0KP4P3FDR6W8YS
+- id: e-024
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/analysis-report.md
+- id: e-025
+  kind: file
+  path: kitty-specs/event-sync-retention-delivery-01KVYWRG/mission-review-report.md
+generator_version: '1.0'
+provenance_history: []

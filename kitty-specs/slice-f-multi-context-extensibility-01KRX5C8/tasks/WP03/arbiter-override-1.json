@@ -1,0 +1,13 @@
+{
+  "arbiter": "operator",
+  "category": "custom",
+  "checklist": {
+    "is_correct_context": true,
+    "is_environmental": false,
+    "is_in_scope": true,
+    "is_pre_existing": false,
+    "should_follow_on": false
+  },
+  "decided_at": "2026-05-18T14:03:05.518548+00:00",
+  "explanation": "Cycle 2 orchestrator remediation per HiC directive \u2014 deleted 3 stub Pydantic models, converted round-trip ImportError to pytest.skip with future-WP attribution, reverted BaselinesFile loosening, added binding skipif-removal acceptance criterion to WP06/WP09/WP10. 234 passed / 1 skipped on full architectural sweep."
+}

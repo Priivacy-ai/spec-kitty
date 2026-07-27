@@ -1,0 +1,57 @@
+title: InvocationPayload
+description: |
+  The JSON response returned by `spec-kitty advise`, `spec-kitty ask`, and
+  `spec-kitty do`. This payload is ephemeral — it is returned to the caller
+  (typically a host LLM) but not persisted. The caller uses `invocation_id`
+  to call `spec-kitty profile-invocation complete` when work is done.
+version: "1.0"
+type: object
+required:
+  - invocation_id
+  - profile_id
+  - profile_friendly_name
+  - action
+  - governance_context_text
+  - governance_context_hash
+  - governance_context_available
+properties:
+  invocation_id:
+    type: string
+    description: ULID. Used by caller to close the record via `profile-invocation complete`.
+    example: "01KPQRX2EVGMRVB4Q1JQBAZJV3"
+  profile_id:
+    type: string
+    description: Resolved profile identifier.
+    example: "cleo"
+  profile_friendly_name:
+    type: string
+    description: Human-readable profile name.
+    example: "Cleo — Senior Implementer"
+  action:
+    type: string
+    description: Resolved canonical action token.
+    enum: [implement, review, plan, specify, analyze, design, curate, coordinate, advise]
+    example: "implement"
+  governance_context_text:
+    type: string
+    description: |
+      Full governance context assembled by `build_charter_context(profile=profile_id, action=action)`.
+      This is the content the host LLM should use to guide its work.
+      Empty string when `governance_context_available` is false.
+  governance_context_hash:
+    type: string
+    description: First 16 hex characters of SHA-256 of `governance_context_text`. Stored in InvocationRecord for provenance.
+    example: "a1b2c3d4e5f67890"
+  governance_context_available:
+    type: boolean
+    description: |
+      `false` when charter synthesis has not been run for this project (no DRG, no profiles).
+      When false, `governance_context_text` is empty and a warning is surfaced.
+  router_confidence:
+    type: string
+    nullable: true
+    description: |
+      How the profile/action resolution was made. `null` when the caller supplied an
+      explicit `--profile` hint (resolution was not via the router).
+    enum: [exact, canonical_verb, domain_keyword, null]
+    example: "canonical_verb"

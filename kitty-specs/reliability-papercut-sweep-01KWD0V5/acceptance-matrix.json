@@ -1,0 +1,89 @@
+{
+ "mission_slug": "reliability-papercut-sweep-01KWD0V5",
+ "mission_number": "",
+ "mission_type": "software-dev",
+ "overall_verdict": "pass",
+ "criteria": [
+  {
+   "criterion_id": "FR-001",
+   "description": "FR-001 delivered by WP01, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP01 (8dbc48fb9): 4-gate self-bookkeeping authority (record-analysis/accept/merge git_probes/review); tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py + test_self_bookkeeping_allowlist.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP01 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-002",
+   "description": "FR-002 delivered by WP02, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP02 (35ee8931a): never-created coord not healthy + lead-with-flatten; C-001 pure; tests/specify_cli/coordination/test_coord_never_created.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP02 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-003",
+   "description": "FR-003 delivered by WP03, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP03 (7b92ad1ff): doctor recovery efficacy (recreate worktree + stale ff-refresh); tests/specify_cli/cli/commands/test_doctor_coordination.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP03 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-004",
+   "description": "FR-004 delivered by WP04, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP04 (d17d064da): mission_id always ULID via resolve_mission_identity SSOT, all slug sites fail-closed; tests/runtime/test_runtime_bridge_identity.py + inverted test_decision_log.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP04 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-005",
+   "description": "FR-005 delivered by WP05, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP05 (970d9423f): one target_branch primitive, field-absent vs read-failure fail-closed; tests/specify_cli/core/test_target_branch_primitive.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP05 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-006",
+   "description": "FR-006 delivered by WP04, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP04 (d17d064da): mint-once identity, empty-mid8 fails closed; test_runtime_bridge_identity.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP04 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-007",
+   "description": "FR-007 delivered by WP06, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP06 (65a84368b): lane-hygiene content-diff vs planning tip; tests/specify_cli/cli/commands/agent/test_lane_hygiene_content_diff.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP06 red-first proven RED on pre-fix, GREEN after"
+  },
+  {
+   "criterion_id": "FR-008",
+   "description": "FR-008 delivered by WP07, reviewer-approved with red-first regression test",
+   "proof_type": "automated_test",
+   "evidence": "WP07 (e34bd8079): approve-over-rejected persisted in coord (gate-read symmetry); tests/specify_cli/post_merge/test_approve_over_rejected_coord_artifact.py",
+   "pass_fail": "pass",
+   "verified_by": "reviewer-renata",
+   "verified_at": "2026-07-01T00:00:00+00:00",
+   "notes": "Approved per implement-review loop; WP07 red-first proven RED on pre-fix, GREEN after"
+  }
+ ],
+ "negative_invariants": []
+}

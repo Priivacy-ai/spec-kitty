@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://priivacy.ai/schemas/spec-kitty/WPStatusChangedPayload.json",
+  "title": "WPStatusChanged Payload",
+  "description": "Payload schema for WorkPackage status transition events",
+  "type": "object",
+  "required": ["feature_slug", "old_status", "new_status"],
+  "properties": {
+    "feature_slug": {
+      "type": "string",
+      "description": "Feature identifier (e.g., '025-cli-event-log-integration')",
+      "pattern": "^[0-9]{3}-[a-z0-9-]+$",
+      "examples": ["025-cli-event-log-integration"]
+    },
+    "old_status": {
+      "type": "string",
+      "description": "Previous status before transition",
+      "enum": ["planned", "doing", "for_review", "done", "rejected"]
+    },
+    "new_status": {
+      "type": "string",
+      "description": "New status after transition",
+      "enum": ["planned", "doing", "for_review", "done", "rejected"]
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "description": "Human-readable reason for status change",
+      "examples": [
+        "Implementation complete",
+        "CI checks passed",
+        "Reviewer approved",
+        "Changes requested",
+        null
+      ]
+    },
+    "gate_results": {
+      "type": ["array", "null"],
+      "description": "Gate check results that influenced this transition",
+      "items": {
+        "type": "object",
+        "required": ["gate_type", "status"],
+        "properties": {
+          "gate_type": {
+            "type": "string",
+            "enum": ["CI_CHECK", "SECURITY_SCAN", "MANUAL_REVIEW", "ARCHITECTURE_REVIEW"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "passed", "failed"]
+          },
+          "details": {
+            "type": ["string", "null"],
+            "description": "Additional gate-specific details"
+          }
+        }
+      },
+      "examples": [
+        [
+          {"gate_type": "CI_CHECK", "status": "passed", "details": "All tests passed"},
+          {"gate_type": "MANUAL_REVIEW", "status": "passed", "details": "Approved by reviewer"}
+        ],
+        null
+      ]
+    },
+    "dependency_status": {
+      "type": ["object", "null"],
+      "description": "Status of dependencies at time of transition",
+      "properties": {
+        "all_complete": {
+          "type": "boolean",
+          "description": "True if all dependencies are in 'done' status"
+        },
+        "incomplete_dependencies": {
+          "type": "array",
+          "description": "List of WP IDs that are not yet complete",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["WP01", "WP02"], []]
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "feature_slug": "025-cli-event-log-integration",
+      "old_status": "doing",
+      "new_status": "for_review",
+      "reason": "Implementation complete",
+      "gate_results": null,
+      "dependency_status": {
+        "all_complete": true,
+        "incomplete_dependencies": []
+      }
+    },
+    {
+      "feature_slug": "012-documentation-mission",
+      "old_status": "for_review",
+      "new_status": "done",
+      "reason": "CI checks passed and reviewer approved",
+      "gate_results": [
+        {"gate_type": "CI_CHECK", "status": "passed", "details": "pytest: 127 passed"},
+        {"gate_type": "MANUAL_REVIEW", "status": "passed", "details": "LGTM"}
+      ],
+      "dependency_status": null
+    },
+    {
+      "feature_slug": "010-workspace-per-wp",
+      "old_status": "for_review",
+      "new_status": "rejected",
+      "reason": "CI checks failed",
+      "gate_results": [
+        {"gate_type": "CI_CHECK", "status": "failed", "details": "3 tests failed"}
+      ],
+      "dependency_status": null
+    }
+  ]
+}

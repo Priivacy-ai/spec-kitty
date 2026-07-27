@@ -1,0 +1,240 @@
+schema_version: 1
+mission_id: 01KTH57W8EWXDH8TCHNP485YMS
+mission_slug: session-presence-multi-harness-01KTH57W
+mission_number:
+friendly_name: Session Presence Multi-Harness Orientation
+mission_type: software-dev
+target_branch: pr/session-presence-multi-harness
+created_at: '2026-06-07T16:59:07.568708+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-06-07T16:59:07.568708+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings_and_gaps
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-009
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-020
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-003
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP04 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP04 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-006
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP03 was sent back from review to planning 1 time(s).
+gaps:
+- id: g-001
+  category: review_quality
+  summary: C-005 violation shipped past WP review — Phase 2 migration iterated WRITER_REGISTRY instead of config.yaml
+  details: >
+    The mission-review catch: m_3_3_0_session_presence_all_harnesses._iter_pending() iterated all keys
+    in WRITER_REGISTRY regardless of .kittify/config.yaml. This means running the migration on a project
+    whose disk had harness directories not in config would write orientation to unconfigured agents —
+    a direct violation of C-005. The defect was in scope of WP06 and its test suite, yet shipped through
+    WP review undetected. Root cause: no test exercised the "disk dir present, config absent" case.
+    Fixed post-merge in commit 9226887ec.
+- id: g-002
+  category: review_quality
+  summary: FR-006 background-subprocess-on-fresh-cache violated — always-fire pattern in manager._build_content()
+  details: >
+    FR-006 states session-start must not spawn a background network call when the version cache is fresh.
+    The implementation called check_in_background() unconditionally before get_available_version().
+    The correct order is to check the cache first; only fire background refresh when cache is absent.
+    This was not caught by WP03 review or the Phase 1 test suite. Fixed post-merge (9226887ec).
+- id: g-003
+  category: review_quality
+  summary: RISK-3 off-by-one in _remove_section/_replace_section — assumes trailing newline always present
+  details: >
+    Both helpers in markdown_rules.py used `end += len(SECTION_CLOSE) + 1` which unconditionally
+    consumed a byte past the closing marker. If the file ends without a trailing newline, this eats the
+    first byte of post-section content. Found by mission review adversarial pass; no test exercised the
+    no-trailing-newline edge case. Fixed post-merge (9226887ec).
+- id: g-004
+  category: tooling
+  summary: spec-kitty merge baking step fails when mission coord worktree is under .worktrees/ (gitignored)
+  details: >
+    _bake_mission_number_into_mission_branch runs git add on a path relative to the main repo that goes
+    through .worktrees/, which is listed in .gitignore. The command always fails with exit status 1.
+    All 6 lanes merged cleanly; only mission number assignment is blocked. Tracked as issue #1767.
+    Workaround: manually advance WPs to done and sync done events from worktree to main checkout.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks/WP01-session-presence-package-foundation.md
+- id: e-006
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks/WP02-claude-code-writer-and-hook-registrar.md
+- id: e-007
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks/WP03-manager-cli-command-init-integration.md
+- id: e-008
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks/WP04-phase1-test-suite.md
+- id: e-009
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks/WP05-phase2-writers-and-registry.md
+- id: e-010
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/tasks/WP06-phase2-migration-and-tests.md
+- id: e-011
+  kind: file
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHBEG8TXG6CAVRT7QBC5GYN
+- id: e-013
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHD09SV58P88C85EMV8CNHA
+- id: e-014
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHG797747WA27DQ7RPDSRVV
+- id: e-015
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHG7BV0BJ0BJZ46AVEC9353
+- id: e-016
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHBEG8TXG6CAVRT7QBC5GYN..01KTHG7E5DB70T6BT0HSSTRDTZ
+- id: e-017
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHD09SV58P88C85EMV8CNHA..01KTHG7GGK3Z3YRAWJDP8DJBBJ
+- id: e-018
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHG7JYD06MD2F6GC5W2BADA
+- id: e-019
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: 01KTHG7NBAM07MMQYKFHA8DJVW
+- id: e-020
+  kind: event_range
+  path: kitty-specs/session-presence-multi-harness-01KTH57W/status.events.jsonl
+  range: implementation_cycles
+generator_version: '1.0'
+provenance_history: []

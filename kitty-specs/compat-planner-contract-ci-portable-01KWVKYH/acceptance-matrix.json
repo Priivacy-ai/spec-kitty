@@ -1,0 +1,69 @@
+{
+  "mission_slug": "compat-planner-contract-ci-portable-01KWVKYH",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Contract path resolves from the real repo root in any layout",
+      "proof_type": "automated_test",
+      "evidence": "_CONTRACT_PATH anchors on _WORKTREE_ROOT (parents[4]) in test_upgrade_command.py \u2014 sibling-spec-kitty hop removed; reviewer-renata verified it resolves to the present compat-planner.json.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T13:38:38.583168+00:00",
+      "notes": "Independently mutation-verified at review; 87 passed, ruff clean. mypy: zero NET-NEW --strict errors (verified vs baseline); CI's mypy --strict gate is src-scoped, and tests/ carries pre-existing strict debt (bare-dict / no-any-return) out of scope."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "jsonschema.validate runs unconditionally at every call site",
+      "proof_type": "automated_test",
+      "evidence": "_validate_json_contract runs jsonschema.validate unconditionally (if-_CONTRACT-is-not-None guard removed); mutation-check: deleting the validate call reds exactly the reject-path witnesses.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T13:38:38.583168+00:00",
+      "notes": "Independently mutation-verified at review; 87 passed, ruff clean. mypy: zero NET-NEW --strict errors (verified vs baseline); CI's mypy --strict gate is src-scoped, and tests/ carries pre-existing strict debt (bare-dict / no-any-return) out of scope."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Missing/unreadable contract fails HARD (no skip) in both files",
+      "proof_type": "automated_test",
+      "evidence": "Silent-skip removed in both loaders (_load_contract, _get_contract); missing + malformed contract fail-hard tests in BOTH files go RED when a silent-None fallback is reintroduced (reviewer mutation-verified).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T13:38:38.583168+00:00",
+      "notes": "Independently mutation-verified at review; 87 passed, ruff clean. mypy: zero NET-NEW --strict errors (verified vs baseline); CI's mypy --strict gate is src-scoped, and tests/ carries pre-existing strict debt (bare-dict / no-any-return) out of scope."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Non-vacuous reject-path witness proves each check is live",
+      "proof_type": "automated_test",
+      "evidence": "Non-vacuous reject-path witnesses for BOTH _validate_json_contract and _validate_against_schema; deleting either validate call reds exactly the matching witnesses (reviewer-verified).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T13:38:38.583168+00:00",
+      "notes": "Independently mutation-verified at review; 87 passed, ruff clean. mypy: zero NET-NEW --strict errors (verified vs baseline); CI's mypy --strict gate is src-scoped, and tests/ carries pre-existing strict debt (bare-dict / no-any-return) out of scope."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The one real drift the revival surfaces is remediated (trim <=256)",
+      "proof_type": "automated_test",
+      "evidence": "UnifiedBundleMigration.description trimmed 283->249 (<=256); drift-catch demonstrated RED@283 / GREEN@249; contract maxLength:256 untouched.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T13:38:38.583168+00:00",
+      "notes": "Independently mutation-verified at review; 87 passed, ruff clean. mypy: zero NET-NEW --strict errors (verified vs baseline); CI's mypy --strict gate is src-scoped, and tests/ carries pre-existing strict debt (bare-dict / no-any-return) out of scope."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The sibling dead enforcer (test_messages.py) is revived too",
+      "proof_type": "automated_test",
+      "evidence": "test_messages.py revived: parents[3] anchor + fail-hard _get_contract; 5 render_json _validate_against_schema call sites now live; check-B witnesses mutation-proven.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T13:38:38.583168+00:00",
+      "notes": "Independently mutation-verified at review; 87 passed, ruff clean. mypy: zero NET-NEW --strict errors (verified vs baseline); CI's mypy --strict gate is src-scoped, and tests/ carries pre-existing strict debt (bare-dict / no-any-return) out of scope."
+    }
+  ],
+  "negative_invariants": []
+}

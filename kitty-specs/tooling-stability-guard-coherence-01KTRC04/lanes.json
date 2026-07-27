@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "mission_slug": "tooling-stability-guard-coherence-01KTRC04",
+  "mission_id": "01KTRC044W67V3KC9H7TBFSY7B",
+  "mission_branch": "kitty/mission-tooling-stability-guard-coherence-01KTRC04",
+  "target_branch": "fixups/code-engine-stabilization",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/git/protected_target_fixtures.py",
+        "tests/git/test_protection_preserved.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission-steps/software-dev/analyze/prompt.md",
+        "src/specify_cli/analysis_report.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/status/aggregate.py",
+        "tests/architectural/test_execution_context_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_profile_health_render.py",
+        "src/specify_cli/cli/commands/doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/merge.py",
+        "src/glossary/entity_pages.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/coordination/policy.py",
+        "src/specify_cli/coordination/transaction.py",
+        "src/specify_cli/coordination/types.py",
+        "src/specify_cli/core/commit_guard.py",
+        "src/specify_cli/git/__init__.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/orchestrator_api/commands.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/events/decision_log.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/safe_commit_cmd.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/cli/commands/agent/mission.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "architecture/3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md",
+        "tests/architectural/test_safe_commit_import_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-06-10T11:58:26.899683+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,11 @@
+evidence_id,source_id,finding,decision_impact,confidence,date_logged
+EV001,SR001,"Classes should be under 200 lines for maintainability","Set module size limit at 200 lines",High,2025-11-11
+EV002,SR002,"Extract Method pattern helps break large functions","Use for splitting init command into smaller functions",High,2025-11-11
+EV003,SR003,"Python packages should use __init__.py for public API","Each package will have __init__.py with __all__ exports",High,2025-11-11
+EV004,SR005,"Google recommends modules under 1000 lines but prefers smaller","Supports our 200 line limit as best practice",Medium,2025-11-11
+EV005,SR006,"Human working memory handles 7±2 items effectively","Keep module interfaces to <10 public functions",Medium,2025-11-11
+EV006,SR007,"Relative imports recommended within packages","Use relative imports with absolute fallback for subprocesses",High,2025-11-11
+EV007,SR008,"Typer uses decorators for command registration","Maintain decorator pattern in refactored commands",High,2025-11-11
+EV008,SR009,"Rich components are self-contained and reusable","Extract StepTracker as standalone class",High,2025-11-11
+EV009,SR010,"Strangler Fig pattern for gradual migration","Can refactor modules incrementally while keeping old code",Medium,2025-11-11
+EV010,SR002,"Move Method pattern for relocating functions","Use to move functions to appropriate modules by cohesion",High,2025-11-11

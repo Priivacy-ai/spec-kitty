@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://priivacy.ai/schemas/spec-kitty/EventV1.json",
+  "title": "Event",
+  "description": "Base event schema for spec-kitty event log (Version 1)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "lamport_clock",
+    "entity_id",
+    "entity_type",
+    "timestamp",
+    "actor",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Globally unique event identifier (ULID format)",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": ["01HN3R5K8D1234567890ABCDEF"]
+    },
+    "event_type": {
+      "type": "string",
+      "description": "Event type discriminator",
+      "enum": [
+        "WPStatusChanged",
+        "SpecCreated",
+        "WPCreated",
+        "WorkspaceCreated",
+        "SubtaskCompleted",
+        "GateCreated",
+        "GateResultChanged"
+      ]
+    },
+    "event_version": {
+      "type": "integer",
+      "description": "Event schema version (enables evolution)",
+      "minimum": 1,
+      "default": 1
+    },
+    "lamport_clock": {
+      "type": "integer",
+      "description": "Logical clock value for causal ordering",
+      "minimum": 1
+    },
+    "entity_id": {
+      "type": "string",
+      "description": "Entity affected by this event",
+      "minLength": 1,
+      "examples": ["WP01", "025-cli-event-log-integration", "subtask-5"]
+    },
+    "entity_type": {
+      "type": "string",
+      "description": "Type of entity affected",
+      "enum": ["WorkPackage", "FeatureSpec", "Subtask", "Gate", "Workspace"]
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Wall-clock timestamp (ISO 8601 UTC) for human readability",
+      "format": "date-time",
+      "examples": ["2026-01-27T10:30:00Z"]
+    },
+    "actor": {
+      "type": "string",
+      "description": "Agent or user that caused this event",
+      "minLength": 1,
+      "examples": ["claude-implementer", "user@example.com", "system"]
+    },
+    "causation_id": {
+      "type": ["string", "null"],
+      "description": "Command/operation ID that caused this event (for idempotency)",
+      "examples": ["cmd-abc123", null]
+    },
+    "correlation_id": {
+      "type": ["string", "null"],
+      "description": "Workflow/session ID for grouping related events",
+      "examples": ["session-xyz789", null]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific data (structure varies by event_type)",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

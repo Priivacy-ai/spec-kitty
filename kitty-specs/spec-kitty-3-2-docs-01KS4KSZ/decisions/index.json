@@ -1,0 +1,77 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-21T06:33:32.245816Z",
+      "decision_id": "01KS4KTGTN4DBE60JFWKEA2FJB",
+      "final_answer": null,
+      "input_key": "three_one_classification",
+      "mission_id": "01KS4KSZ67PMNRJ057BGT0Z8AW",
+      "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
+      "options": [
+        "3.1 surfaced as supported version with its own nav group",
+        "3.1 folded into 3.2 as migration notes only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the public 3.x docs expose 3.1 as a separately navigable supported version, or treat 3.1 pages purely as migration notes folded under 3.2?",
+      "rationale": "Open question explicitly listed in start-here.md; defer until plan phase so the page-classification taxonomy and navigation design address it together.",
+      "resolved_at": "2026-05-21T06:33:50.636352Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.three-one-classification",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-21T06:33:35.689740Z",
+      "decision_id": "01KS4KTM69EG2KVX5MQ54FQ939",
+      "final_answer": null,
+      "input_key": "cli_reference_generation_mode",
+      "mission_id": "01KS4KSZ67PMNRJ057BGT0Z8AW",
+      "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
+      "options": [
+        "Hand-maintained markdown",
+        "Generator-backed (committed script + freshness test)",
+        "Hybrid (generated body, hand-authored prose)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the CLI reference be hand-maintained markdown, fully generated from the live Typer tree by a committed script, or hybrid (generated body with hand-authored wrapper prose)?",
+      "rationale": "Open question explicitly listed in start-here.md; defer until methodology investigation of prior reference commits (a14769e7a, 81b3d6c3e, 514106af2, deee8d7f3) and CLI audit decide whether a generator is justified.",
+      "resolved_at": "2026-05-21T06:33:54.107718Z",
+      "resolved_by": null,
+      "slot_key": "specify.cli-reference.generation-mode",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-21T06:33:40.763275Z",
+      "decision_id": "01KS4KTS4V300M9MMTS1AJEGXY",
+      "final_answer": null,
+      "input_key": "harness_support_tiers",
+      "mission_id": "01KS4KSZ67PMNRJ057BGT0Z8AW",
+      "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
+      "options": [
+        "All 15 currently-installed harness directories ship as first-class",
+        "Tiered: first-class for Claude/Codex/Cursor/OpenCode/Gemini, supported for the rest",
+        "Author the matrix first, then promote per-harness pages based on coverage",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which AI harnesses ship as officially supported for 3.2 (first-class/supported) vs opportunistically documented (partial/experimental/archived) \u2014 and is the per-harness page set the canonical list or only the support matrix?",
+      "rationale": "Open question explicitly listed in start-here.md; defer until harness research workstream surveys current host integration depth and Spec Kitty's generated files for each.",
+      "resolved_at": "2026-05-21T06:33:55.957979Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.harness-support-tiers",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KS4KSZ67PMNRJ057BGT0Z8AW",
+  "version": 1
+}

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "logged-out-teamspace-cli-recovery-01KRC6CY",
+  "mission_id": "01KRC6CY7QHWPB7K8K8DB8JRTH",
+  "mission_branch": "kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY",
+  "target_branch": "kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY-lane-a",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_auth_recovery.py",
+        "tests/cli/commands/test_auth_recovery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/recovery/logged-out-teamspace.md",
+        "src/specify_cli/cli/commands/sync.py",
+        "tests/sync/test_sync_logged_out_recovery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-11T19:03:33.009422+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

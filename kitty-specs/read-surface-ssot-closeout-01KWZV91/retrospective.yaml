@@ -1,0 +1,518 @@
+schema_version: 1
+mission_id: 01KWZV91H88Z785KKPTC8W6DZX
+mission_slug: read-surface-ssot-closeout-01KWZV91
+mission_number: 169
+friendly_name: 'Read-Surface SSOT Completion & #1716 Closeout'
+mission_type: software-dev
+target_branch: design/read-surface-ssot-closeout
+created_at: '2026-07-08T11:15:50.682517+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-08T11:15:50.682517+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-010
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-011
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-012
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-013
+  category: implementation
+  summary: WP13 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-014
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-015
+  category: implementation
+  summary: WP15 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-016
+  category: implementation
+  summary: WP16 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-017
+  category: implementation
+  summary: WP17 completed without rejection cycles
+  evidence_refs:
+  - e-022
+- id: h-018
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — WP12 (T037/T038): status/* + merge/* + sync/emitter.py per-site FR-005 adjudication.'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — WP12 (T037/T038): status/* + merge/* + sync/emitter.py per-site FR-005 adjudication.**\n  Census
+    of the 9 owned files found 5 genuine `meta.json` reads and 8 lookalikes (JSONL event-log\n  lines in `lifecycle_events.py`/`store.py`/`conflict_resolver.py`/`preflight.py`;
+    `status.json` in\n  `preflight.py:424`; `.kittify/merge-state.json` in `state.py:213`; a JSON schema file in\n  `emitter.py:188`)
+    — none of the lookalikes were routed.\n  - `status/aggregate.py::_read_meta` (@414) and `status/identity_audit.py::classify_mission`
+    (@132):\n    both pre-check `meta_path.exists()` then hand-rolled a `try/except (OSError, JSONDecodeError)` +\n    a separate
+    `isinstance(..., dict)` guard with a bespoke \"expected object\" message. Routed to\n    `load_meta(dir, on_malformed=\"\
+    raise\")`, which folds BOTH checks into one `ValueError` — a real\n    LOC/branch reduction, not just a call-site swap.
+    `on_malformed=\"raise\"`'s message is \"Expected\n    JSON object in {path}, got {type}\" (capital E, "
+not_helpful:
+- id: n-008
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-030
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP11 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP11 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP12 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP12 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP13 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-027
+  details: WP WP13 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP16 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-028
+  details: WP WP16 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP17 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-029
+  details: WP WP17 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-017
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — #2404 (Thread C) closes at the SEAM, not per-caller (C-006 / Directive-043).'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — #2404 (Thread C) closes at the SEAM, not per-caller (C-006 / Directive-043).**\n  Confirmed target
+    intact: `commit_for_mission` (`coordination/commit_router.py:152`) still\n  resolves ONE `kind` per invocation via `resolve_placement_only(...)`.
+    Make it per-file\n  partition-aware there; that fixes `spec_commit_cmd` + `mission_finalize.py` (kind=TASKS_INDEX\n  caller)
+    BY CONSTRUCTION. Alternative (flip ACCEPTANCE_MATRIX/ANALYSIS_REPORT to PRIMARY — the\n  sibling's shelved \"swappable-locus\"\
+    \ question) rejected: it violates C-002 and #2462 proved\n  nothing needs flipping. NOTE: `_planning_commit_worktree`
+    was RENAMED by #2462 →\n  `_resolve_commit_worktree_for_kind` (backward alias kept) — refer to the new name."
+- id: n-015
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — Binding invariants inherited from the landed #2462 seam.'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — Binding invariants inherited from the landed #2462 seam.** C-001: the\n  topology-aware `PlacementSeam`
+    (`src/mission_runtime/resolution.py`) is the SINGLE access\n  point — a PRIMARY answer from `read_dir(kind)` is NOT license
+    to bypass the seam.\n  C-002: the kind→partition mapping is a HARD invariant — do NOT flip any kind. The #2462\n  second-opinion
+    squad confirmed the mapping landed \"byte-for-byte preserved, no kind flipped.\""
+- id: n-013
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — Sequencing (settled).'
+  evidence_refs:
+  - e-031
+  details: "- **2026-07-08 — Sequencing (settled).** Thread C (IC-01 seam commit foundation) is the\n  foundation everything
+    routes through → first. Threads A/C depended on #2462 merging (now\n  done; branch rebased onto merged upstream/main,
+    0 behind). Threads B/D are independent.\n  Implementers sonnet, reviewers opus."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — Shift 1 (pre-spec 3-scout squad).'
+  evidence_refs:
+  - e-031
+  details: "- **2026-07-08 — Shift 1 (pre-spec 3-scout squad).** Corrected all four thread scopes:\n  #2088 already fixed
+    (69dd1fa46 — 0 WPs), #2404 is write-routing NOT a partition flip,\n  #2453 is 36-not-71 sites, #2100 is 60 sites. Sized
+    to 15–17 WPs."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — Shift 2 (post-spec 3-lens squad).'
+  evidence_refs:
+  - e-031
+  details: "- **2026-07-08 — Shift 2 (post-spec 3-lens squad).** Elevated #2404 to seam-level\n  class-closure (per-file partition-aware
+    `commit_for_mission`, C-006); added the 3rd site\n  (`mission_finalize`) + accept dirty-detection reconciliation (M2);
+    made the meta ratchet\n  non-vacuous (routed-count floor); named the 9-file cross-thread A/B linearization set;\n  ordered
+    FR-003 (predicate-widen by-design writes) before FR-002 (floor re-pin)."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — Shift 3 (post-#2462-landing PR review + rebase).'
+  evidence_refs:
+  - e-031
+  details: "- **2026-07-08 — Shift 3 (post-#2462-landing PR review + rebase).** #2462 landed EXACTLY as\n  assumed (seam `read_dir`
+    present, allowlist floor = 7, drain-to-2 valid, no ADR redirect) →\n  **no spec revisit**, only MINOR plan edits. C-007
+    census **re-run green on the rebased base:\n  32 live / 7 allowlisted / 25 to-route, gate 45/45 — UNCHANGED, drain 7→2
+    valid.** The\n  PR-review's \"subtract two pre-routed sites\" was a class-conflation: the two `_planning_read_dir`\n \
+    \ helpers #2462 touched are the separate `resolve_planning_read_dir` delegate class, NOT the\n  `resolve_feature_dir_for_mission`
+    census Thread A targets — nothing to subtract (the re-run\n  caught it). The reviewer folded two extra items into Thread
+    A/#2453: paula's fail-open-fallback\n  finding and renata's `contextlib.suppress` NOTE at `mission_creation.py:469`."
+- id: n-018
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — Thread A census must count by TOKEN, not line number.'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — Thread A census must count by TOKEN, not line number.** The landed\n  `resolution_gate_allowlist.yaml`
+    pins the review write sites at STALE locators (2633/2670)\n  which are token-authoritative, line-non-authoritative. Re-pin
+    the census on tokens.\n- **2026-07-08 — Thread B (#2100) inherits a BREAKING base: legacy meta-less missions now\n  hard-fail.**
+    #2462's #2091 guard drops pre-3.2.x legacy-mission support (error points to\n  `spec-kitty migrate backfill-identity`).
+    Routing inline `json.loads(meta)` reads onto\n  `load_meta`/`load_meta_strict`/`load_meta_or_empty` must NOT re-introduce
+    a\n  fallback-on-missing-meta path — that era is intentionally gone. Full legacy-bridge removal is\n  tracked separately
+    in **#2463** (do NOT fold)."
+- id: n-027
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [WP05] Monkeypatching a routed-away symbol fails LOUD, not silently.'
+  evidence_refs:
+  - e-033
+  details: "- **2026-07-08 — [WP05] Monkeypatching a routed-away symbol fails LOUD, not silently.**\n  `unittest.mock.patch(\"\
+    ...implement.resolve_feature_dir_for_mission\", ...)` on a module that no\n  longer imports that name raises `AttributeError:
+    module ... does not have the attribute` at\n  test collection/run time — a clear, fast signal (not a silent no-op), but
+    still needed a\n  manual sweep (`grep -rn \"<module>.resolve_feature_dir_for_mission\"` across `tests/`) since the\n \
+    \ test importing the patched module (`tests/agent/test_implement_command.py`) is not co-located\n  with the implementation
+    file and wasn't caught by the diff-scoped lint/mypy pass.\n- **2026-07-08 — [WP05] `kitty-specs/` trace-file edits on
+    a lane branch are silently\n  committed, then BLOCK `move-task` at the end.** `git commit` on the lane worktree succeeds
+    with\n  only a `[spec-kitty guard] WARNING: Protected path` line (not an error, easy to miss in scroll-\n  back) when
+    the diff touches `kitty-specs/`; the hard block only surfa"
+- id: n-019
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] #2462 follow-up fold adjudication (Priti, profile-loaded).'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — [planning] #2462 follow-up fold adjudication (Priti, profile-loaded).** FOLD\n  nothing new.
+    #2463 (legacy-bridge removal, BREAKING), #2464 (workflow.py degod), #2465 (resolver-\n  primitive consolidation — C-001
+    scopes primitives OUT), #2475/#2476 (CI-infra) all verified\n  SEPARATE. Only paula's fail-open-fallback folds (Thread
+    A/FR-004, red-first). Renata's\n  `contextlib.suppress`@`mission_creation.py:469` VERIFIED out of IC-04 footprint (wraps
+    a\n  create-time write; 0 read-routing sites) → deferred campsite NOTE, NOT folded (DIRECTIVE_025\n  out-of-domain). Post-adjudication
+    mission stays 15–17 WPs, read-side domain intact."
+- id: n-026
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] CI caveat #2475: arch marker gate is vacuous under `.worktrees/`.'
+  evidence_refs:
+  - e-033
+  details: "- **2026-07-08 — [planning] CI caveat #2475: arch marker gate is vacuous under `.worktrees/`.**\n  When verifying
+    this mission's own architectural ratchet tests locally from an execution\n  worktree, the marker gate may not fire — verify
+    arch tests from the primary checkout or with\n  an explicit path, not by trusting a green marker run inside `.worktrees/`.\n\
+    - **2026-07-08 — [WP05] Routing a single A-site silently red-failed 5 architectural gate tests\n  in TWO files until traced.**
+    `tests/architectural/test_resolution_authority_gates.py` scans\n  `src/` for the pre-fix `resolve_feature_dir_for_mission`/`primary_feature_dir_for_mission`\n\
+    \  call-site patterns and asserts a shrink-only floor (`CANONICALIZER_FLOOR`,\n  `COORD_AUTHORITY_WRITE_FLOOR`) plus a
+    `resolution_gate_allowlist.yaml` entry per pre-sweep\n  site. Draining `implement.py`'s ONE A-site simultaneously dropped
+    BOTH counters (its own\n  `coord_authority` allowlist entry going stale, AND the `primary_feature_dir_for_mission` call\n\
+    \  i"
+- id: n-024
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] Census line-refs drift on every merge — pin on tokens.'
+  evidence_refs:
+  - e-033
+  details: "- **2026-07-08 — [planning] Census line-refs drift on every merge — pin on tokens.** The\n  landed `resolution_gate_allowlist.yaml`
+    pins Thread-A review write sites at STALE line\n  locators (2633/2670) that no longer match the source; they are token-authoritative
+    only.\n  Any WP re-running the census MUST scan by construct/token, not frozen line numbers."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] Initial approach.'
+  evidence_refs:
+  - e-031
+  details: "- **2026-07-08 — [planning] Initial approach.** Read-side counterpart to the landed #2462\n  write-side placement
+    lock. Four threads, single mission (functional/behavioural overlap):\n  A (#2453 feature_dir read sweep + coord_authority
+    allowlist drain 7→2), B (#2100 inline\n  meta.json → `load_meta` sweep + non-vacuous ratchet), C (#2404 seam-level per-file\n\
+    \  write-routing class-closure), D (#2088 closeout — already fixed on main). ~15–17 WPs.\n  Route BOTH reads and writes
+    through the one topology-aware seam."
+- id: n-023
+  category: tooling
+  summary: "Tracer: 2026-07-08 — [planning] Known: planning surfaces don't prompt the tracer procedure."
+  evidence_refs:
+  - e-033
+  details: "- **2026-07-08 — [planning] Known: planning surfaces don't prompt the tracer procedure.**\n  Carried over from
+    the sibling mission — `/specify`, `/plan`, `/tasks` do not seed or enforce\n  `mission-tracer-files`. Mitigated here by
+    seeding manually at the post-plan point-cut. Still a\n  process gap worth surfacing (it feeds #2095)."
+- id: n-020
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] Re-grounding squad (3 lenses, profile-loaded) vs merged base → LAND, no re-scope.'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — [planning] Re-grounding squad (3 lenses, profile-loaded) vs merged base → LAND, no re-scope.**\n\
+    \  Inventory (randy): Thread A 32/7/25 + 4 slug sites EXACT; Thread C exact incl. line refs;\n  cross-thread = **8/9 genuine
+    collisions** (`orchestrator_api/commands.py` is FR-004-only, no B-read\n  → loosened to FR-004-only set); Thread B counts
+    directional (63/43 vs prose 50/60 — IC-06 scanner\n  is tie-breaker). Sequencing (priti): all edges SAFE (IC-01→02→03,
+    FR-003→FR-002, IC-05→06), C-003\n  satisfied, no deadlock; reuse #2462's golden-path integration fixture. Constraint (alphonso):
+    C-001/\n  C-002/C-006 HOLD, but **NFR-001 wording was factually wrong** — kind-aware `read_dir` legitimately\n  moves
+    PRIMARY-kind reads coord→primary under coord topology (that IS the #2453 fix); reframed NFR-001\n  to forbid pinning the
+    old kind-blind coord dir + require a coord-topology divergence regression.\n  Also sharpened FR-007 (`None`-classified
+    files keep caller-`kind` fallback) + FR-005 "
+- id: n-014
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] Seeded at planning time (post-plan, pre-/tasks).'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — [planning] Seeded at planning time (post-plan, pre-/tasks).** Unlike the\n  sibling write-side
+    mission (coord-primary-01KWZ46V), which seeded its tracers late at\n  implement-start, this mission seeds at the correct
+    point-cut. Rationale: #2462 has landed,\n  the base is settled, and the design decisions below are now evidence-backed
+    rather than\n  provisional."
+- id: n-025
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [planning] Watch shared test helper `tests/lane_test_utils.py`.'
+  evidence_refs:
+  - e-033
+  details: "- **2026-07-08 — [planning] Watch shared test helper `tests/lane_test_utils.py`.** #2462's CI\n  fix rewrote it
+    to mint production-shaped `mission_id`/`mid8`; a meta-less / empty-mid8 fixture\n  now hard-fails. Thread B/#2100 WPs
+    reusing this helper must match the new minted-identity\n  contract (realistic ids, not placeholders)."
+- id: n-021
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — [tasks] Post-tasks anti-laziness squad (3 lenses) → 1 BLOCKER fixed, else LAND.'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — [tasks] Post-tasks anti-laziness squad (3 lenses) → 1 BLOCKER fixed, else LAND.**\n  Coverage
+    (randy): COMPLETE — every A/B site + 8 collisions has one WP home, no orphans at FILE level.\n  Constraint (alphonso):
+    INTACT — all 8 binding constraints enforceably encoded, 0 HIGH.\n  Sizing (renata): **found the blocker the file-level
+    lens couldn't** — WP04 owned workflow.py but\n  routed only the 2 `review` sites (@2710/@2747), ORPHANING the 2 `implement`
+    reads (@1468 feedback-\n  context, @1663 dossier-sync). Both are in the coord_authority allowlist (4 workflow.py entries
+    + 1\n  implement.py + 2 keepers = 7); leaving them unrouted → WP11 could only drain to 4, not 2 → SC-001\n  fails. FIX:
+    WP04 T017 now routes ALL 3 reads (@1468/@1663/@2710) + T018 the @2747 write. Also\n  enriched WP13/WP14 with per-site
+    enumeration-first instructions (~22–25 sites each). Claim fidelity\n  100% (all cited line refs exact). Lesson: file-level
+    coverage ≠ site-level coverage on god-modules."
+- id: n-016
+  category: tooling
+  summary: 'Tracer: 2026-07-08 — `read_dir` is NOT a uniform projection (PR-review finding H-1).'
+  evidence_refs:
+  - e-032
+  details: "- **2026-07-08 — `read_dir` is NOT a uniform projection (PR-review finding H-1).** Confirmed\n  landed shape:
+    every kind routes through `resolve_planning_read_dir` EXCEPT `RETROSPECTIVE`,\n  which delegates to `resolve_retrospective_home`
+    (the dedicated single authority, #2119).\n  Decision: Thread-A routing must go through `PlacementSeam.read_dir(kind)`,
+    never assume one\n  delegate for all kinds. Alternative (route all kinds to one resolver) rejected — would\n  re-introduce
+    a shadow authority for RETROSPECTIVE."
+- id: n-022
+  category: tooling
+  summary: 'Tracer: `implement.py`@~1169 (A) — `SPEC` kind, full cascade collapse, not a partial patch.'
+  evidence_refs:
+  - e-032
+  details: "- **`implement.py`@~1169 (A) — `SPEC` kind, full cascade collapse, not a partial patch.**\n  The pre-fix site
+    was a THREE-step meta.json-existence cascade\n  (`resolve_feature_dir_for_mission` → `candidate_feature_dir_for_mission`
+    fallback →\n  `primary_feature_dir_for_mission` fallback), which existed ONLY to paper over the kind-blind\n  resolver's
+    coord-husk-shadows-primary defect (#2453). `SPEC` is a PRIMARY-partition kind\n  (`mission_runtime.artifacts._PRIMARY_ARTIFACT_KINDS`),
+    so `read_dir(SPEC)` resolves the\n  topology-blind primary dir directly and NEVER returns the meta-less coord husk — the
+    entire\n  cascade collapses to one call. Considered keeping the cascade as a defensive no-op after\n  swapping only the
+    first call; rejected as leaving dead, confusing code the WP prompt's\n  \"do not opportunistically refactor\" guidance
+    does not require (removing it IS the site's fix,\n  not an unrelated refactor) — verified no test depended on the fallback's
+    intermediate\n  candidates (only on the "
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP01-partition-aware-commit-seam.md
+- id: e-006
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP02-accept-residual-routing.md
+- id: e-007
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP03-coord-topology-characterization.md
+- id: e-008
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP04-workflow-campsite-and-route.md
+- id: e-009
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP05-collision-implement-identity-audit.md
+- id: e-010
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP06-collision-resolver-decisions.md
+- id: e-011
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP07-collision-doctrine-recovery-interviews.md
+- id: e-012
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP08-a-only-agent-commands.md
+- id: e-013
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP09-a-only-cli-and-slug.md
+- id: e-014
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP10-fr004-fail-closed.md
+- id: e-015
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP11-coord-authority-drain.md
+- id: e-016
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP12-meta-status-merge.md
+- id: e-017
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP13-meta-retrospective-runtime-charter.md
+- id: e-018
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP14-meta-cli-core-transaction.md
+- id: e-019
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP15-meta-migration-audit-matrix.md
+- id: e-020
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP16-meta-read-ratchet.md
+- id: e-021
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/tasks/WP17-closeout-1716-2088-2100.md
+- id: e-022
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+- id: e-023
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0C9XPJ5M6NM84YXPZ2Z5RK
+- id: e-024
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0FMSGXG1V25Q730MP3TPNP
+- id: e-025
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0KGR6BB2Z9XQXT5FEH92YM..01KX0PGBYWTBBJ39Y0V71RF7E8
+- id: e-026
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0C6V7EYGT43BWDX1H84HSP
+- id: e-027
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0E4SXM12YC7YR4XV0CNNHW
+- id: e-028
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0H1F0AWHCEAHCRMG1YNJEZ
+- id: e-029
+  kind: event_range
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/status.events.jsonl
+  range: 01KX0NK75AB5PR8M1TCMW59NP5
+- id: e-030
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/analysis-report.md
+- id: e-031
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/traces/approach.md
+- id: e-032
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/traces/design-decisions.md
+- id: e-033
+  kind: file
+  path: kitty-specs/read-surface-ssot-closeout-01KWZV91/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

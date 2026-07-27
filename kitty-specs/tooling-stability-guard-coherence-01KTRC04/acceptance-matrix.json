@@ -1,0 +1,99 @@
+{
+  "mission_slug": "tooling-stability-guard-coherence-01KTRC04",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "fail",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Consolidated guard mechanism: single pure policy `core/commit_guard.py::evaluate(target, protection_state, capability) -> GuardVerdict`; `git/commit_helpers.safe_commit` is the only enforcement facade.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (approved): tests/git/test_commit_guard.py 15 passed / 0 xfail; import-boundary ratchet pins evaluate to exactly 2 blessed importers (WP10, 7 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "safe-commit ergonomics: directory args expand to contained dirty files with a per-file report; explicit --to-branch honored; SPEC_KITTY_INFER_DESTINATION_REF env hatch retired.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (approved): safe_commit_cmd.py dir/bulk expansion + _resolve_commit_target; #1820/#1330 repros flipped from xfail to pass.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Planning placement defined by ONE resolved authority: resolve_placement_only(repo_root, mission_slug) -> CommitTarget in mission_runtime/resolution.py; _resolve_planning_branch commit-destination authority retired; spec.md commits on protected branches route to the resolved non-protected destination (no guard relaxation).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved): SC-6 e2e with .kittify/ fixture 20 passed / 2 xfail; #1777/#1784/#1631/#1334 repros pass; C-GUARD-3a single-destination contract enforced.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "record-analysis verdict derived from the structured analysis-findings/v1 frontmatter table, not prose substring counting; write-path-only loud failure on malformed carrier.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (approved): analysis_report.py infer_verdict/infer_issue_counts deleted; severity REUSES SEVERITY_ORDER from charter_runtime/lint/findings.py (no 9th model); #1819 repro green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Carried StatusSurfaceFragment threaded through MissionStatus.load + status_transition via resolve_status_surface_with_anchor \u2014 single resolution path, no re-derivation.",
+      "proof_type": "automated_test",
+      "evidence": "WP07 (approved): status/aggregate.py + coordination/status_transition.py + surface_resolver.py threading tests green; #1821 repro green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "doctor.py god-module reduced: doctrine profile-health rendering extracted to cli/commands/_profile_health_render.py (pure move).",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved): doctor.py 3271 -> 3011 lines; _profile_health_render.py 337 LOC; behavior-preserving (existing doctor tests green); #1623 slice delivered.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "DRG provenance typed: declared `provenance: str | None = None` field on DRGNode/DRGEdge (D2-revised, operator-approved); object.__setattr__ sidecar deleted; _tag_source returns model_copy(update=...).",
+      "proof_type": "automated_test",
+      "evidence": "WP09 (approved): mypy --strict clean on drg/merge.py; grep-zero sidecar patterns; graph.yaml byte-stable (extractor never serializes provenance); 123 DRG tests + typed round-trip green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Exactly ONE privilege channel: GuardCapability asserted at the surface (never derived from message/file/env/topology). Five legacy channels deleted: message-prefix exception list, allow_protected_branch_in_test_mode, allow_completed_op_on_protected_branch, completed-Op file-content exception, env hatches. Operator escape hatch SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS retained, documented.",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP03 (approved): protection-preserved suite converged 4 passed/5 xfail(strict) -> 9 passed/0 xfail at channel deletion; WP10 ratchet asserts zero references to deleted symbols in src/. NEGATIVE INVARIANTS (verified on the integrated lane-j tree during WP01/WP03/WP10 reviews): (NI-1) protection PRESERVED \u2014 tests/git/test_protection_preserved.py 9 passed / 0 xfail; (NI-2) no parallel guard mechanisms \u2014 tests/architectural/test_safe_commit_import_boundary.py 7 passed, strictness proven by rogue-injection proofs (implementer x3 + reviewer's independent proof). Re-runnable on the primary tree immediately after merge.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "ADR 2026-06-03-2 amended with an append-only Addendum: resolve_action_context home = mission_runtime/resolution.py; CommitTarget delivered as (ref, kind); Strangler Step 7 delivered by 01KTPKST + 01KTRC04.",
+      "proof_type": "automated_test",
+      "evidence": "WP10 (approved): addendum diff @@ -112,3 +112,70 @@ with 0 deletion lines (append-only verified by reviewer); terminology guard 2 passed; ratchet strictness proven via rogue-import injections (3 proofs + reviewer's independent proof).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-10T21:15:00+00:00",
+      "notes": "Verified during per-WP review; all 10 WPs approved."
+    }
+  ],
+  "negative_invariants": []
+}

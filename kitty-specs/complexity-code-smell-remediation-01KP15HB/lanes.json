@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "mission_slug": "complexity-code-smell-remediation-01KP15HB",
+  "mission_id": "01KP15HBKQH3EAK44QEAJBV4Q5",
+  "mission_branch": "kitty/mission-complexity-code-smell-remediation-01KP15HB",
+  "target_branch": "feat/complexity-debt-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/lanes/recovery.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/bootstrap.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/locking.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/status/transitions.py",
+        "src/specify_cli/status/validate.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "tests/agent/test_orchestrator_commands_integration.py",
+        "tests/agent/test_review_feedback_pointer_2x_unit.py",
+        "tests/agent/test_workflow_review_lane_gate.py",
+        "tests/git_ops/test_atomic_status_commits_unit.py",
+        "tests/lanes/test_implementation_recovery.py",
+        "tests/merge/test_merge_done_recording.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_planning_artifact_lifecycle.py",
+        "tests/specify_cli/cli/commands/test_merge.py",
+        "tests/specify_cli/lanes/test_recovery.py",
+        "tests/specify_cli/status/test_wp_metadata.py",
+        "tests/status/test_emit.py",
+        "tests/status/test_event_mission_id.py",
+        "tests/status/test_parity.py",
+        "tests/status/test_status_e2e_integration.py",
+        "tests/status/test_sync_lane_mapping.py",
+        "tests/status/test_transitions.py",
+        "tests/status/test_validate.py",
+        "tests/status/test_views.py",
+        "tests/sync/test_dual_write_integration.py",
+        "tests/upgrade/test_read_cutover_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/catalog.py",
+        "src/charter/compiler.py",
+        "src/charter/context.py",
+        "src/charter/extractor.py",
+        "src/charter/parser.py",
+        "src/charter/resolver.py",
+        "tests/agent/cli/commands/test_charter_cli.py",
+        "tests/agent/test_workflow_charter_context.py",
+        "tests/init/test_charter_runtime_integration.py",
+        "tests/merge/test_profile_charter_e2e.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/__init__.py",
+        "src/doctrine/agent_profiles/repository.py",
+        "src/doctrine/base.py",
+        "src/doctrine/curation/workflow.py",
+        "src/doctrine/directives/repository.py",
+        "src/doctrine/mission_step_contracts/repository.py",
+        "src/doctrine/paradigms/repository.py",
+        "src/doctrine/procedures/repository.py",
+        "src/doctrine/styleguides/repository.py",
+        "src/doctrine/tactics/repository.py",
+        "src/doctrine/toolguides/repository.py",
+        "src/kernel/_safe_re.py",
+        "src/kernel/atomic.py",
+        "src/kernel/glossary_runner.py",
+        "tests/cross_cutting/test_doctrine_curation_unit.py",
+        "tests/doctrine/test_shipped_doctrine_cycle_free.py",
+        "tests/kernel/",
+        "tests/unit/test_doctrine_curation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter/__init__.py",
+        "src/specify_cli/charter/catalog.py",
+        "src/specify_cli/charter/compiler.py",
+        "src/specify_cli/charter/context.py",
+        "src/specify_cli/charter/extractor.py",
+        "src/specify_cli/charter/generator.py",
+        "src/specify_cli/charter/hasher.py",
+        "src/specify_cli/charter/interview.py",
+        "src/specify_cli/charter/parser.py",
+        "src/specify_cli/charter/resolver.py",
+        "src/specify_cli/charter/schemas.py",
+        "src/specify_cli/charter/sync.py",
+        "src/specify_cli/cli/commands/mission.py",
+        "src/specify_cli/missions/__init__.py",
+        "src/specify_cli/missions/glossary_hook.py",
+        "src/specify_cli/missions/primitives.py",
+        "src/specify_cli/next/prompt_builder.py",
+        "src/specify_cli/runtime/doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-13T06:19:34.775279+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}

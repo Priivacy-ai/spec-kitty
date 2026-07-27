@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-activation-freshness-01KXRSDN",
+  "mission_id": "01KXRSDNM9G3QG0E8QSGXZX8YE",
+  "mission_branch": "kitty/mission-doctrine-activation-freshness-01KXRSDN",
+  "target_branch": "feat/doctrine-activation-freshness",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_charter_references_resolve.py",
+        "tests/doctrine/drg/migration/test_extractor_projection.py",
+        "tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "tests/charter/test_references_missing_failclosed.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/consistency_check.py",
+        "src/specify_cli/charter_runtime/freshness/computer.py",
+        "tests/specify_cli/charter_runtime/test_freshness_activation_visibility.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/preflight/runner.py",
+        "tests/specify_cli/charter_runtime/test_preflight_one_pass.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py",
+        "tests/specify_cli/cli/commands/charter/test_resynthesize_and_hotpath.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-17T20:58:01.544434+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

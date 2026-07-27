@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "playwright-ui-e2e-bootstrap-01KWX72W",
+  "mission_id": "01KWX72WJKV1D02RNSZWG25AVC",
+  "mission_branch": "kitty/mission-playwright-ui-e2e-bootstrap-01KWX72W",
+  "target_branch": "feat/playwright-ui-e2e-bootstrap",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "tests/ui/conftest.py",
+        "tests/ui/test_dashboard_wp_modal.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "dashboard"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ui-e2e.yml",
+        "CLAUDE.md",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/ui-e2e.md"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-07T03:10:26.321987+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,188 @@
+{
+  "mission_slug": "ci-suite-map-bind-01KWNPMP",
+  "mission_number": "162",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_marker_job_completeness.py (WP04) \u2014 3-state marker model; unit/contract hard-asserted ROUTED-BY-MARKER, structurally ineligible for exemption. Green in arch sweep (691 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "Review proved airtight: 5 allowlist-escape attempts all red. Split re-derived live 10/15/12 of 37 markers."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-quality.yml unit-contract-residual job (WP03) \u2014 always-on, blocking, in quality-gate needs; residual expr collects 252/28611. Live-proven on draft probe run 28703939273 (2m22s, NFR-002 <3min).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "NOT a `-m unit or contract` job (avoids 11k double-run); excludes windows_ci/quarantine by construction."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_workflow_coherence.py (WP04) \u2014 needs-declaration / filter-consumption / glob-liveness / toJSON blocking-authority relations, all green live; each fault-injection reds.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "FR-003(d) reshaped to toJSON(needs) authority; needs_result_reads==\u2205 pins re-enumeration drift."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-quality.yml (WP03) \u2014 mission-loader-coverage reachable in quality-gate needs+mapping; --cov=src/mission_runtime + --cov=src/glossary added; dead src/specify_cli/next/* critical-path entry + 4 dead src dorny globs removed (FR-004e).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "integration-tests-charter phantom verified-already-fixed. Backed by FR-005 invariant."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_workflow_coherence.py (WP04) \u2014 every diff-cover critical-path entry backed by >=1 matching --cov emitter; fault-injection reds on an unbacked entry. Green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "Independently cross-checked: 0 dead critical-path entries post-WP03."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-quality.yml + _gate_coverage_baseline.json (WP03) \u2014 tests/coordination + tests/paths + tests/_support routed; baseline regenerated to orphans 0 / 0 files.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "git_template adjudicated integration+git_repo -> routed. Duplicates re-pinned 3550 (report-only)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-windows.yml (WP03) \u2014 windows_critical dorny filter widened to src/** (no top-level on:paths). Live-proven: ci-windows fired on probe D orchestrator_api touch (run 28703939114).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "3 drifted windows_ci static-list files re-added (campsite split-brain fix)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_workflow_coherence.py (WP04) \u2014 discover_pytest_workflows() content-probe \u2261 parse-model allowlist; a new suite-running workflow fails closed. Green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "4 pytest workflows; extra-workflow fault-injection reds."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/plans/degod-unshim-roadmap.md roadmap strike (WP05) \u2014 Wave-0 EXECUTED + WS5 BOUND + tasks.py #2308 rows; upstream #1746 section preserved. PR closes #2297/#2296/#2034/#2333; #2283/#1933/#1868 comments drafted.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "Tracker comments deferred to PR-open. No premature closure."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-quality.yml any_src probe group + unmatched step from filter outputs + run_all OR-seam threading + glossary group (WP03); tests/architectural/test_src_filter_coverage.py (WP04) NON-VACUOUS: unmatched group-ref set \u2261 parsed filter-group set (group added unwired -> reds). Green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "HiC 7b: loud-alarm catch-all. No negated mega-glob. Positive arm fixture-guarded (live-unprovable pre-merge)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/ci/quality_gate_decision.py (WP02) + ci-quality.yml wiring (WP03) + shell:bash exit-propagation fix (WP03 946148f9e). test_ci_quality_path_filters.py + test_release_ci_ownership.py pin shell==bash + toJSON(needs). Live-proven on probes A-D.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "BLOCKER caught+fixed: decision-step exit was swallowed by tee under default bash -e; shell:bash gives pipefail. C-005 tripwire exit-2 verified."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-quality.yml outer on:paths + core_misc dorny group cover ci-windows/drift-detector/release.yml (WP03); tests/architectural/test_src_filter_coverage.py (WP04) --ignore \u2286 shard-owned roots + reorder red-negatives. Green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "self-mapping verified-already-fixed. \u2286 (not ==) because fast catch-all re-selects integration-owned roots under its own marker."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ci-quality.yml on: pull_request types: [opened, synchronize, reopened, ready_for_review] (WP03). Live-proven: draft->ready flip re-triggered run 28705381819 completed GREEN.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-04T14:40:00+00:00",
+      "notes": "HiC 7a. test_src_filter_coverage.py pins types parsed (not line-pinned)."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "The #2034 core hole must not regress: -m unit/-m contract must be positively routed by a blocking CI job (the always-on unit-contract-residual job).",
+      "verification_method": "custom_command",
+      "verification_command": "grep -q 'unit-contract-residual' .github/workflows/ci-quality.yml",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "The src-side catch-all must be the output-derived any_src/unmatched mechanism (Decision 7b), not a vacuous or negated-mega-glob form.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -q 'any_src' .github/workflows/ci-quality.yml",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "quarantine-visibility must NOT be in the quality-gate blocking needs set (C-005).",
+      "verification_method": "custom_command",
+      "verification_command": "awk '/^  quality-gate:/{f=1} f&&/^  [a-z][a-z0-9_-]*:$/&&!/quality-gate/{f=0} f' .github/workflows/ci-quality.yml | grep -q 'quarantine-visibility' && exit 1 || exit 0",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "The quality-gate decision step must set shell: bash so the decision-script exit code is NOT swallowed by | tee (gate must be able to fail on GitHub).",
+      "verification_method": "custom_command",
+      "verification_command": "grep -q 'shell: bash' .github/workflows/ci-quality.yml",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "The unshim-wave2 dead src globs (src/specify_cli/next, charter_freshness, charter_lint, charter_preflight) must NOT remain in ci-quality.yml (FR-004e).",
+      "verification_method": "custom_command",
+      "verification_command": "grep -qE 'src/specify_cli/(next|charter_freshness|charter_lint|charter_preflight)/' .github/workflows/ci-quality.yml && exit 1 || exit 0",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    },
+    {
+      "invariant_id": "NI-006",
+      "description": "No negated path mega-glob may implement the catch-all (HiC 7b FORBIDDEN \u2014 computed from filter outputs).",
+      "verification_method": "custom_command",
+      "verification_command": "grep -qE '!\\s*src/' .github/workflows/ci-quality.yml && exit 1 || exit 0",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    }
+  ]
+}

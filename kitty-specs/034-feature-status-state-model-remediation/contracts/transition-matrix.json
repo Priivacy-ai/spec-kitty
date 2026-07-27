@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TransitionMatrix",
+  "description": "Legal lane transitions and guard conditions for the 7-lane state machine",
+  "canonical_lanes": [
+    "planned",
+    "claimed",
+    "in_progress",
+    "for_review",
+    "done",
+    "blocked",
+    "canceled"
+  ],
+  "aliases": {
+    "doing": "in_progress"
+  },
+  "terminal_lanes": ["done", "canceled"],
+  "transitions": [
+    {
+      "from": "planned",
+      "to": "claimed",
+      "guard": "actor_set_no_conflicting_claim",
+      "description": "Claim a planned WP for work"
+    },
+    {
+      "from": "claimed",
+      "to": "in_progress",
+      "guard": "workspace_context_established",
+      "description": "Begin active implementation"
+    },
+    {
+      "from": "in_progress",
+      "to": "for_review",
+      "guard": "subtasks_complete_or_force",
+      "description": "Submit for review"
+    },
+    {
+      "from": "for_review",
+      "to": "done",
+      "guard": "reviewer_approval_evidence",
+      "description": "Accept reviewed work"
+    },
+    {
+      "from": "for_review",
+      "to": "in_progress",
+      "guard": "review_ref_required",
+      "description": "Changes requested by reviewer"
+    },
+    {
+      "from": "in_progress",
+      "to": "planned",
+      "guard": "reason_required",
+      "description": "Abandon or reassign work"
+    },
+    {
+      "from": "planned",
+      "to": "blocked",
+      "guard": "none",
+      "description": "Block planned work"
+    },
+    {
+      "from": "claimed",
+      "to": "blocked",
+      "guard": "none",
+      "description": "Block claimed work"
+    },
+    {
+      "from": "in_progress",
+      "to": "blocked",
+      "guard": "none",
+      "description": "Block in-progress work"
+    },
+    {
+      "from": "for_review",
+      "to": "blocked",
+      "guard": "none",
+      "description": "Block work under review"
+    },
+    {
+      "from": "blocked",
+      "to": "in_progress",
+      "guard": "none",
+      "description": "Unblock and resume work"
+    },
+    {
+      "from": "planned",
+      "to": "canceled",
+      "guard": "none",
+      "description": "Cancel planned work"
+    },
+    {
+      "from": "claimed",
+      "to": "canceled",
+      "guard": "none",
+      "description": "Cancel claimed work"
+    },
+    {
+      "from": "in_progress",
+      "to": "canceled",
+      "guard": "none",
+      "description": "Cancel in-progress work"
+    },
+    {
+      "from": "for_review",
+      "to": "canceled",
+      "guard": "none",
+      "description": "Cancel work under review"
+    },
+    {
+      "from": "blocked",
+      "to": "canceled",
+      "guard": "none",
+      "description": "Cancel blocked work"
+    }
+  ],
+  "force_rules": {
+    "description": "Any transition can be forced with force=true + actor + reason",
+    "done_exit_requires_force": true,
+    "audit_fields_required": ["actor", "reason"]
+  },
+  "conflict_resolution": {
+    "strategy": "rollback_aware",
+    "description": "Reviewer rollback (for_review → in_progress with review_ref) beats concurrent forward progression",
+    "fallback": "timestamp_ordering"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "mission_id": "01KWRTB2ZF0DJYPQ09PYRNP013",
+  "mission_branch": "kitty/mission-ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "target_branch": "tidy/ci-docs-charter-path-and-arch-adversarial-shard",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/guides/contributing.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pytest.ini",
+        "tests/_arch_shard_map.py",
+        "tests/architectural/test_arch_shard_marker_completeness.py",
+        "tests/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "tests/architectural/test_ci_quality_path_filters.py",
+        "tests/architectural/test_shard_universe_bounded.py",
+        "tests/release/ci_topology_timings_postshrink.json",
+        "tests/release/test_coverage_topology_ownership.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-05T11:09:06.453649+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

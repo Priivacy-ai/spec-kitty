@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "mission_slug": "tool-surface-contract-01KV2K2P",
+  "mission_id": "01KV2K2P989VGC1TZF43ATGCPC",
+  "mission_branch": "kitty/mission-tool-surface-contract-01KV2K2P",
+  "target_branch": "feat/tool-surface-contract",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/__init__.py",
+        "src/specify_cli/tool_surface/builtins.py",
+        "src/specify_cli/tool_surface/enums.py",
+        "src/specify_cli/tool_surface/model.py",
+        "src/specify_cli/tool_surface/providers/__init__.py",
+        "src/specify_cli/tool_surface/providers/base.py",
+        "src/specify_cli/tool_surface/registry.py",
+        "tests/specify_cli/tool_surface/__init__.py",
+        "tests/specify_cli/tool_surface/providers/__init__.py",
+        "tests/specify_cli/tool_surface/test_enums.py",
+        "tests/specify_cli/tool_surface/test_model.py",
+        "tests/specify_cli/tool_surface/test_registry.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/specify_cli/tool_surface/integration/__init__.py",
+        "tests/specify_cli/tool_surface/integration/fixtures/__init__.py",
+        "tests/specify_cli/tool_surface/integration/fixtures/doctor_skills_baseline.json",
+        "tests/specify_cli/tool_surface/integration/test_agent_config_compat.py",
+        "tests/specify_cli/tool_surface/integration/test_migration_compat.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/tool_surface/findings.py",
+        "src/specify_cli/tool_surface/plan.py",
+        "src/specify_cli/tool_surface/providers/command_skills.py",
+        "src/specify_cli/tool_surface/repair.py",
+        "src/specify_cli/tool_surface/status.py",
+        "tests/specify_cli/tool_surface/integration/test_doctor_tool_surfaces_cli.py",
+        "tests/specify_cli/tool_surface/providers/test_command_skills.py",
+        "tests/specify_cli/tool_surface/test_findings.py",
+        "tests/specify_cli/tool_surface/test_plan.py",
+        "tests/specify_cli/tool_surface/test_repair.py",
+        "tests/specify_cli/tool_surface/test_status.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/providers/native_config.py",
+        "src/specify_cli/tool_surface/providers/session_presence.py",
+        "tests/specify_cli/tool_surface/providers/test_native_config.py",
+        "tests/specify_cli/tool_surface/providers/test_session_presence.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/providers/managed_skills.py",
+        "tests/specify_cli/tool_surface/providers/test_managed_skills.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/profiles/__init__.py",
+        "src/specify_cli/tool_surface/profiles/manifest.py",
+        "src/specify_cli/tool_surface/profiles/projection.py",
+        "src/specify_cli/tool_surface/profiles/renderers.py",
+        "src/specify_cli/tool_surface/providers/agent_profiles.py",
+        "tests/specify_cli/tool_surface/profiles/__init__.py",
+        "tests/specify_cli/tool_surface/profiles/test_manifest.py",
+        "tests/specify_cli/tool_surface/profiles/test_projection.py",
+        "tests/specify_cli/tool_surface/profiles/test_renderers.py",
+        "tests/specify_cli/tool_surface/providers/test_agent_profiles.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/config.py",
+        "tests/specify_cli/cli/commands/test_agent_config.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/**/*.md",
+        "src/specify_cli/tool_surface/docs.py",
+        "tests/specify_cli/tool_surface/test_docs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/bundles/__init__.py",
+        "src/specify_cli/tool_surface/bundles/claude.py",
+        "src/specify_cli/tool_surface/bundles/copilot.py",
+        "src/specify_cli/tool_surface/bundles/model.py",
+        "src/specify_cli/tool_surface/bundles/vscode.py",
+        "src/specify_cli/tool_surface/providers/plugin_bundle.py",
+        "tests/specify_cli/tool_surface/bundles/__init__.py",
+        "tests/specify_cli/tool_surface/bundles/test_claude.py",
+        "tests/specify_cli/tool_surface/bundles/test_copilot.py",
+        "tests/specify_cli/tool_surface/bundles/test_model.py",
+        "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-06-14T08:41:26.227080+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

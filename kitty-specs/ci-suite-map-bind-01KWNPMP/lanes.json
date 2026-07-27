@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "mission_slug": "ci-suite-map-bind-01KWNPMP",
+  "mission_id": "01KWNPMP0PM6SVBSVXNBAWCMS6",
+  "mission_branch": "kitty/mission-ci-suite-map-bind-01KWNPMP",
+  "target_branch": "tidy/ci-suite-map-2034",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "scripts/ci/quality_gate_decision.py",
+        "tests/scripts/__init__.py",
+        "tests/scripts/test_quality_gate_decision.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        ".github/workflows/ci-windows.yml",
+        "tests/architectural/_gate_coverage_baseline.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/_workflow_fixtures/",
+        "tests/architectural/test_marker_job_completeness.py",
+        "tests/architectural/test_src_filter_coverage.py",
+        "tests/architectural/test_workflow_coherence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/plans/degod-unshim-roadmap.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-04T05:32:34.285486+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

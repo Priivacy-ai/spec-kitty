@@ -1,0 +1,83 @@
+title: ActionRouter contracts
+description: |
+  Discriminated union returned by ActionRouter.route(request_text, profile_hint?).
+  Either RouterDecision (success) or RouterAmbiguityError (failure).
+  The router is a pure function — no I/O, no LLM calls.
+version: "1.0"
+
+RouterDecision:
+  description: Returned when exactly one (profile, action) pair is resolved.
+  type: object
+  required:
+    - profile_id
+    - action
+    - confidence
+    - match_reason
+  properties:
+    profile_id:
+      type: string
+    action:
+      type: string
+      description: Canonical action token
+      enum: [implement, review, plan, specify, analyze, design, curate, coordinate, advise]
+    confidence:
+      type: string
+      enum:
+        - exact       # profile_hint was supplied and resolved unambiguously
+        - canonical_verb   # request token matched a role's canonical_verbs entry
+        - domain_keyword   # request token matched a profile's domain_keywords entry
+    match_reason:
+      type: string
+      description: Human-readable description of which signal produced the match
+      example: "token 'implement' matched IMPLEMENTER canonical verb via CANONICAL_VERB_MAP"
+
+RouterAmbiguityError:
+  description: |
+    Returned when the router cannot unambiguously resolve (profile, action).
+    Three causes: ROUTER_AMBIGUOUS (multiple matches), ROUTER_NO_MATCH (zero matches),
+    PROFILE_NOT_FOUND (explicit hint references unknown profile).
+  type: object
+  required:
+    - error_code
+    - message
+    - request_text
+    - candidates
+    - suggestion
+  properties:
+    error_code:
+      type: string
+      enum: [ROUTER_AMBIGUOUS, ROUTER_NO_MATCH, PROFILE_NOT_FOUND]
+    message:
+      type: string
+      description: Human-readable explanation of why routing failed
+    request_text:
+      type: string
+      description: Original request that could not be routed
+    candidates:
+      type: array
+      description: Non-empty for ROUTER_AMBIGUOUS; empty for ROUTER_NO_MATCH / PROFILE_NOT_FOUND
+      items:
+        type: object
+        properties:
+          profile_id:
+            type: string
+          action:
+            type: string
+          match_reason:
+            type: string
+    suggestion:
+      type: string
+      description: Actionable guidance for the operator or host LLM
+      example: "Use 'spec-kitty ask <profile> <request>' to specify a profile explicitly."
+
+ActionRouterPlugin:
+  description: |
+    No-op Protocol stub reserved for future hybrid routing extension.
+    Not called in v1. Documented here so the extension point is explicit.
+  type: protocol
+  methods: []
+  notes: |
+    A future release may implement a hybrid router that falls back to a
+    constrained-vocabulary LLM call when the deterministic table produces
+    ROUTER_NO_MATCH. That implementation will satisfy this Protocol interface.
+    WP4.2 documents the slot but never calls it.

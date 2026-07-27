@@ -1,0 +1,166 @@
+schema_version: 1
+mission_id: 01KW3Q6MP9900A9824JDTQPA8P
+mission_slug: common-docs-consolidation-01KW3Q6M
+mission_number: 151
+friendly_name: Common Docs Doctrine & Reconciliation (Mission A)
+mission_type: software-dev
+target_branch: docs/2165-consolidation-research
+created_at: '2026-06-27T07:57:08.755312+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-27T07:57:08.755312+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-005
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-016
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-004
+  category: implementation
+  summary: WP06 needed 2 implementation cycles
+  evidence_refs:
+  - e-015
+  details: WP WP06 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-002
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP06 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks/WP01-reconciliation-adr.md
+- id: e-006
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks/WP02-doctrine-drg.md
+- id: e-007
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks/WP03-related-validator.md
+- id: e-008
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks/WP04-inventory-lockfile.md
+- id: e-009
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks/WP05-anti-sprawl-ratchet.md
+- id: e-010
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/tasks/WP06-agent-skills.md
+- id: e-011
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/status.events.jsonl
+  range: 01KW3YYXB2FTWN5ZS09RRJBRGM
+- id: e-013
+  kind: event_range
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/status.events.jsonl
+  range: 01KW3ZQJ8QDRWM3N5JZE237240
+- id: e-014
+  kind: event_range
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/status.events.jsonl
+  range: 01KW3YYXB2FTWN5ZS09RRJBRGM
+- id: e-015
+  kind: event_range
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/status.events.jsonl
+  range: implementation_cycles
+- id: e-016
+  kind: file
+  path: kitty-specs/common-docs-consolidation-01KW3Q6M/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "mission_slug": "cli-session-survival-daemon-singleton-01KQ9M3M",
+  "mission_id": "01KQ9M3M91HND8QRPQNJVQAFH5",
+  "mission_branch": "kitty/mission-cli-session-survival-daemon-singleton-01KQ9M3M",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/refresh_transaction.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/cli/commands/auth.py",
+        "src/specify_cli/core/file_lock.py",
+        "src/specify_cli/sync/orphan_sweep.py",
+        "tests/auth/concurrency/conftest.py",
+        "tests/auth/concurrency/test_incident_regression.py",
+        "tests/auth/concurrency/test_machine_refresh_lock.py",
+        "tests/auth/concurrency/test_stale_grant_preservation.py",
+        "tests/auth/test_auth_doctor_offline.py",
+        "tests/auth/test_auth_doctor_repair.py",
+        "tests/auth/test_auth_doctor_report.py",
+        "tests/auth/test_token_manager.py",
+        "tests/core/__init__.py",
+        "tests/core/test_file_lock.py",
+        "tests/sync/test_orphan_sweep.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/daemon.py",
+        "tests/sync/test_daemon_self_retirement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-28T09:28:49.336773+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

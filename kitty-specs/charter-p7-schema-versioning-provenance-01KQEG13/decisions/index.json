@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-30T06:12:51.167626Z",
+      "decision_id": "01KQEG9HTZ8RSZW4D50CN8V6CJ",
+      "final_answer": "Option C: Block with error on any charter subcommand that reads the bundle; spec-kitty upgrade applies the registered migration in-place. No new migrate-bundle command. Tests cover both the reader block and the upgrade migration path.",
+      "input_key": "bundle_migration_trigger",
+      "mission_id": "01KQEG13YGZN77AMY6Q8DVNKQX",
+      "mission_slug": "charter-p7-schema-versioning-provenance-01KQEG13",
+      "options": [
+        "auto-migrate on spec-kitty upgrade (same pattern as project schema_version migrations)",
+        "block with error and add spec-kitty charter migrate-bundle command",
+        "block with error on any charter subcommand that touches the bundle, migration via spec-kitty upgrade"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "When the CLI encounters a charter bundle whose integer schema_version is outside the supported range, how should migration work?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T06:15:05.121384Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.bundle-migration-trigger",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQEG13YGZN77AMY6Q8DVNKQX",
+  "version": 1
+}

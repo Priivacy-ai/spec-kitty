@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "charter-contract-cleanup-tranche-1-01KQATS4",
+  "mission_id": "01KQATS4HJS0HY02VF05FCP57T",
+  "mission_branch": "kitty/mission-charter-contract-cleanup-tranche-1-01KQATS4",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": ["WP02"],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter.py",
+        "src/charter/synthesizer/write_pipeline.py",
+        "tests/agent/cli/commands/test_charter_synthesize_cli.py",
+        "tests/integration/test_json_envelope_strict.py",
+        "tests/integration/test_charter_synthesize_fresh.py",
+        "tests/charter/synthesizer/test_synthesize_path_parity.py"
+      ],
+      "predicted_surfaces": ["api", "tests"],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": ["WP03"],
+      "write_scope": [
+        "tests/e2e/test_charter_epic_golden_path.py"
+      ],
+      "predicted_surfaces": ["tests"],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": ["WP04"],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml"
+      ],
+      "predicted_surfaces": ["legacy-cleanup"],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-29T05:14:00.000000+00:00",
+  "computed_from": "manual_workaround_for_recursion_bug_in_agent_mission_finalize_tasks",
+  "planning_artifact_wps": ["WP01", "WP05"],
+  "collapse_report": {
+    "events": [],
+    "total_merges": 0,
+    "independent_wps_collapsed": 0,
+    "by_rule": {}
+  }
+}

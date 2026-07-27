@@ -1,0 +1,163 @@
+schema_version: 1
+mission_id: 01KYDEF0F4H4HNFMXQG26AS4DE
+mission_slug: placement-port-residuals-closure-01KYDEF0
+mission_number:
+friendly_name: Placement-Port Residuals Closure
+mission_type: software-dev
+target_branch: placement-port-residuals
+created_at: '2026-07-27T04:37:57.302129+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-27T04:37:57.302129+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-006
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-016
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-003
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-015
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-002
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP04 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP01-cutover-writer-port-and-decouple.md
+- id: e-006
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP02-merge-status-event-durability.md
+- id: e-007
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP03-arch-gate-reconciliation.md
+- id: e-008
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP04-degrade-helper-clone-removal.md
+- id: e-009
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP05-status-transition-pregate.md
+- id: e-010
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP06-load-traces-guard.md
+- id: e-011
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/tasks/WP07-cli-path-golden-contract.md
+- id: e-012
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/status.events.jsonl
+  range: 01KYG46XA49Y0SYW2REDKFSXJE
+- id: e-014
+  kind: event_range
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/status.events.jsonl
+  range: 01KYGX64MFDV6MJDZNAX7ERSP8
+- id: e-015
+  kind: event_range
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/status.events.jsonl
+  range: implementation_cycles
+- id: e-016
+  kind: file
+  path: kitty-specs/placement-port-residuals-closure-01KYDEF0/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

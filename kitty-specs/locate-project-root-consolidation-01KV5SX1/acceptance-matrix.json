@@ -1,0 +1,109 @@
+{
+  "mission_slug": "locate-project-root-consolidation-01KV5SX1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Every caller that imports locate_project_root from project_resolver or core receives the same resolution result as a caller that imports from paths, for all inputs and all environment conditions",
+      "proof_type": "automated_test",
+      "evidence": "WP01: project_resolver.locate_project_root is now a deferred-delegation shim (src/specify_cli/core/project_resolver.py). T004/T005/T006 in tests/runtime/test_project_resolver.py verify all three resolution tiers via the shim. WP01/WP02 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": "100% coverage on project_resolver.py confirmed by WP03 T009."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "When SPECIFY_REPO_ROOT is set to an existing directory path, locate_project_root returns that path regardless of which import path the caller uses",
+      "proof_type": "automated_test",
+      "evidence": "T004 (test_env_root_authoritative) in tests/runtime/test_project_resolver.py imports from specify_cli.core.project_resolver and verifies SPECIFY_REPO_ROOT is honored. WP02 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "When the caller's working directory is inside a git worktree, locate_project_root resolves to the main worktree root, regardless of which import path the caller uses",
+      "proof_type": "automated_test",
+      "evidence": "T005 (test_worktree_pointer_resolution) in tests/runtime/test_project_resolver.py imports from specify_cli.core.project_resolver and exercises the .git file pointer path via the shim. WP02 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The public contract of project_resolver.locate_project_root (function signature, return type Path|None, and start parameter) is preserved unchanged",
+      "proof_type": "code_review",
+      "evidence": "WP01: locate_project_root(start: Path | None = None) -> Path | None signature is preserved in the shim. resolve_template_path is byte-for-byte identical to the original. WP01 reviewer confirmed. Commits: ed3b2f227, 32985c6ea.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "get_project_root_or_exit in cli/helpers.py succeeds (does not exit 1) when invoked from a git worktree where the main repo contains a .kittify directory",
+      "proof_type": "automated_test",
+      "evidence": "T007 (test_get_project_root_or_exit_succeeds_in_worktree) in tests/specify_cli/cli/test_helpers.py — does NOT mock locate_project_root, exercises the real delegation chain. WP03 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "spec-kitty lint uses the correct project root as the working directory for ruff and mypy when SPECIFY_REPO_ROOT is set",
+      "proof_type": "automated_test",
+      "evidence": "T008 (test_lint_uses_spec_repo_root_as_cwd) in tests/specify_cli/cli/commands/test_lint.py — patches subprocess.run at specify_cli.cli.commands.lint.subprocess.run and verifies cwd=SPECIFY_REPO_ROOT path. WP03 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The compatibility planner (compat/planner.py) correctly classifies project state when invoked from a git worktree using the default project_root_resolver",
+      "proof_type": "automated_test",
+      "evidence": "T010 (test_planner_default_resolver_in_worktree) in tests/specify_cli/compat/test_planner.py — calls plan(invocation) with NO project_root_resolver kwarg, asserts result.project_status.state != NO_PROJECT from a synthetic worktree. WP03 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": "Regression guard for FR-007 / issue #1971."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "A test suite covering env-var resolution, worktree pointer resolution, and normal .kittify walk resolution exists for project_resolver.locate_project_root and passes",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_project_resolver.py: T004 (env-var), T005 (worktree pointer), T006 (explicit start / .kittify walk). All pass. 100% coverage on project_resolver.py. WP02 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "A test covering get_project_root_or_exit behavior in a real worktree filesystem context (not mocked) exists and passes",
+      "proof_type": "automated_test",
+      "evidence": "T007 in tests/specify_cli/cli/test_helpers.py. Does not mock locate_project_root. Exercises real delegation chain. Passes. WP03 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "A test covering spec-kitty lint behavior when SPECIFY_REPO_ROOT is set and CWD is outside the project directory exists and passes",
+      "proof_type": "automated_test",
+      "evidence": "T008 in tests/specify_cli/cli/commands/test_lint.py. Uses monkeypatch.setenv for isolation. Passes. WP03 approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-riley",
+      "verified_at": "2026-06-15T17:00:00+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": []
+}

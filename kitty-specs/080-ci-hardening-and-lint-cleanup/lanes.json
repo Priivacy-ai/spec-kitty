@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "mission_slug": "080-ci-hardening-and-lint-cleanup",
+  "mission_id": "080-ci-hardening-and-lint-cleanup",
+  "mission_branch": "kitty/mission-080-ci-hardening-and-lint-cleanup",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/catalog.py",
+        "src/charter/resolver.py",
+        "src/doctrine/missions/glossary_hook.py",
+        "src/kernel/_safe_re.py"
+      ],
+      "predicted_surfaces": [
+        "lint-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance.py"
+      ],
+      "predicted_surfaces": [
+        "lint-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/dossier/tests/test_snapshot.py"
+      ],
+      "predicted_surfaces": [
+        "type-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/post_merge/stale_assertions.py",
+        "src/specify_cli/merge/config.py",
+        "src/specify_cli/migration/rebuild_state.py",
+        "src/specify_cli/migration/backfill_identity.py",
+        "src/specify_cli/policy/audit.py"
+      ],
+      "predicted_surfaces": [
+        "type-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/state_contract.py",
+        "src/specify_cli/acceptance_matrix.py",
+        "src/specify_cli/sync/config.py",
+        "src/specify_cli/sync/body_transport.py",
+        "src/specify_cli/merge/conflict_resolver.py",
+        "src/specify_cli/version_utils.py",
+        "src/specify_cli/upgrade/feature_meta.py",
+        "src/specify_cli/tracker/credentials.py",
+        "src/specify_cli/cli/commands/materialize.py",
+        "src/specify_cli/migration/backfill_ownership.py",
+        "src/doctrine/missions/repository.py",
+        "pyproject.toml"
+      ],
+      "predicted_surfaces": [
+        "type-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        "kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md",
+        "tests/lanes/**",
+        "tests/review/**",
+        "tests/merge/**",
+        "tests/cli/**",
+        "tests/next/**",
+        "tests/missions/**"
+      ],
+      "predicted_surfaces": [
+        "ci-quality",
+        "test-organization"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        ".github/workflows/orchestrator-boundary.yml",
+        ".github/workflows/check-spec-kitty-events-alignment.yml"
+      ],
+      "predicted_surfaces": [
+        "ci-quality",
+        "github-actions"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-04-09T10:00:20.374132+00:00",
+  "computed_from": "manual",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06 (via WP07)"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP09",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP09"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 3
+    }
+  }
+}

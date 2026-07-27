@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-29T14:42:12.781971Z",
+      "decision_id": "01KQCV1G5DQQ3GV6ZP391DB8NR",
+      "final_answer": "Hybrid (C): docs/3x/ as Charter-era hub for version-specific mental model and deep product surfaces; update main Divio sections (tutorials/, how-to/, reference/, explanation/) where users naturally enter. docs/2x/ stays as historical archive, clearly labeled. Avoids pure version-silo (B) and avoids leaving the stale 2x confusion without a clear current-era anchor (A).",
+      "input_key": "docs_section_strategy",
+      "mission_id": "01KQCSYDGQN09RV05M6V8Q5H1B",
+      "mission_slug": "charter-end-user-docs-828-01KQCSYD",
+      "options": [
+        "Update main Divio sections directly (no new version section)",
+        "New docs/3x/ section parallel to docs/2x/",
+        "Hybrid: new docs/3x/ for Charter-specific + updates to main Divio sections"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should Charter-era docs update the main Divio sections (tutorials/, how-to/, reference/, explanation/) directly, go into a new docs/3x/ section parallel to docs/2x/, or a hybrid (new 3x/ for Charter-specific content + updates to main Divio nav)?",
+      "rationale": null,
+      "resolved_at": "2026-04-29T15:28:11.954338Z",
+      "resolved_by": null,
+      "slot_key": "plan.ia.docs-section-strategy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQCSYDGQN09RV05M6V8Q5H1B",
+  "version": 1
+}

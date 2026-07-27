@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "mission_slug": "refactor-stable-gate-substrate-01KWK3FY",
+  "mission_id": "01KWK3FYEP2K9FBJ2QCJB4Y3TD",
+  "mission_branch": "kitty/mission-refactor-stable-gate-substrate-01KWK3FY",
+  "target_branch": "tidy/gate-substrate",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/resolution_gate_allowlist.yaml",
+        "tests/architectural/test_resolution_authority_gates.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_untrusted_path_containment.py",
+        "tests/architectural/untrusted_path_audit/audit.py",
+        "tests/architectural/untrusted_path_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/surface_resolution_audit/audit.py",
+        "tests/architectural/surface_resolution_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/graph.yaml",
+        "src/doctrine/styleguides/built-in/testing-principles.styleguide.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/cli/commands/test_retrospect.py",
+        "tests/readiness/test_upgrade_ux.py",
+        "tests/specify_cli/cli/commands/test_decision_widen_subcommand.py",
+        "tests/specify_cli/cli/test_decision_command_shape_consistency.py",
+        "tests/specify_cli/invocation/cli/test_doctor_ops_cli.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_worktree_name_guess.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-03T06:43:01.738227+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.local/schemas/candidate-review/v1",
+  "title": "CandidateReview",
+  "description": "Internal payload for the [a/e/d] candidate review step. Produced by the active LLM session via the structured summarization request (contracts/cli-contracts.md §5), then parsed by specify_cli.widen.review. Not persisted; in-memory only during review.",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "discussion_fetch",
+    "candidate_summary",
+    "candidate_answer",
+    "source_hint"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ULID of the DecisionPoint being reviewed."
+    },
+    "discussion_fetch": {
+      "type": "object",
+      "description": "Compact representation of the fetched Slack discussion.",
+      "required": ["participants", "message_count", "messages", "truncated"],
+      "additionalProperties": false,
+      "properties": {
+        "participants": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Display names of discussion participants."
+        },
+        "message_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total message count in the Slack thread (may exceed messages array length if truncated)."
+        },
+        "thread_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "Slack thread URL for owner reference. Null if unavailable."
+        },
+        "messages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 50,
+          "description": "Compact message list. Capped at 50 for V1 (NFR-003 / context-window limit). Format: '[DisplayName] message text'."
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "True if message_count > 50 and messages array is a subset."
+        }
+      }
+    },
+    "candidate_summary": {
+      "type": "string",
+      "description": "Concise summary of the discussion consensus, produced by the local LLM session. Empty string if LLM timed out or failed (llm_timed_out=true)."
+    },
+    "candidate_answer": {
+      "type": "string",
+      "description": "Proposed answer to the interview question, produced by the local LLM session. Empty string if LLM timed out or failed."
+    },
+    "source_hint": {
+      "type": "string",
+      "enum": ["slack_extraction", "manual"],
+      "description": "Initial provenance hint from LLM. 'slack_extraction' = LLM produced from discussion; 'manual' = fallback (no LLM output). Final summary_json.source may differ based on owner editing."
+    },
+    "llm_timed_out": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if the 30s LLM summarization timeout (NFR-003) fired before a valid response was received."
+    }
+  },
+
+  "$defs": {
+    "SummarySource": {
+      "type": "string",
+      "enum": ["slack_extraction", "mission_owner_override", "manual"],
+      "description": "Valid values for summary_json.source written to decision resolve. Defined in C-005. 'slack_extraction': candidate accepted or minor edit. 'mission_owner_override': owner materially changed candidate. 'manual': owner wrote from scratch or fallback path."
+    }
+  }
+}

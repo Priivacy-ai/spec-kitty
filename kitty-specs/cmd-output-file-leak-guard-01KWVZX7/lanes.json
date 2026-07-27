@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "cmd-output-file-leak-guard-01KWVZX7",
+  "mission_id": "01KWVZX7QXFYGQ36NR4KD10R0Z",
+  "mission_branch": "kitty/mission-cmd-output-file-leak-guard-01KWVZX7",
+  "target_branch": "fix/cmd-output-file-leak-guard",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/_arch_shard_map.py",
+        "tests/architectural/test_no_invalid_windows_filenames.py",
+        "tests/review/test_baseline.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-06T16:23:05.476061+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,99 @@
+{
+    "mission_slug": "untrusted-path-containment-hardening-01KVFTFV",
+    "mission_number": "",
+    "mission_type": "software-dev",
+    "overall_verdict": "pass",
+    "criteria": [
+        {
+            "criterion_id": "FR-001",
+            "description": "FR-001 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "Every audited reachable sink routed through the canonical seam; verified by WP04 load-bearing guard (tests/architectural/test_untrusted_path_containment.py) which reviewer-renata independently mutation-tested (injected views.py join \u2192 guard failed).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-002",
+            "description": "FR-002 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "store.py _SlugResolver.resolve uses ensure_within_any(meta_path, roots=[root]); symlink-escape negative + symlinked-root positive tests in tests/status/test_store.py, reviewer mutation-confirmed (neutralize containment \u2192 escape test fails, positive still passes).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-003",
+            "description": "FR-003 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "aggregate._validate_mission_slug raise-guard documented + composed-path reads dispositioned in WP01 inventory; WP03 reconciled. reviewer-verified call-chains.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-004",
+            "description": "FR-004 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "Reproducible audit tests/architectural/untrusted_path_audit/audit.py with known-candidate + named-untrusted self-asserts; reviewer re-ran (exit 0) and mutation-tested the tripwire 3 ways (all bit).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-005",
+            "description": "FR-005 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "Load-bearing architectural guard; reviewer-renata independently injected an unvalidated join into a real audited file (views.py) and confirmed the guard fails, with non-empty coverage assertion.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-006",
+            "description": "FR-006 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "loopback_http.py loopback-only rationale + Sonar hotspot record in docstring; two-sided binding test in tests/core/test_loopback_http.py mutation-verified (widen to 0.0.0.0 \u2192 4 tests fail).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-007",
+            "description": "FR-007 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "PR #2036 baseline not regressed: progress.py + reducer seam untouched; 730 status/merge tests pass on WP02 lane.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-008",
+            "description": "FR-008 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "Each guard carries a mutation-killing negative test incl. symlink-escape (store.py) + symlinked-root positive (NFR-003); all independently re-verified by reviewer-renata per WP.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        },
+        {
+            "criterion_id": "FR-009",
+            "description": "FR-009 satisfied and independently reviewed",
+            "proof_type": "automated_test",
+            "evidence": "meta.json slug chokepoint at mission_metadata.resolve_mission_identity via safe_mission_slug; hostile-meta tests in tests/status/test_derived_view_slug_traversal.py \u2014 reviewer mutation created real escaped dirs outside derived_dir, confirming containment.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (independent review, mutation-verified)",
+            "verified_at": "2026-06-19T14:24:30+00:00",
+            "notes": "Verified by per-WP independent reviewer-renata review with mutation-killing tests."
+        }
+    ],
+    "negative_invariants": []
+}

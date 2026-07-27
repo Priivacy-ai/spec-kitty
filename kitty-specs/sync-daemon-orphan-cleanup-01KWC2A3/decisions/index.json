@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-30T11:04:05.611934Z",
+      "decision_id": "01KWC36NQBY670Q52B7C4SX2KH",
+      "final_answer": "operator_required: require a live /api/health self-report for safe_auto; a wedged/unresponsive in-range listener with cmdline scope-proof is operator_required (surfaced, cleaned by --reset, never auto-killed at startup).",
+      "input_key": "wedged_listener_class",
+      "mission_id": "01KWC2A3W1WQSNPR79D1N9MTF1",
+      "mission_slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+      "opened_by": "cli",
+      "options": [
+        "operator_required (require a live health self-report for safe_auto)",
+        "safe_auto (cmdline scope-proof alone suffices)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should a sync-range listener that does NOT answer /api/health (wedged/unresponsive) but has provable cmdline scope markers be classified?",
+      "rationale": null,
+      "resolved_at": "2026-06-30T11:05:12.431890Z",
+      "resolved_by": null,
+      "slot_key": "plan.cleanup.wedged-listener-classification",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-30T11:04:07.428732Z",
+      "decision_id": "01KWC36QG4ZH8J79J9G1Y06FCD",
+      "final_answer": "Guard operator_required behind explicit confirmation: --reset auto-cleans safe_auto, but requires interactive y/N (or --force in --json/non-interactive) before killing operator_required (cross-root/different-HOME/ambiguous) daemons.",
+      "input_key": "reset_operator_required_ux",
+      "mission_id": "01KWC2A3W1WQSNPR79D1N9MTF1",
+      "mission_slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+      "opened_by": "cli",
+      "options": [
+        "Require explicit --force or confirmation before killing operator_required",
+        "--reset cleans all cleanable (safe_auto + operator_required) in one shot",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should 'auth doctor --reset' treat operator_required daemons (cross-root / pre-marker / ambiguous)?",
+      "rationale": null,
+      "resolved_at": "2026-06-30T11:05:14.401976Z",
+      "resolved_by": null,
+      "slot_key": "plan.reset.operator-required-confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-30T11:04:09.452804Z",
+      "decision_id": "01KWC36SFC7XVDVA9QQTN1NAK8",
+      "final_answer": "Automated regression test in the live-subprocess harness reproducing the same-HOME singleton scenario; close #1071 with durable test evidence.",
+      "input_key": "issue_1071_method",
+      "mission_id": "01KWC2A3W1WQSNPR79D1N9MTF1",
+      "mission_slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+      "opened_by": "cli",
+      "options": [
+        "Automated regression test in the live-subprocess harness",
+        "Manual reconfirmation plus documentation in the ADR/PR",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should issue #1071 (same-$HOME singleton leak) be live-reconfirmed for FR-012/SC-006?",
+      "rationale": null,
+      "resolved_at": "2026-06-30T11:05:15.519731Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.issue-1071-reconfirmation-method",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWC2A3W1WQSNPR79D1N9MTF1",
+  "version": 1
+}

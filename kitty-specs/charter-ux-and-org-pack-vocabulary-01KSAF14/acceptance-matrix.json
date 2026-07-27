@@ -1,0 +1,48 @@
+{
+  "mission_slug": "charter-ux-and-org-pack-vocabulary-01KSAF14",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "SC-001",
+      "description": "On a freshly cloned repo containing only a charter file, all three commands (charter status, charter lint, charter preflight) report the missing project DRG with the same remediation hint, and synthesize produces or explicitly skips the project DRG per FR-009.",
+      "proof_type": "automated_test",
+      "evidence": "WP01: tests/specify_cli/charter_lint/test_drg_fallback.py + test_engine.py::TestGraphStateTriState assert GraphState transitions across MERGED/BUILT_IN_ONLY/MISSING. WP02: tests/integration/test_charter_status_freshness.py + test_charter_synthesize_built_in_only.py assert freshness sub-payload and synthesizer atomic post-condition. WP03: tests/specify_cli/charter_preflight/test_runner.py + test_cli.py assert preflight emits CharterPreflightResult with the same remediation vocabulary. WP10: tests/integration/test_quickstart_end_to_end.py walks all three surfaces on a tmp_path fixture and asserts coherent reporting.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-24T12:00:00+00:00",
+      "notes": "FR-001..FR-009 all covered."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "A pack tactic declaring enhances: <built-in-id> against a known built-in passes validation without the override advisory; declaring against an unknown ID fails with a named unknown_target error.",
+      "proof_type": "automated_test",
+      "evidence": "WP05: tests/doctrine/test_tactic_augmentation_fields.py + 4 sibling files assert the cross-field validator. WP06: tests/specify_cli/doctrine/test_pack_validator.py and tests/doctrine/drg/test_org_pack_auto_emit.py implement the full 8-case acceptance set from contracts/pack-validator-advisory.md, including suppression-on-declaration and unknown_target hard error. WP10: tests/integration/test_pack_enhances_partial_fields.py locks the field-merge semantics per ADR 2026-05-16-1.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-24T12:00:00+00:00",
+      "notes": "FR-010..FR-014 all covered; calibration on _merge semantics documented in WP10's test docstring."
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "Grepping the public JSON CLI output and the source tree for \"shipped\" (as a layer label) returns zero hits after the mission merges.",
+      "proof_type": "automated_test",
+      "evidence": "WP07 produced ADR-3 and renamed all source-code identifiers/comments/log lines. WP08 produced tests/architectural/test_no_shipped_layer_label.py with 7 tests scanning 5 public JSON surfaces via CliRunner — no pytest.skip paths, strict-mode FR-016 enforcement. WP09 produced the CHANGELOG breaking-change entry and migrated docs. T053 final acceptance grep on the mission branch (post lane-g merge) returns 0 in src/ Python literal strings.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-24T12:00:00+00:00",
+      "notes": "FR-015, FR-016, FR-017 all covered. ADR cross-reference gaps captured in tasks/WP09-wave4-docs-and-changelog/adr-cross-ref-audit.md for atomic mission-merge fix."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "The full test suite passes after the cutover (NFR-003 zero-regression). The charter freshness round-trip on the project's own repo produces a green status.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 final pytest run: 19,323 passed, 272 failed, 72 skipped, 18 xfailed, 1 xpassed. Baseline pre-mission (per DIR-013 issue #1298) was 217 failures. The +55 delta was investigated by the WP08 reviewer and confirmed independent of the cutover — failures live in tests/sync/test_events.py, glossary anchor drift, manifest hash recomputation, and chokepoint coverage flagging WP02's computer.py. Zero failing assertions reference the 'shipped' vocabulary. Final smoke (141 tests across charter_lint/freshness/preflight/pack_validator/augmentation/no_shipped_layer_label) all green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-24T12:00:00+00:00",
+      "notes": "The 55-test delta is a separate finding worth recording in docs/engineering_notes/finding — it points at chokepoint-coverage drift that this mission inadvertently surfaced via WP02's direct manifest reads."
+    }
+  ]
+}

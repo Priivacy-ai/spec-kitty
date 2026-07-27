@@ -1,0 +1,185 @@
+# Validation Report — Charter End-User Docs (#828)
+
+**Date**: 2026-04-29
+**Branch**: docs/charter-end-user-docs-828
+**Validator**: WP03 validation pass
+
+---
+
+## Check 1: pytest (tests/docs/)
+
+**Result**: PASS
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.11.14, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/robert/spec-kitty-dev/spec-kitty-20260429-161241-ycLfiR/spec-kitty
+configfile: pytest.ini
+plugins: anyio-4.12.1, playwright-0.7.2, html-4.1.1, xdist-3.8.0, timeout-2.4.0,
+         metadata-3.1.1, Faker-33.1.0, cov-4.1.0, asyncio-1.3.0, mock-3.12.0,
+         hypothesis-6.151.2, base-url-2.1.0, typeguard-4.4.4, respx-0.23.1, baml-0.19.1
+asyncio: mode=Mode.AUTO, debug=False
+collected 375 items
+
+tests/docs/test_architecture_docs_consistency.py ........................ [  6%]
+........................................................................ [ 25%]
+........................................................................ [ 44%]
+........................................................................ [ 63%]
+........................................................................ [ 82%]
+............................................                              [ 94%]
+tests/docs/test_readme_canonical_path.py ....                            [ 95%]
+tests/docs/test_versioned_docs_integrity.py ................             [100%]
+
+============================= 375 passed in 1.58s ==============================
+```
+
+---
+
+## Check 2: toc.yml Reachability + TODO grep
+
+**Result**: PASS
+
+**toc.yml reachability checks**:
+- OK: charter-overview.md in 3x/toc.yml
+- OK: governance-files.md in 3x/toc.yml
+- OK: charter-governed-workflow.md in tutorials/toc.yml
+- OK: synthesize-doctrine.md in how-to/toc.yml
+- OK: run-governed-mission.md in how-to/toc.yml
+- OK: manage-glossary.md in how-to/toc.yml
+- OK: use-retrospective-learning.md in how-to/toc.yml
+- OK: troubleshoot-charter.md in how-to/toc.yml
+- OK: charter-synthesis-drg.md in explanation/toc.yml
+- OK: governed-profile-invocation.md in explanation/toc.yml
+- OK: retrospective-learning-loop.md in explanation/toc.yml
+- OK: charter-commands.md in reference/toc.yml
+- OK: profile-invocation.md in reference/toc.yml
+- OK: retrospective-schema.md in reference/toc.yml
+- OK: from-charter-2x.md in migration/toc.yml
+
+**TODO grep**: No TODO markers found in any new doc pages (grep returned no output).
+
+---
+
+## Check 3: CLI Flag Accuracy (NFR-001)
+
+**Result**: PASS
+
+All subcommands, flag names, and descriptions in `docs/reference/charter-commands.md` match the live `--help` output exactly.
+
+**Command surface verified**:
+
+- `charter --help` subcommands: `interview`, `generate`, `context`, `sync`, `status`, `synthesize`, `resynthesize`, `lint`, `bundle` — all listed in docs, none invented
+- `charter synthesize`: `--adapter`, `--dry-run`, `--json`, `--skip-code-evidence`, `--skip-corpus`, `--dry-run-evidence` — all match
+- `charter context`: `--action` (required), `--mark-loaded`/`--no-mark-loaded`, `--json` — all match
+- `charter lint`: `--mission`, `--orphans`, `--contradictions`, `--stale`, `--json`, `--severity` — all match
+- `charter bundle validate`: `--json` — matches
+- `charter interview`: `--mission-type`, `--profile`, `--defaults`, `--selected-paradigms`, `--selected-directives`, `--available-tools`, `--mission-slug`, `--json` — all match
+- `charter generate`: `--mission-type`, `--template-set`, `--from-interview`/`--no-from-interview`, `--profile`, `--force`/`-f`, `--json` — all match
+- `charter status`: `--json`, `--provenance` — all match
+- `charter sync`: `--force`/`-f`, `--json` — all match
+- `charter resynthesize`: `--topic`, `--list-topics`, `--adapter`, `--skip-code-evidence`, `--skip-corpus`, `--json` — all match
+- `retrospect summary`: `--project`, `--json`, `--json-out`, `--limit`, `--since`, `--include-malformed` — not documented in charter-commands.md (correct — it is a separate `retrospect` command, not a `charter` subcommand)
+
+**Discrepancies found**: none
+
+---
+
+## Check 4: Phase Accuracy (NFR-003)
+
+**Result**: PASS
+
+**mission-runtime.yaml location**: `src/specify_cli/missions/documentation/mission-runtime.yaml`
+
+**mission-runtime.yaml phases** (steps in order):
+1. `discover` — Documentation Discovery (agent: researcher-robbie)
+2. `audit` — Documentation Audit (agent: researcher-robbie)
+3. `design` — Documentation Design (agent: architect-alphonso)
+4. `generate` — Documentation Generation (agent: implementer-ivan)
+5. `validate` — Documentation Validation (agent: reviewer-renata)
+6. `publish` — Documentation Publication (agent: reviewer-renata)
+7. `accept` — Acceptance
+
+**docs/explanation/documentation-mission.md phases listed** (in "Workflow Phases" section):
+1. Discover
+2. Audit
+3. Design
+4. Generate
+5. Validate
+6. Publish
+
+The `accept` step in the runtime yaml is administrative and is intentionally omitted from the user-facing workflow phases description. All six user-visible phases match exactly.
+
+**Match**: yes — all six workflow phases documented in `documentation-mission.md` match the runtime yaml steps exactly, in the same order.
+
+---
+
+## Check 5: Tutorial Smoke-test (NFR-002)
+
+**Result**: PASS
+
+**Temp dir**: `/tmp/spec-kitty-docs-tutorial-iOe23F`
+
+**Command surface**: used `uv --project /Users/robert/spec-kitty-dev/spec-kitty-docs-pages-fix-20260430 run spec-kitty ...` from the temp project so the source checkout was not used as the command working directory.
+
+**Commands run**:
+```bash
+git init
+git config user.email "test@test.com"
+git config user.name "Test"
+uv --project "$REPO" run spec-kitty init --ai claude --non-interactive
+uv --project "$REPO" run spec-kitty charter interview --profile minimal --defaults --json
+uv --project "$REPO" run spec-kitty charter generate --from-interview --json
+uv --project "$REPO" run spec-kitty charter lint
+uv --project "$REPO" run spec-kitty charter bundle validate --json
+uv --project "$REPO" run spec-kitty charter status --json
+uv --project "$REPO" run spec-kitty charter synthesize --dry-run --json
+uv --project "$REPO" run spec-kitty charter synthesize --json
+uv --project "$REPO" run spec-kitty charter status --json
+uv --project "$REPO" run spec-kitty specify my-first-feature --json
+MISSION_SLUG="$(parse mission_slug from specify JSON)"
+uv --project "$REPO" run spec-kitty next --agent claude --mission "$MISSION_SLUG" --json
+uv --project "$REPO" run spec-kitty next --agent claude --mission "$MISSION_SLUG" --result success --json
+uv --project "$REPO" run spec-kitty retrospect summary --json
+```
+
+**Evidence**:
+- `charter bundle validate --json` returned `result: success` and `bundle_compliant: true`.
+- `charter synthesize --dry-run --json` returned `result: dry_run`, `adapter.id: fresh-seed`, and `written_artifacts[0].path: .kittify/doctrine/PROVENANCE.md`.
+- `charter synthesize --json` returned `result: success` and wrote `.kittify/doctrine/PROVENANCE.md`.
+- `specify my-first-feature --json` returned `mission_slug: my-first-feature-01KQEE76`.
+- `next --agent claude --mission my-first-feature-01KQEE76 --json` returned `mission_type: software-dev`, `mission_state: not_started`, and `preview_step: discovery`.
+- `next --agent claude --mission my-first-feature-01KQEE76 --result success --json` returned `kind: step`, `action: research`, `step_id: discovery`, and a non-empty `prompt_file`.
+- `retrospect summary --json` returned `command: retrospect.summary` and `mission_count: 0`, which is expected for a fresh project with no completed missions.
+
+**Source repo clean after**: yes — source checkout status was unchanged by the temp-project smoke run.
+
+---
+
+## Check 6: DocFX Build
+
+**Result**: PASS
+
+**Command run**:
+```bash
+cd docs
+docfx docfx.json
+```
+
+**Result**: build succeeded with 48 warnings and 0 errors. The warnings are pre-existing invalid `~/...` file-link warnings outside this follow-up fix; the previous blocking `InvalidTocFile` error in `docs/explanation/toc.yml` is resolved.
+
+---
+
+## Summary
+
+| Check | Result |
+|---|---|
+| 1. pytest | PASS |
+| 2. toc.yml reachability + TODO grep | PASS |
+| 3. CLI flag accuracy | PASS |
+| 4. Phase accuracy | PASS |
+| 5. Tutorial smoke-test | PASS |
+| 6. DocFX build | PASS |
+
+**Overall**: PASS
+
+Follow-up validation on 2026-04-30 resolved the DocFX TOC build blocker and replaced the earlier shallow tutorial smoke with an executable fresh-project Charter spine.

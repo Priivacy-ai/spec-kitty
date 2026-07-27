@@ -1,0 +1,139 @@
+{
+    "mission_slug": "mission-type-doctrine-authority-01KXH6GE",
+    "mission_number": "",
+    "mission_type": "software-dev",
+    "overall_verdict": "pass",
+    "criteria": [
+        {
+            "criterion_id": "FR-001",
+            "description": "Governance/steps/gates resolution keys off meta.json mission_type; never inferred from template_set, never defaults to software-dev.",
+            "proof_type": "automated_test",
+            "evidence": "WP02 canonicalizer + WP04 leak fix; tests/charter/test_mission_type_key.py + WP12 integration; grep-0 software-dev-default on the governance path.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-002",
+            "description": "A documentation/research/plan mission resolves only its own doctrine; no software-dev-only doctrine unless explicitly selected.",
+            "proof_type": "automated_test",
+            "evidence": "WP04 RED-first shared-action leak repro + WP06/07/08 content; WP12 non-leakage test (unioned type\u2295action disjoint from sw-dev-only denylist).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-003",
+            "description": "Unknown/unrecognised mission type raises a clear error on every governance path; never silent software-dev fallback.",
+            "proof_type": "automated_test",
+            "evidence": "WP03 UnknownMissionTypeError preserved; WP12 hard-fail test + integration SC-002 (unknown type -> clear error).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-004",
+            "description": "Known mission type with an empty grain resolves empty without error.",
+            "proof_type": "automated_test",
+            "evidence": "WP03 + WP08 (plan empty action grains); WP12 empty-grain test.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-005",
+            "description": "documentation/research/plan ship populated governance covering their domain requirements.",
+            "proof_type": "automated_test",
+            "evidence": "WP06 (5 net-new styleguides, all 8 doc items homed) + WP07 (spike-timebox-policy dangler closed + citation-discipline) + WP08 (reference-only); WP12 integration SC-004 positive membership.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-006",
+            "description": "The doctrine MissionType artefact is the single source of truth for governance/gates/steps; runtime resolves via one charter-mediated path.",
+            "proof_type": "automated_test",
+            "evidence": "WP03 resolve_mission_type_context seam (0-survivor subsume of 7 call-sites).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-007",
+            "description": "Gates (expected artifacts) resolve from the doctrine tree with drift reconciled upward; detachable, non-blocking; specify_cli copies removed.",
+            "proof_type": "automated_test",
+            "evidence": "WP09 upward reconcile + WP10 dossier flip (adapter + copies deleted, grep-0 no readers, test_manifest green).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-008",
+            "description": "Step-contract resolution flows through the doctrine MissionType artefact, not a specify_cli copy.",
+            "proof_type": "automated_test",
+            "evidence": "WP11 (step_contracts bundle slot populated; grep-0 specify_cli step readers).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-009",
+            "description": "software-dev is resolved as a peer mission type with no special-casing; its governance/gates/steps preserved.",
+            "proof_type": "automated_test",
+            "evidence": "WP03/WP04 (transitional byte-parity scaffolds, deleted); WP12 non-vacuity twin proves sw-dev resolves the denylist.",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-010",
+            "description": "The inert governance_refs field and its dangling references are removed; all governance references resolve in the DRG.",
+            "proof_type": "automated_test",
+            "evidence": "WP01 (governance_refs removed from model + 4 yaml + CLI; DIR-010/011 danglers removed; grep-0).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-011",
+            "description": "A project can override a mission types governance via the shipped->org->project overlay with collision reporting.",
+            "proof_type": "automated_test",
+            "evidence": "WP05 (id + BaseDoctrineRepository subclass; end-to-end override-wins + DoctrineLayerCollisionWarning proven).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-012",
+            "description": "A single mission-type canonicalizer resolves the key across the charter/specify_cli boundary and removes the software-dev governance default.",
+            "proof_type": "automated_test",
+            "evidence": "WP02 (mission_type_key.py; get_mission_type/get_deliverables_path defaults removed; layer guard green).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Verified via approved WP review(s) + WP12 enforcement suite."
+        },
+        {
+            "criterion_id": "FR-013",
+            "description": "The resolver forbids the same artifact in both grains, compared on canonical URN.",
+            "proof_type": "automated_test",
+            "evidence": "WP03 CrossGrainDoubleDeclarationError guard (canonical URN, 3 forms tested); WP12 unions the live action grain via load_action_index. NOTE: live seam-union of the action grain deferred to follow-up #2651 (guard currently fires on synthetic + WP12-unioned data).",
+            "pass_fail": "pass",
+            "verified_by": "reviewer-renata (per-WP approvals) + WP12 enforcement suite; orchestrator accept",
+            "verified_at": "2026-07-15T00:00:00+00:00",
+            "notes": "Live action-grain seam-union deferred to #2651; guard + enforcement in place."
+        }
+    ],
+    "negative_invariants": []
+}

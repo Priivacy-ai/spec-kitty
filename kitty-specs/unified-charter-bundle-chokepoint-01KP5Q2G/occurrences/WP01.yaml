@@ -1,0 +1,52 @@
+wp_id: WP01
+mission_slug: unified-charter-bundle-chokepoint-01KP5Q2G
+requires_merged: []
+categories:
+  filesystem_path_literal:
+    description: New v1.0.0 bundle manifest file paths introduced by WP01.
+    include: ["src/charter/**", "src/specify_cli/cli/commands/**", "architecture/**"]
+    exclude: []
+    occurrences:
+      - path: src/charter/bundle.py
+        pattern: ".kittify/charter/governance.yaml"
+        action: leave
+        rationale: Manifest declaration; canonical carve-out per mission index.
+      - path: src/charter/bundle.py
+        pattern: ".kittify/charter/directives.yaml"
+        action: leave
+        rationale: Manifest declaration.
+      - path: src/charter/bundle.py
+        pattern: ".kittify/charter/metadata.yaml"
+        action: leave
+        rationale: Manifest declaration.
+  symbol_name:
+    description: New exported symbols.
+    include: ["src/**", "tests/**"]
+    exclude: []
+    occurrences:
+      - path: src/charter/bundle.py
+        pattern: "CharterBundleManifest"
+        action: leave
+        rationale: New public symbol.
+      - path: src/charter/bundle.py
+        pattern: "CANONICAL_MANIFEST"
+        action: leave
+        rationale: New module-level instance.
+      - path: src/charter/bundle.py
+        pattern: "SCHEMA_VERSION"
+        action: leave
+        rationale: New constant.
+  docstring_comment:
+    description: Temporary TODO marker for WP02 replacement.
+    include: ["src/specify_cli/cli/commands/charter_bundle.py"]
+    exclude: []
+    occurrences:
+      - path: src/specify_cli/cli/commands/charter_bundle.py
+        pattern: "TODO(WP02)"
+        action: rewrite
+        rewrite_to: "from charter.resolution import resolve_canonical_repo_root  (done by WP02)"
+        rationale: Temporary resolver wrapper replaced by WP02.
+carve_outs: []
+must_be_zero_after:
+  - "CharterBundleManifestV2"
+verification_notes: "WP01 adds new files only; no existing code refactored."

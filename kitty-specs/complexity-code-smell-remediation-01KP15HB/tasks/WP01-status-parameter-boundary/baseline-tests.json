@@ -1,0 +1,18 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-04-13T06:24:34Z",
+  "base_branch": "feat/complexity-debt-remediation",
+  "base_commit": "3e93ad74361a471fe599154facd2614cd716db53",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.auth.test_http_transport",
+      "error": "collection failure",
+      "file": "unknown:?"
+    }
+  ]
+}

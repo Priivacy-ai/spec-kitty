@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mission_slug": "bind-occurrence-map-guard-finalize-01KWQ4WC",
+  "mission_id": "01KWQ4WCM8AB4XD3ARYMQ5X99C",
+  "mission_branch": "kitty/mission-bind-occurrence-map-guard-finalize-01KWQ4WC",
+  "target_branch": "feat/bind-occurrence-map-guard-finalize",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "tests/tasks/test_finalize_tasks_occurrence_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "tests/next/test_occurrence_gate_next_loop.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-04T18:51:47.527384+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

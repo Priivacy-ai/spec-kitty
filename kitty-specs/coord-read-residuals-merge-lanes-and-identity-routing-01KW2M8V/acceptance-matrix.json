@@ -1,0 +1,119 @@
+{
+  "mission_slug": "coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Loop/merge tasks-and-lanes reads routed onto resolve_planning_read_dir seam \u2014 WP02 e4998c21b / WP03 00c05255f; per-site revert-fails tests + WP04 7ade8e294 proof.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Mixed-read sites split per-leg (PRIMARY routed, STATUS coord) \u2014 WP01 b2616464c / WP02 / WP03; WP04 NFR-001 STATUS-from-husk proofs.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "merge/done_bookkeeping + cluster reads routed; status-transactional write target stays coord (resolve_placement_only STATUS_STATE) \u2014 WP02; reviewer-renata C-001 verdict PASS.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Lane B identity reads routed onto primary anchors \u2014 WP01 b2616464c (next_cmd/implement/workflow) + WP03 (status.py:132, executor, worktree_topology).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Identity routes give own primary anchors (survive :1018 fallback removal) \u2014 WP01; RED-first returned-value identity tests.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Arm-scope asymmetry stated honestly (literal vocab != scope; merge/lanes/core identity = FR-009-behavioral) \u2014 spec reframe + WP05 live arm.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Dual-shape call-shape arm (identity + lanes.json) + non-vacuity self-tests \u2014 WP01; wired LIVE over real tree (0 un-pinned, 12 identity + 10 lanes) \u2014 WP05 fce746b62.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Lane A merge/lanes/core routed + sole #2187 drain (set shrank by one) \u2014 WP02/WP03; live arm clean; WP04 revert-fails backstop.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Divergent sentinel fixture (husk lacks lanes.json/tasks, meta sentinel != primary), HARD triad proven falsifiable \u2014 WP01 fixture + WP04 7ade8e294.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Floor honesty \u2014 WP01 7 direct anchors moved census 38->45/35->42; seam-routed WP02/WP03 did not move it, stated plainly (no re-pinned gain) \u2014 WP05.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Pin-presence preflight narrowed to the one real #2187 pin; merge/lanes/core absence is by-design \u2014 WP03 drain + WP05 closeout guard.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator close-out",
+      "verified_at": "2026-06-27T12:42:56+00:00",
+      "notes": "Verified: all 5 WPs approved; routing + divergent-fixture proof + live FR-007 arm."
+    }
+  ],
+  "negative_invariants": []
+}

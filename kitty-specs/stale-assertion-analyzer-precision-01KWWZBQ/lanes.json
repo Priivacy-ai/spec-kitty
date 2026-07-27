@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "stale-assertion-analyzer-precision-01KWWZBQ",
+  "mission_id": "01KWWZBQRBKEJQW964BAS0FFM9",
+  "mission_branch": "kitty/mission-stale-assertion-analyzer-precision-01KWWZBQ",
+  "target_branch": "fix/stale-assertion-analyzer-precision",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/post_merge/stale_assertions.py",
+        "tests/post_merge/test_stale_assertions_precision.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-07T00:58:06.282803+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

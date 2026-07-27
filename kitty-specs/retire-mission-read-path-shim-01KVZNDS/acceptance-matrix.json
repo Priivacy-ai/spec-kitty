@@ -1,0 +1,79 @@
+{
+  "mission_slug": "retire-mission-read-path-shim-01KVZNDS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "Safe-to-delete decision recorded as an internal import-path retirement; zero src callers verified by grep and no visible GitHub code-search direct importers found. Private/unindexed downstream imports cannot be proven locally.",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/mission_read_path.py deleted; `rg -n \"specify_cli\\.mission_read_path\" src tests` reports no direct import sites.",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "7 imports repointed to specify_cli.missions._read_path_resolver aliasing the private _resolve_mission_read_path worker for white-box tests; test_coord_reader_fixes passes; canonical __all__ unchanged (C-002).",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "'specify_cli.mission_read_path' removed from _CATEGORY_4_BACKCOMPAT_SHIMS; test_no_dead_modules passes.",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "'specify_cli.mission_read_path::resolve_mission_read_path' removed from _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT; test_no_dead_symbols passes.",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_baselines.yaml category_4_backcompat_shims 9->8 with justification; live frozenset size=8 (C-001); test_ratchet_baselines passes.",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "Stale docstring in test_single_mission_surface_resolver.py tidied; string fixture untouched.",
+      "pass_fail": "pass",
+      "verified_by": "codex:gpt-5:adversarial-squad",
+      "verified_at": "2026-06-25T18:54:41Z",
+      "notes": "Verified during PR #2152 adversarial review; evidence is command/file based, not an ephemeral lane commit."
+    }
+  ],
+  "negative_invariants": []
+}

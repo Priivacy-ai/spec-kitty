@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "mission_slug": "merge-coord-rollback-transactionality-01KXTM59",
+  "mission_id": "01KXTM59YZZ6AGKA7YVJA0HCRS",
+  "mission_branch": "kitty/mission-merge-coord-rollback-transactionality-01KXTM59",
+  "target_branch": "fix/merge-coord-rollback-transactionality",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/regression/test_issue_2367_bake_strand.py",
+        "tests/regression/test_issue_2786_revert_failure_split_brain.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/coherence.py",
+        "src/specify_cli/merge/state.py",
+        "tests/coordination/test_coherence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/executor.py",
+        "tests/merge/test_executor_coord_reconcile.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_coord_rollback_coherence_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-18T14:54:11.212601+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

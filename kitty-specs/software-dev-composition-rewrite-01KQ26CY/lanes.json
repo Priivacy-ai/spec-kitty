@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "software-dev-composition-rewrite-01KQ26CY",
+  "mission_id": "01KQ26CYMMB4SZP2RKVH74RRB5",
+  "mission_branch": "kitty/mission-software-dev-composition-rewrite-01KQ26CY",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/mission_step_contracts/shipped/tasks.step-contract.yaml",
+        "src/doctrine/missions/software-dev/actions/tasks/guidelines.md",
+        "src/doctrine/missions/software-dev/mission-runtime.yaml",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/specify_cli/mission_step_contracts/test_software_dev_composition.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-25T11:44:13.198435+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

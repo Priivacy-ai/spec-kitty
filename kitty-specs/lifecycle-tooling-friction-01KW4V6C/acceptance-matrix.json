@@ -1,0 +1,109 @@
+{
+  "mission_slug": "lifecycle-tooling-friction-01KW4V6C",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Both tasks/guidelines.md copies instruct repo-root-relative owned_files (the 'absolute' instruction removed), agreeing with the repo-relative ownership validator.",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_wp_authoring_contract_roundtrip.py (prose ratchet + both-copies-agree); WP01 commit 81212fe35",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP01 APPROVED; red-first 5->6; terminology guard green."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "task-prompt-template.md frontmatter declares owned_files, authoritative_surface, execution_mode, create_intent with guidance + repo-relative examples.",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_wp_authoring_contract_roundtrip.py (on-disk 4-key assertion); WP01 commit 81212fe35",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP01 APPROVED; template read from disk, not fabricated."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "A WP authored verbatim from the completed template with repo-relative paths passes ownership validation + finalize first time; an absolute-path entry fails consistently.",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_wp_authoring_contract_roundtrip.py (golden round-trip drives real resolve_wp_manifests->validate_ownership->validate_glob_matches); WP01 commit 81212fe35",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP01 APPROVED; delete-the-validator RED case confirms the FR is genuinely tested."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "spec-kitty specify --topology accepts the 4 canonical MissionTopology enum values, rejects others, and stores the explicit choice; coord-branch mint is conditional. Default coord.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_specify_topology_flag.py + tests/core/test_mission_creation_topology.py; WP03 commit 9bf529107",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP03 APPROVED; explicit enum stored verbatim (classify corroborates, fail-closed); 'flat' rejected exit 2; T010 coord default byte-identical."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A create-time single_branch mission completes the full implement + merge loop end-to-end (no coordination_branch ever written).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_specify_topology_flag.py::T009 e2e (real implement x2 + real _run_lane_based_merge; four observable post-merge facts); WP03 commit 9bf529107",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP03 APPROVED; e2e genuine (not stubbed); two back-to-back auto_commit=False claims exercise WP02 (red-on-revert)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Back-to-back auto_commit=False claims are not blocked by the first claim's vcs-lock self-write; the exclusion is lock-field-only.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_vcs_lock_claim.py (e2e + negative guard + pure truth table); WP02 commit cafaf6b56",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP02 APPROVED; _VCS_LOCK_META_FIELDS exactly matches set_vcs_lock keys; auto_commit=True byte-identical."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "retrospect sources findings from traces/*.md via the existing ingestor seam (best-effort; malformed tracer does not crash).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/retrospective/test_generator_traces_ingest.py (tracer-sourced finding + malformed/binary non-crash); WP04 commit 90e73c818",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP04 APPROVED; seam extension not fork (NFR-002)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The retrospect data-model gap is gated on the mission declaring domain entities (no false gap for no-entity missions; gap still reported when entities exist and data-model.md is absent).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/retrospective/test_generator_traces_ingest.py (negative no-entity + positive entity-bearing); WP04 commit 90e73c818",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP04 APPROVED; existing snapshot un-loosened; 9 contract re-pins preserved verbatim."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "An advisory (non-blocking) issue-matrix lint runs at finalize-tasks, reusing the same validate_issue_matrix engine the approve gate uses.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/review/test_issue_matrix_finalize_lint.py (call-identity + never-blocks-even-if-engine-raises); WP05 commit 20b15435b",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP05 APPROVED; one engine two callers (true call-identity, no reinvention/re-export/cross-import)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "migrate backfill-topology --mission X mutates only the target mission's meta.json; sibling missions stay byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_backfill_topology_mission_scope.py (non-vacuous scope regression + would-be-RED unscoped cross-check); WP06 commit e7c1ba6a6",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T20:00:00+00:00",
+      "notes": "WP06 APPROVED; #2219 verified-already-fixed upstream (#2070/#1814), now guarded."
+    }
+  ],
+  "negative_invariants": []
+}

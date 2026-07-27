@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.dev/schemas/skills-manifest/v1.json",
+  "title": "Spec Kitty Skills Manifest",
+  "description": "Authoritative record of Agent Skills packages written by Spec Kitty into .agents/skills/ on a project. Used for additive install, selective remove, and drift detection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Manifest schema version. Incremented when the on-disk layout changes."
+    },
+    "entries": {
+      "type": "array",
+      "description": "One record per Spec-Kitty-owned skill package file.",
+      "items": { "$ref": "#/$defs/ManifestEntry" }
+    }
+  },
+  "$defs": {
+    "ManifestEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "content_hash", "agents", "installed_at", "spec_kitty_version"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^\\.agents/skills/spec-kitty\\.[a-z0-9][a-z0-9-]*/SKILL\\.md$",
+          "description": "Path relative to repo root, POSIX-style. Must live under .agents/skills/spec-kitty.<command>/SKILL.md."
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 hex digest of the file content as written by the installer."
+        },
+        "agents": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["codex", "vibe"]
+          },
+          "description": "Sorted list of agent keys that installed this entry. The file is physically deleted when the list becomes empty. New shared-root agents added in later missions may extend this enum."
+        },
+        "installed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp at which the entry was first written."
+        },
+        "spec_kitty_version": {
+          "type": "string",
+          "description": "Spec Kitty CLI version that wrote the entry (e.g. \"3.2.0\")."
+        }
+      }
+    }
+  }
+}

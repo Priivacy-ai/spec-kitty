@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "mission_slug": "coord-authority-gate-hardening-01KW4T2F",
+  "mission_id": "01KW4T2F7ZHCB41Z4X12TH28D2",
+  "mission_branch": "kitty/mission-coord-authority-gate-hardening-01KW4T2F",
+  "target_branch": "feat/coord-authority-gate-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_gate_read_literal_ban.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_write_surface_placement_guard.py",
+        "tests/integration/coord_topology_fixture.py",
+        "tests/integration/test_pre30_layout_coord_husk_noop.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_coord_read_residuals_closeout.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "tests/integration/test_next_preview_primary_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-27T16:18:36.325187+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

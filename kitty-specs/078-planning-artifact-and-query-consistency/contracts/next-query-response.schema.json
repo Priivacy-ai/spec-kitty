@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.dev/contracts/078/next-query-response.schema.json",
+  "title": "SpecKittyNextQueryResponse",
+  "type": "object",
+  "required": [
+    "kind",
+    "agent",
+    "mission_slug",
+    "mission",
+    "mission_state",
+    "timestamp",
+    "is_query"
+  ],
+  "properties": {
+    "kind": {
+      "const": "query"
+    },
+    "agent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mission_slug": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mission": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mission_state": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Fresh runs use 'not_started'. Started runs use the issued step id."
+    },
+    "preview_step": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "action": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "wp_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workspace_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prompt_file": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "guard_failures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "progress": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "origin": {
+      "type": "object"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "step_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "decision_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "question": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "options": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_query": {
+      "const": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mission_state": {
+            "const": "not_started"
+          }
+        },
+        "required": [
+          "mission_state"
+        ]
+      },
+      "then": {
+        "required": [
+          "preview_step"
+        ],
+        "properties": {
+          "preview_step": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

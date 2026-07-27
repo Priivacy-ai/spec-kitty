@@ -1,0 +1,135 @@
+work_packages:
+  - id: WP01
+    title: "Module relocation and guard scaffolding"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/upgrade/legacy_detector.py"
+      - "src/specify_cli/upgrade/pre30_guard.py"
+      - "tests/upgrade/test_pre30_guard.py"
+    create_intent:
+      - "src/specify_cli/upgrade/legacy_detector.py"
+      - "src/specify_cli/upgrade/pre30_guard.py"
+      - "tests/upgrade/test_pre30_guard.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - C-002
+      - C-003
+      - NFR-003
+      - NFR-004
+      - NFR-006
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP01-module-relocation-and-guard-scaffolding.md"
+
+  - id: WP02
+    title: "Wire boundary guard into command entrypoints"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/scripts/tasks/tasks_cli.py"
+      - "src/specify_cli/cli/commands/agent/tasks.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-005
+      - C-002
+      - NFR-006
+    plan_concern_refs:
+      - IC-02
+      - IC-03
+    subtasks:
+      - T005
+      - T006
+      - T007
+    prompt_file: "tasks/WP02-wire-boundary-guard-into-command-entrypoints.md"
+
+  - id: WP03
+    title: "Remove active runtime legacy branches and shim chain"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/task_utils/support.py"
+      - "src/specify_cli/task_utils/__init__.py"
+      - "src/specify_cli/tasks_support.py"
+      - "src/specify_cli/scripts/tasks/task_helpers.py"
+      - "src/specify_cli/acceptance/__init__.py"
+      - "src/specify_cli/legacy_detector.py"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - FR-007
+      - FR-008
+      - FR-009
+      - C-001
+      - C-003
+      - C-004
+      - NFR-001
+      - NFR-002
+      - NFR-005
+    plan_concern_refs:
+      - IC-01
+      - IC-03
+    subtasks:
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP03-remove-active-runtime-legacy-branches-and-shim-chain.md"
+
+  - id: WP04
+    title: "Dashboard read-only annotation path update"
+    dependencies:
+      - WP03
+    owned_files:
+      - "src/specify_cli/dashboard/scanner.py"
+      - "src/specify_cli/dashboard/handlers/features.py"
+      - "tests/test_dashboard/test_scanner.py"
+      - "tests/test_dashboard/test_api_handler.py"
+    requirement_refs:
+      - FR-006
+      - C-003
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T015
+      - T016
+      - T017
+      - T018
+      - T019
+    prompt_file: "tasks/WP04-dashboard-read-only-annotation-path-update.md"
+
+  - id: WP05
+    title: "Test cleanup, ratchet reconciliation, and docs update"
+    dependencies:
+      - WP04
+    owned_files:
+      - "tests/specify_cli/test_standalone_tasks_cli_canonical.py"
+      - "tests/specify_cli/scripts/test_task_helpers.py"
+      - "tests/architectural/test_no_dead_symbols.py"
+      - "docs/status-model.md"
+    requirement_refs:
+      - FR-010
+      - FR-011
+      - NFR-002
+      - NFR-004
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T020
+      - T021
+      - T022
+      - T023
+      - T024
+      - T025
+    prompt_file: "tasks/WP05-test-cleanup-ratchet-reconciliation-and-docs-update.md"

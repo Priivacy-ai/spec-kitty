@@ -1,0 +1,108 @@
+{
+  "mission_slug": "refactor-stable-gate-substrate-01KWK3FY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Resolution-authority gate converted to Design-P frozen (rel_path,qualname,token) comparands; node.lineno feeds no key.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane commit b17154841; green in final tests/architectural sweep (3034 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Theater triad (drift-immunity / content-detection / non-vacuity) drives the top-level check_*_gate entry points.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 b17154841; theater tests green in tests/architectural sweep",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Fail-closed freeze + staleness guard: unresolved seed aborts loudly; frozen key with no live match fails with evict-or-re-approve message.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 b17154841; freeze_converter.py fail-closed demo",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Both audit tripwires (untrusted + surface) re-keyed to composite (path,qualname,token) via pure check_undercount/check_overcount seams main() calls; overcount/ghost guard added.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 6c48cffda (untrusted), WP03 92f5da729 (surface); rekey_inventory.py; sweep green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "test_no_worktree_name_guess.py documented as the Design-P reference implementation; zero key semantics changed (conversion cancelled).",
+      "proof_type": "automated_test",
+      "evidence": "WP06 cb2842d7e \u2014 docstring-only diff (26 ins, 0 key/body edits); 11 passed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Refactor-stable doctrine encoded into testing-principles.styleguide.yaml (principles + patterns/anti-patterns, PR #2308-cited); graph.yaml regenerated.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 edbc78007; doctrine_content_check.py ALL ASSERTIONS PASSED (19 principles / 5 patterns / 5 anti_patterns); graph.yaml byte-identical",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "All 31 quarantined tests adjudicated on CI evidence: 19 remediated (un-quarantined) / 12 disabled (skip+issue) / 0 deleted; lane -m quarantine collects 0.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 9e3c0c99e; CI run 28643092421; validated x2 under GITHUB_ACTIONS=true CI=true CI-pinned venv",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "uv-tool stay-behind reasons corrected to the real behavioral-drift diagnosis; upstream issue #2316 filed and referenced from the skip reasons.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 9e3c0c99e; #2316 OPEN upstream",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Tracker closeout: #2310/#2311 close via PR; #2072 partial-completion comment names delivered slice + remainder.",
+      "proof_type": "automated_test",
+      "evidence": "WP06; #2072 issuecomment-4874144446; PR trailer Closes #2310, Closes #2311",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent per-WP review re-runs) + orchestrator",
+      "verified_at": "2026-07-03T09:30:00Z",
+      "notes": "Evidence pointers wired at WP06 closeout; pass_fail adjudicated at accept gate."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NFR-002-zero-production-diff",
+      "description": "Mission diff contains no changes under src/specify_cli/ or src/runtime/ (src/doctrine styleguide is the sanctioned FR-006 surface).",
+      "verification_method": "custom_command",
+      "verification_command": "bash -c 'COORD=kitty/mission-refactor-stable-gate-substrate-01KWK3FY; LANE=$COORD-lane-f; test -z \"$(git diff --name-only $(git merge-base $COORD $LANE) $LANE -- src/specify_cli src/runtime)\"'",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "compat-planner-contract-ci-portable-01KWVKYH",
+  "mission_id": "01KWVKYH87W1QV1S374ECQD25D",
+  "mission_branch": "kitty/mission-compat-planner-contract-ci-portable-01KWVKYH",
+  "target_branch": "fix/compat-planner-contract-ci-portable",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py",
+        "tests/specify_cli/cli/commands/test_upgrade_command.py",
+        "tests/specify_cli/compat/test_messages.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-06T12:59:24.360212+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

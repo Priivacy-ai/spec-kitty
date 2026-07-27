@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "mission_slug": "session-presence-multi-harness-01KTH57W",
+  "mission_id": "01KTH57W8EWXDH8TCHNP485YMS",
+  "mission_branch": "kitty/mission-session-presence-multi-harness-01KTH57W",
+  "target_branch": "pr/session-presence-multi-harness",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/session_presence/__init__.py",
+        "src/specify_cli/session_presence/content.py",
+        "src/specify_cli/session_presence/hooks/__init__.py",
+        "src/specify_cli/session_presence/upgrade_check.py",
+        "src/specify_cli/session_presence/writers/__init__.py",
+        "src/specify_cli/session_presence/writers/base.py",
+        "src/specify_cli/session_presence/writers/null_writer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/session_presence/hooks/base.py",
+        "src/specify_cli/session_presence/hooks/claude_code_hook.py",
+        "src/specify_cli/session_presence/writers/claude_code.py",
+        "src/specify_cli/session_presence/writers/markdown_rules.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/session_start.py",
+        "src/specify_cli/session_presence/manager.py",
+        "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_claude_code.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/test_session_start.py",
+        "tests/specify_cli/session_presence/__init__.py",
+        "tests/specify_cli/session_presence/conftest.py",
+        "tests/specify_cli/session_presence/test_claude_code_hook.py",
+        "tests/specify_cli/session_presence/test_claude_code_writer.py",
+        "tests/specify_cli/session_presence/test_content.py",
+        "tests/specify_cli/session_presence/test_manager.py",
+        "tests/specify_cli/session_presence/test_markdown_rules_writer.py",
+        "tests/specify_cli/session_presence/test_upgrade_checker.py",
+        "tests/specify_cli/upgrade/migrations/test_m_session_presence_claude_code.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/session_presence/writers/agents_md.py",
+        "src/specify_cli/session_presence/writers/registry.py",
+        "src/specify_cli/session_presence/writers/skills_preamble.py",
+        "tests/specify_cli/session_presence/test_agents_md_writer.py",
+        "tests/specify_cli/session_presence/test_skills_preamble_writer.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_all_harnesses.py",
+        "tests/specify_cli/upgrade/migrations/test_m_session_presence_all_harnesses.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-06-07T14:57:34.164474+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

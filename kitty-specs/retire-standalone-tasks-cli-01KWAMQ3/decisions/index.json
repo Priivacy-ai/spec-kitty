@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-29T21:32:32.227253Z",
+      "decision_id": "01KWAMRNK3THM82XRK1FAH8J8A",
+      "final_answer": null,
+      "input_key": "consumer_migration",
+      "mission_id": "01KWAMQ3TCTPEXT9B1E9A3GR59",
+      "mission_slug": "retire-standalone-tasks-cli-01KWAMQ3",
+      "opened_by": "cli",
+      "options": [
+        "yes-add-migration",
+        "no-repo-only",
+        "decide-in-plan"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the mission add an upgrade migration to remove scripts/tasks/ + .kittify/overrides/scripts/tasks/ from already-initialized consumer projects?",
+      "rationale": "User chose to decide during the plan phase after assessing how consumer projects carry these files and whether an existing migration already sweeps them.",
+      "resolved_at": "2026-06-29T21:32:40.318941Z",
+      "resolved_by": null,
+      "slot_key": "specify.migration.consumer-cleanup",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-06-29T21:45:47.912838Z",
+      "decision_id": "01KWANGYM89NRT5KNAHVGX8BF5",
+      "final_answer": "No new migration needed. The standalone tasks CLI is not deployed to consumer projects (absent from init/upgrade templates and release packaging). The only historical consumer-side path, .kittify/scripts/tasks/, is already removed on upgrade by the existing m_0_10_0_python_only migration (_remove_tasks_helpers). The packaged src/specify_cli/scripts/tasks/ leaves the wheel automatically on deletion; scripts/tasks/ and .kittify/overrides/scripts/tasks/ are spec-kitty-repo-only dev/snapshot artifacts.",
+      "input_key": "consumer_migration_resolved",
+      "mission_id": "01KWAMQ3TCTPEXT9B1E9A3GR59",
+      "mission_slug": "retire-standalone-tasks-cli-01KWAMQ3",
+      "opened_by": "cli",
+      "options": [
+        "no-migration-needed",
+        "add-migration"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does retiring the standalone tasks CLI require a new consumer-project upgrade migration?",
+      "rationale": null,
+      "resolved_at": "2026-06-29T21:45:49.086317Z",
+      "resolved_by": null,
+      "slot_key": "plan.migration.consumer-cleanup",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWAMQ3TCTPEXT9B1E9A3GR59",
+  "version": 1
+}

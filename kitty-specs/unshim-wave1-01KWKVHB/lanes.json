@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "mission_slug": "unshim-wave1-01KWKVHB",
+  "mission_id": "01KWKVHBDFFK6MTH0TFJQ8GBES",
+  "mission_branch": "kitty/mission-unshim-wave1-01KWKVHB",
+  "target_branch": "tidy/unshim-wave1",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/acceptance_matrix.py",
+        "src/specify_cli/core/identity_aliases.py",
+        "src/specify_cli/doc_generators.py",
+        "src/specify_cli/doc_state.py",
+        "src/specify_cli/gap_analysis.py",
+        "src/specify_cli/state_contract.py",
+        "src/specify_cli/workspace_context.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/tasks_support.py",
+        "tests/git_ops/test_atomic_status_commits_unit.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks.py",
+        "tests/specify_cli/cli/commands/test_charter_lint.py",
+        "tests/specify_cli/test_runtime_hard_fail.py",
+        "tests/tasks/test_tasks_support.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/documentation-mission.md",
+        "docs/plans/degod-unshim-inventory.md",
+        "src/specify_cli/policy/audit.py",
+        "src/specify_cli/retrospective/lifecycle.py",
+        "src/specify_cli/sync/queue.py",
+        "src/specify_cli/sync/replay.py",
+        "src/specify_cli/sync/tracker_client_glue.py",
+        "src/specify_cli/task_profile.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-03T12:04:45.388738+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

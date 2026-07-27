@@ -1,0 +1,149 @@
+{
+  "mission_slug": "doctrine-catfooding-2196-01KWE16N",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Source doc committed + inventoried",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: docs/development/quality-and-tech-debt-standing-orders.md committed (faithful copy of research source), registered via canonical freshener; check_docs_freshness --ci exit 0.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Directive numbers pre-allocated (043-049)",
+      "proof_type": "code_review",
+      "evidence": "PD-1/WP01: highest existing directive 042; 043/044/045 minted by WP02/WP05/WP06 with no collision; block reserved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "graph.yaml single-serialized regen strategy",
+      "proof_type": "code_review",
+      "evidence": "WP12 approved: regenerated via canonical `spec-kitty doctrine regenerate-graph`; regenerate-graph --check reports FRESH; tests/doctrine/drg/ 138 passed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Epic #2196 re-parented functional",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved: scope-tracker label + 'not a functional parent' framing removed from #2196.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "\u00a71 adversarial-squad-cadence styleguide (NOT required directive)",
+      "proof_type": "code_review",
+      "evidence": "WP08 approved: adversarial-squad-cadence.styleguide.yaml, no enforcement:required (C-006); references adversarial-squad-deployment.procedure; brownfield paradigm extended additively; folds #2094.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "\u00a72 campsite: EXTEND DIRECTIVE_025",
+      "proof_type": "code_review",
+      "evidence": "WP09 approved: 025 extended with domain-matched-fold-at-point-cut atom; verbatim overlap-audit; no duplicate directive; references ratchet + brownfield.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "\u00a73 mission tracer files procedure + template",
+      "proof_type": "code_review",
+      "evidence": "WP04 approved: mission-tracer-files.procedure.yaml + 3-file template scaffold; folds #2095 (close-on-land).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "\u00a74 test-remediation: EXTEND DIRECTIVE_041 (live-evidence only)",
+      "proof_type": "code_review",
+      "evidence": "WP10 approved: 041 extended with live-evidence atom only; red-first refinement references DIRECTIVE_034 (no triple authority); verbatim overlap-audit.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "\u00a75a arch-gate directive 043 + non-vacuity + ratchet tactics",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved: DIRECTIVE_043 + architectural-gate-non-vacuity.tactic + frozen-baseline-shrink-only-ratchet.tactic; 4 non-vacuity elements mapped to live exemplar test_protection_resolver_call_sites.py (1 demonstrated + 3 aspirational, honest).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "\u00a75b post-merge arch-gate adjudication procedure",
+      "proof_type": "code_review",
+      "evidence": "WP03 approved: post-merge-arch-gate-adjudication.procedure.yaml; mission-base != lane-base cross-base check explicit; CI-only shards named.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "\u00a76 canonical-sources directive 044 + tactic + terminology toolguide",
+      "proof_type": "code_review",
+      "evidence": "WP05 approved: DIRECTIVE_044 + canonical-source-unification.tactic + terminology-guard.toolguide + companion TERMINOLOGY_GUARD.md (guide_path resolves); guard doc accurate re: fixed-string scan; guard does not trip its own guard.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "\u00a77 git/workflow: directive 045 + worktree-isolation tactic",
+      "proof_type": "code_review",
+      "evidence": "WP06 (dir 045 PRs-only/read-intent) + WP07 (pr-agent-worktree-isolation tactic + no-version) approved; references clean-linear-commit-history; \u00a77 split into 2 WPs; 045 valid YAML (cycle-1 fix).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "\u00a78 mission hygiene: EXTEND planning-and-tracking + leeway/role-sep tactics",
+      "proof_type": "code_review",
+      "evidence": "WP11 approved: planning-and-tracking.styleguide extended (issue-matrix + relocated \u00a72 tracker bullet); references tiered-standards + mission-runtime (not restated); ownership-map-leeway + reviewer-implementer-role-separation tactics.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Capstone: Spec Kitty Charter compiled from activated set",
+      "proof_type": "code_review",
+      "evidence": "WP13 approved: charter v1.2.0 compiled via activate->mirror->generate; config.yaml CLI-activated all 6 kinds; 8/8 directive-reachable resolve in references.yaml (non-shallow: architectural-gate-non-vacuity present); NFR-003 narrowed to directive-reachable (operator decision) with 6 standalone artifacts governed-but-deferred to interactive charter intake; doctor healthy.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (mission)",
+      "verified_at": "2026-07-01T00:00:00+00:00",
+      "notes": "Verified via per-WP opus review + doctor doctrine + DRG/compliance suites."
+    }
+  ],
+  "negative_invariants": []
+}

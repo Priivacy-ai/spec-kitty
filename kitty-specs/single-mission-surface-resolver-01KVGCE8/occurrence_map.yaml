@@ -1,0 +1,91 @@
+# Occurrence map — WP07 (T027): retire the feature_dir_resolver shim.
+#
+# Bulk edit shape: this is a SYMBOL-SOURCE / IMPORT-PATH migration, not a
+# product-term rename. The module `specify_cli.missions.feature_dir_resolver`
+# (a C-004 strangler shim) is being DELETED; every importer is repointed to the
+# canonical module `specify_cli.missions._read_path_resolver`.
+#
+# What lived in the shim:
+#   * Re-exports (canonical body already in _read_path_resolver post-WP03):
+#       - candidate_feature_dir_for_mission
+#       - primary_feature_dir_for_mission   (RAW-SLUG / topology-blind anchor; NOT
+#         mid8-composing — WP03 collapsed the divergent twin onto the canonical
+#         raw-slug definition, so callers' behavior is PRESERVED)
+#   * Two REAL function definitions (relocated INTO _read_path_resolver by T028,
+#     bodies byte-identical, lazy imports preserved):
+#       - resolve_feature_dir_for_slug      (dir-only, topology-aware; delegates to
+#         resolve_mission_read_path)
+#       - resolve_feature_dir_for_mission   (resolve_action_context wrapper)
+#
+# Because BOTH the re-exports and the two real functions now live in
+# _read_path_resolver, every importer is a pure module-path rewrite:
+#   `from specify_cli.missions.feature_dir_resolver import X`
+#       -> `from specify_cli.missions._read_path_resolver import X`
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+
+target:
+  term: specify_cli.missions.feature_dir_resolver
+  replacement: specify_cli.missions._read_path_resolver
+  operation: rename
+
+categories:
+  # The migrated import statements + monkeypatch target strings that name the
+  # module path. This is the PRIMARY category for this WP.
+  import_paths:         { action: rename }                 # `from ...feature_dir_resolver import Y`, monkeypatch target strings, allowlist path entry
+
+  # The symbol NAMES (candidate_/primary_feature_dir_for_mission,
+  # resolve_feature_dir_for_slug/-_for_mission) are UNCHANGED — only their
+  # defining/importing module moves. No symbol is renamed. (n/a -> do_not_change)
+  code_symbols:         { action: do_not_change }          # symbol names unchanged; only the module that hosts/exports them moves
+
+  # One on-disk module file is removed (`feature_dir_resolver.py` -> git rm) and
+  # its two real functions relocate into the existing `_read_path_resolver.py`.
+  # Expressed structurally via the `moves:` block below, so no in-file path
+  # literal needs per-occurrence review here. (n/a -> do_not_change)
+  filesystem_paths:     { action: do_not_change }          # no path-literal strings change; module-file relocation captured in `moves:`
+
+  # No JSON/YAML/TOML/API field keys touch this module path. (n/a -> do_not_change)
+  serialized_keys:      { action: do_not_change }          # no serialized contract names this module
+
+  # No CLI subcommand/flag names reference this module. (n/a -> do_not_change)
+  cli_commands:         { action: do_not_change }          # internal module path; no user-facing command surface
+
+  # The module name appears only in INTERNAL docstrings/comments (prose cross
+  # references), never in UI text, --help, or error messages shown to users.
+  # Those stale internal references are updated to the canonical module name.
+  user_facing_strings:  { action: rename_if_user_visible } # internal docstring/comment cross-refs only; no user-visible string
+
+  # Test imports + monkeypatch targets that name the module path are migrated
+  # in lockstep (tests/specify_cli/missions/test_read_path_resolver_validation.py,
+  # tests/missions/test_feature_dir_resolver_import.py, the test_map_requirements_*
+  # patch targets, test_retrospective_triggering.py, test_p0_pinning_regressions.py).
+  tests_fixtures:       { action: rename }                 # test import sites + monkeypatch target strings repointed
+
+  # No metric/log/analytics label embeds this module path. (n/a -> do_not_change)
+  logs_telemetry:       { action: do_not_change }          # no telemetry label references this module
+
+exceptions:
+  # ---------------------------------------------------------------------------
+  # CROSS-OWNER LEEWAY (ownership-map rationale, per the WP07 prompt).
+  # These 3 importers live in files OWNED by earlier WPs (WP05/WP06). WP07 runs
+  # AFTER WP05+WP06 complete (sequential, no merge collision), so repointing them
+  # is safe. Reconfirmed at implement time: all 3 still import the RE-EXPORT
+  # `candidate_feature_dir_for_mission` from the shim (WP05/WP06 did NOT repoint
+  # their own imports while editing those files), so WP07 must repoint them.
+  # ---------------------------------------------------------------------------
+  - path: "src/mission_runtime/resolution.py"
+    action: rename
+    reason: "WP05-owned (2 sites: lines 605, 809). Both import candidate_feature_dir_for_mission re-export; repoint to _read_path_resolver. Sequential after WP05 — no collision."
+  - path: "src/specify_cli/coordination/surface_resolver.py"
+    action: rename
+    reason: "WP06-owned. Imports candidate_feature_dir_for_mission re-export; merge into the existing _read_path_resolver import already present in this file. Sequential after WP06."
+  - path: "src/specify_cli/coordination/status_transition.py"
+    action: rename
+    reason: "WP06-owned. Late-imports candidate_feature_dir_for_mission re-export; repoint to _read_path_resolver. Sequential after WP06."
+
+moves:
+  - from:
+      - src/specify_cli/missions/feature_dir_resolver.py
+    to: src/specify_cli/missions/_read_path_resolver.py
+    reason: "Retire the C-004 strangler shim: its two real functions (resolve_feature_dir_for_slug, resolve_feature_dir_for_mission) relocate behavior-preservingly into the canonical read-path module; the re-export-only surface is dropped (callers import the canonical defs directly). The shim file is git-rm'd."

@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "mission_slug": "retire-standalone-tasks-cli-01KWAMQ3",
+  "mission_id": "01KWAMQ3TCTPEXT9B1E9A3GR59",
+  "mission_branch": "kitty/mission-retire-standalone-tasks-cli-01KWAMQ3",
+  "target_branch": "mission/retire-standalone-tasks-cli",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/utils.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "tests/specify_cli/cli/commands/test_accept_normalize_encoding.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/cross_cutting/misc/test_acceptance_support.py",
+        "tests/specify_cli/acceptance/test_accept_pre30_hard_reject.py",
+        "tests/specify_cli/test_acceptance_regressions.py",
+        "tests/specify_cli/test_codebase_sweep.py",
+        "tests/specify_cli/test_feature_metadata.py",
+        "tests/specify_cli/test_lane_regression_guard.py",
+        "tests/upgrade/test_pre30_guard_wiring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".kittify/overrides/scripts/tasks/**",
+        "pyproject.toml",
+        "scripts/tasks/**",
+        "src/specify_cli/scripts/tasks/**",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/resolution_gate_allowlist.yaml",
+        "tests/architectural/surface_resolution_audit/**",
+        "tests/architectural/test_coord_read_residuals_closeout.py",
+        "tests/architectural/test_gate_read_literal_ban.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/conftest.py",
+        "tests/cross_cutting/misc/test_task_helpers.py",
+        "tests/cross_cutting/misc/test_tasks_cli_commands.py",
+        "tests/specify_cli/scripts/**",
+        "tests/specify_cli/test_standalone_tasks_cli_canonical.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-06-29T22:14:00.158115+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

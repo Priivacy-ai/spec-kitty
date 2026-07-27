@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-19T12:58:01.126956Z",
+      "decision_id": "01KS051316C8Z0SDEKZ2B088CS",
+      "final_answer": "pure_python_module",
+      "input_key": "generator_shape",
+      "mission_id": "01KS049J4V9CSWBKJHTY2FB69H",
+      "mission_slug": "retrospective-default-policy-01KS049J",
+      "options": [
+        "pure_python_module",
+        "profile_invocation",
+        "hybrid",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should the retrospective generator be a pure-Python module called by the runtime, or run via profile-invocation of the retrospective-facilitator agent profile?",
+      "rationale": null,
+      "resolved_at": "2026-05-19T13:01:01.557488Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.generator-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-19T12:58:01.902640Z",
+      "decision_id": "01KS0513SEHSEE82WN4RJBFDRG",
+      "final_answer": "out_of_scope_not_a_bug_add_contributing_note",
+      "input_key": "events_1137_strategy",
+      "mission_id": "01KS049J4V9CSWBKJHTY2FB69H",
+      "mission_slug": "retrospective-default-policy-01KS049J",
+      "options": [
+        "upstream_fix_events",
+        "local_import_fallback",
+        "version_pin",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": true,
+      "question": "How should we resolve the pytest collection blocker tracked in #1137 (spec_kitty_events 5.1.0 missing normalize_event_id/Event top-level exports)?",
+      "rationale": null,
+      "resolved_at": "2026-05-19T13:01:02.366492Z",
+      "resolved_by": null,
+      "slot_key": "plan.dependencies.events-1137",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KS049J4V9CSWBKJHTY2FB69H",
+  "version": 1
+}

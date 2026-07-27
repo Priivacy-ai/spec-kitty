@@ -1,0 +1,377 @@
+---
+work_package_id: WP09
+title: Validation Pass
+dependencies:
+- WP02
+- WP03
+- WP04
+- WP05
+- WP06
+- WP07
+- WP08
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-006
+- FR-007
+- FR-008
+- FR-009
+- FR-010
+- FR-011
+- FR-012
+- FR-013
+- FR-014
+- FR-015
+- FR-016
+- FR-017
+planning_base_branch: docs/charter-end-user-docs-828
+merge_target_branch: docs/charter-end-user-docs-828
+branch_strategy: Planning artifacts for this feature were generated on docs/charter-end-user-docs-828. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into docs/charter-end-user-docs-828 unless the human explicitly redirects the landing branch.
+subtasks:
+- T036
+- T037
+- T038
+- T039
+- T040
+- T041
+agent: reviewer-renata
+history:
+- date: '2026-04-29'
+  author: spec-kitty.tasks
+  note: Initial WP generated
+authoritative_surface: kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/
+execution_mode: planning_artifact
+owned_files:
+- kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/validation-report.md
+tags: []
+---
+
+# WP09 — Validation Pass
+
+## ⚡ Do This First: Load Agent Profile
+
+Before reading anything else, load the agent profile assigned to this work package:
+
+```
+/ad-hoc-profile-load reviewer-renata
+```
+
+This loads domain knowledge, tool preferences, and behavioral guidelines for documentation review and validation. Do not proceed until the profile confirms it has loaded.
+
+## Objective
+
+Run all docs validation checks across every page produced by WP02–WP08. Produce `validation-report.md` with evidence of each check. This WP is P0 — the PR cannot be opened until all checks pass.
+
+This WP depends on all content WPs (WP02–WP08) being complete.
+
+## Branch Strategy
+
+- **Planning base branch**: `docs/charter-end-user-docs-828`
+- **Merge target**: `main`
+- **Execution workspace**: allocated by `lanes.json` at `spec-kitty agent action implement WP09 --agent <name>`; do not guess the worktree path
+
+## Context
+
+### What "Pass" Means
+
+Every check below must produce a zero-error result. If a check fails:
+1. Identify the specific page/line causing the failure
+2. Fix it (or flag the owning WP as needing a fix)
+3. Re-run the check until it passes
+4. Record the fix in `validation-report.md`
+
+Do not mark WP09 complete until all checks pass.
+
+### Pages to Validate
+
+All pages produced or updated by WP02–WP08:
+- `docs/3x/index.md`, `docs/3x/charter-overview.md`, `docs/3x/governance-files.md`
+- `docs/tutorials/charter-governed-workflow.md`
+- `docs/how-to/setup-governance.md`, `synthesize-doctrine.md`, `run-governed-mission.md`, `use-retrospective-learning.md`, `troubleshoot-charter.md`, `manage-glossary.md`
+- `docs/explanation/charter-synthesis-drg.md`, `governed-profile-invocation.md`, `retrospective-learning-loop.md`
+- `docs/retrospective-learning-loop.md` (redirect stub)
+- `docs/reference/charter-commands.md`, `cli-commands.md`, `profile-invocation.md`, `retrospective-schema.md`
+- `docs/migration/from-charter-2x.md`
+- `docs/explanation/documentation-mission.md`
+- `docs/2x/index.md`
+- All toc.yml files updated by WP01
+
+## Subtask Guidance
+
+### T036 — Run uv run pytest tests/docs/ -q and DocFX build check
+
+**Part 1: docs test suite**
+
+```bash
+cd /path/to/spec-kitty/repo  # run from repo root
+uv run pytest tests/docs/ -q
+```
+
+**Required result**: Zero failures.
+
+If failures occur:
+- `test_architecture_docs_consistency.py`: likely a new page not registered in a test expectation
+- `test_versioned_docs_integrity.py`: likely a toc.yml reference to a non-existent file
+- `test_readme_canonical_path.py`: likely a broken canonical path reference
+
+Fix each failure by reading the test output, identifying the root cause, and fixing the page or toc.yml.
+
+**Part 2: DocFX build and link check**
+
+Verify that `docs/docfx.json` includes the new directories so newly added pages appear in the built site:
+
+```bash
+# Confirm docs/3x/ and docs/migration/ appear in docfx.json
+grep -E '3x|migration' docs/docfx.json
+```
+
+Both must appear. If either is missing, the new pages will be absent from the generated DocFX site even if toc.yml is correct. Flag as a WP01 fix if missing.
+
+If the repo has a `docfx build` script or CI step, run it and verify zero build errors:
+```bash
+# Run DocFX build if available (adapt to repo's build tooling)
+docfx build docs/docfx.json --dryRun 2>&1 | tail -20
+```
+
+If `docfx` is not installed locally, note "DocFX binary not available locally; build verified via CI" in the validation report.
+
+Record in validation-report.md:
+- Command run
+- Exit code
+- Number of tests passing
+- Any failures and their fixes
+- DocFX build result or note about CI verification
+
+### T037 — Check all new/changed pages reachable from toc.yml; grep for TODO markers
+
+**Part 1: toc.yml reachability**
+
+For each new page, verify it appears in its section's toc.yml:
+
+```bash
+# Check each new page has a toc entry
+grep 'charter-governed-workflow' docs/tutorials/toc.yml
+grep 'synthesize-doctrine\|run-governed-mission\|use-retrospective-learning\|troubleshoot-charter' docs/how-to/toc.yml
+grep 'charter-synthesis-drg\|governed-profile-invocation\|retrospective-learning-loop' docs/explanation/toc.yml
+grep 'charter-commands\|profile-invocation\|retrospective-schema' docs/reference/toc.yml
+grep 'from-charter-2x' docs/migration/toc.yml
+grep '3x' docs/toc.yml
+```
+
+All must return a match. If any is missing, the owning WP (WP01) produced an incomplete toc.
+
+**Part 2: TODO markers**
+
+```bash
+grep -r 'TODO' docs/3x/ docs/tutorials/charter-governed-workflow.md \
+  docs/how-to/synthesize-doctrine.md docs/how-to/run-governed-mission.md \
+  docs/how-to/use-retrospective-learning.md docs/how-to/troubleshoot-charter.md \
+  docs/explanation/charter-synthesis-drg.md docs/explanation/governed-profile-invocation.md \
+  docs/explanation/retrospective-learning-loop.md \
+  docs/reference/charter-commands.md docs/reference/profile-invocation.md \
+  docs/reference/retrospective-schema.md docs/migration/from-charter-2x.md
+```
+
+Zero results required.
+
+Also check:
+```bash
+grep -r 'TODO: register in docs nav' docs/
+```
+Zero results required.
+
+**Part 3: Deferral language grep**
+
+Check that no page contains deferred-placeholder language that should have been resolved before PR:
+
+```bash
+grep -rE '\[NEEDS CLARIFICATION|INTENTIONALLY-DEFERRED|intentionally.deferred' \
+  docs/3x/ docs/tutorials/charter-governed-workflow.md \
+  docs/how-to/synthesize-doctrine.md docs/how-to/run-governed-mission.md \
+  docs/how-to/use-retrospective-learning.md docs/how-to/troubleshoot-charter.md \
+  docs/explanation/ docs/reference/charter-commands.md \
+  docs/reference/profile-invocation.md docs/reference/retrospective-schema.md \
+  docs/migration/from-charter-2x.md
+```
+
+Zero results required. Deferred placeholders are acceptable in planning artifacts but not in published docs pages.
+
+### T038 — Verify CLI flags in charter-commands.md match current --help
+
+Re-run each charter subcommand `--help` and compare against `docs/reference/charter-commands.md`:
+
+```bash
+uv run spec-kitty charter interview --help
+uv run spec-kitty charter generate --help
+uv run spec-kitty charter synthesize --help
+uv run spec-kitty charter resynthesize --help
+uv run spec-kitty charter status --help
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run spec-kitty charter sync --help
+uv run spec-kitty charter lint --help
+uv run spec-kitty charter bundle --help
+uv run spec-kitty charter bundle validate --help
+uv run spec-kitty next --help
+uv run spec-kitty profiles --help
+uv run spec-kitty profiles list --help
+uv run spec-kitty ask --help
+uv run spec-kitty advise --help
+uv run spec-kitty do --help
+uv run spec-kitty profile-invocation --help
+uv run spec-kitty profile-invocation complete --help
+uv run spec-kitty mission --help
+uv run spec-kitty glossary --help
+uv run spec-kitty retrospect summary --help
+uv run spec-kitty agent retrospect synthesize --help
+```
+
+For each covered command:
+- Every flag in `charter-commands.md` must appear in `--help` output
+- No flag in `charter-commands.md` that doesn't appear in `--help`
+- Descriptions should match (minor paraphrasing acceptable; invented flags are not)
+- `charter-commands.md` must include `charter synthesize` and `charter resynthesize` sections (P1 requirement)
+- `cli-commands.md` and `profile-invocation.md` must cover `profiles`, `ask`, `advise`, `do`, `profile-invocation complete`, `next`, `mission`, `glossary`, `retrospect summary`, and `agent retrospect synthesize`
+
+Record any discrepancies and fix the affected reference page before marking this check passed.
+
+### T039 — Verify documentation mission phases in changed pages match mission-runtime.yaml
+
+```bash
+# Find mission-runtime.yaml
+find src/ -name 'mission-runtime.yaml' 2>/dev/null
+
+# Read it
+cat src/specify_cli/missions/documentation/mission-runtime.yaml
+```
+
+Cross-check `docs/explanation/documentation-mission.md` against the phases in `mission-runtime.yaml`. Every phase name in the doc must match the YAML exactly. If WP08 missed a stale phase, fix it now.
+
+Record the phase list from mission-runtime.yaml in the validation report as evidence.
+
+### T040 — Execute tutorial smoke-test and setup-governance.md check from fresh temp repo
+
+**Part 1: Tutorial smoke-test**
+
+Run the `docs/tutorials/charter-governed-workflow.md` tutorial from a fresh temp directory and verify no source-repo pollution:
+
+```bash
+TMPDIR=$(mktemp -d)
+ORIGINAL_DIR=$(pwd)
+cd "$TMPDIR"
+git init -q
+
+# Execute each step in the tutorial in sequence
+# For interactive steps (charter interview), use --non-interactive if available or document manually
+# For steps requiring SaaS sync: SPEC_KITTY_ENABLE_SAAS_SYNC=1
+# Steps should use: charter synthesize (not charter context), retrospect summary (not retro summary)
+
+cd "$ORIGINAL_DIR"
+
+# Verify no pollution in source repo
+git status  # should show no unexpected changes
+git diff --stat HEAD  # should be clean
+
+rm -rf "$TMPDIR"
+```
+
+**Part 2: setup-governance.md smoke-test**
+
+Also verify the setup-governance.md flow is executable (FR-004 requirement):
+
+```bash
+TMPDIR2=$(mktemp -d)
+cd "$TMPDIR2"
+git init -q
+
+# Run the governance setup flow from docs/how-to/setup-governance.md
+# charter interview, charter generate, charter lint, charter synthesize, charter bundle
+
+cd "$ORIGINAL_DIR"
+git status  # clean check
+rm -rf "$TMPDIR2"
+```
+
+**Required result**: All tutorial steps and setup-governance steps complete without error (or errors are documented as expected), AND the spec-kitty source repo is clean after both smoke tests.
+
+If a step fails in the smoke test:
+- Check if the page accurately describes what the command does
+- Fix the page if the step description is wrong
+- If the command itself has a bug, note it in the validation report and flag for follow-up
+
+### T041 — Write validation-report.md with evidence
+
+**File**: `kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/validation-report.md`
+
+Produce a comprehensive report. Template:
+
+```markdown
+# Validation Report: Charter End-User Docs Parity (#828)
+
+**Date**: [date]
+**Branch**: docs/charter-end-user-docs-828
+**Validator**: WP09 agent (reviewer-renata)
+
+## T036: pytest docs suite
+
+- **Command**: `uv run pytest tests/docs/ -q`
+- **Result**: [pass/fail]
+- **Tests run**: [N]
+- **Tests passed**: [N]
+- **Tests failed**: 0
+- **Fixes applied**: [list any fixes, or "none"]
+
+## T037: toc.yml reachability + TODO markers
+
+- **Pages checked**: [list pages]
+- **All pages in toc.yml**: [yes/no — list any misses]
+- **TODO markers found**: 0
+- **Deferral language found**: 0
+- **Fixes applied**: [list any, or "none"]
+
+## T038: CLI flags vs --help
+
+- **Subcommands verified**: charter interview, generate, synthesize, resynthesize, status, sync, lint, bundle validate; profiles list; ask; advise; do; profile-invocation complete; next; mission; glossary; retrospect summary; agent retrospect synthesize
+- **Discrepancies found**: [list any, or "none"]
+- **Fixes applied**: [list any, or "none"]
+
+## T039: Documentation mission phases
+
+- **mission-runtime.yaml phases**: [list phases]
+- **documentation-mission.md phases**: [list phases]
+- **Match**: [yes/no]
+- **Fixes applied**: [list any, or "none"]
+
+## T040: Tutorial smoke-test and setup-governance.md check
+
+- **Tutorial**: docs/tutorials/charter-governed-workflow.md
+- **Smoke-test repo**: temp dir (cleaned after test)
+- **Source-repo pollution**: none
+- **Steps passed**: [list which steps ran cleanly]
+- **Steps that require SaaS or interactive**: [list and note]
+- **Result**: [pass/fail]
+- **setup-governance.md smoke-test**: [pass/fail or "not run — see notes"]
+
+## Summary
+
+All validation checks: [PASS / FAIL with list of failures]
+
+Ready for PR: [yes/no]
+```
+
+## Definition of Done
+
+- [ ] `uv run pytest tests/docs/ -q` → zero failures
+- [ ] `docs/docfx.json` confirmed to include `docs/3x/` and `docs/migration/`; DocFX build passes or note recorded
+- [ ] All new/changed pages verified in toc.yml
+- [ ] `grep -r 'TODO' [all new pages]` → zero results
+- [ ] `grep -r 'TODO: register in docs nav' docs/` → zero results
+- [ ] Deferral-language grep → zero results in published doc pages
+- [ ] CLI flags in `charter-commands.md`, `cli-commands.md`, and `profile-invocation.md` verified against live `--help`; includes `charter synthesize` and `charter resynthesize`
+- [ ] Retrospective references use `retrospect summary` / `agent retrospect synthesize` — not `retro` variants, and do not invent an `agent retrospect synthesize --dry-run` flag
+- [ ] Documentation mission phases verified against `mission-runtime.yaml`
+- [ ] Tutorial smoke-test completed with no source-repo pollution
+- [ ] `docs/how-to/setup-governance.md` flow smoke-tested from temp repo
+- [ ] `kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/validation-report.md` written with evidence for each check
+- [ ] All checks PASS (no outstanding failures)

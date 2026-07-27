@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "mission_slug": "unified-charter-bundle-chokepoint-01KP5Q2G",
+  "mission_id": "01KP5Q2G4Z39ZVRX2FY3NWXZQW",
+  "mission_branch": "kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "architecture/2.x/06_unified_charter_bundle.md",
+        "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/baseline/**",
+        "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/WP01.yaml",
+        "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/WP02.yaml",
+        "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/WP03.yaml",
+        "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/WP04.yaml",
+        "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/index.yaml",
+        "src/charter/__init__.py",
+        "src/charter/bundle.py",
+        "src/charter/context.py",
+        "src/charter/resolution.py",
+        "src/charter/sync.py",
+        "src/specify_cli/charter/**",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/charter_bundle.py",
+        "src/specify_cli/dashboard/charter_path.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/dashboard/server.py",
+        "src/specify_cli/next/prompt_builder.py",
+        "src/specify_cli/upgrade/migrations/__init__.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py",
+        "tests/charter/test_bundle_contract.py",
+        "tests/charter/test_bundle_manifest_model.py",
+        "tests/charter/test_bundle_validate_cli.py",
+        "tests/charter/test_canonical_root_resolution.py",
+        "tests/charter/test_chokepoint_coverage.py",
+        "tests/charter/test_chokepoint_overhead.py",
+        "tests/charter/test_resolution_overhead.py",
+        "tests/charter/test_worktree_charter_via_canonical_root.py",
+        "tests/init/test_fresh_clone_no_sync.py",
+        "tests/test_dashboard/test_charter_chokepoint_regression.py",
+        "tests/upgrade/fixtures/unified_bundle/**",
+        "tests/upgrade/test_unified_bundle_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-14T11:31:54.349336+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 3
+    }
+  }
+}

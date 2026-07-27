@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "mission_slug": "feature-alias-removal-01KW0N87",
+  "mission_id": "01KW0N879YNT6HYB6DX1JE6STX",
+  "mission_branch": "kitty/mission-feature-alias-removal-01KW0N87",
+  "target_branch": "feat/feature-alias-removal",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/merge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/context.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/cli/commands/research.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/lifecycle.py",
+        "src/specify_cli/cli/commands/mission_type.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/contract/test_feature_alias_scope.py",
+        "tests/contract/test_terminology_guards.py",
+        "tests/specify_cli/cli/test_no_visible_feature_alias.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/contract/test_no_selector_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/engineering_notes/3-2-0-training-bugs-2007/pedro-command-drift.md",
+        "docs/reference/environment-variables.md",
+        "docs/reference/orchestrator-api.md",
+        "docs/status-model.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-06-26T01:04:43.359463+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

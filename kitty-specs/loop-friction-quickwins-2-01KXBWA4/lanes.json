@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "mission_slug": "loop-friction-quickwins-2-01KXBWA4",
+  "mission_id": "01KXBWA43FCFWNMGDG8RN6N8WY",
+  "mission_branch": "kitty/mission-loop-friction-quickwins-2-01KXBWA4",
+  "target_branch": "feat/loop-friction-quickwins-2",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "src/specify_cli/frontmatter.py",
+        "tests/agent/test_orchestrator_lane_allocation.py",
+        "tests/specify_cli/cli/commands/test_implement_runtime_frontmatter_claim.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/analysis_report.py",
+        "tests/specify_cli/test_analysis_report.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/skills/spk-run-implement-review/SKILL.md",
+        "src/specify_cli/review/_interpreter.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/review/test_pre_review_gate_interpreter.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".kittify/agent_profiles_manifest.json",
+        "src/specify_cli/tool_surface/profiles/manifest.py",
+        "tests/specify_cli/tool_surface/profiles/test_manifest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/bulk_edit/inference.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/cli/commands/review/_issue_matrix.py",
+        "tests/specify_cli/bulk_edit/test_inference.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission-steps/software-dev/plan/prompt.md",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/missions/_substantive.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "tests/coordination/test_surface_resolver_coord_empty_warning.py",
+        "tests/coordination/test_surface_resolver_solo_coord_primary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_authority_staging.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-12T21:02:20.330180+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

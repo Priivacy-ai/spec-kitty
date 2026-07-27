@@ -1,0 +1,88 @@
+{
+  "mission_slug": "doctrine-activation-freshness-01KXRSDN",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "SC-001",
+      "description": "The 4 @pytest.mark.regression DRG-staleness tests pass with their markers removed; spec-kitty doctrine regenerate-graph --check is green.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (8de93eed) removed the 4 #2770-tied @regression markers; the tests pass as ordinary blocking tests (4 passed, independently re-verified with uv run); regenerate-graph --check fresh; baseline 289/765/11 intact (regen/citation already landed by S-C). Scoped strictly to 3 owned files, no other @regression touched.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Durable un-pin re-arms the gate against future recurrence."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "On a fresh project, charter activate makes the synthesized-DRG freshness signal report stale (where it previously reported fresh); reconciliation returns it to fresh.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (7bc87cdac) wired run_consistency_check parity into _compute_synthesized_drg (read-path). Tests: activate->stale->reconcile->fresh, deactivate symmetric, deactivate-to-empty, cascade single-signal, merge_defaults-seeded visibility (writer-agnostic). Wiring traced to the live compute_freshness path (not dead code). 22 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP03)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Reuses the existing parity authority (C-007); composed with content-identity, #2732 preserved."
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "A project missing references.yaml never yields a permanent-stale None; freshness resolves to a definite verdict or a single actionable recovery step.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (27fea64e5) added a fail-closed preflight (_raise_if_bundle_incomplete, separate helper) that surfaces an actionable 'run charter generate' message before the real-run write path can persist an un-healable None. 4-file hash unchanged (no #2773 stopgap). 12 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP02)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Q1 resolved fail-closed (operator decision 01KXRVT2KA...); keeps #2773 references.yaml deprecation clean."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "The implement-boundary preflight reports all outstanding charter-owed prerequisites in one pass.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (edcfdd6e7) rewrote _derive_blocked_reason to enumerate every non-passing check (charter_source/synced_bundle/synthesized_drg) into the single blocked_reason string. Single-failure output byte-identical; per-check verdicts unchanged; result.py schema untouched; C-004 fence (2157b analyzer-freshness OUT) tested by monkeypatch. 33 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP04)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Real fix site is _derive_blocked_reason (not _attempt_auto_refresh, which already batches) — corrected by the post-tasks squad."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "Default charter activate spawns zero synthesis/regenerate subprocesses; --resynthesize leaves the signal fresh immediately; the spec-kitty upgrade migration path is unaffected.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (fad232e45) added --resynthesize to activate/deactivate reusing the existing generate+synthesize entry points (identity-checked, single authority). NFR-001 spy: default path zero synthesis calls (both commands). NFR-003: promote_activations (migration/org_charter) triggers no synthesis. End-to-end: fresh with flag, stale without. 62 tests green; commit_plan untouched (C-001).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP05)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Typer command-body reuse judged sound; residual signature-coupling watch-item documented (non-blocking follow-up)."
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "The #2732 content-identity tests remain green; the hash of an unchanged bundle is unchanged by this mission.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 pins a complete-bundle sha256 (byte-unchanged); WP03 asserts unchanged-bundle->unchanged-hash and the fresh-seed built_in_only pass-state (no spurious stale). compute_bundle_content_hash recipe, write-side stamps, built_in_only normalization, and fresh-seed early-exit all untouched. Broader charter/charter_runtime suites green (1623 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP02, WP03)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Parity is a separate signal composed with content-identity, never a hash input (NFR-002)."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Default charter activate/deactivate performs zero synthesis/regenerate subprocess (call-count/subprocess spy).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 subprocess/call-count spy patches the genuine generate/charter_synthesize source attributes; asserts call_count==0 on default activate and deactivate.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP05)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Hot-path preserved; eager refresh only via --resynthesize."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "DRG zero-delta: regenerate-graph --check green and a fresh regeneration is byte-identical to the committed graph.yaml; baseline counts frozen.",
+      "proof_type": "automated_test",
+      "evidence": "WP01: regenerate-graph --check fresh; TestDRGZeroDelta (289/765/11) green un-pinned; a fresh regeneration matches the shipped graph byte-for-byte.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01)",
+      "verified_at": "2026-07-18T00:00:00+00:00",
+      "notes": "Baseline unchanged from the S-C-landed value."
+    }
+  ]
+}

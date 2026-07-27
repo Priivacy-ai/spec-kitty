@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "offline-queue-enqueue-performance-01KRC4HN",
+  "mission_id": "01KRC4HNQMTVV2G7XY1SCJ00ZR",
+  "mission_branch": "kitty/mission-offline-queue-enqueue-performance-01KRC4HN",
+  "target_branch": "kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "kitty-specs/offline-queue-enqueue-performance-01KRC4HN/benchmark.md",
+        "scripts/benchmarks/bench_queue_enqueue.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/sync/test_offline_queue_counter.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-11T18:29:28.760117+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

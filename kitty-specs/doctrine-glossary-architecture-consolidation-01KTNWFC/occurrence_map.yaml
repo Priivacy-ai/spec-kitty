@@ -1,0 +1,72 @@
+# Reference-rewrite CHECKLIST (planning aid) for WP01 / WP02 — NOT a gate artifact.
+#
+# UPDATE (2026-06-09, analysis remediation O1): mission `change_mode: bulk_edit` was REVERTED.
+# Reason: the canonical occurrence-map (DIRECTIVE_035) models a SINGLE `target.term → replacement`
+# string-rename across 8 categories — it does NOT model this mission's MULTI-PATH directory
+# restructure (glossary promotion + architecture moves). The bulk-edit gate is the wrong tool here.
+# Instead, reference integrity is enforced by the WP01/WP02 Definition-of-Done: post-move grep,
+# `spec-kitty glossary validate`, and `doctor doctrine` (this is R-05's original selective intent).
+# This file remains a CHECKLIST of the rewrite surface for the implementer — not a runtime gate.
+# Mechanism gap filed upstream (occurrence-map can't model structural restructures).
+
+mission: doctrine-glossary-architecture-consolidation-01KTNWFC
+status: glossary-section-finalized (WP01, 2026-06-11); architecture-section-draft (WP02)
+applies_to_concerns: [IC-01, IC-02]
+
+# The structural changes driving every rewrite.
+#
+# RE-SCOPED (2026-06-11, resume-review aggregate, operator decision 4): IC-01 is a
+# RECONCILE + DELETE-RESIDUAL, not a move. The top-level `glossary/` (+ `glossary/contexts/`)
+# was already promoted to the canonical surface at #1636/01KTB6AN (2026-03-10). Re-"moving"
+# it would re-fork the very surface C-005 forbids. WP01 therefore (a) confirms the canonical
+# top-level `glossary/`, (b) DELETES the residual `architecture/glossary/` pointer README,
+# (c) rewrites residual references, (d) refreshes content, (e) records the FR-011 scope defer.
+moves:
+  - glossary_reconcile:     # IC-01 (was glossary_promotion — re-scoped to reconcile)
+      canonical: "glossary/ (top-level) + glossary/contexts/ — ALREADY established (#1636, 2026-03-10); confirm, do not re-create"
+      delete:    ["architecture/glossary/ (residual pointer README — C-005)"]
+      confirm_no_change:
+        - ".kittify/glossaries/<scope>.yaml — deployed seed location; loader already reads it (NOT a source to move)"
+        - "src/glossary/scope.py + seed_validation.py — already read .kittify/glossaries/; no architecture/glossary refs (T003 = confirm-only)"
+        - ".kittify/charter charter.md:316 — already cites glossary/contexts/ (owned by WP02; do not edit)"
+      rewrite_residual_refs:
+        - "docs/development/3-2-page-inventory.yaml — drop deleted architecture/glossary/README.md entry"
+        - "docs/development/3-2-version-taxonomy.md — drop architecture/glossary row + adjust sanity totals"
+        - "architecture/README.md structure table — owned by WP02 (coordinate; WP02 rewrites its own README + charter authority paths)"
+  - architecture_layout:    # IC-02
+      from: ["architecture/2.x/** (C4)", "scattered top-level arch docs"]
+      to:   "architecture/diagrams/{01_context,02_containers,03_components}/, architecture/{vision,audience}/, versioned history retained"
+
+# 8 standard categories — action per category (finalize exact entries at tasks time)
+categories:
+  code_symbols:
+    action: review
+    notes: "GlossaryScope loader + any hard-coded glossary/arch path constants in src/glossary, src/doctrine. Confirmed at implement: src/glossary/scope.py reads .kittify/glossaries/<scope>.yaml; no architecture/glossary path constants. GlossaryScope enum unchanged (FR-011 defer)."
+  import_paths:
+    action: review
+    notes: "Python imports referencing moved glossary modules (if module paths change; content moves may not change imports)."
+  filesystem_paths:
+    action: rewrite
+    notes: "PRIMARY category. Glossary (WP01): residual architecture/glossary/ DELETED; doc-inventory cross-links rewritten (3-2-page-inventory.yaml, 3-2-version-taxonomy.md); charter authority path + architecture/README.md table owned by WP02 (already cites glossary/contexts/). Architecture (WP02): architecture/ path rewrites."
+  serialized_keys:
+    action: review
+    notes: "YAML keys referencing scopes/paths (e.g. glossary scope filenames); GlossaryScope enum values unchanged (FR-011 defer)."
+  cli_commands:
+    action: none
+    notes: "No CLI command names change; `spec-kitty glossary` surface unchanged."
+  user_facing_strings:
+    action: review
+    notes: "Doc prose + README references to old architecture/glossary locations; explanation links updated to point up at architecture (no dup)."
+  tests_fixtures:
+    action: rewrite
+    notes: "Tests asserting glossary/architecture paths (e.g. glossary loader tests, architectural authority-path tests)."
+  logs_telemetry:
+    action: none
+    notes: "No path-bearing log/telemetry strings expected; confirm at implement."
+
+exceptions:
+  - "architecture/1.x/** and architecture/2.x/** historical snapshots: paths INSIDE frozen version dirs are NOT rewritten (history is immutable); only references that should point to the new living surface are updated."
+
+verification:
+  - "Post-move grep for old paths returns only intended/historical hits (see quickstart.md)."
+  - "spec-kitty glossary validate + doctor doctrine + terminology guard pass."

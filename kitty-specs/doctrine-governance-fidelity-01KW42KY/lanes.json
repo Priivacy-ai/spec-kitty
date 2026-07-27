@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-governance-fidelity-01KW42KY",
+  "mission_id": "01KW42KY6AXQ3B6DTCTFT0XMTV",
+  "mission_branch": "kitty/mission-doctrine-governance-fidelity-01KW42KY",
+  "target_branch": "mission/doctrine-governance-fidelity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/compiler.py",
+        "tests/charter/test_compiler_documentation_policy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/invocation/org_profiles.py",
+        "tests/specify_cli/invocation/test_org_profiles.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/pack_manager.py",
+        "src/specify_cli/cli/commands/charter/_layer_roots.py",
+        "tests/specify_cli/cli/commands/charter/test_activation_layout.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/override_policy.py",
+        "tests/architectural/test_builtin_override_policy.py",
+        "tests/doctrine/drg/test_override_policy_predicates.py",
+        "tests/doctrine/test_drg_merge.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "src/specify_cli/invocation/registry.py",
+        "tests/charter/test_context_org_governance.py",
+        "tests/specify_cli/invocation/test_registry_org_visibility.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/profiles/projection.py",
+        "tests/specify_cli/tool_surface/test_projection_org_visibility.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_doctrine_collect.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_override_diagnostics.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-g"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_org_activation_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-27T09:20:08.074500+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "mission_slug": "stable-320-p0-cli-stabilization-01KQSNGY",
+  "mission_id": "01KQSNGYG5B5AGH90CB81JEVMG",
+  "mission_branch": "kitty/mission-stable-320-p0-cli-stabilization-01KQSNGY",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/sync/background.py",
+        "src/specify_cli/status/**",
+        "tests/sync/test_background.py",
+        "tests/specify_cli/status/**",
+        "tests/status/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/post_merge/review_artifact_consistency.py",
+        "src/specify_cli/review/**",
+        "tests/post_merge/test_review_artifact_consistency.py",
+        "tests/review/**",
+        "tests/specify_cli/cli/commands/agent/test_tasks.py",
+        "tests/tasks/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/**",
+        "src/specify_cli/runtime/agent_commands.py",
+        "src/specify_cli/runtime/doctor.py",
+        "src/specify_cli/shims/**",
+        "src/specify_cli/skills/command_installer.py",
+        "tests/runtime/test_doctor_command_file_health.py",
+        "tests/specify_cli/runtime/test_agent_commands_routing.py",
+        "tests/specify_cli/shims/**",
+        "tests/specify_cli/skills/test_command_installer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".agents/skills/spec-kitty.advise/SKILL.md",
+        ".kittify/command-skills-manifest.json",
+        "src/specify_cli/runtime/agent_skills.py",
+        "src/specify_cli/skills/command_renderer.py",
+        "src/specify_cli/skills/installer.py",
+        "src/specify_cli/skills/verifier.py",
+        "tests/runtime/test_agent_skills.py",
+        "tests/specify_cli/skills/__snapshots__/**",
+        "tests/specify_cli/skills/test_command_renderer.py",
+        "tests/specify_cli/skills/test_installer.py",
+        "tests/specify_cli/skills/test_verifier.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/stable-320-p0-cli-stabilization-01KQSNGY/checklists/**",
+        "kitty-specs/stable-320-p0-cli-stabilization-01KQSNGY/quickstart.md",
+        "kitty-specs/stable-320-p0-cli-stabilization-01KQSNGY/release-evidence.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-04T15:00:11.158539+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ]
+}

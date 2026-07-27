@@ -1,0 +1,45 @@
+# Occurrence map for: Agent Harness Install Audit Follow-Through (DIRECTIVE_035)
+#
+# Target: stale Codex install path root `.codex/`
+# This governs FR-001 through FR-006 only (docs cleanup).
+# FR-007–012 (snapshots, Antigravity, Kiro) involve no cross-cutting string rename
+# and are not governed by this map.
+#
+# Context: The retired `.codex/` prompt/skill root appears in 7 doc files as
+# active install guidance. The canonical replacement is `.agents/skills/`.
+# Because the changes are doc-only and each occurrence needs judgment about
+# whether to replace, remove, or preserve as historical, most categories use
+# manual_review. The gate allows implement to proceed; reviewers must verify
+# that no active doc retains stale guidance.
+
+target:
+  term: ".codex/"
+  replacement: ".agents/skills/"
+  operation: rename
+
+categories:
+  code_symbols:         { action: do_not_change }    # No Python symbols reference .codex/
+  import_paths:         { action: do_not_change }    # No Python import paths reference .codex/
+  filesystem_paths:     { action: manual_review }    # Path literals in docs vary: some replace, some remove, some preserve as historical
+  serialized_keys:      { action: do_not_change }    # .codex/ is not a serialized key
+  cli_commands:         { action: do_not_change }    # .codex/ is not a CLI command name
+  user_facing_strings:  { action: manual_review }    # Doc text varies by file: active guidance → update; historical → preserve with label
+  tests_fixtures:       { action: manual_review }    # Any test fixtures referencing .codex/ need per-occurrence judgment
+  logs_telemetry:       { action: do_not_change }    # No log/metric labels reference .codex/
+
+exceptions:
+  - path: "docs/development/**"
+    action: do_not_change
+    reason: "Development/planning docs are historical records, not active user guidance. Stale paths here are acceptable."
+
+  - path: "docs/changelog/**"
+    action: do_not_change
+    reason: "Changelog entries are immutable historical records."
+
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Mission planning artifacts are not user-facing docs and must not be altered by the bulk-edit pass."
+
+  - path: "docs/how-to/setup-codex-spec-kitty-launcher.md"
+    action: manual_review
+    reason: "Entire file documents the retired .codex/ launcher model. Implementer must decide: rewrite to current .agents/skills/ model, or replace file content with a redirect to docs/how-to/harnesses/codex.md."

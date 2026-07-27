@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "mission_slug": "codebase-sanitization-1060-1622-01KV5F0B",
+  "mission_id": "01KV5F0BPCVR42KCJX10ZQNB9D",
+  "mission_branch": "mission/codebase-sanitization-1060-1622",
+  "target_branch": "mission/codebase-sanitization-1060-1622",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/context.py",
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "tests/cross_cutting/misc/test_tasks_cli_commands.py",
+        "tests/e2e/test_feature_alias_smoke.py",
+        "tests/specify_cli/cli/commands/agent/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/lint.py",
+        "src/specify_cli/cli/commands/materialize.py",
+        "src/specify_cli/cli/commands/validate_encoding.py",
+        "src/specify_cli/cli/commands/validate_tasks.py",
+        "src/specify_cli/cli/commands/verify.py",
+        "tests/cross_cutting/encoding/test_encoding_validation_cli.py",
+        "tests/specify_cli/cli/commands/test_charter_lint.py",
+        "tests/specify_cli/cli/commands/test_materialize.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/specify_cli/coordination/test_1622_dead_symbol_retirement.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/contract/test_feature_alias_scope.py",
+        "tests/contract/test_terminology_guards.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/missions/_legacy_aliases.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/integration/test_legacy_feature_alias.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-06-15T12:56:54.534433+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

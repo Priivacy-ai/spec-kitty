@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "mission_slug": "065-wp-metadata-state-type-hardening",
+  "mission_id": "065-wp-metadata-state-type-hardening",
+  "mission_branch": "kitty/mission-065-wp-metadata-state-type-hardening",
+  "target_branch": "feature/metadata-state-type-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "CLAUDE.md",
+        "README.md",
+        "architecture/adr-*-wp-state-pattern.md",
+        "docs/2x/runtime-and-missions.md",
+        "docs/explanation/kanban-workflow.md",
+        "docs/status-model.md",
+        "src/specify_cli/acceptance.py",
+        "src/specify_cli/cli/commands/agent/feature.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/dashboard/api_types.py",
+        "src/specify_cli/dashboard/handlers/api.py",
+        "src/specify_cli/dashboard/handlers/features.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/dashboard/static/dashboard/dashboard.js",
+        "src/specify_cli/dependency_graph.py",
+        "src/specify_cli/next/decision.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/requirement_mapping.py",
+        "src/specify_cli/scripts/tasks/task_helpers.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/bootstrap.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/status/transition_context.py",
+        "src/specify_cli/status/transitions.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "src/specify_cli/status/wp_state.py",
+        "src/specify_cli/task_profile.py",
+        "src/specify_cli/tasks_support.py",
+        "tests/specify_cli/status/test_transition_context.py",
+        "tests/specify_cli/status/test_wp_metadata.py",
+        "tests/specify_cli/status/test_wp_state.py",
+        "tests/test_dashboard/test_api_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-06T06:47:48.944517+00:00",
+  "computed_from": "dependency_graph+ownership"
+}
