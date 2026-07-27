@@ -1,0 +1,87 @@
+# Occurrence-classification artifact for WP03.
+# WP03 finishes Phase 1 of EPIC #461: validators reject inline refs, single
+# context builder, legacy excision. After WP03 lands, every legacy symbol
+# below should have zero in-source / in-tree occurrences (modulo the
+# permitted_exceptions list).
+
+wp_id: WP03
+mission_slug: excise-doctrine-curation-and-inline-references-01KP54J6
+requires_merged:
+  - WP01
+  - WP02
+
+categories:
+  - name: import_path
+    strings:
+      - "charter.reference_resolver"
+      - "from charter.reference_resolver"
+    include_globs:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    exclude_globs:
+      - "**/__pycache__/**"
+      - "kitty-specs/**"
+    expected_final_count: 0
+    to_change: "All callers must use doctrine.drg.query.resolve_transitive_refs (via charter._drg_helpers.load_validated_graph)."
+
+  - name: symbol_name
+    strings:
+      - "resolve_references_transitively"
+      - "ResolvedReferenceGraph"
+      - "_REF_TYPE_MAP"
+      - "_Walker"
+      - "build_context_v2"
+      - "include_proposed"
+    include_globs:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    exclude_globs:
+      - "**/__pycache__/**"
+      - "kitty-specs/**"
+      - "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+    expected_final_count: 0
+    to_change: "All legacy symbols deleted in WP03; the only allowed mention is in pre-WP03 charter-rename migration history."
+
+  - name: template_reference
+    strings:
+      - "reference_resolver"
+    include_globs:
+      - "src/**/*.md"
+      - "docs/**/*.md"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change: "Documentation references to the deleted module removed."
+
+  - name: test_identifier
+    strings:
+      - "test_reference_resolver"
+      - "test_context_parity"
+      - "test_shipped_doctrine_cycle_free"
+    include_globs:
+      - "tests/charter/**/*.py"
+      - "tests/doctrine/test_cycle_detection.py"
+      - "tests/doctrine/test_shipped_doctrine_cycle_free.py"
+    exclude_globs:
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change: "Legacy parity / resolver / cycle-detection test files deleted in T018; rehomed coverage lives in tests/charter/test_context.py + tests/doctrine/drg/test_resolve_transitive_refs.py + tests/charter/test_merged_graph_on_live_path.py + tests/doctrine/drg/test_shipped_graph_valid.py."
+
+  - name: docstring_or_comment
+    strings:
+      - "ResolvedReferenceGraph"
+      - "resolve_references_transitively"
+    include_globs:
+      - "src/**/*.py"
+    exclude_globs:
+      - "**/__pycache__/**"
+      - "kitty-specs/**"
+    expected_final_count: 0
+    to_change: "Docstring references to the deleted symbols removed; replaced with neutral wording."
+
+permitted_exceptions:
+  - pattern: "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+    rationale: "Pre-WP03 historical migration that renamed charter; required string content is part of past commit history (C-006)."
+
+verifier_command: "python scripts/verify_occurrences.py kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/occurrences/WP03.yaml"

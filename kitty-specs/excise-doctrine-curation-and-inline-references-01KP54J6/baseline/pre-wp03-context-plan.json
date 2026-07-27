@@ -1,0 +1,10 @@
+{
+  "result": "success",
+  "success": true,
+  "action": "plan",
+  "mode": "compact",
+  "first_load": false,
+  "references_count": 0,
+  "context": "Governance:\n  - Template set: software-dev-default\n  - Paradigms: (none)\n  - Directives: DIRECTIVE_001, DIRECTIVE_003, DIRECTIVE_010, DIRECTIVE_018, DIRECTIVE_024, DIRECTIVE_025, DIRECTIVE_028, DIRECTIVE_029, DIRECTIVE_030, DIRECTIVE_031, DIRECTIVE_032, DIRECTIVE_033, DIRECTIVE_034\n  - Tools: git, mypy, pytest, python, ruff, spec-kitty, uv\n  - Diagnostics: No available_tools selection provided; using runtime tool registry fallback. | Template set not selected in charter; fallback 'software-dev-default' applied.",
+  "text": "Governance:\n  - Template set: software-dev-default\n  - Paradigms: (none)\n  - Directives: DIRECTIVE_001, DIRECTIVE_003, DIRECTIVE_010, DIRECTIVE_018, DIRECTIVE_024, DIRECTIVE_025, DIRECTIVE_028, DIRECTIVE_029, DIRECTIVE_030, DIRECTIVE_031, DIRECTIVE_032, DIRECTIVE_033, DIRECTIVE_034\n  - Tools: git, mypy, pytest, python, ruff, spec-kitty, uv\n  - Diagnostics: No available_tools selection provided; using runtime tool registry fallback. | Template set not selected in charter; fallback 'software-dev-default' applied."
+}
