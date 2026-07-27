@@ -503,26 +503,25 @@ def load_org_pack(
     # migrates built-in/shipped field-authored relationships into fragment
     # edges) the field-projection path is RETAINED so already-shipped artifacts
     # keep emitting their edges. Both paths route through the single relation
-    # source (:data:`AUGMENTATION_RELATIONS`) and are deduplicated against the
-    # fragment-authored edges by ``(source, target, relation)``.
-    existing_edges = fragment_data.setdefault("edges", []) or []
-    seen: set[tuple[str, str, str]] = set()
-    for edge in existing_edges:
-        if isinstance(edge, dict):
-            seen.add(
-                (
-                    str(edge.get("source", "")),
-                    str(edge.get("target", "")),
-                    str(edge.get("relation", "")),
-                )
-            )
-    for auto_edge in _collect_augmentation_edges(pack_root):
-        key = (auto_edge["source"], auto_edge["target"], auto_edge["relation"])
-        if key in seen:
-            continue
-        existing_edges.append(auto_edge)
-        seen.add(key)
-    fragment_data["edges"] = existing_edges
+    # source (:data:`AUGMENTATION_RELATIONS`).
+    #
+    # The two paths are NOT reconciled here. This loader used to dedup them by
+    # ``(source, target, relation)`` on the raw strings as written, and that
+    # was only ever an approximation: the projection path emits fully-qualified
+    # ``<kind>:<id>`` endpoints while a fragment author naturally writes bare
+    # ids, so the two spellings of ONE relationship were two keys — and once
+    # ``doctrine.drg.merge._resolve_edge_endpoint`` became the canonicaliser,
+    # both keys resolved to the same triple and the edge landed twice.
+    #
+    # It cannot be repaired in place either: resolving a bare id the fragment
+    # does not declare requires the BUILT-IN layer, which the loader never
+    # sees. So edge identity belongs downstream of resolution and is owned by
+    # ``merge._OrgEdgeCollector`` — one authority, applied to what the
+    # endpoints MEAN rather than to how they were typed. Emitting both edges
+    # here is the honest report of what the pack declares; collapsing them is
+    # the merge's job.
+    authored_edges = list(fragment_data.get("edges") or [])
+    fragment_data["edges"] = authored_edges + _collect_augmentation_edges(pack_root)
 
     try:
         return OrgDRGFragment.model_validate(fragment_data)

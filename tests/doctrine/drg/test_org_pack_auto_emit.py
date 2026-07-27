@@ -2,8 +2,11 @@
 
 When a pack artifact declares ``enhances: <id>`` or ``overrides: <id>``,
 :func:`doctrine.drg.org_pack_loader.load_org_pack` MUST auto-emit a matching
-edge into the pack's DRG fragment. Hand-authored duplicates of the same edge
-are deduplicated by ``(source, target, relation)``.
+edge into the pack's DRG fragment. A hand-authored duplicate of the same edge
+contributes once to the merged graph, deduplicated by
+``(source, target, relation)`` — see
+:class:`doctrine.drg.merge._OrgEdgeCollector` for why that reconciliation is
+owned by the merge rather than by this loader.
 """
 
 from __future__ import annotations
@@ -12,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.models import Relation
+from doctrine.drg.merge import merge_three_layers
+from doctrine.drg.models import DRGGraph, Relation
 from doctrine.drg.org_pack_loader import load_org_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -127,8 +131,38 @@ def test_overrides_auto_emits_drg_edge(tmp_path: Path) -> None:
     assert matching[0].reason == "declared via tactic.overrides field"
 
 
+def _empty_built_in() -> DRGGraph:
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-07-27T00:00:00Z",
+        generated_by="test_org_pack_auto_emit",
+        nodes=[],
+        edges=[],
+    )
+
+
 def test_auto_emit_deduplicates_hand_authored_edge(tmp_path: Path) -> None:
-    """FR-014 dedupe: hand-authored copy of the auto-emitted edge survives only once."""
+    """FR-014 dedupe: hand-authored copy of the auto-emitted edge lands once.
+
+    Re-pinned by the WP08 fold. The FR-014 intent — one relationship declared
+    twice contributes one edge — is unchanged and is what this asserts. What
+    moved is *where* it is enforced.
+
+    This used to assert on ``fragment.edges``, i.e. on a dedup the loader
+    performed over the RAW endpoint strings. That could only ever collapse the
+    byte-identical case exercised below: the projection path emits qualified
+    ``<kind>:<id>`` endpoints while an author naturally writes bare ids, and
+    the loader cannot resolve a bare id it does not declare (that needs the
+    built-in layer). Keeping a partial reconciliation upstream is what made a
+    duplicate-emitting merge look reconciled.
+
+    So the assertion follows the guarantee to the merge. The loader now
+    reports what the pack literally declares — during the migration window
+    that doubled entry is the signal that a leftover ``enhances:`` field is
+    still there — and the merge collapses by resolved triple. The bare-vs-
+    qualified case the loader never could catch is covered in
+    ``tests/doctrine/drg/test_org_drg_bridge.py::TestOneRelationshipYieldsOneEdge``.
+    """
     pack_root = tmp_path / "pack"
     _write_tactic_yaml(
         pack_root,
@@ -151,13 +185,14 @@ def test_auto_emit_deduplicates_hand_authored_edge(tmp_path: Path) -> None:
     )
 
     fragment = load_org_pack("testpack", pack_root, layer_index=1)
+    merged = merge_three_layers(_empty_built_in(), [fragment], None)
 
     matching = [
         e
-        for e in fragment.edges
+        for e in merged.edges
         if e.source == "tactic:pack-tactic"
         and e.target == "tactic:builtin-tactic-id"
-        and e.relation == Relation.ENHANCES.value
+        and e.relation == Relation.ENHANCES
     ]
     assert len(matching) == 1, (  # golden-count: cardinality-is-contract
         f"Hand-authored + auto-emitted edge should collapse to one. "

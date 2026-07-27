@@ -588,6 +588,54 @@ class _OrgEdgeContribution:
     source_marker: str
 
 
+class _OrgEdgeCollector:
+    """Owns edge identity for the org layer: one triple, one edge.
+
+    An edge IS its ``(source, target, relation)`` triple — that is already the
+    graph's own identity notion (:func:`doctrine.drg.validator.validate_graph`
+    calls a repeated triple an error), so the same relationship declared twice
+    must contribute one edge, with the first declaring pack keeping provenance
+    exactly as org-vs-org node collisions do.
+
+    This used to be attempted in ``org_pack_loader.load_org_pack``, which
+    reconciled the field-projection edges against the fragment-authored ones.
+    But it keyed on the RAW, pre-resolution endpoint strings, and once endpoint
+    canonicalisation moved into :func:`_resolve_edge_endpoint` the bare and
+    qualified spelling of one relationship became two keys resolving to one
+    triple — so the merged graph got the edge twice.
+
+    The loader could not fix that in place: resolving a bare id the fragment
+    does not declare requires the BUILT-IN layer (rule 3), which the loader
+    never sees. Identity therefore belongs *here*, after resolution — one
+    authority rather than a partial one upstream that looked complete. Keying a
+    second dedup on raw strings as well would just recreate the drift.
+    """
+
+    def __init__(self) -> None:
+        self._contributions: list[_OrgEdgeContribution] = []
+        self._seen: set[tuple[str, str, str]] = set()
+
+    def add(self, minted: DRGEdge, authored: Any, source_marker: str) -> bool:
+        """Record *minted* unless its triple was already contributed.
+
+        Returns ``True`` when the caller should append the edge to the merged
+        graph, ``False`` when it is a restatement of one already there.
+        """
+        key = (minted.source, minted.target, minted.relation.value)
+        if key in self._seen:
+            return False
+        self._seen.add(key)
+        self._contributions.append(
+            _OrgEdgeContribution(minted, authored, source_marker)
+        )
+        return True
+
+    @property
+    def contributions(self) -> list[_OrgEdgeContribution]:
+        """The surviving org contributions, in declaration order."""
+        return self._contributions
+
+
 def _dangling_org_endpoints(
     contributions: Iterable[_OrgEdgeContribution],
     merged_nodes: Mapping[str, DRGNode],
@@ -740,7 +788,7 @@ def _merge_org_fragment(
     merged_edges: list[DRGEdge],
     invariant_urns: frozenset[str],
     conflicts: list[OrgDRGConflict],
-    contributions: list[_OrgEdgeContribution],
+    collector: _OrgEdgeCollector,
 ) -> None:
     """Merge one org-DRG fragment into *merged_nodes* / *merged_edges*.
 
@@ -799,11 +847,11 @@ def _merge_org_fragment(
         if conflict is not None:
             conflicts.append(conflict)
             continue
-        if drg_edge is not None:
+        # ``collector.add`` is the single authority on org edge identity: a
+        # relationship restated in another spelling (or by another pack)
+        # contributes once.
+        if drg_edge is not None and collector.add(drg_edge, edge, source_marker):
             merged_edges.append(drg_edge)
-            contributions.append(
-                _OrgEdgeContribution(drg_edge, edge, source_marker)
-            )
 
 
 def _warn_builtin_override(urn: str, source_marker: str) -> None:
@@ -1015,7 +1063,7 @@ def merge_three_layers(
         kind's layered-override tolerance.
     """
     conflicts: list[OrgDRGConflict] = []
-    contributions: list[_OrgEdgeContribution] = []
+    collector = _OrgEdgeCollector()
 
     # Seed the merged maps with the built-in layer.
     merged_nodes: dict[str, DRGNode] = {
@@ -1034,7 +1082,7 @@ def merge_three_layers(
             merged_edges,
             invariant_urns,
             conflicts,
-            contributions,
+            collector,
         )
 
     if any(c.resolution_applied == "hard_fail" for c in conflicts):
@@ -1054,7 +1102,7 @@ def merge_three_layers(
     # yet; now it has, so the deferral is collected here rather than left to a
     # validator that no caller of this function was actually running.
     _warn_dangling_org_endpoints(
-        _dangling_org_endpoints(contributions, merged_nodes)
+        _dangling_org_endpoints(collector.contributions, merged_nodes)
     )
 
     # Global URN-uniqueness scan (FR-008/FR-004, D-04 revised): a single
