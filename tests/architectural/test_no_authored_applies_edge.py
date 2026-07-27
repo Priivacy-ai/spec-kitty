@@ -49,16 +49,34 @@ When mission ``drg-edge-migration-extractor-retirement-01KYFV8C`` retires the ge
 surface 2 disappears and its assertion should be **deleted**, not weakened — the import
 will fail loudly, which is the intended behaviour.
 
-Absence claims in the relation registry are checked, not trusted
-----------------------------------------------------------------
+Edge-count claims in the relation registry are checked, not trusted
+-------------------------------------------------------------------
 ``RELATION_DESCRIPTIONS`` (``doctrine.drg.models``) is the canonical prose authority for
 every relation, mirrored into ``docs/architecture/doctrine-relationships.md``. Five entries
 state "zero edges exist in the built-in graph", and ``applies`` joins them in this change.
 Nothing checked those claims: the ``applies`` entry read "1 edge in the built-in graph"
 and stayed green after the edge count changed, and two positive counts had already drifted
 (``requires`` said 255 against 259 measured, ``suggests`` said 330 against 332).
-:class:`TestAbsenceClaimsAreTrue` closes the class this WP would otherwise create — a
-canonical description asserting a relation is unemitted while it is emitted.
+
+Both halves of the claim are now measured against the shipped graph, because gating only
+the absence half would fix the instance and leave the class — the five re-pinned positive
+counts would drift again on the next edge addition, silently, exactly as before:
+
+* :class:`TestAbsenceClaimsAreTrue` — "zero edges exist" must be true.
+* :class:`TestPositiveCountClaimsAreTrue` — "N edges" must be the right N.
+
+The positive counts use **two** phrasings, not the five the deferral note assumed:
+``(260 edges)`` and ``Emitted 8 times``. One alternation
+(:data:`_POSITIVE_CLAIM`) reads both, so no cross-registry normalisation is needed.
+:func:`unattributed_numbers` closes the remaining hole in that approach — a count written
+in a *third* phrasing would parse to nothing and be verified by nothing, so any number the
+patterns do not account for is red rather than skipped.
+
+Note the residual, deliberately out of scope here: ``in_tension_with`` (2 edges),
+``reconciles_tension`` (3) and ``rejects`` (8) are emitted but state no count at all.
+A claim that is never made cannot drift, so nothing is unchecked — but a count added to
+those entries later must go through :data:`_POSITIVE_CLAIM`, which
+:func:`unattributed_numbers` now forces.
 
 Non-vacuity (NFR-001)
 ---------------------
@@ -113,6 +131,18 @@ _OPERATING_PROCEDURE_URN = "procedure:onboard-external-agent-to-pack"
 #: Phrasing every registry entry uses to claim a relation is unemitted in the built-in
 #: graph. One uniform sentence, so the check is a lookup rather than a five-pattern parser.
 _ABSENCE_CLAIM = re.compile(r"zero edges exist in the built-in graph", re.IGNORECASE)
+
+#: Phrasings the registry uses to state a *positive* edge count. There are two, not the
+#: five the deferral note assumed: ``(260 edges)`` (``requires``/``suggests``/``scope``)
+#: and ``Emitted 8 times`` (``instantiates``/``specializes_from``). No cross-registry
+#: normalisation is needed -- one alternation reads both.
+_POSITIVE_CLAIM = re.compile(r"\((\d+) edges?\)|emitted (\d+) times", re.IGNORECASE)
+
+#: Numbers in the registry prose that are not edge counts (``walked at depth 1``).
+#: A fail-closed lexicon, NOT a violation allowlist: :func:`unattributed_numbers`
+#: reds on any number matched by neither pattern, so a *third* count phrasing cannot
+#: enter the registry ungated -- which is the class this check exists to close.
+_NON_COUNT_NUMBER = re.compile(r"depth (\d+)", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +264,57 @@ def claimed_absent_relations() -> frozenset[Relation]:
         for relation, text in RELATION_DESCRIPTIONS.items()
         if _ABSENCE_CLAIM.search(text)
     )
+
+
+def claimed_edge_counts(
+    descriptions: dict[Relation, str] | None = None,
+) -> dict[Relation, int]:
+    """Return the edge count each canonical description *claims* for its relation.
+
+    *descriptions* defaults to :data:`~doctrine.drg.models.RELATION_DESCRIPTIONS`; the
+    parameter exists so the mutation proofs can plant a wrong count and route through
+    this exact callable rather than re-implementing the parse.
+    """
+    source = RELATION_DESCRIPTIONS if descriptions is None else descriptions
+    claims: dict[Relation, int] = {}
+    for relation, text in source.items():
+        match = _POSITIVE_CLAIM.search(text)
+        if match is not None:
+            claims[relation] = int(match.group(1) or match.group(2))
+    return claims
+
+
+def measured_edge_counts(graph: DRGGraph) -> dict[Relation, int]:
+    """Return the number of edges of each relation actually present in *graph*."""
+    counts: dict[Relation, int] = {}
+    for edge in graph.edges:
+        counts[edge.relation] = counts.get(edge.relation, 0) + 1
+    return counts
+
+
+def unattributed_numbers(
+    descriptions: dict[Relation, str] | None = None,
+) -> dict[Relation, list[str]]:
+    """Return, per relation, every number in its description no pattern accounts for.
+
+    The completeness half of the count gate. Verifying the five *recognised* claims
+    leaves the class open: a sixth claim written in a third phrasing would parse to
+    nothing and be checked by nothing, which is exactly how ``requires`` reached 255
+    against 259 measured. Anything numeric that is neither a count claim
+    (:data:`_POSITIVE_CLAIM`, :data:`_ABSENCE_CLAIM`) nor a known non-count phrase
+    (:data:`_NON_COUNT_NUMBER`) is surfaced here so the parser must be widened
+    deliberately instead of silently under-reading.
+    """
+    source = RELATION_DESCRIPTIONS if descriptions is None else descriptions
+    leftovers: dict[Relation, list[str]] = {}
+    for relation, text in source.items():
+        stripped = _POSITIVE_CLAIM.sub(" ", text)
+        stripped = _ABSENCE_CLAIM.sub(" ", stripped)
+        stripped = _NON_COUNT_NUMBER.sub(" ", stripped)
+        remaining = re.findall(r"\S*\d+\S*", stripped)
+        if remaining:
+            leftovers[relation] = remaining
+    return leftovers
 
 
 # ---------------------------------------------------------------------------
@@ -407,6 +488,13 @@ class TestAbsenceClaimsAreTrue:
             f"only {len(claimed)} absence claims parsed out of RELATION_DESCRIPTIONS"
         )
 
+    def test_no_relation_claims_both_absence_and_a_positive_count(self) -> None:
+        """The two claim shapes are mutually exclusive; an entry asserting both lies once."""
+        both = sorted(
+            r.value for r in claimed_absent_relations() & set(claimed_edge_counts())
+        )
+        assert not both, f"these entries claim both zero and a positive count: {both}"
+
     def test_applies_is_documented_as_unemitted(self) -> None:
         """The registry entry this WP invalidates must state the new truth, not the old one.
 
@@ -414,6 +502,53 @@ class TestAbsenceClaimsAreTrue:
         is why it survived unchanged while the edge it described was the mission's subject.
         """
         assert _FORBIDDEN in claimed_absent_relations()
+
+
+class TestPositiveCountClaimsAreTrue:
+    """A registry entry claiming *N* edges must be right about *N*, same as a zero claim.
+
+    Gating only the absence claims left the five positive counts free to drift again on
+    the next edge addition -- the shape they had already drifted in twice before this
+    module existed. Both claim shapes are now measured against the same shipped graph.
+    """
+
+    def test_every_positive_count_matches_the_measured_graph(
+        self, shipped_graph: DRGGraph
+    ) -> None:
+        measured = measured_edge_counts(shipped_graph)
+        wrong = {
+            relation.value: (claimed, measured.get(relation, 0))
+            for relation, claimed in claimed_edge_counts().items()
+            if measured.get(relation, 0) != claimed
+        }
+        assert not wrong, (
+            "RELATION_DESCRIPTIONS states an edge count the built-in graph does not "
+            f"have (relation: claimed vs measured): {wrong}. Update the registry entry "
+            "-- and its mirror in docs/architecture/doctrine-relationships.md, which "
+            "tests/doctrine/test_relation_doc_parity.py pins to it."
+        )
+
+    def test_the_count_scan_is_not_empty(self) -> None:
+        """Floor: a parser that matches nothing would pass the check above vacuously."""
+        claims = claimed_edge_counts()
+        assert len(claims) >= 5, (
+            f"only {len(claims)} positive counts parsed out of RELATION_DESCRIPTIONS: "
+            f"{sorted(r.value for r in claims)}"
+        )
+
+    def test_no_number_in_the_registry_escapes_attribution(self) -> None:
+        """Completeness: a count written in a third phrasing must not slip through.
+
+        Checking only the phrasings the parser already knows re-creates the original
+        defect one rewording later.
+        """
+        leftovers = {r.value: nums for r, nums in unattributed_numbers().items()}
+        assert not leftovers, (
+            "these numbers in RELATION_DESCRIPTIONS are matched by no known pattern, so "
+            f"nothing checks them: {leftovers}. If a number is an edge count, add its "
+            "phrasing to _POSITIVE_CLAIM so it is verified; if it is not, add it to "
+            "_NON_COUNT_NUMBER."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -500,3 +635,48 @@ class TestGateNonVacuity:
             if any(edge.relation is relation for edge in mutated.edges)
         ]
         assert liars == [victim.value]
+
+    def test_a_drifted_positive_count_is_caught(self, shipped_graph: DRGGraph) -> None:
+        """Plant the historical shape: ``requires`` reading 255 against 259 measured.
+
+        Same :func:`claimed_edge_counts` read the shipped assertion uses, against a
+        registry copy carrying the pre-WP09 wrong number.
+        """
+        drifted = dict(RELATION_DESCRIPTIONS)
+        drifted[Relation.REQUIRES] = drifted[Relation.REQUIRES].replace(
+            "(260 edges)", "(255 edges)"
+        )
+        assert drifted != RELATION_DESCRIPTIONS, "the mutation did not apply"
+
+        measured = measured_edge_counts(shipped_graph)
+        claims = claimed_edge_counts(drifted)
+        assert claims[Relation.REQUIRES] == 255
+        wrong = {
+            relation.value
+            for relation, claimed in claims.items()
+            if measured.get(relation, 0) != claimed
+        }
+        assert wrong == {"requires"}
+
+    def test_both_positive_phrasings_are_read(self) -> None:
+        """Discriminator: the parser is an alternation, not a single ``(N edges)`` regex.
+
+        ``instantiates``/``specializes_from`` state their counts as ``Emitted N times``.
+        A gate built on ``(\\d+) edges?`` alone would silently skip them -- present as a
+        checked claim, actually unchecked.
+        """
+        claims = claimed_edge_counts()
+        assert claims[Relation.REQUIRES] == 260  # "(260 edges)"
+        assert claims[Relation.INSTANTIATES] == 8  # "Emitted 8 times"
+
+    def test_an_unrecognised_count_phrasing_is_flagged(self) -> None:
+        """A third phrasing must red the sweep rather than parse to nothing."""
+        rephrased = dict(RELATION_DESCRIPTIONS)
+        rephrased[Relation.REJECTS] += " It carries 8 such links in the built-in graph."
+        assert Relation.REJECTS not in claimed_edge_counts(rephrased)
+        assert unattributed_numbers(rephrased) == {Relation.REJECTS: ["8"]}
+
+    def test_known_non_count_numbers_are_not_flagged(self) -> None:
+        """Negative control: ``walked at depth 1`` is prose, not a drifting claim."""
+        assert Relation.SCOPE not in unattributed_numbers()
+        assert Relation.VOCABULARY not in unattributed_numbers()
