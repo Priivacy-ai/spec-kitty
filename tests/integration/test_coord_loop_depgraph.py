@@ -28,6 +28,7 @@ Fixture layout (from ``coord_topology_fixture``):
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -128,6 +129,7 @@ class TestCheckDependentWarningsRoutesToPrimary:
         The console.print call containing "WP02" proves the graph was built from
         PRIMARY (coord husk has no tasks/ → empty graph → no warning without the fix).
         """
+        from mission_runtime import MissionArtifactKind, PlacementSeam
         from specify_cli.cli.commands.agent.tasks_dependency_graph import (
             _check_dependent_warnings,
         )
@@ -145,20 +147,28 @@ class TestCheckDependentWarningsRoutesToPrimary:
         printed_args: list[str] = []
 
         module = "specify_cli.cli.commands.agent.tasks_dependency_graph"
-        # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg now routes
-        # through the kind-aware ``mission_runtime.placement_seam(...)
-        # .read_dir(STATUS_STATE)`` seam (late-imported inside the function,
-        # mirroring the ``_resolve_workflow_placement`` lazy-import convention
-        # — tests/specify_cli/cli/commands/agent/test_workflow_placement_routing
-        # .py). Stub the seam itself rather than the retired
-        # ``resolve_feature_dir_for_mission`` name.
-        mock_seam = MagicMock()
-        mock_seam.read_dir.return_value = ctx.coord_feature_dir
+        # read-surface-ssot-closeout WP08 / FR-001: BOTH legs now route through the
+        # SAME kind-aware ``placement_seam(...).read_dir(<kind>)`` seam — STATUS via
+        # ``STATUS_STATE``, the dep-graph via ``WORK_PACKAGE_TASK``. A kind-BLIND
+        # seam stub (one ``read_dir.return_value`` for every kind) therefore no
+        # longer isolates the STATUS leg: it drags the dep-graph read onto the coord
+        # husk too, which has no ``tasks/`` — exactly the pre-WP06 bug this test
+        # exists to catch, manufactured by the stub itself. Drive the REAL seam
+        # instead (it resolves both legs correctly on this un-stubbed git fixture)
+        # and install a PASS-THROUGH spy that only RECORDS ``kind → dir``, so the
+        # per-leg routing decision still happens inside production code.
+        seen: dict[MissionArtifactKind, Path] = {}
+        real_read_dir = PlacementSeam.read_dir
+
+        def _spy_read_dir(
+            seam: PlacementSeam, kind: MissionArtifactKind
+        ) -> Path:
+            resolved: Path = real_read_dir(seam, kind)
+            seen[kind] = resolved
+            return resolved
+
         with (
-            patch(
-                "mission_runtime.placement_seam",
-                return_value=mock_seam,
-            ),
+            patch.object(PlacementSeam, "read_dir", _spy_read_dir),
             patch(
                 f"{module}.resolve_workspace_for_wp",
                 return_value=mock_ws,
@@ -181,9 +191,11 @@ class TestCheckDependentWarningsRoutesToPrimary:
             "If this is empty, build_dependency_graph ran on the coord husk (no tasks/) "
             "and returned {} — the pre-WP06 bug."
         )
-        from mission_runtime import MissionArtifactKind
-
-        mock_seam.read_dir.assert_called_once_with(MissionArtifactKind.STATUS_STATE)
+        # The C-001 per-leg split, proven on the REAL seam: the dep-graph read
+        # resolved PRIMARY (where tasks/ lives) while the STATUS read stayed on the
+        # coord husk. Asserting BOTH is what a kind-blind stub could never show.
+        assert seen[MissionArtifactKind.WORK_PACKAGE_TASK] == ctx.primary_feature_dir
+        assert seen[MissionArtifactKind.STATUS_STATE] == ctx.coord_feature_dir
 
     def test_neutrality_flat_topology(
         self, flat_topology_mission: FlatTopologyContext

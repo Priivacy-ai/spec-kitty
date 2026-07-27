@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from pathlib import Path
 from typing import Any, NoReturn
 
 import pytest
@@ -149,31 +150,87 @@ def test_divergence_triad_is_falsifiable(
 # ---------------------------------------------------------------------------
 
 
-def _revert_resolver_to_coord_aware(
-    monkeypatch: pytest.MonkeyPatch, *, module_attr: str | None = None
-) -> None:
-    """Patch ``resolve_planning_read_dir`` to behave like the coord-aware resolver.
+def _revert_resolver_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch the placement seam's read projection back to the coord-aware resolver.
 
-    This is the EXECUTED "revert": a kind-blind resolver that always returns the
+    This is the EXECUTED "revert": a kind-BLIND read that always returns the
     topology-aware candidate dir (the STATUS-only ``-coord`` husk for a coord
     mission), exactly as the pre-#2185 code did. Driving a routed PRIMARY read
     under this patch must surface the husk sentinel / empty artifact and flip the
     routed domain-value assertion RED.
 
-    ``module_attr`` patches a module-level binding (for ``from … import`` at module
-    top, e.g. ``specify_cli.merge.forecast``); when ``None`` it patches the SOURCE
-    (for function-local ``from … import`` re-lookups, e.g.
-    ``materialize_worktree_topology``).
+    Patched at the SEAM boundary — :meth:`mission_runtime.PlacementSeam.read_dir`,
+    the one projection every migrated read site now calls via
+    ``placement_seam(...).read_dir(<kind>)``. Patching the class method (rather
+    than a per-module ``placement_seam`` binding) reverts every routed site
+    uniformly, whether the module imported the factory at module scope
+    (``specify_cli.merge.forecast``, ``specify_cli.lanes.recovery``) or
+    function-locally (``materialize_worktree_topology``) — so the helper needs no
+    per-call-site targeting argument.
+
+    The fake's signature MATCHES the real callee ``read_dir(self, kind)``
+    exactly; it deliberately does NOT swallow extras with ``**kwargs``, so a
+    future signature change on the seam fails LOUDLY here instead of drifting
+    silently past this guard.
     """
+    from mission_runtime import MissionArtifactKind, PlacementSeam
     from specify_cli.missions._read_path_resolver import (
         candidate_feature_dir_for_mission,
     )
 
-    def _coord_aware(repo_root: Any, mission_slug: str, *, kind: Any) -> Any:
-        return candidate_feature_dir_for_mission(repo_root, mission_slug)
+    def _coord_aware(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
+        # Kind-BLIND by construction — the pre-#2185 resolver ignored ``kind``.
+        _ = kind
+        resolved: Path = candidate_feature_dir_for_mission(
+            self.repo_root, self.mission_slug
+        )
+        return resolved
 
-    target = module_attr or "specify_cli.missions._read_path_resolver"
-    monkeypatch.setattr(f"{target}.resolve_planning_read_dir", _coord_aware)
+    monkeypatch.setattr(PlacementSeam, "read_dir", _coord_aware)
+
+
+def _reroute_status_leg_to_primary(
+    monkeypatch: pytest.MonkeyPatch, primary_feature_dir: Path
+) -> None:
+    """Re-route ONLY the ``STATUS_STATE`` seam read to PRIMARY (NFR-001 guard).
+
+    The kind-SELECTIVE counterpart of :func:`_revert_resolver_to_coord_aware`:
+    it simulates a silent STATUS→PRIMARY re-route while leaving every other
+    kind on the real seam, so the resulting domain-value flip is attributable
+    to the STATUS leg alone. Every non-STATUS kind delegates to the real
+    :meth:`~mission_runtime.PlacementSeam.read_dir` — no path is faked.
+    """
+    from mission_runtime import MissionArtifactKind, PlacementSeam
+
+    real_read_dir = PlacementSeam.read_dir
+
+    def _rerouted(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
+        if kind is MissionArtifactKind.STATUS_STATE:
+            return primary_feature_dir
+        resolved: Path = real_read_dir(self, kind)
+        return resolved
+
+    monkeypatch.setattr(PlacementSeam, "read_dir", _rerouted)
+
+
+def _spy_seam_read_dir(
+    monkeypatch: pytest.MonkeyPatch, captured: dict[Any, Path]
+) -> None:
+    """Install a PASS-THROUGH spy over the seam's read projection.
+
+    Records ``kind → resolved dir`` for every routed read while the real routing
+    decision still happens inside production code (NFR-004: no primary-dir stub).
+    """
+    from mission_runtime import MissionArtifactKind, PlacementSeam
+
+    real_read_dir = PlacementSeam.read_dir
+
+    def _spy(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
+        resolved: Path = real_read_dir(self, kind)
+        captured[kind] = resolved
+        return resolved
+
+    monkeypatch.setattr(PlacementSeam, "read_dir", _spy)
 
 
 # ===========================================================================
@@ -213,7 +270,7 @@ def test_materialize_worktree_topology_returns_primary_worktrees(
     assert topo.mission_slug == ctx.slug
 
     # --- Executed revert→RED demonstration on the headline domain value. ---
-    _revert_resolver_to_coord_aware(monkeypatch)  # source-level (function-local import)
+    _revert_resolver_to_coord_aware(monkeypatch)  # seam-level (kind-blind read_dir)
     reverted = materialize_worktree_topology(ctx.repo, ctx.slug)
     assert {entry.wp_id for entry in reverted.entries} != {"WP01"}, (
         "REVERT GUARD FAILED: with the read reverted to coord-aware the topology "
@@ -273,7 +330,7 @@ def test_dry_run_forecast_returns_primary_wp_set(
     assert "error" not in payload
 
     # --- Executed revert→RED demonstration on the forecast WP set. ---
-    _revert_resolver_to_coord_aware(monkeypatch, module_attr="specify_cli.merge.forecast")
+    _revert_resolver_to_coord_aware(monkeypatch)
     with pytest.raises(typer.Exit):
         forecast.run_dry_run_forecast(
             repo_root=ctx.repo,
@@ -327,7 +384,7 @@ def test_scan_recovery_state_returns_primary_lane_membership(
     )
 
     # --- Executed revert→RED demonstration on the recovery membership. ---
-    _revert_resolver_to_coord_aware(monkeypatch, module_attr="specify_cli.lanes.recovery")
+    _revert_resolver_to_coord_aware(monkeypatch)
     reverted_states = recovery.scan_recovery_state(ctx.repo, ctx.slug)
     reverted_wp_ids = {rs.wp_id for rs in reverted_states}
     assert "WP01" not in reverted_wp_ids, (
@@ -353,10 +410,10 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
     ``status_lane`` reflects the coord event (a returned domain value).
 
     Revert-fails guard (executed below): re-routing the STATUS leg to PRIMARY
-    (patching the coord-aware ``candidate_feature_dir_for_mission`` to PRIMARY)
-    makes ``read_events`` read the PRIMARY decoy — whose event carries a
-    non-reducible marker — so ``status_lane`` collapses to the ``planned`` default,
-    flipping the domain value. A silent STATUS→PRIMARY re-route is caught.
+    (kind-selectively, at the seam's ``read_dir(STATUS_STATE)`` projection) makes
+    ``read_events`` read the PRIMARY decoy — whose event carries a non-reducible
+    marker — so ``status_lane`` collapses to the ``planned`` default, flipping the
+    domain value. A silent STATUS→PRIMARY re-route is caught.
     """
     from specify_cli import status as status_mod
     from specify_cli.lanes import recovery
@@ -400,11 +457,7 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
 
     # --- Executed revert-fails guard: re-route the STATUS leg to PRIMARY. ---
     seen_dirs.clear()
-    monkeypatch.setattr(
-        recovery,
-        "candidate_feature_dir_for_mission",
-        lambda repo_root, mission_slug: ctx.primary_feature_dir,
-    )
+    _reroute_status_leg_to_primary(monkeypatch, ctx.primary_feature_dir)
     reverted_states = recovery.scan_recovery_state(ctx.repo, ctx.slug)
     reverted_wp01 = next(rs for rs in reverted_states if rs.wp_id == "WP01")
     assert ctx.primary_feature_dir in seen_dirs, (
@@ -422,26 +475,24 @@ def test_executor_status_feature_dir_stays_coord_aware(
 ) -> None:
     """``_run_lane_based_merge`` binds its STATUS ``feature_dir`` off the COORD husk.
 
-    The executor threads ``feature_dir`` (the coord-aware
-    ``candidate_feature_dir_for_mission``) into ``status_feature_dir`` (the C-001
-    KEEP STATUS leg). We spy that resolver (pass-through, so the routing decision
+    The executor threads ``feature_dir`` (the seam's kind-aware
+    ``read_dir(STATUS_STATE)`` projection) into ``status_feature_dir`` (the C-001
+    KEEP STATUS leg). We spy that projection (pass-through, so the routing decision
     still happens in production) and short-circuit just past the PRIMARY reads, then
     assert the STATUS feature_dir resolves the coord husk — NOT PRIMARY (NFR-001).
+
+    The spy is kind-keyed, so it ALSO pins the per-leg split the executor depends
+    on: the same seam hands back PRIMARY for ``LANE_STATE`` / ``PRIMARY_METADATA``
+    in the very same call, which a kind-blind stub would have flattened away.
     """
+    from mission_runtime import MissionArtifactKind
     from specify_cli.merge import executor
 
     ctx = coord_topology_mission_sentinel_meta
     _assert_divergence_triad(ctx)
 
-    real_candidate = executor.candidate_feature_dir_for_mission
-    captured: dict[str, Any] = {}
-
-    def _spy_candidate(repo_root: Any, mission_slug: str) -> Any:
-        resolved = real_candidate(repo_root, mission_slug)
-        captured["status_feature_dir"] = resolved
-        return resolved
-
-    monkeypatch.setattr(executor, "candidate_feature_dir_for_mission", _spy_candidate)
+    captured: dict[Any, Path] = {}
+    _spy_seam_read_dir(monkeypatch, captured)
     monkeypatch.setattr(executor, "require_no_sparse_checkout", lambda **kwargs: None)
 
     def _stop(*_args: Any, **_kwargs: Any) -> NoReturn:
@@ -458,11 +509,15 @@ def test_executor_status_feature_dir_stays_coord_aware(
             remove_worktree=False,
         )
 
-    assert captured.get("status_feature_dir") == ctx.coord_feature_dir, (
-        "NFR-001: the executor STATUS feature_dir must resolve the COORD husk; got "
-        f"{captured.get('status_feature_dir')!r}"
+    status_dir = captured.get(MissionArtifactKind.STATUS_STATE)
+    assert status_dir == ctx.coord_feature_dir, (
+        f"NFR-001: the executor STATUS feature_dir must resolve the COORD husk; got {status_dir!r}"
     )
-    assert captured["status_feature_dir"] != ctx.primary_feature_dir
+    assert status_dir != ctx.primary_feature_dir
+    # The per-leg split, same call: the PRIMARY-partition kinds must NOT follow
+    # the STATUS leg onto the husk (a kind-blind read would land all three there).
+    assert captured[MissionArtifactKind.LANE_STATE] == ctx.primary_feature_dir
+    assert captured[MissionArtifactKind.PRIMARY_METADATA] == ctx.primary_feature_dir
 
 
 # ===========================================================================
