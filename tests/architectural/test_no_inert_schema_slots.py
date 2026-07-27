@@ -559,8 +559,9 @@ def test_the_scan_actually_sees_the_shipped_tree() -> None:
         f"detected; the floor is {MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND} — "
         "derived from _inert_slots_baseline.yaml itself (see _inert_slots.py), so "
         "this is not a stale hardcoded number. If a baseline entry was cleared "
-        "for real, delete its row from the file — the floor drops with it. Do "
-        "not add a compensating edit anywhere else."
+        "for real, delete its row from the file — the floor drops with it — and "
+        "update `_baselines.yaml`'s `baseline_entries` in the same change, which "
+        "the registration gate requires. Do not lower a floor constant."
     )
     assert len(model_entries) >= MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND, (
         f"only {len(model_entries)} model-declared baseline entries are still "
