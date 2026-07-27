@@ -33,25 +33,44 @@ from ruamel.yaml import YAML
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "doctrine" / "schemas"
 
-# Subset of ArtifactKind values inlined into cross-reference enums by
-# `_inline_artifact_kind_refs`.
+# ---------------------------------------------------------------------------
+# The four `<kind>_reference.type` enums.
 #
-# NOT a legality rule. The earlier wording here said the omitted kinds "are not
-# valid in reference `type` fields" while naming `template`, which this list
-# CONTAINS -- and `ParadigmReference.type` is annotated `ArtifactKind`, i.e. the
-# model permits what the generated schema then forbids. Which kinds a reference
-# may name has never been adjudicated.
+# All four models annotate the SAME type (`type: ArtifactKind`), so nothing in
+# the models explains why the four generated enums differ. They differ because
+# the enum is FROZEN per kind, deliberately, and the four were frozen at
+# different moments.
 #
-# What actually decides the split is the `enum_defs - {"ArtifactKind"}` branch
-# in `generate_schema`: a model declaring some unrelated `StrEnum`
-# (Directive/Enforcement, Procedure/ActorRole) takes `_inline_all_enum_refs`
-# and keeps the full 12-member ArtifactKind, while a model declaring none
-# (Tactic, Paradigm) falls to `_inline_artifact_kind_refs` and this 7-member
-# list. Nothing about reference semantics enters that decision.
+# WHY FROZEN AND NOT DERIVED FROM ArtifactKind. ADR
+# `docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md`
+# decision 3: "The four `<kind>_reference.type` enums are frozen, not fixed. A
+# kind that cannot be named inline is *correct* behaviour, not a defect.
+# Specifically: do not add `asset` (or any kind) to those enums." Inline
+# `references:` blocks are pre-DRG residue being migrated to DRG edges;
+# widening them entrenches a second relationship authority. Deriving these
+# lists from `ArtifactKind` is the ADR's rejected Option 2. Do not do it, and
+# do not "fix" the asymmetry by levelling the four up -- levelling them up is
+# the change the ADR exists to refuse.
 #
-# Tracked as #2976; frozen meanwhile by
-# tests/architectural/test_reference_enum_ratchet.py. Do not cite this comment
-# as authority for either side of the 12-vs-7 question.
+# WHY A PER-SCHEMA TABLE. Before this table the freeze was incidental and
+# leaky: `generate_schema`'s `enum_defs - {"ArtifactKind"}` branch sent a model
+# that happens to declare some unrelated `StrEnum` (Directive/Enforcement,
+# Procedure/ActorRole) through `_inline_all_enum_refs`, which inlines the LIVE
+# `ArtifactKind`, while a model declaring none (Tactic, Paradigm) fell to
+# `_inline_artifact_kind_refs` and a frozen list. So every new `ArtifactKind`
+# member silently entered two of the four enums on the next regeneration --
+# which is how `asset`, `glossary_pack` and `anti_pattern` reached
+# `directive_reference` and `procedure_reference`, the exact three kinds the
+# ADR names. Routing all four through this table makes the freeze structural:
+# `ArtifactKind` can grow without touching any reference enum.
+#
+# Whether the 9-vs-7 asymmetry SHOULD persist is open (#2976) and is not
+# settled here. Each list is pinned where the ADR measured it on 2026-07-26.
+# Shrink-only, ratcheted by tests/architectural/test_reference_enum_ratchet.py.
+# ---------------------------------------------------------------------------
+
+#: The widest frozen set: what `directive`/`procedure`/`paradigm` carried when
+#: the ADR measured the surface. Order is the historical emission order.
 _REFERENCE_KINDS = [
     "directive",
     "tactic",
@@ -59,8 +78,27 @@ _REFERENCE_KINDS = [
     "toolguide",
     "paradigm",
     "procedure",
+    "agent_profile",
+    "mission_step_contract",
     "template",
 ]
+
+#: The two kinds `tactic_reference` had already dropped by then ("the tactic
+#: copy has drifted further still" -- ADR, Context). No shipped artefact names
+#: either from ANY reference block, so the asymmetry is dormant, not a live
+#: capability difference. Reconciling it in either direction is #2976's call.
+_TACTIC_OMITTED_KINDS = frozenset({"agent_profile", "mission_step_contract"})
+
+#: Schema stem -> the frozen `ArtifactKind` member list for that schema's
+#: `<kind>_reference.type`. A stem absent here does NOT fall back to the live
+#: enum: both inlining passes raise, because a silent default is what produced
+#: the drift. Adding a reference-bearing schema means adding it here.
+_REFERENCE_KINDS_BY_SCHEMA: dict[str, list[str]] = {
+    "directive": list(_REFERENCE_KINDS),
+    "procedure": list(_REFERENCE_KINDS),
+    "paradigm": list(_REFERENCE_KINDS),
+    "tactic": [k for k in _REFERENCE_KINDS if k not in _TACTIC_OMITTED_KINDS],
+}
 
 _CONTRADICTION_KINDS = ["directive", "tactic", "paradigm"]
 
@@ -706,21 +744,38 @@ def _remove_defaults_for_empty_collections(obj: Any) -> Any:
     return obj
 
 
-def _inline_artifact_kind_refs(obj: Any, defs: dict) -> Any:
-    """Replace $ref to ArtifactKind with inline enum restricted to reference kinds."""
+#: ``ValueError`` message for a schema that inlines ``ArtifactKind`` with no
+#: frozen list. Fail-closed on purpose: silently defaulting to one set or the
+#: other is how the four enums drifted apart unnoticed in the first place.
+_UNMAPPED_ARTIFACT_KIND = (
+    "this schema inlines ArtifactKind but has no entry in "
+    "_REFERENCE_KINDS_BY_SCHEMA. Reference enums are frozen per kind (ADR "
+    "2026-07-26-1, decision 3) and must never track the live ArtifactKind. Add "
+    "the schema stem with the member list it is meant to carry."
+)
+
+
+def _inline_artifact_kind_refs(
+    obj: Any, defs: dict, reference_kinds: list[str] | None = None
+) -> Any:
+    """Replace $ref to ArtifactKind with the frozen reference-kind enum."""
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref = obj["$ref"]
             # Match both old ($defs) and new (definitions) paths
             if "ArtifactKind" in ref or "artifact_kind" in ref:
+                if reference_kinds is None:
+                    raise ValueError(_UNMAPPED_ARTIFACT_KIND)
                 return {
                     "type": "string",
-                    "enum": _REFERENCE_KINDS,
+                    "enum": list(reference_kinds),
                     "description": obj.get("description", "Doctrine artifact type being referenced."),
                 }
-        return {k: _inline_artifact_kind_refs(v, defs) for k, v in obj.items()}
+        return {
+            k: _inline_artifact_kind_refs(v, defs, reference_kinds) for k, v in obj.items()
+        }
     elif isinstance(obj, list):
-        return [_inline_artifact_kind_refs(item, defs) for item in obj]
+        return [_inline_artifact_kind_refs(item, defs, reference_kinds) for item in obj]
     return obj
 
 
@@ -729,38 +784,47 @@ def _is_enum_def(defn: dict) -> bool:
     return isinstance(defn, dict) and "enum" in defn and defn.get("type") == "string"
 
 
-def _inline_all_enum_refs(obj: Any, defs: dict) -> Any:
+def _inline_all_enum_refs(
+    obj: Any, defs: dict, reference_kinds: list[str] | None = None
+) -> Any:
     """Replace all $ref to StrEnum definitions with inline enum values.
 
     Unlike ``_inline_artifact_kind_refs`` which only handles ArtifactKind,
     this function inlines *all* StrEnum references found in ``$defs``.
     Used for schemas like model-to-task_type that have many enums.
+
+    ``reference_kinds`` supplies the members emitted for ``ArtifactKind``
+    specifically; every other enum is inlined from ``defs`` as declared. Omitting
+    it for a schema that references ``ArtifactKind`` raises rather than falling
+    back to the live enum. That fallback is what this pass used to do
+    unconditionally, so a schema routed here tracked every ``ArtifactKind``
+    addition while a schema routed through :func:`_inline_artifact_kind_refs`
+    stayed frozen -- the two paths disagreeing about the same annotation is what
+    let `asset`, `glossary_pack` and `anti_pattern` into two of the four
+    reference enums.
     """
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref = obj["$ref"]
-            if ref.startswith("#/$defs/"):
-                def_name = ref[len("#/$defs/"):]
+            for prefix in ("#/$defs/", "#/definitions/"):
+                if not ref.startswith(prefix):
+                    continue
+                def_name = ref[len(prefix):]
                 if def_name in defs and _is_enum_def(defs[def_name]):
-                    enum_def = defs[def_name]
-                    result: dict[str, Any] = {"type": "string", "enum": enum_def["enum"]}
+                    members = defs[def_name]["enum"]
+                    if def_name == "ArtifactKind":
+                        if reference_kinds is None:
+                            raise ValueError(_UNMAPPED_ARTIFACT_KIND)
+                        members = list(reference_kinds)
+                    result: dict[str, Any] = {"type": "string", "enum": members}
                     # Preserve sibling keys like description
                     for k, v in obj.items():
                         if k != "$ref":
                             result[k] = v
                     return result
-            elif ref.startswith("#/definitions/"):
-                def_name = ref[len("#/definitions/"):]
-                if def_name in defs and _is_enum_def(defs[def_name]):
-                    enum_def = defs[def_name]
-                    result = {"type": "string", "enum": enum_def["enum"]}
-                    for k, v in obj.items():
-                        if k != "$ref":
-                            result[k] = v
-                    return result
-        return {k: _inline_all_enum_refs(v, defs) for k, v in obj.items()}
+        return {k: _inline_all_enum_refs(v, defs, reference_kinds) for k, v in obj.items()}
     elif isinstance(obj, list):
-        return [_inline_all_enum_refs(item, defs) for item in obj]
+        return [_inline_all_enum_refs(item, defs, reference_kinds) for item in obj]
     return obj
 
 
@@ -994,8 +1058,18 @@ def generate_schema(stem: str) -> dict:
     # Phase 1: inline enum refs
     # For schemas with many enums (model-to-task_type), inline ALL enum refs.
     # For others, only inline ArtifactKind.
+    #
+    # Either way `ArtifactKind` emits this schema's FROZEN reference-kind list
+    # when it has one, so which branch a model takes -- an implementation
+    # detail of whether it declares some unrelated StrEnum -- can no longer
+    # decide whether the reference enum tracks the live vocabulary.
+    reference_kinds = _REFERENCE_KINDS_BY_SCHEMA.get(stem)
     enum_defs = {k for k, v in defs.items() if _is_enum_def(v)}
-    schema = _inline_all_enum_refs(raw, defs) if enum_defs - {"ArtifactKind"} else _inline_artifact_kind_refs(raw, defs)
+    schema = (
+        _inline_all_enum_refs(raw, defs, reference_kinds)
+        if enum_defs - {"ArtifactKind"}
+        else _inline_artifact_kind_refs(raw, defs, reference_kinds)
+    )
 
     # Phase 2: rename $defs → definitions, rewrite $ref paths
     if "$defs" in schema:

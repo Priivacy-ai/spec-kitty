@@ -579,13 +579,65 @@ class TestPositiveCountClaimsAreTrue:
             "tests/doctrine/test_relation_doc_parity.py pins to it."
         )
 
-    def test_the_count_scan_is_not_empty(self) -> None:
-        """Floor: a parser that matches nothing would pass the check above vacuously."""
-        claims = claimed_edge_counts()
-        assert len(claims) >= 5, (
-            f"only {len(claims)} positive counts parsed out of RELATION_DESCRIPTIONS: "
-            f"{sorted(r.value for r in claims)}"
-        )
+    def test_the_two_number_patterns_partition_the_registry(self) -> None:
+        """Replaces a ``len(claims) >= 5`` floor. The number is gone; nothing replaced it.
+
+        **Why not set equality, as the absence half uses.** There the ground truth is
+        derivable — a relation is claimed-absent *iff* the shipped graph emits none of
+        it — so equating the two sets removes the number and adds the reverse direction.
+        Here there is no such set. Three relations are emitted and state no count at all
+        (``rejects`` 8, ``reconciles_tension`` 3, ``in_tension_with`` 2), legitimately:
+        stating a count is a prose choice, not an obligation, so "the relations that
+        should carry a count" is not derivable from the graph and equating against the
+        emitted set would red on correct content. Applying set equality by symmetry would
+        manufacture a false invariant, which is worse than the floor it replaced.
+
+        **What the floor was actually wrong about.** Not slack — at 5 against a live 5 it
+        was exact, unlike the absence half's 5 against a live 7. It was wrong by being a
+        hand-maintained number at all: it had to be edited whenever a registry entry
+        gained or lost a count sentence, and a legitimate *removal* would have reddened
+        it while nothing was broken.
+
+        **What replaces it.** The partition, which is derivable: every number in the
+        registry is read by exactly one of the two patterns, and neither can absorb the
+        other's shape. Together with
+        :meth:`test_no_number_in_the_registry_escapes_attribution` this is strictly
+        stronger than any floor value. A dead :data:`_POSITIVE_CLAIM` leaves its numbers
+        unattributed and reds there; the one hole that check cannot see on its own is
+        :data:`_NON_COUNT_NUMBER` being widened until it swallows counts — attribution
+        would stay complete while verification quietly stopped. That is what the
+        cross-discrimination probes below close.
+        """
+        for relation, text in RELATION_DESCRIPTIONS.items():
+            count_spans = [m.span() for m in _POSITIVE_CLAIM.finditer(text)]
+            prose_spans = [m.span() for m in _NON_COUNT_NUMBER.finditer(text)]
+            overlaps = [
+                (text[c[0] : c[1]], text[p[0] : p[1]])
+                for c in count_spans
+                for p in prose_spans
+                if c[0] < p[1] and p[0] < c[1]
+            ]
+            assert not overlaps, (
+                f"{relation.value}: the same text is matched by both _POSITIVE_CLAIM "
+                f"and _NON_COUNT_NUMBER ({overlaps}) — one pattern shadows the other, "
+                "so which of them 'owns' that number depends on evaluation order"
+            )
+
+        # Cross-discrimination: neither pattern may take the other's shape. Without
+        # this, widening _NON_COUNT_NUMBER (say, to a bare `\\d+`) would empty
+        # `unattributed_numbers()` AND `claimed_edge_counts()` in one edit, and every
+        # check above would pass with nothing verified.
+        for count_phrasing in ("(260 edges)", "Emitted 8 times", "emitted 332 times"):
+            assert _POSITIVE_CLAIM.search(count_phrasing), (
+                f"_POSITIVE_CLAIM no longer reads {count_phrasing!r} — counts written "
+                "that way are now unverified"
+            )
+            assert not _NON_COUNT_NUMBER.search(count_phrasing), (
+                f"_NON_COUNT_NUMBER swallows {count_phrasing!r}, which excuses a real "
+                "count from verification instead of excusing prose"
+            )
+        assert not _POSITIVE_CLAIM.search("walked at depth 1")
+        assert _NON_COUNT_NUMBER.search("walked at depth 1")
 
     def test_no_number_in_the_registry_escapes_attribution(self) -> None:
         """Completeness: a count written in a third phrasing must not slip through.

@@ -46,9 +46,6 @@ definitions:
         - agent_profile
         - mission_step_contract
         - template
-        - asset
-        - glossary_pack
-        - anti_pattern
       id:
         type: string
         minLength: 1

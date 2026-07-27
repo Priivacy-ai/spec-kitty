@@ -14,40 +14,57 @@ member added to any of the four enums shipped green. That is the silence this
 mission closes; a comment did not stop the enum-widening attempt that started this
 programme, which is the direct motivation for FR-006.
 
-The four targets, derived once from the shipped schemas (WP05, ``remediation/
-doctrine-silence-guards`` @ the commit this baseline was pinned from) and never
-re-derived at test time:
+The four targets:
 
-* ``directive.schema.yaml`` :: ``directive_reference`` — 12 members
-* ``tactic.schema.yaml``    :: ``tactic_reference``     — 7 members
-* ``procedure.schema.yaml`` :: ``procedure_reference``  — 12 members
-* ``paradigm.schema.yaml``  :: ``paradigm_reference``   — 7 members
+* ``directive.schema.yaml`` :: ``directive_reference`` — 9 members
+* ``tactic.schema.yaml``    :: ``tactic_reference``    — 7 members
+* ``procedure.schema.yaml`` :: ``procedure_reference`` — 9 members
+* ``paradigm.schema.yaml``  :: ``paradigm_reference``  — 9 members
 
-⚠️ **The 12-vs-7 split is a generator artifact, not a reference-legality policy.**
+⚠️ **The 9-vs-7 split is a generator artifact, not a reference-legality policy.**
 An earlier revision of this docstring said a paradigm "cannot legally reference"
 ``agent_profile``/``mission_step_contract``, so the narrower set was intentional.
-**That is false**, and review traced it:
+**That is false**: all four models annotate ``type: ArtifactKind``, and
+``ParadigmReference``'s own docstring says *"``type`` accepts the full
+``ArtifactKind`` vocabulary, so a paradigm may reference a tactic, procedure,
+agent profile, etc."* The split is historical drift, not a decision — tracked as
+`#2976 <https://github.com/Priivacy-ai/spec-kitty/issues/2976>`_.
 
-* ``paradigms/models.py`` declares ``ParadigmReference.type: ArtifactKind`` and its
-  own docstring says *"``type`` accepts the full ``ArtifactKind`` vocabulary, so a
-  paradigm may reference a tactic, procedure, agent profile, etc."* The model
-  permits exactly what the generated schema forbids.
-* ``scripts/generate_schemas.py`` picks the inlining path with
-  ``enum_defs - {"ArtifactKind"}`` — i.e. on whether the model happens to declare
-  some **unrelated** ``StrEnum``. ``Directive`` has ``Enforcement`` and
-  ``Procedure`` has ``ActorRole`` (2 declarations each) → full 12. ``Tactic`` and
-  ``Paradigm`` have none → routed through ``_inline_artifact_kind_refs`` and its
-  7-member ``_REFERENCE_KINDS``. Nothing about reference semantics enters that
-  decision.
-* ``tactic_reference`` was already 7 before this mission and WP05 never touched it —
-  same quirk, pre-existing.
+The narrower set is nonetheless the **correct** direction, and this ratchet must
+never be satisfied by widening. ADR ``2026-07-26-1`` (decision 3): *"The four
+``<kind>_reference.type`` enums are frozen, not fixed. A kind that cannot be named
+inline is correct behaviour, not a defect. Specifically: do not add ``asset`` (or
+any kind) to those enums."* Inline ``references:`` blocks are pre-DRG residue
+being migrated to DRG edges; widening them entrenches a second relationship
+authority. Deriving these enums from ``ArtifactKind`` is the ADR's **rejected**
+Option 2.
 
-So the split has **never been adjudicated**. This ratchet freezes it on one side,
-which is the safe direction under C-001 (never widen), but a future reader must
-not read the 7 as a decision. Tracked upstream as
-`#2976 <https://github.com/Priivacy-ai/spec-kitty/issues/2976>`_; resolving it
-means either making the generator consistent across all four kinds or getting an
-actual ruling on what paradigms and tactics may reference.
+How the baseline was corrected (2026-07-27)
+--------------------------------------------
+WP06 pinned 12/7/12/7. Review measured that against the merge-base and found the
+mission had moved three of the four without saying so:
+
+* ``directive_reference`` and ``procedure_reference`` **9 → 12** — WP05's
+  regeneration added ``asset``, ``glossary_pack`` and ``anti_pattern``, the exact
+  three kinds the ADR names as must-not-add. Freezing 12 made that a contract.
+* ``paradigm_reference`` **9 → 7** — the same regeneration silently dropped
+  ``agent_profile`` and ``mission_step_contract``.
+
+The cause was one seam: ``generate_schema`` routed a model that happens to declare
+an unrelated ``StrEnum`` (``Directive``/``Enforcement``, ``Procedure``/``ActorRole``)
+through ``_inline_all_enum_refs``, which inlines the **live** ``ArtifactKind``,
+while a model declaring none (``Tactic``, ``Paradigm``) fell through to a frozen
+list. So two of four enums tracked every ``ArtifactKind`` addition and two did not.
+The freeze is now structural — ``_REFERENCE_KINDS_BY_SCHEMA`` in
+``scripts/generate_schemas.py`` supplies the members on **both** paths, and an
+unmapped schema that inlines ``ArtifactKind`` raises rather than defaulting.
+
+The baseline is re-pinned to 9/7/9/9: the state the ADR measured, restored by
+undoing this mission's unintended drift in both directions. It adds nothing that
+was not previously nameable and removes nothing that was. Levelling all four to 12
+would have been the ADR's rejected option; levelling all four down to 7 would have
+been a fresh narrowing that belongs to #2976. Neither was taken.
+:class:`TestGeneratorFreezeIsStructural` pins the seam so the drift cannot recur.
 
 A frozen baseline, not a live re-derivation
 --------------------------------------------
@@ -93,6 +110,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+import scripts.generate_schemas as gs
+from doctrine.artifact_kinds import ArtifactKind
+
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "schemas"
@@ -121,9 +141,6 @@ _BASELINE: dict[str, frozenset[str]] = {
             "agent_profile",
             "mission_step_contract",
             "template",
-            "asset",
-            "glossary_pack",
-            "anti_pattern",
         }
     ),
     "tactic_reference": frozenset(
@@ -148,9 +165,6 @@ _BASELINE: dict[str, frozenset[str]] = {
             "agent_profile",
             "mission_step_contract",
             "template",
-            "asset",
-            "glossary_pack",
-            "anti_pattern",
         }
     ),
     "paradigm_reference": frozenset(
@@ -161,6 +175,8 @@ _BASELINE: dict[str, frozenset[str]] = {
             "toolguide",
             "paradigm",
             "procedure",
+            "agent_profile",
+            "mission_step_contract",
             "template",
         }
     ),
@@ -319,6 +335,82 @@ class TestShippedEnumsAreFrozen:
                 "set in this module's _BASELINE.",
                 stacklevel=2,
             )
+
+
+class TestGeneratorFreezeIsStructural:
+    """The generator must not be able to leak ``ArtifactKind`` into these enums.
+
+    The ratchet above catches drift only *after* someone regenerates and commits.
+    These assertions close the class one level up: the generator has no path that
+    emits the live vocabulary into a reference enum, so the drift cannot be
+    produced in the first place. Without this, the ratchet is a smoke alarm on a
+    fire that keeps being lit.
+    """
+
+    def test_every_reference_target_has_a_frozen_generator_entry(self) -> None:
+        """A schema absent from the table would inline the live ``ArtifactKind``."""
+        stems = {filename.removesuffix(".schema.yaml") for filename, _ in _REFERENCE_TARGETS}
+        assert stems <= set(gs._REFERENCE_KINDS_BY_SCHEMA), (
+            f"{sorted(stems - set(gs._REFERENCE_KINDS_BY_SCHEMA))} carry a reference "
+            "enum but have no frozen member list in generate_schemas."
+            "_REFERENCE_KINDS_BY_SCHEMA, so the generator would emit whatever "
+            "ArtifactKind happens to contain."
+        )
+
+    @pytest.mark.parametrize("filename, definition_key", _REFERENCE_TARGETS)
+    def test_shipped_enum_equals_the_generator_table(
+        self, filename: str, definition_key: str
+    ) -> None:
+        """The committed schema, the frozen table and the baseline must be one set.
+
+        Three copies of the same fact drift pairwise; ``--check`` only compares the
+        first two, and only after a regeneration run.
+        """
+        stem = filename.removesuffix(".schema.yaml")
+        declared = frozenset(gs._REFERENCE_KINDS_BY_SCHEMA[stem])
+        assert _enum_members(_SCHEMAS_DIR / filename, definition_key) == declared
+        assert _BASELINE[definition_key] == declared
+
+    def test_no_reference_enum_tracks_the_live_artifact_kind(self) -> None:
+        """ADR 2026-07-26-1 decision 3, as an assertion rather than a comment.
+
+        ``asset``/``glossary_pack``/``anti_pattern`` are real ``ArtifactKind``
+        members deliberately absent from every reference enum. If a reference enum
+        ever equals ``ArtifactKind``, the freeze has been replaced by derivation --
+        the rejected Option 2 -- whether or not the baseline was edited to match.
+        """
+        live = frozenset(kind.value for kind in ArtifactKind)
+        for stem, members in gs._REFERENCE_KINDS_BY_SCHEMA.items():
+            assert frozenset(members) < live, (
+                f"{stem}'s reference enum is no longer a strict subset of "
+                f"ArtifactKind ({sorted(live - frozenset(members))} left). Inline "
+                "`references:` are pre-DRG residue; relationships to new kinds are "
+                "authored as DRG edges, not admitted here (ADR 2026-07-26-1)."
+            )
+
+    def test_an_unmapped_schema_raises_instead_of_defaulting(self) -> None:
+        """The fail-closed half: silence is what let the drift through before.
+
+        Both inlining paths must refuse an ``ArtifactKind`` ref they have no frozen
+        list for, rather than quietly emitting one set or the other.
+        """
+        ref = {"$ref": "#/$defs/ArtifactKind"}
+        defs = {"ArtifactKind": {"type": "string", "enum": ["directive", "asset"]}}
+        for inliner in (gs._inline_artifact_kind_refs, gs._inline_all_enum_refs):
+            with pytest.raises(ValueError, match="_REFERENCE_KINDS_BY_SCHEMA"):
+                inliner(ref, defs, None)
+
+    def test_both_inliners_honour_the_frozen_list(self) -> None:
+        """Discriminator: the raise is not the only behaviour being exercised.
+
+        ``_inline_all_enum_refs`` is the path that used to emit the live enum, so
+        proving it now emits the frozen one is the actual fix, not the guard.
+        """
+        frozen = ["directive", "tactic"]
+        defs = {"ArtifactKind": {"type": "string", "enum": ["directive", "tactic", "asset"]}}
+        for inliner in (gs._inline_artifact_kind_refs, gs._inline_all_enum_refs):
+            result = inliner({"$ref": "#/$defs/ArtifactKind"}, defs, frozen)
+            assert result["enum"] == frozen, f"{inliner.__name__} emitted {result['enum']}"
 
 
 class TestRatchetNonVacuity:
