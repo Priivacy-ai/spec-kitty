@@ -84,12 +84,12 @@ def merged_drg() -> dict[str, Any]:
     return {
         "nodes": [
             # Shipped directives (uppercase prefix)
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"},
-            {"urn": "directive:DIRECTIVE_001", "kind": "directive", "id": "DIRECTIVE_001"},
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"},
+            {"urn": "directive:DIRECTIVE_001", "kind": "directive"},
             # Shipped tactic
-            {"urn": "tactic:premortem-risk", "kind": "tactic", "id": "premortem-risk"},
+            {"urn": "tactic:premortem-risk", "kind": "tactic"},
             # Shipped paradigm
-            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"},
+            {"urn": "paradigm:evidence-first", "kind": "paradigm"},
         ],
         "edges": [],
         "schema_version": "1",

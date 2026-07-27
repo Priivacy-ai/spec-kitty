@@ -72,6 +72,13 @@ def _make_base_request(**overrides: object) -> SynthesisRequest:
             "tactics": {},
             "styleguides": {},
         },
+        # Frozen pre-WP01 payload, NOT a model of the current snapshot shape.
+        # ``_PRE_WP01_HASH`` below is the hash of *this exact request*, so the
+        # inert ``id`` key stays even though WP04 of
+        # ``doctrine-silence-guards-01KYFV7Q`` removed it everywhere it is
+        # actually validated against ``DRGNode`` — editing the payload would
+        # silently re-point the backward-compat anchor at a different request
+        # and retire the guarantee it exists to hold (ADR-2026-04-17-1).
         drg_snapshot={
             "nodes": [
                 {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}

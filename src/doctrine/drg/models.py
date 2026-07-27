@@ -10,7 +10,7 @@ import re
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # ---------------------------------------------------------------------------
 # URN regex -- anchored, no spaces, only lower-alpha + underscore for kind
@@ -292,6 +292,13 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
 class DRGNode(BaseModel):
     """A single addressable doctrine artifact node."""
 
+    # FR-004: an authored key this model does not declare is a load error, not a
+    # silent discard. Pydantic v2's default is ``extra="ignore"``, which is how a
+    # graph fragment can carry a key nobody reads and nobody is told about.
+    # Every sibling model under ``src/doctrine/**/models.py`` already forbids
+    # extras; this brings the DRG models in line rather than inventing a policy.
+    model_config = ConfigDict(extra="forbid")
+
     urn: str
     kind: NodeKind
     label: str | None = None
@@ -327,6 +334,11 @@ class DRGNode(BaseModel):
 
 class DRGEdge(BaseModel):
     """A typed, directed relationship between two nodes."""
+
+    # FR-004 -- see ``DRGNode.model_config``. This is the half that makes B1's
+    # ``impacts`` / ``is_symmetric`` real: without it a typo'd or unmerged edge
+    # field is accepted and discarded on load.
+    model_config = ConfigDict(extra="forbid")
 
     source: str
     target: str

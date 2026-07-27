@@ -17,9 +17,11 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Iterator
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel
 from ruamel.yaml import YAML
 
 from doctrine.drg.migration.calibrator import calibrate_surfaces
@@ -130,19 +132,41 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
             return kind, m.group(1)
     return None
 
-_KIND_MAP: dict[str, NodeKind] = {
-    "directive": NodeKind.DIRECTIVE,
-    "tactic": NodeKind.TACTIC,
-    "paradigm": NodeKind.PARADIGM,
-    "styleguide": NodeKind.STYLEGUIDE,
-    "toolguide": NodeKind.TOOLGUIDE,
-    "procedure": NodeKind.PROCEDURE,
-    "agent_profile": NodeKind.AGENT_PROFILE,
-    "template": NodeKind.TEMPLATE,
-    "action": NodeKind.ACTION,
-    "mission_type": NodeKind.MISSION_TYPE,
-    "mission_step_contract": NodeKind.MISSION_STEP_CONTRACT,
-}
+#: Reference-``type`` string / URN prefix -> :class:`NodeKind`.
+#:
+#: Derived from the enum, so it is total by construction (T015, FR-004). It
+#: previously restated 11 of the 16 members by hand and dropped ``anti_pattern``,
+#: ``asset``, ``glossary``, ``glossary_pack`` and ``glossary_scope``. Because the
+#: table is ``str``-keyed it was invisible to the ``NodeKind``-keyed totality
+#: guard in ``tests/doctrine/drg/test_kind_mapping_totality.py`` -- a
+#: hand-restated table one step outside the gate that exists to catch
+#: hand-restated tables. Deriving it removes the restatement instead of
+#: lengthening it: a ``NodeKind`` member added tomorrow is carried with no edit
+#: here, and none can be dropped by omission.
+#:
+#: Measured graph-neutral when closed: the extractor emits the same 305 nodes /
+#: 757 edges before and after. The gap was latent, not live -- nothing shipped
+#: today *references* one of the five missing kinds by type.
+_KIND_MAP: dict[str, NodeKind] = {kind.value: kind for kind in NodeKind}
+
+#: Action-index list field -> the artifact kind its entries name, for the
+#: ``scope`` edges emitted by :func:`extract_action_edges`.
+#:
+#: Hoisted to module scope so the ``_KIND_MAP`` subscript at the read site can be
+#: proven safe by a test that derives from *this* declaration rather than
+#: restating the seven kinds a third time. The read site previously used
+#: ``_KIND_MAP.get(kind, NodeKind.GLOSSARY_SCOPE)``, so an unmapped scope-field
+#: kind produced a *wrongly-kinded* node rather than an error -- a silent
+#: corruption, which is worse than the silent omission elsewhere in this module.
+_ACTION_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("directives", "directive"),
+    ("tactics", "tactic"),
+    ("paradigms", "paradigm"),
+    ("styleguides", "styleguide"),
+    ("toolguides", "toolguide"),
+    ("procedures", "procedure"),
+    ("agent_profiles", "agent_profile"),
+)
 
 # Reference types that are NOT DRG node kinds (skipped during extraction).
 _SKIP_REF_TYPES: frozenset[str] = frozenset()
@@ -702,23 +726,15 @@ def extract_action_edges(
             nodes_by_urn, action_urn, NodeKind.ACTION, action_name
         )
 
-        # Map of field name -> artifact kind for scope edges
-        scope_fields: list[tuple[str, str]] = [
-            ("directives", "directive"),
-            ("tactics", "tactic"),
-            ("paradigms", "paradigm"),
-            ("styleguides", "styleguide"),
-            ("toolguides", "toolguide"),
-            ("procedures", "procedure"),
-            ("agent_profiles", "agent_profile"),
-        ]
-
-        for field_name, kind in scope_fields:
+        for field_name, kind in _ACTION_SCOPE_FIELDS:
             for raw_id in data.get(field_name, []) or []:
                 tgt_urn = artifact_to_urn(kind, raw_id)
-                _ensure_node(
-                    nodes_by_urn, tgt_urn, _KIND_MAP.get(kind, NodeKind.GLOSSARY_SCOPE)
-                )
+                # Subscript, not ``.get(..., GLOSSARY_SCOPE)``: an unmapped kind
+                # here is an authoring error in _ACTION_SCOPE_FIELDS, and a node
+                # silently registered under the wrong kind is unrecoverable
+                # downstream. Safety is pinned by
+                # ``test_every_action_scope_field_kind_resolves_to_a_node_kind``.
+                _ensure_node(nodes_by_urn, tgt_urn, _KIND_MAP[kind])
                 _add_edge(
                     DRGEdge(
                         source=action_urn,
@@ -1207,23 +1223,62 @@ def _dump_graph_document(graph: DRGGraph, output_path: Path) -> None:
         yaml_writer.dump(data, fh)
 
 
+#: Model fields deliberately kept out of ``*.graph.yaml`` (FR-004, T016).
+#:
+#: ``provenance`` is the merge-time layer marker (FR-013). It is ``None`` for
+#: every extractor-built node, so emitting it would add a dead key to all 14
+#: shipped fragments. Withholding it is a *declaration*, not a silence: the set
+#: is named, and ``test_the_withholding_set_names_only_real_model_fields``
+#: asserts every member is a real field, so a typo here cannot rot into an
+#: exclusion that excludes nothing.
+#:
+#: Everything a model declares and does not name here is emitted by
+#: construction. That is the whole point -- the writers used to restate their
+#: field names, so a field added to ``DRGNode``/``DRGEdge`` loaded fine and was
+#: deleted on the next write.
+_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT: frozenset[str] = frozenset({"provenance"})
+
+
+def _render_for_yaml(value: Any) -> Any:
+    """Render one model field value for YAML, or ``None`` to omit the key.
+
+    ``None`` means "omit", which preserves the pre-existing output shape: unset
+    optionals and empty lists never appeared in a fragment, and re-adding them
+    would churn every shipped file. Enums are unwrapped before the ``str``
+    branch because ``NodeKind``/``Relation`` are ``StrEnum`` and would otherwise
+    serialise as their repr.
+    """
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return [_render_for_yaml(item) for item in value] or None
+    return value
+
+
+def _model_to_dict(model: BaseModel) -> dict[str, Any]:
+    """Serialise every declared field of *model* except the withheld ones.
+
+    Derived from ``type(model).model_fields`` rather than a hand-written key
+    list, so a field added to the model is written without anyone remembering
+    to update this function.
+    """
+    rendered: dict[str, Any] = {}
+    for field_name in type(model).model_fields:
+        if field_name in _FIELDS_WITHHELD_FROM_GRAPH_OUTPUT:
+            continue
+        value = _render_for_yaml(getattr(model, field_name))
+        if value is not None:
+            rendered[field_name] = value
+    return rendered
+
+
 def _node_to_dict(node: DRGNode) -> dict[str, Any]:
-    d: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
-    if node.label is not None:
-        d["label"] = node.label.strip()
-    if node.tags:
-        d["tags"] = list(node.tags)
-    return d
+    """Field-derived ``DRGNode`` -> plain dict for YAML output."""
+    return _model_to_dict(node)
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
-    d: dict[str, Any] = {
-        "source": edge.source,
-        "target": edge.target,
-        "relation": edge.relation.value,
-    }
-    if edge.when is not None:
-        d["when"] = edge.when.strip()
-    if edge.reason is not None:
-        d["reason"] = edge.reason.strip()
-    return d
+    """Field-derived ``DRGEdge`` -> plain dict for YAML output."""
+    return _model_to_dict(edge)
