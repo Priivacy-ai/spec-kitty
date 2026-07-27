@@ -18,12 +18,22 @@ topology, which roughly seventeen invariants across ``tests/architectural/``
 pin. It asserts the property that actually matters:
 
     every collected test NODE is selected by >= 1 job that RUNS on a push to
-    ``main``, evaluated with the real per-job selectors under the worst
-    reachable filter state.
+    ``main`` — on the GREEN PATH — evaluated with the real per-job selectors
+    under the worst reachable filter state.
 
 *Node*, not file. A file with one ``slow`` test and twenty ``fast`` ones
 satisfies a file-level reading while the twenty never execute, and three of
 #2957's four files are exactly that shape.
+
+*Green path*, and the qualifier is load-bearing. The model has exactly one
+deliberate fail-open term: ``needs.<job>.result == 'success'`` decides ``True``
+(:data:`tests.architectural._gate_coverage._NEEDS_RESULT_RE_CONJUNCT`), because
+reading it as unsatisfiable would declare every downstream job dead and make the
+whole model useless. So a run in which an upstream job FAILS skips its dependents
+and really does collect less than this gate assumes — correct GitHub behaviour,
+and a different question from completeness. The practical consequence: an
+uncollected count from this model is exact on a green run and a LOWER BOUND on a
+red one.
 
 THE MODEL IS BASELINE-FREE (deliberate, and checked below). The sibling ratchet
 ``test_gate_coverage.py`` freezes today's orphan surface in
@@ -48,6 +58,7 @@ simulation over it. No subprocess per job.
 from __future__ import annotations
 
 import ast
+import re
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -86,6 +97,19 @@ _PLANTED_NODEID = f"{_PLANTED_RELPATH}::test_planted"
 
 _MAX_REPORTED = 25
 
+# Non-vacuity floor for the monotonicity proof: the live workflows currently
+# carry 70 filter-group atoms across 30 groups. A decomposition that stops
+# finding them would make the proof silently empty, so it fails instead.
+_MIN_GROUP_ATOMS = 55
+# ``needs.<job>.outputs.<name>`` reference inside one condition atom. Only names
+# that are declared dorny FILTER GROUPS bear on monotonicity; the same shape is
+# also used for ordinary job outputs (``needs.lint.outputs.ruff_has_failures``),
+# which the evaluator fails closed on and which no filter state can turn on.
+_OUTPUT_REF_RE = re.compile(r"\.outputs\.([A-Za-z0-9_]+)")
+# Rotations of the group ordering walked as subset chains (see the monotonicity
+# test); each rotation covers every subset SIZE in a different membership order.
+_MONOTONICITY_ROTATIONS = 4
+
 
 @pytest.fixture(scope="module")
 def universe() -> list[gc.TestRecord]:
@@ -103,21 +127,181 @@ def gates() -> list[gc.Gate]:
     return gc.load_gates()
 
 
-def _gate_coverage_attributes_used(module_path: Path) -> set[str]:
-    """Every ``gc.<name>`` attribute this module reads, via its own AST.
+_GATE_COVERAGE_MODULE = "_gate_coverage"
 
-    An AST read (not a substring scan) so the module's prose may NAME the
-    baseline surfaces it refuses to touch — explaining the refusal is the point
-    — while any real access still trips the check.
+# Every ``_gate_coverage`` surface that reads or writes a frozen baseline. The
+# point of trap 1 is that this module reaches NONE of them.
+_BASELINE_SURFACES = frozenset(
+    {
+        "BASELINE_PATH",
+        "baseline_diff",
+        "check",
+        "freeze_baselines",
+        "load_baseline",
+        "load_baseline_nodeids",
+        "update_baseline",
+        "write_baseline_nodeids",
+    },
+)
+
+# Opening a baseline by literal path would reach it without naming a surface at
+# all, so the checker also watches path CONSTRUCTION (call arguments and ``/``
+# operands) for these names.
+_BASELINE_FILENAMES: tuple[str, ...] = (
+    "_gate_coverage_baseline.json",
+    "_baselines.yaml",
+)
+
+
+def _dotted(node: ast.expr) -> str | None:
+    """``a.b.c`` for a pure ``Name``/``Attribute`` chain, else ``None``."""
+    parts: list[str] = []
+    current: ast.expr = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
+def _names_the_module(dotted: str, aliases: frozenset[str]) -> bool:
+    """Whether ``dotted`` denotes ``_gate_coverage`` — by alias or by full path."""
+    return dotted in aliases or dotted.split(".")[-1] == _GATE_COVERAGE_MODULE
+
+
+def _module_aliases(tree: ast.Module) -> frozenset[str]:
+    """Every local name bound to ``_gate_coverage``, transitively.
+
+    Covers the aliased from-import (``… import _gate_coverage as gc``), the
+    aliased dotted import (``import pkg._gate_coverage as gate``) and plain
+    re-bindings (``other = gc``), so renaming the import is not an escape.
     """
-    tree = ast.parse(module_path.read_text(encoding="utf-8"))
+    aliases: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            aliases.update(
+                alias.asname or alias.name
+                for alias in node.names
+                if alias.name == _GATE_COVERAGE_MODULE
+            )
+        elif isinstance(node, ast.Import):
+            aliases.update(
+                alias.asname
+                for alias in node.names
+                if alias.asname
+                and alias.name.split(".")[-1] == _GATE_COVERAGE_MODULE
+            )
+    while True:
+        grown = {
+            target.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name)
+            and node.value.id in aliases
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        } - aliases
+        if not grown:
+            break
+        aliases |= grown
+    return frozenset(aliases)
+
+
+def _attribute_reach(node: ast.Attribute, aliases: frozenset[str]) -> set[str]:
+    """``gc.load_baseline`` / ``pkg._gate_coverage.load_baseline``."""
+    if node.attr not in _BASELINE_SURFACES:
+        return set()
+    dotted = _dotted(node)
+    if dotted is None:
+        return set()
+    prefix = dotted.rpartition(".")[0]
+    return {f"attribute {dotted}"} if _names_the_module(prefix, aliases) else set()
+
+
+def _import_reach(node: ast.ImportFrom) -> set[str]:
+    """``from tests.architectural._gate_coverage import load_baseline``."""
+    if (node.module or "").split(".")[-1] != _GATE_COVERAGE_MODULE:
+        return set()
     return {
-        node.attr
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Attribute)
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "gc"
+        f"import {alias.name}"
+        for alias in node.names
+        if alias.name in _BASELINE_SURFACES
     }
+
+
+def _getattr_reach(node: ast.Call, aliases: frozenset[str]) -> set[str]:
+    """``getattr(gc, "load_baseline")`` — the string-indirection escape.
+
+    Only the ``getattr`` BUILTIN counts: the behavioural half of trap 1
+    legitimately calls ``monkeypatch.setattr(gc, "load_baseline", …)`` to sabotage
+    the reader, and sabotaging it is the opposite of reaching it.
+    """
+    getattr_arity = 2
+    if not (isinstance(node.func, ast.Name) and node.func.id == "getattr"):
+        return set()
+    if len(node.args) < getattr_arity:
+        return set()
+    dotted = _dotted(node.args[0])
+    name = node.args[1]
+    if dotted is None or not _names_the_module(dotted, aliases):
+        return set()
+    if isinstance(name, ast.Constant) and name.value in _BASELINE_SURFACES:
+        return {f"getattr {name.value}"}
+    return set()
+
+
+def _path_literal_reach(node: ast.AST) -> set[str]:
+    """A baseline filename used to BUILD a path: a call argument or a ``/`` operand.
+
+    Deliberately narrower than "any string containing the name": this module's
+    prose NAMES the baseline it refuses to touch, and so does
+    :data:`_BASELINE_FILENAMES` itself. Both are inert text; ``Path("…json")``
+    and ``root / "…json"`` are not.
+    """
+    if isinstance(node, ast.Call):
+        operands: list[ast.expr] = list(node.args)
+    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        operands = [node.left, node.right]
+    else:
+        return set()
+    return {
+        f"literal path {name}"
+        for operand in operands
+        if isinstance(operand, ast.Constant) and isinstance(operand.value, str)
+        for name in _BASELINE_FILENAMES
+        if name in operand.value
+    }
+
+
+def baseline_reaches(source: str) -> set[str]:
+    """Every way ``source`` could reach the orphan ratchet's baseline machinery.
+
+    An AST read (not a substring scan) so a module's prose may NAME the surfaces
+    it refuses to touch — explaining the refusal is the point — while four real
+    access shapes still trip it: attribute access through any name bound to the
+    module, ``from … import`` of a baseline symbol, ``getattr`` with a string
+    constant, and path construction from a baseline filename.
+
+    Residual, stated rather than papered over: a name assembled at runtime
+    (``"load_" + "baseline"``) or a filename bound to a variable before being
+    passed to ``Path`` defeats a static reader. That is what the behavioural half
+    of :func:`test_gate_reads_no_ratchet_baseline` is for — it sabotages the
+    reader itself and requires the computation to complete anyway.
+    """
+    tree = ast.parse(source)
+    aliases = _module_aliases(tree)
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute):
+            found |= _attribute_reach(node, aliases)
+        elif isinstance(node, ast.ImportFrom):
+            found |= _import_reach(node)
+        elif isinstance(node, ast.Call):
+            found |= _getattr_reach(node, aliases) | _path_literal_reach(node)
+        elif isinstance(node, ast.BinOp):
+            found |= _path_literal_reach(node)
+    return found
 
 
 def _summarize(relpaths: Iterable[str]) -> str:
@@ -326,16 +510,7 @@ def test_gate_reads_no_ratchet_baseline(
     from vanishing. So: this module names no baseline surface, and the
     computation still completes with the baseline reader sabotaged.
     """
-    touched = _gate_coverage_attributes_used(_THIS_FILE)
-    forbidden = touched & {
-        "BASELINE_PATH",
-        "load_baseline",
-        "update_baseline",
-        "check",
-        "freeze_baselines",
-        "load_baseline_nodeids",
-        "write_baseline_nodeids",
-    }
+    forbidden = baseline_reaches(_THIS_FILE.read_text(encoding="utf-8"))
     assert not forbidden, (
         f"this gate reaches baseline machinery {sorted(forbidden)}; a "
         "baseline-backed completeness gate can be silenced by regenerating the "
@@ -350,6 +525,74 @@ def test_gate_reads_no_ratchet_baseline(
     monkeypatch.setattr(gc, "BASELINE_PATH", tmp_path / "absent.json")
     report = gc.main_push_uncollected(universe, gates, models)
     assert report.total == len(universe)
+
+
+# Source shapes that all reach the same baseline reader. The first version of
+# this guard caught only the first of them, which is the failure mode this
+# mission exists to eliminate: a guard that LOOKS airtight and is not. Each
+# entry is a self-mutation of the module under test, expressed as source.
+_BASELINE_ESCAPES: dict[str, str] = {
+    "aliased attribute": (
+        "from tests.architectural import _gate_coverage as gc\n"
+        "gc.load_baseline()\n"
+    ),
+    "getattr indirection": (
+        "from tests.architectural import _gate_coverage as gc\n"
+        "getattr(gc, 'load_baseline')()\n"
+    ),
+    "direct symbol import": (
+        "from tests.architectural._gate_coverage import load_baseline\n"
+        "load_baseline()\n"
+    ),
+    "renamed module import": (
+        "import tests.architectural._gate_coverage as gate\n"
+        "gate.load_baseline()\n"
+    ),
+    "fully dotted access": (
+        "import tests.architectural._gate_coverage\n"
+        "tests.architectural._gate_coverage.load_baseline()\n"
+    ),
+    "rebound alias": (
+        "from tests.architectural import _gate_coverage as gc\n"
+        "sneaky = gc\n"
+        "sneaky.update_baseline()\n"
+    ),
+    "literal baseline path": (
+        "from pathlib import Path\n"
+        "Path('tests/architectural/_gate_coverage_baseline.json').read_text()\n"
+    ),
+    "literal path by joining": (
+        "from pathlib import Path\n"
+        "data = Path('tests/architectural') / '_gate_coverage_baseline.json'\n"
+    ),
+}
+
+# Prose may name every surface it refuses to touch — that is the whole point of
+# reading the AST instead of grepping.
+_BASELINE_PROSE_ONLY = (
+    '"""Refuses to call load_baseline or read _gate_coverage_baseline.json."""\n'
+    "from tests.architectural import _gate_coverage as gc\n"
+    "gc.collect_universe()\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("shape", "source"),
+    sorted(_BASELINE_ESCAPES.items()),
+)
+def test_the_baseline_reach_checker_catches_every_known_escape(
+    shape: str, source: str,
+) -> None:
+    """NFR-005 applied to the checker itself: each escape must be reported."""
+    assert baseline_reaches(source), (
+        f"the baseline-reach checker misses the {shape!r} escape, so trap 1 "
+        "could be walked around by rewriting one import line"
+    )
+
+
+def test_the_baseline_reach_checker_does_not_fire_on_prose() -> None:
+    """Naming the forbidden surfaces in a docstring is not reaching them."""
+    assert not baseline_reaches(_BASELINE_PROSE_ONLY)
 
 
 # ---------------------------------------------------------------------------
@@ -458,18 +701,116 @@ def test_release_workflow_does_not_run_on_a_push_to_main(
     assert gc.workflow_runs_on_push(models["ci-quality.yml"])
 
 
+def _all_filter_groups(models: dict[str, gc.WorkflowModel]) -> frozenset[str]:
+    return frozenset(name for model in models.values() for name in model.filter_groups)
+
+
+def _condition_atoms(expr: str) -> list[str]:
+    """Decompose an ``if:`` into exactly the terms the evaluator decides.
+
+    Mirrors :func:`gc.job_runs_under`'s own descent (``||`` then ``&&``,
+    parentheses respected) using only its public helpers, so the two cannot
+    disagree about what an atom is.
+    """
+    inner = gc.normalize_condition(expr)
+    if not inner:
+        return []
+    for operator in ("||", "&&"):
+        parts = gc.split_top_level(inner, operator)
+        if len(parts) > 1:
+            return [atom for part in parts for atom in _condition_atoms(part)]
+    return [inner]
+
+
+def test_every_group_atom_is_a_positive_unnegated_test(
+    models: dict[str, gc.WorkflowModel],
+) -> None:
+    """WHY one worst-case evaluation settles every filter state — structurally.
+
+    Monotonicity of ``active_job_keys`` in ``active_groups`` is a property of the
+    workflow's SHAPE, not of two sampled points. It holds because every atom that
+    reads a filter group is a positive equality (``… == 'true'``), never a
+    negation and never a ``!=``, and the only combinators above those atoms are
+    ``&&`` / ``||`` — both monotone. This test asserts that shape directly, atom
+    by atom, over every job condition in every modelled workflow.
+
+    A ``needs.changes.outputs.<g> != 'true'`` term, or a ``!(… == 'true')``, would
+    make a job DISAPPEAR as the filter state grows, and the worst-case-only
+    evaluation would stop being sound. That is what this catches.
+    """
+    all_groups = _all_filter_groups(models)
+    empty: frozenset[str] = frozenset()
+    checked = 0
+    for workflow, model in models.items():
+        for job, if_value in model.job_if.items():
+            if not isinstance(if_value, str):
+                continue
+            for atom in _condition_atoms(if_value):
+                if not set(_OUTPUT_REF_RE.findall(atom)) & all_groups:
+                    continue
+                checked += 1
+                where = f"{workflow}::{job}: {atom}"
+                assert not atom.startswith("!"), (
+                    f"a NEGATED filter-group atom ({where}) makes job activation "
+                    "non-monotone in the group set, so evaluating only the "
+                    "no-group-matched state no longer settles every filter state"
+                )
+                assert not gc.job_runs_under(
+                    atom, event_name=gc.PUSH_EVENT, active_groups=empty,
+                ), f"group atom is satisfied with NO group active ({where})"
+                assert gc.job_runs_under(
+                    atom, event_name=gc.PUSH_EVENT, active_groups=all_groups,
+                ), (
+                    f"group atom is NOT satisfied with every group active "
+                    f"({where}); either it is not a positive group test or the "
+                    "evaluator does not model it"
+                )
+    assert checked >= _MIN_GROUP_ATOMS, (
+        f"only {checked} filter-group atoms were examined (floor "
+        f"{_MIN_GROUP_ATOMS}); the decomposition stopped seeing the dorny "
+        "topology, so this test proves nothing about monotonicity"
+    )
+
+
 def test_active_jobs_grow_monotonically_with_the_filter_state(
     models: dict[str, gc.WorkflowModel],
 ) -> None:
-    """The premise that one worst-case evaluation settles every filter state."""
+    """The structural property, exercised end-to-end over real subset chains.
+
+    Not two points: for each of several rotations of the group ordering this
+    walks the full chain ``∅ ⊂ {g1} ⊂ {g1,g2} ⊂ … ⊂ all`` and asserts the active
+    set never shrinks, plus every singleton against the worst case. Every subset
+    SIZE is therefore covered, and each rotation covers a different membership
+    order. The reason it holds for the subsets NOT sampled is
+    :func:`test_every_group_atom_is_a_positive_unnegated_test`.
+    """
     worst = gc.main_push_active_jobs(models)
-    all_groups = frozenset(
-        name for model in models.values() for name in model.filter_groups
-    )
-    richer = gc.active_job_keys(
-        models, event_name=gc.PUSH_EVENT, active_groups=all_groups,
-    )
-    assert worst <= richer
+    ordered = sorted(_all_filter_groups(models))
+
+    def active(groups: frozenset[str]) -> frozenset[gc.JobKey]:
+        return gc.active_job_keys(
+            models, event_name=gc.PUSH_EVENT, active_groups=groups,
+        )
+
+    assert worst == active(frozenset())
+    for group in ordered:
+        assert worst <= active(frozenset({group})), (
+            f"activating the {group!r} filter group REMOVED a job from the "
+            "active set; job activation is not monotone in the group state"
+        )
+    for rotation in range(_MONOTONICITY_ROTATIONS):
+        offset = (rotation * len(ordered)) // _MONOTONICITY_ROTATIONS
+        sequence = ordered[offset:] + ordered[:offset]
+        previous = active(frozenset())
+        for size in range(1, len(sequence) + 1):
+            current = active(frozenset(sequence[:size]))
+            assert previous <= current, (
+                f"the active set shrank going from {size - 1} to {size} active "
+                f"groups (rotation {rotation}); one worst-case evaluation no "
+                "longer settles the whole filter-state family"
+            )
+            previous = current
+    assert previous == active(frozenset(ordered))
 
 
 def test_analyze_default_still_models_every_job(

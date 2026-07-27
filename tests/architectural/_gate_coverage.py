@@ -820,6 +820,16 @@ def analyze(
 # is treated as "does not run". The consequence of a mis-read is therefore an
 # over-report of uncollected tests (a loud red someone must look at), never a
 # silent claim of coverage that does not exist.
+#
+# ONE DELIBERATE EXCEPTION, AND WHAT IT COSTS THE CLAIM. Exactly one conjunct
+# fails OPEN: ``needs.<job>.result == 'success'`` decides ``True``
+# (:data:`_NEEDS_RESULT_RE_CONJUNCT`). It has to — reading it as unsatisfiable
+# would declare every downstream job dead and leave nothing to reason about. The
+# property this module can therefore state is "collected on a push to ``main``
+# ON THE GREEN PATH": when an upstream job fails, GitHub skips its dependents and
+# a real run collects less than modelled. So an uncollected count from here is
+# exact on a green run and a LOWER BOUND on a red one — the error direction is
+# "the hole is at least this big", never "there is no hole".
 # ---------------------------------------------------------------------------
 
 # The branch whose push state the completeness invariant is evaluated against.
@@ -1023,12 +1033,16 @@ def main_push_uncollected(
     gates: list[Gate] | None = None,
     models: dict[str, WorkflowModel] | None = None,
 ) -> CoverageReport:
-    """SC-013: the tests no job collects on a push to ``main``.
+    """SC-013: the tests no job collects on a push to ``main``, on the green path.
 
     ``orphan_nodeids`` here means "collected by zero RUNNING jobs" — node-level,
     not file-level. The distinction is load-bearing: a file holding one ``slow``
     test and twenty ``fast`` ones satisfies any file-level reading while the
     twenty never execute, and that is the exact shape of most of #2957's list.
+
+    "On the green path" because of the single fail-open conjunct documented in
+    the section header: the count is exact when every upstream job succeeds and a
+    lower bound when one does not.
     """
     return analyze(
         gates if gates is not None else load_gates(),
