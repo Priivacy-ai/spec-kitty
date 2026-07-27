@@ -35,14 +35,13 @@ from typing import Annotated
 import typer
 
 from specify_cli.cli.console import console, err_console
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment, locate_project_root
 from specify_cli.core.vcs.git import git_diff_names_checked, git_merge_base
-from specify_cli.status.cutover_eligibility import CutOverVerdict, is_cut_over
+from specify_cli.status import CutOverVerdict, is_cut_over
 
 #: FR-003: the exact remedy string printed for every un-cut-over mission.
 _REMEDY_TEMPLATE = "spec-kitty migrate backfill-runtime-state --mission {slug}"
-
-_KITTY_SPECS_ROOT = "kitty-specs"
 
 
 class CutoverGuardError(Exception):
@@ -74,7 +73,7 @@ def touched_mission_slugs(paths: list[str]) -> tuple[str, ...]:
     slugs: set[str] = set()
     for raw in paths:
         parts = PurePosixPath(raw).parts
-        if len(parts) >= 2 and parts[0] == _KITTY_SPECS_ROOT:
+        if len(parts) >= 2 and parts[0] == KITTY_SPECS_DIR:
             slugs.add(parts[1])
     return tuple(sorted(slugs))
 
@@ -96,7 +95,7 @@ def changed_paths_from_git(repo_root: Path, base_ref: str) -> tuple[str, ...]:
             "(unknown ref, or the repository has no common ancestor)"
         )
     changed = git_diff_names_checked(
-        repo_root, merge_base, "HEAD", pathspec=_KITTY_SPECS_ROOT
+        repo_root, merge_base, "HEAD", pathspec=KITTY_SPECS_DIR
     )
     if changed is None:
         raise CutoverGuardError(f"git diff failed against merge-base {merge_base}")
@@ -111,11 +110,28 @@ def evaluate_touched_missions(repo_root: Path, changed_paths: list[str]) -> Guar
     failure rather than silently skipped (NFR-003) — the guard never passes
     on uncertainty.
     """
-    corpus = repo_root / _KITTY_SPECS_ROOT
+    corpus = repo_root / KITTY_SPECS_DIR
     slugs = touched_mission_slugs(changed_paths)
 
     failures: list[CutOverVerdict] = []
     for slug in slugs:
+        # ``slug`` is diff-derived (``touched_mission_slugs`` takes it verbatim
+        # from ``parts[1]`` of a changed path), so it is untrusted input reaching
+        # a filesystem sink. Guard the segment before the join and fail CLOSED on
+        # a rejected one -- consistent with how every other uncertainty in this
+        # loop is handled, and never silently skipped.
+        try:
+            assert_safe_path_segment(slug)
+        except ValueError as exc:
+            failures.append(
+                CutOverVerdict(
+                    mission_dir=corpus,
+                    mission_slug=slug,
+                    cut_over=False,
+                    reasons=(f"unsafe mission slug in diff: {exc}",),
+                )
+            )
+            continue
         mission_dir = corpus / slug
         if not mission_dir.is_dir():
             failures.append(

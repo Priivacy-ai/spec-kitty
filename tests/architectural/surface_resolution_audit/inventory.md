@@ -79,15 +79,16 @@ to enumerate every blessed call.
 | specify_cli/status/aggregate.py:533 | `MissionStatus._find_meta_path` | `candidate_dir = candidate_feature_dir_for_mission ( repo_root , mission_slug )` | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `MissionStatus._find_meta_path` delegates to `candidate_feature_dir_for_mission` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
 | specify_cli/status/aggregate.py:549 | `MissionStatus._find_meta_path` | `canonical_primary = primary_feature_dir_for_mission (` | repo_root | primary_feature_dir_for_mission | topology-blind-by-design | `MissionStatus._find_meta_path` composes/reads the PRIMARY checkout through the blessed topology-blind `primary_feature_dir_for_mission` constructor (the coord surface carries no `meta.json`; C-GUARD-3a split-brain rationale). |
 | specify_cli/status/aggregate.py:751 | `MissionStatus.save` | `diag_primary = primary_feature_dir_for_mission (` | self.repo_root | primary_feature_dir_for_mission | topology-blind-by-design | `MissionStatus.save` composes/reads the PRIMARY checkout through the blessed topology-blind `primary_feature_dir_for_mission` constructor (the coord surface carries no `meta.json`; C-GUARD-3a split-brain rationale). |
+| specify_cli/cli/commands/accept.py:226 | `_stamp_birth_cutover_for_accept` | `( coord_worktree_root / KITTY_SPECS_DIR / mission_slug )` | coord_worktree_root | raw join (FS sink: meta.json / status.events.jsonl writes) | topology-blind-by-design | Deliberately COORD-pinned, the mirror image of the usual primary-only case. The root is already resolved by the affirmative `mission_runtime.resolve_artifact_surface` seam, and the slug is fail-closed by `assert_safe_path_segment` immediately above the join. The PRIMARY leg of this same function DOES use `primary_feature_dir_for_mission`; this leg must not, because that primitive re-anchors via `get_main_repo_root` and would redirect the COORD seed writes onto the primary checkout, collapsing the partition split the stamp depends on. |
 
 ## Disposition summary
 
 | disposition | count | meaning |
 | --- | --- | --- |
 | routed-through-resolver | 14 | goes through a canonical blessed resolver (cite it) |
-| topology-blind-by-design | 17 | deliberately primary-only; coord surface carries no meta.json (C-GUARD-3a) |
+| topology-blind-by-design | 18 | deliberately primary-only; coord surface carries no meta.json (C-GUARD-3a) |
 | raw-bypass | 2 | composes KITTY_SPECS_DIR/slug inline for a fail-closed diagnostic `raise` payload (no FS sink) |
-| **total** | **33** | all AST-discovered ResolutionRow callsites |
+| **total** | **34** | all AST-discovered ResolutionRow callsites |
 
 ## Read-SELECTION callsites (FR-006a)
 
