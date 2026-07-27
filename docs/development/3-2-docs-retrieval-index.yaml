@@ -2626,13 +2626,13 @@ pages:
     - {slug: "spec-kitty-agent-decision-verify", text: "spec-kitty agent decision verify", level: 2}
     - {slug: "spec-kitty-agent-mission", text: "spec-kitty agent mission", level: 2}
     - {slug: "spec-kitty-agent-mission-accept", text: "spec-kitty agent mission accept", level: 2}
-    - {slug: "spec-kitty-agent-mission-repair", text: "spec-kitty agent mission repair", level: 2}
     - {slug: "spec-kitty-agent-mission-branch-context", text: "spec-kitty agent mission branch-context", level: 2}
     - {slug: "spec-kitty-agent-mission-check-prerequisites", text: "spec-kitty agent mission check-prerequisites", level: 2}
     - {slug: "spec-kitty-agent-mission-create", text: "spec-kitty agent mission create", level: 2}
     - {slug: "spec-kitty-agent-mission-finalize-tasks", text: "spec-kitty agent mission finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-mission-merge", text: "spec-kitty agent mission merge", level: 2}
     - {slug: "spec-kitty-agent-mission-record-analysis", text: "spec-kitty agent mission record-analysis", level: 2}
+    - {slug: "spec-kitty-agent-mission-repair", text: "spec-kitty agent mission repair", level: 2}
     - {slug: "spec-kitty-agent-mission-setup-plan", text: "spec-kitty agent mission setup-plan", level: 2}
     - {slug: "spec-kitty-agent-profile-list", text: "spec-kitty agent profile list", level: 2}
     - {slug: "spec-kitty-agent-profile-show", text: "spec-kitty agent profile show", level: 2}
@@ -2733,6 +2733,7 @@ pages:
     - {slug: "spec-kitty-context-list", text: "spec-kitty context list", level: 2}
     - {slug: "spec-kitty-context-mission-resolve", text: "spec-kitty context mission-resolve", level: 2}
     - {slug: "spec-kitty-context-mission-show", text: "spec-kitty context mission-show", level: 2}
+    - {slug: "spec-kitty-cutover-guard", text: "spec-kitty cutover-guard", level: 2}
     - {slug: "spec-kitty-dashboard", text: "spec-kitty dashboard", level: 2}
     - {slug: "spec-kitty-dispatch", text: "spec-kitty dispatch", level: 2}
     - {slug: "spec-kitty-docs", text: "spec-kitty docs", level: 2}
@@ -2741,6 +2742,7 @@ pages:
     - {slug: "spec-kitty-doctor-command-files", text: "spec-kitty doctor command-files", level: 2}
     - {slug: "spec-kitty-doctor-contracts", text: "spec-kitty doctor contracts", level: 2}
     - {slug: "spec-kitty-doctor-coordination", text: "spec-kitty doctor coordination", level: 2}
+    - {slug: "spec-kitty-doctor-cutover", text: "spec-kitty doctor cutover", level: 2}
     - {slug: "spec-kitty-doctor-doctrine", text: "spec-kitty doctor doctrine", level: 2}
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
     - {slug: "spec-kitty-doctor-invocation-pairing", text: "spec-kitty doctor invocation-pairing", level: 2}
@@ -5673,6 +5675,18 @@ pages:
     - {slug: "decision-aid-real-regression-or-expected-scope-difference", text: "Decision aid: real regression, or expected scope difference?", level: 2}
     - {slug: "where-each-signal-is-configured", text: "Where each signal is configured", level: 2}
     - {slug: "known-caveats-and-follow-ups", text: "Known caveats and follow-ups", level: 2}
+  - path: "docs/development/cutover-guard.md"
+    title: "Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over"
+    divio_type: "how-to"
+    abstract: "What `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check."
+    anchors:
+    - {slug: "what-the-guard-does", text: "What the guard does", level: 2}
+    - {slug: "exit-behavior", text: "Exit behavior", level: 3}
+    - {slug: "how-it-is-invoked", text: "How it is invoked", level: 2}
+    - {slug: "how-it-triggers-in-ci-the-corpus-only-pr-requirement", text: "How it triggers in CI (the corpus-only-PR requirement)", level: 2}
+    - {slug: "registering-it-as-a-required-check-operator-action", text: "Registering it as a required check (operator action)", level: 2}
+    - {slug: "the-skipped-required-check-footgun", text: "The skipped-required-check footgun", level: 3}
+    - {slug: "local-verification-ci-equivalent-simulation", text: "Local verification (CI-equivalent simulation)", level: 2}
   - path: "docs/development/index.md"
     title: "Development"
     divio_type: "none"

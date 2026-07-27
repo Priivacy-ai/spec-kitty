@@ -526,6 +526,11 @@
     }
    }
   },
+  "cutover-guard": {
+   "help": "Diff-scoped fail-closed cut-over gate (pre-merge required check).",
+   "hidden": false,
+   "deprecated": false
+  },
   "dashboard": {
    "help": "Open or stop the Spec Kitty dashboard.",
    "hidden": false,
@@ -635,6 +640,11 @@
     },
     "coordination": {
      "help": "Run the WP04 #1348 coordination + sparse-checkout health checks.\n\nIterates over every mission under ``kitty-specs/`` whose ``meta.json``\ndeclares a ``coordination_branch`` field, runs the coord-worktree\nand lane-sparse-checkout health checks, and prints findings.\n\nAlso runs the minimum git-version (RR-01) check.\n\nExits with code 1 if any ``error`` finding is emitted; ``warning``\nfindings exit 0 but are still printed.\n\nWith ``--fix``, automatically flattens missions that have a stale\n``coordination_branch`` key (branch never created or already deleted),\nre-derives topology, and attempts the Gap-1 coord-vs-target fast-forward\n(FR-009) -- which fails loud with a unified diff and mutates nothing when\nthe coord branch has diverged or its worktree is dirty. Safe to run on\n100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.\n\nWith ``--check-staleness``, also reports Gap-1 coord-branch-vs-target\nstaleness (FR-008) — non-blocking either way.\n\nExamples:\n    spec-kitty doctor coordination\n    spec-kitty doctor coordination --fix\n    spec-kitty doctor coordination --json\n    spec-kitty doctor coordination --check-staleness",
+     "hidden": false,
+     "deprecated": false
+    },
+    "cutover": {
+     "help": "Audit every mission's cut-over status outside CI (FR-007).\n\nBacked by ``migration.runtime_state_cutover.cutover_repo(dry_run=True)``:\nthe same fail-closed seed-then-verify spine the birth-cutover migration\nuses, read-only and writing nothing. Reports each mission slug, whether\nit is cut over, and a reason when it is not.\n\nInformational only: always exits 0 with a summary count.\n\nExamples:\n    spec-kitty doctor cutover\n    spec-kitty doctor cutover --json",
      "hidden": false,
      "deprecated": false
     }

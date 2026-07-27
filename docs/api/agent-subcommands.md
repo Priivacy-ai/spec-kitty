@@ -524,6 +524,9 @@ _Mission lifecycle commands for AI agents_
 │ merge                Merge mission branch into target branch.                │
 │ finalize-tasks       Parse dependencies from tasks.md and update WP          │
 │                      frontmatter, then commit to target branch.              │
+│ repair               Detect and forward-only repair a pre-existing           │
+│                      cross-partition content                                 │
+│                      split-brain for one mission (FR-005, NFR-005).          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -561,27 +564,6 @@ _Mission lifecycle commands for AI agents_
 │ --no-commit                Skip auto-commit (report only)                    │
 │ --diagnose                 Diagnose acceptance blockers without mutation     │
 │ --help       -h            Show this message and exit.                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent mission repair
-
-```
- Usage: spec-kitty agent mission repair [OPTIONS]
-
- Detect and forward-only repair a pre-existing cross-partition content
- split-brain for one mission (FR-005, NFR-005).
-
- Fast-forwards under strict-ancestor + clean worktree, zero data loss.
- Refuses with a unified diff (scoped to the mission's own content) and
- mutates NOTHING on genuine (non-ancestor) divergence.
-
- Examples:
-     spec-kitty agent mission repair --mission 020-my-mission
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission        TEXT  Mission slug/handle to repair [required]           │
-│    --help                 Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -843,6 +825,27 @@ _Mission lifecycle commands for AI agents_
 │ --agent               TEXT  Agent name that produced the analysis report     │
 │ --json                      Output JSON format                               │
 │ --help        -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent mission repair
+
+```
+ Usage: spec-kitty agent mission repair [OPTIONS]
+
+ Detect and forward-only repair a pre-existing cross-partition content
+ split-brain for one mission (FR-005, NFR-005).
+
+ Fast-forwards under strict-ancestor + clean worktree, zero data loss.
+ Refuses with a unified diff (scoped to the mission's own content) and
+ mutates NOTHING on genuine (non-ancestor) divergence.
+
+ Examples:
+     spec-kitty agent mission repair --mission 020-my-mission
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission          TEXT  Mission slug/handle to repair [required]         │
+│    --help     -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

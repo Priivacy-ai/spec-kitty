@@ -922,6 +922,28 @@ _Query workspace context information_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty cutover-guard
+
+_Diff-scoped fail-closed cut-over gate (pre-merge required check)._
+
+```
+ Usage: spec-kitty cutover-guard [OPTIONS]
+
+ Diff-scoped fail-closed cut-over gate (pre-merge required check).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --base-ref            TEXT  Diff HEAD against the merge-base with this ref   │
+│                             to discover touched kitty-specs/<mission> paths  │
+│                             (e.g. origin/main).                              │
+│ --paths-from          PATH  Read already-known changed paths from this file  │
+│                             (one per line) instead of running git diff. Use  │
+│                             when the CI host already provides the diff (e.g. │
+│                             a PR file list).                                 │
+│ --json                      Emit the guard verdict as structured JSON.       │
+│ --help        -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty dashboard
 
 ```
@@ -1048,6 +1070,8 @@ _Project health diagnostics_
 │                     pack artifacts.                                          │
 │ coordination        Run the WP04 #1348 coordination + sparse-checkout health │
 │                     checks.                                                  │
+│ cutover             Audit every mission's cut-over status outside CI         │
+│                     (FR-007).                                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1144,6 +1168,30 @@ _Project health diagnostics_
 │                              whether the coord branch is behind or has       │
 │                              diverged from its mission's target_branch.      │
 │ --help             -h        Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor cutover
+
+```
+ Usage: spec-kitty doctor cutover [OPTIONS]
+
+ Audit every mission's cut-over status outside CI (FR-007).
+
+ Backed by ``migration.runtime_state_cutover.cutover_repo(dry_run=True)``:
+ the same fail-closed seed-then-verify spine the birth-cutover migration
+ uses, read-only and writing nothing. Reports each mission slug, whether
+ it is cut over, and a reason when it is not.
+
+ Informational only: always exits 0 with a summary count.
+
+ Examples:
+     spec-kitty doctor cutover
+     spec-kitty doctor cutover --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
