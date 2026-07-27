@@ -15,7 +15,7 @@ from specify_cli.cli.commands import retrospect
 from specify_cli.cli.commands.charter import _widen
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
-pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 MISSION_ID = "01KWZ46VTY9CVJ8G10ERTMPVRH"
 MID8 = MISSION_ID[:8]
