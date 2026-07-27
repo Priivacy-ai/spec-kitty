@@ -185,6 +185,24 @@ the gate's green as proof that *every* kind-blind read has been routed: it
 proves only that no **new** call to the two censused primitives can be added
 outside the sanctioned + allow-listed sets.
 
+## Known gap — raw `KITTY_SPECS_DIR` joins (out of census grammar)
+
+The census grammar is "calls to the two primitives", so a site that
+reconstructs a mission directory by **joining path constants** is invisible to
+it. One such site was found during the landing pass and is not represented by
+any row above:
+
+| file | construction | verdict | kind | rationale |
+|---|---|---|---|---|
+| `cli/commands/accept.py` | `coord_worktree_root / KITTY_SPECS_DIR / mission_slug` | migrate-fail-loud | `STATUS_STATE` | The COORD leg passed to `stamp_accept_cutover` as `status_feature_dir` — per `cutover_mission`'s contract, the `STATUS_STATE` port target. Migrated on 2026-07-27 to `placement_seam(...).read_dir(STATUS_STATE)` via `_coord_status_feature_dir`, which also fixes a latent bug: the hand-built join was wrong for identity-suffixed `<slug>-<mid8>` mission dirs. |
+
+This class is policed by a *different* gate —
+`tests/architectural/test_no_raw_mission_spec_paths.py`, which is what caught
+this site — not by `test_no_read_side_bypass.py`. The two gates are
+complementary and neither subsumes the other; the counts above deliberately
+exclude this row so the "90 real call sites" arithmetic keeps meaning "call
+sites of the two censused primitives".
+
 ## Full ledger
 
 Columns: `file` · `symbol(s)` · `sites` (file:line) · `family` · `verdict` ·
