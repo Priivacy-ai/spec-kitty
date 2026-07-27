@@ -945,6 +945,29 @@ def test_the_unassigned_cap_is_registered_with_the_charter_ratchet() -> None:
     )
 
 
+def test_the_masking_cap_is_registered_with_the_charter_ratchet() -> None:
+    """The code-only suppression cap is a ratchet, so the charter file must hold it.
+
+    Same reasoning as ``unassigned_entries`` directly above, and the same reason
+    that one exists: a cap living only as a module constant is widened on one line
+    with nothing to answer to, while every sibling ratchet sits under the charter
+    file's ``# justification:`` policy. This one guards the gate's *other* silent
+    exit — a slot kept out of the findings list by a code write alone, with no
+    baseline row and nothing visible in review.
+    """
+    recorded = yaml.safe_load(
+        (_REPO_ROOT / "tests" / "architectural" / "_baselines.yaml").read_text(
+            encoding="utf-8"
+        )
+    )["test_no_inert_schema_slots"]["masking_suppressions"]
+
+    assert recorded == MAX_MASKING_SUPPRESSIONS, (
+        f"_baselines.yaml records masking_suppressions={recorded} but the module "
+        f"caps at {MAX_MASKING_SUPPRESSIONS}. Change both, and growing either needs "
+        "a `# justification:` comment per the charter file's own policy."
+    )
+
+
 def test_the_baseline_size_is_registered_with_the_charter_ratchet() -> None:
     """Burn-down Policy §a: the size lives in ``_baselines.yaml``, not only here.
 
