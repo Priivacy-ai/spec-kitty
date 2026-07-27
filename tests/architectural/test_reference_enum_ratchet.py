@@ -86,12 +86,62 @@ _REFERENCE_TARGETS: tuple[tuple[str, str], ...] = (
 #: Frozen baseline. Literal, committed member sets — never re-derived from the
 #: schemas at test time (frozen-baseline-shrink-only-ratchet tactic). Widening any
 #: of these sets is a deliberate edit requiring an ADR amendment, not a schema PR.
-#:
-#: T031 (this commit): deliberately EMPTY. No baseline has been pinned yet, so
-#: every one of the four shipped enums reads as unbounded growth and the ratchet
-#: below is RED — that red is the T031 deliverable, proving the freeze is
-#: currently only a comment. T032 fills this in with the real derived values.
-_BASELINE: dict[str, frozenset[str]] = {}
+_BASELINE: dict[str, frozenset[str]] = {
+    "directive_reference": frozenset(
+        {
+            "directive",
+            "tactic",
+            "styleguide",
+            "toolguide",
+            "paradigm",
+            "procedure",
+            "agent_profile",
+            "mission_step_contract",
+            "template",
+            "asset",
+            "glossary_pack",
+            "anti_pattern",
+        }
+    ),
+    "tactic_reference": frozenset(
+        {
+            "directive",
+            "tactic",
+            "styleguide",
+            "toolguide",
+            "paradigm",
+            "procedure",
+            "template",
+        }
+    ),
+    "procedure_reference": frozenset(
+        {
+            "directive",
+            "tactic",
+            "styleguide",
+            "toolguide",
+            "paradigm",
+            "procedure",
+            "agent_profile",
+            "mission_step_contract",
+            "template",
+            "asset",
+            "glossary_pack",
+            "anti_pattern",
+        }
+    ),
+    "paradigm_reference": frozenset(
+        {
+            "directive",
+            "tactic",
+            "styleguide",
+            "toolguide",
+            "paradigm",
+            "procedure",
+            "template",
+        }
+    ),
+}
 
 
 def _enum_members(schema_path: Path, definition_key: str) -> frozenset[str]:
