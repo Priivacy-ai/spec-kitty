@@ -29,7 +29,7 @@ from specify_cli.retrospective import summary as retrospective_summary
 from specify_cli.review import cycle as review_cycle
 from specify_cli.status import aggregate as status_aggregate
 
-pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 MISSION_ID = "01KYHP67DIAGNOSTICWP06TEST"
 MID8 = MISSION_ID[:8]

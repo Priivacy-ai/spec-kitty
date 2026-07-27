@@ -26,6 +26,8 @@ from specify_cli.task_metadata_validation import (
 )
 from specify_cli.template import parse_frontmatter
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 REALISTIC_FRONTMATTER = {
     "work_package_id": "WP01",
     "title": "Read-side placement seam migration (Cluster A)",
