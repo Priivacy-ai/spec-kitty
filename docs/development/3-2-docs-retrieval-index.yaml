@@ -5777,11 +5777,14 @@ pages:
   - path: "docs/development/read-side-seam-classification.md"
     title: "Read-side placement-seam classification ledger"
     divio_type: "reference"
-    abstract: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind), the spine WP03-WP08 of the read-side-placement-seam-migration mission consume."
+    abstract: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
     anchors:
     - {slug: "method-how-this-census-was-built", text: "Method (how this census was built)", level: 2}
     - {slug: "coverage-reconciliation", text: "Coverage reconciliation", level: 2}
     - {slug: "summary", text: "Summary", level: 2}
+    - {slug: "stay-lenient-allow-list-index-machine-checked", text: "Stay-lenient allow-list index (machine-checked)", level: 2}
+    - {slug: "known-gap-primary-feature-dir-for-mission-tracked-follow-up", text: "Known gap — `primary_feature_dir_for_mission` (tracked follow-up)", level: 2}
+    - {slug: "known-gap-raw-kitty-specs-dir-joins-out-of-census-grammar", text: "Known gap — raw `KITTY_SPECS_DIR` joins (out of census grammar)", level: 2}
     - {slug: "full-ledger", text: "Full ledger", level: 2}
     - {slug: "sanction-infra", text: "Sanction-infra", level: 3}
     - {slug: "wp03-agent-cli-src-specify-cli-cli-commands-agent", text: "WP03 — agent-CLI (`src/specify_cli/cli/commands/agent/**`)", level: 3}
