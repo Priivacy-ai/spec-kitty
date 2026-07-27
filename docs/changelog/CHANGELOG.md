@@ -201,6 +201,29 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Read-side placement seam: mission reads route through the kind-aware seam and
+  new bypasses are structurally impossible (#2922, #1878; also #2921, #2966
+  part-1).** The write side already failed loud when an artifact's coordination
+  partition was gone, but ~50 modules still read mission artifacts through the
+  low-level kind-blind resolvers, so a read could silently substitute the primary
+  checkout for a deleted coord branch:
+  - Every fail-loud-appropriate caller (72 sites, per a per-site classification
+    ledger) now reads via `PlacementSeam.read_dir(<kind>)` with the correct
+    artifact kind. Coord-partition reads — a lane-based merge's event log, the
+    decision-log companion read, the doctrine synthesizer — now fail loud instead
+    of treating a deleted coordination branch as healthy.
+  - 16 diagnostic/audit/SaaS-facing readers (dashboard scan, dossier API,
+    retrospective summary, status aggregation, and friends) stay **lenient by
+    design** and are recorded as justified allow-list entries — reporting surfaces
+    must not start raising.
+  - A new whole-tree AST gate reds on any future direct kind-blind read in a
+    non-sanctioned module, reusing the same scanner as the write-side gate. The
+    allow-list is shrink-only: a staleness twin-guard reds until an entry that is
+    no longer needed is deleted.
+  - Behavior is unchanged for the healthy case; `repair_lane_mismatch` no longer
+    duplicates frontmatter into the document body (#2921), and
+    `backfill_runtime_state`'s mission-id read is anchored on the PRIMARY leg.
+
 - **Placement-port residuals: partition routing is now enforced by the port, not
   by caller discipline (#2923, #2924, #2926, #2932; epic #2931).** Closes the
   residuals deferred from the coord-write-placement-closure merge (PR #2920):
