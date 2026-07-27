@@ -1,20 +1,255 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
-  "mission_number": "",
-  "mission_slug": "",
+  "event_count": 80,
+  "last_event_id": "01KYJ5CDW4R0MG4BCTQ28RKF8W",
+  "materialized_at": "2026-07-27T16:09:01.572079+00:00",
+  "mission_number": "186",
+  "mission_slug": "doctrine-silence-guards-01KYFV7Q",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 10,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYJ5AXHYJ6DS3E2XVFA7MY7Y",
+      "last_transition_at": "2026-07-27T16:08:12.094158+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 623450,
+      "shell_pid_created_at": "1785098011.73",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYJ5B2ZH8HEQ8JBJ740BNYJ0",
+      "last_transition_at": "2026-07-27T16:08:17.649838+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 complete: schema/loader/diff_check field-path granularity, ATDD red-first commit, backward-compat proven against a committed legacy map, SC-011 demonstrated against B2's real (file,field) GOVERNANCE/RAW sets. --force used because this mission's tasks.md 'reference row' subtask format (T006..T011 as plain description lines) is not recognized by any of mark-status's four resolvers (checkbox/pipe-table/inline-subtasks/wp-id) despite tasks.md's own header directing agents to use mark-status for this format -- an upstream parser/template gap, reported separately, not a WP02 defect."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1052808,
+      "shell_pid_created_at": "1785130206.64",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ5B88S63J7877101B03BFG",
+      "last_transition_at": "2026-07-27T16:08:23.065829+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1053412,
+      "shell_pid_created_at": "1785130214.84",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ5BJWVHJ6Z8J5QA75JQR0P",
+      "last_transition_at": "2026-07-27T16:08:33.947645+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1244143,
+      "shell_pid_created_at": "1785135817.26",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023a": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYJ5BDJTQFRSG77JH8X6NCSW",
+      "last_transition_at": "2026-07-27T16:08:28.506504+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T023-T027 complete: --check exits 0, structural_lint_config + point_in_time_marker adjudicated and preserved, paradigm_reference/mission_step_template_ref verified, WP01 floors converted to proportional form, baseline 59->51."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1054169,
+      "shell_pid_created_at": "1785130223.16",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ5BRC39Y5NWZ28WP25FTA2",
+      "last_transition_at": "2026-07-27T16:08:39.555260+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Unblocking: lane-e merge conflict from an earlier automated implement attempt was resolved by rebasing lane-f onto lane-e (now clean, no conflicts) and then onto remediation/doctrine-silence-guards. Work (T029-T033) is complete; resuming to for_review.",
+        "T031/T032 landed: enum ratchet RED-first then GREEN. T029/T030/T033 verified already delivered by prior work (layout gate untouched, 17 tests pass)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ5C30D33Q18Q65T2BGYCQZ",
+      "last_transition_at": "2026-07-27T16:08:50.445983+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1804289,
+      "shell_pid_created_at": "1785144106.56",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KYJ5C8DV3PJVZVWPX3ZHV6E5",
+      "last_transition_at": "2026-07-27T16:08:55.995083+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1803519,
+      "shell_pid_created_at": "1785144099.3",
+      "subtasks": {
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYJ5CDW4R0MG4BCTQ28RKF8W",
+      "last_transition_at": "2026-07-27T16:09:01.572079+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3965243,
+      "shell_pid_created_at": "1785163514.21",
+      "subtasks": {
+        "T046": "done",
+        "T047": "done",
+        "T048": "done",
+        "T049": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYJ5BXKS7D1K8AW2T1WC4J4J",
+      "last_transition_at": "2026-07-27T16:08:44.921904+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "review REJECT (reporting + three MINOR guard defects); remediating on lane-j"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "subtasks": {
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done"
+      }
+    }
+  }
 }
