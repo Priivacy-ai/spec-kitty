@@ -52,11 +52,23 @@ will fail loudly, which is the intended behaviour.
 Edge-count claims in the relation registry are checked, not trusted
 -------------------------------------------------------------------
 ``RELATION_DESCRIPTIONS`` (``doctrine.drg.models``) is the canonical prose authority for
-every relation, mirrored into ``docs/architecture/doctrine-relationships.md``. Five entries
-state "zero edges exist in the built-in graph", and ``applies`` joins them in this change.
+every relation, mirrored into ``docs/architecture/doctrine-relationships.md``. **Six**
+entries state "zero edges exist in the built-in graph" on ``upstream/main``
+(``delegates_to``, ``enhances``, ``overrides``, ``refines``, ``replaces``, ``vocabulary``),
+and ``applies`` joins them in this change, making **seven**.
 Nothing checked those claims: the ``applies`` entry read "1 edge in the built-in graph"
 and stayed green after the edge count changed, and two positive counts had already drifted
 (``requires`` said 255 against 259 measured, ``suggests`` said 330 against 332).
+
+An earlier revision of this paragraph said "Five entries", and the floor below read
+``>= 5``. Both were wrong, and wrong in the direction that matters: a floor two below the
+live figure would have stayed green while two entries were deleted. Correcting the prose
+alone would only reset the clock, so the count is no longer written down at all —
+:meth:`TestAbsenceClaimsAreTrue.test_absence_claims_are_exactly_the_unemitted_relations`
+derives it from the shipped graph, and seven is now a consequence rather than a claim.
+That this module — whose stated purpose is checking that absence claims are true — shipped
+a false count of its own is the reason the derivation replaced the number instead of
+correcting it.
 
 Both halves of the claim are now measured against the shipped graph, because gating only
 the absence half would fix the instance and leave the class — the five re-pinned positive
@@ -481,11 +493,50 @@ class TestAbsenceClaimsAreTrue:
             f"emitted: {liars}"
         )
 
-    def test_the_claim_scan_is_not_empty(self) -> None:
-        """Floor: an entry-scan that matches nothing would pass the check above vacuously."""
+    def test_absence_claims_are_exactly_the_unemitted_relations(
+        self, shipped_graph: DRGGraph
+    ) -> None:
+        """Both directions, derived — replacing the floor that used to read ``>= 5``.
+
+        That floor was doubly wrong. It was loose (two entries could be deleted in
+        silence), and the figure it approximated was itself misread: six on
+        ``upstream/main``, seven here. Re-pinning it at 7 would fix today's number and
+        keep the shape that produced the error.
+
+        So no number is written down. A relation claims "zero edges exist" **iff** the
+        shipped graph emits none of it:
+
+        * left-to-right catches a claim that has become false — the ``applies`` case,
+          where retyping the last edge silently invalidated the prose;
+        * right-to-left catches a relation that fell to zero edges without anyone saying
+          so — the same defect discovered from the other end, which the old one-way check
+          could not see at any floor value.
+
+        It is also self-flooring, and strictly stronger than the floor it replaces.
+        ``>= 5`` did catch a *totally* dead :data:`_ABSENCE_CLAIM` (0 claims fails the
+        floor). What it could not catch is a *partially* dead one: a parser that dropped
+        a single entry left six claims, cleared the floor, and left the one-way check
+        above green, because the six it still read were all genuinely absent. Verified by
+        mutation — dropping ``vocabulary`` from the parse is invisible to ``>= 5`` and
+        reds here by name.
+        """
+        emitted = {edge.relation for edge in shipped_graph.edges}
+        unemitted = {
+            relation for relation in RELATION_DESCRIPTIONS if relation not in emitted
+        }
         claimed = claimed_absent_relations()
-        assert len(claimed) >= 5, (
-            f"only {len(claimed)} absence claims parsed out of RELATION_DESCRIPTIONS"
+
+        assert unemitted, "no relation is unemitted -- the graph read is broken"
+        assert claimed == unemitted, (
+            "the set of relations documented as unemitted must equal the set the shipped "
+            "graph actually leaves unemitted.\n"
+            "  claimed absent but ARE emitted: "
+            f"{sorted(r.value for r in claimed - unemitted)}\n"
+            "  emitted zero times but NOT documented as absent: "
+            f"{sorted(r.value for r in unemitted - claimed)}\n"
+            "Update RELATION_DESCRIPTIONS -- and its mirror in "
+            "docs/architecture/doctrine-relationships.md, which "
+            "tests/doctrine/test_relation_doc_parity.py pins to it."
         )
 
     def test_no_relation_claims_both_absence_and_a_positive_count(self) -> None:
