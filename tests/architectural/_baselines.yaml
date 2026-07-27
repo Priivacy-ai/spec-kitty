@@ -295,11 +295,11 @@ test_no_dead_symbols:
 # NOT an allowlist. Each entry is a declared doctrine slot that nothing in the
 # tree populates, frozen with a named owner and a required structural fix; see
 # tests/architectural/_inert_slots_baseline.yaml. Growth FAILS, shrinkage WARNS.
-# Entries clear when their owner lands the fix — WP05 owns 8 (the FR-028
-# enhances/overrides excision) and mission foundational-values-creed-band-01KYFV8N
-# owns 26 (import_candidates' first producer). Expect this to fall, not rise.
+# WP05 cleared its 8 (the FR-028 enhances/overrides excision, 59 -> 51); mission
+# foundational-values-creed-band-01KYFV8N still owns 26 (import_candidates'
+# first producer). Expect this to fall further, not rise.
 test_no_inert_schema_slots:
-  baseline_entries: 59
+  baseline_entries: 51
   # The shrink-only cap on `unassigned` owners. `unassigned` is the one owner the
   # anti-weasel test can never fire for, so this is the gate's only escape hatch;
   # registering it here subjects widening it to the same `# justification:` policy

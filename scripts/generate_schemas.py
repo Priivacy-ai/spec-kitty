@@ -201,6 +201,76 @@ register(
 
 
 # --- Styleguide ---
+
+# T025 adjudication (WP05, FR-005, mission doctrine-silence-guards-01KYFV7Q).
+#
+# `Styleguide.structural_lint_config` (styleguides/models.py:92) is typed
+# `dict[str, Any] | None` — a deliberately generic escape hatch; the model does
+# not want to know the shape of every lint's config. Left to the standard
+# pipeline, `model_json_schema()` renders that as a bare `type: object` with no
+# named properties, which is what made `--check` report this schema stale: the
+# committed schema instead pins the *specific* structural contract the
+# common-docs styleguide's block must satisfy
+# (`src/doctrine/styleguides/built-in/common-docs.styleguide.yaml`), because the
+# `docs_structural_lint.py` asset that reads it (`_require_markers`,
+# `assets/built-in/docs_structural_lint.py`) parses `point_in_time_markers` as a
+# list of `{frontmatter_field, frontmatter_value}` objects and raises
+# `ConfigError` on anything else. That per-field object shape
+# (`point_in_time_marker`) is declared in **no** Pydantic model — there is no
+# model to declare it in, since the field above it is untyped by design — but it
+# IS used, structurally, by a shipped artefact.
+#
+# Naively regenerating from the model alone collapses both definitions to a
+# permissive `type: object`, silently widening what `common-docs.styleguide.yaml`
+# — and any future styleguide reusing this asset — is allowed to declare under
+# this key. Adjudication: keep the JSON-Schema-level contract below, pinned
+# independently of the deliberately-permissive Pydantic type. The fixup, not the
+# model, is the second, narrower source of strictness for this one field; it
+# fails loudly (a schema validation error) if the asset's contract and this
+# definition ever drift apart, rather than silently accepting whatever a future
+# lint config author writes.
+_POINT_IN_TIME_MARKER_DEF: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["frontmatter_field", "frontmatter_value"],
+    "properties": {
+        "frontmatter_field": {"type": "string", "minLength": 1},
+        "frontmatter_value": {"type": "string", "minLength": 1},
+    },
+}
+
+_STRUCTURAL_LINT_CONFIG_DEF: dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "Machine-parseable policy block a companion lint script LOADS as its "
+        "single source of truth (e.g. common-docs' docs_structural_lint.py "
+        "config, FR-011). Plain scalars/lists/mappings only."
+    ),
+    "additionalProperties": False,
+    "properties": {
+        "curated_complete_sections": {"type": "array", "items": {"type": "string"}},
+        "concern_bucket_to_section": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+        },
+        "point_in_time_patterns": {"type": "array", "items": {"type": "string"}},
+        "point_in_time_markers": {
+            "type": "array",
+            "items": {"$ref": "#/definitions/point_in_time_marker"},
+        },
+        "point_in_time_allowlist": {"type": "array", "items": {"type": "string"}},
+        "frontmatter_required_fields": {"type": "array", "items": {"type": "string"}},
+        "frontmatter_in_scope_exclusions": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "shadow_tree_nav_exemptions": {"type": "array", "items": {"type": "string"}},
+        "guides_boundary": {"type": "string"},
+        "redirect_stub_description_prefix": {"type": "string"},
+    },
+}
+
+
 def _styleguide_fixups(schema: dict) -> dict:
     props = schema.get("properties", {})
     # anti_patterns: minItems 1 when present
@@ -218,6 +288,16 @@ def _styleguide_fixups(schema: dict) -> dict:
             "Recommended tools for enforcing the styleguide (formatters, linters, "
             "type checkers, test runners, etc.)."
         )
+    # T024/T025: restore the structural_lint_config / point_in_time_marker
+    # contract the standard pipeline cannot derive from `dict[str, Any]` alone.
+    # See the adjudication comment above the constants.
+    if "structural_lint_config" in props:
+        defs = schema.setdefault("definitions", {})
+        defs["point_in_time_marker"] = _POINT_IN_TIME_MARKER_DEF
+        defs["structural_lint_config"] = _STRUCTURAL_LINT_CONFIG_DEF
+        props["structural_lint_config"] = {
+            "$ref": "#/definitions/structural_lint_config"
+        }
     return schema
 
 
