@@ -13,6 +13,12 @@ on:
       - scripts/release/**
       - RELEASE_CHECKLIST.md
       - .github/workflows/release-readiness.yml
+      # FR-008 / R1 (mission runtime-state-birth-cutover-all-paths): kitty-specs/**
+      # otherwise triggers NO test workflow at all, so a corpus-only mission PR
+      # (touching only kitty-specs/<mission>/...) would run zero CI. This path
+      # entry exists solely to give the cutover-guard job below somewhere to
+      # fire from; it must NOT be removed without relocating that job.
+      - kitty-specs/**
   workflow_dispatch:
     inputs:
       tag:
@@ -150,3 +156,56 @@ jobs:
         run: |
           echo "::error::Release readiness checks failed. Review the validation output and job summary for details."
           exit 1
+
+  # ---------------------------------------------------------------------------
+  # cutover-guard: FR-008 / R1 (mission runtime-state-birth-cutover-all-paths).
+  # Fail-closed pre-merge gate: every kitty-specs/<mission>/ corpus touched by
+  # this PR's diff must be cut over to event-log-authoritative runtime state
+  # (see contracts/pre-merge-guard.md). This job is deliberately hosted here,
+  # NOT in ci-quality.yml (that workflow's `changes`/src `dorny/paths-filter`
+  # gate would make a corpus-only diff skip it — a required check that is
+  # `if:`-skipped reports neutral and does NOT block merge, the exact footgun
+  # this job exists to avoid). It therefore:
+  #   - carries NO `changes`/paths-filter step gate of its own — it always
+  #     executes when this workflow runs;
+  #   - depends only on `kitty-specs/**` being present in this workflow's
+  #     top-level `on.pull_request.paths` (above) so a corpus-only PR
+  #     triggers the workflow at all;
+  #   - must be registered as a REQUIRED status check in branch protection
+  #     (see docs/development/cutover-guard.md) for the fail-closed guarantee
+  #     to hold — an unregistered check can be ignored by a merge button.
+  # ---------------------------------------------------------------------------
+  cutover-guard:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
+      !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci')
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install spec-kitty (editable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Hydrate base-ref remote-tracking branch if missing
+        run: |
+          if ! git show-ref --verify --quiet "refs/remotes/origin/${{ github.base_ref }}"; then
+            git -c http.extraheader="AUTHORIZATION: bearer ${{ github.token }}" \
+              fetch origin \
+              "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          fi
+
+      - name: Run cutover guard (fail-closed on any un-cut-over mission)
+        run: |
+          spec-kitty cutover-guard --base-ref "origin/${{ github.base_ref }}"

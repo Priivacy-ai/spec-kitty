@@ -26,26 +26,31 @@ Scope notes:
   the guard only asserts on missions that *carry* runtime state.
 
 WP10 re-key (FR-010 / C-003 / NFR-006 / IC-09): eligibility
-(:func:`_eligible_runtime_missions`) used to key on the frontmatter
-``has_evictable_state()`` signal. WP04/WP05 retired frontmatter runtime
-authoring, so that signal goes permanently empty for every mission born after
-the retirement — a future regression in the WP09 birth-cutover seam would
-leave such a mission un-flipped/empty and this guard would never see it
-(a vacuous pass). Eligibility is now keyed on independent evidence read
-directly from ``status.events.jsonl`` (see
-:func:`_mission_carries_event_log_runtime`) — never on the retired
-frontmatter signal, and never on ``status_phase`` itself (circular: that is
-exactly the field this guard verifies was flipped). See
-``test_reked_lock_reds_on_born_un_reconciled_mission`` for the non-vacuity
-proof.
+(:func:`~specify_cli.status.cutover_eligibility.eligible_runtime_missions`)
+used to key on the frontmatter ``has_evictable_state()`` signal. WP04/WP05
+retired frontmatter runtime authoring, so that signal goes permanently empty
+for every mission born after the retirement — a future regression in the
+WP09 birth-cutover seam would leave such a mission un-flipped/empty and this
+guard would never see it (a vacuous pass). Eligibility is now keyed on
+independent evidence read directly from ``status.events.jsonl`` (see
+:func:`~specify_cli.status.cutover_eligibility.mission_carries_event_log_runtime`)
+— never on the retired frontmatter signal, and never on ``status_phase``
+itself (circular: that is exactly the field this guard verifies was
+flipped). See ``test_reked_lock_reds_on_born_un_reconciled_mission`` for the
+non-vacuity proof.
+
+WP03 (mission runtime-state-birth-cutover-all-paths, FR-002/FR-009): the
+eligibility predicate and the birth-invariant assertion body were extracted
+to :mod:`specify_cli.status.cutover_eligibility` (a pure move,
+behavior-preserving) so the diff-scoped pre-merge guard
+(``spec-kitty cutover-guard``) can share the exact same authority instead of
+forking a second copy.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -54,37 +59,24 @@ from specify_cli.migration.backfill_runtime_state import (
     _claim_anchors,
     _seed_id,
     read_legacy_runtime,
-    verify_backfill,
 )
 from specify_cli.status import (
     Lane,
     StatusEvent,
-    StoreError,
     append_events_atomic_verified,
     build_claim_policy_metadata,
-    read_event_stream,
 )
 from specify_cli.status import emit as _emit
-from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
+from specify_cli.status.cutover_eligibility import (
+    assert_birth_invariant_holds as _assert_birth_invariant_holds,
+)
+from specify_cli.status.cutover_eligibility import (
+    eligible_runtime_missions as _eligible_runtime_missions,
+)
+from specify_cli.status.cutover_eligibility import runtime_wps as _runtime_wps
+from specify_cli.status.cutover_eligibility import status_phase as _status_phase
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
-
-#: Snapshot runtime slots seeded by the backfill. A WP whose reduced snapshot has
-#: any of these non-empty is a "runtime-carrying" WP.
-_RUNTIME_SLOTS = (
-    "shell_pid",
-    "shell_pid_created_at",
-    "agent",
-    "assignee",
-    "tracker_refs",
-    "subtasks",
-    "review",
-    "role",
-    "agent_profile",
-    "agent_profile_version",
-    "model",
-    "provider",
-)
 
 #: The cutover mission itself — event-sourced live, intentionally NOT backfilled
 #: (WP03 self-interference guard). Excluded from every assertion below.
@@ -106,28 +98,6 @@ def _kitty_specs() -> Path:
     raise AssertionError("unreachable")  # pragma: no cover — pytest.skip is NoReturn
 
 
-def _status_phase(mission_dir: Path) -> int | None:
-    """Return the parsed ``status_phase`` from ``meta.json`` (``None`` if absent)."""
-    meta_path = mission_dir / "meta.json"
-    if not meta_path.exists():
-        return None
-    try:
-        raw = json.loads(meta_path.read_text(encoding="utf-8")).get("status_phase")
-        return int(str(raw).strip())
-    except (ValueError, TypeError, json.JSONDecodeError):
-        return None
-
-
-def _runtime_wps(mission_dir: Path) -> dict[str, Mapping[str, Any]]:
-    """Return the reduced WP states that carry at least one runtime slot."""
-    snapshot = materialize_snapshot(mission_dir)
-    return {
-        wp_id: state
-        for wp_id, state in snapshot.work_packages.items()
-        if any(state.get(slot) not in (None, [], {}, "") for slot in _RUNTIME_SLOTS)
-    }
-
-
 def _backfilled_runtime_missions(corpus: Path) -> list[Path]:
     """All backfilled (``status_phase>=1``), runtime-carrying missions, minus self."""
     out: list[Path] = []
@@ -137,71 +107,6 @@ def _backfilled_runtime_missions(corpus: Path) -> list[Path]:
         if (_status_phase(mission_dir) or 0) >= 1 and _runtime_wps(mission_dir):
             out.append(mission_dir)
     return out
-
-
-def _mission_carries_event_log_runtime(mission_dir: Path) -> bool:
-    """True iff *mission_dir*'s event log records independent runtime evidence.
-
-    WP10 re-key (FR-010 / IC-09): evidence comes ONLY from
-    ``status.events.jsonl`` — never from
-    :meth:`~specify_cli.migration.backfill_runtime_state.LegacyWPRuntime.has_evictable_state`
-    (frontmatter, retired by WP05/FR-008: every mission born after authoring
-    retirement carries NO frontmatter runtime at all, so keying eligibility
-    there makes the guard permanently blind to every future mission — a
-    vacuous pass) and never from ``status_phase`` (circular: that field is
-    exactly what this guard verifies was flipped, so gating eligibility on it
-    could never catch an un-flipped regression).
-
-    "Carries runtime" means the log holds, for at least one WP, either:
-
-    * an :class:`~specify_cli.status.InnerStateChanged` annotation — by
-      construction (``_append_annotation`` / the public ``annotate`` /
-      ``emit_inner_state_changed`` seam) an annotation is only ever appended
-      with a non-empty runtime delta, so its mere presence IS runtime
-      evidence; or
-    * a lane transition whose ``policy_metadata`` is non-empty — the only
-      transitions that carry ``policy_metadata`` are real ``planned ->
-      claimed`` claims (:func:`~specify_cli.status.build_claim_policy_metadata`,
-      live-emitted or backfill-seeded — both shapes are byte-identical on the
-      wire).
-
-    Deliberately narrower than "any transition at all": every WP receives a
-    ``genesis -> planned`` / self-transition ``planned -> planned`` *canonical
-    bootstrap* identity anchor at ``finalize-tasks`` time (confirmed
-    empirically across the committed corpus) that carries no runtime signal
-    whatsoever. A never-claimed WP legitimately reduces to an empty snapshot
-    (module docstring); a predicate keyed on "any event" would wrongly flag
-    those bootstrap-only missions as eligible and then fail the
-    non-empty-snapshot assertion on perfectly healthy, merely-unclaimed corpus
-    entries.
-    """
-    events_path = mission_dir / "status.events.jsonl"
-    if not events_path.is_file():
-        return False
-    try:
-        stream = read_event_stream(mission_dir)
-    except StoreError:
-        return False
-    if stream.annotations:
-        return True
-    return any(bool(event.policy_metadata) for event in stream.transitions)
-
-
-def _eligible_runtime_missions(corpus: Path) -> list[Path]:
-    """Every mission whose event log carries independent runtime evidence.
-
-    Re-keyed (WP10 / FR-010 / IC-09) off
-    :func:`_mission_carries_event_log_runtime` — see that function's
-    docstring for the hard-forbidden predicates this deliberately never
-    reads.
-    """
-    eligible: list[Path] = []
-    for mission_dir in sorted(corpus.iterdir()):
-        if not mission_dir.is_dir() or mission_dir.name == _SELF_MISSION:
-            continue
-        if _mission_carries_event_log_runtime(mission_dir):
-            eligible.append(mission_dir)
-    return eligible
 
 
 def _first_complete_wp_with_roster(missions: list[Path]) -> tuple[Path, str] | None:
@@ -239,54 +144,16 @@ def test_corpus_is_backfilled_non_vacuous() -> None:
     )
 
 
-def _assert_birth_invariant_holds(corpus: Path) -> None:
-    """FR-010 / C-003: every eligible mission is flipped, populated, verifies.
-
-    Extracted so the SAME assertion runs both over the real committed corpus
-    (below) and over a synthetic drifted fixture
-    (``test_reked_lock_reds_on_born_un_reconciled_mission``), proving the
-    re-keyed lock genuinely REDS on drift rather than only ever observing an
-    already-healthy corpus.
-
-    ``verify_backfill`` is the WP01 fail-closed count+value parity check of the
-    reduced snapshot against the OLD frontmatter/``tasks.md`` reader, so an ``ok``
-    result is the spot-check that the seeded snapshot equals the legacy view
-    (SC-001 / NFR-001), not merely that *something* was seeded.
-    """
-    missions = _eligible_runtime_missions(corpus)
-    assert missions, "no eligible runtime-carrying missions found"
-
-    unflipped = [mission.name for mission in missions if (_status_phase(mission) or 0) < 1]
-    assert unflipped == [], f"eligible missions not cut over: {unflipped}"
-
-    for mission_dir in missions:
-        runtime_wps = _runtime_wps(mission_dir)
-        assert runtime_wps, f"{mission_dir.name}: expected runtime-carrying WPs, snapshot empty"
-
-        # T012.1 — wp_snapshot_state (#2817 accessor) is non-empty for each runtime WP.
-        for wp_id in runtime_wps:
-            state = wp_snapshot_state(mission_dir, wp_id)
-            assert state, f"{mission_dir.name}:{wp_id}: wp_snapshot_state empty after backfill"
-            assert any(
-                state.get(slot) not in (None, [], {}, "") for slot in _RUNTIME_SLOTS
-            ), f"{mission_dir.name}:{wp_id}: no runtime slot populated in snapshot"
-
-        # Fail-closed parity vs the OLD reader (count + value) must be ok.
-        result = verify_backfill(mission_dir)
-        assert result.ok, (
-            f"{mission_dir.name}: verify_backfill NOT ok after backfill: "
-            + "; ".join(result.mismatches)
-        )
-
-
 @pytest.mark.timeout(600)
 def test_all_eligible_missions_snapshot_non_empty_and_verify_ok() -> None:
     """Every eligible mission (real committed corpus) is flipped and populated.
 
-    See :func:`_assert_birth_invariant_holds` for the assertion body shared
-    with the anti-vacuity fixture test.
+    See :func:`~specify_cli.status.cutover_eligibility.assert_birth_invariant_holds`
+    for the assertion body shared with the anti-vacuity fixture test. The
+    live cutover mission itself is excluded (module docstring: WP03
+    self-interference guard).
     """
-    _assert_birth_invariant_holds(_kitty_specs())
+    _assert_birth_invariant_holds(_kitty_specs(), exclude={_SELF_MISSION})
 
 
 def test_reked_lock_reds_on_born_un_reconciled_mission(tmp_path: Path) -> None:
@@ -304,10 +171,13 @@ def test_reked_lock_reds_on_born_un_reconciled_mission(tmp_path: Path) -> None:
        does NOT see this mission as eligible at all — proving that keying
        eligibility there (the pre-WP10 shape) would make the guard silently
        skip it (a vacuous pass), never asserting anything and never redding.
-    2. The re-keyed :func:`_eligible_runtime_missions` DOES see it, and
-       :func:`_assert_birth_invariant_holds` REDS on it (the un-flipped
-       ``status_phase`` assertion fires) — proving the re-keyed lock is a
-       genuine, non-vacuous guard against exactly this future regression.
+    2. The re-keyed
+       :func:`~specify_cli.status.cutover_eligibility.eligible_runtime_missions`
+       DOES see it, and
+       :func:`~specify_cli.status.cutover_eligibility.assert_birth_invariant_holds`
+       REDS on it (the un-flipped ``status_phase`` assertion fires) — proving
+       the re-keyed lock is a genuine, non-vacuous guard against exactly this
+       future regression.
     """
     corpus = tmp_path / "kitty-specs"
     corpus.mkdir()

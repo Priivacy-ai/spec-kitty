@@ -498,7 +498,7 @@ def test_precondition_no_reliance_on_seed_ulid_chronology(tmp_path: Path) -> Non
     # Re-seed fd_b manually with the SAME events in reverse order.
     legacy = b.read_legacy_runtime(fd_b)
     anchors = b._claim_anchors(fd_b)
-    transitions, annotations = b._build_seed_events(fd_b, legacy, anchors, [])
+    transitions, annotations = b._build_seed_events(fd_b, fd_b, legacy, anchors, [])
     from specify_cli.status.store import append_events_atomic_verified
 
     append_events_atomic_verified(fd_b, transitions)

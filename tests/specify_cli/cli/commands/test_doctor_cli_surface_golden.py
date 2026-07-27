@@ -8,8 +8,9 @@ every subsequent extraction WP.
 It pins, independently of the implementation source:
 
 * the exact set of registered subcommand names (set-equality, order-free);
-  17 as of #2441, which added the ``contracts`` subcommand (Contract Registry
-  well-formedness validator) alongside the original 16 de-godding names;
+  18 as of runtime-state-birth-cutover-all-paths-01KYH654 WP05, which added the
+  ``cutover`` subcommand (on-demand cut-over audit, FR-007) on top of the 17
+  prior names (16 de-godding names from #2059 + ``contracts`` from #2441);
 * each subcommand's option flags + arity (flag/value/multi);
 * each subcommand's ``--help`` body (whitespace-normalized snapshot);
 * the documented exit-code contracts, including the three load-bearing names
@@ -69,6 +70,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "mission-state",
         "doctrine",
         "coordination",
+        "cutover",
     }
 )
 
@@ -108,6 +110,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     },
     "doctrine": {"--json": "flag"},
     "coordination": {"--fix": "flag", "--json": "flag", "--check-staleness": "flag"},
+    "cutover": {"--json": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -404,6 +407,21 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--check-staleness Also report coord-branch-vs-target-branch staleness '
         '(Gap-1, FR-008): non-blocking, whether the coord branch is behind or has '
         "diverged from its mission's target_branch.",
+        '--help -h Show this message and exit.',
+    ],
+    'cutover': [
+        'Usage: doctor cutover [OPTIONS]',
+        "Audit every mission's cut-over status outside CI (FR-007).",
+        'Backed by ``migration.runtime_state_cutover.cutover_repo(dry_run=True)``:',
+        'the same fail-closed seed-then-verify spine the birth-cutover migration',
+        'uses, read-only and writing nothing. Reports each mission slug, whether',
+        'it is cut over, and a reason when it is not.',
+        'Informational only: always exits 0 with a summary count.',
+        'Examples:',
+        'spec-kitty doctor cutover',
+        'spec-kitty doctor cutover --json',
+        'Options',
+        '--json Machine-readable JSON output',
         '--help -h Show this message and exit.',
     ],
 }

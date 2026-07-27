@@ -155,6 +155,14 @@ from ._workspace_husk_doctor import run_workspaces  # noqa: E402
 # ``__init__`` argv fast-path keys on it).
 from ._daemon_doctor import run_orphan_daemons, run_restart_daemon  # noqa: E402
 
+# WP05 (runtime-state-birth-cutover-all-paths-01KYH654, FR-007): the on-demand
+# cut-over audit was extracted to a standalone ``_cutover_doctor`` from the
+# start (a new subcommand, not a de-godding extraction). The ``cutover``
+# @app.command shell delegates to ``run_cutover_audit``; it reuses
+# ``migration.runtime_state_cutover.cutover_repo(dry_run=True)`` rather than
+# reimplementing corpus walking or verification (plan IC-05).
+from ._cutover_doctor import run_cutover_audit  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
@@ -1293,3 +1301,40 @@ def coordination_health(
         spec-kitty doctor coordination --check-staleness
     """
     run_coordination_health(json_output, fix, check_staleness)
+
+
+# ---------------------------------------------------------------------------
+# WP05 (runtime-state-birth-cutover-all-paths-01KYH654, FR-007): on-demand
+# cut-over audit.
+# ---------------------------------------------------------------------------
+
+
+@app.command(name="cutover")
+def cutover(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Audit every mission's cut-over status outside CI (FR-007).
+
+    Backed by ``migration.runtime_state_cutover.cutover_repo(dry_run=True)``:
+    the same fail-closed seed-then-verify spine the birth-cutover migration
+    uses, read-only and writing nothing. Reports each mission slug, whether
+    it is cut over, and a reason when it is not.
+
+    Informational only: always exits 0 with a summary count.
+
+    Examples:
+        spec-kitty doctor cutover
+        spec-kitty doctor cutover --json
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    run_cutover_audit(repo_root, json_output=json_output)
