@@ -44,9 +44,10 @@ An earlier revision of this docstring said a paradigm "cannot legally reference"
 
 So the split has **never been adjudicated**. This ratchet freezes it on one side,
 which is the safe direction under C-001 (never widen), but a future reader must
-not read the 7 as a decision. Tracked upstream; resolving it means either making
-the generator consistent across all four kinds or getting an actual ruling on what
-paradigms and tactics may reference.
+not read the 7 as a decision. Tracked upstream as
+`#2976 <https://github.com/Priivacy-ai/spec-kitty/issues/2976>`_; resolving it
+means either making the generator consistent across all four kinds or getting an
+actual ruling on what paradigms and tactics may reference.
 
 A frozen baseline, not a live re-derivation
 --------------------------------------------
