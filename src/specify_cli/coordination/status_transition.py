@@ -562,13 +562,13 @@ def _canonical_primary_feature_dir(
 ) -> Path:
     """Resolve the CWD-invariant primary feature-dir anchor via the facade.
 
-    Consumes the single canonical authority (``candidate_feature_dir_for_mission``
-    — the coord-aware resolver that ``resolve_status_surface`` / ``MissionStatus``
-    are built on) so the primary anchor is identical whether the request
-    originates from a sparse lane worktree or the primary checkout. This is the
-    #1737 / F-007 root fix: the transaction-identity anchor no longer re-derives
-    where status lives from a CWD-dependent path, so an in-progress WP can no
-    longer be misread as ``genesis`` from a lane worktree.
+    Consumes the single canonical authority
+    (``placement_seam(...).read_dir(PRIMARY_METADATA)``) so the primary anchor
+    is identical whether the request originates from a sparse lane worktree or
+    the primary checkout. This is the #1737 / F-007 root fix: the
+    transaction-identity anchor no longer re-derives where status lives from a
+    CWD-dependent path, so an in-progress WP can no longer be misread as
+    ``genesis`` from a lane worktree.
 
     Coordination topology resolution downstream
     (``_read_contract_from_transaction_target``) still derives the coord path
@@ -579,15 +579,19 @@ def _canonical_primary_feature_dir(
     surface can be resolved — e.g. ad-hoc test fixtures or bootstrap windows
     where ``meta.json`` is not yet present.
     """
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
         resolve_status_surface_with_anchor,
     )
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         StatusReadPathNotFound,
     )
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        candidate_feature_dir_for_mission,
-    )
+
+    def _primary_anchor() -> Path:
+        anchor: Path = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
+        return anchor
 
     def _fallback() -> Path:
         # The request-derived fallback is only safe when it is the canonical
@@ -603,14 +607,13 @@ def _canonical_primary_feature_dir(
         if _is_coord_worktree_status_surface(fallback):
             return fallback
         if _is_under_worktree(fallback):
-            anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-            return anchor
+            return _primary_anchor()
         return fallback
 
     # FR-005 / #1821: resolve the canonical surface ONCE and consume the carried
     # primary anchor. The previous code resolved the surface for validation,
-    # discarded it, then re-invoked candidate_feature_dir_for_mission — a second
-    # composition of the same path. Now both halves come from one resolution.
+    # discarded it, then re-invoked the primary resolver — a second composition
+    # of the same path. Now both halves come from one resolution.
     try:
         resolved = resolve_status_surface_with_anchor(repo_root, mission_slug)
     except FileNotFoundError:
@@ -620,16 +623,15 @@ def _canonical_primary_feature_dir(
     except ValueError:
         # Malformed meta — surface the canonical anchor anyway; downstream meta
         # loading will report the same condition consistently.
-        malformed_anchor: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-        return malformed_anchor
+        return _primary_anchor()
     except StatusReadPathNotFound as exc:
         # Fail-closed surface refusal (PR #1850 M6): the coord worktree root is
         # materialized without the mission dir (#1589/#1821). The refusal
         # protects status READERS from a stale primary surface; the transaction
         # identity needs only the canonical primary anchor — which the
-        # structured error already carries (re-resolving via the candidate
-        # resolver would just re-raise). Coordination topology is still
-        # honoured downstream by ``_read_contract_from_transaction_target``.
+        # structured error already carries (re-resolving via the primary seam
+        # would just re-raise). Coordination topology is still honoured
+        # downstream by ``_read_contract_from_transaction_target``.
         refusal_anchor: Path = exc.primary_candidate
         return refusal_anchor
     return resolved.primary_anchor
@@ -1252,12 +1254,11 @@ def _tombstone_lane_workspace_context_on_cancel(
     if event is None or event.to_lane != Lane.CANCELED:
         return
 
-    from mission_runtime import MissionArtifactKind  # noqa: PLC0415
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json  # noqa: PLC0415
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
 
-    lanes_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    lanes_read_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     try:
         lanes_manifest = read_lanes_json(lanes_read_dir)

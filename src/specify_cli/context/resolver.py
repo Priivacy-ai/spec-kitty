@@ -29,11 +29,8 @@ from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import load_meta, mission_identity_fields
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import (
-    resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_authored_wp_frontmatter
 
 
@@ -219,8 +216,14 @@ def resolve_context(
     # Route all PRIMARY-partition reads (meta.json, WP frontmatter) through the
     # seam so they always resolve to the primary checkout under coord topology
     # (coord husk carries STATUS events only, not planning artifacts).
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir`` — a single
+    # anchor also used for the immediately-following ``meta.json`` read (both
+    # WORK_PACKAGE_TASK and PRIMARY_METADATA are PRIMARY-partition and resolve
+    # to the identical dir).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     if not feature_dir.exists():
         msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
@@ -249,8 +252,11 @@ def resolve_context(
     # read_target_branch_from_meta authority and always populates the key) --
     # a construction-time dataclass-hydration read, not a meta.json field read.
     target_branch = meta["target_branch"]
-    _lanes_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    _lanes_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     lane = require_lanes_json(_lanes_dir).lane_for_wp(wp_code)
     if lane is None:

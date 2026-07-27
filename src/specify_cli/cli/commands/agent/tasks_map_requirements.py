@@ -47,7 +47,7 @@ from pathlib import Path
 import typer
 
 from kernel._safe_re import re
-from mission_runtime import CommitTarget, MissionArtifactKind
+from mission_runtime import CommitTarget, MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_mapping_core import (
     TRACKER_ONLY_MODE,
@@ -55,7 +55,6 @@ from specify_cli.cli.commands.agent.tasks_mapping_core import (
     MappingRequest,
 )
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.requirement_mapping import CoverageSummary
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
@@ -309,10 +308,8 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     # through the kind-aware seam (the SAME single authority WP01 routed the rest
     # of the gate reads onto) instead of the topology-routed ``feature_dir``.
     st.tasks_dir = (
-        resolve_planning_read_dir(
-            st.main_repo_root,
-            st.mission_slug,
-            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        placement_seam(st.main_repo_root, st.mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
         / "tasks"
     )
@@ -676,22 +673,21 @@ def _do_map_requirements(
 def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the WP ``tasks/`` read surface for ``map-requirements`` (#2064).
 
-    Routes through ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` — the
+    Routes through ``PlacementSeam.read_dir(WORK_PACKAGE_TASK)`` — the
     per-leg seam split (WP03 / FR-001 / C-001): the WP-frontmatter read always
     lands on the PRIMARY checkout regardless of topology (INV-5 symmetry), so a
     coord-topology mission no longer routes to the STATUS-only coord husk for this
     planning-artifact read.
 
-    ``resolve_planning_read_dir`` delegates to the topology-blind
-    :func:`primary_feature_dir_for_mission`, which never raises — preserving the
-    user-facing contract that ``map-requirements`` surfaces its own
+    ``PlacementSeam.read_dir(WORK_PACKAGE_TASK)`` selects the PRIMARY partition,
+    preserving the user-facing contract that ``map-requirements`` surfaces its own
     ``"Mission directory not found: …"`` message via the caller's existence guard
     on the returned path (Risk #1 — unchanged user-facing behaviour).
     """
     # WP03 / FR-001 / C-001: tasks/ is WORK_PACKAGE_TASK (PRIMARY-partition).
     # The topology-blind primary_feature_dir_for_mission never raises, so the
     # caller's existence guard preserves the historical user-facing contract.
-    resolved: Path = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     return resolved

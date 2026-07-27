@@ -24,9 +24,8 @@ Source-of-truth:
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import json
 import logging
 from pathlib import Path
@@ -158,14 +157,20 @@ def _feature_dir(repo_root: Path, mission_slug: str) -> Path:
     :func:`_emit_conflict_rejections`), so it resolves the STATUS-partition
     (``status.events.jsonl``) surface -- topology-aware / coord-consulting
     for a coord-topology mission (C-001).
+
+    read-side-placement-seam-migration WP07: routed through
+    :meth:`~mission_runtime.PlacementSeam.read_dir` (fail-loud on a
+    deleted-coord mismatch, NFR-002) instead of the kind-blind
+    ``resolve_planning_read_dir`` -- this is a genuine functional (not
+    diagnostic) STATUS read, so fail-loud is appropriate here.
     """
-    # ``resolve_planning_read_dir`` is typed -> Path; mypy widens it to
+    # ``PlacementSeam.read_dir`` is typed -> Path; mypy widens it to
     # ``Any`` through the late-import chain (``follow_imports=skip`` on
     # ``specify_cli.*`` -- the same pre-existing systemic pattern documented
     # via the ``_compose_mission_dir`` cast note in ``_read_path_resolver.py``);
     # bind explicitly so the return narrows back to ``Path``.
-    resolved: Path = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    resolved: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
     )
     return resolved
 

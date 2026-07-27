@@ -247,19 +247,29 @@ class VerifyResult:
 # ---------------------------------------------------------------------------
 
 
-def _mission_id(feature_dir: Path) -> str:
+def _mission_id(read_dir: Path) -> str:
     """Return the canonical ``mission_id`` (ULID) or fall back to the slug.
 
     The mission_id is the deterministic-ULID namespace root. A legacy mission
     without a minted ``mission_id`` degrades to its directory name — still stable
     per corpus, which is all the seed determinism requires.
+
+    *read_dir* is the canonical PRIMARY leg (NFR-004 / R5) — mirrors
+    :func:`_synthesize_claim_anchor`'s pinned leg (#2966 part-1). ``meta.json``
+    (``PRIMARY_METADATA``) lives only on the PRIMARY leg; a caller seeding
+    events into a distinct COORD-partition directory (``feature_dir`` in
+    :func:`backfill_runtime_state`) must never have this read its COORD leg's
+    own ``meta.json`` — that leg typically carries none at all, which used to
+    silently degrade every seed id to the COORD *directory name* instead of
+    the mission's real ULID (and left the written event's own ``mission_id``
+    field ``None``, since it then equalled the mission slug).
     """
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    meta = load_meta(read_dir, allow_missing=True, on_malformed="none")
     if meta is not None:
         raw = meta.get("mission_id")
         if raw:
             return str(raw)
-    return feature_dir.name
+    return read_dir.name
 
 
 def _seed_id(mission_id: str, wp_id: str, field_name: str) -> str:
@@ -526,13 +536,14 @@ def _build_seed_events(
     genuinely never-claimed and is skipped (warned, not failed).
 
     *read_dir* is the canonical PRIMARY leg passed through to
-    :func:`_resolve_anchor` for the synthesis fallback (NFR-004 / R5) — it is
-    intentionally distinct from *feature_dir* (the event-write / mission_id
-    leg) so the resolved anchor payload never depends on which COORD
-    directory happens to be seeded.
+    :func:`_resolve_anchor` for the synthesis fallback (NFR-004 / R5) and to
+    :func:`_mission_id` (#2966 part-1) — it is intentionally distinct from
+    *feature_dir* (the event-write leg) so neither the resolved anchor
+    payload nor the seed-id namespace ever depends on which COORD directory
+    happens to be seeded.
     """
     slug = feature_dir.name
-    mission_id = _mission_id(feature_dir)
+    mission_id = _mission_id(read_dir)
     transitions: list[StatusEvent] = []
     annotations: list[InnerStateChanged] = []
 
@@ -791,6 +802,7 @@ def _assert_unstripped(
 
 def _seeded_frontmatter_slots(
     feature_dir: Path,
+    read_dir: Path,
     wp_ids: set[str],
 ) -> dict[str, set[str]]:
     """Return frontmatter slots proven to have deterministic migration seeds.
@@ -798,11 +810,17 @@ def _seeded_frontmatter_slots(
     The order guard must inspect migration provenance, not the latest snapshot:
     a legitimate runtime annotation may populate a slot that was never present
     in legacy frontmatter. Deterministic seed IDs let us distinguish those cases.
+
+    *read_dir* is threaded through to :func:`_mission_id` (#2966 part-1) so the
+    seed ids rebuilt here match the same PRIMARY-namespaced ids
+    :func:`_build_seed_events` actually wrote — otherwise a two-leg verify call
+    would look up seed ids namespaced on the COORD leg and never find the
+    genuine seeds, silently voiding this ordering guard.
     """
     stream = read_event_stream(feature_dir)
     transitions = {event.event_id: event for event in stream.transitions}
     annotations = {event.event_id: event for event in stream.annotations}
-    mission_id = _mission_id(feature_dir)
+    mission_id = _mission_id(read_dir)
     slots_by_wp: dict[str, set[str]] = {}
     for wp_id in wp_ids:
         slots: set[str] = set()
@@ -1001,7 +1019,7 @@ def verify_backfill(feature_dir: Path, *, read_dir: Path | None = None) -> Verif
     # Preserve the strip-order guard using deterministic seed provenance. Current
     # snapshot values may be ahead of legacy (even at the same timestamp), so
     # snapshot presence alone is not evidence that frontmatter was stripped.
-    seeded_slots = _seeded_frontmatter_slots(feature_dir, legacy_wp_ids)
+    seeded_slots = _seeded_frontmatter_slots(feature_dir, read_dir, legacy_wp_ids)
     for wp_id in sorted(legacy_wp_ids):
         _assert_unstripped(wp_id, legacy[wp_id], seeded_slots[wp_id])
 

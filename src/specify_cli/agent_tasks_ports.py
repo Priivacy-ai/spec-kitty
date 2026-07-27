@@ -43,7 +43,7 @@ from typing import Protocol, runtime_checkable
 
 from rich.console import Console
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.paths import locate_project_root
 from specify_cli.coordination.commit_router import (
@@ -58,7 +58,6 @@ from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
 )
 from specify_cli.status import StatusEvent, TransitionRequest
 
@@ -238,20 +237,22 @@ class RealFsReader:
     def planning_read_dir(
         self, mission: MissionHandle, *, kind: MissionArtifactKind
     ) -> Path:
+        # read-side-placement-seam-migration WP07: a direct 1:1 swap onto the
+        # kind-aware seam (fail-loud on a deleted-coord mismatch, NFR-002) —
+        # ``resolve_planning_read_dir(root, slug, kind=kind)`` →
+        # ``PlacementSeam(root, slug).read_dir(kind)``.
         # Annotated local: the project runs mypy with ``follow_imports = "skip"``,
         # so the imported (typed ``-> Path``) resolver surfaces as ``Any`` here;
         # the annotation re-pins the known concrete type without a suppression.
-        read_dir: Path = resolve_planning_read_dir(
-            mission.repo_root, mission.mission_slug, kind=kind
-        )
+        read_dir: Path = placement_seam(
+            mission.repo_root, mission.mission_slug
+        ).read_dir(kind)
         return read_dir
 
     def wp_tasks_dir(self, mission: MissionHandle) -> Path:
-        feature_dir: Path = resolve_planning_read_dir(
-            mission.repo_root,
-            mission.mission_slug,
-            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-        )
+        feature_dir: Path = placement_seam(
+            mission.repo_root, mission.mission_slug
+        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         return feature_dir / "tasks"
 
     def primary_anchor_dir(self, mission: MissionHandle) -> Path:

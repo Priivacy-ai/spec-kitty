@@ -13,13 +13,13 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
     resolve_bare_modern_mission_dir_name,
 )
 from specify_cli.status import feature_status_lock
@@ -69,7 +69,9 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
+        legacy_dir = placement_seam(get_main_repo_root(repo_root), raw_handle).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator

@@ -440,10 +440,17 @@ def _resolve_feature_dir_for_staleness(main_repo_root: Path, mission_slug: str) 
     frontmatter-sourced legacy path (no ``feature_dir`` to read the snapshot from).
     """
     try:
-        from mission_runtime import MissionArtifactKind
-        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+        # read-side-placement-seam-migration WP07: routed through
+        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+        # instead of the kind-blind ``resolve_planning_read_dir`` — the
+        # surrounding ``except Exception`` already absorbs any resolution
+        # failure into the pre-existing ``None``-degrade contract, independent
+        # of the seam's own fail-loud behavior.
+        from mission_runtime import MissionArtifactKind, placement_seam
 
-        return resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
+        return placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
+        )
     except Exception:
         return None
 

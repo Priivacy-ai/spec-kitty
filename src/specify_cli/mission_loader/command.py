@@ -30,7 +30,7 @@ process is in the picture.
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind, placement_seam
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -154,7 +154,14 @@ def run_custom_mission(
             },
         )
 
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``candidate_feature_dir_for_mission`` — this
+    # feeds ``_ensure_feature_metadata``, a ``meta.json``-adjacent
+    # (PRIMARY_METADATA) read.
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
     _ensure_feature_metadata(feature_dir, mission_key)
 
     return RunCustomMissionResult(

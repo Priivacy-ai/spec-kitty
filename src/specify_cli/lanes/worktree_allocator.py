@@ -17,8 +17,7 @@ policy registered so it cannot see ``status.events.jsonl`` or
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from mission_runtime import MissionArtifactKind, placement_seam
 import subprocess
 from pathlib import Path
 
@@ -439,8 +438,8 @@ def _read_coordination_branch(
     # checkout where ``meta.json`` lives post-#2106 (the coord husk has none / a
     # STATUS-only one) — never the coord-aware resolver (which would need the very
     # answer this read produces).
-    meta_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+    meta_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     data = load_meta(meta_dir, on_malformed="none")
     if data is None:

@@ -43,7 +43,6 @@ from specify_cli.core.constants import (
     MISSION_TYPE_SOFTWARE_DEV,
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import Lane, StatusEvent
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.task_utils import extract_scalar, split_frontmatter
@@ -944,10 +943,13 @@ def _validate_ready_for_review(
     # research.md / meta.json / spec.md all live on PRIMARY (not the coord husk).
     # resolve_feature_dir_for_mission (coord-aware) would return the STATUS-only
     # coord husk for coord-topology missions, where these planning artifacts are absent.
-    from mission_runtime import MissionArtifactKind  # late import — keeps cold-start cost low
+    from mission_runtime import (  # late import — keeps cold-start cost low
+        MissionArtifactKind,
+        placement_seam,
+    )
 
-    feature_dir = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.RESEARCH
+    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.RESEARCH
     )
 
     # Detect mission type from feature's meta.json

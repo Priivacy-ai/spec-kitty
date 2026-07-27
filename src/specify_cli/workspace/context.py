@@ -26,9 +26,6 @@ from typing import Any
 from specify_cli.core.atomic import atomic_write
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.missions._read_path_resolver import (
-    resolve_planning_read_dir,
-)
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -478,8 +475,11 @@ def resolve_active_wp_for_branch(
         MissionArtifactKind.STATUS_STATE
     )
     # PRIMARY leg (C-001): tasks/ WP-frontmatter always lives in the primary checkout.
-    planning_dir = resolve_planning_read_dir(
-        repo_root, context.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    planning_dir = placement_seam(repo_root, context.mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     lane_wp_ids = _context_lane_wp_ids(context)
 
@@ -676,8 +676,11 @@ def build_normalized_wp_index(
     callers share one canonical classification result.
     """
     cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    tasks_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     ) / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
     cached = _FEATURE_WP_METADATA_CACHE.get(cache_key)
@@ -727,7 +730,10 @@ def get_normalized_wp(
             raise error
         raise ValueError(
             f"Work package {wp_id} was not found under "
-            f"{resolve_planning_read_dir(repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
+            # read-side-placement-seam-migration WP07: routed through
+            # ``placement_seam`` (fail-loud on a deleted-coord mismatch,
+            # NFR-002) instead of the kind-blind ``resolve_planning_read_dir``.
+            f"{placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
         )
     return entry
 
@@ -766,9 +772,12 @@ def resolve_workspace_for_wp(
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
+        # read-side-placement-seam-migration WP07: routed through
+        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+        # instead of the kind-blind ``resolve_planning_read_dir``.
         lane_wp_ids: list[str] = []
-        lanes_read_dir = resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+        lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
         )
         lanes_manifest = read_lanes_json(lanes_read_dir)
         if lanes_manifest is not None:
@@ -808,8 +817,11 @@ def resolve_workspace_for_wp(
         )
 
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    lanes_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
@@ -874,8 +886,11 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
             return candidate
 
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    lanes_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     from specify_cli.lanes.persistence import read_lanes_json
 

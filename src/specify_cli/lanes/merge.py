@@ -14,8 +14,7 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from mission_runtime import MissionArtifactKind, placement_seam
 import os
 import subprocess
 import sys
@@ -140,8 +139,8 @@ def _resolve_lane_manifest(
     # FR-001 (#2185): ``lanes.json`` is LANE_STATE (PRIMARY-partition) — it lives
     # ONLY on the PRIMARY checkout post-#2106. The coord-aware resolver lands on
     # the STATUS-only ``-coord`` husk (no lanes.json), so route by kind.
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     return read_lanes_json(feature_dir)
 
@@ -288,8 +287,8 @@ def integrate_mission_into_target(
     """
     if lanes_manifest is None:
         # FR-001 (#2185): LANE_STATE read — PRIMARY-partition (see above).
-        feature_dir = resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
         )
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is None:

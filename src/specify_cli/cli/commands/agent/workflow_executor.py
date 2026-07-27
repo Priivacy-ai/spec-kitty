@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 import typer
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
     has_prior_rejection,
@@ -1704,13 +1704,14 @@ def review_claim_transition(
 def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> list[str]:
     """Warn when other planned/in-flight WPs depend on the one under review."""
     from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission, resolve_planning_read_dir
 
     dependents_warning: list[str] = []
     # WP04 / T018 / FR-002: build_dependency_graph reads tasks/ (PRIMARY-partition)
     # → route through the planning seam.  Status-event reads stay on the coord-aware
     # resolver (C-001) so dependents' lane comes from the authoritative event log.
-    review_planning_dir = resolve_planning_read_dir(repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
+    review_planning_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
     graph = build_dependency_graph(review_planning_dir)
     dependents = get_dependents(normalized_wp_id, graph)
     if not dependents:
@@ -1718,7 +1719,9 @@ def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normal
 
     # Load lanes from event log (lane is event-log-only).
     # Status reads stay coord-aware (C-001).
-    review_status_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    review_status_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
     try:
         from specify_cli.status import read_events as rw_read_events
         from specify_cli.status import reduce as rw_reduce

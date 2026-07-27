@@ -124,7 +124,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
 
     try:
         content = task_file.read_text(encoding="utf-8-sig")
-        frontmatter, body, padding = parse_frontmatter(content)
+        frontmatter, body, _ = parse_frontmatter(content)
     except Exception as exc:
         return False, f"Failed to parse frontmatter: {exc}"
 
@@ -175,7 +175,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
     try:
         # Convert frontmatter dict back to YAML string
         frontmatter_yaml = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
-        new_content = build_document(frontmatter_yaml, body, padding)
+        new_content = build_document(frontmatter_yaml, body, "\n")
         task_file.write_text(new_content, encoding="utf-8-sig")
         return True, None
     except Exception as exc:

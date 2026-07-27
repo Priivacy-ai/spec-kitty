@@ -105,11 +105,18 @@ def _patch_boundaries(
         "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
         lambda *a, **k: primary_dir,
     )
-    # The kind-aware seam (the read surface under test). POST-FIX the production
-    # code calls this for ``kind=WORK_PACKAGE_TASK``; force it to the primary dir.
+    # The canonical placement seam (the read surface under test). Force its
+    # WORK_PACKAGE_TASK projection to the primary dir.
+    class _StubSeam:
+        def read_dir(self, kind: object) -> Path:
+            from mission_runtime import MissionArtifactKind
+
+            assert kind is MissionArtifactKind.WORK_PACKAGE_TASK
+            return primary_dir
+
     monkeypatch.setattr(
-        f"{mod}.resolve_planning_read_dir",
-        lambda *a, **k: primary_dir,
+        "specify_cli.cli.commands.agent.tasks_map_requirements.placement_seam",
+        lambda *_args, **_kwargs: _StubSeam(),
     )
 
 

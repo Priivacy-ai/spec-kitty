@@ -129,10 +129,9 @@ def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | 
 
 def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
-    from mission_runtime import MissionArtifactKind
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import read_lanes_json
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
     main_repo_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(main_repo_root, mission_slug)
@@ -142,8 +141,11 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     # that resolve topology-blind to the PRIMARY checkout. The coord-aware resolver
     # would land on the STATUS-only ``-coord`` husk (no meta/lanes/tasks), yielding
     # a sentinel identity and an empty topology.
-    feature_dir = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)

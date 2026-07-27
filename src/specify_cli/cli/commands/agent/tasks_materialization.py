@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 from kernel._safe_re import re
+from mission_runtime import MissionArtifactKind, placement_seam
 from pathlib import Path
 
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
 
 # WP02 (#2058): the shared result vocabulary, the inline-subtasks regex, and the
@@ -112,11 +112,9 @@ def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> s
     # artifact — author+read on PRIMARY (INV-5). Route the read through the
     # kind-aware seam so a coord-topology mission's stale ``-coord`` husk cannot
     # shadow the real primary WP files (#2062 read-side close).
-    from mission_runtime import MissionArtifactKind
-
     tasks_dir = (
-        resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
         / "tasks"
     )

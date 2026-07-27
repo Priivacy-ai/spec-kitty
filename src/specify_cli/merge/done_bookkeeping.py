@@ -27,8 +27,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.merge.git_probes import path_is_under_worktrees
 from specify_cli.merge.state import MergeState, save_state
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-from mission_runtime import MissionArtifactKind, resolve_placement_only
+from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 
 if TYPE_CHECKING:
     from specify_cli.status import DoneEvidence, EventStream, Lane
@@ -259,8 +258,8 @@ def _mark_wp_merged_done(
     # predated the kind-aware split and was self-contradicting. The status-transactional
     # legs below keep this same meta-bearing PRIMARY dir (they resolve/commit to the
     # coordination branch internally — they must NOT be handed the coord worktree dir).
-    primary_feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    primary_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     wp_path = _resolve_wp_path(primary_feature_dir, wp_id)
     if wp_path is None:
@@ -575,8 +574,8 @@ def _durable_done_wps_on_coordination_ref(
     # onto the topology-blind ``primary_feature_dir_for_mission`` (name == slug),
     # so no raw ``KITTY_SPECS_DIR/<slug>`` bypass — and a stale ``-coord`` husk can
     # never shadow the anchor.
-    read_feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    read_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     events = read_event_log(
         EventLogReadContract.coordination_branch_ref(

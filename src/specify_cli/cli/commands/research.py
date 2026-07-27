@@ -14,9 +14,6 @@ from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path
-from specify_cli.missions._read_path_resolver import (
-    resolve_planning_read_dir,
-)
 from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -92,8 +89,8 @@ def research(
     # the seam returns the same `target_branch` dir (NFR-001 — behavior-neutral).
     # The dossier sync below keeps `feature_dir` (its current STATUS-namespace
     # surface) untouched.
-    planning_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.RESEARCH
+    planning_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.RESEARCH
     )
     planning_dir.mkdir(parents=True, exist_ok=True)
 
@@ -107,8 +104,8 @@ def research(
     # PRIMARY-partition kind (FINALIZED_EXECUTION_PLAN) — read it via the seam so
     # a coord-topology mission validates the authored primary plan, not an absent
     # `coord/plan.md`.
-    plan_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.FINALIZED_EXECUTION_PLAN
+    plan_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.FINALIZED_EXECUTION_PLAN
     )
     plan_path = plan_read_dir / "plan.md"
     try:

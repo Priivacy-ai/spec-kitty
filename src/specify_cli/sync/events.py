@@ -11,7 +11,7 @@ Usage:
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind, placement_seam
 import logging
 import os
 import threading
@@ -113,11 +113,19 @@ def _request_dashboard_sync(repo_root: Path | None) -> None:
 
 
 def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | None) -> str | None:
-    """Best-effort lookup of the canonical mission_id for a mission slug."""
+    """Best-effort lookup of the canonical mission_id for a mission slug.
+
+    read-side-placement-seam-migration WP07: routed through
+    ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    instead of the kind-blind ``candidate_feature_dir_for_mission`` — this
+    reads ``meta.json`` only (PRIMARY_METADATA), a topology-blind primary dir.
+    """
     if repo_root is None or not mission_slug:
         return None
 
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
     if not feature_dir.is_dir():
         return None
 

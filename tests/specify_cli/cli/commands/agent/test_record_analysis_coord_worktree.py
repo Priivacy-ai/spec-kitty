@@ -164,9 +164,8 @@ def test_implement_gate_finds_report_in_primary_not_coord(tmp_path: Path) -> Non
 
 # --- Note #2 (mission review): pin the implement-gate read-anchor WIRING, not just
 # the helper behavior. _analysis_report_gate_dir MUST route through the topology-blind
-# primary_feature_dir_for_mission, never the coord-aware candidate_feature_dir_for_mission.
-# Monkeypatching both resolvers to distinguishable sentinels makes a call-site swap
-# (primary_ -> candidate_) fail this test.
+# primary_feature_dir_for_mission, never the kind-aware placement read seam.
+# Making the placement read wrapper fail proves this separate gate anchor stays primary.
 
 
 def test_analysis_report_gate_dir_uses_primary_not_candidate(
@@ -175,18 +174,18 @@ def test_analysis_report_gate_dir_uses_primary_not_candidate(
     from specify_cli.cli.commands.agent import workflow as workflow_mod
 
     primary_sentinel = tmp_path / "PRIMARY" / "mission"
-    candidate_sentinel = tmp_path / "COORD" / "mission"
     monkeypatch.setattr(
         workflow_mod, "primary_feature_dir_for_mission", lambda _root, _slug: primary_sentinel
     )
     monkeypatch.setattr(
-        workflow_mod, "candidate_feature_dir_for_mission", lambda _root, _slug: candidate_sentinel
+        workflow_mod,
+        "_resolve_workflow_read_dir",
+        lambda **_kwargs: pytest.fail("analysis report gate must stay primary-anchored"),
     )
 
     resolved = workflow_mod._analysis_report_gate_dir(tmp_path, "sample-01KS")
 
     assert resolved == primary_sentinel
-    assert resolved != candidate_sentinel  # a topology-aware (coord) resolution must NOT be used
 
 
 # --- Note #1 (mission review): FR-002 — the persisted report must always be in the

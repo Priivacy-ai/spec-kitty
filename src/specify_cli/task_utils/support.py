@@ -535,18 +535,20 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    from mission_runtime import MissionArtifactKind
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.coordination import resolve_status_surface
     from specify_cli.core.paths import get_main_repo_root
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
     from specify_cli.status import reconstruct_wp_view
 
     # Always use main repo's kitty-specs - it's the source of truth.
     # Route through the seam (WORK_PACKAGE_TASK) so tasks/ reads resolve to the
     # primary checkout under coord topology (coord husk carries STATUS only).
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
     main_root = get_main_repo_root(repo_root)
-    feature_path = resolve_planning_read_dir(
-        main_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    feature_path = placement_seam(main_root, feature).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     status_dir = resolve_status_surface(main_root, feature).parent
 

@@ -31,7 +31,6 @@ from specify_cli.cli.console import console
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.core.vcs.git import git_diff_names_checked, git_merge_base
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import Lane, resolve_lane_alias
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -131,8 +130,8 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
     # from the coord-aware feature_dir above.  Do NOT change build_dependency_graph's signature
     # — route by passing primary_dir at the CALLER only; out-of-loop callers (merge/ordering,
     # policy/merge_gates) pass their own dir and must not be re-pointed (TICKET-class, C-009).
-    primary_dir = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    primary_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
 
     # Build dependency graph from PRIMARY (tasks/ lives there, not on coord husk).

@@ -16,10 +16,9 @@ infrastructure already used by charter.py.
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.env import is_interactive
 from specify_cli.mission_metadata import load_meta_or_empty
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import contextlib
 from pathlib import Path
 from typing import Any
@@ -62,9 +61,14 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
     ``load_meta_or_empty`` absorbs a missing/malformed meta.json to ``{}``,
     preserving the original broad ``contextlib.suppress(Exception)`` contract
     (silent ``None`` on any read/parse failure).
+
+    read-side-placement-seam-migration WP07: the feature-dir leg is routed
+    through ``placement_seam`` (fail-loud on a deleted-coord mismatch,
+    NFR-002) instead of the kind-blind ``resolve_planning_read_dir`` —
+    behavior-neutral since PRIMARY_METADATA is PRIMARY-partition.
     """
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     with contextlib.suppress(Exception):
         data = load_meta_or_empty(feature_dir)

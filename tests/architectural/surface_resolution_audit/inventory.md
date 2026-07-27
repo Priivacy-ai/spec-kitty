@@ -55,9 +55,7 @@ to enumerate every blessed call.
 | mission_runtime/resolution.py:1037 | `_resolve_status_surface_dir` | `surface = resolve_status_surface ( primary_root , mission_slug , topology )` | primary_root | resolve_status_surface | routed-through-resolver | `_resolve_status_surface_dir` delegates to `resolve_status_surface` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
 | mission_runtime/resolution.py:1046 | `_resolve_status_surface_dir` | `fallback_dir : Path = candidate_feature_dir_for_mission (` | primary_root | candidate_feature_dir_for_mission | routed-through-resolver | `_resolve_status_surface_dir` delegates to `candidate_feature_dir_for_mission` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
 | mission_runtime/resolution.py:1300 | `resolve_placement_only` | `candidate_dir = candidate_feature_dir_for_mission (` | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `resolve_placement_only` delegates to `candidate_feature_dir_for_mission` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
-| specify_cli/coordination/status_transition.py:268 | `_canonical_primary_feature_dir._fallback` | `anchor : Path = candidate_feature_dir_for_mission ( repo_root , mission_slug )` | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `_canonical_primary_feature_dir._fallback` delegates to `candidate_feature_dir_for_mission` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
 | specify_cli/coordination/status_transition.py:277 | `_canonical_primary_feature_dir` | `resolved = resolve_status_surface_with_anchor ( repo_root , mission_slug )` | repo_root | resolve_status_surface_with_anchor | routed-through-resolver | `_canonical_primary_feature_dir` delegates to `resolve_status_surface_with_anchor` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
-| specify_cli/coordination/status_transition.py:285 | `_canonical_primary_feature_dir` | `malformed_anchor : Path = candidate_feature_dir_for_mission ( repo_root , mission_slug )` | repo_root | candidate_feature_dir_for_mission | routed-through-resolver | `_canonical_primary_feature_dir` delegates to `candidate_feature_dir_for_mission` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
 | specify_cli/coordination/surface_resolver.py:499 | `_coord_mid8` | `coord_candidate = repo_root` | mission_slug | raw-path-join | raw-bypass | `_coord_mid8` composes KITTY_SPECS_DIR/slug inline ONLY for a fail-closed `StatusReadPathNotFound` diagnostic `raise` payload — the path is never opened (no FS sink; operationally safe). |
 | specify_cli/coordination/surface_resolver.py:504 | `_coord_mid8` | `primary_candidate = repo_root / KITTY_SPECS_DIR / mission_slug ,` | mission_slug | raw-path-join | raw-bypass | `_coord_mid8` composes KITTY_SPECS_DIR/slug inline ONLY for a fail-closed `StatusReadPathNotFound` diagnostic `raise` payload — the path is never opened (no FS sink; operationally safe). |
 | specify_cli/coordination/surface_resolver.py:598 | `resolve_status_surface` | `return resolve_status_surface_with_anchor (` | repo_root | resolve_status_surface_with_anchor | routed-through-resolver | `resolve_status_surface` delegates to `resolve_status_surface_with_anchor` — the coord-aware canonical resolver / surface authority (routed; no inline path composition). |
@@ -85,10 +83,10 @@ to enumerate every blessed call.
 
 | disposition | count | meaning |
 | --- | --- | --- |
-| routed-through-resolver | 14 | goes through a canonical blessed resolver (cite it) |
+| routed-through-resolver | 12 | goes through a canonical blessed resolver (cite it) |
 | topology-blind-by-design | 18 | deliberately primary-only; coord surface carries no meta.json (C-GUARD-3a) |
 | raw-bypass | 2 | composes KITTY_SPECS_DIR/slug inline for a fail-closed diagnostic `raise` payload (no FS sink) |
-| **total** | **34** | all AST-discovered ResolutionRow callsites |
+| **total** | **32** | all AST-discovered ResolutionRow callsites |
 
 ## Read-SELECTION callsites (FR-006a)
 

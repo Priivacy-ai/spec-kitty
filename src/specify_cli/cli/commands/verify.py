@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 from pathlib import Path
 from typing import Any, Annotated
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from rich.panel import Panel
 from rich.table import Table
 
@@ -24,13 +24,15 @@ from specify_cli.verify_enhanced import run_enhanced_verify
 def _existing_feature_dir(project_root: Path, feature: str | None) -> Path | None:
     """Return the on-disk feature directory for ``feature``, else ``None``.
 
-    Thin existence-gated presentation adapter over the canonical
-    :func:`candidate_feature_dir_for_mission` resolver — verify treats an
+    Thin existence-gated presentation adapter over
+    :meth:`PlacementSeam.read_dir` (``PRIMARY_METADATA``) — verify treats an
     absent slug or a not-yet-materialized directory as "no feature context".
     """
     if not feature:
         return None
-    feature_dir = candidate_feature_dir_for_mission(project_root, feature.strip())
+    feature_dir = placement_seam(project_root, feature.strip()).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
     return feature_dir if feature_dir.is_dir() else None
 
 TOOL_LABELS = [

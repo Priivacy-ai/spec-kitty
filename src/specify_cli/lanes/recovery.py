@@ -10,13 +10,9 @@ All recovery transitions use actor="recovery" for auditability.
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import logging
 import subprocess
 from dataclasses import dataclass, field
@@ -599,11 +595,10 @@ def scan_recovery_state(
     """
     # PRIMARY leg: lanes.json / tasks/ live on the PRIMARY checkout (#2106). A
     # single PRIMARY read dir co-resolves both LANE_STATE and WORK_PACKAGE_TASK.
-    primary_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
-    )
+    seam = placement_seam(repo_root, mission_slug)
+    primary_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
     # STATUS leg: the append-only event log stays coord-aware (C-001 / #2155).
-    coord_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    coord_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
 
     branches = _list_mission_branches(repo_root, mission_slug)
     lane_branches = [b for b in branches if parse_lane_id_from_branch(b) is not None]
@@ -703,8 +698,8 @@ def recover_context(
     # FR-001 (#2185): lane→WP membership and the mission branch are read from
     # ``lanes.json`` (LANE_STATE) / ``meta.json`` (PRIMARY_METADATA) — both
     # PRIMARY-partition, resolved topology-blind onto the PRIMARY checkout.
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     worktree_path = _worktree_path(
         repo_root, mission_slug, mission_id=None, lane_id=state.lane_id
