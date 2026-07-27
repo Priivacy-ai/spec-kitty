@@ -21,10 +21,32 @@ re-derived at test time:
 * ``directive.schema.yaml`` :: ``directive_reference`` — 12 members
 * ``tactic.schema.yaml``    :: ``tactic_reference``     — 7 members
 * ``procedure.schema.yaml`` :: ``procedure_reference``  — 12 members
-* ``paradigm.schema.yaml``  :: ``paradigm_reference``   — 7 members (WP05 renamed
-  this definition from the bare ``reference`` and, in the same change, dropped
-  ``agent_profile``/``mission_step_contract`` from its enum — a paradigm cannot
-  legally reference either kind, so the narrower set is intentional, not drift).
+* ``paradigm.schema.yaml``  :: ``paradigm_reference``   — 7 members
+
+⚠️ **The 12-vs-7 split is a generator artifact, not a reference-legality policy.**
+An earlier revision of this docstring said a paradigm "cannot legally reference"
+``agent_profile``/``mission_step_contract``, so the narrower set was intentional.
+**That is false**, and review traced it:
+
+* ``paradigms/models.py`` declares ``ParadigmReference.type: ArtifactKind`` and its
+  own docstring says *"``type`` accepts the full ``ArtifactKind`` vocabulary, so a
+  paradigm may reference a tactic, procedure, agent profile, etc."* The model
+  permits exactly what the generated schema forbids.
+* ``scripts/generate_schemas.py`` picks the inlining path with
+  ``enum_defs - {"ArtifactKind"}`` — i.e. on whether the model happens to declare
+  some **unrelated** ``StrEnum``. ``Directive`` has ``Enforcement`` and
+  ``Procedure`` has ``ActorRole`` (2 declarations each) → full 12. ``Tactic`` and
+  ``Paradigm`` have none → routed through ``_inline_artifact_kind_refs`` and its
+  7-member ``_REFERENCE_KINDS``. Nothing about reference semantics enters that
+  decision.
+* ``tactic_reference`` was already 7 before this mission and WP05 never touched it —
+  same quirk, pre-existing.
+
+So the split has **never been adjudicated**. This ratchet freezes it on one side,
+which is the safe direction under C-001 (never widen), but a future reader must
+not read the 7 as a decision. Tracked upstream; resolving it means either making
+the generator consistent across all four kinds or getting an actual ruling on what
+paradigms and tactics may reference.
 
 A frozen baseline, not a live re-derivation
 --------------------------------------------
