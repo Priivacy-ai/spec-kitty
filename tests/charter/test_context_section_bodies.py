@@ -307,14 +307,13 @@ class TestActionSectionSets:
         for heading in ("Terminology Canon", "Code Review Checklist", "Regression Vigilance"):
             assert f"### {heading}" in result
 
-    def test_action_review_uses_review_section_set(self) -> None:
+    def test_action_review_excludes_project_only_closure_section(self) -> None:
         result = render_critical_section_bodies(
             _CHARTER_WITH_ALL_SECTIONS, action="review"
         )
         for heading in ("Terminology Canon", "Code Review Checklist", "Regression Vigilance"):
             assert f"### {heading}" in result
-        assert "### Pull-Request Review Closure" in result
-        assert "Reply on every addressed review thread" in result
+        assert "Pull-Request Review Closure" not in result
 
     def test_action_implement_excludes_review_closure_section(self) -> None:
         result = render_critical_section_bodies(
@@ -322,12 +321,11 @@ class TestActionSectionSets:
         )
         assert "Pull-Request Review Closure" not in result
 
-    def test_action_merge_uses_review_closure_section(self) -> None:
+    def test_action_merge_has_no_product_default_section_set(self) -> None:
         result = render_critical_section_bodies(
             _CHARTER_WITH_ALL_SECTIONS, action="merge"
         )
-        assert "### Pull-Request Review Closure" in result
-        assert "Reply on every addressed review thread" in result
+        assert result == ""
 
     def test_unknown_action_emits_no_section(self) -> None:
         result = render_critical_section_bodies(

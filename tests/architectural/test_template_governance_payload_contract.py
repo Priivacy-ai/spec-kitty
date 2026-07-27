@@ -307,6 +307,13 @@ class TestReviewTemplateGovernancePayloadContract:
             f"{_REVIEW_TEMPLATE}."
         )
 
+    def test_review_template_does_not_promise_project_local_closure_rule(self) -> None:
+        template_section = _slice_contract_section(
+            _REVIEW_TEMPLATE.read_text(encoding="utf-8")
+        )
+
+        assert "Pull-Request Review Closure" not in template_section
+
     def test_review_contract_cites_directive_032(self) -> None:
         template_section = _slice_contract_section(
             _REVIEW_TEMPLATE.read_text(encoding="utf-8")

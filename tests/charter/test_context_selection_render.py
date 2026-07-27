@@ -30,6 +30,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from ruamel.yaml.error import YAMLError
 
 import charter.context as context_module
 from charter.context import (
@@ -46,6 +47,7 @@ from charter.context import (
     _format_profile_directive_code,
     _jsonable_artifact_value,
     _load_agent_profile,
+    _load_local_directives,
     _provenance_suffix,
     _reset_agent_profile_cache,
     _render_doctrine_artifact_include,
@@ -451,6 +453,17 @@ class TestFetchSelectorRecovery:
         assert "Directive DIR-014: Pull-Request Review Closure" in text
         assert "Source: project charter" in text
         assert "Reply directly on each addressed review thread." in text
+
+    def test_malformed_project_directives_fail_closed(self, tmp_path: Path) -> None:
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.yaml").write_text(
+            "directives:\n  directives: [this: is: not: valid\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YAMLError):
+            _load_local_directives(tmp_path)
 
     def test_selected_procedure_include_recovers_body(self) -> None:
         procedure = _DummyProcedure(

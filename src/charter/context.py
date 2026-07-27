@@ -895,10 +895,7 @@ def _load_local_directives(repo_root: Path) -> dict[str, object]:
     """Return project-authored directives declared in the structured charter."""
     from charter.sync import load_directives_config
 
-    try:
-        directives = load_directives_config(repo_root).directives
-    except Exception:  # noqa: BLE001 — selected catalog directives still render normally
-        return {}
+    directives = load_directives_config(repo_root).directives
     return {directive.id: directive for directive in directives}
 
 
@@ -2816,9 +2813,9 @@ def _render_compact_governance(
     )
     text: str = str(view.text)
 
-    # WP04 — the compact render path must carry the same authority-paths
-    # and action-critical-section blocks as the bootstrap path so the
-    # prompt-governance contract holds in both modes (R-3 mitigation).
+    # The compact render path carries the same project-selected directives as
+    # bootstrap mode. This preserves binding project-local governance for
+    # non-bootstrap actions without adding a product-wide prompt promise.
     augmented_blocks: list[str] = []
     doctrine_selection = _load_doctrine_selection(repo_root)
     authority_block = render_authority_paths(repo_root, doctrine_selection)
@@ -2841,6 +2838,14 @@ def _render_compact_governance(
     section_block_str = _compact_section_block(repo_root, action)
     if section_block_str:
         augmented_blocks.append(section_block_str)
+
+    selection_block_str = _render_selection_block(
+        doctrine_selection,
+        _build_doctrine_service(repo_root),
+        repo_root=repo_root,
+    )
+    if selection_block_str:
+        augmented_blocks.append(selection_block_str)
 
     profile_block_str = ""
     if profile is not None:

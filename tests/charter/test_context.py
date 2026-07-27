@@ -19,10 +19,12 @@ from charter.context import (
     _project_charter_json_block,
     _project_directive_entries,
     _relative_json_path,
+    _render_compact_governance,
     _render_bootstrap,
     build_charter_context,
     build_charter_context_json,
 )
+from charter.schemas import DoctrineSelectionConfig
 
 pytestmark = pytest.mark.fast
 
@@ -606,6 +608,36 @@ class TestBuildContextV2:
             "bundle_schema_version": 2,
             "schema_version": "1.0.0",
         }
+
+    def test_compact_context_renders_selected_project_directive_body(
+        self, tmp_path: Path
+    ) -> None:
+        local_directive = SimpleNamespace(
+            title="Pull-Request Review Closure",
+            description="Reply on every addressed review thread with validation evidence.",
+            severity="warn",
+        )
+        selection = DoctrineSelectionConfig(selected_directives=["DIR-014"])
+
+        with (
+            patch(
+                "charter.compact.render_compact_view",
+                return_value=SimpleNamespace(text="Compact governance"),
+            ),
+            patch("charter.context._load_doctrine_selection", return_value=selection),
+            patch(
+                "charter.context._load_local_directives",
+                return_value={"DIR-014": local_directive},
+            ),
+            patch("charter.context._build_doctrine_service", return_value=SimpleNamespace()),
+            patch("charter.context.render_authority_paths", return_value=""),
+            patch("charter.context.render_governance_references", return_value=""),
+        ):
+            result = _render_compact_governance(tmp_path, action="merge")
+
+        assert "Selected directives:" in result
+        assert "DIR-014" in result
+        assert "Reply on every addressed review thread with validation evidence." in result
 
     def test_json_project_charter_metadata_fallbacks(self, tmp_path: Path) -> None:
         """Project-charter JSON metadata degrades to explicit presence facts."""
