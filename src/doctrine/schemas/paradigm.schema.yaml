@@ -27,6 +27,8 @@ definitions:
         - toolguide
         - paradigm
         - procedure
+        - agent_profile
+        - mission_step_contract
         - template
         description: Doctrine artifact type being referenced.
       id:
