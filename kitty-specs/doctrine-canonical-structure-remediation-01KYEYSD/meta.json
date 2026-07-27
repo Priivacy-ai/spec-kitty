@@ -9,6 +9,7 @@
   "purpose_context": "The doctrine layer predates the DRG and the pack-layout convention that replaced its earlier models. Nothing enforced either, so drift was silent: dead artefacts, unfollowable migration hints, and a deprecated relationship surface that looked authoritative. This mission lands the structural remediation and the test-quality doctrine series that surfaced it.",
   "purpose_tldr": "Make the doctrine layer's canonical model enforceable, so drift fails loudly instead of silently.",
   "slug": "doctrine-canonical-structure-remediation-01KYEYSD",
+  "status_phase": "1",
   "target_branch": "fix/2934-demock-planning-closeout-test",
   "topology": "single_branch"
 }
