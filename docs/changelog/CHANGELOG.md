@@ -233,6 +233,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     from a lane worktree it resolves the main repository's `kitty-specs/` rather
     than reporting the mission as absent. Both production callers already
     anchored on the main repo, so this is observationally a no-op for them.
+  - **`spec-kitty accept` no longer rewinds finished work packages to
+    `claimed` (#3013, #2985).** The birth-cutover seed anchored its
+    `planned → claimed` carrier on a work package's *earliest* transition,
+    which for a force-jumped or pruned WP is its **terminal** one. The seed
+    then collided on timestamp, and because the reducer sorts by
+    `(at, event_id)` the hash-derived seed id outranked the real ULID — folding
+    a `done` WP back to `claimed`, so a second `accept` on an unchanged tree
+    did not converge. (This corrects the mechanism recorded on #2985: it is the
+    sort key, not append order.) `accept` is also now event-count neutral on
+    missions whose runtime state is already canonical. **Already-corrupted logs
+    do not self-heal** — they still need the #3003 corpus regenerate, which
+    this unblocks.
   - The classification ledger is now the *mechanical* authority for the
     stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
     drift apart silently. The gate additionally resolves import aliases, and its
