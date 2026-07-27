@@ -113,6 +113,23 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     3 renames -- while the numeric assertions below stayed green. NFR-006 makes
 #:     this prose a contract precisely so the counts stay auditable; it is corrected
 #:     here rather than quietly, because a wrong ledger is what NFR-006 forbids.)
+#: (5) Mission doctrine-silence-guards-01KYFV7Q, WP09 (FR-012): a
+#:     **relation-only change at constant cardinality**, and the mission's single
+#:     ledgered exception to its own NFR-004 "no graph content change".
+#:     ``agent_profile:doctrine-daphne --applies--> procedure:onboard-external-
+#:     agent-to-pack`` is retyped to ``requires`` in ``_CURATED_ARTIFACT_EDGES``.
+#:     +0 nodes / +0 edges / +0 orphans -- the counts below are deliberately
+#:     UNCHANGED, which is exactly why the change is ledgered here: a cardinality
+#:     baseline cannot see it, so without this entry a live traversal result would
+#:     have moved with every golden count still green. What DID move is the
+#:     relation histogram: ``applies`` 1 -> 0, ``requires`` 259 -> 260 (shipped
+#:     graph, i.e. including the hand-authored overlay).
+#:     Why: ``applies`` was that procedure's only inbound edge and no traversal
+#:     follows ``applies``, so activating the profile could not reach the operating
+#:     procedure it declares. Post-change ``cascade_activation_targets`` from
+#:     ``agent_profile:doctrine-daphne`` reaches it. Orphan count is unaffected
+#:     because ``_orphan_urns`` counts incidence, not relation.
+#:     Guarded by ``tests/architectural/test_no_authored_applies_edge.py``.
 _EXPECTED_NODE_COUNT = 305
 _EXPECTED_EDGE_COUNT = 757
 _EXPECTED_ORPHAN_COUNT = 32

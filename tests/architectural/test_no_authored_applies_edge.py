@@ -151,9 +151,9 @@ def iter_fragments(root: Path) -> list[Path]:
 def authored_applies_edges(root: Path) -> tuple[AuthoredAppliesEdge, ...]:
     """Return every ``applies`` edge authored into a DRG fragment under *root*.
 
-    Parsed as YAML and matched on the ``relation`` field, never grepped — several shipped
-    fragments carry the English word "applies" inside an edge's ``when:`` prose, and a text
-    match would red on correct content.
+    Parsed as YAML and matched on the ``relation`` field, never grepped — two shipped edges
+    carry the English word "applies" inside their ``when:`` prose
+    (``tactic.graph.yaml:415`` and ``:1175``), and a text match would red on correct content.
     """
     found: list[AuthoredAppliesEdge] = []
     for path in iter_fragments(root):
@@ -456,9 +456,10 @@ class TestGateNonVacuity:
         assert authored_applies_edges(tmp_path) == ()
 
     def test_the_word_applies_in_prose_is_not_flagged(self, tmp_path: Path) -> None:
-        """NFR-003-shaped discriminator: a text match would red on correct content.
+        """Discriminator proof: a text match would red on correct content.
 
-        Two shipped fragments carry "applies" inside an edge's ``when:`` prose.
+        ``tactic.graph.yaml`` carries "applies" inside two edges' ``when:`` prose
+        (lines 415 and 1175). A grep-based gate would flag both.
         """
         (tmp_path / "prose.graph.yaml").write_text(
             _fragment_text(
