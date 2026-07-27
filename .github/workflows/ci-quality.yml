@@ -112,6 +112,32 @@ jobs:
   # and red `test_src_filter_coverage.py`'s FR-010c invariant. `slow-tests` and
   # `e2e-cross-cutting` already used this exact disjunct form.
   #
+  # WHY THE DISJUNCT IS REPEATED PER JOB INSTEAD OF FOLDED INTO
+  # `changes.outputs.*`. Adding `github.event_name == 'push'` to the outputs
+  # expression itself would state the intent once rather than in every
+  # group-gated job. It is rejected for two reasons, neither of them about
+  # expression evaluation — a disjunction with one known-true term is
+  # statically known-true, so the alternative would introduce no vacuity in
+  # `tests/architectural/_gate_coverage.py`'s model:
+  #
+  #   * AVAILABILITY. Every suite job below is `always() && (<group> || push)`.
+  #     If the `changes` job itself fails, `needs.changes.outputs.<group>`
+  #     resolves to the empty string; with the outputs-only shape every
+  #     group-gated job would then skip on a push to main — issue #2957 again
+  #     through a different door. The per-job disjunct makes main-push suite
+  #     activation independent of `changes` succeeding.
+  #
+  #   * BLAST RADIUS. `changes.outputs` is not read only by job `if:` gates.
+  #     `toJSON(needs.changes.outputs)` is consumed wholesale by the
+  #     quality-gate decision step (`CHANGES_JSON`), where `changes["release"]`
+  #     switches on the RELEASE_REQUIRED_JOBS check. Forcing the outputs true
+  #     would therefore make `build-wheel`, `clean-install-verification`,
+  #     `consumer-compatibility`, `uv-lock-check` and both release suites
+  #     REQUIRED-to-succeed on every push to main, and would start
+  #     `consumer-compatibility` — deliberately the one group-gated job without
+  #     the disjunct (see its own comment). Activation and gate policy read the
+  #     same outputs, so widening them for the first silently widens the second.
+  #
   # Enforced by `tests/architectural/test_ci_collection_completeness.py`, which
   # fails if any collected node is left uncollectable on a push to main. It has
   # no baseline and no allowlist — the only way to satisfy it is to make a job

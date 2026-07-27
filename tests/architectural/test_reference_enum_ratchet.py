@@ -166,6 +166,24 @@ _BASELINE: dict[str, frozenset[str]] = {
     ),
 }
 
+#: The same baseline flattened to one ``"<definition_key>:<member>"`` slot per
+#: permitted enum member, so its **size** is a single number the burn-down
+#: registry can hold. Charter Burn-down Policy (a): "every mutable architectural
+#: allowlist is governed by a baseline in ``tests/architectural/_baselines.yaml``".
+#: :data:`_BASELINE` is mutable and shrink-only, so it is registered there
+#: (``test_reference_enum_ratchet.baseline_members``) rather than left a bare
+#: module literal a future PR can widen in one line -- the same reasoning that
+#: registered ``test_no_inert_schema_slots.unassigned_entries``.
+#:
+#: Derived, never re-typed: :func:`TestRatchetTargetsAreWellFormed.
+#: test_the_registered_member_slots_match_the_baseline` pins the two together, so
+#: this cannot become a second, driftable authority for the permitted members.
+BASELINE_MEMBER_SLOTS: frozenset[str] = frozenset(
+    f"{definition_key}:{member}"
+    for definition_key, members in _BASELINE.items()
+    for member in members
+)
+
 
 def _enum_members(schema_path: Path, definition_key: str) -> frozenset[str]:
     """Return the ``<definition_key>.properties.type.enum`` member set from *schema_path*.
@@ -245,6 +263,23 @@ class TestRatchetTargetsAreWellFormed:
             key == f"{filename.removesuffix('.schema.yaml')}_reference"
             for filename, key in _REFERENCE_TARGETS
         ), f"a target pairs a schema file with another kind's key: {_REFERENCE_TARGETS}"
+
+    def test_the_registered_member_slots_match_the_baseline(self) -> None:
+        """The registry-facing flat set must be a view of ``_BASELINE``, not a copy.
+
+        A second hand-maintained list of permitted members would let the
+        ``_baselines.yaml`` number stay green while ``_BASELINE`` itself widened,
+        which is exactly the single-authority failure the registration exists to
+        prevent.
+        """
+        recomputed = frozenset(
+            f"{key}:{member}" for key, members in _BASELINE.items() for member in members
+        )
+        assert recomputed == BASELINE_MEMBER_SLOTS
+        assert len(BASELINE_MEMBER_SLOTS) == sum(len(m) for m in _BASELINE.values()), (
+            "two targets permit the same member under the same key -- the flattening "
+            "collapsed slots and the registered size under-counts the real surface"
+        )
 
     def test_baseline_has_an_entry_for_every_target(self) -> None:
         target_keys = {key for _, key in _REFERENCE_TARGETS}

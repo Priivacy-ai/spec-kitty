@@ -306,3 +306,14 @@ test_no_inert_schema_slots:
   # as any other ratchet, instead of leaving it a bare module constant a future PR
   # raises in one line.
   unassigned_entries: 23
+
+# tests/architectural/test_reference_enum_ratchet.py
+# The four `<kind>_reference.type` enums in src/doctrine/schemas/. `_BASELINE`
+# there is a mutable, shrink-only member set; Charter Burn-down Policy (a) puts
+# every such allowlist under a baseline here, so widening an enum needs the
+# `# justification:` diff rather than a one-line module edit. Counted as flat
+# `<definition_key>:<member>` slots (BASELINE_MEMBER_SLOTS) so the four sets
+# reduce to one number: 12 + 7 + 12 + 7. The 12-vs-7 split is unadjudicated --
+# see #2976 -- so expect this to SHRINK when it is settled, never grow.
+test_reference_enum_ratchet:
+  baseline_members: 38

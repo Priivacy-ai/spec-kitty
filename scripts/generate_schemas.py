@@ -33,9 +33,25 @@ from ruamel.yaml import YAML
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "doctrine" / "schemas"
 
-# Subset of ArtifactKind values used in cross-reference enums.
-# The full ArtifactKind includes agent_profile, mission_step_contract, template
-# which are not valid in reference "type" fields.
+# Subset of ArtifactKind values inlined into cross-reference enums by
+# `_inline_artifact_kind_refs`.
+#
+# NOT a legality rule. The earlier wording here said the omitted kinds "are not
+# valid in reference `type` fields" while naming `template`, which this list
+# CONTAINS -- and `ParadigmReference.type` is annotated `ArtifactKind`, i.e. the
+# model permits what the generated schema then forbids. Which kinds a reference
+# may name has never been adjudicated.
+#
+# What actually decides the split is the `enum_defs - {"ArtifactKind"}` branch
+# in `generate_schema`: a model declaring some unrelated `StrEnum`
+# (Directive/Enforcement, Procedure/ActorRole) takes `_inline_all_enum_refs`
+# and keeps the full 12-member ArtifactKind, while a model declaring none
+# (Tactic, Paradigm) falls to `_inline_artifact_kind_refs` and this 7-member
+# list. Nothing about reference semantics enters that decision.
+#
+# Tracked as #2976; frozen meanwhile by
+# tests/architectural/test_reference_enum_ratchet.py. Do not cite this comment
+# as authority for either side of the 12-vs-7 question.
 _REFERENCE_KINDS = [
     "directive",
     "tactic",
