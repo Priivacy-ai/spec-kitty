@@ -13,7 +13,7 @@ functional coverage.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
@@ -415,7 +415,11 @@ def test_approved_replay_returns_none_on_transition_error() -> None:
 
 def test_mark_wp_merged_done_warns_when_wp_file_missing(tmp_path: Path) -> None:
     with (
-        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
+        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
+        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
+        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
+        # Patch the seam entry point the module actually calls now.
+        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=None),
     ):
         # No exception, just a warning + early return.
@@ -425,7 +429,11 @@ def test_mark_wp_merged_done_warns_when_wp_file_missing(tmp_path: Path) -> None:
 def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
+        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
+        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
+        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
+        # Patch the seam entry point the module actually calls now.
+        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
         patch(
@@ -443,7 +451,11 @@ def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
 def test_mark_wp_merged_done_dedup_skips_when_done_transition_exists(tmp_path: Path) -> None:
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
+        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
+        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
+        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
+        # Patch the seam entry point the module actually calls now.
+        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
         patch(
@@ -465,7 +477,11 @@ def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> 
 
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
+        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
+        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
+        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
+        # Patch the seam entry point the module actually calls now.
+        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
         patch(
@@ -496,7 +512,11 @@ def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> Non
     """A non-approved post-replay lane skips the done move (lines 308-309)."""
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
+        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
+        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
+        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
+        # Patch the seam entry point the module actually calls now.
+        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
         patch(
@@ -522,7 +542,11 @@ def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> 
     """A failed approved-replay (None) aborts the done emission (line 304)."""
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
+        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
+        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
+        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
+        # Patch the seam entry point the module actually calls now.
+        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
         patch(

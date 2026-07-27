@@ -679,8 +679,6 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey("_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934"),  # specify_cli.merge.resolve::_extract_mission_slug
         # specify_cli.merge.resolve::_iter_merge_states_for_slug
         SymbolKey("_iter_merge_states_for_slug", "7685ecbbf713921090d3265d6df803e98839f0b4f2a75795f0903478009b10e7"),
-        # specify_cli.merge.resolve::_merge_state_key_candidates
-        SymbolKey("_merge_state_key_candidates", "19d7cf2fd2d776af5d5fbcbb8f51ad77ea23659a5533b4777176e1e8aa42d113"),
     }
 )
 

@@ -145,8 +145,6 @@ _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
         "primary_feature_dir_for_mission",
         "resolve_handle_to_read_path",
         "_canonicalize_primary_read_handle",
-        "candidate_feature_dir_for_mission",
-        "resolve_planning_read_dir",
     }
 )
 
@@ -308,8 +306,6 @@ def test_blessed_seam_imports_are_not_flagged() -> None:
             primary_feature_dir_for_mission,
             resolve_handle_to_read_path,
             _canonicalize_primary_read_handle,
-            candidate_feature_dir_for_mission,
-            resolve_planning_read_dir,
         )
         from mission_runtime import placement_seam
         """

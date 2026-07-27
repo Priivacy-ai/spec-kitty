@@ -801,16 +801,21 @@ def _wp_tasks_read_dir(repo_root: Path, feature: str) -> Path:
     accept gate then raised ``AcceptanceError: ... has no tasks directory`` for a
     coord-topology mission whose WP tasks live (correctly) only on primary.
 
-    This routes the WP-task read through the SAME kind-aware chokepoint
-    (:func:`~specify_cli.missions._read_path_resolver.resolve_planning_read_dir`)
-    the planning-doc reads use, keyed on ``WORK_PACKAGE_TASK`` — mirroring the
-    WP04 ``map-requirements`` fix (tasks.py: ``resolve_planning_read_dir`` for the
-    WP-task glob). Behavior-neutral for a FLATTENED mission (candidate == primary).
+    This routes the WP-task read through the SAME kind-aware chokepoint the
+    planning-doc reads use (:meth:`~mission_runtime.PlacementSeam.read_dir`),
+    keyed on ``WORK_PACKAGE_TASK`` — mirroring the WP04 ``map-requirements``
+    fix (tasks.py: ``resolve_planning_read_dir`` for the WP-task glob).
+    Behavior-neutral for a FLATTENED mission (candidate == primary).
     The STATUS reads stay on ``status_feature_dir`` (C-002), unchanged.
-    """
-    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
 
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+    read-side-placement-seam-migration WP07: routed through
+    :func:`~mission_runtime.placement_seam` (fail-loud on a deleted-coord
+    mismatch, NFR-002) instead of the kind-blind
+    ``resolve_planning_read_dir`` — mirrors ``_planning_read_dir`` above, the
+    sibling accept-gate PRIMARY read. Behavior-neutral here: WORK_PACKAGE_TASK
+    is PRIMARY-partition, so both resolve the identical primary dir.
+    """
+    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind, placement_seam
 
     # Fail LOUD if a future reclassification moves WORK_PACKAGE_TASK off the
     # primary partition (NFR-004): the gate's WP-task read must stay on the same
@@ -821,7 +826,7 @@ def _wp_tasks_read_dir(repo_root: Path, feature: str) -> Path:
             "longer a PRIMARY-partition kind; the WP-task read dir must be resolved "
             "against its current partition (closeout N+1 / data-model.md)."
         )
-    read_dir: Path = resolve_planning_read_dir(repo_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
+    read_dir: Path = placement_seam(repo_root, feature).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return read_dir
 
 

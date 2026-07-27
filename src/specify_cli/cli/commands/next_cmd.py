@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
-    candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
 )
 import contextlib
@@ -33,6 +32,7 @@ import sys
 from pathlib import Path
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
@@ -374,9 +374,15 @@ def _resolve_mission_slug(mission: str | None, repo_root: Path) -> str:
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        candidate = candidate_feature_dir_for_mission(
+        # Ledger WP04: migrate-fail-loud via PRIMARY_METADATA (slug-canon idiom).
+        # The except StatusReadPathNotFound branch re-raises — it was already
+        # unreachable under candidate_feature_dir_for_mission (only
+        # MissionSelectorAmbiguous propagates) and remains unreachable under
+        # PRIMARY_METADATA (PRIMARY never raises CoordinationBranchDeleted).
+        # Kept so a future STATUS-partition regression still surfaces typed.
+        candidate = placement_seam(
             get_main_repo_root(repo_root), raw_handle
-        )
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except StatusReadPathNotFound:
         # FR-001 / C-IC02: the read resolver produced a precise typed error
         # (e.g. COORDINATION_BRANCH_DELETED / STATUS_READ_PATH_NOT_FOUND) with the

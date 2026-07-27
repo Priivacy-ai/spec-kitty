@@ -34,7 +34,7 @@ from typing import Any
 
 import typer
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import Render
 from specify_cli.cli.commands.agent.tasks_outline import TaskIdResolutionOutcome, TaskIdResult
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
@@ -44,10 +44,6 @@ from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
 logger = logging.getLogger(__name__)
@@ -249,7 +245,9 @@ def _find_mission_slug(
         # Note: repo_root from locate_project_root() already resolves to the main
         # checkout; get_main_repo_root() here guards against caller passing a
         # worktree path directly.
-        legacy_dir = candidate_feature_dir_for_mission(_tasks.get_main_repo_root(repo_root), raw_handle)
+        legacy_dir = placement_seam(
+            _tasks.get_main_repo_root(repo_root), raw_handle
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -450,10 +448,8 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
     # on the primary partition. Dynamic completion is STATUS_STATE and follows
     # the topology-routed status surface instead.
-    from mission_runtime import MissionArtifactKind
-
-    feature_dir = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.TASKS_INDEX
     )
     if not (feature_dir / "tasks").is_dir():
         return []

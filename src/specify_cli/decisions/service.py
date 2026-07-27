@@ -17,8 +17,7 @@ mission_id resolution:
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -165,14 +164,15 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     companion ``status.events.jsonl`` entries are coord-authority-owned
     STATUS-partition state -- the SAME directory ``decisions/emit.py``'s
     permanent kind-blind write target resolves to (data-model.md:31, the 2
-    permanent-by-design coord_authority writes). Routed through a
-    STATUS-partition kind (not PRIMARY_METADATA) so this read stays
+    permanent-by-design coord_authority writes). Routed through
+    ``placement_seam(...).read_dir(STATUS_STATE)`` so this read stays
     topology-aware and agrees with where emit.py writes; splitting reads onto
     PRIMARY here would read/write split-brain the ledger under coord topology.
     """
-    return resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
     )
+    return mission_dir
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:

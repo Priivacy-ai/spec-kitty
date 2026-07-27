@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import TasksPorts
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _apply_review_status_flags,
@@ -62,7 +62,6 @@ if TYPE_CHECKING:
     from specify_cli.core.stale_detection import StaleCheckResult
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
-    resolve_planning_read_dir,
 )
 from specify_cli.status import (
     PROGRESS_SEMANTICS,
@@ -167,9 +166,12 @@ def _st_resolve_dirs(st: _StatusState) -> None:
 
     # PRIMARY leg — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg split —
     # WP03 T009). The STATUS leg stays on the coord-aware ``feature_dir`` above.
-    st.tasks_dir = resolve_planning_read_dir(
-        st.main_repo_root, st.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-    ) / "tasks"
+    st.tasks_dir = (
+        placement_seam(st.main_repo_root, st.mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        / "tasks"
+    )
     if not st.tasks_dir.exists():
         _tasks.console.print(f"[red]Error:[/red] Tasks directory not found: {st.tasks_dir}")
         raise typer.Exit(1)

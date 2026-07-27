@@ -39,9 +39,7 @@ from specify_cli.core.constants import (
 )
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
-    candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
-    resolve_planning_read_dir,
 )
 import json
 import logging
@@ -817,7 +815,11 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
+        legacy_dir = _resolve_workflow_read_dir(
+            repo_root=get_main_repo_root(repo_root),
+            mission_slug=raw_handle,
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+        )
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -840,26 +842,32 @@ def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
     """Return the shared claimable preview for *mission_slug*, if tasks exist.
 
     WP04 / T016 / FR-002: tasks/ and dependency reads route to the PRIMARY
-    checkout via ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` so a
+    checkout via ``PlacementSeam.read_dir(WORK_PACKAGE_TASK)`` so a
     coord-topology mission (whose tasks/ live on PRIMARY, not the STATUS-only
-    coord husk) is never reported as having no tasks.  The status-event read
-    uses the coord-aware ``candidate_feature_dir_for_mission`` so lanes come
-    from the authoritative coord husk — never a worktree-local copy, which may
-    lag the latest status commit (dependency gate invariant preserved).
+    coord surface) is never reported as having no tasks. The status-event read
+    uses ``PlacementSeam.read_dir(STATUS_STATE)`` so lanes come from the
+    authoritative coord surface — never a worktree-local copy, which may lag
+    the latest status commit (dependency gate invariant preserved).
     """
     from runtime.next.discovery import preview_claimable_wp
 
     main_root = get_main_repo_root(repo_root)
     # WORK_PACKAGE_TASK is PRIMARY-partition: routes to the primary checkout
     # regardless of coord topology (no shadowing by STATUS-only coord husk).
-    planning_dir = resolve_planning_read_dir(
-        main_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    planning_dir = _resolve_workflow_read_dir(
+        repo_root=main_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     if not (planning_dir / "tasks").is_dir():
         return None
-    # status_dir: coord-aware so events come from the coord husk under coord
-    # topology (candidate_feature_dir_for_mission is the STATUS-partition leg).
-    status_dir = candidate_feature_dir_for_mission(main_root, mission_slug)
+    # status_dir: coord-aware so events come from the coord surface under coord
+    # topology (STATUS_STATE is the COORD-partition leg).
+    status_dir = _resolve_workflow_read_dir(
+        repo_root=main_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
     return preview_claimable_wp(planning_dir, status_dir=status_dir)
 
 
@@ -1388,13 +1396,17 @@ def _resolve_review_context(
     # tasks/ (WORK_PACKAGE_TASK — PRIMARY-partition) both route to the primary
     # checkout.  Under coord topology, candidate_feature_dir_for_mission returned
     # the STATUS-only coord husk (no lanes.json, no tasks/) — a wrong-leg read.
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    feature_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
     # future LANE_STATE re-partition does not silently misroute.
-    _lanes_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    _lanes_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.LANE_STATE,
     )
     lanes_manifest = None
     try:
@@ -1444,11 +1456,13 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     # primary_feature_dir_for_mission anchors on get_main_repo_root(repo_root),
     # so cwd / walk-up / repo_root all resolve the same primary dir — the
     # multi-branch walk was vestigial after WP04.
-    # The STATUS leg uses candidate_feature_dir_for_mission(repo_root, ...) so
-    # events come from the authoritative coord husk under coord topology (C-001).
+    # The STATUS leg uses PlacementSeam.read_dir(STATUS_STATE) so events come
+    # from the authoritative coord surface under coord topology (C-001).
     tasks_dir = (
-        resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        _resolve_workflow_read_dir(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
         )
         / "tasks"
     )
@@ -1462,7 +1476,11 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     # Load lanes from canonical event log (lane is event-log-only).
     # WP04: status events stay on the coord-aware resolver so coord-topology
     # missions read the authoritative event log, not the primary decoy (C-001).
-    _status_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    _status_feature_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
     _fr_events = []
     try:
         from specify_cli.status import read_events as _fr_read_events

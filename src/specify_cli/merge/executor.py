@@ -114,11 +114,9 @@ from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_w
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
-    candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
-    resolve_planning_read_dir,
 )
-from mission_runtime import MissionArtifactKind, resolve_placement_only
+from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -517,8 +515,8 @@ def _coord_reconcile_read_feature_dir(run: _MergeRunState) -> Path:
     (``kitty-specs/<slug>/status.events.jsonl``) and the legacy-parse dir match
     the placement the rollback used — no ``-coord`` husk, no re-resolution drift.
     """
-    feature_dir: Path = resolve_planning_read_dir(
-        run.main_repo, run.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    feature_dir: Path = placement_seam(run.main_repo, run.mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     return feature_dir
 
@@ -1537,19 +1535,16 @@ def _run_lane_based_merge(
     # coord-aware STATUS legs (``status_feature_dir``). It MUST stay on the
     # topology-aware resolver so the append-only event log resolves the coord
     # worktree for a coord-topology mission.
-    feature_dir = candidate_feature_dir_for_mission(main_repo, mission_slug)
+    seam = placement_seam(main_repo, mission_slug)
+    feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
     # mission identity (PRIMARY_METADATA) and ``lanes.json`` (LANE_STATE) live ONLY
     # on the PRIMARY checkout post-#2106. Reading them off the coord-aware
     # ``feature_dir`` above lands on the STATUS-only husk → a missing/sentinel
     # ``meta.json`` and an absent ``lanes.json``. Resolve each by its real kind.
-    primary_meta_dir = resolve_planning_read_dir(
-        main_repo, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
-    )
-    lanes_read_dir = resolve_planning_read_dir(
-        main_repo, mission_slug, kind=MissionArtifactKind.LANE_STATE
-    )
+    primary_meta_dir = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    lanes_read_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
 
     # -- WP05/T020/FR-006: Sparse-checkout preflight (BEFORE any state change) --
     _preflight_mission_id: str | None = None

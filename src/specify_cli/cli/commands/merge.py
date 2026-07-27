@@ -56,10 +56,7 @@ from __future__ import annotations
 
 
 from specify_cli.core.constants import KITTIFY_DIR
-from specify_cli.missions._read_path_resolver import (
-    resolve_planning_read_dir,
-)
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from typing import TYPE_CHECKING
 
@@ -281,8 +278,8 @@ def _teardown_coordination_for_abort(
         # down — reading off the kind-blind resolver lands on the STATUS-only
         # ``-coord`` husk, whose ``meta.json`` is absent or carries a stale/sentinel
         # identity. Route by kind so the teardown anchors on the real PRIMARY meta.
-        feature_dir = resolve_planning_read_dir(
-            main_for_abort, coord_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+        feature_dir = placement_seam(main_for_abort, coord_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         meta = _load_meta(feature_dir)
         mid8 = str(meta.get("mid8", "")).strip() if isinstance(meta, dict) else ""

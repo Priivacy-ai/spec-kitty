@@ -7,7 +7,6 @@ to display beautiful status boards without going through the CLI.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import re
 from collections import Counter
 from datetime import UTC, datetime
@@ -134,8 +133,12 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # the mission identity (#2186, PRIMARY_METADATA) live ONLY on the PRIMARY
         # checkout post-#2106 — the coord husk carries neither. Both PRIMARY-kinds
         # resolve topology-blind to the same PRIMARY dir via the kind-aware seam.
-        primary_dir = resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        # read-side-placement-seam-migration WP07: routed through
+        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+        # instead of the kind-blind ``resolve_planning_read_dir`` — behavior-
+        # neutral here since WORK_PACKAGE_TASK is PRIMARY-partition.
+        primary_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
 
         tasks_dir = primary_dir / "tasks"

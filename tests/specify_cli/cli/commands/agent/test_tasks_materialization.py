@@ -10,6 +10,7 @@ logic, and — the coverage gap research flagged — the error/edge paths
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -361,37 +362,34 @@ class TestPersistReviewArtifactOverride:
 # ---------------------------------------------------------------------------
 
 
+def _patch_materialization_read_dir(read_dir: Path) -> AbstractContextManager[MagicMock]:
+    seam = MagicMock()
+    seam.read_dir.return_value = read_dir
+    return patch(
+        "specify_cli.cli.commands.agent.tasks_materialization.placement_seam",
+        return_value=seam,
+    )
+
+
 class TestResolveWpSlug:
     def test_finds_titled_file(self, tmp_path: Path) -> None:
-        with patch(
-            "specify_cli.cli.commands.agent.tasks_materialization.resolve_planning_read_dir",
-            return_value=tmp_path,
-        ):
+        with _patch_materialization_read_dir(tmp_path):
             (tmp_path / "tasks").mkdir()
             (tmp_path / "tasks" / "WP01-do-the-thing.md").write_text("x", encoding="utf-8")
             assert _resolve_wp_slug(tmp_path, "010-test", "WP01") == "WP01-do-the-thing"
 
     def test_exact_match_stem(self, tmp_path: Path) -> None:
-        with patch(
-            "specify_cli.cli.commands.agent.tasks_materialization.resolve_planning_read_dir",
-            return_value=tmp_path,
-        ):
+        with _patch_materialization_read_dir(tmp_path):
             (tmp_path / "tasks").mkdir()
             (tmp_path / "tasks" / "WP01.md").write_text("x", encoding="utf-8")
             assert _resolve_wp_slug(tmp_path, "010-test", "WP01") == "WP01"
 
     def test_falls_back_to_bare_id_when_no_tasks_dir(self, tmp_path: Path) -> None:
-        with patch(
-            "specify_cli.cli.commands.agent.tasks_materialization.resolve_planning_read_dir",
-            return_value=tmp_path,
-        ):
+        with _patch_materialization_read_dir(tmp_path):
             assert _resolve_wp_slug(tmp_path, "010-test", "WP01") == "WP01"
 
     def test_falls_back_to_bare_id_when_no_matching_file(self, tmp_path: Path) -> None:
-        with patch(
-            "specify_cli.cli.commands.agent.tasks_materialization.resolve_planning_read_dir",
-            return_value=tmp_path,
-        ):
+        with _patch_materialization_read_dir(tmp_path):
             (tmp_path / "tasks").mkdir()
             (tmp_path / "tasks" / "WP99-other.md").write_text("x", encoding="utf-8")
             assert _resolve_wp_slug(tmp_path, "010-test", "WP01") == "WP01"

@@ -25,7 +25,6 @@ from specify_cli.core.constants import (
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
 from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission as primary_feature_dir_for_mission,
-    resolve_planning_read_dir,
 )
 import contextlib
 import logging
@@ -839,9 +838,12 @@ def list_tasks(
         # Find all task files — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg
         # split — WP03 T010): WP task files live on the primary checkout regardless
         # of topology; a coord-topology mission's STATUS-only husk has no tasks/.
-        tasks_dir = resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        ) / "tasks"
+        tasks_dir = (
+            placement_seam(main_repo_root, mission_slug).read_dir(
+                MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+        )
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
@@ -940,8 +942,8 @@ def add_history(
         # Resolve through the kind-aware authority (resolution-authority gate:
         # add_history is a WRITE-classified function, so a kind-blind
         # resolve_feature_dir_for_mission here would be a coord-authority violation).
-        _ah_feature_dir = resolve_planning_read_dir(
-            _ah_main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        _ah_feature_dir = placement_seam(_ah_main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.TASKS_INDEX
         )
         try:
             check_pre30_layout(_ah_feature_dir)
@@ -1152,8 +1154,8 @@ def validate_workflow(
         # Resolve through the kind-aware authority (resolution-authority gate:
         # validate_workflow is WRITE-classified, so a kind-blind resolver here
         # would be a coord-authority violation).
-        _vw_guard_feature_dir = resolve_planning_read_dir(
-            _vw_main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        _vw_guard_feature_dir = placement_seam(_vw_main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.TASKS_INDEX
         )
         try:
             check_pre30_layout(_vw_guard_feature_dir)
@@ -1300,8 +1302,8 @@ def list_dependents(
         # BOTH the boundary guard and the graph builder. The WP02 T013 proof establishes
         # the guard outcome is byte-identical across legs on a modern mission
         # (SC-002/NFR-001); the redundant second reassignment is removed.
-        feature_dir = resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
         # Boundary guard — hard-reject pre-3.0 layout before reading any WP (#1057)
         try:

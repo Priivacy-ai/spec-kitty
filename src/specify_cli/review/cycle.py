@@ -8,9 +8,8 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import re
 import subprocess
 from dataclasses import dataclass
@@ -36,18 +35,18 @@ def _review_cycle_wp_dir(repo_root: Path, mission_slug: str, wp_slug: str) -> Pa
     NEVER the coordination husk. This is the ONE resolver the READ seam
     (:func:`resolve_review_cycle_pointer`) and the WRITE seam
     (:func:`create_rejected_review_cycle`) share, so both converge on the same
-    PRIMARY home. It routes through the kind-aware
-    :func:`resolve_planning_read_dir` (keyed on the WORK_PACKAGE_TASK partition),
-    retiring the kind-blind ``candidate_feature_dir_for_mission`` fold that
-    resolved the coord worktree for a coord-topology mission (the #2646/#2697/#2275
-    misplacement). ``MissionSelectorAmbiguous`` propagates unchanged (no silent
-    pick — C-009).
+    PRIMARY home. It routes through
+    :func:`mission_runtime.placement_seam` ``.read_dir(WORK_PACKAGE_TASK)``,
+    retiring the lenient kind-aware ``resolve_planning_read_dir`` fold (and,
+    historically, the kind-blind ``candidate_feature_dir_for_mission`` fold that
+    resolved the coord worktree for a coord-topology mission — #2646/#2697/#2275).
+    ``MissionSelectorAmbiguous`` propagates unchanged (no silent pick — C-009).
     """
-    # ``resolve_planning_read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``placement_seam(...).read_dir`` is typed ``-> Path`` but mypy widens it to
     # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
     # bind explicitly so the join's return narrows back to ``Path``.
-    mission_dir: Path = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     return mission_dir / "tasks" / wp_slug
 

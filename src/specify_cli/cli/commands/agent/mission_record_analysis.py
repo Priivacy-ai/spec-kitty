@@ -315,11 +315,17 @@ def record_analysis(
         # resolution. The analysis-report WRITE target stays primary (data-model.md
         # KEEP); the dirty-tree allowlist / ANALYSIS_REPORT placement is WP05's
         # concern and is untouched here.
+        #
+        # read-side-placement-seam-migration WP07: the planning-read leg above
+        # now routes through ``placement_seam`` (fail-loud on a deleted-coord
+        # mismatch, NFR-002) instead of the kind-blind
+        # ``resolve_planning_read_dir`` — behavior-neutral since SPEC is
+        # PRIMARY-partition.
         from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
-        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+        from mission_runtime import placement_seam
 
-        write_feature_dir = resolve_planning_read_dir(
-            repo_root, feature_dir.name, kind=_kind_for_artifact("spec")
+        write_feature_dir = placement_seam(repo_root, feature_dir.name).read_dir(
+            _kind_for_artifact("spec")
         )
 
         result = write_analysis_report(

@@ -22,7 +22,6 @@ from specify_cli.core.paths import get_main_repo_root
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
@@ -31,6 +30,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -410,9 +410,9 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str) -> str:
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        candidate: Path = candidate_feature_dir_for_mission(
+        candidate: Path = placement_seam(
             get_main_repo_root(repo_root), mission_slug
-        )
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except StatusReadPathNotFound:
         # Fail-closed coordination window (coord worktree root materialized,
         # mission dir absent): fall back to the raw handle so slug resolution
