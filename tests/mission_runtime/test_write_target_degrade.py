@@ -158,6 +158,64 @@ class TestFailClosedPreservesCause:
         assert raised.__cause__ is concrete_exc
         assert isinstance(raised.__cause__, CoordinationBranchDeleted)
 
+    def test_plain_action_context_error_cause_and_code_survive(
+        self, tmp_path: Path
+    ) -> None:
+        """Companion case: when ``resolve_placement_only`` itself raises a
+        plain ``ActionContextError`` (NOT a ``StatusReadPathNotFound``/
+        ``CoordinationBranchDeleted`` subclass -- e.g. an ambiguous or
+        malformed mission handle caught inside the port), ``_fail_closed_error``
+        takes its OWN first branch (``isinstance(resolution_exc,
+        ActionContextError)``) rather than the ``StatusReadPathNotFound`` arm
+        exercised above. That branch must preserve the caught error's own
+        ``.code`` (not the generic ``FEATURE_CONTEXT_UNRESOLVED`` fallback)
+        and chain it as ``__cause__`` -- the same discipline the
+        ``StatusReadPathNotFound`` arm already gets, just for the sibling
+        exception type.
+        """
+        mission_slug = "023-plain-action-context-error-mission"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {"mission_id": "01HXYZ0000000000000000000D", "mission_slug": mission_slug}
+            ),
+            encoding="utf-8",
+        )
+        concrete_exc = ActionContextError(
+            "AMBIGUOUS_MISSION_HANDLE", "mission slug resolves to more than one candidate"
+        )
+
+        with (
+            mock.patch(
+                "specify_cli.missions._read_path_resolver.candidate_feature_dir_for_mission",
+                return_value=feature_dir,
+            ),
+            mock.patch(
+                "mission_runtime.write_target_degrade.resolve_placement_only",
+                side_effect=concrete_exc,
+            ),
+            pytest.raises(ActionContextError) as exc_info,
+        ):
+            resolve_write_target_or_degrade(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                kind=MissionArtifactKind.STATUS_STATE,
+                degrade_ref=None,  # fail-closed: no degrade path supplied
+            )
+
+        raised = exc_info.value
+        # The caught error's own code survives -- NOT the generic
+        # FEATURE_CONTEXT_UNRESOLVED fallback (that fallback is reserved for
+        # the "nothing was ever caught" branch, exercised by
+        # ``test_bookkeeping_raises_when_branch_none_and_mission_missing``
+        # below, which never reaches ``resolve_placement_only`` at all).
+        assert raised.code == "AMBIGUOUS_MISSION_HANDLE"
+        assert raised.code != "FEATURE_CONTEXT_UNRESOLVED"
+        # The chain is preserved -- not a fresh, cause-less exception.
+        assert raised.__cause__ is concrete_exc
+        assert isinstance(raised.__cause__, ActionContextError)
+
 
 class TestDecisionLogFailOpen:
     """Test decision_log preserves fail-open behavior through the helper."""
