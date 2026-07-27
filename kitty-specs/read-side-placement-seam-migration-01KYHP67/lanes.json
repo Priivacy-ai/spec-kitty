@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "mission_slug": "read-side-placement-seam-migration-01KYHP67",
+  "mission_id": "01KYHP67X17QFWXX788XSKQ24E",
+  "mission_branch": "kitty/mission-read-side-placement-seam-migration-01KYHP67",
+  "target_branch": "fix/read-side-placement-seam-migration",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/task_metadata_validation.py",
+        "tests/specify_cli/test_repair_lane_mismatch.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/development/read-side-seam-classification.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "tests/specify_cli/migration/test_mission_id_primary_leg.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/**",
+        "tests/specify_cli/cli/commands/agent/test_read_seam_migration_agent.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/*.py",
+        "src/specify_cli/cli/commands/charter/_widen.py",
+        "tests/specify_cli/cli/commands/test_read_seam_migration_cli.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/**",
+        "src/specify_cli/merge/**",
+        "tests/specify_cli/merge/test_read_seam_migration_merge_lanes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/decisions/service.py",
+        "src/specify_cli/dossier/api.py",
+        "src/specify_cli/retrospective/summary.py",
+        "src/specify_cli/retrospective/writer.py",
+        "src/specify_cli/review/cycle.py",
+        "src/specify_cli/status/aggregate.py",
+        "tests/specify_cli/test_read_seam_leniency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge_identity.py",
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/agent_utils/status.py",
+        "src/specify_cli/context/resolver.py",
+        "src/specify_cli/core/stale_detection.py",
+        "src/specify_cli/core/worktree_topology.py",
+        "src/specify_cli/doctrine_synthesizer/apply.py",
+        "src/specify_cli/manifest.py",
+        "src/specify_cli/mission_loader/command.py",
+        "src/specify_cli/missions/plan/plan_interview.py",
+        "src/specify_cli/missions/plan/specify_interview.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/task_utils/support.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/specify_cli/test_read_seam_migration_core.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_read_side_bypass.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-27T12:09:43.544535+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

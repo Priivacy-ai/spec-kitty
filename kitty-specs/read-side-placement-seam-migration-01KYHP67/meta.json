@@ -1,0 +1,34 @@
+{
+  "accept_commit": "571aed03ebf789dcffc6dcd34ce5d4831effb3bd",
+  "acceptance_history": [
+    {
+      "accept_commit": "571aed03ebf789dcffc6dcd34ce5d4831effb3bd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-27T18:25:37.118744+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "8ef96d325840816674c95345c784f87724130e32"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-27T18:25:37.118744+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "8ef96d325840816674c95345c784f87724130e32",
+  "baseline_merge_commit": "8c90b2a7f81f6dc9b3da06e8149c7bcdd0ec2c17",
+  "coordination_branch": "kitty/mission-read-side-placement-seam-migration-01KYHP67",
+  "created_at": "2026-07-27T11:43:30.209782+00:00",
+  "flattened": false,
+  "friendly_name": "Read-Side Placement-Seam Migration",
+  "mission_id": "01KYHP67X17QFWXX788XSKQ24E",
+  "mission_number": null,
+  "mission_slug": "read-side-placement-seam-migration-01KYHP67",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission artifacts live on partitioned branches; a read must resolve the correct partition and artifact kind through a single seam. Today roughly 50-64 modules bypass that read seam by calling kind-blind resolvers directly — the read-side twin of the write-side split-brain a prior mission already closed. This mission routes those reads through the seam and adds a fail-closed architectural gate symmetric to the write-side one, so the read path has one authority and drift cannot recur. It also folds in a fix for a frontmatter-corruption bug in the lane-mismatch repair path (#2921).",
+  "purpose_tldr": "Every mission-artifact read routes through the placement seam (as writes already do), with a fail-closed gate so new bypasses cannot land — closing the read-side half of the placement port.",
+  "slug": "read-side-placement-seam-migration-01KYHP67",
+  "status_phase": "1",
+  "target_branch": "fix/read-side-placement-seam-migration",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-27T12:28:00.790096+00:00"
+}
