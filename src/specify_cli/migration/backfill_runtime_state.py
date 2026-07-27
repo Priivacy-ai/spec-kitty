@@ -75,7 +75,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -91,7 +91,7 @@ from specify_cli.status import (
     StatusEvent,
     WPInnerStateDelta,
 )
-from specify_cli.status import materialize_snapshot
+from specify_cli.status import materialize_snapshot, reduce
 from specify_cli.status import (
     EVENTS_FILENAME,
     StoreError,
@@ -124,6 +124,12 @@ _REVIEW_OVERRIDE_KEYS = (
 #: checkboxes). The ordering guard keys on these: a snapshot slot present here
 #: whose frontmatter key has already been stripped proves a strip-before-verify.
 _FRONTMATTER_SOURCED_SLOTS = ("shell_pid", "shell_pid_created_at", "agent", "assignee", "tracker_refs", "review")
+
+#: Snapshot slots the seed ``planned -> claimed`` carrier populates via its
+#: ``policy_metadata`` sidecar. Kept in one place so the builder
+#: (:func:`_unmigrated_claim_slots`) and the already-migrated probe
+#: (:func:`_snapshot_claim_slots`) can never drift apart.
+_CLAIM_SLOTS = ("shell_pid", "shell_pid_created_at", "agent")
 
 BackfillAction = Literal["wrote", "skip", "error"]
 
@@ -402,15 +408,134 @@ def _claim_anchors(feature_dir: Path) -> dict[str, str]:
     case (#2848); it is that layered resolver, not this one, that decides
     whether a WP is genuinely never-claimed.
     """
-    stream = read_event_stream(feature_dir)
-    earliest: dict[str, str] = {}
+    earliest = _earliest_transition_ats(feature_dir)
     claimed: dict[str, str] = {}
-    for ev in stream.transitions:
-        if ev.wp_id not in earliest or ev.at < earliest[ev.wp_id]:
-            earliest[ev.wp_id] = ev.at
+    for ev in _authentic_transitions(feature_dir):
         if ev.to_lane == Lane.CLAIMED and (ev.wp_id not in claimed or ev.at < claimed[ev.wp_id]):
             claimed[ev.wp_id] = ev.at
     return {wp_id: claimed.get(wp_id, earliest[wp_id]) for wp_id in earliest}
+
+
+def _authentic_stream(feature_dir: Path) -> tuple[list[StatusEvent], list[InnerStateChanged]]:
+    """Return the event log with this migration's OWN seed rows removed.
+
+    Every input the seed builder derives its output from must come from
+    *authentic* history. A previously written seed is this module's own output
+    from an earlier run; folding it back in makes the seed a function of the
+    last run rather than of the corpus, and the payload then drifts on each
+    re-run — breaking the byte-stable idempotency contract (NFR-002) and, worse,
+    silently retiring :func:`_verify_expected_seed_events`' tamper proof (the
+    expectation would dissolve the moment the seed it is meant to check exists).
+    Keying on :data:`BACKFILL_ACTOR` is exact: no live agent writes that actor.
+    """
+    stream = read_event_stream(feature_dir)
+    return (
+        [ev for ev in stream.transitions if ev.actor != BACKFILL_ACTOR],
+        [an for an in stream.annotations if an.actor != BACKFILL_ACTOR],
+    )
+
+
+def _authentic_transitions(feature_dir: Path) -> list[StatusEvent]:
+    """Return the event log's transitions with this migration's own seeds removed."""
+    return _authentic_stream(feature_dir)[0]
+
+
+def _earliest_transition_ats(feature_dir: Path) -> dict[str, str]:
+    """Return each WP's earliest *authentic* transition ``at`` from the event log.
+
+    Event-log-only, like :func:`_claim_anchors`: a WP with no authentic
+    transitions is absent from the mapping. This is the "recorded lane history
+    starts here" boundary :func:`_retro_claim_at` orders the retroactive claim
+    seed against.
+    """
+    earliest: dict[str, str] = {}
+    for ev in _authentic_transitions(feature_dir):
+        if ev.wp_id not in earliest or ev.at < earliest[ev.wp_id]:
+            earliest[ev.wp_id] = ev.at
+    return earliest
+
+
+def _instant_before(at: str) -> str | None:
+    """Return the ISO-8601 instant one microsecond before *at*, or ``None``.
+
+    ``None`` signals an unparseable timestamp — an already-malformed log entry
+    is a signal to leave the anchor alone, not to raise (same never-raises
+    posture as :func:`_parse_epoch_or_iso`).
+    """
+    try:
+        parsed = datetime.fromisoformat(at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (parsed - timedelta(microseconds=1)).isoformat()
+
+
+def _snapshot_claim_slots(feature_dir: Path) -> dict[str, frozenset[str]]:
+    """Return, per WP, the claim slots AUTHENTIC history already carries.
+
+    The backfill's contract is "no legacy frontmatter value is lost", not "every
+    legacy value is re-stated". A claim slot the canonical model already holds
+    has nothing left to migrate, so minting a lane-shaped carrier for it is pure
+    write amplification on a seam (``accept``) that is otherwise lane-neutral —
+    the ``accept`` gate's event-count-neutrality contract (#2985 corroborating
+    red).
+
+    Reduced over :func:`_authentic_stream`, never the raw log: the answer must
+    be the same before and after this module writes its own seeds, or the seed
+    payload would differ between the write run and every later verify run.
+
+    Read-only: reduces in memory rather than going through
+    ``materialize_snapshot``, so building seeds never writes a ``status.json``
+    view as a side effect.
+    """
+    transitions, annotations = _authentic_stream(feature_dir)
+    snapshot = reduce(transitions, annotations)
+    return {
+        wp_id: frozenset(slot for slot in _CLAIM_SLOTS if wp.get(slot) not in (None, "", [], {}))
+        for wp_id, wp in snapshot.work_packages.items()
+    }
+
+
+def _unmigrated_claim_slots(runtime: LegacyWPRuntime, present: frozenset[str]) -> dict[str, Any]:
+    """Return the claim ``policy_metadata`` payload still worth seeding.
+
+    Legacy claim values the snapshot already carries are dropped (see
+    :func:`_snapshot_claim_slots`); an empty result means the carrier transition
+    is not minted at all.
+    """
+    candidates: tuple[tuple[str, Any], ...] = (
+        ("shell_pid", runtime.shell_pid),
+        ("shell_pid_created_at", runtime.shell_pid_created_at),
+        ("agent", runtime.agent),
+    )
+    return {slot: value for slot, value in candidates if value is not None and slot not in present}
+
+
+def _retro_claim_at(anchor: str, earliest_at: str | None) -> str:
+    """Return the seed claim transition's ``at``, forced before recorded history.
+
+    The seed ``planned -> claimed`` transition is a *carrier* for pre-eviction
+    claim metadata (``shell_pid`` / ``agent``), never a statement about the WP's
+    current lane. :func:`~specify_cli.status.reducer.reduce` folds transitions in
+    ``(at, event_id)`` order and the last one wins, so a seed that ties with — or
+    outlives — the WP's real history silently REGRESSES the reduced lane (a
+    ``done`` WP reappearing as ``claimed``; #1883 accept-convergence red).
+
+    The tie is not hypothetical: :func:`_claim_anchors` falls back to the WP's
+    *earliest transition* ``at`` whenever the log holds no explicit ``claimed``
+    event (force-jumped or pruned history), and the seed's deterministic
+    ``event_id`` then decides the fold order by pure lexical luck.
+
+    So the seed is pinned strictly before the WP's earliest recorded transition
+    whenever the anchor does not already precede it. The shift is one microsecond
+    — the anchor is documented fictional time (see :func:`_build_seed_events`),
+    and the seeded runtime *values* are unchanged, only their fold position.
+    A WP with no recorded transitions at all (``earliest_at is None``) has no
+    history to order against and keeps its anchor verbatim.
+    """
+    if earliest_at is None or anchor < earliest_at:
+        return anchor
+    shifted = _instant_before(earliest_at)
+    return anchor if shifted is None else shifted
 
 
 def _parse_epoch_or_iso(raw: str | None) -> str | None:
@@ -524,6 +649,10 @@ def _build_seed_events(
 
     Seed ``event_id``s are deterministic namespaced ULIDs. Subtask-completion
     ``at`` is clamped to the WP's ``claimed`` anchor (fictional time, documented).
+    The claim *transition*'s ``at`` is additionally pinned strictly before the
+    WP's earliest recorded transition (:func:`_retro_claim_at`) so a retroactive
+    metadata carrier can never win the reducer's ``(at, event_id)`` fold and
+    regress a finished WP back to ``claimed``.
     Every reconstructed annotation shares that anchor ``at`` so its fold ordering
     (post-transition, via the WP01 event-kind partition) is deterministic; the
     truthful ``review_artifact_override_at`` is preserved *inside* the delta's
@@ -544,6 +673,12 @@ def _build_seed_events(
     """
     slug = feature_dir.name
     mission_id = _mission_id(read_dir)
+    # Recorded lane history the retroactive claim seed must fold BEFORE
+    # (:func:`_retro_claim_at`) so it can never regress a WP's reduced lane.
+    earliest_ats = _earliest_transition_ats(feature_dir)
+    # Claim slots the canonical model already holds — nothing left to migrate
+    # there, so no lane-shaped carrier is minted for them.
+    present_claim_slots = _snapshot_claim_slots(feature_dir)
     transitions: list[StatusEvent] = []
     annotations: list[InnerStateChanged] = []
 
@@ -559,15 +694,10 @@ def _build_seed_events(
             )
 
         # Claim state rides a seed planned->claimed transition whose
-        # policy_metadata sidecar the reducer folds into the snapshot slots.
-        if runtime.shell_pid is not None or runtime.agent is not None or runtime.shell_pid_created_at is not None:
-            policy_metadata: dict[str, Any] = {}
-            if runtime.shell_pid is not None:
-                policy_metadata["shell_pid"] = runtime.shell_pid
-            if runtime.shell_pid_created_at is not None:
-                policy_metadata["shell_pid_created_at"] = runtime.shell_pid_created_at
-            if runtime.agent is not None:
-                policy_metadata["agent"] = runtime.agent
+        # policy_metadata sidecar the reducer folds into the snapshot slots —
+        # but only for the slots the snapshot does not already carry.
+        policy_metadata = _unmigrated_claim_slots(runtime, present_claim_slots.get(wp_id, frozenset()))
+        if policy_metadata:
             transitions.append(
                 StatusEvent(
                     event_id=_seed_id(mission_id, wp_id, "claim"),
@@ -575,7 +705,7 @@ def _build_seed_events(
                     wp_id=wp_id,
                     from_lane=Lane.PLANNED,
                     to_lane=Lane.CLAIMED,
-                    at=anchor,
+                    at=_retro_claim_at(anchor, earliest_ats.get(wp_id)),
                     actor=BACKFILL_ACTOR,
                     force=False,
                     execution_mode="worktree",
