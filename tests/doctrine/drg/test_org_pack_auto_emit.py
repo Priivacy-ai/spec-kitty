@@ -17,9 +17,25 @@ import pytest
 
 from doctrine.drg.merge import merge_three_layers
 from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.org_pack_loader import load_org_pack
+from doctrine.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+#: Re-pinned by the WP08 rejection fold. The FR-014 provenance string is
+#: unchanged; what moved is the field it lives on. It used to share ``reason``
+#: with a governance author's own rationale, and
+#: ``merge._warn_discarded_edge_rationale`` read that shared field as proof an
+#: author had written something — so a pack in the sanctioned migration-window
+#: shape (a legacy ``enhances:`` field plus the explicit fragment edge that
+#: documents it) was warned at for discarding boilerplate the machine wrote.
+#: Splitting the field is the fix, so asserting the split is the contract:
+#: machine provenance on ``generated_reason``, ``reason`` empty unless a human
+#: filled it.
+_REASON_IS_AUTHORED_ONLY = (
+    "`reason` is reserved for the author's own words — a projection edge must "
+    "leave it empty or the merge cannot tell machine provenance from a "
+    "governance rationale"
+)
 
 
 def _write_tactic_yaml(
@@ -95,7 +111,8 @@ def test_enhances_auto_emits_drg_edge(tmp_path: Path) -> None:
         and e.relation == Relation.ENHANCES.value
     ]
     assert matching, f"Auto-emitted ENHANCES edge missing. edges={fragment.edges}"
-    assert matching[0].reason == "declared via tactic.enhances field"
+    assert matching[0].generated_reason == "declared via tactic.enhances field"
+    assert matching[0].reason is None, _REASON_IS_AUTHORED_ONLY
 
 
 def test_overrides_auto_emits_drg_edge(tmp_path: Path) -> None:
@@ -128,7 +145,8 @@ def test_overrides_auto_emits_drg_edge(tmp_path: Path) -> None:
         and e.relation == Relation.OVERRIDES.value
     ]
     assert matching, f"Auto-emitted OVERRIDES edge missing. edges={fragment.edges}"
-    assert matching[0].reason == "declared via tactic.overrides field"
+    assert matching[0].generated_reason == "declared via tactic.overrides field"
+    assert matching[0].reason is None, _REASON_IS_AUTHORED_ONLY
 
 
 def _empty_built_in() -> DRGGraph:
@@ -219,6 +237,41 @@ def test_no_augmentation_fields_emits_no_extra_edges(tmp_path: Path) -> None:
     fragment = load_org_pack("testpack", pack_root, layer_index=1)
 
     assert fragment.edges == []
+
+
+def test_a_fragment_cannot_forge_machine_provenance(tmp_path: Path) -> None:
+    """``generated_reason`` is unwritable from YAML, which is what makes it proof.
+
+    The merge treats "no ``generated_reason``, some ``reason``" as "a human
+    wrote this". A flag a fragment author could set would make that inference
+    advisory; ``extra="forbid"`` on the author-facing edge schema makes it
+    structural — the only way to produce a
+    ``_ProjectedOrgDRGEdge`` is the loader's own projection path.
+    """
+    pack_root = tmp_path / "pack"
+    _write_tactic_yaml(pack_root, artifact_id="pack-tactic")
+    _write_fragment_yaml(
+        pack_root,
+        body=(
+            'pack_name: testpack\n'
+            'source_kind: local_path\n'
+            'source_ref: "/nonexistent/pack"\n'
+            "layer_index: 1\n"
+            "nodes: []\n"
+            "edges:\n"
+            "  - source: tactic:pack-tactic\n"
+            "    target: tactic:builtin-tactic-id\n"
+            "    relation: enhances\n"
+            "    generated_reason: I am not the machine\n"
+        ),
+    )
+
+    with pytest.raises(OrgPackSchemaError) as excinfo:
+        load_org_pack("testpack", pack_root, layer_index=1)
+
+    assert "generated_reason" in str(excinfo.value), (
+        f"the refusal must name the offending key; got {excinfo.value}"
+    )
 
 
 def test_relation_enum_includes_enhances_and_overrides() -> None:

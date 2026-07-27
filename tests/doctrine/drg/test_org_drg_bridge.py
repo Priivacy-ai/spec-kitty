@@ -667,6 +667,59 @@ def _overlap_pack(root: Path, *, authored_target: str) -> Path:
     return pack
 
 
+def _lineage_overlap_pack(
+    root: Path,
+    name: str,
+    *,
+    project_field: bool,
+    authored_reason: str | None,
+    declare_node: bool,
+) -> Path:
+    """One side of the ``my-analyst --specializes_from--> researcher-ryan`` overlap.
+
+    *project_field* writes the legacy ``specializes_from:`` artifact field, so
+    the loader's projection path mints the edge with machine provenance.
+    *authored_reason* hand-authors the same relationship in ``edges:``, with
+    the operator's own rationale attached. Composing the two across packs lets
+    a test choose which side survives the collapse.
+
+    *declare_node* puts ``my-analyst`` in ``nodes:``. Exactly one pack needs
+    it: without a node anywhere the endpoint dangles and the merge warns about
+    that instead, which would mask the silence under test.
+    """
+    pack = root / name
+    (pack / "drg").mkdir(parents=True)
+    (pack / "agent_profiles").mkdir()
+    nodes = (
+        "nodes:\n  - id: my-analyst\n    kind: agent_profiles\n    title: My Analyst\n"
+        if declare_node
+        else "nodes: []\n"
+    )
+    if authored_reason is None:
+        edges = "edges: []\n"
+    else:
+        edges = (
+            "edges:\n"
+            "  - source: agent_profile:my-analyst\n"
+            "    target: agent_profile:researcher-ryan\n"
+            "    relation: specializes_from\n"
+            f"    reason: {authored_reason!r}\n"
+        )
+    (pack / "drg" / "fragment.yaml").write_text(
+        f"pack_name: {name}\n"
+        "source_kind: local_path\n"
+        f"source_ref: {name}\n"
+        "layer_index: 1\n"
+        "provenance_marker: org\n" + nodes + edges,
+        encoding="utf-8",
+    )
+    if project_field:
+        (pack / "agent_profiles" / "my-analyst.agent.yaml").write_text(
+            "id: my-analyst\nspecializes_from: researcher-ryan\n", encoding="utf-8"
+        )
+    return pack
+
+
 class TestOneRelationshipYieldsOneEdge:
     """``load_org_pack``'s dedup keys on the RAW, pre-resolution endpoint
     strings. Once endpoint canonicalisation moved downstream of it, the bare and
@@ -789,6 +842,48 @@ class TestOneRelationshipYieldsOneEdge:
             f"the warning must name the pack whose reason was dropped; got {caplog.text!r}"
         )
 
+    def test_one_pack_disagreeing_with_itself_is_named_once(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A pack can restate its own edge, and then there is only one pack.
+
+        The cross-pack wording ("already contributed by ...", "reconcile the
+        two packs") printed the same marker twice and sent the operator
+        looking for a second pack that does not exist. The finding is real
+        either way — one fragment, one relationship, two rationales, one
+        survivor — so the message has to fit the shape it found.
+        """
+        fragment = _fragment(
+            [{"id": "shared-node", "kind": "directives"}],
+            [
+                {
+                    "source": "shared-node",
+                    "target": "directive:builtin-alpha",
+                    "relation": "requires",
+                    "reason": reason,
+                }
+                for reason in ("SOX 404 evidence", "GDPR Art. 30")
+            ],
+            pack_name="solo",
+        )
+
+        built_in = _built_in()
+        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+            merged = merge_three_layers(built_in, [fragment], None)
+
+        assert _org_edges(merged, built_in) == [
+            ("directive:shared-node", "directive:builtin-alpha", "requires")
+        ]
+        assert "GDPR Art. 30" in caplog.text, (
+            f"the discarded rationale must be named; got {caplog.text!r}"
+        )
+        assert "already contributed by" not in caplog.text, (
+            f"there is no second contributor to name; got {caplog.text!r}"
+        )
+        assert "two packs" not in caplog.text, (
+            f"one pack must not be described as two; got {caplog.text!r}"
+        )
+
     @pytest.mark.parametrize(
         ("first_reason", "second_reason", "why"),
         [
@@ -851,6 +946,82 @@ class TestOneRelationshipYieldsOneEdge:
         ]
         assert "discard" not in caplog.text.lower(), (
             f"no rationale was lost ({why}); got {caplog.text!r}"
+        )
+
+    @pytest.mark.parametrize(
+        ("packs", "why"),
+        [
+            (
+                # The reviewer's exact repro: ONE pack, in the sanctioned
+                # migration-window shape. The legacy field projects the edge;
+                # the fragment declares the same relationship explicitly and
+                # documents why. Fragment edges are collected first, so the
+                # machine-minted projection is the one that gets discarded.
+                [("acme-proj", True, "SOX 404 evidence")],
+                "a machine-minted projection reason is not an author's words",
+            ),
+            (
+                # The same overlap split across two packs so the ORDER flips:
+                # the projection lands first and survives, the hand-authored
+                # reason is the one discarded. Still quiet — the survivor
+                # documented nothing, so there is no rationale to reconcile
+                # it against (the mirror of the one-side-silent case above).
+                [("acme-legacy", True, None), ("acme-authored", False, "SOX 404 evidence")],
+                "a projection surviving an authored reason is still not two authors disagreeing",
+            ),
+        ],
+    )
+    def test_a_generated_projection_reason_never_warns(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        packs: list[tuple[str, bool, str | None]],
+        why: str,
+    ) -> None:
+        """A field projection colliding with an authored edge is HEALTHY.
+
+        ``org_pack_loader._projection_edges_for_file`` stamps every projection
+        edge with machine-generated provenance. Reading "has a reason" as "an
+        author wrote a reason" therefore made the warning fire on the exact
+        transitional shape the loader's retained projection path exists to
+        support — a documented ``enhances:``/``specializes_from:`` field plus
+        the explicit fragment edge that will replace it.
+
+        Nothing an author wrote is lost here: the machine's boilerplate is not
+        a rationale, and the remedy the warning proposes (mint a second
+        relationship) is the opposite of the right one (delete the legacy
+        field). A warning that fires on healthy merges is worse than the
+        silence it replaces, so this shape must stay quiet.
+        """
+        fragments = [
+            load_org_pack(
+                name,
+                _lineage_overlap_pack(
+                    tmp_path,
+                    name,
+                    project_field=project_field,
+                    authored_reason=authored_reason,
+                    declare_node=index == 0,
+                ),
+                index + 1,
+            )
+            for index, (name, project_field, authored_reason) in enumerate(packs)
+        ]
+
+        built_in = _built_in()
+        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+            merged = merge_three_layers(built_in, fragments, None)
+
+        assert _org_edges(merged, built_in) == [
+            (
+                "agent_profile:my-analyst",
+                "agent_profile:researcher-ryan",
+                "specializes_from",
+            )
+        ], "the collapse itself is still correct"
+        assert caplog.records == [], (
+            f"a healthy migration-window pack must merge in silence ({why}); "
+            f"got {caplog.text!r}"
         )
 
     def test_distinct_relationships_are_not_collapsed(self) -> None:
