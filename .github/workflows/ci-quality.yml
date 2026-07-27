@@ -3471,19 +3471,39 @@ jobs:
       - name: "[ENFORCED] Normalize coverage XML paths for Sonar multi-package src layout"
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
-          # Problem: each CI test job runs with --cov=src/<package> which produces a
-          # coverage XML whose <sources> block lists the per-package absolute path, e.g.:
+          # Historical problem (pre-#2975): jobs ran with --cov=src/<package>,
+          # which produced coverage XML whose <sources> block listed multiple
+          # per-package absolute paths, e.g.:
           #   <source>/github/workspace/src/specify_cli</source>
           #   <source>/github/workspace/src/mission_runtime</source>
-          # …and bare filenames like filename="__init__.py".
-          # SonarCloud tries to resolve every bare filename against ALL <source> entries
+          # …with bare filenames like filename="__init__.py". SonarCloud tries
+          # to resolve every bare filename against ALL <source> entries
           # simultaneously, finds __init__.py under multiple sources, and logs:
-          #   ERROR Cannot resolve the file path '__init__.py' of the coverage report,
-          #         ambiguity, the file exists in several 'source'.
-          # Fix: rewrite each XML so there is exactly ONE <source> (the common src/
-          # ancestor) and every filename is prefixed with its package sub-path, e.g.:
-          #   src/specify_cli/__init__.py, src/mission_runtime/__init__.py
-          # SonarCloud can then match each path to exactly one file in sonar.sources=src.
+          #   ERROR Cannot resolve the file path '__init__.py' of the coverage
+          #         report, ambiguity, the file exists in several 'source'.
+          #
+          # #2975 removed the root cause instead of guessing around it here:
+          # every multi-root --cov invocation was converted to dotted module
+          # form (--cov=specify_cli --cov=mission_runtime), which keeps
+          # coverage.py's XmlReporter.source_paths empty and emits full
+          # project-relative filenames with zero or one <source> entries. The
+          # multi-source rewrite branch that used to live in this step
+          # (DIRECTIVE_043: remove the mechanism, not document around it) is
+          # deleted -- it picked the winning root by testing basename
+          # existence in `human_sorted` <source> order while coverage.py's own
+          # dict-overwrite keeps the alphabetically LAST root, so it
+          # systematically relabelled surviving data with the WRONG file's
+          # path (verified by reproduction: a 2-statement package's data was
+          # relabelled as an 8-statement one, and the small package vanished
+          # from the report entirely).
+          #
+          # What remains: (1) relativize a single absolute <source> (still
+          # needed — coverage.py still emits an absolute CWD-rooted path for
+          # single-root/path-form invocations, e.g. --cov=src/kernel), and
+          # (2) drop an empty/blank <sources> block. Dotted module form emits
+          # a bare <source/> (no text) because source_paths never gets
+          # populated; Sonar's handling of an empty <source> element is
+          # unverified, so the block is removed rather than shipped.
           python3 - << 'PYEOF'
           import os, sys, glob, xml.etree.ElementTree as ET
 
@@ -3512,62 +3532,45 @@ jobs:
                   continue
 
               raw_sources = [s.text.strip() for s in sources_el.findall('source') if s.text and s.text.strip()]
-              if len(raw_sources) <= 1:
-                  # Single source — check if it already has unambiguous paths or is an
-                  # absolute path that needs making relative.
-                  if not raw_sources:
-                      continue
-                  src = raw_sources[0]
-                  # If it's already a relative path ending in 'src' or similar, skip.
-                  if not os.path.isabs(src):
-                      continue
-                  # Single absolute source: just make it relative (strip CWD prefix).
-                  cwd = os.getcwd()
-                  rel = os.path.relpath(src, cwd)
-                  sources_el.clear()
-                  new_src = ET.SubElement(sources_el, 'source')
-                  new_src.text = rel
-                  # Filenames already include the package sub-path when there's one source,
-                  # so no filename prefixing is needed.
+
+              if not raw_sources:
+                  # Dotted module form (e.g. --cov=specify_cli) never populates
+                  # XmlReporter.source_paths, so coverage.py emits an empty
+                  # <source/> element. Drop the whole <sources> block rather
+                  # than ship an empty one Sonar has not been verified to
+                  # handle.
+                  root.remove(sources_el)
                   tree.write(xml_path, encoding='unicode', xml_declaration=True)
                   normalized += 1
-                  print(f'  Relativized single source: {xml_path}  ({src} -> {rel})')
+                  print(f'  Dropped empty <sources> block: {xml_path}')
                   continue
 
-              # Multiple sources: find common ancestor (the src/ parent directory).
-              common = os.path.commonpath(raw_sources)
+              if len(raw_sources) > 1:
+                  # #2975 converted every multi-root --cov invocation to
+                  # dotted module form, so no report should carry >=2
+                  # <source> entries any more (the architectural guard
+                  # tests/architectural/test_coverage_root_collisions.py
+                  # fails the workflow statically if one is ever
+                  # reintroduced). Leave an unexpected multi-source report
+                  # untouched rather than resurrecting the misattributing
+                  # rewrite.
+                  print(f'  SKIP (unexpected multi-source report, not normalized): {xml_path}')
+                  continue
+
+              # Single source — relativize if absolute (filenames already
+              # include the package sub-path when there's exactly one source,
+              # so no filename prefixing is needed).
+              src = raw_sources[0]
+              if not os.path.isabs(src):
+                  continue
               cwd = os.getcwd()
-              common_rel = os.path.relpath(common, cwd)  # e.g. 'src'
-
-              # Build prefix map: source_path -> relative_prefix (e.g. 'specify_cli')
-              prefix_map = {}
-              for src in raw_sources:
-                  rel_prefix = os.path.relpath(src, common)
-                  prefix_map[src] = rel_prefix
-
-              # Rewrite <source> block to single canonical entry.
+              rel = os.path.relpath(src, cwd)
               sources_el.clear()
               new_src = ET.SubElement(sources_el, 'source')
-              new_src.text = common_rel  # e.g. 'src'
-
-              # Prefix every <class filename=...> with the correct sub-path.
-              # We must determine which source each file belongs to by checking existence.
-              changed = 0
-              for cls in root.findall('packages/package/classes/class'):
-                  fname = cls.get('filename', '')
-                  if not fname or os.path.isabs(fname):
-                      continue
-                  for src_path, prefix in prefix_map.items():
-                      candidate = os.path.join(src_path, fname)
-                      if os.path.exists(candidate):
-                          new_fname = fname if prefix == '.' else os.path.join(prefix, fname)
-                          cls.set('filename', new_fname)
-                          changed += 1
-                          break
-
+              new_src.text = rel
               tree.write(xml_path, encoding='unicode', xml_declaration=True)
               normalized += 1
-              print(f'  Normalized: {xml_path}  ({len(raw_sources)} sources -> {common_rel!r}, {changed} filenames prefixed)')
+              print(f'  Relativized single source: {xml_path}  ({src} -> {rel})')
 
           print(f'Normalization complete: {normalized}/{len(xml_files)} files updated.')
           PYEOF
