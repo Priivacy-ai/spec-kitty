@@ -10,20 +10,35 @@ Site                                         Shape           Kinds lost
 ``charter.context._classify_artifact_urns``     4 branches, no ``else``          12
 ===========================================  ==============  ============
 
-Both figures were re-derived by execution on this branch, and **both drops are
-live, not latent**: the shipped graph already carries 24 ``action``, 6
-``anti_pattern``, 4 ``mission_type`` and 1 ``glossary_pack`` node that
-``resolve_transitive_refs`` discards, and a real action resolution already
-reaches ``paradigm`` / ``procedure`` / ``template`` / ``agent_profile`` nodes
-that the charter classifier discards.
+Both figures were re-derived by execution on this branch. **The two drops differ
+in kind, and the distinction is load-bearing** — an earlier revision of this
+docstring (and of the WP prompt) called both "live", which is wrong for the first
+site:
+
+* ``resolve_transitive_refs`` — **latent.** The shipped graph carries 35 nodes in
+  unnameable kinds (``action`` 24, ``anti_pattern`` 6, ``mission_type`` 4,
+  ``glossary_pack`` 1), but *carried is not reached*. All three production call
+  sites pass ``{REQUIRES, SUGGESTS}`` with seeds limited to
+  directive/tactic/paradigm plus ``_direct_root_urns``; the only edges into those
+  kinds are ``mission_type --requires--> action`` (×21, and ``mission_type`` is
+  never a seed) and ``paradigm --rejects--> anti_pattern`` (×8, and ``rejects`` is
+  never passed). Zero unnamed kinds are reachable today.
+* ``_classify_artifact_urns`` — **live.** Measured through the real path across
+  all 24 shipped actions: **56** artifact-URN visits are discarded
+  (``procedure`` 26, ``template`` 15, ``paradigm`` 12, ``agent_profile`` 3).
+
+Latency is an argument *for* totality here, not against it: a raise would be a
+timebomb the moment mission C authors anti-patterns, an org pack seeds a
+``mission_type``, or any caller passes ``REJECTS``. Totality needs no edit then.
 
 Why the two sites get *different* closures
 ------------------------------------------
 They are not the same defect wearing two hats:
 
 * ``resolve_transitive_refs`` is a **lossless bucketing wrapper**. Its job is to
-  return what the walk found. Raising on ``anti_pattern`` would break the live
-  graph today, so the closure is *totality*: a per-kind view seeded from
+  return what the walk found. Raising would be wrong even though nothing reaches
+  those kinds today — it converts a latent gap into a future outage. So the
+  closure is *totality*: a per-kind view seeded from
   ``NodeKind`` itself, so nothing can fall out and a kind added tomorrow is
   carried without anyone editing the wrapper. This also keeps the frozen
   contract at
@@ -184,7 +199,7 @@ def test_anti_pattern_reachable_in_the_shipped_graph_survives() -> None:
     """A concrete, live kind — not a synthetic one — makes it out of the walk.
 
     ``rejects`` edges targeting ``anti_pattern`` nodes exist on the shipped
-    graph today, so this drop is real traffic rather than a hypothetical.
+    graph today, so real graph data, on a relation set no production caller passes yet.
     """
     graph = _shipped_graph()
     rejects = [edge for edge in graph.edges if edge.relation is Relation.REJECTS]
@@ -320,3 +335,28 @@ def test_shipped_graph_carries_every_kind_the_drop_would_have_lost() -> None:
         NodeKind.GLOSSARY_PACK,
     ):
         assert kind in present, f"{kind.value} nodes vanished from the shipped graph"
+
+
+def test_the_legacy_field_table_covers_every_named_field() -> None:
+    """`_KIND_BY_LEGACY_FIELD` is a new enumeration, and nothing else gates it.
+
+    Review found this one line from being the next silent drop. `__post_init__`
+    reconciles named fields against `by_kind` by iterating *this table*, and the
+    table is deliberately `str`-keyed so `test_kind_mapping_totality` cannot
+    discover it. Add an eleventh named field tomorrow and it is never reconciled:
+    it sits populated beside an empty `by_kind` bucket — closing one silent drop
+    by opening another, which is exactly the shape this WP exists to close.
+
+    Derived from the dataclass rather than restated, so the two cannot drift.
+    """
+    from dataclasses import fields
+
+    from doctrine.drg.query import _KIND_BY_LEGACY_FIELD, ResolveTransitiveRefsResult
+
+    named = {f.name for f in fields(ResolveTransitiveRefsResult)} - {"unresolved", "by_kind"}
+
+    assert set(_KIND_BY_LEGACY_FIELD) == named, (
+        "every named kind field must be reconciled against by_kind. Unreconciled: "
+        f"{sorted(named - set(_KIND_BY_LEGACY_FIELD))}; stale table entries: "
+        f"{sorted(set(_KIND_BY_LEGACY_FIELD) - named)}"
+    )
