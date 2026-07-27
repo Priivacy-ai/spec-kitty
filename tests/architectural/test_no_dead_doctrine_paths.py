@@ -34,6 +34,12 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+import pytest
+
+#: Without this the CI shard that selects ``-m architectural`` collects none of
+#: these tests, and the gate silently never runs.
+pytestmark = [pytest.mark.architectural]
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
 _DOCTRINE_ROOT = _SRC_ROOT / "doctrine"

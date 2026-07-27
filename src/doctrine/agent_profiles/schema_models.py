@@ -48,10 +48,11 @@ def _reject_retired_profile_relationship_fields(data: Any) -> Any:
         raise ValueError(
             f"Retired relationship field(s) {keys} on agent profile are no "
             f"longer accepted (FR-028 hard cutover). Author lineage and "
-            f"augmentation as DRG fragment edges in a `drg/` fragment "
+            f"augmentation as DRG edges "
             f"(e.g. {{source: agent_profile:<id>, target: agent_profile:<id>, "
-            f"relation: specializes_from|enhances|overrides}}) merged into "
-            f"src/doctrine/graph.yaml — not as inline profile fields."
+            f"relation: specializes_from|enhances|overrides}}) in the fragment "
+            f"for the source kind, src/doctrine/agent_profile.graph.yaml — "
+            f"not as inline profile fields."
         )
     return data
 
