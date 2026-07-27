@@ -118,6 +118,9 @@ def next_step(
     except _MissionNotFoundError as _exc:
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
+    except ValueError as _exc:
+        _emit_invalid_mission_error(str(_exc), json_output)
+        raise typer.Exit(1) from _exc
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
 
@@ -433,6 +436,22 @@ def _emit_mission_not_found_error(
             file=sys.stderr,
         )
         print(f"  Next: {remediation}", file=sys.stderr)
+
+
+def _emit_invalid_mission_error(message: str, json_output: bool) -> None:
+    """Emit a structured invalid mission input error at the CLI boundary."""
+    if json_output:
+        from specify_cli import __version__
+
+        payload = {
+            "result": "error",
+            "error_code": "INVALID_MISSION",
+            "error": message,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: {message}", file=sys.stderr)
 
 
 def _read_path_signal(exc: Exception) -> tuple[str, list[str], str | None]:
