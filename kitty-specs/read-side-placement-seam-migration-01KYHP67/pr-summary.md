@@ -125,9 +125,45 @@ after** (i.e. genuinely caused here, not pre-existing) and then fixed by tighten
 assertion was weakened; the affected merge suites collect and pass the same count
 as before the mission.
 
-One honest pre-existing failure is **not** addressed here and stays red:
+One honest pre-existing failure was **not** addressed by the mission itself:
 `test_no_raw_mission_spec_paths` (offender `cli/commands/accept.py:239`), which is
-red on the pre-mission base too.
+red on the pre-mission base too. It has since been folded green during the
+landing pass (see below).
+
+### Landing-pass correction to the claims above (2026-07-27)
+
+**The "every migration-caused regression closed" claim above was materially
+incomplete.** A maintainer landing pass and a three-lens adversarial squad found
+two further green-on-base / red-on-HEAD failures that the mission's own campsite
+pass missed, plus a defect no test caught at all:
+
+- `test_decision_single_authority::test_open_resolves_coord_aware_handle` —
+  a **new silent-wrong-answer** in `resolve_artifact_surface`: for a backfilled
+  mission (bare `<slug>` primary dir, composed `<slug>-<mid8>` coord dir) a
+  composed handle resolved to a nonexistent primary path, so the seam was not
+  idempotent under its own output. This is the bug class the mission exists to
+  remove. A `PRIMARY_METADATA` read with the same shape was masked by the same
+  root cause.
+- `test_active_mission_removal::test_resolve_feature_dir_from_worktree_without_mock`
+  — the `verify.py` migration was not the behaviour no-op the ledger claimed: the
+  seam adds a `get_main_repo_root` hop, making `_existing_feature_dir`
+  CWD-invariant. Accepted as the intended contract and pinned by a test.
+
+Both are fixed on the branch. The ledger's reasoning was corrected too: it
+assessed only the *exception* axis (can this kind raise?) and never the
+*anchoring* axis (which root does it resolve against?) — that blind spot is what
+let both defects through, and it originated in `PlacementSeam.read_dir`'s own
+docstring, which has been qualified.
+
+The squad also found that the capstone gate did not enforce what it advertised:
+the ledger was never parsed (its reconciliation test compared two literals in the
+same file), and an import alias or the sibling primitive
+`primary_feature_dir_for_mission` walked straight past the scanner. The ledger is
+now the mechanical authority, alias resolution is implemented, and the
+"unrepresentable" claim is downgraded to its honest bounds with the remaining gap
+named as tracked follow-up work.
+
+Full fold-by-fold evidence is in the PR's remediation comment.
 
 ## Tickets / Contracts
 

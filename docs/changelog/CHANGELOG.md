@@ -223,6 +223,21 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   - Behavior is unchanged for the healthy case; `repair_lane_mismatch` no longer
     duplicates frontmatter into the document body (#2921), and
     `backfill_runtime_state`'s mission-id read is anchored on the PRIMARY leg.
+  - Fail-loud does **not** mean crash on the paths that exist to recover from a
+    broken coordination branch. `spec-kitty implement --recover` now reports a
+    `COORDINATION` finding carrying the `doctor coordination --fix` remediation
+    instead of tracebacking, `spec-kitty merge` aborts with a readable message
+    before any state change rather than mid-merge, and `agent workflow review`
+    degrades to an advisory warning instead of aborting while computing one.
+  - `spec-kitty verify`'s mission-directory probe is now CWD-invariant: invoked
+    from a lane worktree it resolves the main repository's `kitty-specs/` rather
+    than reporting the mission as absent. Both production callers already
+    anchored on the main repo, so this is observationally a no-op for them.
+  - The classification ledger is now the *mechanical* authority for the
+    stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
+    drift apart silently. The gate additionally resolves import aliases, and its
+    coverage bounds (including the unpoliced `primary_feature_dir_for_mission`)
+    are stated explicitly rather than implied.
 
 - **Placement-port residuals: partition routing is now enforced by the port, not
   by caller discipline (#2923, #2924, #2926, #2932; epic #2931).** Closes the
