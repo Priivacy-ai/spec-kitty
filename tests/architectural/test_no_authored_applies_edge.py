@@ -11,7 +11,7 @@ Exactly one ``applies`` edge existed in the shipped built-in graph::
 and it was that procedure's **only** inbound edge. The consequence is the point of this
 module: ``charter.cascade.cascade_activation_targets`` walks
 :data:`~charter.cascade.REFERENCE_RELATIONS` (``requires`` / ``suggests`` / ``refines``),
-so activating ``doctrine-daphne`` cascaded to 17 directives, 5 procedures, 39 tactics,
+so activating ``doctrine-daphne`` cascaded to 17 directives, 5 procedures, 40 tactics,
 5 styleguides, 6 templates, 3 toolguides and a paradigm — and **not** to her own operating
 procedure. The one artefact the profile's initialization declaration says she runs was the
 one artefact her activation could not reach.

@@ -84,8 +84,12 @@ _logger = logging.getLogger(__name__)
 #: branch in :func:`_resolve_relation`. ``extends`` is overlay-inheritance
 #: language and maps to ``Relation.SPECIALIZES_FROM`` (lineage), NOT to the inert
 #: ``Relation.APPLIES`` sink. INVARIANT: an alias MUST NOT map to
-#: ``Relation.APPLIES`` — no traversal reads ``APPLIES``, so aliasing an authored
-#: relation onto it silently turns the edge into a no-op (the #2079 defect class).
+#: ``Relation.APPLIES`` — no *activation* traversal follows ``APPLIES``, so aliasing
+#: an authored relation onto it silently turns the edge into a no-op for cascade and
+#: context resolution (the #2079 defect class). An earlier revision of this comment
+#: said "no traversal reads APPLIES", which is false and is what allowed WP09's
+#: defect to ship: ``orphan.py``'s ``directive`` rule reads it and ``project_drg.py``
+#: emits it. Neither saved the retyped edge, whose target is a ``procedure``.
 _RELATION_ALIASES: dict[str, Relation] = {
     "extends": Relation.SPECIALIZES_FROM,
 }

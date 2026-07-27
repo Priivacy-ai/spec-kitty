@@ -109,7 +109,7 @@ specialization:
     catches a profile's own workflow: `collaboration.operating-procedures` is prose that mints no
     edge, so a procedure named only there is unreachable from the profile that runs it. Wiring it
     takes a `requires` edge from the profile to the procedure. Measured on the shipped graph,
-    16 built-in profiles declare `operating-procedures` and exactly one of those declarations is
+    16 built-in profiles carry 50 `operating-procedures` declarations; only 4-5 are
     backed by an edge — so a named operating procedure should be treated as unwired until the
     edge is confirmed.
   avoidance-boundary: >

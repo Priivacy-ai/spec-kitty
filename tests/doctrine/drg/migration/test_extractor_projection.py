@@ -127,7 +127,12 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     Why: ``applies`` was that procedure's only inbound edge and no traversal
 #:     follows ``applies``, so activating the profile could not reach the operating
 #:     procedure it declares. Post-change ``cascade_activation_targets`` from
-#:     ``agent_profile:doctrine-daphne`` reaches it. Orphan count is unaffected
+#:     ``agent_profile:doctrine-daphne`` reaches it -- and the activation set grows
+#:     by FOUR artifacts, not one: the procedure (procedures 5 -> 6) plus its own
+#:     three output templates ``decomposition-table``, ``onboarded-artifact-set``
+#:     and ``source-agent-dossier`` (templates 6 -> 9). Recording only the procedure
+#:     would understate the traversal move this entry exists to make visible.
+#:     Orphan count is unaffected
 #:     because ``_orphan_urns`` counts incidence, not relation.
 #:     Guarded by ``tests/architectural/test_no_authored_applies_edge.py``.
 _EXPECTED_NODE_COUNT = 305
