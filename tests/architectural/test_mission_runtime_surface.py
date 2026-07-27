@@ -130,6 +130,11 @@ _PUBLIC_SURFACE = sorted(
         "resolve_mid8",
         "resolve_placement_only",
         "resolve_topology",
+        # placement-port-residuals-closure-01KYDEF0 WP04 (FR-005): unified
+        # write-target degrade helper routing three distinct call sites
+        # (decision_log, bookkeeping_commit, status_transition) through a
+        # single kind-parameterized helper with caller-supplied degrade policy.
+        "resolve_write_target_or_degrade",
         "routes_through_coordination",
         "translate_surface",
     ]

@@ -20,6 +20,14 @@ Fail-closed contract (FR-003 / NFR-001 / INV-1):
   event) write ever lands at the repo root (INV-5 / C-003 / #2815). This helper
   adds **no** event-write path of its own: all seed events go through the backfill
   library, which already canonicalizes.
+* (placement-port-residuals-closure-01KYDEF0 FR-001) That target is additionally
+  ENFORCED against the placement port's own answer
+  (:func:`~mission_runtime.resolve_artifact_surface`): a resolved PRIMARY home
+  that disagrees with the write target fails closed
+  (:class:`PlacementMismatchError`, writes nothing); a resolver *failure* (no
+  enclosing git repo, an ambiguous handle, a deleted coordination branch) on a
+  well-formed legacy mission degrades to the caller-supplied target instead of
+  aborting the cutover (NFR-002).
 
 Idempotency (NFR-002 / INV-4): the backfill mints byte-identical deterministic
 seed ids (a re-run seeds nothing) and :func:`_flip_phase` short-circuits when the
@@ -86,48 +94,111 @@ class CutoverResult:
     error: str | None = None
 
 
-def _seed_phase(feature_dir: Path, *, dry_run: bool) -> BackfillResult:
+def _seed_phase(feature_dir: Path, *, read_dir: Path | None = None, dry_run: bool) -> BackfillResult:
     """Phase 1 — idempotently seed the mission's legacy runtime state as events.
 
     Thin wrapper over :func:`backfill_runtime_state`; extracted so the seed step
     is independently unit-testable and :func:`cutover_mission` stays trivial.
+    *read_dir* is the FR-002 read/write-leg split (defaults to *feature_dir* —
+    see :func:`backfill_runtime_state`'s docstring).
     """
-    return backfill_runtime_state(feature_dir, dry_run=dry_run)
+    return backfill_runtime_state(feature_dir, read_dir=read_dir, dry_run=dry_run)
 
 
-def _verify_phase(feature_dir: Path) -> VerifyResult:
+def _verify_phase(feature_dir: Path, *, read_dir: Path | None = None) -> VerifyResult:
     """Phase 2 — fail-closed count+value parity of the snapshot vs the OLD reader.
 
     Thin wrapper over :func:`verify_backfill`; a non-``ok`` result makes the flip
-    phase unreachable in :func:`cutover_mission`.
+    phase unreachable in :func:`cutover_mission`. *read_dir* is the FR-002
+    read/write-leg split (defaults to *feature_dir* — see
+    :func:`verify_backfill`'s docstring).
     """
-    return verify_backfill(feature_dir)
+    return verify_backfill(feature_dir, read_dir=read_dir)
+
+
+class PlacementMismatchError(RuntimeError):
+    """Fail-closed marker (FR-001): the port's resolved PRIMARY home disagrees.
+
+    Raised by :func:`_flip_phase` ONLY when the placement port
+    (:func:`~mission_runtime.resolve_artifact_surface`) resolves a genuine
+    PRIMARY home for the mission and that home does not match the write
+    target. A resolver *failure* (ambiguous handle, deleted coordination
+    branch, no enclosing git repo) is a distinct, non-fatal signal that
+    degrades instead of raising this — see
+    :func:`_resolve_primary_home_or_degrade`. Conflating the two would let a
+    resolver crash masquerade as this contract's fail-close (anti-scaffold;
+    see WP01 T001).
+    """
+
+
+def _resolve_primary_home_or_degrade(feature_dir: Path) -> Path | None:
+    """Resolve the placement port's PRIMARY home for *feature_dir*, or ``None``.
+
+    ``None`` is the DEGRADE signal: a resolver raise on an otherwise
+    well-formed legacy corpus mission — no enclosing git repo
+    (:class:`~specify_cli.core.paths.WorkspaceRootNotFound`), an ambiguous
+    handle (:class:`~specify_cli.missions._read_path_resolver.MissionSelectorAmbiguous`),
+    or a deleted coordination branch
+    (:class:`~specify_cli.missions._read_path_resolver.StatusReadPathNotFound`)
+    — must NOT abort the cutover (NFR-002); :func:`_flip_phase` falls back to
+    its own ``canonicalize_feature_dir`` target in that case. A genuine port
+    ANSWER (this function's non-``None`` return) is compared for equality by
+    the caller — that comparison, not this function, decides the fail-close.
+    """
+    from mission_runtime import MissionArtifactKind, resolve_artifact_surface
+    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+    )
+
+    try:
+        repo_root = resolve_canonical_root(feature_dir)
+        return resolve_artifact_surface(
+            repo_root, feature_dir.name, MissionArtifactKind.PRIMARY_METADATA
+        ).path
+    except (WorkspaceRootNotFound, MissionSelectorAmbiguous, StatusReadPathNotFound) as exc:
+        logger.debug(
+            "Placement-port resolution degraded for %s (%s); falling back to "
+            "the canonicalized write target.",
+            feature_dir,
+            exc,
+        )
+        return None
 
 
 def _flip_phase(feature_dir: Path) -> None:
     """Phase 3 — the SOLE ``status_phase`` writer; only reached on an ``ok`` verify.
 
     Resolves the write target via :func:`canonicalize_feature_dir` (never
-    ``Path.cwd()`` / a raw alias — INV-5 / C-003) and writes the snapshot-authority
-    value with a tolerant ``validate=False`` write: this mutates exactly one key on
-    a possibly-legacy ``meta.json`` that may lack unrelated required identity
-    fields, so it must not fail the whole flip on an unrelated schema gap (the
-    documented ``doc_state`` tolerant-write precedent).
+    ``Path.cwd()`` / a raw alias — INV-5 / C-003), then ENFORCES that target
+    against the placement port's own answer (FR-001, PR #2920 review F2
+    follow-up): a resolved PRIMARY home that disagrees with the target fails
+    closed (:class:`PlacementMismatchError`, writes nothing) instead of
+    coinciding with the port's answer only by caller discipline. A resolver
+    *failure* on a well-formed legacy mission degrades to the caller-supplied
+    target instead of aborting (see :func:`_resolve_primary_home_or_degrade`),
+    so a corpus-wide run stays green (NFR-002). Writes a tolerant
+    ``validate=False`` write: this mutates exactly one key on a possibly-legacy
+    ``meta.json`` that may lack unrelated required identity fields, so it must
+    not fail the whole flip on an unrelated schema gap (the documented
+    ``doc_state`` tolerant-write precedent).
 
     Idempotent: short-circuits when the phase is already snapshot-authority, so a
     re-run writes zero bytes (INV-4).
 
-    NOTE (PR #2920 review F2): the write lands on ``feature_dir`` directly rather
-    than through ``resolve_placement_only(PRIMARY_METADATA)``. It coincides with
-    the port's PRIMARY answer only because every current caller passes a PRIMARY
-    dir (the merge birth-cutover passes ``run.target_feature_dir``; the backfill
-    passes each corpus mission's primary dir). Routing this write through the
-    port so PRIMARY-correctness is ENFORCED (not caller-guaranteed) — and then
-    narrowing the ``src/specify_cli/migration/`` gate carve-out — is deferred to a
-    follow-up, since it must be validated across the whole backfill corpus (FR-007)
-    without regressing the flip of genuinely-legacy missions.
+    Raises:
+        PlacementMismatchError: the port resolved a genuine PRIMARY home that
+            disagrees with the write target (fail-closed, FR-001).
     """
     target = canonicalize_feature_dir(feature_dir)
+    resolved_home = _resolve_primary_home_or_degrade(feature_dir)
+    if resolved_home is not None and resolved_home != target:
+        raise PlacementMismatchError(
+            f"_flip_phase refuses to write status_phase for {feature_dir.name!r}: "
+            f"the placement port resolved its PRIMARY home to {resolved_home}, "
+            f"which does not match the write target {target} (fail-closed, FR-001)."
+        )
     meta = load_meta(target, allow_missing=True, on_malformed="raise") or {}
     if _is_snapshot_authority(meta):
         return
@@ -169,25 +240,25 @@ def cutover_mission(
     always resolves against *feature_dir*; FR-002/IC-03's port already routes
     ``PRIMARY_METADATA`` here for every topology, so this extends the existing
     spine rather than forking a second writer — C-004).  *status_feature_dir* is
-    the COORD-partition leg the seed events are read/appended against (the
+    the COORD-partition leg the seed **events** are appended against (the
     ``STATUS_STATE`` port target — where ``status.events.jsonl`` canonically
     lives under coordination topology).  It defaults to *feature_dir* when
     omitted, collapsing both legs to the single directory the pre-WP09
     single-target behavior always used — the flat/single-branch degenerate case
     (T047).
 
-    Soundness note (documented residual scope, C-001 sequencing): the seed/verify
-    legs read ``tasks/`` legacy frontmatter from *status_feature_dir* (not
-    *feature_dir*). Under coordination topology ``tasks/`` is COORD *residue*
-    (possibly stale/absent there — it is a PRIMARY-partition artifact). This is
-    safe for every mission this spine actually serves post-WP09: IC-08 depends on
-    IC-07 (event-sourced claim + subtask-completion) already landing, so no
-    mission reaching this hook can carry genuine frontmatter-authored runtime to
-    lose — :meth:`~specify_cli.migration.backfill_runtime_state.LegacyWPRuntime.has_evictable_state`
-    is empty regardless of which ``tasks/`` copy is inspected. Splitting the
-    read (from PRIMARY) from the write (to COORD) inside ``backfill_runtime_state``
-    itself would require forking its read/write coupling, which is out of this
-    WP's owned-file scope (see ``tracers/design-decisions.md``, IC-08).
+    Read/write partition decoupling (placement-port-residuals-closure-01KYDEF0
+    FR-002 / IC-02, closing the C-001 residual above): ``tasks/`` legacy
+    frontmatter is a PRIMARY-partition artifact, so :func:`_seed_phase` /
+    :func:`_verify_phase` now read it from *feature_dir* (the PRIMARY leg,
+    passed as their ``read_dir``) while the seed-event write and verify anchor
+    stay on *status_dir* (the COORD leg — I-02, unchanged). This is NOT a leg
+    swap: the event log still lands on COORD; only the frontmatter read moved.
+    The split lives inside :func:`~specify_cli.migration.backfill_runtime_state.backfill_runtime_state`
+    / :func:`~specify_cli.migration.backfill_runtime_state.verify_backfill` (a
+    ``read_dir`` keyword that defaults to their own *feature_dir* argument, so
+    every single-leg caller — the corpus walk, the CLI backfill command — is
+    byte-unchanged); :func:`cutover_mission`'s own signature stays stable.
 
     Args:
         feature_dir: kitty-specs mission directory (canonicalized downstream);
@@ -202,7 +273,7 @@ def cutover_mission(
     status_dir = status_feature_dir if status_feature_dir is not None else feature_dir
     slug = feature_dir.name
     try:
-        seed = _seed_phase(status_dir, dry_run=dry_run)
+        seed = _seed_phase(status_dir, read_dir=feature_dir, dry_run=dry_run)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, error=str(exc))
 
@@ -211,7 +282,7 @@ def cutover_mission(
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=seed.reason)
 
     try:
-        verify = _verify_phase(status_dir)
+        verify = _verify_phase(status_dir, read_dir=feature_dir)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=str(exc))
 

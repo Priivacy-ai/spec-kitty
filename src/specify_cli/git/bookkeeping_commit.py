@@ -33,23 +33,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from mission_runtime import (
-    ActionContextError,
     CommitTarget,
     MissionArtifactKind,
-    resolve_placement_only,
+    resolve_write_target_or_degrade,
 )
 
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import CommitResult, safe_commit
-from specify_cli.missions._read_path_resolver import (
-    StatusReadPathNotFound,
-    candidate_feature_dir_for_mission,
-)
-
-# Mirrors mission_runtime.resolution's private ``_FEATURE_CONTEXT_UNRESOLVED_CODE``
-# (not exported at the package root) for the locally-raised unresolvable-mission
-# error below.
-_FEATURE_CONTEXT_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
 
 # The DEFAULT partition selector: the PRIMARY done-transitions bookkeeping the
 # merge executor and retrospective terminus land (status/meta/baseline
@@ -184,29 +174,6 @@ def _commit_bookkeeping(
     )
 
 
-def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
-    """Return True when ``mission_slug`` has a primary ``meta.json`` on disk.
-
-    A cheap, read-only existence gate — NOT a ref derivation — that
-    distinguishes a genuinely bootstrapped mission from an ad-hoc fixture or
-    the create→first-write window. ``resolve_placement_only`` never raises
-    for a merely-absent mission (:func:`candidate_feature_dir_for_mission`'s
-    own contract): it silently degrades to the repo's generic default branch
-    instead of signalling unresolvability, so this gate is checked BEFORE
-    consulting the classifier rather than relying on an exception that would
-    never fire.
-    """
-    try:
-        # Explicit ``Path`` annotation: under the project's
-        # ``follow_imports = "skip"`` mypy config the cross-module
-        # ``candidate_feature_dir_for_mission`` return is seen as ``Any``; the
-        # annotation re-narrows it (the function IS typed ``-> Path``).
-        candidate: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-    except Exception:  # noqa: BLE001 — any resolution hiccup means "not resolvable"
-        return False
-    return (candidate / "meta.json").exists()
-
-
 def _resolve_bookkeeping_commit_target(
     repo_root: Path, mission_slug: str, branch: str | None, kind: MissionArtifactKind
 ) -> CommitTarget:
@@ -217,24 +184,15 @@ def _resolve_bookkeeping_commit_target(
     topology-routed ``destination_ref`` (the coordination branch under
     coordination topology).
 
-    Degrades to ``CommitTarget(ref=branch)`` ONLY when the mission cannot be
-    resolved (no ``meta.json`` yet, or an ad-hoc fixture outside a resolvable
-    mission) AND a degrade-path ``branch`` was supplied — mirroring
-    ``coordination.status_transition._resolve_write_target``. When no
-    degrade path is available, an :class:`ActionContextError` is raised (the
-    caller decides fail-open/fail-closed policy).
+    Resolution is attempted first regardless of ``branch`` — a resolvable
+    mission (``meta.json`` present) returns the placement-port target even
+    when ``branch`` is ``None`` (e.g. the retrospective terminus, which never
+    supplies a degrade-path ``branch``). ``branch`` is consulted only as a
+    degrade path once resolution has genuinely failed: when supplied, it is
+    the ``CommitTarget``; when ``None``, the shared helper raises
+    ``ActionContextError`` (fail-closed — never silently degrades to a null
+    ref).
     """
-    if not _mission_meta_exists(repo_root, mission_slug):
-        if branch is not None:
-            return CommitTarget(ref=branch)
-        raise ActionContextError(
-            _FEATURE_CONTEXT_UNRESOLVED_CODE,
-            f"commit_merge_bookkeeping: mission {mission_slug!r} has no "
-            "resolvable meta.json and no degrade-path 'branch' was supplied.",
-        )
-    try:
-        return resolve_placement_only(repo_root, mission_slug, kind=kind)
-    except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
-        if branch is not None:
-            return CommitTarget(ref=branch)
-        raise
+    return resolve_write_target_or_degrade(
+        repo_root, mission_slug, kind=kind, degrade_ref=branch
+    )

@@ -605,21 +605,27 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
 
 
 def test_two_target_spine_seeds_status_dir_and_flips_feature_dir(tmp_path: Path) -> None:
-    """The two-target form seeds/verifies against *status_feature_dir* and
-    flips *feature_dir* — never conflating the two, and never seeding into
-    the PRIMARY leg when they differ."""
+    """The two-target form reads legacy ``tasks/`` from *feature_dir* (PRIMARY),
+    writes seed events against *status_feature_dir* (COORD), and flips
+    *feature_dir* — never conflating the two, and never seeding into the
+    PRIMARY leg when they differ.
+
+    placement-port-residuals-closure-01KYDEF0 FR-002 closed the prior
+    COORD-read residual this test used to pin (the legacy read anchor was
+    *status_dir*, not *feature_dir* — a COORD-topology ``tasks/`` copy is
+    residue, possibly stale/absent). The read now anchors on PRIMARY; the
+    event write and verify-anchor stay on COORD (I-02, unchanged)."""
     from specify_cli.migration.runtime_state_cutover import cutover_mission
 
     primary_dir = tmp_path / "primary" / "kitty-specs" / "split-demo"
     status_dir = tmp_path / "coord" / "kitty-specs" / "split-demo"
+    _write_legacy_mission(primary_dir)
+    # The COORD leg carries ONLY meta.json (the seed-event write/verify-anchor
+    # target); no tasks/ of its own is needed since the legacy read now
+    # anchors on the PRIMARY leg (FR-002).
     status_dir.mkdir(parents=True)
-    _write_legacy_mission(status_dir)
-    # The PRIMARY leg carries ONLY meta.json (the write target); no tasks/ of
-    # its own is needed since the read anchor for THIS split is the status dir
-    # (documented residual scope in cutover_mission's docstring).
-    primary_dir.mkdir(parents=True)
-    (primary_dir / "meta.json").write_text(
-        (status_dir / "meta.json").read_text(encoding="utf-8"), encoding="utf-8"
+    (status_dir / "meta.json").write_text(
+        (primary_dir / "meta.json").read_text(encoding="utf-8"), encoding="utf-8"
     )
 
     result = cutover_mission(primary_dir, status_feature_dir=status_dir)
@@ -827,10 +833,18 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
     fixture's main repo never carries a ``meta.json``, so
     ``_mission_meta_exists`` is always False there and the placement-port call
     is never reached).
-    """
-    from mission_runtime import MissionArtifactKind, resolve_placement_only
 
-    from specify_cli.git import bookkeeping_commit
+    Patch target note (WP04 review-cycle-1 Issue 2,
+    placement-port-residuals-closure-01KYDEF0): the FR-005 degrade-helper
+    consolidation moved resolution out of ``bookkeeping_commit`` into the
+    shared ``mission_runtime.write_target_degrade`` helper, so
+    ``bookkeeping_commit`` no longer imports/exposes ``resolve_placement_only``
+    as a module attribute. The spy now patches the seam where resolution
+    actually happens: ``mission_runtime.write_target_degrade.resolve_placement_only``.
+    This file is outside WP04's ``owned_files`` (touched per the review's
+    explicit permission, with this coordination note).
+    """
+    from mission_runtime import MissionArtifactKind, resolve_placement_only, write_target_degrade
     from specify_cli.merge.executor import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, coord_branch, main_repo, slug = (
@@ -849,14 +863,21 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
         "fixture is not falsifying: PRIMARY_METADATA must NOT resolve to the coord branch"
     )
 
-    # Spy on the placement port as bookkeeping_commit imports it, to prove the
-    # seam actually CONSULTED it (with the STATUS_STATE kind) rather than
-    # silently taking the branch=coord_ref degrade path (#2884's own review
-    # finding: the degrade fallback's ``branch`` param is ALSO coord_branch in
-    # this fixture, so the resulting ref alone cannot distinguish "the port
-    # resolved it" from "resolution failed and degrade quietly supplied the
-    # same value").
-    real_resolve_placement_only = bookkeeping_commit.resolve_placement_only
+    # Spy on the placement port at the seam ``resolve_write_target_or_degrade``
+    # (the FR-005 helper ``bookkeeping_commit`` now delegates through) actually
+    # calls it from, to prove the seam actually CONSULTED it (with the
+    # STATUS_STATE kind) rather than silently taking the branch=coord_ref
+    # degrade path (#2884's own review finding: the degrade fallback's
+    # ``branch`` param is ALSO coord_branch in this fixture, so the resulting
+    # ref alone cannot distinguish "the port resolved it" from "resolution
+    # failed and degrade quietly supplied the same value").
+    # (bound from the already-imported package-root name, not a
+    # ``write_target_degrade.resolve_placement_only`` attribute access --
+    # the two are the identical function object, since ``write_target_degrade``
+    # itself imports it from ``mission_runtime``, but a static ``module.attr``
+    # read on a plain, non-``__all__`` import trips mypy's
+    # ``--no-implicit-reexport`` strict check.)
+    real_resolve_placement_only = resolve_placement_only
     calls: list[MissionArtifactKind] = []
 
     def _spy_resolve_placement_only(*args: object, **kwargs: object) -> object:
@@ -864,7 +885,7 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
         return real_resolve_placement_only(*args, **kwargs)
 
     monkeypatch.setattr(
-        bookkeeping_commit, "resolve_placement_only", _spy_resolve_placement_only
+        write_target_degrade, "resolve_placement_only", _spy_resolve_placement_only
     )
 
     _commit_coord_seed_events(run, status_feature_dir)

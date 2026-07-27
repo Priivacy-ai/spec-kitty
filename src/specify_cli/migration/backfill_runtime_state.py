@@ -603,7 +603,9 @@ def _append_annotation(
     )
 
 
-def backfill_runtime_state(feature_dir: Path, *, dry_run: bool = False) -> BackfillResult:
+def backfill_runtime_state(
+    feature_dir: Path, *, read_dir: Path | None = None, dry_run: bool = False
+) -> BackfillResult:
     """Idempotently seed one mission's frontmatter/checkbox runtime state as events.
 
     Resolves the write target via :func:`canonicalize_feature_dir` (never
@@ -614,21 +616,34 @@ def backfill_runtime_state(feature_dir: Path, *, dry_run: bool = False) -> Backf
     nothing (NFR-002).
 
     Args:
-        feature_dir: kitty-specs mission directory (canonicalized here).
+        feature_dir: kitty-specs mission directory (canonicalized here) — the
+            event-write anchor: the existing event log is read from here for
+            the claim-anchor lookup and idempotency check, and new seed
+            events are appended here.
+        read_dir: Optional distinct directory to read the legacy ``tasks/``
+            frontmatter from (placement-port-residuals-closure-01KYDEF0
+            FR-002 / IC-02 — the read/write-leg decoupling). Defaults to
+            *feature_dir*, so every existing single-leg caller (the corpus
+            walk, the CLI backfill command) is byte-unchanged. The two-leg
+            cutover caller (:func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`)
+            passes the mission's PRIMARY dir here while *feature_dir* stays
+            the COORD leg the event log canonically lives on (I-02) — NOT a
+            leg swap, only the ``tasks/`` read moves.
         dry_run: When True, compute the would-seed count without writing.
 
     Returns:
         A :class:`BackfillResult` describing what happened.
     """
     feature_dir = canonicalize_feature_dir(feature_dir)
+    read_dir = canonicalize_feature_dir(read_dir) if read_dir is not None else feature_dir
     slug = feature_dir.name
 
-    if not (feature_dir / "tasks").is_dir():
+    if not (read_dir / "tasks").is_dir():
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="skip", reason="no tasks/ directory")
 
     warnings: list[str] = []
     try:
-        legacy = read_legacy_runtime(feature_dir)
+        legacy = read_legacy_runtime(read_dir)
         anchors = _claim_anchors(feature_dir)
         transitions, annotations = _build_seed_events(feature_dir, legacy, anchors, warnings)
     except (StoreError, LegacyRuntimeReadError) as exc:
@@ -870,7 +885,7 @@ def _has_snapshot_runtime(wp: dict[str, Any]) -> bool:
     )
 
 
-def verify_backfill(feature_dir: Path) -> VerifyResult:
+def verify_backfill(feature_dir: Path, *, read_dir: Path | None = None) -> VerifyResult:
     """Fail-closed proof that OLD-reader values survive in deterministic seeds.
 
     Rebuilds the expected deterministic rows from the OLD frontmatter/checkbox
@@ -885,6 +900,15 @@ def verify_backfill(feature_dir: Path) -> VerifyResult:
 
     The strip is a *downstream* step, never a precondition of verify.
 
+    Args:
+        feature_dir: kitty-specs mission directory — the event-log/snapshot
+            anchor (claim anchors, the reduced snapshot, the raw event
+            stream).
+        read_dir: Optional distinct directory to read the legacy ``tasks/``
+            frontmatter from (placement-port-residuals-closure-01KYDEF0
+            FR-002 / IC-02 — mirrors :func:`backfill_runtime_state`'s
+            read/write-leg split). Defaults to *feature_dir*.
+
     Returns:
         A :class:`VerifyResult`; call :meth:`VerifyResult.raise_if_failed` (or use
         :func:`run_backfill_and_verify`) to turn a non-``ok`` result into an abort.
@@ -893,8 +917,9 @@ def verify_backfill(feature_dir: Path) -> VerifyResult:
         MigrationOrderingError: if verify is run after ``strip_mutable_fields``.
     """
     feature_dir = canonicalize_feature_dir(feature_dir)
+    read_dir = canonicalize_feature_dir(read_dir) if read_dir is not None else feature_dir
     try:
-        legacy = read_legacy_runtime(feature_dir)
+        legacy = read_legacy_runtime(read_dir)
     except LegacyRuntimeReadError as exc:
         return VerifyResult(
             ok=False,
