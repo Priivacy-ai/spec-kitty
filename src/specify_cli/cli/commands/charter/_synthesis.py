@@ -115,10 +115,13 @@ def _build_synthesis_request(
     # exist for directives no target references.
     drg_nodes = []
     for directive_id in directives_for_synthesis:
+        # Only fields ``DRGNode`` declares: the snapshot is validated as a
+        # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
+        # redundant with the URN suffix, read by nothing, and silently dropped
+        # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
         drg_nodes.append({
             "urn": f"directive:{directive_id}",
             "kind": "directive",
-            "id": directive_id,
         })
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,

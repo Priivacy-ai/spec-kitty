@@ -57,8 +57,11 @@ def test_service_loads_all_repositories_from_built_in_defaults(tmp_path: Path) -
     )
     _write_yaml(
         built_in_root / "agent_profiles" / "built-in" / "test.agent.yaml",
+        # ``personality-traits`` used to sit here. It is not an AgentProfile
+        # field and never was — it loaded and was discarded, which is exactly
+        # the silence WP04's ``extra="forbid"`` closes (FR-004).
         {"profile-id": "test-agent", "name": "Test Agent", "roles": ["implementer"],
-         "personality-traits": ["diligent"], "directive-references": [],
+         "directive-references": [],
          "purpose": "Test agent for unit tests.",
          "specialization": {
              "primary-focus": "testing",
