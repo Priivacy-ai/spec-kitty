@@ -1,0 +1,322 @@
+"""No :class:`NodeKind` may vanish at a kind-dispatch boundary (WP03, FR-003/SC-002).
+
+Two sites dispatch on :class:`~doctrine.drg.models.NodeKind` and drop what they
+do not name:
+
+===========================================  ==============  ============
+Site                                         Shape           Kinds lost
+===========================================  ==============  ============
+``doctrine.drg.query.resolve_transitive_refs``  16 buckets filled, 10 read out   6
+``charter.context._classify_artifact_urns``     4 branches, no ``else``          12
+===========================================  ==============  ============
+
+Both figures were re-derived by execution on this branch, and **both drops are
+live, not latent**: the shipped graph already carries 24 ``action``, 6
+``anti_pattern``, 4 ``mission_type`` and 1 ``glossary_pack`` node that
+``resolve_transitive_refs`` discards, and a real action resolution already
+reaches ``paradigm`` / ``procedure`` / ``template`` / ``agent_profile`` nodes
+that the charter classifier discards.
+
+Why the two sites get *different* closures
+------------------------------------------
+They are not the same defect wearing two hats:
+
+* ``resolve_transitive_refs`` is a **lossless bucketing wrapper**. Its job is to
+  return what the walk found. Raising on ``anti_pattern`` would break the live
+  graph today, so the closure is *totality*: a per-kind view seeded from
+  ``NodeKind`` itself, so nothing can fall out and a kind added tomorrow is
+  carried without anyone editing the wrapper. This also keeps the frozen
+  contract at
+  ``kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/contracts/resolve-transitive-refs.contract.md``
+  intact — that contract says the function does **not** raise (:89, :204), and
+  a total result never needs to.
+
+* ``_classify_artifact_urns`` is a **deliberate 4-way projection** into an
+  action bundle that has exactly four slots. Twelve kinds legitimately have no
+  slot. The defect is not that they are excluded, it is that *exclusion and
+  ignorance are indistinguishable*. The closure is an explicit, total
+  kind→slot declaration: excluded kinds say so, and a kind nobody has ruled on
+  is loud.
+
+Pinned behaviourally, not by code shape (#2532)
+-----------------------------------------------
+`#2532 <https://github.com/Priivacy-ai/spec-kitty/issues/2532>`_ decomposes
+``src/charter/context.py``, so the missing ``else`` lives inside a module about
+to be split apart. Every assertion below is therefore written against
+*observable outcomes* — "this kind survives the round trip", "an unruled kind
+raises" — and never against the presence of a branch, a line number, or a
+literal count of arms. A decomposition may move any of this code anywhere; it
+cannot make these tests pass while reopening the drop.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import pathlib
+from collections.abc import Mapping
+from enum import StrEnum
+from typing import cast
+
+import pytest
+
+from doctrine.drg.loader import load_graph_or_dir
+from doctrine.drg.models import DRGGraph, DRGNode, NodeKind, Relation
+from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+
+#: NFR-004 — the shipped graph's content must not move. Re-measured on this
+#: branch. If it moves, that is a finding to ledger, never a number to bump.
+_EXPECTED_NODE_COUNT = 311
+_EXPECTED_EDGE_COUNT = 774
+
+_DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "src" / "doctrine"
+
+
+class _FutureNodeKind(StrEnum):
+    """Stands in for a :class:`NodeKind` member added after this test was written.
+
+    The whole defect class is "somebody adds a kind and a dispatch site never
+    hears about it". A test that can only use today's members cannot express
+    that, so it is simulated with a value the production code has provably
+    never been taught.
+    """
+
+    FUTURE = "future_kind"
+
+
+def _shipped_graph() -> DRGGraph:
+    return load_graph_or_dir(_DOCTRINE_ROOT)
+
+
+def _every_id_readable_from(result: ResolveTransitiveRefsResult) -> set[str]:
+    """Gather every artifact id the result exposes, whatever field carries it.
+
+    Deliberately shape-agnostic. The property under test is "the walk's finding
+    is still reachable by a caller", and pinning that to a named field would
+    make the test a description of today's dataclass instead of a guard on the
+    drop.
+    """
+    ids: set[str] = set()
+    for spec in dataclasses.fields(result):
+        value = getattr(result, spec.name)
+        if isinstance(value, Mapping):
+            for bucket in value.values():
+                ids.update(bucket)
+        elif isinstance(value, list):
+            ids.update(item for item in value if isinstance(item, str))
+    return ids
+
+
+# ---------------------------------------------------------------------------
+# Site 1 -- doctrine.drg.query.resolve_transitive_refs
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_transitive_refs_loses_no_node_kind() -> None:
+    """Every ``NodeKind`` the walk visits is readable back off the result.
+
+    Enumerated from ``NodeKind`` at runtime, so the day a seventeenth member is
+    added this test covers it without being edited — the property is
+    "nothing is lost", not "these ten are kept".
+    """
+    nodes = [
+        DRGNode(urn=f"{kind.value}:probe-{kind.value}", kind=kind) for kind in NodeKind
+    ]
+    graph = DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-07-27T00:00:00Z",
+        generated_by="test",
+        nodes=nodes,
+        edges=[],
+    )
+
+    result = resolve_transitive_refs(
+        graph,
+        start_urns={node.urn for node in nodes},
+        relations=set(Relation),
+    )
+
+    assert result.unresolved == []
+    readable = _every_id_readable_from(result)
+    lost = sorted(
+        kind.value for kind in NodeKind if f"probe-{kind.value}" not in readable
+    )
+    assert not lost, f"resolve_transitive_refs silently dropped kinds: {lost}"
+
+
+def test_resolve_transitive_refs_per_kind_view_is_total() -> None:
+    """The per-kind view carries an entry for *every* kind, not only hit ones.
+
+    A view that only materialises the kinds it happened to see is still a
+    hand-enumeration one refactor away from dropping something; totality is
+    what makes the closure structural.
+    """
+    result = resolve_transitive_refs(
+        _shipped_graph(),
+        start_urns=set(),
+        relations={Relation.REQUIRES},
+    )
+
+    assert set(result.by_kind) == set(NodeKind)
+
+
+def test_named_buckets_and_per_kind_view_agree() -> None:
+    """The legacy named fields and the per-kind view are one truth, not two.
+
+    Callers still construct this result with named keyword arguments only
+    (``charter.compiler``, ``charter.reference_resolver``). If the per-kind
+    view did not reflect those, closing the drop here would open a fresh one
+    for anyone who reads the new surface.
+    """
+    result = resolve_transitive_refs(
+        _shipped_graph(),
+        start_urns={"directive:DIRECTIVE_025"},
+        relations={Relation.REQUIRES, Relation.SUGGESTS},
+    )
+
+    assert result.by_kind[NodeKind.DIRECTIVE] == result.directives
+    assert result.by_kind[NodeKind.TACTIC] == result.tactics
+    assert result.directives, "fixture must actually resolve something"
+
+
+def test_anti_pattern_reachable_in_the_shipped_graph_survives() -> None:
+    """A concrete, live kind — not a synthetic one — makes it out of the walk.
+
+    ``rejects`` edges targeting ``anti_pattern`` nodes exist on the shipped
+    graph today, so this drop is real traffic rather than a hypothetical.
+    """
+    graph = _shipped_graph()
+    rejects = [edge for edge in graph.edges if edge.relation is Relation.REJECTS]
+    assert rejects, "shipped graph must carry `rejects` edges for this to be live"
+
+    result = resolve_transitive_refs(
+        graph,
+        start_urns={edge.source for edge in rejects},
+        relations={Relation.REJECTS},
+    )
+
+    expected = sorted(
+        {edge.target.split(":", 1)[1] for edge in rejects}
+    )
+    assert result.by_kind[NodeKind.ANTI_PATTERN] == expected
+
+
+# ---------------------------------------------------------------------------
+# Site 2 -- charter.context._classify_artifact_urns
+# ---------------------------------------------------------------------------
+
+
+def test_action_bundle_rules_on_every_node_kind() -> None:
+    """Every kind has a *recorded verdict*: projected into a slot, or excluded.
+
+    Enumerated from ``NodeKind`` at runtime. A new member arrives with no
+    verdict and this goes red — which is the only difference between an
+    exclusion and an oversight.
+    """
+    from charter.context import action_bundle_bucket
+
+    unruled = []
+    for kind in NodeKind:
+        try:
+            action_bundle_bucket(kind)
+        except LookupError:
+            unruled.append(kind.value)
+
+    assert not unruled, f"no recorded verdict for kinds: {unruled}"
+
+
+def test_action_bundle_still_projects_exactly_the_four_bundle_slots() -> None:
+    """Closing the drop must not smuggle new kinds into the rendered bundle.
+
+    NFR-004 in spirit: the fix is about making the twelve exclusions *stated*,
+    not about starting to render them.
+    """
+    from charter.context import action_bundle_bucket
+
+    projected = {
+        kind: action_bundle_bucket(kind)
+        for kind in NodeKind
+        if action_bundle_bucket(kind) is not None
+    }
+
+    assert projected == {
+        NodeKind.DIRECTIVE: "directives",
+        NodeKind.TACTIC: "tactics",
+        NodeKind.STYLEGUIDE: "styleguides",
+        NodeKind.TOOLGUIDE: "toolguides",
+    }
+
+
+def test_unruled_kind_is_loud_at_the_action_bundle_boundary() -> None:
+    """A kind nobody has ruled on raises instead of evaporating.
+
+    This is the non-vacuity half: without it, a declaration that happens to be
+    total today would still pass ``test_action_bundle_rules_on_every_node_kind``
+    while the runtime path silently swallowed anything outside it.
+    """
+    from charter.context import action_bundle_bucket
+
+    with pytest.raises(LookupError, match="future_kind"):
+        action_bundle_bucket(cast(NodeKind, _FutureNodeKind.FUTURE))
+
+
+def test_classify_artifact_urns_propagates_the_loud_error() -> None:
+    """The guard sits on the live classification path, not beside it.
+
+    Asserted through ``_classify_artifact_urns`` itself so the protection is
+    pinned to the behaviour of classifying a graph, not to where the
+    declaration currently lives. ``#2532`` may relocate either; it cannot make
+    this pass with the drop reopened.
+    """
+    from charter import context as context_module
+
+    class _UnruledNode:
+        kind = _FutureNodeKind.FUTURE
+
+    class _StubGraph:
+        @staticmethod
+        def get_node(urn: str) -> object:
+            return _UnruledNode() if urn == "future_kind:x" else None
+
+    with pytest.raises(LookupError, match="future_kind"):
+        context_module._classify_artifact_urns(
+            {"future_kind:x"},
+            cast(DRGGraph, _StubGraph()),
+            set(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# T017 -- NFR-004 graph invariant
+# ---------------------------------------------------------------------------
+
+
+def test_shipped_graph_content_is_unchanged() -> None:
+    """Closing the kind boundary must move the graph by exactly zero."""
+    graph = _shipped_graph()
+
+    assert (len(graph.nodes), len(graph.edges)) == (
+        _EXPECTED_NODE_COUNT,
+        _EXPECTED_EDGE_COUNT,
+    )
+
+
+def test_shipped_graph_carries_every_kind_the_drop_would_have_lost() -> None:
+    """The six kinds ``resolve_transitive_refs`` dropped are real, present nodes.
+
+    Guards the test above from going vacuous: if the shipped graph stopped
+    carrying these, ``test_resolve_transitive_refs_loses_no_node_kind`` would
+    still pass on synthetic nodes while the live exposure quietly disappeared —
+    and nobody would learn that the mission's premise had changed.
+    """
+    graph = _shipped_graph()
+    present = {node.kind for node in graph.nodes}
+
+    for kind in (
+        NodeKind.ACTION,
+        NodeKind.ANTI_PATTERN,
+        NodeKind.MISSION_TYPE,
+        NodeKind.GLOSSARY_PACK,
+    ):
+        assert kind in present, f"{kind.value} nodes vanished from the shipped graph"
