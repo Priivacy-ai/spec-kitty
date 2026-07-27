@@ -208,7 +208,37 @@ class TestUnresolvableEndpointIsNeverSilent:
         )
         with pytest.raises(OrgDRGConflictError) as excinfo:
             merge_three_layers(_built_in(), [fragment], None)
-        assert "urn:profile:researcher-ryan" in str(excinfo.value)
+        message = str(excinfo.value)
+        assert "urn:profile:researcher-ryan" in message
+        # ...and the remediation must address the endpoint, not tell the
+        # author to "remove the override" of a thing they never overrode.
+        assert "Remediation (endpoint)" in message
+        assert "Remediation (override)" not in message
+        assert "agent_profile:researcher-ryan" in message, "the guidance must show the shape that does resolve"
+
+    def test_every_conflict_class_carries_a_remediation_line(self) -> None:
+        """C-009 coverage gate for the remediation table.
+
+        A conflict class with no remediation entry is a slot with no producer:
+        the operator gets a class name and no way to act on it.
+        """
+        import typing
+
+        from doctrine.drg.merge import _CONFLICT_REMEDIATIONS, OrgDRGConflict
+
+        # ``from __future__ import annotations`` makes __annotations__ strings;
+        # resolve them so the gate reads the real Literal members.
+        hints = typing.get_type_hints(OrgDRGConflict)
+        declared = set(typing.get_args(hints["kind"]))
+        assert len(declared) >= 7, (
+            f"floor: OrgDRGConflict.kind declares >= 7 classes, saw {declared}"
+        )
+        assert declared == set(_CONFLICT_REMEDIATIONS), (
+            "conflict classes without operator remediation: "
+            f"{sorted(declared - set(_CONFLICT_REMEDIATIONS))}; "
+            "remediation entries for no conflict class: "
+            f"{sorted(set(_CONFLICT_REMEDIATIONS) - declared)}"
+        )
 
 
 # ---------------------------------------------------------------------------
