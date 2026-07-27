@@ -1,0 +1,34 @@
+{
+  "accept_commit": "71150fc1d5e7246d13821757b89fd652889aee2d",
+  "acceptance_history": [
+    {
+      "accept_commit": "71150fc1d5e7246d13821757b89fd652889aee2d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-27T08:50:35.328600+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6b8edf408775db3c81dca71c847dd4d9e4dd8740"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-27T08:50:35.328600+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6b8edf408775db3c81dca71c847dd4d9e4dd8740",
+  "baseline_merge_commit": "4aab9bd66a1342d10e171ae920a35ff63ee735a8",
+  "coordination_branch": "kitty/mission-runtime-state-birth-cutover-all-paths-01KYH654",
+  "created_at": "2026-07-27T07:03:16.824152+00:00",
+  "flattened": false,
+  "friendly_name": "Runtime-State Birth-Cutover (All Landing Paths)",
+  "mission_id": "01KYH654JQGY765A6Y63M41REP",
+  "mission_number": null,
+  "mission_slug": "runtime-state-birth-cutover-all-paths-01KYH654",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Missions record runtime state as an event log that must be 'cut over' (status_phase stamped plus deterministic seed events, verified) to count as migrated. Today that stamp fires on only one of the two ways a mission's corpus can reach main; missions merged the other way (GitHub-side squash/rebase) arrive un-migrated and silently red a release-gating test, forcing a manual re-green each time. This mission makes the cutover happen across every landing path and adds a fail-closed guard that blocks any un-migrated mission from reaching main, so the release can no longer be held hostage by this recurring drift.",
+  "purpose_tldr": "Every mission is fully cut over to the event-sourced runtime-state model the moment it lands on main, regardless of how it was merged, so releases are never re-blocked by corpus drift.",
+  "slug": "runtime-state-birth-cutover-all-paths-01KYH654",
+  "status_phase": "1",
+  "target_branch": "fix/runtime-state-birth-cutover-all-paths",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-27T07:52:41.941272+00:00"
+}
