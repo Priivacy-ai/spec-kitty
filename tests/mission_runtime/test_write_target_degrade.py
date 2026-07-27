@@ -47,14 +47,116 @@ class TestResolveWriteTargetOrDegrade:
         assert result.ref == "destination"
 
     def test_helper_kind_parameterized(self, tmp_path: Path) -> None:
-        """Helper accepts kind parameter (behavior tested via integration below)."""
-        result = resolve_write_target_or_degrade(
-            repo_root=tmp_path,
-            mission_slug="nonexistent",
-            kind=MissionArtifactKind.PRIMARY_METADATA,
-            degrade_ref="fallback",
+        """The ``kind`` actually reaches the placement port and changes the
+        resolved target: ``PRIMARY_METADATA`` (a primary-partition kind) and
+        ``DECISION_LOG`` (a coord-partition kind) must resolve to DIFFERENT
+        refs for the SAME resolvable coord-topology mission -- a rewrite of
+        the prior vacuous version, which passed ``PRIMARY_METADATA`` for a
+        NONEXISTENT mission and only ever exercised the degrade_ref passthrough
+        (the kind never reached the port, so it would have passed with ANY
+        kind, including a flipped one).
+        """
+        mission_slug = "021-kind-parameterized-mission"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": "01HXYZ0000000000000000000B",
+                    "mission_slug": mission_slug,
+                    "coordination_branch": "kitty/mission-021-coord",
+                    "topology": "coord",
+                }
+            ),
+            encoding="utf-8",
         )
-        assert result.ref == "fallback"
+
+        with mock.patch(
+            "specify_cli.missions._read_path_resolver.candidate_feature_dir_for_mission",
+            return_value=feature_dir,
+        ):
+            primary_target = resolve_write_target_or_degrade(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                kind=MissionArtifactKind.PRIMARY_METADATA,
+                degrade_ref="unused-fallback",
+            )
+            coord_target = resolve_write_target_or_degrade(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                kind=MissionArtifactKind.DECISION_LOG,
+                degrade_ref="unused-fallback",
+            )
+
+        assert isinstance(primary_target, CommitTarget)
+        assert isinstance(coord_target, CommitTarget)
+        assert primary_target.ref != coord_target.ref
+        # Neither resolved through the degrade passthrough -- both prove the
+        # placement port was genuinely consulted for the resolvable mission.
+        assert primary_target.ref != "unused-fallback"
+        assert coord_target.ref != "unused-fallback"
+
+
+class TestFailClosedPreservesCause:
+    """F1 fix: the fail-closed re-raise must chain the concrete resolution
+    failure as ``__cause__`` and preserve its distinct ``error_code`` instead
+    of flattening it into a bare, chain-less ``ActionContextError``.
+
+    ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass) is
+    the #1848 data-loss signal five other sites type-discriminate on; losing
+    its ``error_code`` and ``next_step``-bearing message behind a generic
+    re-raise defeats that discrimination for this call path.
+    """
+
+    def test_coordination_branch_deleted_cause_and_error_code_survive(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.coordination.surface_resolver import (
+            CoordinationBranchDeleted,
+        )
+
+        mission_slug = "022-coord-branch-deleted-mission"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {"mission_id": "01HXYZ0000000000000000000C", "mission_slug": mission_slug}
+            ),
+            encoding="utf-8",
+        )
+        concrete_exc = CoordinationBranchDeleted(
+            repo_root=tmp_path,
+            mission_slug=mission_slug,
+            mid8="01HXYZ00",
+            coordination_branch="kitty/mission-022-coord",
+            coord_candidate=tmp_path / "coord-candidate",
+            primary_candidate=feature_dir,
+        )
+
+        with (
+            mock.patch(
+                "specify_cli.missions._read_path_resolver.candidate_feature_dir_for_mission",
+                return_value=feature_dir,
+            ),
+            mock.patch(
+                "mission_runtime.write_target_degrade.resolve_placement_only",
+                side_effect=concrete_exc,
+            ),
+            pytest.raises(ActionContextError) as exc_info,
+        ):
+            resolve_write_target_or_degrade(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                kind=MissionArtifactKind.STATUS_STATE,
+                degrade_ref=None,  # fail-closed: no degrade path supplied
+            )
+
+        raised = exc_info.value
+        # The concrete subclass's stable error_code survives the re-raise.
+        assert raised.code == "COORDINATION_BRANCH_DELETED"
+        # The chain is preserved -- not a fresh, cause-less exception.
+        assert raised.__cause__ is concrete_exc
+        assert isinstance(raised.__cause__, CoordinationBranchDeleted)
 
 
 class TestDecisionLogFailOpen:

@@ -85,6 +85,27 @@ BOUNDARY_SANCTIONED_MODULES: dict[str, str] = {
         "_resolve_mission_aware_target (the placement seam) earlier in the "
         "same function and returns before reaching either site."
     ),
+    "src/mission_runtime/write_target_degrade.py": (
+        "Shared bootstrap-window degrade helper (placement-port-residuals-"
+        "closure-01KYDEF0 WP04, FR-005): unifies the "
+        "CommitTarget(ref=degrade_ref) construction formerly duplicated "
+        "verbatim across decision_log.DecisionGitLog._resolve_default_target "
+        "(fail-open) and bookkeeping_commit._resolve_bookkeeping_commit_target "
+        "(fail-closed) into ONE helper, resolve_write_target_or_degrade. The "
+        "degrade construction fires ONLY when the mission cannot be resolved "
+        "via the placement port (no meta.json yet, or a caught "
+        "ActionContextError/StatusReadPathNotFound/FileNotFoundError) -- an "
+        "explicit existence gate degrading to the caller-SUPPLIED ref, never "
+        "a checkout-HEAD re-derivation. This file is already excluded via the "
+        "src/mission_runtime/ BOUNDARY_SANCTIONED_PREFIXES blanket; this "
+        "per-file entry restores the individual, rationale-bearing "
+        "accountability the four now-deleted ContentDescriptor entries used "
+        "to carry for this exact construction (see "
+        "test_no_write_side_rederivation.py's _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED "
+        "history) -- so test_sanctioned_modules_carry_a_rationale still "
+        "polices it directly instead of it going unpoliced behind the "
+        "package-wide prefix."
+    ),
 }
 
 #: RETAINED byte-for-byte from the pre-widening scope (do not extend). A new
