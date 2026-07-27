@@ -47,7 +47,11 @@ from specify_cli.migration.canonicalization import (
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
-from specify_cli.status import LIFECYCLE_EVENT_TYPES, is_retrospective_lifecycle_event
+from specify_cli.status import (
+    ANNOTATION_KIND,
+    LIFECYCLE_EVENT_TYPES,
+    is_retrospective_lifecycle_event,
+)
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -1395,8 +1399,8 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
 
     ``status.events.jsonl`` is a *shared* append log. Lane-transition rows are
     flat (``wp_id`` / ``from_lane`` / ``to_lane``); other subsystems co-locate
-    ``event_type`` / ``type`` rows. Two of those classes have **no other
-    per-mission home**, so quarantining them is real data loss (issue #2376):
+    ``event_type`` / ``type`` / ``kind`` rows. Three of those classes have **no
+    other per-mission home**, so quarantining them is real data loss (#2376):
 
     - **Retrospective lifecycle rows** (``type`` envelope) — contracted
       provenance read back by retrospective consumers.
@@ -1405,6 +1409,11 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
       ``WPCreated``, …). :mod:`specify_cli.status.lifecycle_events` is their
       sole durable per-mission writer and declares this stream "a safe target
       for repair / replay tooling".
+    - **``InnerStateChanged`` annotations** (``kind: "annotation"`` envelope) —
+      load-bearing runtime state the reducer folds into the per-WP slots. They
+      carry no lane fields by construction, so omitting them here does not just
+      drop data: the row reaches ``_rule_require_to_lane`` and hard-errors the
+      entire mission repair.
 
     Other ``event_type`` rows (e.g. Decision-Moment ``DecisionPoint*``) are NOT
     preserved here: their canonical store is elsewhere
@@ -1424,6 +1433,17 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     deliberately NOT mirrored here: the repair's ``LIFECYCLE_EVENT_TYPES``
     narrowing is the intentional pruning divergence for Decision-Moment mirrors.
     """
+    # ``InnerStateChanged`` annotations are preserved FIRST, mirroring the
+    # placement of the durable reader's own leading branch
+    # (:func:`specify_cli.status.store.is_non_lane_event`). They carry no
+    # ``from_lane``/``to_lane`` by construction, so without this branch they
+    # fall through to ``_rule_require_to_lane`` and hard-error the whole
+    # mission repair. Quarantining them is NOT an option: the reducer folds
+    # their typed ``WPInnerStateDelta`` into the per-WP runtime slots, so
+    # dropping them is the #2376 data-loss class in a fourth event format.
+    if row.get("kind") == ANNOTATION_KIND:
+        return True
+
     event_name = row.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
         return True
