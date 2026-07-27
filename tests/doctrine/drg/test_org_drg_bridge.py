@@ -427,6 +427,12 @@ class TestPluralKindCoverageIsTotal:
 
         Drives the real merge per kind, so the gate fails on a *behavioural*
         gap, not merely a missing dict key.
+
+        Only the **typed** refusal is caught and aggregated. An untyped escape
+        — the bare ``KeyError`` this map used to raise — propagates and errors
+        the test outright, which is the louder and more correct signal: this
+        WP exists precisely because untyped failures were leaking out of the
+        merge.
         """
         from doctrine.drg.org_pack_loader import _ORG_DRG_KIND_ALIASES
 
@@ -438,8 +444,8 @@ class TestPluralKindCoverageIsTotal:
             fragment = _fragment([{"id": "probe-node", "kind": plural}], [])
             try:
                 merged = merge_three_layers(_graph(), [fragment], None)
-            except Exception as exc:  # noqa: BLE001 - the gate reports the class
-                failures[plural] = f"{type(exc).__name__}: {exc}"
+            except OrgDRGConflictError as exc:
+                failures[plural] = "; ".join(c.kind for c in exc.conflicts)
                 continue
             if len(merged.nodes) != 1:
                 failures[plural] = f"minted {len(merged.nodes)} nodes"
@@ -597,6 +603,45 @@ class TestDocumentedLineageSnippet:
 
 
 class TestResolutionPrecedence:
+    def test_bare_resolution_does_not_depend_on_pack_declaration_order(
+        self,
+    ) -> None:
+        """Rule 3 reads the built-in layer only, never the running merge.
+
+        If a bare id could bind to an *earlier fragment's* node, whether a
+        pack's edge resolved would depend on the operator's
+        ``organisation_packs:`` ordering — an order-dependent graph is a
+        silent-difference generator of the same family this mission closes.
+        Both orderings must produce the same verdict.
+        """
+        provider = _fragment(
+            [{"id": "provided", "kind": "directives"}],
+            [],
+            pack_name="provider-pack",
+        )
+        consumer = _fragment(
+            [{"id": "consumer-node", "kind": "directives"}],
+            [
+                {
+                    "source": "consumer-node",
+                    "target": "provided",
+                    "relation": "requires",
+                }
+            ],
+            pack_name="consumer-pack",
+        )
+
+        verdicts = []
+        for order in ([provider, consumer], [consumer, provider]):
+            with pytest.raises(OrgDRGConflictError) as excinfo:
+                merge_three_layers(_graph(), order, None)
+            verdicts.append([c.kind for c in excinfo.value.conflicts])
+
+        assert verdicts[0] == verdicts[1] == ["unresolved_edge_endpoint"], (
+            "a cross-pack bare reference must be refused identically in both "
+            f"declaration orders; got {verdicts}"
+        )
+
     def test_fragment_local_id_wins_over_a_same_named_builtin(self) -> None:
         """A pack's own node is the nearest scope for a bare id it declared."""
         built_in = _graph(DRGNode(urn="tactic:shared", kind=NodeKind.TACTIC))

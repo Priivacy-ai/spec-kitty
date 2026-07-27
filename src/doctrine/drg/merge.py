@@ -478,7 +478,7 @@ class _EndpointResolutionError(Exception):
 def _resolve_edge_endpoint(
     raw: str,
     node_id_to_urn: Mapping[str, str],
-    known_urns: Collection[str],
+    built_in_urns: Collection[str],
 ) -> str:
     """Resolve one fragment-authored edge endpoint to a canonical URN (FR-010).
 
@@ -494,9 +494,16 @@ def _resolve_edge_endpoint(
        :class:`NodeKind` member and the whole token is syntactically valid.
        Accepted verbatim: it is unambiguous by construction, and it is exactly
        what ``org_pack_loader._collect_augmentation_edges`` emits.
-    3. **Bare id resolvable against an already-merged layer** — matched on the
-       id half of a known URN, which recovers the *declared* kind instead of
+    3. **Bare id resolvable against the BUILT-IN layer** — matched on the id
+       half of a built-in URN, which recovers the *declared* kind instead of
        inventing one. Exactly one match resolves; more than one is ambiguous.
+
+    Rule 3 reads the built-in layer ONLY, never the running merge state. Were
+    it to consult earlier fragments, whether a pack's bare cross-pack
+    reference resolved would depend on the operator's ``organisation_packs:``
+    ordering — an order-dependent graph is a silent-difference generator of
+    the same family this mission closes. Cross-pack references must be
+    qualified (rule 2), which is order-independent by construction.
 
     Existence is deliberately NOT required for case 2: a fully-qualified
     endpoint may legitimately name a node contributed by a later layer, and
@@ -507,8 +514,8 @@ def _resolve_edge_endpoint(
     Args:
         raw: The endpoint token exactly as the fragment author wrote it.
         node_id_to_urn: Bare id -> minted URN for this fragment's own nodes.
-        known_urns: Every URN merged so far (built-in, earlier fragments, and
-            this fragment's own nodes).
+        built_in_urns: Every built-in node URN — a fixed, order-independent
+            index.
 
     Returns:
         The canonical URN the endpoint binds to.
@@ -530,7 +537,7 @@ def _resolve_edge_endpoint(
         raise _EndpointResolutionError("malformed_urn", raw)
 
     matches = sorted(
-        {urn for urn in known_urns if ":" in urn and urn.partition(":")[2] == raw}
+        {urn for urn in built_in_urns if ":" in urn and urn.partition(":")[2] == raw}
     )
     if len(matches) == 1:
         return matches[0]
@@ -557,7 +564,7 @@ def _endpoint_conflict(
 def _bridge_org_edge_to_drg_edge(
     edge: Any,
     node_id_to_urn: Mapping[str, str],
-    known_urns: Collection[str],
+    built_in_urns: Collection[str],
     source: str,
 ) -> tuple[DRGEdge | None, OrgDRGConflict | None]:
     """Mint a URN-shaped :class:`DRGEdge` from a fragment-side edge.
@@ -577,7 +584,7 @@ def _bridge_org_edge_to_drg_edge(
 
     try:
         source_urn, target_urn = (
-            _resolve_edge_endpoint(raw, node_id_to_urn, known_urns)
+            _resolve_edge_endpoint(raw, node_id_to_urn, built_in_urns)
             for raw in (edge.source, edge.target)
         )
     except _EndpointResolutionError as exc:
@@ -687,13 +694,13 @@ def _merge_org_fragment(
         if urn not in merged_nodes:
             merged_nodes[urn] = drg_node
 
-    # Endpoints resolve against the graph as it stands *after* this fragment's
-    # own nodes are merged, so a pack may reference its own artefacts by bare
-    # id or by URN and any earlier layer the same way — one policy, no
-    # ordering surprise within a fragment.
+    # Endpoints resolve against this fragment's own nodes plus the BUILT-IN
+    # layer — never the running merge state. ``invariant_urns`` is exactly the
+    # built-in URN set, so the result does not depend on where this pack sits
+    # in the operator's declaration order.
     for edge in fragment.edges:
         drg_edge, conflict = _bridge_org_edge_to_drg_edge(
-            edge, node_id_to_urn, merged_nodes.keys(), source_marker
+            edge, node_id_to_urn, invariant_urns, source_marker
         )
         if conflict is not None:
             conflicts.append(conflict)
