@@ -75,6 +75,18 @@ definitions:
           (see `specify_cli.bulk_edit.diff_check.assess_file`). Omitting
           this key leaves legacy single-term maps validating unchanged
           (C-OMAP-1).
+
+          KNOWN LIMITATION — do not read the zero-producer lint's green as
+          coverage of this slot. `field_path` collides as a BARE NAME with
+          unrelated locals in six src/doctrine/**/validation.py modules, so it
+          reads as "produced" whether or not any artefact authors it. Verified
+          by mutation: deleting every deliberate producer leaves that lint
+          green. Closing it needs per-kind namespacing in the lint, which its
+          own docstring places out of scope. Tracked upstream.
+
+          A pin is ADVISORY: it surfaces the field to the reviewer and does not
+          block, and nothing verifies the field was actually unchanged. `mission
+          B2` must not read `do_not_change` here as enforcement.
         type: string
         minLength: 1
   move_entry:
