@@ -30,7 +30,9 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands import cutover_guard as cutover_guard_mod
 from specify_cli.cli.commands.cutover_guard import (
+    CutoverGuardError,
     cutover_guard,
     evaluate_touched_missions,
     remedy_command,
@@ -327,3 +329,93 @@ def test_remedy_command_is_exact() -> None:
     assert remedy_command("my-mission-01ABCD") == (
         "spec-kitty migrate backfill-runtime-state --mission my-mission-01ABCD"
     )
+
+
+# ---------------------------------------------------------------------------
+# NFR-003 fail-closed paths.
+#
+# Every branch below is an *uncertainty* path: the guard cannot determine what
+# the diff touched, or cannot decide a mission. The contract is that each one
+# is a FAILURE, never a silent pass. These were the guard's whole reason for
+# existing and were previously untested (the module sat at 73% with exactly
+# these regions uncovered).
+# ---------------------------------------------------------------------------
+
+
+def test_unresolvable_merge_base_raises_rather_than_reporting_no_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unknown --base-ref must raise, not degrade to an empty diff."""
+    monkeypatch.setattr(cutover_guard_mod, "git_merge_base", lambda *a, **k: None)
+
+    with pytest.raises(CutoverGuardError) as excinfo:
+        cutover_guard_mod.changed_paths_from_git(tmp_path, "no/such/ref")
+
+    assert "merge-base" in str(excinfo.value)
+
+
+def test_failed_diff_raises_rather_than_reporting_no_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed git diff must raise: an empty tuple would read as 'nothing touched, pass'."""
+    monkeypatch.setattr(cutover_guard_mod, "git_merge_base", lambda *a, **k: "abc123")
+    monkeypatch.setattr(cutover_guard_mod, "git_diff_names_checked", lambda *a, **k: None)
+
+    with pytest.raises(CutoverGuardError) as excinfo:
+        cutover_guard_mod.changed_paths_from_git(tmp_path, "origin/main")
+
+    assert "git diff failed" in str(excinfo.value)
+
+
+def test_unsafe_slug_in_diff_fails_closed(tmp_path: Path) -> None:
+    """A traversal-shaped slug lifted from a diff path is rejected, not joined."""
+    (tmp_path / "kitty-specs").mkdir()
+
+    verdict = evaluate_touched_missions(tmp_path, ["kitty-specs/../../etc/passwd"])
+
+    assert verdict.passed is False
+    assert len(verdict.failures) == 1
+    assert any("unsafe mission slug" in reason for reason in verdict.failures[0].reasons)
+
+
+def test_predicate_error_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Any exception from is_cut_over is recorded as a failure, never skipped."""
+    corpus = tmp_path / "kitty-specs"
+    corpus.mkdir()
+    slug = "boom-01KZQXTX"
+    (corpus / slug).mkdir()
+
+    def _explode(_mission_dir: Path) -> None:
+        raise RuntimeError("predicate exploded")
+
+    monkeypatch.setattr(cutover_guard_mod, "is_cut_over", _explode)
+
+    verdict = evaluate_touched_missions(tmp_path, [f"kitty-specs/{slug}/meta.json"])
+
+    assert verdict.passed is False
+    assert any("predicate exploded" in reason for reason in verdict.failures[0].reasons)
+
+
+def test_unreadable_paths_from_file_exits_one(tmp_path: Path) -> None:
+    """An unreadable --paths-from is a fail-closed exit(1), not an empty diff."""
+    result = CliRunner().invoke(
+        _guard_app, ["--paths-from", str(tmp_path / "does-not-exist.txt")]
+    )
+
+    assert result.exit_code == 1
+
+
+def test_cli_surfaces_guard_error_as_exit_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A CutoverGuardError from the diff resolution reaches the operator as exit 1."""
+    monkeypatch.setattr(cutover_guard_mod, "locate_project_root", lambda *a, **k: tmp_path)
+
+    def _raise(*_a: object, **_k: object) -> None:
+        raise CutoverGuardError("merge-base unresolvable")
+
+    monkeypatch.setattr(cutover_guard_mod, "changed_paths_from_git", _raise)
+
+    result = CliRunner().invoke(_guard_app, ["--base-ref", "origin/main"])
+
+    assert result.exit_code == 1
