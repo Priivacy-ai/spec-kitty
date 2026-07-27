@@ -154,11 +154,12 @@ def run_custom_mission(
             },
         )
 
-    # read-side-placement-seam-migration WP07: routed through
-    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    # instead of the kind-blind ``candidate_feature_dir_for_mission`` — this
-    # feeds ``_ensure_feature_metadata``, a ``meta.json``-adjacent
-    # (PRIMARY_METADATA) read.
+    # read-side-placement-seam-migration WP07: names PRIMARY_METADATA through
+    # the seam authority instead of the kind-blind
+    # ``candidate_feature_dir_for_mission`` — this feeds
+    # ``_ensure_feature_metadata``, a ``meta.json``-adjacent read.
+    # PRIMARY_METADATA is PRIMARY-partition, so resolution is behavior-
+    # identical to the prior resolver; no fail-loud arm is reachable here.
     feature_dir = placement_seam(repo_root, mission_slug).read_dir(
         MissionArtifactKind.PRIMARY_METADATA
     )

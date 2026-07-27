@@ -375,11 +375,15 @@ def _resolve_mission_slug(mission: str | None, repo_root: Path) -> str:
 
     try:
         # Ledger WP04: migrate-fail-loud via PRIMARY_METADATA (slug-canon idiom).
-        # The except StatusReadPathNotFound branch re-raises — it was already
-        # unreachable under candidate_feature_dir_for_mission (only
-        # MissionSelectorAmbiguous propagates) and remains unreachable under
-        # PRIMARY_METADATA (PRIMARY never raises CoordinationBranchDeleted).
-        # Kept so a future STATUS-partition regression still surfaces typed.
+        # The except StatusReadPathNotFound branch re-raises. Under the prior
+        # candidate_feature_dir_for_mission call this branch WAS reachable, but
+        # only in the narrow corrupt-meta fail-closed window (topology is None,
+        # primary_candidate.exists(), mid8 set, coord_state EMPTY, and
+        # _declares_coordination_branch(...) true) — not dead code. This
+        # migration to PRIMARY_METADATA via placement_seam deliberately drops
+        # that arm: PRIMARY_METADATA never raises CoordinationBranchDeleted, so
+        # the branch is unreachable in the new code path. Kept so a future
+        # STATUS-partition regression still surfaces typed.
         candidate = placement_seam(
             get_main_repo_root(repo_root), raw_handle
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
