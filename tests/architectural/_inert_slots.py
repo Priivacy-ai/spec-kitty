@@ -343,13 +343,13 @@ MAX_UNASSIGNED_ENTRIES = 23
 #: assertion message both promised that exact case was caught. Review disproved it
 #: with a four-line mutation.
 #:
-#: Two walks, two floors, each ~80% of today's count:
-#:   schema  186 names / 36 baseline entries
-#:   model   145 names / 23 baseline entries
+#: The *name* floors below are absolute — they pin the walk against wholesale
+#: collapse (a renamed convention, a moved directory) and have no reason to track
+#: the baseline file's size. The *entries-still-found* floors are different: see
+#: ``MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND`` below, defined after
+#: ``BASELINE_SLOTS`` because it is derived from it rather than hand-maintained.
 MINIMUM_SCHEMA_SLOT_NAMES = 150
 MINIMUM_MODEL_SLOT_NAMES = 120
-MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND = 30
-MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND = 18
 
 #: A WP counts as complete at ``approved``, not only at ``done``. ``done`` lands
 #: at merge, so a ``done``-only gate would fire on the mainline after the fact.
@@ -567,3 +567,35 @@ def is_schema_declared(slot: InertSlot) -> bool:
     module exists to catch.
     """
     return f"/{_SCHEMAS}/" in str(slot.declared_at).replace("\\", "/")
+
+
+#: Entries-still-found floors — proportional, not hand-maintained (WP05, FR-005).
+#:
+#: The first revision of these floors was a hardcoded absolute int (30 schema, 18
+#: model), calibrated once against the baseline's size at the time (36 / 23) and
+#: frozen. That shape has a defect: WP05's FR-028 excision legitimately shrinks
+#: the schema baseline by 8 (36 -> 28, the ``enhances``/``overrides`` pair across
+#: four schemas), which drops *below* an absolute floor of 30 on a change that did
+#: nothing wrong. The gate's own assertion message then reads as an invitation:
+#: "a genuine burn-down this large should lower the floor deliberately in the same
+#: change" — and a hand-lowered floor is indistinguishable, at review time, from
+#: a floor quietly lowered to paper over a real regression. That is exactly how
+#: the floor this module replaces (a fixed union number) rotted in the first
+#: place: see the mutation proof above.
+#:
+#: These floors are derived from ``BASELINE_SLOTS`` instead: each floor is "every
+#: schema/model-declared entry the frozen baseline file currently lists must
+#: still be found inert" (100% of whatever the file says today). Deleting a
+#: baseline entry — the correct response to clearing debt — moves the floor down
+#: for free; there is no second place to edit and nothing to "lower deliberately".
+#: The failure mode the floor exists to catch is unchanged: readmitting the
+#: generated schemas as producers collapses ``still_found`` to the empty set
+#: regardless of the baseline's size, so ``0 >= 28`` fails exactly as hard as
+#: ``0 >= 30`` did before WP05's excision. Proportional to the baseline, not
+#: absolute — so the same mutation still goes red after every future shrink.
+MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND = len(
+    {slot for slot in BASELINE_SLOTS if is_schema_declared(slot)}
+)
+MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND = len(
+    {slot for slot in BASELINE_SLOTS if not is_schema_declared(slot)}
+)

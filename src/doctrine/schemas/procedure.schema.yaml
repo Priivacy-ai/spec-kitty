@@ -46,6 +46,9 @@ definitions:
         - agent_profile
         - mission_step_contract
         - template
+        - asset
+        - glossary_pack
+        - anti_pattern
       id:
         type: string
         minLength: 1
@@ -87,14 +90,6 @@ properties:
   purpose:
     type: string
     minLength: 1
-  overrides:
-    type: string
-    pattern: ^[a-z][a-z0-9-]*$
-    description: ID of a built-in procedure this artifact replaces in full.
-  enhances:
-    type: string
-    pattern: ^[a-z][a-z0-9-]*$
-    description: ID of a built-in procedure this artifact augments via field-merge.
   entry_condition:
     type: string
     minLength: 1

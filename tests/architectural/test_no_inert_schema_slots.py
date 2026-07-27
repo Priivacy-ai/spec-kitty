@@ -172,6 +172,20 @@ opposite at the time, which is the part that mattered — a false coverage claim
 the gate whose whole job is to stop mechanisms going quietly inert. Both walks are
 now floored independently, and both mutations go red.
 
+**Entries-still-found floors are proportional, not absolute (WP05, FR-005).** The
+name floors (``MINIMUM_SCHEMA_SLOT_NAMES`` / ``MINIMUM_MODEL_SLOT_NAMES``) stay
+hardcoded — they pin the walk against wholesale collapse and have no relationship
+to the baseline file's size. The *entries-still-found* floors were hardcoded too
+(30 / 18) until WP05's FR-028 excision legitimately shrank the schema baseline
+36 -> 28 (the ``enhances``/``overrides`` pair, four schemas each), which would have
+tripped an absolute 30-floor on a change that did nothing wrong — and "lower the
+floor" is indistinguishable at review time from quietly hiding a regression, which
+is the same failure class this section already tells that story about once. WP05
+converted both to ``len(BASELINE_SLOTS filtered by walk)`` — see
+``_inert_slots.py`` — so they move automatically when a baseline entry is deleted
+(the correct response to cleared debt) and still catch the 0-producer collapse
+this floor exists for: ``0 >= 28`` fails exactly as hard as ``0 >= 30`` did.
+
 Non-vacuity (NFR-001)
 ---------------------
 ``test_planted_producerless_slot_is_flagged`` plants a real violation and asserts RED.
@@ -542,13 +556,17 @@ def test_the_scan_actually_sees_the_shipped_tree() -> None:
 
     assert len(schema_entries) >= MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND, (
         f"only {len(schema_entries)} schema-declared baseline entries are still "
-        f"detected; the floor is {MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND}. A "
-        "genuine burn-down this large should lower the floor deliberately in the "
-        "same change."
+        f"detected; the floor is {MINIMUM_SCHEMA_BASELINE_ENTRIES_STILL_FOUND} — "
+        "derived from _inert_slots_baseline.yaml itself (see _inert_slots.py), so "
+        "this is not a stale hardcoded number. If a baseline entry was cleared "
+        "for real, delete its row from the file — the floor drops with it. Do "
+        "not add a compensating edit anywhere else."
     )
     assert len(model_entries) >= MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND, (
         f"only {len(model_entries)} model-declared baseline entries are still "
-        f"detected; the floor is {MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND}."
+        f"detected; the floor is {MINIMUM_MODEL_BASELINE_ENTRIES_STILL_FOUND} — "
+        "derived from _inert_slots_baseline.yaml itself. Delete the cleared row, "
+        "do not edit a floor constant."
     )
 
 def test_every_named_owner_resolves() -> None:

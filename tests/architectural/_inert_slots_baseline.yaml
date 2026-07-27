@@ -44,63 +44,21 @@
 # The scope fix is why this file grew 41 -> 59. `_code_producers` used to harvest
 # all of src/ (12,742 names vs 807 now). Among the names that scan added were
 # `aliases` -- the field SC-001 exists to guard, which the gate therefore did NOT
-# guard -- and `overrides`, which hid half of the FR-028 pair. The `enhances` /
-# `overrides` set is now complete at 8.
+# guard -- and `overrides`, which hid half of the FR-028 pair.
+#
+# WP05/T024 cleared its 8 entries (the `enhances`/`overrides` pair across
+# paradigm|procedure|styleguide|tactic.schema.yaml): FR-028 retired both fields
+# and each `models.py` raises on them via `@model_validator`, so the schemas
+# advertising them as valid properties documented a shape the loader rejects.
+# `scripts/generate_schemas.py` now emits the reconciled shape and the four
+# schemas no longer declare either property. 59 -> 51. The entries-still-found
+# floors in `_inert_slots.py` are derived from this file's live size, so their
+# drop needed no edit of their own.
 
 # WP owners without a `mission:` prefix are work packages of this mission.
 mission: doctrine-silence-guards-01KYFV7Q
 
 entries:
-
-  # --- WP05/T024: the FR-028 hard cutover left the schemas behind -----------
-  # `paradigms|procedures|styleguides|tactics/models.py` each carry
-  # `_RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")` and a
-  # `@model_validator` that RAISES on either. The schemas still advertise
-  # `enhances` as a valid property. Authoring it is a hard load error, so the
-  # schema documents a shape the loader rejects. See the under-count note above:
-  # the four `overrides` twins are masked, and are WP05's to remove as well.
-  - name: enhances
-    declared_at: src/doctrine/schemas/paradigm.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; paradigms/models.py raises on it.
-  - name: enhances
-    declared_at: src/doctrine/schemas/procedure.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; procedures/models.py raises on it.
-  - name: enhances
-    declared_at: src/doctrine/schemas/styleguide.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; styleguides/models.py raises on it.
-  - name: enhances
-    declared_at: src/doctrine/schemas/tactic.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; tactics/models.py raises on it.
-  # The four `overrides` twins, surfaced by the src/doctrine producer scope fix.
-  # Same validator, same cutover, same removal.
-  - name: overrides
-    declared_at: src/doctrine/schemas/paradigm.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; paradigms/models.py raises on it.
-  - name: overrides
-    declared_at: src/doctrine/schemas/procedure.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; procedures/models.py raises on it.
-  - name: overrides
-    declared_at: src/doctrine/schemas/styleguide.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; styleguides/models.py raises on it.
-  - name: overrides
-    declared_at: src/doctrine/schemas/tactic.schema.yaml
-    owner: WP05
-    disposition: delete-the-declaration
-    note: FR-028 retired the field; tactics/models.py raises on it.
 
   # --- Mission D / I9: import_candidates has no producer yet ----------------
   # There is no import-candidate artefact anywhere under src/. The only

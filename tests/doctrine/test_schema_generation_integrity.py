@@ -42,6 +42,8 @@ import jsonschema
 import pytest
 import yaml
 
+from scripts.generate_schemas import generate_schema
+
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -54,11 +56,6 @@ _COMMON_DOCS_STYLEGUIDE = (
     / "built-in"
     / "common-docs.styleguide.yaml"
 )
-
-sys.path.insert(0, str(_REPO_ROOT / "src"))
-sys.path.insert(0, str(_REPO_ROOT / "scripts"))
-
-from generate_schemas import generate_schema  # noqa: E402  (path insert above)
 
 
 def test_check_exits_zero_on_the_reconciled_tree() -> None:
