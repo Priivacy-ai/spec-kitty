@@ -332,7 +332,7 @@ def find_code_only_suppressions(root: Path) -> list[InertSlot]:
     the hole rather than closing it. The producer rule is therefore unchanged; what
     changes is that this route now leaves a trace. The computed set must match the
     ``code_only_suppressions`` record in the baseline file exactly, so admitting a new
-    one costs a reviewable row carrying a verdict and a note — the ceremony that was
+    one costs a reviewable row carrying a verdict and a note — the trace that was
     missing — and the masking verdicts are capped shrink-only on top of that.
     """
     slots = scanned_slots(root)
