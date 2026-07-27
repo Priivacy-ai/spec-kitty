@@ -1,0 +1,167 @@
+# Occurrence map — doctrine-canonical-structure-remediation-01KYEYSD
+#
+# DIRECTIVE_035 guardrail for a 559-occurrence / 169-file migration that moves
+# artefact→artefact relationships out of five inline YAML surfaces and into
+# authored DRG edges.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# READ THIS FIRST — what this map can and cannot enforce
+# ─────────────────────────────────────────────────────────────────────────────
+# The `exceptions` block matches on PATH GLOBS. This mission's exemptions are
+# FIELD-scoped, and the two do not line up:
+#
+#   * all 17 GOVERNANCE files also carry MIGRATE entries (every agent profile
+#     has `context-sources.directives` → migrate AND `directive-references`
+#     → keep, in the same file);
+#   * 5 of the 7 RAW_MATERIAL files also carry MIGRATE entries.
+#
+# So a path glob would either whitelist the migration in those files or block
+# it. There is no file-level cut that separates the 559 from the 188 + 14.
+#
+# Therefore, per operator ruling (2026-07-26):
+#   1. This map classifies at the granularity the schema supports, honestly.
+#   2. The FIELD-level exemption is enforced by the FR-015 gate, which imports
+#      `scripts/doctrine/inline_reference_inventory.py` and classifies each
+#      entry by (file, field, disposition). That gate — not this map — is the
+#      thing that can actually hold the 188 GOVERNANCE and 14 RAW entries.
+#   3. WP02 extends `occurrence-map.schema.yaml` with field-path granularity,
+#      and this map is re-authored against it before Phase 2 begins.
+#
+# Until WP02 lands, treat the `serialized_keys` row below as "manual_review,
+# adjudicated per entry by the inventory gate", not as a blanket licence.
+#
+# Reproduce the scope (never hand-count — two hand counts were wrong):
+#   PYTHONPATH=src python scripts/doctrine/inline_reference_inventory.py
+#   → 559 MIGRATE / 188 GOVERNANCE / 14 RAW_MATERIAL across 171 files
+
+target:
+  term: >-
+    inline artefact→artefact relationship entries across five surfaces —
+    references, steps[].references, context-sources.directives,
+    directive_refs, tactic-references
+  replacement: null
+  operation: remove
+
+categories:
+
+  # Extractor edge-production passes, both Python edge registries, and the
+  # calibrator are DELETED (FR-014/FR-026). `Relation.IN_TENSION_WITH` retires
+  # and `Relation.IMPACTS` arrives (FR-032); `aliases` and `is_symmetric` are
+  # added (FR-028, ADR-D11). Every deletion needs its NFR-009 in-process
+  # ablation proof, so none of this is mechanical.
+  code_symbols:
+    action: manual_review
+
+  # `doctrine.drg.migration.hand_authored_overlay` and `.calibrator` stop
+  # existing; importers must be re-pointed at the authored-edge tier rather
+  # than have the symbol renamed.
+  import_paths:
+    action: manual_review
+
+  # Three distinct movements, each needing judgement:
+  #   * `src/doctrine/graph.yaml` — dead path, corrected to the per-kind
+  #     fragment (FR-005). The gate must NOT sweep `.kittify/doctrine/graph.yaml`
+  #     (a live project-tier path) or the deliberate mentions that name the dead
+  #     path in order to forbid it.
+  #   * `<kind>/shipped/` — phantom layer, corrected to `built-in` (FR-020).
+  #     22 hits across 9 files; at least one ("shipped/packaged") is prose, not
+  #     a path, so the gate needs a path-shaped discriminator.
+  #   * `<kind>.edges.yaml` — new authored source files (FR-016).
+  filesystem_paths:
+    action: manual_review
+
+  # THE MISSION TARGET. The five migrating field names are serialized keys, and
+  # so are the 188 GOVERNANCE keys that must survive untouched — in the same
+  # files. Relation inference is keyed on SOURCE KIND, not on the reference's
+  # `type` (keying on ref type mis-types 118 of 372 structured entries), so no
+  # entry is mechanically rewritable.
+  #
+  # Field-level dispositions, enforced by the FR-015 inventory gate:
+  #   MIGRATE    559  references 414 · context-sources.directives 67 ·
+  #                   directive_refs 34 · tactic-references 29 ·
+  #                   steps[].references 15
+  #   GOVERNANCE 188  directive-references 68 ·
+  #                   context-sources.{additional 54, doctrine-layers 47,
+  #                   tactics 19}  → DO NOT TOUCH. `directive-references` seeds
+  #                   the entire charter governance closure; deleting it empties
+  #                   every profile-routed prompt while fragments, golden counts
+  #                   and a zero-entries gate all stay green.
+  #   RAW        14   enumerated (file, path) allowlist, reason each → KEEP.
+  serialized_keys:
+    action: manual_review
+
+  # No command, subcommand, or flag changes. `spec-kitty doctrine
+  # regenerate-graph` keeps its name and contract.
+  cli_commands:
+    action: do_not_change
+
+  # The `InlineReferenceRejectedError` hint, two operator-facing SKILL.md files,
+  # a canonical glossary term body, and the doctrine authoring READMEs all name
+  # paths that do not exist. They are corrected because they are user-visible.
+  user_facing_strings:
+    action: rename_if_user_visible
+
+  # Golden counts move by construction (`is_symmetric` expansion takes the two
+  # tension claims from 2 authored to 4 cached). NFR-006 requires every count
+  # change to carry a composition-ledger entry, so no fixture is bumped blind.
+  tests_fixtures:
+    action: manual_review
+
+  # No metric names, log keys, or analytics events are in scope.
+  logs_telemetry:
+    action: do_not_change
+
+exceptions:
+
+  - path: "src/doctrine/*.graph.yaml"
+    action: do_not_change
+    reason: >-
+      Generated cache, never hand-edited (FR-016 / NFR-002). These 14 fragments
+      are regenerated from the authored `<kind>.edges.yaml` tier via the CLI.
+      Hand-editing them desynchronizes the freshness check, which is the
+      coherence proof `merge(authored) == cache`.
+
+  - path: ".kittify/charter/**"
+    action: do_not_change
+    reason: >-
+      Compiled charter bundle — a regeneration target, not a source. Divergence
+      here is a staleness symptom. Specifically: do NOT unify the AMMERSE
+      definitions into this bundle (I5); the authored copies are the tactic and
+      the template.
+
+  - path: "docs/adr/**"
+    action: do_not_change
+    reason: >-
+      Immutable decision records. ADRs 2026-07-21-1 (in-tension-with) and the
+      superseded text are historical; they name retired vocabulary on purpose.
+      ADR 2026-07-26-3's Confirmation section expects `git grep in_tension_with`
+      to return exactly these files plus changelog entries.
+
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: >-
+      Mission artefacts, including this mission's own spec and research. They
+      quote the legacy surfaces in order to describe the migration.
+
+  - path: "docs/plans/doctrine/**"
+    action: do_not_change
+    reason: >-
+      Design and sequencing authorities plus committed measurement JSONs
+      (_ammerse-*.json). Evidence of record; the reproduction scripts must keep
+      reading them byte-identically.
+
+  - path: "src/doctrine/missions/built_in_step_contracts/**"
+    action: do_not_change
+    reason: >-
+      The 17 mission-tier step contracts are the documented layout carve-out
+      (ADR 2026-07-26-2), pinned positively so the exception cannot hide a real
+      stray. Out of scope for the relationship migration.
+
+status:
+  authored_by: agent
+  authored_at: "2026-07-26"
+  reviewed_by: null
+  note: >-
+    Field-path granularity is a known gap in the schema, tracked as WP02 of this
+    mission (C-004: the defect this mission found is fixed in this mission, not
+    deferred). Re-author this map against the extended schema before Phase 2.

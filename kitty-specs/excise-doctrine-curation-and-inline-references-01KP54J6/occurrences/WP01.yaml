@@ -1,0 +1,494 @@
+# Occurrence-Classification Artifact for WP01 — Excise curation surface
+#
+# Contract: ../contracts/occurrence-artifact.schema.yaml
+# Plan: ../plan.md (WP1.1 section + D-5)
+# Spec: ../spec.md (FR-001, FR-002, FR-003, FR-004, FR-012, FR-013, FR-015)
+#
+# At merge, the `to_change` entries below have all been acted on and the
+# `expected_final_count: 0` on every category holds (verified by
+# scripts/verify_occurrences.py).
+wp_id: WP01
+mission_slug: excise-doctrine-curation-and-inline-references-01KP54J6
+requires_merged: []
+verifier_command: >-
+  python scripts/verify_occurrences.py
+  kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/occurrences/WP01.yaml
+
+categories:
+  # ---------------------------------------------------------------------
+  # 1. import_path — curation-package / curation-validator imports
+  # ---------------------------------------------------------------------
+  - name: import_path
+    strings:
+      - "from doctrine.curation"
+      - "import doctrine.curation"
+      - "from specify_cli.validators.doctrine_curation"
+    include_globs:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - "scripts/**/*.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change:
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 13
+        snippet: from doctrine.curation.state import CurationSession, clear_session, load_session
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 14
+        snippet: from doctrine.curation.workflow import (
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 23
+        snippet: from doctrine.curation.engine import ProposedArtifact
+        action: delete
+      - file: src/doctrine/curation/engine.py
+        line: 15
+        snippet: from doctrine.curation.state import ARTIFACT_TYPES, CurationSession
+        action: delete
+      - file: src/doctrine/curation/workflow.py
+        line: 15
+        snippet: from doctrine.curation.engine import (
+        action: delete
+      - file: src/doctrine/curation/workflow.py
+        line: 25
+        snippet: from doctrine.curation.state import (
+        action: delete
+      - file: tests/doctrine/curation/test_engine.py
+        line: 8
+        snippet: from doctrine.curation.engine import (
+        action: delete
+      - file: tests/doctrine/curation/test_engine.py
+        line: 16
+        snippet: from doctrine.curation.state import (
+        action: delete
+      - file: tests/doctrine/test_artifact_kinds.py
+        line: 98
+        snippet: from doctrine.curation.state import ARTIFACT_TYPES
+        action: delete
+      - file: tests/doctrine/test_artifact_kinds.py
+        line: 103
+        snippet: from doctrine.curation.state import ARTIFACT_TYPES
+        action: delete
+      - file: tests/doctrine/test_artifact_kinds.py
+        line: 108
+        snippet: from doctrine.curation.state import ARTIFACT_TYPES
+        action: delete
+      - file: tests/doctrine/test_artifact_kinds.py
+        line: 114
+        snippet: from doctrine.curation.engine import _GLOB_PATTERNS
+        action: delete
+      - file: tests/cross_cutting/test_doctrine_curation_unit.py
+        line: 9
+        snippet: from specify_cli.validators.doctrine_curation import validate_import_candidate
+        action: delete
+      - file: src/specify_cli/validators/__init__.py
+        line: 13
+        snippet: from . import doctrine_curation, paths, research
+        action: rewrite
+
+  # ---------------------------------------------------------------------
+  # 2. symbol_name — curation API surface
+  # ---------------------------------------------------------------------
+  - name: symbol_name
+    strings:
+      - "ProposedArtifact"
+      - "discover_proposed"
+      - "promote_artifact_to_shipped"
+      - "CurationSession"
+      - "run_curate_session"
+      - "promote_single"
+      - "get_status_counts"
+      - "doctrine_module"
+    include_globs:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - "scripts/**/*.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+      - "src/specify_cli/auth/**"
+      - "src/specify_cli/cli/commands/_auth_*.py"
+      - "tests/auth/**"
+      - "tests/cli/commands/test_auth_*.py"
+    expected_final_count: 0
+    to_change:
+      - file: src/specify_cli/cli/commands/__init__.py
+        line: 15
+        snippet: from . import doctrine as doctrine_module
+        action: delete
+      - file: src/specify_cli/cli/commands/__init__.py
+        line: 53
+        snippet: 'app.add_typer(doctrine_module.app, name="doctrine")'
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 1
+        snippet: '"""Doctrine management commands — thin CLI adapter over doctrine.curation.workflow."""'
+        action: delete
+      - file: src/doctrine/curation/engine.py
+        line: 1
+        snippet: module exports ProposedArtifact, discover_proposed, promote_artifact_to_shipped
+        action: delete
+      - file: src/doctrine/curation/state.py
+        line: 1
+        snippet: module exports CurationSession, load_session, clear_session
+        action: delete
+      - file: src/doctrine/curation/workflow.py
+        line: 1
+        snippet: module exports run_curate_session, promote_single, get_status_counts
+        action: delete
+
+  # ---------------------------------------------------------------------
+  # 3. yaml_key — no curation-surface YAML keys in this WP; reserved for WP02
+  # ---------------------------------------------------------------------
+  - name: yaml_key
+    strings:
+      - "include_proposed:"
+    include_globs:
+      - "src/doctrine/directives/**/*.yaml"
+      - "src/doctrine/tactics/**/*.yaml"
+      - "src/doctrine/procedures/**/*.yaml"
+      - "src/doctrine/styleguides/**/*.yaml"
+      - "src/doctrine/toolguides/**/*.yaml"
+      - "src/doctrine/paradigms/**/*.yaml"
+    exclude_globs:
+      - "kitty-specs/**"
+    expected_final_count: 0
+    to_change: []
+
+  # ---------------------------------------------------------------------
+  # 4. filesystem_path_literal — curation package dir + _proposed/ trees
+  # ---------------------------------------------------------------------
+  - name: filesystem_path_literal
+    strings:
+      - "src/doctrine/curation"
+      - "_proposed"
+    include_globs:
+      - "src/specify_cli/**/*.py"
+      - "src/doctrine/curation/**"
+      - "src/doctrine/directives/_proposed/**"
+      - "src/doctrine/tactics/_proposed/**"
+      - "src/doctrine/procedures/_proposed/**"
+      - "src/doctrine/styleguides/_proposed/**"
+      - "src/doctrine/toolguides/_proposed/**"
+      - "src/doctrine/paradigms/_proposed/**"
+      - "tests/doctrine/curation/**"
+      - "tests/cross_cutting/test_doctrine_curation_unit.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change:
+      - file: src/doctrine/curation/engine.py
+        line: 1
+        snippet: entire src/doctrine/curation/ package
+        action: delete
+      - file: src/doctrine/curation/state.py
+        line: 1
+        snippet: entire src/doctrine/curation/ package
+        action: delete
+      - file: src/doctrine/curation/workflow.py
+        line: 1
+        snippet: entire src/doctrine/curation/ package
+        action: delete
+      - file: src/doctrine/curation/README.md
+        line: 1
+        snippet: entire src/doctrine/curation/ package
+        action: delete
+      - file: src/doctrine/directives/_proposed/007-trade-off-assessment-protocol.directive.yaml
+        line: 1
+        snippet: 'directive _proposed/ tree'
+        action: delete
+      - file: src/doctrine/directives/_proposed/017-glossary-integrity-standard.directive.yaml
+        line: 1
+        snippet: 'directive _proposed/ tree'
+        action: delete
+      - file: src/doctrine/directives/_proposed/019-documentation-gap-prioritization.directive.yaml
+        line: 1
+        snippet: 'directive _proposed/ tree'
+        action: delete
+      - file: src/doctrine/directives/_proposed/020-no-parallel-duplicate-test-runs.directive.yaml
+        line: 1
+        snippet: 'directive _proposed/ tree'
+        action: delete
+      - file: src/doctrine/directives/_proposed/033-prestudy-requirement.directive.yaml
+        line: 1
+        snippet: 'directive _proposed/ tree'
+        action: delete
+      - file: src/doctrine/tactics/_proposed/.gitkeep
+        line: 1
+        snippet: 'tactics _proposed/ tree'
+        action: delete
+      - file: src/doctrine/procedures/_proposed/.gitkeep
+        line: 1
+        snippet: 'procedures _proposed/ tree'
+        action: delete
+      - file: src/doctrine/styleguides/_proposed/.gitkeep
+        line: 1
+        snippet: 'styleguides _proposed/ tree'
+        action: delete
+      - file: src/doctrine/toolguides/_proposed/.gitkeep
+        line: 1
+        snippet: 'toolguides _proposed/ tree'
+        action: delete
+      - file: src/doctrine/paradigms/_proposed/.gitkeep
+        line: 1
+        snippet: 'paradigms _proposed/ tree'
+        action: delete
+
+  # ---------------------------------------------------------------------
+  # 5. cli_command_name — removed doctrine subcommands
+  # ---------------------------------------------------------------------
+  - name: cli_command_name
+    strings:
+      - "doctrine curate"
+      - "doctrine promote"
+      - "doctrine reset"
+      - "doctrine status"
+    include_globs:
+      - "src/specify_cli/**/*.py"
+      - "src/specify_cli/missions/**/*.md"
+      - "src/specify_cli/skills/**/*.md"
+      - "src/doctrine/**/README.md"
+      - "src/charter/README.md"
+      - "tests/**/*.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change:
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 111
+        snippet: 'Interactive curation interview for _proposed/ artifacts.'
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 153
+        snippet: 'Show curation status — what''s proposed vs shipped.'
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 201
+        snippet: 'Clear curation session state (does not move artifacts).'
+        action: delete
+      - file: src/doctrine/_reference/README.md
+        line: 24
+        snippet: '← (spec-kitty doctrine curate → accept)'
+        action: rewrite
+      - file: src/doctrine/curation/README.md
+        line: 19
+        snippet: 'spec-kitty doctrine curate'
+        action: delete
+
+  # ---------------------------------------------------------------------
+  # 6. docstring_or_comment — prose inside the deleted CLI/module files
+  # ---------------------------------------------------------------------
+  - name: docstring_or_comment
+    strings:
+      - "Doctrine management commands"
+      - "curation interview"
+      - "curation session"
+    include_globs:
+      - "src/specify_cli/cli/commands/**/*.py"
+      - "src/doctrine/curation/**"
+      - "src/specify_cli/validators/doctrine_curation.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change:
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 1
+        snippet: 'Doctrine management commands'
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 121
+        snippet: 'Resuming curation session'
+        action: delete
+      - file: src/specify_cli/cli/commands/doctrine.py
+        line: 125
+        snippet: 'Starting new curation session'
+        action: delete
+
+  # ---------------------------------------------------------------------
+  # 7. template_reference — SOURCE prose that mentions the removed curation
+  #    workflow (agent-copy dirs are explicitly excluded per spec C-005).
+  # ---------------------------------------------------------------------
+  - name: template_reference
+    strings:
+      - "doctrine curate"
+      - "_proposed/ → shipped/"
+      - "Doctrine curation interview"
+      - "curation engine in `curation/`"
+    include_globs:
+      - "src/specify_cli/missions/**/*.md"
+      - "src/specify_cli/skills/**/*.md"
+      - "src/doctrine/**/README.md"
+      - "src/charter/README.md"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - ".claude/**"
+      - ".amazonq/**"
+      - ".augment/**"
+      - ".codex/**"
+      - ".cursor/**"
+      - ".gemini/**"
+      - ".github/prompts/**"
+      - ".kilocode/**"
+      - ".opencode/**"
+      - ".qwen/**"
+      - ".roo/**"
+      - ".windsurf/**"
+    expected_final_count: 0
+    to_change:
+      - file: src/doctrine/procedures/README.md
+        line: 14
+        snippet: '- Doctrine curation interview'
+        action: delete
+      - file: src/doctrine/README.md
+        line: 32
+        snippet: '## Curation pipeline'
+        action: rewrite
+      - file: src/doctrine/README.md
+        line: 36
+        snippet: 'curation engine in `curation/`'
+        action: rewrite
+      - file: src/doctrine/_reference/README.md
+        line: 14
+        snippet: 'src/doctrine/<type>/_proposed/'
+        action: rewrite
+      - file: src/doctrine/_reference/README.md
+        line: 23
+        snippet: '<type>/_proposed/ ← structured doctrine artifact awaiting curation'
+        action: rewrite
+
+  # ---------------------------------------------------------------------
+  # 8. test_identifier — curation test files deleted in their entirety
+  # ---------------------------------------------------------------------
+  - name: test_identifier
+    strings:
+      - "tests/doctrine/curation"
+      - "test_doctrine_curation_unit"
+    include_globs:
+      - "tests/**/*.py"
+    exclude_globs:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    expected_final_count: 0
+    to_change:
+      - file: tests/doctrine/curation/test_engine.py
+        line: 1
+        snippet: 'test file exercising deleted curation engine'
+        action: delete
+      - file: tests/doctrine/curation/conftest.py
+        line: 1
+        snippet: 'fixtures exercising deleted curation engine'
+        action: delete
+      - file: tests/cross_cutting/test_doctrine_curation_unit.py
+        line: 1
+        snippet: 'test file exercising deleted doctrine_curation validator'
+        action: delete
+
+# Permitted exceptions — live strings that MUST survive because they are
+# out of WP01 scope or covered by a spec carve-out.
+permitted_exceptions:
+  - pattern: "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+    reason: "Spec C-006 carve-out: migration is allowed to carry legacy strings for historical upgrades."
+    owner_wp: WP01
+  - pattern: "src/charter/catalog.py"
+    reason: "`include_proposed` parameter on load_doctrine_catalog() is removed in WP03, not WP01."
+    owner_wp: WP01
+  - pattern: "src/doctrine/_reference/"
+    reason: "Raw reference landing zone — WP01 only touches README prose; intake metadata in candidate .import.yaml files referring to `_proposed/` paths is retained as historical provenance (no runtime behavior depends on it)."
+    owner_wp: WP01
+  - pattern: "src/doctrine/agent_profiles/repository.py"
+    reason: "Error message string mentions `_proposed/` as a historical hint; agent_profile _proposed tree was never populated and is out of WP01 scope."
+    owner_wp: WP01
+  - pattern: "glossary-curation-interview"
+    reason: "Non-doctrine `curation` literal: this is the glossary mission's curation tactic and is not part of the doctrine _proposed→shipped workflow excised by WP01."
+    owner_wp: WP01
+  - pattern: "documentation-curation-audit"
+    reason: "Non-doctrine `curation` literal: documentation mission tactic, unrelated to doctrine curation."
+    owner_wp: WP01
+  - pattern: "Content curation"
+    reason: "Generic English `curation` in capability description, unrelated to doctrine curation surface."
+    owner_wp: WP01
+  - pattern: "Doctrine curation import-candidate"
+    reason: "WP03 will rewrite this import-candidate schema comment when the schema itself is revisited."
+    owner_wp: WP01
+  - pattern: "src/doctrine/styleguides/shipped/python-conventions.styleguide.yaml"
+    reason: "Shipped styleguide refers to an intake path under `_proposed/` that no longer exists; rewriting the styleguide body is WP02/WP03 editorial work."
+    owner_wp: WP01
+  - pattern: "src/doctrine/schemas/import-candidate.schema.yaml"
+    reason: "Schema comment is out of WP01 scope."
+    owner_wp: WP01
+  - pattern: "src/doctrine/toolguides/shipped/EFFICIENT_LOCAL_TOOLING.md"
+    reason: "Toolguide prose carries an example command line referencing `_proposed/`; rewriting shipped toolguides is editorial work tracked outside WP01."
+    owner_wp: WP01
+  - pattern: "src/doctrine/tactics/shipped/glossary-curation-interview.tactic.yaml"
+    reason: "Non-doctrine `curation` literal: glossary curation tactic."
+    owner_wp: WP01
+  - pattern: "src/doctrine/tactics/glossary-curation-interview.tactic.yaml"
+    reason: "Non-doctrine `curation` literal: glossary curation tactic."
+    owner_wp: WP01
+  - pattern: "src/doctrine/tactics/shipped/documentation-curation-audit.tactic.yaml"
+    reason: "Non-doctrine `curation` literal: documentation mission tactic."
+    owner_wp: WP01
+  - pattern: "src/doctrine/tactics/README.md"
+    reason: "Tactic README references the glossary-curation-interview tactic; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/skills/README.md"
+    reason: "Skill README mentions glossary terminology curation; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/skills/spec-kitty-mission-system/SKILL.md"
+    reason: "Skill SKILL.md text mentions glossary curation; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/procedures/shipped/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml"
+    reason: "Shipped procedure step description references the old curation workflow in prose; content rewrite of shipped procedures is tracked in a follow-up editorial pass, not WP01."
+    owner_wp: WP01
+  - pattern: "src/doctrine/agent_profiles/capabilities.py"
+    reason: "Generic 'Content curation' description string in a capability enum; unrelated to doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/toolguides/shipped/contextive.toolguide.yaml"
+    reason: "Toolguide text references glossary curation workflow; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/toolguides/shipped/CONTEXTIVE.md"
+    reason: "Toolguide markdown references glossary curation; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/paradigms/shipped/domain-driven-design.paradigm.yaml"
+    reason: "References `glossary-curation-interview` tactic; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/templates/architecture/glossary-template.md"
+    reason: "Glossary template references glossary curation tactic; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/graph.yaml"
+    reason: "Graph nodes/edges reference glossary-curation-interview tactic; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/directives/shipped/032-conceptual-alignment.directive.yaml"
+    reason: "Shipped directive references `glossary-curation-interview` tactic; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "src/doctrine/tactics/shipped/bounded-context-canvas-fill.tactic.yaml"
+    reason: "Shipped tactic references `glossary-curation-interview`; non-doctrine curation."
+    owner_wp: WP01
+  - pattern: "tests/doctrine/procedures/test_repository.py"
+    reason: "Test data uses fixture id 'curation-interview' generically (not referring to doctrine curation module)."
+    owner_wp: WP01
+  - pattern: "tests/doctrine/procedures/conftest.py"
+    reason: "Conftest fixture text describes a `_proposed/` entry condition as historical example; not tied to deleted curation workflow."
+    owner_wp: WP01
+  - pattern: "tests/cross_cutting/packaging/test_package_bundling.py"
+    reason: "No longer references curation; the wheel-bundling assertion for the deleted curation import fixture was removed in WP01."
+    owner_wp: WP01
+  - pattern: "tests/release/test_release_payload_draft.py"
+    reason: "Tests for `proposed_changelog_block` field are unrelated to doctrine `_proposed/` workflow."
+    owner_wp: WP01
+  - pattern: "src/specify_cli/upgrade/migrations/m_2_1_2_fix_glossary_context_skill.py"
+    reason: "Migration docstring references glossary curation; non-doctrine curation."
+    owner_wp: WP01
