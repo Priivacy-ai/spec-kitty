@@ -103,7 +103,9 @@ jobs:
   # green: their only jobs were gated on the `cli` filter, and the merge commit's
   # diff did not touch `src/specify_cli/cli/**`. Before the disjuncts, a push to
   # main whose diff matched no filter group started 10 of 50 suite jobs and left
-  # 31,540 of 33,771 collected test nodes (93.4%) running nowhere.
+  # 31,547 of 33,822 collected test nodes (93.3%) running nowhere. With them it
+  # starts 49 of 50 and leaves 0. (Figures re-measured 2026-07-27 on this branch;
+  # the gate below re-derives them live, so they are illustrative, not load-bearing.)
   #
   # The `needs.changes.outputs.<group>` reference is KEPT in every condition,
   # deliberately: deleting it would leave the group gating no test-running job
@@ -3851,6 +3853,14 @@ jobs:
   # consumer-compatibility: validates the CI-built wheel against the private
   # SaaS consumer contract using trusted validation scripts from the base commit.
   # The private contract is never exposed to PR-controlled checkout code.
+  #
+  # DELIBERATELY the one dorny-group-gated job WITHOUT the
+  # `|| github.event_name == 'push'` disjunct every other one carries (issue
+  # #2957 / WP10). It runs no pytest, so it collects no test node and is outside
+  # the collection-completeness property entirely; it is also network- and
+  # cross-repo-artefact dependent, so starting it on every push to main would buy
+  # no coverage and add an external flake source. Do not add the disjunct here
+  # for consistency's sake — the inconsistency is the decision.
   # ---------------------------------------------------------------------------
   consumer-compatibility:
     name: SaaS consumer compatibility
