@@ -44,7 +44,10 @@ import yaml
 
 from scripts.generate_schemas import generate_schema
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+# No `fast`: this module shells out to `scripts/generate_schemas.py --check`,
+# and Rule 2 of the marker-correctness gate keeps subprocess work out of the
+# inner loop's `-m fast` profile. `doctrine` alone is the right tier.
+pytestmark = [pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _REPO_ROOT / "scripts" / "generate_schemas.py"

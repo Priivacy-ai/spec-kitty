@@ -765,6 +765,14 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     # (test_tasks_mark_status_seam.py) that ``_ms_apply_updates`` routes back
     # through ``_tasks.<attr>``.
     _resolve_inline_subtasks as _resolve_inline_subtasks,
+    # #2962 campsite fix: the fifth subtask-id resolver (authored `subtasks:`
+    # frontmatter roster) and the owning-WP helper the two event-emit sites
+    # share with it. Re-exported for the same reason as the straggler above —
+    # the consolidated compat guard requires every symbol natively defined in a
+    # seam module to appear in `tasks`' key-set, so a new helper that skips this
+    # block is invisible to the guard that exists to notice exactly that.
+    _resolve_authored_roster as _resolve_authored_roster,
+    owning_wp_from_authored_roster as owning_wp_from_authored_roster,
 )
 
 
