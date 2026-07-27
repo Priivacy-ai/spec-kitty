@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-25'
+updated: '2026-07-27'
 ---
 # Changelog
 
@@ -200,6 +200,26 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   baseline is regenerated accordingly.
 
 ### 🐛 Fixed
+
+- **Placement-port residuals: partition routing is now enforced by the port, not
+  by caller discipline (#2923, #2924, #2926, #2932; epic #2931).** Closes the
+  residuals deferred from the coord-write-placement-closure merge (PR #2920):
+  - The sole `status_phase` writer (`_flip_phase`) resolves its write target
+    through the placement port and **fails closed** with a typed
+    `PlacementMismatchError` (writing nothing) if the resolved PRIMARY home
+    disagrees with the caller's directory — coincidental correctness becomes an
+    enforced invariant.
+  - The two-target legacy cutover reads `tasks/` frontmatter from the PRIMARY leg
+    while the status event write stays on COORD.
+  - Three hand-rolled "resolve write target, else degrade" copies collapse into
+    one `resolve_write_target_or_degrade` helper (each caller keeps its own
+    fail-open / fail-closed policy), and the retrospective trace loader degrades
+    to `[]` on a deleted coordination branch. A latent bug is fixed along the way:
+    a caller-supplied coordination branch that was silently discarded in the
+    pre-`meta.json` bootstrap window is now honored.
+  - The write-side placement scan no longer blanket-exempts the `migration/`
+    subtree, restoring whole-tree precision. The remaining deferred gate/contract
+    reds were already green on the current base and are verified in-mission.
 
 - **The merge review-readiness check no longer writes a stray `status.json`
   during a merge (#2934).** The check that looks for a rejected review before
