@@ -10,7 +10,8 @@ All recovery transitions use actor="recovery" for auditability.
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, PlacementSeam, placement_seam
+from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import logging
@@ -36,6 +37,14 @@ logger = logging.getLogger(__name__)
 
 
 RECOVERY_ACTOR = "recovery"
+
+# Synthetic RecoveryState identity used to report a DELETED coordination branch
+# as a recovery FINDING instead of raising out of the scanner. ``spec-kitty
+# implement --recover`` is the operator's designated way out of broken state, so
+# the very topology it exists to repair must yield a usable report, not a
+# traceback.
+COORD_FINDING_WP_ID = "COORDINATION"
+COORD_BRANCH_DELETED_ACTION = "coordination_branch_deleted"
 
 # Status lanes that recovery can advance through (never past in_progress)
 _RECOVERY_CEILING = Lane.IN_PROGRESS
@@ -104,6 +113,51 @@ class RecoveryState:
     # When consult_status_events=True and dep branches are merged-and-deleted,
     # this field records how the WP was resolved (e.g. "merged_and_deleted")
     resolution_note: str = ""
+
+
+def _coord_branch_deleted_finding(exc: CoordinationBranchDeleted) -> RecoveryState:
+    """Render a DELETED coordination branch as a synthetic recovery FINDING.
+
+    The exception carries actionable remediation (``spec-kitty doctor
+    coordination --fix``) in ``next_step``; that guidance is propagated into
+    ``resolution_note`` rather than discarded, so the operator sees how to
+    recover in the very report they ran to diagnose the breakage.
+    """
+    return RecoveryState(
+        wp_id=COORD_FINDING_WP_ID,
+        lane_id="",
+        branch_name=exc.coordination_branch,
+        branch_exists=False,
+        worktree_exists=False,
+        context_exists=False,
+        status_lane="unknown",
+        has_commits=False,
+        recovery_action=COORD_BRANCH_DELETED_ACTION,
+        resolution_note=exc.next_step,
+    )
+
+
+def _resolve_status_read_dir(
+    seam: PlacementSeam,
+    primary_dir: Path,
+) -> tuple[Path, RecoveryState | None]:
+    """Resolve the coord-aware STATUS read dir, degrading on a deleted branch.
+
+    Returns ``(status_dir, finding)``. On the DELETED coord-branch shape the
+    scanner degrades to the PRIMARY checkout for the status leg — the event log
+    there is absent or stale, so the returned finding explicitly warns that
+    reported lanes are unreliable until the mission is flattened.
+    """
+    try:
+        return seam.read_dir(MissionArtifactKind.STATUS_STATE), None
+    except CoordinationBranchDeleted as exc:
+        logger.warning(
+            "Coordination branch %r is deleted; recovery scan degrades the status "
+            "leg to the primary checkout and reports a finding. %s",
+            exc.coordination_branch,
+            exc.next_step,
+        )
+        return primary_dir, _coord_branch_deleted_finding(exc)
 
 
 @dataclass
@@ -598,7 +652,9 @@ def scan_recovery_state(
     seam = placement_seam(repo_root, mission_slug)
     primary_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
     # STATUS leg: the append-only event log stays coord-aware (C-001 / #2155).
-    coord_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
+    # A DELETED coordination branch is reported as a FINDING, never raised: the
+    # recovery scanner is the escape hatch for exactly this broken topology.
+    coord_dir, coord_finding = _resolve_status_read_dir(seam, primary_dir)
 
     branches = _list_mission_branches(repo_root, mission_slug)
     lane_branches = [b for b in branches if parse_lane_id_from_branch(b) is not None]
@@ -619,6 +675,11 @@ def scan_recovery_state(
         lane_branches=lane_branches,
         contexts_by_lane=contexts_by_lane,
     )
+
+    if coord_finding is not None:
+        # Surface the deleted-branch finding FIRST so it heads the operator's
+        # report, and so it survives the legacy early return below.
+        recovery_states.insert(0, coord_finding)
 
     if not consult_status_events:
         # Legacy path: no event-log consultation, return early.
@@ -841,8 +902,19 @@ def run_recovery(
     if not states:
         return report
 
+    # A deleted coordination branch is a FINDING, not a repairable WP: it has no
+    # worktree/context/status to reconcile. Route its remediation guidance into
+    # report.errors so the operator still gets the recovery instruction.
+    for finding in states:
+        if finding.recovery_action == COORD_BRANCH_DELETED_ACTION:
+            report.errors.append(f"{finding.wp_id}: {finding.resolution_note}")
+
     # Filter to states that need active recovery
-    needs_recovery = [s for s in states if s.recovery_action != "no_action"]
+    needs_recovery = [
+        s
+        for s in states
+        if s.recovery_action not in {"no_action", COORD_BRANCH_DELETED_ACTION}
+    ]
 
     # Track which lanes have already had worktree/context recovery
     # to avoid duplicate operations (multiple WPs share a lane worktree)
