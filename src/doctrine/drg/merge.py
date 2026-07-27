@@ -506,10 +506,20 @@ def _resolve_edge_endpoint(
     qualified (rule 2), which is order-independent by construction.
 
     Existence is deliberately NOT required for case 2: a fully-qualified
-    endpoint may legitimately name a node contributed by a later layer, and
-    dangling-endpoint detection belongs to the DRG validator, not the URN
-    minter. What the bridge owes is that it never *invents* a kind and never
-    drops an endpoint in silence.
+    endpoint may legitimately name a node contributed by a *later* layer (the
+    project layer merges after the org fragments) or by a sibling pack this
+    merge did not load, so at mint time the question is genuinely unanswerable.
+    The check is therefore **deferred, not dropped** — see
+    :func:`_dangling_org_endpoints`, which :func:`merge_three_layers` runs once
+    every layer is in.
+
+    An earlier revision of this docstring named :mod:`doctrine.drg.validator`
+    as the owner and stopped there. The reasoning was right but the control did
+    not run: no production caller of :func:`merge_three_layers` invoked
+    ``validate_graph``/``assert_valid``, so a typo in a qualified endpoint
+    merged clean as a dangling edge with nothing said. Deferring to a control
+    the call graph never reaches is the same silence this mission closes, one
+    layer up.
 
     Args:
         raw: The endpoint token exactly as the fragment author wrote it.
@@ -559,6 +569,89 @@ def _endpoint_conflict(
         project_value=None,
         resolution_applied="hard_fail",
     )
+
+
+@dataclass(frozen=True)
+class _OrgEdgeContribution:
+    """One org-contributed edge, kept next to the fragment edge that authored it.
+
+    :func:`_resolve_edge_endpoint` accepts a fully-qualified endpoint verbatim
+    without proving it exists, because a later layer may still supply the node.
+    Collecting that deferral needs two things the merged :class:`DRGEdge` alone
+    cannot give back: the *authored* fragment edge (so the conflict record can
+    show the operator the declaration they wrote, ``reason`` field and all) and
+    the ``org:<pack>`` marker that names which pack to go fix.
+    """
+
+    minted: DRGEdge
+    authored: Any
+    source_marker: str
+
+
+def _dangling_org_endpoints(
+    contributions: Iterable[_OrgEdgeContribution],
+    merged_nodes: Mapping[str, DRGNode],
+) -> list[tuple[str, str]]:
+    """Return ``(source_marker, urn)`` for org endpoints that bind to nothing.
+
+    The post-assembly half of the endpoint policy. Only rule 2 of
+    :func:`_resolve_edge_endpoint` (a fully-qualified URN accepted verbatim) can
+    reach this state — rule 1 binds to a node the fragment itself contributes
+    and rule 3 binds to a built-in URN, and both are in *merged_nodes* by
+    construction. So this collects the deferral rather than adding a second,
+    overlapping existence check.
+
+    **Visible, not fatal.** The merge deliberately does not refuse here, because
+    it cannot tell a typo from a legitimate reference into a sibling pack the
+    operator has not configured — and callers legitimately merge a *subset* of
+    the graph on purpose (``charter lint`` merges org fragments against an
+    EMPTY built-in graph to isolate pack-level conflicts; refusing would break
+    every qualified endpoint it sees). Completeness is the caller's question to
+    ask, so this reports and lets the caller judge, exactly as
+    :func:`_warn_builtin_override` does for a permitted-but-visible override.
+
+    What the merge does owe — and now discharges — is that nothing lands in
+    silence: every dangling endpoint gets a WARNING naming the pack and the
+    token, whichever caller ran the merge. The surface that owns graph
+    completeness (``spec-kitty doctor doctrine``, which merges the real
+    built-in against the real configured packs) escalates the same finding to a
+    structured error via
+    :func:`doctrine.drg.validator.validate_dangling_references`.
+
+    Scoped to org contributions on purpose. Built-in and project edges are not
+    minted by this bridge; adjudicating them here would report defects the
+    org-pack author cannot act on, against layers this function has no
+    provenance for.
+    """
+    dangling: list[tuple[str, str]] = []
+    for contribution in contributions:
+        edge = contribution.minted
+        # A self-edge whose single endpoint dangles is one defect, not two.
+        for urn in dict.fromkeys((edge.source, edge.target)):
+            if urn in merged_nodes:
+                continue
+            dangling.append((contribution.source_marker, urn))
+    return dangling
+
+
+def _warn_dangling_org_endpoints(
+    dangling: Iterable[tuple[str, str]],
+) -> None:
+    """Emit one WARNING per org endpoint that names nothing in the merged graph.
+
+    Mirrors :func:`_warn_builtin_override` / :func:`_warn_project_override`:
+    the merge permits the shape but refuses to let it pass unseen.
+    """
+    for source_marker, urn in dangling:
+        _logger.warning(
+            "Org doctrine %r declares an edge endpoint %r that names no node in "
+            "any merged layer. The edge is kept (the endpoint may belong to a "
+            "sibling pack this merge did not load) but it resolves to nothing "
+            "here — check the token for a typo, or configure the pack that "
+            "declares it. `spec-kitty doctor doctrine` reports this as an error.",
+            source_marker,
+            urn,
+        )
 
 
 def _bridge_org_edge_to_drg_edge(
@@ -647,6 +740,7 @@ def _merge_org_fragment(
     merged_edges: list[DRGEdge],
     invariant_urns: frozenset[str],
     conflicts: list[OrgDRGConflict],
+    contributions: list[_OrgEdgeContribution],
 ) -> None:
     """Merge one org-DRG fragment into *merged_nodes* / *merged_edges*.
 
@@ -707,6 +801,9 @@ def _merge_org_fragment(
             continue
         if drg_edge is not None:
             merged_edges.append(drg_edge)
+            contributions.append(
+                _OrgEdgeContribution(drg_edge, edge, source_marker)
+            )
 
 
 def _warn_builtin_override(urn: str, source_marker: str) -> None:
@@ -864,6 +961,17 @@ def merge_three_layers(
     source in silence and no longer invents a ``directive:`` kind for an
     unresolvable target.
 
+    A fully-qualified endpoint is accepted verbatim at mint time (a later layer
+    may still supply the node) and re-checked here against the fully-assembled
+    node set — see :func:`_dangling_org_endpoints`. An org endpoint that names
+    nothing in any merged layer is **not** a hard fail (the merge cannot tell a
+    typo from a reference into a sibling pack the caller did not load, and
+    ``charter lint`` merges against an empty built-in on purpose) but it always
+    emits a WARNING naming the pack and the token, so no caller — present or
+    future — can consume such an edge unwarned.
+    :func:`doctrine.drg.validator.validate_dangling_references` is how a caller
+    that owns graph completeness escalates the same finding to an error.
+
     Every node and edge in the returned graph carries a declared ``provenance``
     field readable via ``node.provenance``:
 
@@ -907,6 +1015,7 @@ def merge_three_layers(
         kind's layered-override tolerance.
     """
     conflicts: list[OrgDRGConflict] = []
+    contributions: list[_OrgEdgeContribution] = []
 
     # Seed the merged maps with the built-in layer.
     merged_nodes: dict[str, DRGNode] = {
@@ -920,7 +1029,12 @@ def merge_three_layers(
 
     for fragment in org_fragments:
         _merge_org_fragment(
-            fragment, merged_nodes, merged_edges, invariant_urns, conflicts
+            fragment,
+            merged_nodes,
+            merged_edges,
+            invariant_urns,
+            conflicts,
+            contributions,
         )
 
     if any(c.resolution_applied == "hard_fail" for c in conflicts):
@@ -934,6 +1048,14 @@ def merge_three_layers(
             merged_nodes[node.urn] = _tag_source(node, "project")
         for edge in project.edges:
             merged_edges.append(_tag_source(edge, "project"))
+
+    # Post-assembly endpoint existence. A fully-qualified org endpoint is
+    # accepted verbatim at mint time because the project layer had not merged
+    # yet; now it has, so the deferral is collected here rather than left to a
+    # validator that no caller of this function was actually running.
+    _warn_dangling_org_endpoints(
+        _dangling_org_endpoints(contributions, merged_nodes)
+    )
 
     # Global URN-uniqueness scan (FR-008/FR-004, D-04 revised): a single
     # post-merge, order-independent, prefix-scoped check covering all three

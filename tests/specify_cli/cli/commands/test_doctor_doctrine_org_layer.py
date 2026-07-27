@@ -178,6 +178,70 @@ def test_collect_org_layer_data_returns_configured_packs(
     assert isinstance(pack.get("edge_count"), int)
 
 
+def test_collect_org_layer_data_reports_a_dangling_org_endpoint(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """A qualified endpoint that binds to nothing is an ERROR here (WP08 fold).
+
+    ``merge_three_layers`` accepts a fully-qualified endpoint verbatim and only
+    WARNs when it resolves to nothing, because it cannot tell whether its caller
+    merged the whole graph or a deliberate subset — ``charter lint`` merges org
+    fragments against an EMPTY built-in graph on purpose.
+
+    ``_collect_org_layer_data`` is the caller that DOES hold a complete graph:
+    the real shipped built-in against the operator's real configured packs. So
+    it escalates, and — because ``DoctrineHealthReport.healthy`` reads
+    ``org_drg['errors']`` — a typo'd endpoint now flips ``doctor doctrine`` to
+    RC=1 instead of passing clean.
+
+    Before the fold, no production caller of ``merge_three_layers`` ran
+    ``validate_graph``/``assert_valid`` at all, so this returned no errors.
+    """
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    fragment = tmp_repo_with_org_pack / "example_org" / "drg" / "fragment.yaml"
+    fragment.write_text(
+        fragment.read_text(encoding="utf-8").replace(
+            "styleguide:plain-language", "styleguide:plain-languagee"
+        ),
+        encoding="utf-8",
+    )
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    dangling = result.get("dangling_endpoints")
+    assert isinstance(dangling, list) and dangling, (
+        f"a typo'd qualified endpoint must be reported, got {result!r}"
+    )
+    assert any("styleguide:plain-languagee" in e for e in dangling), (
+        f"the report must name the offending token; got {dangling}"
+    )
+    errors = result.get("errors")
+    assert isinstance(errors, list)
+    assert any("styleguide:plain-languagee" in e for e in errors), (
+        "the finding must reach org_drg['errors'] — that is the channel "
+        f"DoctrineHealthReport.healthy reads; got {errors}"
+    )
+
+
+def test_collect_org_layer_data_reports_no_dangling_endpoint_when_clean(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """The escalation must discriminate, not fire on every pack.
+
+    The shipped fixture references a real built-in node by qualified URN — the
+    sanctioned cross-fragment authoring shape — so an unmodified pack must come
+    back clean. Without this, the test above would pass on a check that flagged
+    everything.
+    """
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    assert result.get("dangling_endpoints") is None, result
+    assert result.get("errors") == []
+
+
 def test_collect_org_layer_data_empty_packs_when_none_configured(
     tmp_repo_without_org_pack: Path,
 ) -> None:

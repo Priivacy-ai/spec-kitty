@@ -480,6 +480,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         load_org_drg,
         merge_three_layers,
     )
+    from doctrine.drg.validator import validate_dangling_references  # noqa: PLC0415
 
     result: dict[str, object] = {
         "configured_packs": [],
@@ -522,6 +523,21 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         merged = merge_three_layers(
             built_in=built_in, org_fragments=fragments, project=None
         )
+        # The endpoint policy's post-assembly half. ``merge_three_layers``
+        # accepts a fully-qualified endpoint verbatim (a sibling pack or a later
+        # layer may supply the node) and only WARNs when it binds to nothing,
+        # because it cannot know whether its caller merged the whole graph or a
+        # deliberate subset — ``charter lint`` merges against an EMPTY built-in
+        # on purpose. THIS call site is the one that holds a graph it can call
+        # complete: the real shipped built-in against the operator's real
+        # configured packs. So it is the surface that escalates a dangling
+        # endpoint from a warning to an error, using the canonical check rather
+        # than a doctor-local restatement of "dangling".
+        dangling = validate_dangling_references(merged)
+        if dangling:
+            result["dangling_endpoints"] = dangling
+            _append_org_errors(result, dangling)
+
         built_in_urns = frozenset(node.urn for node in built_in.nodes)
         unsanctioned = _adjudicate_org_overrides(merged, built_in_urns, repo_root)
         if unsanctioned:

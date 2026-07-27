@@ -6,7 +6,8 @@ Public API:
         NodeKind, Relation,
         DRGNode, DRGEdge, DRGGraph,
         load_graph, load_graph_or_dir, merge_layers, DRGLoadError,
-        validate_graph, assert_valid, DRGValidationError,
+        validate_graph, validate_dangling_references,
+        assert_valid, DRGValidationError,
     )
 """
 
@@ -29,7 +30,12 @@ from doctrine.drg.models import (
     Relation,
 )
 from doctrine.drg.query import ResolvedContext, resolve_context, walk_edges
-from doctrine.drg.validator import DRGValidationError, assert_valid, validate_graph
+from doctrine.drg.validator import (
+    DRGValidationError,
+    assert_valid,
+    validate_dangling_references,
+    validate_graph,
+)
 
 __all__ = [
     "NodeKind",
@@ -45,6 +51,7 @@ __all__ = [
     "merge_layers",
     "DRGLoadError",
     "validate_graph",
+    "validate_dangling_references",
     "assert_valid",
     "DRGValidationError",
     "walk_edges",

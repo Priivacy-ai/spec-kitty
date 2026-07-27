@@ -52,6 +52,7 @@ from doctrine.drg.merge import (
 )
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
+from doctrine.drg.validator import validate_dangling_references, validate_graph
 
 pytestmark = [pytest.mark.unit]
 
@@ -106,9 +107,11 @@ def _fragment(
 def _built_in() -> DRGGraph:
     """A small built-in layer carrying one node of three distinct kinds.
 
-    ``caveman-comments`` is deliberately a **styleguide** — it is the shape the
+    ``caveman-comments`` is deliberately a **styleguide** — the shape the
     in-repo ``tests/architectural/_fixtures/org_packs/example_org`` fixture
-    references, and the one D2 mistranslated into ``directive:caveman-comments``.
+    exercises (a bare, non-fragment-local target whose declared kind is not
+    ``directive``), and the one D2 mistranslated into
+    ``directive:caveman-comments``.
     """
     return _graph(
         DRGNode(urn="directive:builtin-alpha", kind=NodeKind.DIRECTIVE),
@@ -622,13 +625,21 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
     own :class:`OrgDRGConflict` vocabulary rather than a second error channel.
     """
 
-    def test_a_typo_in_a_qualified_endpoint_does_not_merge_clean(self) -> None:
+    def test_a_typo_in_a_qualified_endpoint_does_not_land_unwarned(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """The measured hole: ``builtin-alpha`` mistyped as ``builtin-alfa``.
 
         Before this fix the merge returned a graph carrying
         ``directive:mine --requires--> directive:builtin-alfa`` — an endpoint
         naming nothing, which every downstream traversal silently fails to
-        follow. ``validate_graph`` would have reported it; nothing called it.
+        follow — and said nothing at all.
+
+        The merge WARNs rather than refusing: it cannot distinguish this typo
+        from a legitimate reference into a sibling pack the caller did not load
+        (``charter lint`` merges org fragments against an EMPTY built-in graph
+        on purpose). Escalation to an error belongs to the caller that holds a
+        complete graph — see the ``doctor doctrine`` coverage.
         """
         fragment = _fragment(
             [{"id": "mine", "kind": "directives"}],
@@ -641,37 +652,22 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
             ],
         )
 
-        with pytest.raises(OrgDRGConflictError) as excinfo:
+        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
             merge_three_layers(_built_in(), [fragment], None)
 
-        offending = [
-            c
-            for c in excinfo.value.conflicts
-            if c.target_id == "directive:builtin-alfa"
-        ]
-        assert offending, (
-            "a qualified endpoint that names no node in ANY merged layer must "
-            "be reported against the token the author wrote; got "
-            f"{[(c.kind, c.target_id) for c in excinfo.value.conflicts]}"
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any("directive:builtin-alfa" in w for w in warnings), (
+            "a qualified endpoint that binds to nothing must name the offending "
+            f"token so the pack author can find it; got {warnings}"
         )
-        assert offending[0].kind == "unresolved_edge_endpoint", (
-            "the post-assembly miss must speak the bridge's existing endpoint "
-            "vocabulary, not a second error language"
+        assert any("org:probe-pack" in w for w in warnings), (
+            "...and must name the pack to go fix"
         )
-        assert offending[0].resolution_applied == "hard_fail"
-        assert "org:probe-pack" in offending[0].conflicting_layers
-        assert offending[0].org_value["relation"] == "requires"
 
-    def test_the_named_compensating_control_agrees_with_the_merge(self) -> None:
-        """Executable form of the docstring's claim.
-
-        The bridge defers existence to :mod:`doctrine.drg.validator`. Pin that
-        the two now agree: whatever ``merge_three_layers`` returns carries no
-        dangling reference for the validator to find.
-        """
-        from doctrine.drg.validator import _validate_dangling_references
-
-        built_in = _built_in()
+    def test_a_resolvable_endpoint_produces_no_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The warning must discriminate, or operators learn to ignore it."""
         fragment = _fragment(
             [{"id": "sox-controls", "kind": "directives"}],
             [
@@ -688,9 +684,38 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
             ],
         )
 
+        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+            merged = merge_three_layers(_built_in(), [fragment], None)
+
+        assert [r.getMessage() for r in caplog.records if r.levelname == "WARNING"] == []
+        assert validate_dangling_references(merged) == []
+
+    def test_the_named_compensating_control_is_reachable_and_agrees(self) -> None:
+        """Executable form of the docstring's claim.
+
+        The bridge defers existence to :mod:`doctrine.drg.validator`. That
+        deferral only means anything if the check is (a) reachable as a public
+        canonical function rather than a private helper each caller must
+        re-implement, and (b) in agreement with what the merge warned about.
+        """
+        built_in = _built_in()
+        fragment = _fragment(
+            [{"id": "mine", "kind": "directives"}],
+            [
+                {
+                    "source": "mine",
+                    "target": "directive:builtin-alfa",
+                    "relation": "requires",
+                }
+            ],
+        )
+
         merged = merge_three_layers(built_in, [fragment], None)
 
-        assert _validate_dangling_references(merged) == []
+        errors = validate_dangling_references(merged)
+        assert len(errors) == 1, errors
+        assert "Dangling target" in errors[0]
+        assert "directive:builtin-alfa" in errors[0]
 
     def test_the_shipped_built_in_graph_is_a_clean_baseline(self) -> None:
         """The post-assembly check is only affordable because the shipped graph
@@ -700,6 +725,46 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
 
         built_in = load_built_in_graph()
         assert validate_graph(merge_three_layers(built_in, [], None)) == []
+
+    def test_a_cross_pack_reference_is_warned_but_not_refused(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Why the merge reports instead of refusing.
+
+        The in-repo ``example_org`` fixture demonstrates the sanctioned
+        cross-pack authoring shape: a fully-qualified reference to a node
+        shipped by a *sibling* pack. Refusing every unbindable qualified
+        endpoint would make that documented pattern un-loadable whenever the
+        sibling pack is not configured — and would break ``charter lint``,
+        which merges org fragments against an EMPTY built-in graph by design.
+        The edge survives; the operator is told.
+        """
+        fragment = _fragment(
+            [{"id": "sox-controls", "kind": "directives"}],
+            [
+                {
+                    "source": "sox-controls",
+                    "target": "styleguide:from-a-pack-i-did-not-configure",
+                    "relation": "refines",
+                }
+            ],
+        )
+
+        built_in = _built_in()
+        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+            merged = merge_three_layers(built_in, [fragment], None)
+
+        assert _org_edges(merged, built_in) == [
+            (
+                "directive:sox-controls",
+                "styleguide:from-a-pack-i-did-not-configure",
+                "refines",
+            )
+        ]
+        assert any(
+            "from-a-pack-i-did-not-configure" in r.getMessage()
+            for r in caplog.records
+        )
 
     def test_a_qualified_endpoint_may_still_name_a_later_layers_node(self) -> None:
         """The deferral must survive — this is WHY mint-time existence is wrong.
@@ -730,19 +795,19 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
         ) in _org_edges(merged, built_in)
 
     def test_the_post_assembly_check_would_catch_a_reintroduced_hole(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Self-mutation (standing order 5): prove the check is load-bearing.
 
         Neuter the post-assembly detector and assert the typo goes back to
-        merging clean — i.e. the gate above is what is catching it, not some
-        incidental refusal elsewhere in the merge.
+        landing in silence — i.e. the warning above comes from this check, not
+        from something incidental elsewhere in the merge.
         """
         import doctrine.drg.merge as merge_mod
 
         monkeypatch.setattr(
             merge_mod,
-            "_dangling_org_endpoint_conflicts",
+            "_dangling_org_endpoints",
             lambda contributions, merged_nodes: [],
             raising=True,
         )
@@ -758,10 +823,15 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
             ],
         )
         built_in = _built_in()
-        merged = merge_three_layers(built_in, [fragment], None)
+        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+            merged = merge_three_layers(built_in, [fragment], None)
+
         assert ("directive:mine", "directive:builtin-alfa", "requires") in _org_edges(
             merged, built_in
-        ), "the mutation must restore the defect, otherwise the gate is decorative"
+        )
+        assert [r.getMessage() for r in caplog.records if r.levelname == "WARNING"] == [], (
+            "the mutation must restore the silence, otherwise the check is decorative"
+        )
 
 
 # ---------------------------------------------------------------------------
