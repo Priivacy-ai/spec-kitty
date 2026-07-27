@@ -51,6 +51,12 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     owning_wp_from_authored_roster,
 )
 
+# Pure-logic resolution over a tmp_path fixture: no subprocess, no git, no network.
+# Without a tier marker no CI job's ``-m`` expression selects this file, so it would
+# run in no job at all — the exact silence WP10's collection-completeness gate exists
+# to catch, and which it did catch here.
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 _TEMPLATE_SHAPED_TASKS_MD = """\
 # Work Packages: Example
 
