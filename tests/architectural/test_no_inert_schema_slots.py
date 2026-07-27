@@ -225,6 +225,7 @@ from tests.architectural._inert_slots import (
     BaselineEntry,
     BaselineError,
     InertSlot,
+    find_code_only_suppressions,
     find_inert_slots,
     load_baseline,
     owner_exists,
@@ -301,6 +302,60 @@ def test_planted_slot_with_an_authored_producer_is_not_flagged(tmp_path: Path) -
     )
 
     assert find_inert_slots(tmp_path) == []
+
+
+#: The three dead-write shapes that silence a finding. The first is the one review
+#: demonstrated; the other two were found while confirming it, and their existence
+#: is the reason this is not fixed by enumerating AST shapes (see below).
+_DEAD_WRITES = {
+    "dict-literal-key": '_UNUSED = {"zzzprobeslot": None}\n',
+    "bare-binding": "zzzprobeslot = None\n",
+    "keyword-argument": "def _f() -> None:\n    _g(zzzprobeslot=1)\n",
+}
+
+
+@pytest.mark.parametrize("shape", sorted(_DEAD_WRITES))
+def test_a_dead_code_write_cannot_silence_a_new_finding(
+    tmp_path: Path, shape: str
+) -> None:
+    """The inverse self-mutation test — the one whose absence left the gate fakeable.
+
+    ``test_planted_slot_with_an_authored_producer_is_not_flagged`` exercises the
+    *artefact* producer path. The **code** producer path — the fakeable one — had no
+    test in either direction, so NFR-001's easy question ("does the gate fire?") was
+    answered and the hard one ("can it be silenced without ceremony?") was not.
+
+    Review demonstrated the gap on the shipped tree: plant a producerless property,
+    then append ``_UNUSED = {"zzzprobeslot": None}`` to ``artifact_kinds.py``, and the
+    module goes 1-failed → 26-passed. No ``ALLOWLIST`` entry (``test_allowlist_is_empty``
+    forbids it), no baseline entry (that needs an ``owner`` and a ``disposition``, and
+    the anti-weasel check stands behind it) — **nothing visible in review at all.**
+
+    Confirming it turned up two more shapes, and that is the load-bearing detail: a
+    bare binding and a keyword argument silence it just as well. Any rule of the form
+    "which AST node counts as a write" is satisfiable by writing the node, so
+    enumerating shapes narrows the hole and never closes it. What closes it is
+    removing the *silence*: a slot kept out of the findings list by code alone is
+    recorded in ``_inert_slots_baseline.yaml``, and the recorded set must match the
+    computed one exactly. The producer rule is deliberately unchanged; what changes
+    is that using it now costs a reviewable row.
+    """
+    _plant(tmp_path, schema="type: object\nproperties:\n  zzzprobeslot:\n    type: string\n")
+    assert [s.name for s in find_inert_slots(tmp_path)] == ["zzzprobeslot"]
+
+    (tmp_path / "src" / "doctrine" / "dead.py").write_text(
+        _DEAD_WRITES[shape], encoding="utf-8"
+    )
+
+    assert find_inert_slots(tmp_path) == [], (
+        "the producer rule is intentionally untouched by this fix — if this went red, "
+        "the rule was tightened and the corroboration record below may now be "
+        "double-counting. Re-measure before deleting either."
+    )
+    assert [s.name for s in find_code_only_suppressions(tmp_path)] == ["zzzprobeslot"], (
+        f"a {shape} that nothing reads silenced a finding and left no trace; the "
+        "shipped-tree gate would have gone green on it"
+    )
 
 
 def test_a_schema_definitions_entry_is_not_a_slot(tmp_path: Path) -> None:
