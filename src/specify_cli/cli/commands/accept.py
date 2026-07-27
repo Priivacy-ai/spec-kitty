@@ -21,7 +21,6 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.missions._read_path_resolver import (
@@ -131,6 +130,57 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
     return worktree_root
 
 
+def _coord_status_feature_dir(repo_root: Path, mission_slug: str) -> Path | None:
+    """Resolve the COORD-partition mission dir the birth-cutover seeds into.
+
+    ``cutover_mission``'s ``status_feature_dir`` argument IS the ``STATUS_STATE``
+    port target — the directory where ``status.events.jsonl`` canonically lives
+    under coordination topology (``runtime_state_cutover.cutover_mission``
+    docstring, WP09/IC-08). So the kind is
+    :attr:`~mission_runtime.MissionArtifactKind.STATUS_STATE`, not the
+    ``ACCEPTANCE_MATRIX`` kind :func:`_coord_worktree_root` probes with: both are
+    COORD-partition kinds resolving to the same mission dir, but naming the kind
+    the caller actually writes keeps the site honest if the partition table ever
+    splits them.
+
+    Routed through :meth:`~mission_runtime.PlacementSeam.read_dir` — the single
+    kind-aware placement authority — instead of re-deriving
+    ``<coord worktree>/kitty-specs/<slug>`` by hand. The hand-built join was also
+    latently wrong for identity-suffixed mission dirs (``<slug>-<mid8>``), which
+    the seam resolves correctly.
+
+    Returns ``None`` when the mission's ``STATUS_STATE`` surface is not ``COORD``
+    (coord-less topology, or a coordination worktree that is ``EMPTY`` /
+    ``UNMATERIALIZED``), preserving the pre-existing contract that
+    ``cutover_mission`` then collapses both legs onto the PRIMARY ``feature_dir``.
+    A ``DELETED`` coordination branch still raises
+    :class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted`
+    out of the surface resolver — accept must refuse rather than silently stamp a
+    stale primary (the same C3 "fail loud" posture as :func:`_coord_worktree_root`,
+    which the accept flow already hits earlier via :func:`_coord_dirty_paths`).
+    """
+    from mission_runtime import (
+        MissionArtifactKind,
+        TopologySurface,
+        placement_seam,
+        resolve_artifact_surface,
+    )
+
+    # Guard the handle before it reaches the seam so both legs of the stamp carry
+    # the same traversal check (the PRIMARY leg gets it from
+    # ``primary_feature_dir_for_mission``).
+    assert_safe_path_segment(mission_slug)
+
+    resolved = resolve_artifact_surface(
+        repo_root, mission_slug, MissionArtifactKind.STATUS_STATE
+    )
+    if resolved.surface_kind is not TopologySurface.COORD:
+        return None
+    return placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
+
+
 def _coord_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     """Return tracked-but-uncommitted acceptance artifacts in the COORD worktree.
 
@@ -226,20 +276,14 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
 
     from specify_cli.migration.runtime_state_cutover import stamp_accept_cutover
 
-    # COORD leg stays an explicit join under the already-resolved coordination
-    # worktree root: ``primary_feature_dir_for_mission`` normalises its argument
-    # through ``get_main_repo_root``, which would redirect this back to the
-    # primary checkout and collapse the very partition split this function
-    # exists to preserve. The slug is re-guarded here so both legs carry the
-    # same traversal check.
-    coord_worktree_root = _coord_worktree_root(repo_root, mission_slug)
-    if coord_worktree_root is not None:
-        assert_safe_path_segment(mission_slug)
-    status_feature_dir = (
-        (coord_worktree_root / KITTY_SPECS_DIR / mission_slug)
-        if coord_worktree_root is not None
-        else None
-    )
+    # COORD leg comes from the kind-aware placement seam (see
+    # :func:`_coord_status_feature_dir`) rather than a hand-built join under the
+    # coordination worktree root: ``primary_feature_dir_for_mission`` would
+    # redirect this back to the primary checkout (it normalises through
+    # ``get_main_repo_root``) and collapse the very partition split this
+    # function exists to preserve, while a raw mission-spec-dir join re-derives
+    # placement the seam already owns.
+    status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug)
 
     try:
         result = stamp_accept_cutover(feature_dir, status_feature_dir=status_feature_dir)
