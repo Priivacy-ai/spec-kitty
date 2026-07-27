@@ -1263,6 +1263,20 @@ def _model_to_dict(model: BaseModel) -> dict[str, Any]:
     Derived from ``type(model).model_fields`` rather than a hand-written key
     list, so a field added to the model is written without anyone remembering
     to update this function.
+
+    **This is not the only DRG writer.** Three sibling write paths still restate
+    their keys by hand and will silently drop a field added to the models:
+
+    * ``specify_cli/migration/rewrite_opposed_by.py`` (org-pack rewrite) — `#2977
+      <https://github.com/Priivacy-ai/spec-kitty/issues/2977>`_
+    * ``charter/synthesizer/project_drg.py`` (project overlay) — already drops
+      the declared ``DRGNode.tags`` field today
+    * :func:`_dump_graph_document` below, for the five document-level keys;
+      ``DRGGraph`` also declares no ``model_config``, so unknown top-level keys
+      are accepted and discarded rather than rejected
+
+    Deriving *this* function does not make those safe. Anyone adding a model
+    field should check all four sites, not just this one.
     """
     rendered: dict[str, Any] = {}
     for field_name in type(model).model_fields:
