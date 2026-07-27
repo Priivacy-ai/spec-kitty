@@ -342,6 +342,31 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # ``assert_safe_path_segment`` guard (FR-004) each bootstrap previously
     # lacked.  WP05 confirms the drain by re-derivation against the
     # equivalence matrix.
+    # ----- accept.py: the COORD leg of the accept-time birth-cutover stamp -----
+    # Mission runtime-state-birth-cutover-all-paths-01KYH654 (WP02).  The PRIMARY
+    # leg of ``_stamp_birth_cutover_for_accept`` WAS migrated onto the blessed
+    # ``primary_feature_dir_for_mission`` primitive; this COORD leg deliberately
+    # was not.  That primitive normalises its root through ``get_main_repo_root``,
+    # which would redirect a coordination-worktree root back to the primary
+    # checkout — collapsing the exact PRIMARY/COORD partition split this function
+    # exists to preserve, and sending the COORD seed events to the wrong leg.
+    # ``coord_worktree_root`` is itself already resolved by the affirmative
+    # ``mission_runtime.resolve_artifact_surface`` seam, and the slug is
+    # pre-validated by ``assert_safe_path_segment`` immediately above the join —
+    # meeting the TBYD bar verbatim.
+    ContentDescriptor(
+        rel_path="specify_cli/cli/commands/accept.py",
+        qualname="_stamp_birth_cutover_for_accept",
+        token_substring="coord_worktree_root / KITTY_SPECS_DIR",
+        occurrence=None,
+        rationale=(
+            "TBYD — accept-time birth-cutover COORD leg: root is the already-resolved "
+            "coordination worktree (mission_runtime.resolve_artifact_surface); slug is "
+            "pre-validated by assert_safe_path_segment. Routing through "
+            "primary_feature_dir_for_mission would re-anchor on get_main_repo_root and "
+            "collapse the PRIMARY/COORD split."
+        ),
+    ),
 )
 
 

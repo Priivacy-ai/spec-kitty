@@ -21,7 +21,10 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
+from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -198,15 +201,29 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
     caller aborts the whole ``accept`` command rather than silently landing a
     slug-namespaced seed.
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    # PRIMARY leg via the blessed topology-blind constructor rather than a raw
+    # join: it is the sanctioned owner of ``KITTY_SPECS_DIR`` assembly AND it
+    # applies ``assert_safe_path_segment`` to the slug. It deliberately does NOT
+    # route through the topology-aware resolver -- that one selects the coord
+    # worktree once it exists, which is exactly the surface that lacks
+    # ``meta.json``, so using it here would send the phase stamp to the wrong leg.
+    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     if not feature_dir.is_dir():
         return  # nothing to stamp
 
     from specify_cli.migration.runtime_state_cutover import stamp_accept_cutover
 
+    # COORD leg stays an explicit join under the already-resolved coordination
+    # worktree root: ``primary_feature_dir_for_mission`` normalises its argument
+    # through ``get_main_repo_root``, which would redirect this back to the
+    # primary checkout and collapse the very partition split this function
+    # exists to preserve. The slug is re-guarded here so both legs carry the
+    # same traversal check.
     coord_worktree_root = _coord_worktree_root(repo_root, mission_slug)
+    if coord_worktree_root is not None:
+        assert_safe_path_segment(mission_slug)
     status_feature_dir = (
-        (coord_worktree_root / "kitty-specs" / mission_slug)
+        (coord_worktree_root / KITTY_SPECS_DIR / mission_slug)
         if coord_worktree_root is not None
         else None
     )
