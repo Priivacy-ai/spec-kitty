@@ -1269,7 +1269,14 @@ def _dn_bootstrap(
     except FileNotFoundError:
         origin = {"mission_tier": "unknown", "mission_path": "unknown"}
 
-    progress = _compute_wp_progress(feature_dir)
+    # Task definitions are durable primary artifacts; lane state is read from
+    # the topology-aware status surface.  A materialized coordination worktree
+    # intentionally omits ``tasks/``, so using one directory for both inputs
+    # makes a completed mission appear to have no work packages.
+    progress = _compute_wp_progress(
+        _primary_runtime_feature_dir(repo_root, mission_slug),
+        status_dir=feature_dir,
+    )
 
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)

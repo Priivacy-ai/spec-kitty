@@ -351,6 +351,59 @@ def test_bootstrap_builds_full_context_on_happy_path(
     assert fake_emitter.seeded and fake_emitter.seeded[0].issued_step_id == "implement"
 
 
+def test_bootstrap_reads_task_board_from_primary_and_lanes_from_status_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A materialized coordination surface must not hide durable task files."""
+    status_dir = tmp_path / ".worktrees" / "042-mission-coord" / "kitty-specs" / "042-mission"
+    status_dir.mkdir(parents=True)
+    primary_dir = tmp_path / "kitty-specs" / "042-mission"
+    (primary_dir / "tasks").mkdir(parents=True)
+    (primary_dir / "tasks" / "WP01.md").write_text("# WP01\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    run_ref = _make_run_ref(run_dir)
+
+    class _FakeSyncEmitter:
+        def seed_from_snapshot(self, _snapshot: Any) -> None:
+            return None
+
+        @staticmethod
+        def for_feature(**_kw: Any) -> _FakeSyncEmitter:
+            return _FakeSyncEmitter()
+
+    observed_progress_inputs: list[tuple[Path, Path | None]] = []
+
+    def _record_progress(
+        task_board_dir: Path, *, status_dir: Path | None = None
+    ) -> dict[str, int]:
+        observed_progress_inputs.append((task_board_dir, status_dir))
+        return {"total_wps": 1, "done_wps": 1}
+
+    monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda _root, _slug: status_dir)
+    monkeypatch.setattr(rb, "_primary_runtime_feature_dir", lambda _root, _slug: primary_dir)
+    monkeypatch.setattr(rb, "get_mission_type", lambda _dir: "software-dev")
+    monkeypatch.setattr(rb, "SyncRuntimeEventEmitter", _FakeSyncEmitter)
+    monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, _slug, _root: emitter)
+    monkeypatch.setattr(
+        rb, "get_or_start_run", lambda _slug, _root, _mission_type, *, emitter: run_ref
+    )
+    monkeypatch.setattr(
+        _engine_adapter, "_read_snapshot", lambda _run_dir: SimpleNamespace(issued_step_id=None)
+    )
+    monkeypatch.setattr(
+        _io_seam, "_build_operational_context_for_decision", lambda **_kw: OperationalContext()
+    )
+    monkeypatch.setattr(rb, "_compute_wp_progress", _record_progress)
+
+    ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
+
+    assert decision is None
+    assert ctx is not None
+    assert ctx.progress == {"total_wps": 1, "done_wps": 1}
+    assert observed_progress_inputs == [(primary_dir, status_dir)]
+
+
 def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

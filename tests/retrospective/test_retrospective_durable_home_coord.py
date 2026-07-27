@@ -132,6 +132,9 @@ def _seed_divergent_coord_topology(repo_root: Path) -> tuple[Path, Path]:
     coord_mission_dir.mkdir(parents=True, exist_ok=True)
     # A non-meta marker proves the dir is materialized yet lacks the identity files.
     (coord_mission_dir / "status.json").write_text("{}\n", encoding="utf-8")
+    # The append-only event log makes this a live coordination status surface,
+    # rather than a teardown husk that must fall back to the durable primary log.
+    (coord_mission_dir / "status.events.jsonl").write_text("\n", encoding="utf-8")
     assert not (coord_mission_dir / "meta.json").exists()
     assert not (coord_mission_dir / "lanes.json").exists()
     return primary_dir, coord_mission_dir

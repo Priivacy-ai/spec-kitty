@@ -230,10 +230,11 @@ def _resolve_directives_selection(
     doctrine: DoctrineSelectionConfig,
     directives_cfg: DirectivesConfig,
     doctrine_catalog: DoctrineCatalog,
+    project_directive_ids: set[str],
 ) -> tuple[list[str], str]:
-    """Resolve directive list from charter selection, local declarations, or catalog fallback."""
+    """Resolve directives from charter, local declarations, and project doctrine."""
     local_ids = {d.id for d in directives_cfg.directives}
-    valid_ids = set(local_ids)
+    valid_ids = set(local_ids) | project_directive_ids
     if doctrine_catalog.directives:
         valid_ids.update(doctrine_catalog.directives)
 
@@ -243,7 +244,7 @@ def _resolve_directives_selection(
             raise GovernanceResolutionError(
                 [
                     "Charter selected unavailable directive(s): " + ", ".join(missing),
-                    "Declare these IDs in directives.yaml or add them to doctrine/directives/built-in/.",
+                    "Declare these IDs in the charter or promote them into project doctrine.",
                 ]
             )
         return list(doctrine.selected_directives), "charter"
@@ -254,6 +255,27 @@ def _resolve_directives_selection(
         else sorted(doctrine_catalog.directives)
     )
     return fallback, "catalog_fallback"
+
+
+def _load_project_directive_ids(repo_root: Path) -> set[str]:
+    """Return valid directives promoted into the canonical project doctrine layer."""
+    from charter._doctrine_paths import resolve_project_root
+    from charter.catalog import resolve_doctrine_root
+    from doctrine.service import DoctrineService as RawDoctrineService
+
+    project_root = resolve_project_root(repo_root)
+    if project_root is None:
+        return set()
+
+    directives = RawDoctrineService(
+        built_in_root=resolve_doctrine_root(),
+        project_root=project_root,
+    ).directives
+    return {
+        directive.id
+        for directive in directives.list_all()
+        if directives.get_provenance(directive.id) == "project"
+    }
 
 
 def _resolve_template_set_selection(
@@ -310,6 +332,7 @@ def resolve_project_governance(
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
     doctrine_catalog = load_doctrine_catalog()
+    project_directive_ids = _load_project_directive_ids(repo_root)
     doctrine = governance.doctrine
     diagnostics: list[str] = []
 
@@ -318,7 +341,12 @@ def resolve_project_governance(
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
-    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog)
+    resolved_directives, directives_source = _resolve_directives_selection(
+        doctrine,
+        directives_cfg,
+        doctrine_catalog,
+        project_directive_ids,
+    )
     template_set, template_set_source = _resolve_template_set_selection(
         doctrine, doctrine_catalog, fallback_template_set, diagnostics
     )
@@ -444,9 +472,12 @@ def resolve_mission_steps(
     """
     from charter.mission_steps import MissionStepRepository  # noqa: PLC0415
 
-    return MissionStepRepository.default().resolve_all_for_mission_type(
-        mission_type_id,
-        pack_context=cast("_PackContextLike | None", pack_context),
+    return cast(
+        dict[str, Any],
+        MissionStepRepository.default().resolve_all_for_mission_type(
+            mission_type_id,
+            pack_context=cast("_PackContextLike | None", pack_context),
+        ),
     )
 
 

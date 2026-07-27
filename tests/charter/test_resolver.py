@@ -592,6 +592,41 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
     assert "LOCAL_ONLY" in result.directives
 
 
+def test_promoted_project_directive_bypasses_builtin_catalog_validation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Promoted project doctrine is valid without a legacy charter declaration."""
+    doctrine_root = _make_doctrine_root(tmp_path)
+    monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+
+    repo_root = tmp_path / "repo"
+    _write_charter_files(
+        repo_root,
+        governance="doctrine:\n  selected_directives: [PROJECT_001]\n",
+    )
+    project_directive = (
+        repo_root
+        / ".kittify"
+        / "doctrine"
+        / "directive"
+        / "001-project-directive.directive.yaml"
+    )
+    project_directive.parent.mkdir(parents=True)
+    project_directive.write_text(
+        """schema_version: '1.0'
+id: PROJECT_001
+title: Project Directive
+intent: Preserve project governance.
+enforcement: required
+""",
+        encoding="utf-8",
+    )
+
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
+
+    assert result.directives == ["PROJECT_001"]
+
+
 def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
     """consolidate-charter-bundle (IC-04 / WP04): sync() writes nothing at all now.
 

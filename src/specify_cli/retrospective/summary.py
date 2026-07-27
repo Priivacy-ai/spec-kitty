@@ -16,7 +16,7 @@ WP03 addition (T017):
 
 from __future__ import annotations
 
-from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from specify_cli.core.constants import KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
@@ -194,6 +194,26 @@ def _read_slug_from_meta(mission_dir: Path) -> str | None:
     return str(slug) if slug else None
 
 
+def _mission_identity_keys(mission_dir: Path) -> set[tuple[str, str]]:
+    """Return stable identifiers used to de-duplicate discovery surfaces.
+
+    The tracked mission directory is the durable authority.  The old runtime
+    registry remains a compatibility discovery surface, so the same mission can
+    be present on both surfaces while a coordination worktree is alive.  Keep
+    identifiers namespaced to avoid conflating a slug with a mission id.
+    """
+    meta = load_meta_or_empty(mission_dir)
+    keys: set[tuple[str, str]] = set()
+    mission_id = meta.get("mission_id")
+    if isinstance(mission_id, str) and mission_id:
+        keys.add(("mission_id", mission_id))
+    for field in ("mission_slug", "feature_slug", "slug"):
+        slug = meta.get(field)
+        if isinstance(slug, str) and slug:
+            keys.add(("mission_slug", slug))
+    return keys
+
+
 # ---------------------------------------------------------------------------
 # Internal: proposal-lifecycle event reader
 # ---------------------------------------------------------------------------
@@ -293,29 +313,47 @@ def _top_n_reason_counts(counter: dict[str, int], limit: int) -> list[ReasonCoun
 
 
 def _iter_mission_dirs(project_path: Path) -> Generator[Path, None, None]:
-    """Yield each mission directory under .kittify/missions/."""
-    missions_root = project_path / ".kittify" / "missions"
-    if not missions_root.is_dir():
-        return
-    for entry in sorted(missions_root.iterdir()):
-        if entry.is_dir():
+    """Yield each durable mission, then legacy-only runtime-registry entries.
+
+    ``kitty-specs`` is the tracked durable mission home.  ``.kittify/missions``
+    is retained only so old projects remain readable; it must not hide a durable
+    record or cause the same mission to be counted twice.
+    """
+    seen_identity_keys: set[tuple[str, str]] = set()
+
+    for root in (
+        project_path / KITTY_SPECS_DIR,
+        project_path / ".kittify" / "missions",
+    ):
+        if not root.is_dir():
+            continue
+        for entry in sorted(root.iterdir()):
+            if not entry.is_dir():
+                continue
+            identity_keys = _mission_identity_keys(entry)
+            if identity_keys and seen_identity_keys.intersection(identity_keys):
+                continue
+            seen_identity_keys.update(identity_keys)
             yield entry
 
 
 def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
     """Resolve the retrospective.yaml path to read for a discovered mission dir.
 
-    FR-006 (#1771): the record now lives in the tracked feature_dir
-    (``kitty-specs/<slug>/retrospective.yaml``). The mission registry under
-    ``.kittify/missions/<id>/`` is still used for discovery (it carries
-    ``meta.json``), but the record is read from the tracked home — falling back
-    to the legacy in-registry path for pre-relocation records.
+    FR-006 (#1771): the record lives in the tracked mission directory
+    (``kitty-specs/<slug>/retrospective.yaml``).  The runtime registry is a
+    legacy fallback: resolve its record to the tracked home when possible, then
+    retain the in-registry path for pre-relocation records.
     """
+    if mission_dir.parent == project_path / KITTY_SPECS_DIR:
+        durable: Path = mission_dir / RETROSPECTIVE_FILENAME
+        return durable
+
     # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
     # malformed meta.json to {}; mission_slug stays None, matching the prior
     # try/except-None absorption.
     meta = load_meta_or_empty(mission_dir)
-    mission_slug = meta.get("mission_slug") or meta.get("slug")
+    mission_slug = meta.get("mission_slug") or meta.get("feature_slug") or meta.get("slug")
     if mission_slug:
         from specify_cli.retrospective.writer import canonical_record_path
 

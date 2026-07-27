@@ -388,16 +388,19 @@ def _resolve_existing_for_slug(
     coord_worktree_materialized = False
     has_coord_candidate = bool(mid8)
     if mid8:
-        # Shared probe (paula C2): MATERIALIZED → the coord mission dir IS the
-        # read; EMPTY → coord root exists but the dir does not (defer to the
-        # caller's fail-closed path).
+        # Shared probe (paula C2): a materialized coordination directory is the
+        # status read surface only once it carries the canonical append-only
+        # event log. Teardown can leave a status.json-only husk behind; treating
+        # that cache as authority would hide the durable primary event log.
         coord_state = probe_coord_state(repo_root, mission_slug, mid8)
         coord_worktree_materialized = coord_state in (
             CoordState.MATERIALIZED,
             CoordState.EMPTY,
         )
         if coord_state is CoordState.MATERIALIZED:
-            return coord_feature_dir(repo_root, mission_slug, mid8)
+            coord_candidate = coord_feature_dir(repo_root, mission_slug, mid8)
+            if (coord_candidate / "status.events.jsonl").is_file():
+                return coord_candidate
     if primary_candidate.exists():
         if (
             topology is None

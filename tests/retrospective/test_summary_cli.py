@@ -149,6 +149,41 @@ def _setup_simple_project(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def _setup_tracked_mission_project(tmp_path: Path) -> Path:
+    """Create one completed mission in its durable tracked home only."""
+    mission_dir = tmp_path / "kitty-specs" / "tracked-summary-mission"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": MISSION_ID_A,
+                "mission_slug": "tracked-summary-mission",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (mission_dir / "retrospective.yaml").write_text(
+        _make_completed_yaml(slug="tracked-summary-mission"),
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def _add_legacy_registry_entry_for_tracked_mission(project: Path) -> None:
+    """Add the retired runtime-registry view for the tracked mission."""
+    registry_dir = project / ".kittify" / "missions" / MISSION_ID_A
+    registry_dir.mkdir(parents=True)
+    (registry_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": MISSION_ID_A,
+                "mission_slug": "tracked-summary-mission",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests — exit codes
 # ---------------------------------------------------------------------------
@@ -176,6 +211,33 @@ class TestExitCodes:
         project = _setup_simple_project(tmp_path)
         result = RUNNER.invoke(app, ["--project", str(project)])
         assert result.exit_code == 0
+
+    def test_tracked_completed_mission_is_aggregated_without_runtime_registry(
+        self, tmp_path: Path
+    ) -> None:
+        """A durable tracked record remains visible after runtime cleanup."""
+        project = _setup_tracked_mission_project(tmp_path)
+
+        result = RUNNER.invoke(app, ["--project", str(project), "--json"])
+
+        assert result.exit_code == 0
+        snapshot = json.loads(result.output)["result"]
+        assert snapshot["mission_count"] == 1
+        assert snapshot["completed_count"] == 1
+
+    def test_tracked_mission_is_not_double_counted_with_legacy_registry(
+        self, tmp_path: Path
+    ) -> None:
+        """The legacy registry is fallback discovery, never a second mission."""
+        project = _setup_tracked_mission_project(tmp_path)
+        _add_legacy_registry_entry_for_tracked_mission(project)
+
+        result = RUNNER.invoke(app, ["--project", str(project), "--json"])
+
+        assert result.exit_code == 0
+        snapshot = json.loads(result.output)["result"]
+        assert snapshot["mission_count"] == 1
+        assert snapshot["completed_count"] == 1
 
 
 # ---------------------------------------------------------------------------

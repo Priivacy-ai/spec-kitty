@@ -56,7 +56,7 @@ def _write_primary_meta(repo_root: Path, slug: str, meta: dict[str, object]) -> 
 
 
 def _make_coord_mission_dir(repo_root: Path, slug: str, mid8: str) -> Path:
-    """Materialise the real ``.worktrees/<slug>-<mid8>-coord/...`` mission dir."""
+    """Materialise a live coord status surface with its canonical event log."""
     coord_dir = (
         repo_root
         / ".worktrees"
@@ -65,6 +65,7 @@ def _make_coord_mission_dir(repo_root: Path, slug: str, mid8: str) -> Path:
         / f"{slug}-{mid8}"
     )
     coord_dir.mkdir(parents=True)
+    (coord_dir / "status.events.jsonl").write_text("\n", encoding="utf-8")
     return coord_dir
 
 

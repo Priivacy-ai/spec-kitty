@@ -720,6 +720,7 @@ def resolve_status_surface_with_anchor(
         meta is not None
         and feature_dir_is_husk
         and _husk_is_authoritative_surface(repo_root, mission_slug)
+        and (feature_dir / _STATUS_EVENTS_FILENAME).is_file()
     ):
         return ResolvedStatusSurface(
             surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
@@ -804,6 +805,18 @@ def resolve_status_surface_with_anchor(
     coord_state = probe_coord_state(
         repo_root, mission_slug, mid8, coordination_branch=coord_branch
     )
+
+    # The append-only event log is the canonical lane-state authority. Teardown
+    # can leave a status.json-only coordination husk behind; it must not shadow
+    # the durable primary status projection.
+    if (
+        coord_state is CoordState.MATERIALIZED
+        and not (composed_coord_dir / _STATUS_EVENTS_FILENAME).is_file()
+    ):
+        return ResolvedStatusSurface(
+            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=feature_dir,
+        )
 
     # #1889 row R3 / #1848: the coord worktree is absent AND the declared
     # coordination branch has been DELETED from git. A deleted coord branch with
