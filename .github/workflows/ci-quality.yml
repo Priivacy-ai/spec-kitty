@@ -1576,6 +1576,21 @@ jobs:
       # by the ignore-mirror architectural invariant (FR-012 /
       # test_catch_all_ignore_lists_mirror_owned_roots_live): drift between this
       # list and the shard-owned roots fails tests/architectural/.
+      #
+      # --cov=src/mission_runtime (added alongside the pre-existing
+      # integration-tests-core-misc / arch-adversarial instrumentation): the
+      # "core-misc" shard's ``paths: ''`` selection includes tests/mission_runtime,
+      # but several of that package's own tests carry ONLY ``pytest.mark.fast``
+      # (no git_repo/integration/architectural) -- e.g.
+      # tests/mission_runtime/test_write_target_degrade.py, whose
+      # fail-closed-cause-chain assertions are pure-logic/tmp_path-only by
+      # design. Before this line, those files ran here (selected by ``-m
+      # "fast and not windows_ci"``) but their hits were never attributed to
+      # ``src/mission_runtime`` (only integration/architectural-marked
+      # mission_runtime tests were ever instrumented for it), so the
+      # diff-coverage critical-path gate saw them as 0% collected rather than
+      # exercised. Mirrors the sibling jobs' instrumentation instead of
+      # widening this file's own markers away from their correct fast tier.
       - name: "Run fast tests — core misc"
         run: |
           uv run python -m pytest \
@@ -1586,6 +1601,7 @@ jobs:
             --durations=50 \
             --cov=src/specify_cli \
             --cov=src/glossary \
+            --cov=src/mission_runtime \
             --cov-report=xml:out/reports/coverage/coverage-fast-core-misc-${{ matrix.shard }}.xml
       - name: "Upload fast-core-misc coverage"
         if: always()
