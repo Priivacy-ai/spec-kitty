@@ -45,7 +45,7 @@ from mission_runtime.context import (
     WorkspaceFragment,
     routes_through_coordination,
 )
-from mission_runtime.identity import resolve_mid8
+from mission_runtime.identity import mid8_from_slug, resolve_mid8
 from mission_runtime.mission_resolver_port import MissionResolver
 
 
@@ -1423,9 +1423,20 @@ class PlacementSeam:
         signal; no new exception type needed). Every other cell — a
         PRIMARY-partition kind, a coord-less topology (AH-2), or a coord
         topology whose worktree is genuinely ``EMPTY``/``UNMATERIALIZED``
-        (the create-window) — resolves IDENTICALLY to before: these are the
-        T031-enumerated SANCTIONED degrades, preserved verbatim (NFR-002
-        forbids only *undeclared* fallbacks, not these declared ones).
+        (the create-window) — resolves identically to before **with respect to
+        raising**: these are the T031-enumerated SANCTIONED degrades, preserved
+        verbatim (NFR-002 forbids only *undeclared* fallbacks, not these
+        declared ones).
+
+        Identical *raising* is NOT identical *anchoring*.
+        :func:`resolve_artifact_surface` applies
+        :func:`~specify_cli.core.paths.get_main_repo_root` to ``repo_root``
+        first; ``candidate_feature_dir_for_mission`` consumed ``repo_root``
+        VERBATIM. A caller migrating off that primitive can therefore see a
+        different resolved ROOT even in a cell that can never raise — the live
+        ``verify.py::_existing_feature_dir`` regression, which began returning a
+        main-repo path where it previously returned ``None``. Reason on BOTH
+        axes when auditing a migrated call site.
         """
         if kind is MissionArtifactKind.RETROSPECTIVE:
             from specify_cli.retrospective.writer import resolve_retrospective_home
@@ -1631,6 +1642,66 @@ def _classify_artifact_surface(
     return TopologySurface.PRIMARY, None
 
 
+def _backfilled_primary_dir(
+    primary_root: Path,
+    mission_slug: str,
+    primary_dir: Path,
+    *,
+    resolver: MissionResolver | None,
+) -> Path | None:
+    """Recover the BARE on-disk primary dir when ``mission_slug`` is ALREADY composed.
+
+    The existence-aware leg that keeps :func:`resolve_artifact_surface` IDEMPOTENT
+    under its own canonical output. ``resolve_planning_read_dir(...,
+    PRIMARY_METADATA)`` literal-composes ``<slug>-<mid8>``; for a **backfilled**
+    mission — whose primary dir on disk carries the BARE ``<slug>`` while its coord
+    worktree carries the composed ``<slug>-<mid8>`` — feeding the seam the composed
+    name it just emitted yields a ``primary_dir`` that does not exist. The
+    downstream ``declared_read_surface`` then finds no ``meta.json``, reads no
+    topology, and short-circuits to ``PRIMARY`` before ``probe_coord_state`` is ever
+    consulted — a silently wrong path that is not on disk.
+
+    This restores the branch the retired ``candidate_feature_dir_for_mission`` leg
+    carried explicitly ("backfilled mission: the directory name lacks the
+    ``-<mid8>`` suffix — trust it"), but on the PRIMARY side and *identity-confirmed*
+    rather than name-guessed: the recovered dir must DECLARE the very mid8 that was
+    stripped, via the ONE sanctioned mid8 cascade
+    (:func:`_mid8_from_primary_meta` → ``resolve_declared_mid8``, C-006/NFR-005).
+    A coincidental 8-char Crockford tail on an unrelated sibling dir therefore
+    cannot be mistaken for a mid8 (the documented hazard of the heuristic
+    :func:`~mission_runtime.identity.mid8_from_slug`).
+
+    Returns the recovered primary dir, or ``None`` to leave the caller's
+    literal-composed answer untouched — so a genuinely absent mission keeps its
+    existing fail-loud diagnostics unchanged (NFR-001).
+    """
+    if primary_dir.exists():
+        return None
+    tail = mid8_from_slug(mission_slug)
+    if not tail:
+        return None
+    bare = mission_slug[: -(len(tail) + 1)]
+    if not bare:
+        return None
+
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    # ``resolve_planning_read_dir`` is typed ``-> Path`` but the
+    # ``follow_imports=skip`` boundary on ``specify_cli.*`` widens it to ``Any``;
+    # bind explicitly so the declared return narrows back.
+    candidate: Path = resolve_planning_read_dir(
+        primary_root,
+        bare,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
+    )
+    if candidate == primary_dir or not candidate.is_dir():
+        return None
+    if _mid8_from_primary_meta(primary_root, bare).upper() != tail.upper():
+        return None
+    return candidate
+
+
 def resolve_artifact_surface(
     repo_root: Path,
     mission_slug: str,
@@ -1683,6 +1754,18 @@ def resolve_artifact_surface(
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
     )
+    # Idempotence under our own output (the #3012 backfilled-mission regression):
+    # when the literal-composed ``<slug>-<mid8>`` primary dir does NOT exist but the
+    # BARE ``<slug>`` dir does, adopt the bare dir BEFORE classifying. Every
+    # downstream consumer keys off ``canonical_slug`` and recomposes the coord name
+    # through the double-suffix-safe ``_compose_mission_dir``, so correcting the
+    # slug here is sufficient — and ``declared_read_surface`` can then actually read
+    # the mission's ``meta.json`` and reach ``probe_coord_state``.
+    recovered = _backfilled_primary_dir(
+        primary_root, mission_slug, primary_dir, resolver=resolver
+    )
+    if recovered is not None:
+        primary_dir = recovered
     canonical_slug = primary_dir.name
     surface_kind, coord_dir = _classify_artifact_surface(
         primary_root,
