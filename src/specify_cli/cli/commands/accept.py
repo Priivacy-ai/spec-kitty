@@ -24,7 +24,10 @@ from specify_cli.acceptance import (
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
-from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
+    primary_feature_dir_for_mission,
+)
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -207,7 +210,17 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
     # route through the topology-aware resolver -- that one selects the coord
     # worktree once it exists, which is exactly the surface that lacks
     # ``meta.json``, so using it here would send the phase stamp to the wrong leg.
-    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+    #
+    # WP05/FR-005 idiom (mirrors runtime_bridge.py and runtime_bridge_identity.py):
+    # the primitive composes the dir name verbatim, so the handle is folded to its
+    # canonical on-disk form first. ``mission_slug`` is already
+    # ``resolved.mission_slug`` at this call site, but routing it keeps the stamp
+    # correct for every handle form instead of depending on that invariant holding
+    # at every future caller.
+    feature_dir = primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
     if not feature_dir.is_dir():
         return  # nothing to stamp
 
