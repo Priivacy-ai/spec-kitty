@@ -36,7 +36,8 @@ from doctrine.missions.mission_step_repository import MissionStepRepository
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+_REPO_ROOT: Path = Path(__file__).resolve().parents[4]
+DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 
 #: Baseline DRG counts pinned by the mission-step-authority mission (NFR-002).
 #: Any drift here is a defect, not an accepted change -- see WP04's Definition
@@ -137,7 +138,146 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:     Guarded by ``tests/architectural/test_no_authored_applies_edge.py``.
 _EXPECTED_NODE_COUNT = 305
 _EXPECTED_EDGE_COUNT = 757
-_EXPECTED_ORPHAN_COUNT = 32
+
+# ---------------------------------------------------------------------------
+# Orphan MEMBERSHIP, not an orphan count
+# ---------------------------------------------------------------------------
+# This was ``_EXPECTED_ORPHAN_COUNT = 32`` -- a bare cardinality with the
+# delta-only ledger above as its sole explanation. A count cannot distinguish
+# "32 known-acceptable orphans" from "32 unexamined orphans", and they were the
+# second kind: nine of them are artefacts the charter has ACTIVATED, which the
+# count read as settled for as long as the number stayed at 32. Naming the
+# members makes a new orphan announce itself by URN instead of nudging an
+# integer, and makes the unacceptable ones impossible to file under the same
+# heading as the acceptable ones.
+#
+# The four sets below partition the orphan set by *why* each node has no edge.
+# Three are legitimate; the fourth is a tracked defect that must shrink to
+# empty. Deliberately NOT redefining the metric: ``_orphan_urns`` still counts
+# edge INCIDENCE, exactly as before (the stricter traversability measures in
+# issue #3009 move a golden count repo-wide and are a separate mission).
+
+#: Built-in mission step contracts. ``mission_step_contract.graph.yaml`` ships
+#: ``edges: []`` by construction (ledger entry 2): a contract is resolved by the
+#: ``(mission_type, action)`` join at pre-review activation, never by graph
+#: traversal, so it has no edge to carry. 17 shipped = documentation 7 +
+#: research 5 + software-dev 5.
+_EDGELESS_BY_CONSTRUCTION: frozenset[str] = frozenset(
+    {
+        f"mission_step_contract:{contract}"
+        for contract in (
+            "documentation/accept",
+            "documentation/audit",
+            "documentation/design",
+            "documentation/discover",
+            "documentation/generate",
+            "documentation/publish",
+            "documentation/validate",
+            "research/gathering",
+            "research/methodology",
+            "research/output",
+            "research/scoping",
+            "research/synthesis",
+            "software-dev/implement",
+            "software-dev/plan",
+            "software-dev/review",
+            "software-dev/specify",
+            "software-dev/tasks",
+        )
+    }
+)
+
+#: Nodes a landed mission registered before anything cross-references them.
+#: Each is explained by a numbered entry in the ledger above; an orphan here is
+#: expected to leave the set when the follow-up mission wires it, not to sit
+#: here indefinitely.
+_AWAITING_REFERENCES: frozenset[str] = frozenset(
+    {
+        # Ledger (glossary-pack-doctrine-kind-01KY30SW): Mission A ships the
+        # pack node with zero outbound refs; its enforcement fields stay inert
+        # until Mission B.
+        "glossary_pack:spec-kitty-core",
+        # Ledger (3): the first shipped doctrine ASSET; ``asset.graph.yaml``
+        # ships ``edges: []``. Wired by the hand-authored overlay -- see
+        # _ORPHANS_RESOLVED_BY_OVERLAY.
+        "asset:common-docs-structural-lint",
+        # Ledger (4): promoted out of ``toolguides/`` into the ``built-in``
+        # pack layer by ADR 2026-07-26-2, which made it a node for the first
+        # time. Nothing references it yet.
+        "toolguide:powershell-syntax",
+        # Ledger (doctrine-tension-edges-01KY1WPC WP03): a plain built-in
+        # directive whose only edges are the hand-authored
+        # ``reconciles_tension`` ones the extractor cannot mint. Wired by the
+        # overlay -- see _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+    }
+)
+
+#: The human operator is a participant, not a doctrine artefact anything
+#: delegates to or resolves through. No traversal should ever reach it, so
+#: zero incident edges is the correct shape rather than a gap.
+_NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-charge"})
+
+#: **Tracked defect -- issue #3009. This set must only ever SHRINK.**
+#: Every URN here is ACTIVATED in ``.kittify/config.yaml`` yet has no edge at
+#: all, so ``charter activate --cascade`` pulls in nothing for it, deactivation
+#: frees nothing, and no action's context resolution can surface it. The
+#: charter says these are live doctrine; the DRG says they reach nobody.
+#: ``procedure:red-main-release-discipline`` is the procedure behind charter
+#: standing order #9; ``tactic:occurrence-classification-workflow`` is the
+#: workflow behind DIRECTIVE_035 -- and DIRECTIVE_035 is itself on this list.
+#:
+#: This is the same failure WP09 fixed once for
+#: ``procedure:onboard-external-agent-to-pack`` (there: an edge typed
+#: ``applies``, which no traversal follows; here: no edge at all).
+#:
+#: Note the count: issue #3009 reports NINE. It is ten. The issue's matcher
+#: compares a node's bare id against the ``activated_*`` lists, which works for
+#: every kind except ``directive`` -- directive URNs are ``directive:
+#: DIRECTIVE_035`` while the charter activates the file slug
+#: ``035-bulk-edit-occurrence-classification``, so no directive could ever
+#: match. Fixing an artefact here removes its line; nothing may be added
+#: without an issue reference.
+_ACTIVATED_BUT_UNREACHABLE: frozenset[str] = frozenset(
+    {
+        "directive:DIRECTIVE_035",
+        "paradigm:atomic-design",
+        "procedure:red-main-release-discipline",
+        "styleguide:deployable-skill-authoring",
+        "styleguide:reasons-canvas-writing",
+        "tactic:decision-marker-capture",
+        "tactic:no-parallel-duplicate-test-runs",
+        "tactic:occurrence-classification-workflow",
+        "toolguide:python-review-checks",
+        "toolguide:rtk-search-tooling",
+    }
+)
+
+#: Every node a PURE ``generate_graph`` run leaves incident to no edge.
+#: 17 + 4 + 1 + 10 = 32, the cardinality the retired ``_EXPECTED_ORPHAN_COUNT``
+#: pinned -- now a consequence of the membership rather than the whole contract.
+_INTENTIONAL_ORPHANS: frozenset[str] = (
+    _EDGELESS_BY_CONSTRUCTION
+    | _AWAITING_REFERENCES
+    | _NOT_A_TRAVERSAL_TARGET
+    | _ACTIVATED_BUT_UNREACHABLE
+)
+
+#: The pure-extractor figure (32) and the shipped-graph figure (30) differ by
+#: exactly these two, and by nothing else: the hand-authored overlay
+#: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
+#: extractor has no frontmatter mechanism to mint, and they land on these nodes.
+#: Naming them keeps the two figures related by a stated cause instead of by two
+#: independent magic numbers that could drift apart unnoticed.
+_ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
+    {
+        "asset:common-docs-structural-lint",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+    }
+)
+
+#: Orphans that survive into the graph an operator actually loads.
+_SHIPPED_ORPHANS: frozenset[str] = _INTENTIONAL_ORPHANS - _ORPHANS_RESOLVED_BY_OVERLAY
 
 #: software-dev steps that are not action-sequence members (retrospect lives
 #: outside every type's step directory and is asserted separately).
@@ -174,6 +314,74 @@ def _orphan_urns(nodes: Any, edges: Any) -> set[str]:
     return {node.urn for node in nodes if node.urn not in incident}
 
 
+def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
+    """Render an orphan-set mismatch as the two directions a reader must act on.
+
+    The whole point of replacing the golden count: a failure must name the node,
+    and say whether something newly lost its edges or newly gained one.
+    """
+    appeared = sorted(measured - expected)
+    resolved = sorted(expected - measured)
+    lines: list[str] = []
+    if appeared:
+        lines.append(
+            "NEW orphans -- these nodes are incident to no edge and nothing "
+            "declares that acceptable:\n"
+            + "\n".join(f"    + {urn}" for urn in appeared)
+            + "\n  Either give the node an edge a traversal follows, or add it to "
+            "the bucket that explains why it has none."
+        )
+    if resolved:
+        lines.append(
+            "NO LONGER orphans -- these are still declared as edge-less:\n"
+            + "\n".join(f"    - {urn}" for urn in resolved)
+            + "\n  Drop them from the declaration; if one left "
+            "_ACTIVATED_BUT_UNREACHABLE, note the fix on issue #3009."
+        )
+    return "orphan membership drifted.\n  " + "\n  ".join(lines)
+
+
+def _charter_activated_urns() -> set[str]:
+    """Return every ``<kind>:<id>`` the project charter currently activates.
+
+    Directives are the reason this needs a mapping rather than a bare id
+    comparison: a directive node's URN carries its ``code``
+    (``directive:DIRECTIVE_035``) while ``.kittify/config.yaml`` activates the
+    file slug (``035-bulk-edit-occurrence-classification``).
+    """
+    import yaml
+
+    config = yaml.safe_load((_REPO_ROOT / ".kittify" / "config.yaml").read_text())
+    kind_for_key = {
+        "activated_directives": "directive",
+        "activated_tactics": "tactic",
+        "activated_toolguides": "toolguide",
+        "activated_procedures": "procedure",
+        "activated_paradigms": "paradigm",
+        "activated_styleguides": "styleguide",
+    }
+    slug_to_code: dict[str, str] = {}
+    for path in (DOCTRINE_ROOT / "directives" / "built-in").glob("*.directive.yaml"):
+        loaded = yaml.safe_load(path.read_text())
+        code = loaded.get("id") if isinstance(loaded, dict) else None
+        if code:
+            slug_to_code[path.name.removesuffix(".directive.yaml")] = str(code)
+    assert slug_to_code, (
+        "no directive slug->id mapping was built, so every directive would "
+        "silently fail to match an activation entry -- which is the exact "
+        "blind spot that made issue #3009 report nine instead of ten"
+    )
+
+    urns: set[str] = set()
+    for key, kind in kind_for_key.items():
+        for entry in config.get(key) or []:
+            identifier = str(entry)
+            if kind == "directive":
+                identifier = slug_to_code.get(identifier, identifier)
+            urns.add(f"{kind}:{identifier}")
+    return urns
+
+
 @pytest.mark.doctrine
 class TestDRGZeroDelta:
     """The projection re-point leaves the shipped DRG graph unchanged (NFR-002)."""
@@ -183,8 +391,85 @@ class TestDRGZeroDelta:
 
         assert len(graph.nodes) == _EXPECTED_NODE_COUNT  # golden-count: cardinality-is-contract
         assert len(graph.edges) == _EXPECTED_EDGE_COUNT  # golden-count: cardinality-is-contract
+
         orphans = _orphan_urns(graph.nodes, graph.edges)
-        assert len(orphans) == _EXPECTED_ORPHAN_COUNT  # golden-count: cardinality-is-contract
+        assert orphans == _INTENTIONAL_ORPHANS, _describe_orphan_drift(
+            orphans, _INTENTIONAL_ORPHANS
+        )
+
+    def test_shipped_graph_orphans_are_the_pure_set_minus_the_overlay(self) -> None:
+        """The two figures (pure 32, shipped 30) differ by a stated cause.
+
+        Asserting each against its own constant would let them drift apart while
+        both stayed green. Here the shipped set is *derived* from the pure set,
+        so an overlay edge that stops landing reds with the node's name.
+        """
+        shipped = load_built_in_graph()
+        orphans = _orphan_urns(shipped.nodes, shipped.edges)
+        assert orphans == _SHIPPED_ORPHANS, _describe_orphan_drift(
+            orphans, _SHIPPED_ORPHANS
+        )
+
+    def test_the_overlay_really_does_wire_the_nodes_it_is_credited_with(self) -> None:
+        """Floor for the derivation above.
+
+        If ``_ORPHANS_RESOLVED_BY_OVERLAY`` named a node the overlay does not
+        actually wire, the subtraction would still produce a self-consistent
+        pair of sets. This pins the cause, not just the arithmetic.
+        """
+        assert _INTENTIONAL_ORPHANS >= _ORPHANS_RESOLVED_BY_OVERLAY
+        assert not (_ORPHANS_RESOLVED_BY_OVERLAY & _SHIPPED_ORPHANS)
+
+        overlay_targets: set[str] = set()
+        for edge in HAND_AUTHORED_EDGES:
+            overlay_targets.add(edge.source)
+            overlay_targets.add(edge.target)
+        assert overlay_targets >= _ORPHANS_RESOLVED_BY_OVERLAY, (
+            "these nodes are credited to the hand-authored overlay but no "
+            "overlay edge touches them: "
+            f"{sorted(_ORPHANS_RESOLVED_BY_OVERLAY - overlay_targets)}"
+        )
+
+    def test_the_orphan_partition_is_disjoint_and_total(self) -> None:
+        """The four ``why`` sets must partition the orphan set exactly.
+
+        Without this an entry could sit in two buckets (or in none while the
+        union still matched), which would let the tracked-defect set be
+        understated while every other assertion stayed green.
+        """
+        parts = (
+            _EDGELESS_BY_CONSTRUCTION,
+            _AWAITING_REFERENCES,
+            _NOT_A_TRAVERSAL_TARGET,
+            _ACTIVATED_BUT_UNREACHABLE,
+        )
+        assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
+            "the orphan buckets overlap -- a URN is filed under two reasons"
+        )
+
+    def test_activated_but_unreachable_orphans_are_really_activated(self) -> None:
+        """Floor for the tracked-defect set (#3009).
+
+        A set that merely *claims* ten artefacts are charter-activated would
+        keep this defect visible after the charter stopped activating them --
+        or hide it if an entry were quietly dropped. Read the real charter
+        config and compare, resolving directive URNs through their file slug
+        (``directive:DIRECTIVE_035`` is activated as
+        ``035-bulk-edit-occurrence-classification``), which is precisely the
+        mapping issue #3009's own matcher lacks.
+        """
+        activated = _charter_activated_urns()
+        assert activated >= _ACTIVATED_BUT_UNREACHABLE, (
+            "these are filed as activated-yet-orphaned but the charter no "
+            "longer activates them -- move them to another bucket: "
+            f"{sorted(_ACTIVATED_BUT_UNREACHABLE - activated)}"
+        )
+        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_UNREACHABLE
+        assert not strays, (
+            "these orphans are charter-ACTIVATED but are filed under an "
+            f"'acceptable' reason: {sorted(strays)}. Activating them cascades "
+            "to nothing -- add them to _ACTIVATED_BUT_UNREACHABLE and #3009."
+        )
 
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:
         """A fresh regeneration + the hand-authored overlay matches the shipped graph.
