@@ -41,6 +41,7 @@ from .reducer import (
 )
 from .store import (
     is_retrospective_lifecycle_event,
+    ANNOTATION_KIND,
     EVENTS_FILENAME,
     EventPersistenceError,
     StoreError,
@@ -298,6 +299,7 @@ __all__ = [
     "IdentityState",
     "InvalidMissionSlug",
     "MissionMetadataUnavailable",
+    "ANNOTATION_KIND",
     "LIFECYCLE_EVENT_TYPES",
     "LOCAL_ONLY_LIFECYCLE_EVENT_TYPES",
     "FOLLOW_UP_RECORDED",

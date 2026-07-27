@@ -34,6 +34,8 @@ from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.migration.mission_state import _repair_mission
 from specify_cli.retrospective.events import CompletedPayload, emit_retrospective_event
 from specify_cli.retrospective.schema import ActorRef
+from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
+from specify_cli.status.store import append_annotations_atomic_verified
 from specify_cli.status.lifecycle_events import (
     SPECIFY_STARTED,
     emit_artifact_phase,
@@ -255,6 +257,89 @@ def test_retrospective_row_preserved_decision_mirror_pruned(tmp_path: Path) -> N
     assert result.quarantined_rows == 1
     surviving = _event_ids(log.read_text(encoding="utf-8"))
     assert retro_id in surviving
+    for event_id in lifecycle_ids:
+        assert event_id in surviving
+    assert decision_id not in surviving
+
+
+def _emit_inner_state_annotation(mission_dir: Path) -> str:
+    """Emit a canonical ``InnerStateChanged`` annotation; return its ``event_id``.
+
+    Annotations use the ``kind: "annotation"`` envelope — a FOURTH
+    reader-preserved non-lane class (see
+    :func:`specify_cli.status.store.is_non_lane_event`, whose explicit
+    ``kind == ANNOTATION_KIND`` branch is deliberately placed FIRST). They carry
+    no ``from_lane``/``to_lane`` by construction and their only per-mission home
+    is ``status.events.jsonl``; the reducer folds their typed
+    :class:`WPInnerStateDelta` into the per-WP runtime slots.
+
+    Written through the durability-verified producer
+    :func:`append_annotations_atomic_verified` (C-007 / #1248) rather than a
+    hand-assembled dict, matching the rows ``migration:backfill_runtime_state``
+    put in the dogfood corpus.
+    """
+    annotation = InnerStateChanged(
+        event_id="01KWNA4XQF7T3M0GZC1B8VD2WR",
+        wp_id="WP01",
+        at="2026-07-04T00:48:00+00:00",
+        actor="migration:backfill_runtime_state",
+        delta=WPInnerStateDelta(subtasks={"T001": "done", "T002": "done"}),
+    )
+    append_annotations_atomic_verified(mission_dir, [annotation])
+    return annotation.event_id
+
+
+def test_annotation_row_is_preserved(tmp_path: Path) -> None:
+    """#2376 residual: a ``kind: "annotation"`` row shares the log with lifecycle
+    rows and MUST survive repair with zero quarantines.
+
+    This is the same #2376 data-loss class in a FOURTH event format. The repair's
+    ``_is_preserved_non_lane_row`` predicate routes only on ``event_name`` /
+    ``event_type`` / retrospective, so an annotation row matches none of them,
+    falls through ``_rule_reject_non_status_event``'s passthrough, and reaches
+    ``_rule_require_to_lane`` — which hard-errors with "missing required to_lane"
+    on a row that carries no lane fields by construction. The whole mission
+    repair then aborts, so the TeamSpace gate can never clear.
+
+    Preserve is the only correct disposition: annotations are load-bearing
+    (the reducer folds them into runtime slots), so quarantining them would
+    reopen #2376 rather than fix it.
+    """
+    mission_dir, log, lifecycle_ids, _ = _write_mission(tmp_path, with_decision=False)
+    annotation_id = _emit_inner_state_annotation(mission_dir)
+    before_ids = _event_ids(log.read_text(encoding="utf-8"))
+    assert annotation_id in before_ids
+
+    result = _repair_mission(tmp_path, mission_dir, run_id="annotation")
+
+    assert result.status != "error", result.validation_errors
+    assert not any(
+        "missing required to_lane" in err for err in result.validation_errors
+    ), "an annotation row must never be asked for a to_lane it cannot have"
+    assert result.quarantined_rows == 0
+    surviving = _event_ids(log.read_text(encoding="utf-8"))
+    assert annotation_id in surviving, "the annotation row must survive repair"
+    for event_id in lifecycle_ids:
+        assert event_id in surviving
+
+
+def test_annotation_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
+    """Mixed log with all four preserved classes + a prunable Decision mirror:
+    lifecycle + retrospective + annotation survive; only the mirror is pruned."""
+    mission_dir, log, lifecycle_ids, decision_id = _write_mission(
+        tmp_path, with_decision=True
+    )
+    assert decision_id is not None
+    retro_id = _emit_retrospective_completed(mission_dir)
+    annotation_id = _emit_inner_state_annotation(mission_dir)
+
+    result = _repair_mission(tmp_path, mission_dir, run_id="mixed-annotation")
+
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 1
+    surviving = _event_ids(log.read_text(encoding="utf-8"))
+    assert retro_id in surviving
+    assert annotation_id in surviving
     for event_id in lifecycle_ids:
         assert event_id in surviving
     assert decision_id not in surviving
