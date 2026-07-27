@@ -253,7 +253,12 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
     Here it is degraded to an empty trace list instead — consistent with this
     function's documented best-effort contract (FR-007 docstring above) and
     scoped to this single call site only (C-003); it must not widen to a bare
-    ``Exception`` and must not touch the broader #2922 read-side set.
+    ``Exception`` and must not touch the broader #2922 read-side set. The
+    degrade is logged at ``WARNING`` (not the cutover resolver's ``DEBUG`` —
+    this is evidence loss, not a benign resolver miss) naming the mission and
+    the declared coordination branch, so an operator reading a retrospective
+    with zero tracer evidence can grep for *why* rather than mistake it for a
+    mission that genuinely had no tracer files.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
@@ -263,7 +268,16 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
         traces_home = placement_seam(repo_root, feature_dir.name).read_dir(
             MissionArtifactKind.TRACER_FILE
         )
-    except (CoordinationBranchDeleted, StatusReadPathNotFound):
+    except (CoordinationBranchDeleted, StatusReadPathNotFound) as exc:
+        _LOGGER.warning(
+            "Tracer surface unreachable for mission %s (coordination_branch=%s): %s. "
+            "Degrading to zero tracer evidence rather than crashing generation "
+            "(best-effort FR-007 contract) — this omission may hide real tracer "
+            "content; see #1848.",
+            feature_dir.name,
+            load_meta_or_empty(feature_dir).get("coordination_branch", "<unknown>"),
+            exc,
+        )
         return []
     traces_dir = traces_home / "traces"
     if not traces_dir.is_dir():
