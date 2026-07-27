@@ -127,10 +127,22 @@ def _build_fixture(root: Path) -> Path:
     )
 
     # Charter (the file presence drives the dashboard charter probe).
+    #
+    # charter-preflight-remediation-01KYG9WK: this fixture's stated intent is
+    # "charter present" (module docstring). Post-inversion, `charter.yaml` --
+    # not `charter.md` -- is the authoritative resolving source, so a fixture
+    # holding only `charter.md` is NOT charter-present and the dashboard now
+    # correctly reports it absent. `charter.yaml` is written here so the
+    # fixture still means what it says; without it this baseline would quietly
+    # re-encode the very defect that mission removed.
     charter_dir = root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text(
         "# Project Charter\n\n## Policy Summary\n\n- Be deterministic.\n",
+        encoding="utf-8",
+    )
+    (charter_dir / "charter.yaml").write_text(
+        "metadata:\n  version: 1\ncatalog: {}\n",
         encoding="utf-8",
     )
 
