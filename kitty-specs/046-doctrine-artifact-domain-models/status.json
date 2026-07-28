@@ -1,5 +1,5 @@
 {
-  "event_count": 34,
+  "event_count": 35,
   "last_event_id": "01KK688B0M51D617W2XDAQG1CP",
   "materialized_at": "2026-03-08T08:15:40.052140+00:00",
   "mission_number": "46",
@@ -148,12 +148,12 @@
       }
     },
     "WP08": {
-      "actor": "user",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude-sonnet",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KJVJMXAS71GBBJEQ3A2JDGPD",
-      "last_transition_at": "2026-03-04T04:45:39.033459+00:00",
+      "last_event_id": "43QAXR88CC406GKC956450PSAT",
+      "last_transition_at": "2026-03-04T04:45:39.033460+00:00",
       "shell_pid": 1520139,
       "subtasks": {
         "T059": "planned",
