@@ -707,10 +707,11 @@ def test_concurrent_unforced_event_does_not_displace_terminal_lane() -> None:
 
     ``done`` is terminal: leaving it requires ``force`` (9-lane state machine).
     ``migration:backfill_runtime_state`` minted events sharing the genuine
-    event's timestamp but with non-monotonic, non-ULID ``event_id``s that sort
-    lexically later, so the arbitrary ``(at, event_id)`` tiebreak let an
-    unforced ``planned -> claimed`` backfill silently rewind finished work
-    packages (#3003: 046 WP08, 048 WP01-05).
+    event's timestamp but with digest-derived ``event_id``s that sort lexically
+    later, so the arbitrary ``(at, event_id)`` tiebreak let an unforced
+    ``planned -> claimed`` backfill silently rewind finished work packages
+    (#3003: 046 WP08, 048 WP01-05). Current seeds are ordered deliberately so a
+    seed loses to real history (#2985); these rows predate that guarantee.
     """
     at = "2026-03-09T04:29:01.271691+00:00"
     genuine = _make_event(
