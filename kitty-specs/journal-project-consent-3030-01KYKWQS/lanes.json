@@ -16,6 +16,7 @@
         "src/specify_cli/sync/routing.py"
       ],
       "predicted_surfaces": [
+        "api",
         "tracker-integration"
       ],
       "depends_on_lanes": [],
@@ -42,21 +43,6 @@
     {
       "lane_id": "lane-c",
       "wp_ids": [
-        "WP03"
-      ],
-      "write_scope": [
-        "src/specify_cli/delivery/interfaces.py",
-        "src/specify_cli/delivery/ledger.py"
-      ],
-      "predicted_surfaces": [
-        "tracker-integration"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-d",
-      "wp_ids": [
         "WP04"
       ],
       "write_scope": [
@@ -72,7 +58,7 @@
       "parallel_group": 0
     },
     {
-      "lane_id": "lane-i",
+      "lane_id": "lane-h",
       "wp_ids": [
         "WP09"
       ],
@@ -87,7 +73,7 @@
       "parallel_group": 0
     },
     {
-      "lane_id": "lane-e",
+      "lane_id": "lane-d",
       "wp_ids": [
         "WP05"
       ],
@@ -100,12 +86,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-d"
+        "lane-c"
       ],
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-g",
+      "lane_id": "lane-f",
       "wp_ids": [
         "WP07"
       ],
@@ -119,12 +105,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-d"
+        "lane-c"
       ],
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-h",
+      "lane_id": "lane-g",
       "wp_ids": [
         "WP08"
       ],
@@ -137,12 +123,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-d"
+        "lane-c"
       ],
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-f",
+      "lane_id": "lane-e",
       "wp_ids": [
         "WP06"
       ],
@@ -153,13 +139,30 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-d",
-        "lane-e"
+        "lane-c",
+        "lane-d"
       ],
       "parallel_group": 2
     },
     {
       "lane_id": "lane-j",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/body_upload.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
       "wp_ids": [
         "WP10"
       ],
@@ -170,12 +173,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-f"
+        "lane-e"
       ],
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-07-28T13:57:17.511130+00:00",
+  "computed_at": "2026-07-28T14:17:04.027607+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

@@ -3,10 +3,15 @@
 **Mission**: `journal-project-consent-3030-01KYKWQS` · **Branch**: `feat/journal-project-consent-3030`
 **Spec**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md)
 
-> **Containment wave first (WP01–WP03), and it needs no migration.** The leak is in the journal
+> **Containment wave first (WP01, WP02), and it needs no migration.** The leak is in the journal
 > dispatcher (`delivery/dispatcher.py:_select_undelivered` over `journal.read_all()`), not
-> `sync/batch.py`. WP01 makes the leak loud, WP02 deletes an entire second leaking drain, WP03 unblocks
-> `saas#585`. Only then the durable wave (WP04–WP06) makes delivery correct.
+> `sync/batch.py`. WP01 makes the leak loud and also unblocks `saas#585`; WP02 deletes an entire second
+> leaking drain. Only then the durable wave (WP04–WP06) makes delivery correct.
+>
+> **WP01 is bounded to mixed batches.** The cross-project refusal only fires when a *selected batch*
+> spans projects. Because selection is FIFO and limit-bounded, a homogeneous window of one
+> non-consented project still ships. Correct per-project delivery arrives with WP06 — do not treat WP01
+> as containment for the incident population.
 >
 > **The enabler is load-bearing and easy to get wrong**: the journal has *no* schema-migration
 > mechanism (`_ensure_schema` is `CREATE TABLE IF NOT EXISTS` only) while all four SQL constants derive
@@ -18,13 +23,13 @@
 |----|-------------|----|----------|
 | T001 | **Red-first**: incident reproduction (6 projects, 1 consented, other 5 with **no consent record at all**) + multi-project refusal + empty-selection tests. RED on current code (SC-001, SC-003) | WP01 | |
 | T002 | Cross-project pre-flight: refuse before any POST, name the projects, exit non-zero, no retry-count mutation. Identity resolved in-memory over the **already-selected batch** only (FR-004) | WP01 | |
-| T003 | Exclude non-null `drain_blocked_reason` from `_select_undelivered`'s universe — closes the second leak class (opted-out captures stamped at `journal.py:345` and shipped anyway) | WP01 | |
+| T003 | Split `drain_blocked_reason` into **transient gate reasons** (re-evaluated at drain) and a **terminal reason**; exclude only the terminal one from `_select_undelivered`. Today the column collapses `not saas_enabled OR not checkout_enabled` into one token and also stamps `missing_auth`/`missing_team` (`journal.py:338-352`), and `emitter.py:2246-2248` states drain-blocked events are re-evaluated each tick — so excluding all non-null values would permanently strand every pre-login capture | WP01 | |
 | T004 | `GateKind` consent-availability gate + consent port in `GateContext`/`evaluate_gates`; aborts the run when consent is unresolvable (FR-001) | WP01 | |
 | T005 | Fail closed at `routing.py:114-116`; empty-selection short-circuit before payload build, replacing the misleading no-Private-Teamspace message at `batch.py:1484-1488` (FR-003, FR-005) | WP01 | |
 | T006 | FR-010 restated: journal write requires identity; identity-less capture is stamped into a named non-deliverable state via the existing `drain_blocked_reason` vocabulary — **not** dropped (NFR-005) | WP01 | |
 | T007 | Precondition guard: require/run `migrate_queues_to_journal`, assert the legacy queue is empty, **fail loudly** rather than discard (pre-WP03 rows may have no journal copy) | WP02 | |
 | T008 | Delete the queue-backed daemon drain: `background.py:395,455-461,589-592`; retire `queue.remove_project_events` per C-004. Assert no code path constructs it (FR-012, SC-005) | WP02 | |
-| T009 | Map a stable server refusal reason to `failed_permanent` and count it in terminal-failure totals; forward progress past a refused project. Folds #3005 (FR-014, SC-009) | WP03 | Y |
+| T009 | Terminal reject classification **in `delivery/receivers.py`**: `DeliveryOutcome.TERMINAL_FAILED` is reachable from exactly one predicate today (`receivers.py:411-414`, oversized-single-event). Map a stable server refusal reason there. `delivery/ledger.py:98-101` **already** maps `terminal_failed`/`failed_permanent`, so no ledger work is needed. Folds #3005 (FR-014, SC-009) | WP01 | |
 | T010 | Additive journal migration: `PRAGMA table_info` → `ALTER TABLE ADD COLUMN`, inside `_ensure_schema`, idempotent, before any derived-SQL use. Reuse the `queue.py:1242-1248` precedent. Test opens a **pre-migration** DB file and reads it (C-001, C-002) | WP04 | |
 | T011 | Promote the identity resolver to `sync/project_identity.py` as **one ordered constant chain** incl. the fourth site `payload.subject.project_uuid` (`emitter.py:2037`); nil sentinel normalizes to NULL. Test asserts a single definition site (NFR-001) | WP04 | |
 | T012 | `project_uuid`/`project_slug` in `ORDERED_COLUMNS` + indexes; idempotent, lossless backfill using T011's chain (FR-006, FR-009, NFR-004, SC-007) | WP04 | |
@@ -39,22 +44,25 @@
 | T021 | Per-project breakdown in `sync doctor`/`status`/`migrate`, reconciled against the journal's retained count — **not** `OfflineQueue().get_queue_stats()`. Folds #3004. Renders unresolved-identity and `unresolved`-consent rows (FR-011, FR-015, SC-004) | WP07 | Y |
 | T022 | `sync purge --project <slug-or-uuid>` (dry-run default) + `--all`, over journal **and** ledger, via `delivery/retention.py` (FR-016, FR-017, NFR-006, SC-006) | WP08 | Y |
 | T023 | Document that `SPEC_KITTY_ENABLE_SAAS_SYNC`/`SPEC_KITTY_SAAS_URL` are machine-global; CI-checkable anchor (FR-018) | WP09 | Y |
-| T024 | Live two-project drain against **`spec-kitty-dev`** (never production); evidence artefact is the captured server-side aggregation grouped by `project_slug` (SC-008) | WP10 | |
+| T025 | Body-upload consent: `prepare_body_uploads` gates once at enqueue on `is_sync_enabled_for_checkout(repo_root)` (`body_upload.py:150`), which is default-allow on absence; `_drain_body_queue` then POSTs every task under only the machine-global `is_saas_sync_enabled()`. Resolve consent **per task at drain time** from the task's namespace project identity, not cwd. Bodies are full `spec.md`/`plan.md`/`tasks/WP*.md` text (`body_upload.py:33-52`) | WP11 | |
+| T026 | Add the body-upload queue to the purge differential — it shares the offline-queue DB file, so a purge reporting 100% today leaves queued bodies behind | WP11 | |
+| T024 | Live drain against **`spec-kitty-dev`** at the incident's shape — **≥6 projects**: 1 consented, ≥3 with no consent record, ≥1 explicit opt-out, ≥1 identity-less. Evidence artefact records **before/after counts per `project_slug`**, the drain's own delivered count, and the CLI commit SHA (SC-008) | WP10 | |
 
 ## Dependency graph
 
 ```
-WP01 (containment)  ─┐
-WP02 (drain removal) ─┼─ no deps, ship first
-WP03 (terminal reject)┘   WP03 also unblocks saas#585 FR-004
+WP01 (containment + terminal reject) ─┐
+WP02 (legacy drain removal)          ─┴─ no deps, ship first
+                                        WP01 also unblocks saas#585 WP07
 
 WP04 (identity enabler) ─┬─> WP05 (consent index) ──> WP06 (filtered read + gate) ──> WP10 (live)
                          ├─> WP07 (visibility, folds #3004)
                          └─> WP08 (purge)
+WP05 ──> WP11 (body-upload consent — uncovered egress path)
 WP09 (docs) — no deps
 ```
 
-- **WP01, WP02, WP03, WP09** have no dependencies and may run in parallel.
+- **WP01, WP02, WP09** have no dependencies and may run in parallel. **WP03 was deleted**: its assigned files (`delivery/ledger.py`, `delivery/interfaces.py`) contained no work — the ledger already maps both terminal keys and the only file needing change is `receivers.py`, which WP01 owns. T009 moved to WP01.
 - **WP02 is a deletion, not a gate** — research decision 1 resolved to *remove*, because
   `_capture_to_journal` (`emitter.py:2057`) runs before every gate and is unconditional, so every
   queued event already has a journal copy.
@@ -74,13 +82,6 @@ zero callers under `delivery/`), so it must not be presented as containment.
 
 Subtasks: T007–T008. Dependencies: none. `execution_mode: code_change`. Requirements: FR-012, SC-005.
 Deletes the second live drain rather than teaching it consent.
-
-## WP03 — Terminal reject classification (unblocks saas#585)
-
-Subtasks: T009. Dependencies: none. `execution_mode: code_change`. Requirements: FR-014, SC-009.
-`failed_permanent` is produced at exactly one site today (`batch.py:414-418`, oversized events); every
-server rejection becomes `rejected` → `retry_count + 1` with no deletion and no retry ceiling. Folds
-#3005. `saas#585` FR-004's capable path depends on this.
 
 ## WP04 — Journal identity enabler (migration + columns + backfill)
 
@@ -114,6 +115,14 @@ FR-015, SC-004. Without #3004, the per-project report renders from the store tha
 Subtasks: T022. Dependencies: WP04. `execution_mode: code_change`. Requirements: FR-016, FR-017,
 NFR-006, SC-006. Spans **two** stores: journal rows and delivery-ledger history. Research decision 2
 (retain or remove ledger history) must be answered inside this WP and recorded.
+
+## WP11 — Body-upload consent (uncovered egress path)
+
+Subtasks: T025–T026. Dependencies: WP05. `execution_mode: code_change`. Requirements: FR-002, FR-016.
+**Found by the post-tasks squad; no earlier artefact mentioned it.** `sync now` calls
+`drain_body_uploads_only()` (`cli/commands/sync.py:2368`) — the same command the operator ran twice —
+and that drain ships full document bodies with no per-project consent. Same breach class, live path,
+previously unowned.
 
 ## WP09 — Documentation
 

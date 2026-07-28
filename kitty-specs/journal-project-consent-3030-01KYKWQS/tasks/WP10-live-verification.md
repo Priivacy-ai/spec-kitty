@@ -25,6 +25,10 @@ owned_files:
 
 # WP10 — Live verification
 
+**Acceptance criterion owned: SC-008.** The frontmatter `requirement_refs` are numeric-FR-shaped, so
+SC-008 is carried here and in the DoD below — it is the criterion this WP exists to discharge and it
+must not be traceable only through prose.
+
 Owns SC-008, the criterion no other work package claimed. Unowned by a WP means never executed, which
 is how a fake-green ships.
 
@@ -36,9 +40,13 @@ proves the wire contract.
 
 ## Definition of done
 
-- A live two-project drain against **`spec-kitty-dev`** delivers only the consented project.
+- **SC-008**: a live drain against **`spec-kitty-dev`** at the incident's shape — **≥6 projects**: 1
+  consented, ≥3 with no consent record, ≥1 explicit opt-out, ≥1 identity-less. Two projects cannot
+  distinguish "delivers only the consented project" from "delivers the only identity-resolved project".
 - Verified **server-side** by grouping delivered events by `project_slug` — the same query that exposed
   the incident. If `saas#585` FR-011's report command has shipped, use it; otherwise a read-only
   Django-shell aggregation is the sanctioned fallback.
-- The deliverable is the **captured query output**, committed as the evidence artefact — not a green test.
+- The artefact carries its own falsifier: **before/after counts per `project_slug`**, the drain's own
+  reported delivered count (so a drain that delivered nothing cannot pass), and the **CLI commit SHA**
+  so the evidence ties to the code it attests.
 - **Never production.** `docs/production-safety-guardrails.md` is the controlling runbook.
