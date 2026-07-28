@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01KYMG7K09GASDHB73P6DY1Y4H",
-  "materialized_at": "2026-07-28T13:57:06.185162+00:00",
+  "event_count": 3,
+  "last_event_id": "01KYMG7M8BP2Z81T7Q989F042Q",
+  "materialized_at": "2026-07-28T13:57:07.467661+00:00",
   "mission_number": "",
   "mission_slug": "journal-project-consent-3030-01KYKWQS",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -30,6 +30,13 @@
       "lane": "planned",
       "last_event_id": "01KYMG7K09GASDHB73P6DY1Y4H",
       "last_transition_at": "2026-07-28T13:57:06.185162+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KYMG7M8BP2Z81T7Q989F042Q",
+      "last_transition_at": "2026-07-28T13:57:07.467661+00:00"
     }
   }
 }
