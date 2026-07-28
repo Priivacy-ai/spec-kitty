@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from doctrine.versioning import CURRENT_BUNDLE_SCHEMA_VERSION
 from specify_cli.cli.commands.charter import app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -43,11 +44,19 @@ Charter for test project.
 """
 
 
-def _make_project(tmp_path: Path, *, with_charter: bool = True, with_git: bool = True) -> Path:
+def _make_project(
+    tmp_path: Path, *, with_charter: bool = True, with_git: bool = True, legacy_bundle: bool = False
+) -> Path:
     """Return a minimal project root that find_repo_root() accepts.
 
     Creates .kittify/ (required by locate_project_root) and optionally an
     initialized git repo so git-using code paths don't hard-fail.
+
+    charter-preflight-remediation: ``charter.yaml`` -- not ``charter.md`` -- is
+    the authoritative presence signal, so a project that is meant to *have* a
+    charter must carry it. Pass ``legacy_bundle=True`` for the pre-#2773 shape
+    (charter.md present, charter.yaml absent), which is a distinct state with a
+    distinct remedy, not a project without a charter.
     """
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
@@ -57,6 +66,13 @@ def _make_project(tmp_path: Path, *, with_charter: bool = True, with_git: bool =
 
     if with_charter:
         (charter_dir / "charter.md").write_text(_MINIMAL_CHARTER, encoding="utf-8")
+        if not legacy_bundle:
+            # Shaped for `get_bundle_schema_version`: it reads an *int* at
+            # metadata.bundle_schema_version and treats anything else as v1.
+            (charter_dir / "charter.yaml").write_text(
+                f"metadata:\n  bundle_schema_version: {CURRENT_BUNDLE_SCHEMA_VERSION}\n",
+                encoding="utf-8",
+            )
 
     if with_git:
         subprocess.run(["git", "init", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
@@ -185,6 +201,35 @@ def test_sync_exits_nonzero_when_charter_missing(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert "Error" in result.output or "not found" in result.output.lower()
+
+
+def test_sync_never_reports_an_existing_file_as_not_found(tmp_path: Path) -> None:
+    """The "not found" message must name the file the check actually tested.
+
+    Regression for a defect this mission's own convergence introduced: presence
+    moved to the ``charter.yaml`` seam while the message kept naming
+    ``charter.md``, so every legacy-bundle project was told ``Charter not found
+    at <path>`` about a file sitting at that exact path. Emitting a false
+    statement to the operators the mission exists to unblock is the defect class
+    it closes (C-001), so the guard is a test rather than a docstring.
+
+    Deliberately asserts the *falsifiable* property (never name an existing file
+    as absent) rather than exact wording, so it survives rephrasing.
+    """
+    project = _make_project(tmp_path, legacy_bundle=True)
+    charter_md = project / ".kittify" / "charter" / "charter.md"
+    assert charter_md.exists(), "fixture precondition: the legacy charter.md is present"
+
+    with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project):
+        result = runner.invoke(app, ["sync"])
+
+    assert result.exit_code != 0, "a legacy bundle still cannot be read by this command"
+    assert str(charter_md) not in result.output, (
+        f"reported an existing file as not found:\n{result.output}"
+    )
+    assert "charter.yaml" in result.output, (
+        f"must name the file whose absence actually blocked it:\n{result.output}"
+    )
 
 
 def test_sync_noop_when_already_synced(tmp_path: Path) -> None:

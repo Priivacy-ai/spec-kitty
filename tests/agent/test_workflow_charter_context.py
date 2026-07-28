@@ -58,6 +58,11 @@ def _make_charter_bundle(root: Path, *, include_governance: bool = True) -> Path
         "# Project Charter\n\n## Policy Summary\n\n- Intent: stable delivery\n",
         encoding="utf-8",
     )
+    # WP04 (charter-preflight-remediation): charter.yaml, not charter.md, is
+    # the authoritative presence source (R-001). Without it, the presence
+    # seam reports "missing" and every test below that expects
+    # bootstrap/compact mode would collapse to mode="missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
     (charter_dir / "references.yaml").write_text(
         'schema_version: "1.0.0"\nreferences: []\n',
         encoding="utf-8",
@@ -154,6 +159,7 @@ class TestWorkflowRenderCharterContext:
             "# Project Charter\n\n## Policy Summary\n\n- Intent: stable\n",
             encoding="utf-8",
         )
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
         # No references.yaml — partial bundle
         text = _render_charter_context(tmp_path, "specify")
         assert text.strip()

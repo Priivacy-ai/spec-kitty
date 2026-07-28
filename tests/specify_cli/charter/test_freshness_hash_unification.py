@@ -218,6 +218,11 @@ def test_c2e_no_noop_despite_stale_for_crlf_or_bom(
     charter_path = charter_dir / "charter.md"
     metadata_path = charter_dir / "metadata.yaml"
     charter_path.write_bytes(raw_bytes)
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001 / WP04) -- without it _collect_charter_sync_status reports
+    # "not found" before ever reaching the charter.md/metadata.yaml
+    # staleness surface this test pins.
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
     # Store the hash of the chokepoint-decoded text — exactly what a successful
     # ``charter sync`` writes into metadata.yaml.

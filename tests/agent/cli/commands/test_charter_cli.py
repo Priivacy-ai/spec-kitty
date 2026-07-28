@@ -44,6 +44,11 @@ def mock_repo(tmp_path: Path) -> Path:
 
     charter_file = charter_dir / "charter.md"
     charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001 / WP04) -- without it _resolve_charter_path (used by the
+    # `sync` CLI command) reports "not found" before ever reaching the
+    # noop-contract behaviour these tests pin.
+    _write_charter_yaml_bundle(charter_dir)
 
     return repo_root
 

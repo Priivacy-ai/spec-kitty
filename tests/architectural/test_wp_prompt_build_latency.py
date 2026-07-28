@@ -132,6 +132,9 @@ def perf_project(tmp_path: Path) -> tuple[Path, Path, str]:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001) -- without it the presence seam reports "missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
     return repo_root, feature_dir, slug
 
 

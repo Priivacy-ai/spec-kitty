@@ -105,6 +105,10 @@ def test_sync_json_error_result_is_parseable_and_nonzero(tmp_path: Path) -> None
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001 / WP04) -- without it _resolve_charter_path reports "not
+    # found" before ever reaching the mocked sync() error path below.
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
     sync_result = SimpleNamespace(
         synced=False,
         stale_before=False,
@@ -132,6 +136,11 @@ def test_sync_json_filesystem_failure_does_not_log_to_stderr(tmp_path: Path) -> 
     # reads is ``charter.md`` — make THAT a directory so the read raises and the
     # command must surface a parseable JSON error on stdout (not stderr).
     (charter_dir / "charter.md").mkdir(parents=True)
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001 / WP04); without it _resolve_charter_path reports "not found"
+    # before ever reaching the charter.md-as-directory read failure this
+    # test exercises.
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
     with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
         result = runner.invoke(charter_app, ["sync", "--json"])

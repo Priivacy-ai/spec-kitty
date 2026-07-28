@@ -105,6 +105,9 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(_GOVERNANCE_YAML, encoding="utf-8")
     (charter_dir / "references.yaml").write_text(_REFERENCES_YAML, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001) -- without it the presence seam reports "missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
 
 def _call_build(

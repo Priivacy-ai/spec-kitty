@@ -235,6 +235,29 @@ def first_missing_bundle_file(repo_root: Path) -> str | None:
     return None
 
 
+def charter_yaml_present(repo_root: Path) -> bool:
+    """Return whether ``charter.yaml`` exists under ``repo_root``.
+
+    charter-preflight-remediation (WP04 / T017): the ONE canonical,
+    non-mutating presence seam every operator-reachable charter-presence
+    resolver must route through (DIRECTIVE_044 / C-002). It is a thin,
+    boolean-shaped wrapper over :func:`first_missing_bundle_file` — the
+    existing pure existence check over :data:`BUNDLE_CONTENT_HASH_FILES`
+    (today, ``charter.yaml`` alone) — so callers that only need a yes/no
+    answer are not forced to interpret a "first missing filename" return
+    shape.
+
+    R-001: ``charter.yaml``, not ``charter.md``, is the authoritative,
+    resolving charter source post-inversion (see
+    ``specify_cli.charter_runtime.freshness.computer`` Landmine 2). This
+    function performs NO content read, NO hash computation, and NO sync —
+    it never calls ``ensure_charter_bundle_fresh`` — so every consumer
+    gets the gate's answer without inheriting the gate's write side
+    effects.
+    """
+    return first_missing_bundle_file(repo_root) is None
+
+
 # ---------------------------------------------------------------------------
 # WP03 (FR-015): Synthesis state validation extension
 # ---------------------------------------------------------------------------
@@ -475,6 +498,8 @@ __all__ = [
     "compute_bundle_content_hash",
     # #2758: fail-closed preflight helper (WP02)
     "first_missing_bundle_file",
+    # charter-preflight-remediation (WP04): the canonical presence seam
+    "charter_yaml_present",
     # WP03 extension (FR-015)
     "BundleValidationResult",
     "validate_synthesis_state",

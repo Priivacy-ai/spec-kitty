@@ -493,6 +493,15 @@ references:
 """,
             encoding="utf-8",
         )
+        # charter-preflight-remediation: `charter.yaml` -- not `charter.md` --
+        # is the authoritative presence signal post-inversion. A project meant
+        # to render full bootstrap governance must carry it; without it this is
+        # the legacy-bundle shape (F2), which the gate blocks and every surface
+        # now agrees is not resolvable. That contract is covered separately by
+        # `test_legacy_bundle_reports_missing_rather_than_rendering_governance`.
+        (charter_dir / "charter.yaml").write_text(
+            "metadata:\n  bundle_schema_version: 2\n", encoding="utf-8"
+        )
         (charter_dir / "directives.yaml").write_text(
             """directives:
   - id: TEST_FIRST
@@ -524,6 +533,64 @@ references:
         )
         assert "Governance:" in second_text
         second_path.unlink()
+
+    @patch("runtime.next.prompt_builder.resolve_command")
+    def test_legacy_bundle_reports_missing_rather_than_rendering_governance(
+        self, mock_resolve, feature_with_wp: Path
+    ) -> None:
+        """A legacy bundle (F2) must not render governance as though healthy.
+
+        This is the behaviour change charter-preflight-remediation deliberately
+        makes, pinned so it cannot regress silently. Before the mission, a project
+        with the pre-#2773 four-file bundle and no ``charter.yaml`` rendered full
+        bootstrap charter context while ``spec-kitty implement`` refused it
+        (BC-3) -- every diagnostic said healthy while the gate blocked. Surfaces
+        now agree that F2 is not resolvable.
+
+        Crucially, this does **not** leave an un-migrated project ungoverned: the
+        prompt builder falls back to the legacy governance path, so directives and
+        tool selection still reach the agent. Both halves are asserted, because
+        the pair is the actual contract -- stop claiming a resolvable charter,
+        without dropping the governance the project does have.
+        """
+        import subprocess
+
+        mock_path = feature_with_wp / "fake-template-legacy.md"
+        mock_path.write_text("# Specify Template\nCreate spec.md.\n", encoding="utf-8")
+        mock_result = MagicMock()
+        mock_result.path = mock_path
+        mock_resolve.return_value = mock_result
+
+        repo_root = feature_with_wp.parent.parent
+        subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
+        charter_dir = repo_root / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        # The legacy bundle: prose companion + derived files, no charter.yaml.
+        (charter_dir / "charter.md").write_text("# Project Charter\n", encoding="utf-8")
+        (charter_dir / "governance.yaml").write_text(
+            "doctrine:\n  template_set: software-dev-default\n", encoding="utf-8"
+        )
+        assert not (charter_dir / "charter.yaml").exists(), "fixture precondition: F2 shape"
+
+        text, path = build_prompt(
+            action="specify",
+            feature_dir=feature_with_wp,
+            mission_slug="042-test-feature",
+            wp_id=None,
+            agent="claude",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        path.unlink()
+
+        assert "Charter Context (Bootstrap):" not in text, (
+            f"rendered bootstrap charter context for a bundle the gate refuses:\n{text}"
+        )
+        # ...but governance is NOT dropped: the legacy fallback still supplies it.
+        assert "Governance:" in text, (
+            f"an un-migrated project must not be left ungoverned:\n{text}"
+        )
+        assert "Directives:" in text, text
 
 
 class TestGovernanceContext:

@@ -180,6 +180,9 @@ def _write_charter(repo_root: Path, body: str = _CONSUMER_CHARTER_MINIMAL) -> Pa
     charter_dir.mkdir(parents=True, exist_ok=True)
     charter_path = charter_dir / "charter.md"
     charter_path.write_text(body, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001) -- without it the presence seam reports "missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
     return charter_path
 
 

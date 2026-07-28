@@ -523,13 +523,42 @@ def test_resolve_active_feature_requires_explicit_selection(tmp_path):
 def test_project_charter_propagates_to_all_features(tmp_path):
     _create_feature(tmp_path, "001-demo-feature")
     _create_feature(tmp_path, "002-another-feature")
-    charter = tmp_path / ".kittify" / "charter" / "charter.md"
-    charter.parent.mkdir(parents=True)
-    charter.write_text("# Project Charter\n", encoding="utf-8")
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.md").write_text("# Project Charter\n", encoding="utf-8")
+    # charter-preflight-remediation (WP04 cycle 2): the scanner's charter
+    # presence answer is now gated on charter.yaml (R-001), not charter.md
+    # alone, so this fixture needs the companion file too -- the intent of
+    # this test (does the charter propagate to every feature) predates
+    # R-001 and is unaffected by which file gates presence.
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
     features = scanner.scan_all_features(tmp_path)
     assert len(features) == 2
     assert all(feature["artifacts"]["charter"]["exists"] for feature in features)
+
+
+def test_project_charter_absent_for_legacy_bundle_without_charter_yaml(tmp_path):
+    """charter-preflight-remediation (WP04 cycle 2): F2 regression.
+
+    Before this fix, ``resolve_project_charter_path`` keyed presence off
+    ``charter.md`` alone, so a legacy bundle (``charter.md`` present,
+    ``charter.yaml`` absent) reported "present" on the dashboard while the
+    freshness gate reported "missing" -- the mission's User Story 2
+    symptom, reproduced live on this exact surface in WP04 cycle-1 review.
+    Mirrors ``test_all_surfaces_agree_on_presence``'s F2 case
+    (tests/charter/test_charter_presence_seam.py).
+    """
+    _create_feature(tmp_path, "001-demo-feature")
+    _create_feature(tmp_path, "002-another-feature")
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.md").write_text("# Project Charter\n", encoding="utf-8")
+    # Deliberately no charter.yaml -- the legacy-bundle (F2) shape.
+
+    features = scanner.scan_all_features(tmp_path)
+    assert len(features) == 2  # golden-count: cardinality-is-contract
+    assert all(not feature["artifacts"]["charter"]["exists"] for feature in features)
 
 
 def test_feature_local_charter_is_ignored_without_project_charter(tmp_path):
@@ -561,6 +590,11 @@ def test_only_canonical_path_resolved(tmp_path):
     new_path = tmp_path / ".kittify" / "charter" / "charter.md"
     new_path.parent.mkdir(parents=True)
     new_path.write_text("canonical", encoding="utf-8")
+    # charter-preflight-remediation (WP04 cycle 2): presence is gated on
+    # charter.yaml (R-001) -- the companion file is required for this
+    # fixture's intent (only the canonical *location* is resolved) to
+    # still exercise a "present" outcome under the corrected semantics.
+    (new_path.parent / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
     resolved = resolve_project_charter_path(tmp_path)
     assert resolved == new_path

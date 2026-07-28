@@ -17,7 +17,6 @@ from rich.table import Table
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
-    CHARTER_YAML_FILENAME,
     charter_app,
     console,
 )
@@ -48,12 +47,16 @@ def status(  # noqa: C901
 ) -> None:
     """Display charter sync status plus synthesis/operator state."""
     try:
+        from charter.bundle import charter_yaml_present
+
         repo_root = _charter_pkg.find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
         # consolidate-charter-bundle (#2773): gate on the authoritative
         # charter.yaml, not the retired metadata.yaml (which the fold migration
         # deletes) — else the bundle-compat check silently no-ops on v2 bundles.
-        if (charter_dir / CHARTER_YAML_FILENAME).exists():
+        # charter-preflight-remediation (WP04 / T018): presence answered via
+        # the canonical seam (R-001), not a raw ``.exists()`` check.
+        if charter_yaml_present(repo_root):
             _charter_pkg._assert_bundle_compatible(charter_dir)
         from specify_cli.charter_runtime.freshness import compute_freshness
 

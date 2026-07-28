@@ -124,6 +124,9 @@ def _write_minimal_kittify_charter(repo_root: Path) -> None:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_MINIMAL_CHARTER_MD, encoding="utf-8")
+    # charter.yaml, not charter.md, is the authoritative presence source
+    # (R-001) -- without it the presence seam reports "missing".
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
 
 
 _WP_WITH_PYTHON_PEDRO = """\
