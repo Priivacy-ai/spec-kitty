@@ -184,8 +184,14 @@ coord-authority gate (`tests/architectural/test_resolution_authority_gates.py`) 
 sanctions this exact call as a permanent legitimate coord-owned write bypass, keyed on the
 literal primitive name — the gate must learn the seam idiom (recognize a kind-aware
 `read_dir(<COORD kind>)` call as the same sanctioned bypass) before this site can route without
-breaking that gate. `#3055` tracks the follow-up. Until it lands, this is the one call site
-where routing and gate-machinery are in acknowledged tension, not agreement.
+breaking that gate. `#3055` tracks the follow-up. This is the one edge *this mission audited*
+as directory-identical-routable and deliberately deferred. It is not the only unrouted
+sanctioned `resolve_feature_dir_for_mission` coord-write: `widen/state.py:63`,
+`agent_tasks_ports.py:322`, and `lanes/recovery.py:765` carry the same coord-authority
+sanction, and `widen/state.py:63`'s rationale is verbatim-identical to this one — they were
+simply not re-audited for the directory-identical-routing property this mission established
+for `emit.py:71`. So the honest statement is "the one edge adjudicated and deferred," not "the
+one call site in tension."
 
 ## Citations
 
