@@ -13,6 +13,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from specify_cli.core.time_utils import now_utc_iso
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -920,7 +921,7 @@ def _annotation_for_request(
         request.wp_id,
         request.annotation_delta,
         actor=request.actor,
-        at=at or datetime.now(UTC).isoformat(),
+        at=at or now_utc_iso(),
         event_id=_emit._generate_ulid(),
     )
 

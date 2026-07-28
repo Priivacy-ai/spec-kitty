@@ -16,7 +16,8 @@ import json
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
+from specify_cli.core.time_utils import now_utc_iso
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
@@ -68,7 +69,7 @@ def refresh_cache_once() -> None:
         tmp.write_text(
             json.dumps(
                 {
-                    "checked_at": datetime.now(UTC).isoformat(),
+                    "checked_at": now_utc_iso(),
                     "latest_version": latest,
                 }
             ),

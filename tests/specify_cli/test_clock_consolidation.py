@@ -183,3 +183,126 @@ class TestStampFamilyPreserved:
         assert stamp_value.endswith("Z")
         assert "." in iso_value  # microseconds retained
         assert "." not in stamp_value  # microseconds dropped (second precision)
+
+
+# ---------------------------------------------------------------------------
+# The structural ratchet (review #2611): a full-tree AST negative gate.
+#
+# The owned-file inventory above protects only the ORIGINAL 12 files, so every
+# newly migrated module could regress while this suite stayed green. That is an
+# inventory, not a gate. The scan below walks the WHOLE src/specify_cli tree for
+# the raw aware-UTC ``.isoformat()`` form, so a module added tomorrow is covered
+# the moment it lands -- no list to remember to update.
+# ---------------------------------------------------------------------------
+
+# Justified exceptions. Each is a genuinely DISTINCT CONTRACT, not an escape
+# hatch; anything added here needs the same standard.
+_RAW_FORM_EXEMPT: dict[str, str] = {
+    # The canonical implementation itself -- this IS the one permitted producer.
+    "specify_cli/core/time_utils.py": "hosts now_utc_iso(); the single canonical call site",
+}
+
+
+def _is_utc_alias(node: ast.expr) -> bool:
+    """``UTC`` / ``datetime.UTC`` / ``timezone.utc`` - the aware-UTC spellings."""
+    if isinstance(node, ast.Name):
+        return node.id == "UTC"
+    if isinstance(node, ast.Attribute):
+        base = node.value
+        if node.attr == "UTC" and isinstance(base, ast.Name) and base.id == "datetime":
+            return True
+        if node.attr == "utc" and isinstance(base, ast.Name) and base.id == "timezone":
+            return True
+    return False
+
+
+def _raw_utc_isoformat_lines(tree: ast.AST) -> list[int]:
+    """Line numbers of every raw ``datetime.now(<aware-UTC>).isoformat()``.
+
+    Deliberately NARROW - it flags only the byte-identical form that
+    ``now_utc_iso()`` replaces:
+
+    - ``.isoformat()`` must take NO arguments. ``isoformat(timespec=...)`` is a
+      different serialization (a distinct contract), not a violation.
+    - the ``now()`` argument must be an aware-UTC alias. A naive ``now()`` and
+      ``now(some_tz)`` are different contracts too.
+    """
+    hits: list[int] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        outer = node.func
+        if not (isinstance(outer, ast.Attribute) and outer.attr == "isoformat"):
+            continue
+        if node.args or node.keywords:
+            continue  # timespec= etc. -> a distinct serialization contract
+        inner = outer.value
+        if not (isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute)):
+            continue
+        if inner.func.attr != "now" or len(inner.args) != 1 or inner.keywords:
+            continue
+        if _is_utc_alias(inner.args[0]):
+            hits.append(node.lineno)
+    return hits
+
+
+def test_no_raw_aware_utc_isoformat_outside_the_canonical_helper() -> None:
+    """THE RATCHET: no module may mint the raw form locally.
+
+    Structural, not inventory-based - a module added after this test was
+    written is covered automatically.
+    """
+    offenders: list[str] = []
+    scanned = 0
+    for path in sorted((_SRC / "specify_cli").rglob("*.py")):
+        rel = path.relative_to(_SRC).as_posix()
+        if rel in _RAW_FORM_EXEMPT:
+            continue
+        scanned += 1
+        for lineno in _raw_utc_isoformat_lines(ast.parse(path.read_text(encoding="utf-8"))):
+            offenders.append(f"{rel}:{lineno}")
+
+    assert scanned > 100, f"the scan must actually cover the tree (only {scanned} files seen)"
+    assert not offenders, (
+        "raw aware-UTC isoformat() found outside the canonical helper - route these "
+        "onto specify_cli.core.time_utils.now_utc_iso():\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_the_ratchet_is_non_vacuous() -> None:
+    """SELF-MUTANT: prove the detector FIRES on a planted violation.
+
+    A gate that never exercised its failure path is theatre. This drives the
+    SAME detector the tree scan uses, so a future refactor that silently breaks
+    the matcher turns this red instead of passing an empty scan.
+    """
+    violations = (
+        "import datetime\nx = datetime.datetime.now(datetime.UTC).isoformat()\n",
+        "from datetime import UTC, datetime\nx = datetime.now(UTC).isoformat()\n",
+        "from datetime import datetime, timezone\nx = datetime.now(timezone.utc).isoformat()\n",
+    )
+    for src in violations:
+        assert _raw_utc_isoformat_lines(ast.parse(src)), f"detector MISSED a violation:\n{src}"
+
+    # ...and does NOT fire on the distinct contracts it must leave alone.
+    allowed = (
+        "from specify_cli.core.time_utils import now_utc_iso\nx = now_utc_iso()\n",
+        # a different serialization: second precision via timespec
+        "from datetime import UTC, datetime\nx = datetime.now(UTC).isoformat(timespec='seconds')\n",
+        # the datetime-returning family
+        "from datetime import UTC, datetime\nx = datetime.now(UTC)\n",
+        # naive now() - a different contract
+        "from datetime import datetime\nx = datetime.now().isoformat()\n",
+    )
+    for src in allowed:
+        assert not _raw_utc_isoformat_lines(ast.parse(src)), f"detector FALSE-POSITIVED on:\n{src}"
+
+
+def test_every_exemption_is_real_and_still_needed() -> None:
+    """No stale exemptions: each exempt file must exist AND still contain the form."""
+    for rel, why in _RAW_FORM_EXEMPT.items():
+        path = _SRC / rel
+        assert path.exists(), f"exempt file no longer exists, drop it: {rel}"
+        assert _raw_utc_isoformat_lines(ast.parse(path.read_text(encoding="utf-8"))), (
+            f"exemption is stale (file no longer contains the raw form) - remove it: {rel} ({why})"
+        )
