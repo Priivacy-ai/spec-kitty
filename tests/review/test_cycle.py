@@ -134,3 +134,142 @@ def test_sentinel_pointer_is_not_feedback_artifact(tmp_path: Path) -> None:
 
     assert resolved.kind == "sentinel"
     assert resolved.path is None
+
+
+MISSION_SLUG = "annoying-bugs-sweep-01KYHQ9F"
+WP_ID = "WP03"
+WP_SLUG = "WP03-ledger-grammar"
+
+
+def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
+    """Pin #2996(b): handing ``create_rejected_review_cycle`` the WP's OWN
+    prior ``review-cycle-N.md`` as ``feedback_source`` must be refused, not
+    silently duplicated into a new cycle.
+
+    Root cause (traced against ``main`` @ upstream/main):
+    ``create_rejected_review_cycle``
+    (``src/specify_cli/review/cycle.py:277-346``) validates ``feedback_source``
+    only for existence / is-a-file / non-empty content
+    (lines 288-295) and computes the next cycle number purely from
+    ``len(sub_artifact_dir.glob("review-cycle-*.md")) + 1``
+    (``ReviewCycleArtifact.next_cycle_number``,
+    ``src/specify_cli/review/artifacts.py:288-295``) -- it never inspects
+    *what* ``feedback_source`` points at. Passing the WP's own
+    ``review-cycle-1.md`` (the ``--review-feedback-file`` shape from the
+    ticket) is accepted: its full text -- frontmatter delimiters and all --
+    is read as plain body content and written out as ``review-cycle-2.md``,
+    fabricating a duplicate cycle that outranks the real reviewer's original
+    verdict (``ReviewCycleArtifact.latest`` always returns the
+    highest-numbered file).
+
+    This test asserts the artifact-first, guard-second contract that would
+    need to hold once #2996(b) is fixed. It is expected to fail (red) at the
+    ``pytest.raises`` line TODAY, before the guard exists -- ``DID NOT RAISE``
+    is the correct failure signature for a regression test pinning a missing
+    guard, not a defect in the test itself.
+    """
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    assert created.artifact_path == wp_dir / "review-cycle-1.md"
+    assert created.artifact.reviewer_agent == "reviewer-renata"
+
+    # Hand the WP's OWN canonical review-cycle-1.md back in as the feedback
+    # source -- the exact ``--review-feedback-file <review-cycle-1.md path>``
+    # shape from the ticket -- with an empty reviewer_agent (also from the
+    # ticket).
+    with pytest.raises(ReviewCycleError, match="review-cycle|duplicate|feedback"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=MISSION_SLUG,
+            wp_id=WP_ID,
+            wp_slug=WP_SLUG,
+            feedback_source=created.artifact_path,
+            reviewer_agent="",
+        )
+
+    # These hold once the guard exists: no fabricated cycle-2, and the real
+    # reviewer's cycle-1 verdict remains the authoritative "latest".
+    assert not (wp_dir / "review-cycle-2.md").exists()
+    latest = ReviewCycleArtifact.latest(wp_dir)
+    assert latest is not None
+    assert latest.reviewer_agent == "reviewer-renata"
+
+
+def test_new_cycle_body_never_duplicates_a_prior_cycle_file(tmp_path: Path) -> None:
+    """General invariant (#2996(b)): no newly-written review-cycle artifact's
+    ``body`` may be byte-identical to the full text of any prior
+    ``review-cycle-*.md`` in the same WP directory.
+
+    Demonstrates the live fabrication directly (no ``pytest.raises`` --
+    today's code does NOT raise, it succeeds and duplicates): reusing
+    cycle-1's own file as ``feedback_source`` for cycle-2 makes cycle-2's
+    ``body`` equal to cycle-1's ENTIRE on-disk file (frontmatter + body),
+    which trivially also equals cycle-1's own ``body`` is a strict subset --
+    the assertion below pins the general "never a duplicate" contract and is
+    expected to fail (red) today because the duplication is exactly what
+    happens.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+    cycle1 = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    cycle1_full_text = cycle1.artifact_path.read_text(encoding="utf-8")
+
+    cycle2 = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=cycle1.artifact_path,
+        reviewer_agent="",
+    )
+
+    prior_bodies = [
+        p.read_text(encoding="utf-8")
+        for p in wp_dir.glob("review-cycle-*.md")
+        if p != cycle2.artifact_path
+    ]
+    assert cycle2.artifact.body not in prior_bodies, (
+        "a newly-written review cycle's body duplicated a prior "
+        f"review-cycle-*.md file verbatim:\n{cycle2.artifact.body!r}"
+    )
+    assert cycle1_full_text not in (cycle2.artifact.body,)
