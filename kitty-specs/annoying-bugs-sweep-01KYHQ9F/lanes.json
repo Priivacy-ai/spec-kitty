@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "mission_slug": "annoying-bugs-sweep-01KYHQ9F",
+  "mission_id": "01KYHQ9F9BCK9E301PQJG6T7QZ",
+  "mission_branch": "kitty/mission-annoying-bugs-sweep-01KYHQ9F",
+  "target_branch": "fix/annoying-bugs-sweep",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "tests/integration/test_migration_backfill.py",
+        "tests/regression/baselines/issue_2985_red_first.md",
+        "tests/regression/test_birth_cutover.py",
+        "tests/unit/migration/test_backfill_runtime_state.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/review/ERROR_CODES.md",
+        "src/specify_cli/cli/commands/review/_dead_code.py",
+        "src/specify_cli/cli/commands/review/_diagnostics.py",
+        "tests/specify_cli/cli/commands/review/baselines/issue_2987_red_first.md",
+        "tests/specify_cli/cli/commands/review/test_dead_code_baseline.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/procedures/built-in/adversarial-squad-deployment.procedure.yaml",
+        "src/doctrine/skills/ad-hoc-profile-load/SKILL.md",
+        "src/doctrine/skills/adversarial-squad/SKILL.md",
+        "src/doctrine/skills/spk-doctrine-profile-load/SKILL.md",
+        "src/doctrine/skills/spk-doctrine-profile-load/references/profile-load-mechanics.md",
+        "tests/architectural/test_profile_load_resolver_guidance.py",
+        "tests/doctrine/test_spk_skill_pack.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/api/environment-variables.md",
+        "docs/api/upgrade-lifecycle.md",
+        "docs/architecture/launch-readiness-future.md",
+        "docs/guides/install-and-upgrade.md",
+        "src/doctrine/styleguides/built-in/plain-language.styleguide.yaml",
+        "tests/architectural/test_status_command_guidance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/profile_invocation.py",
+        "tests/specify_cli/invocation/cli/test_complete.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-27T13:45:52.583733+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

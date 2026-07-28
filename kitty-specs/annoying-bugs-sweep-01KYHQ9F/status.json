@@ -1,0 +1,71 @@
+{
+  "event_count": 66,
+  "last_event_id": "01KYKWS2Z7FZK4ZMY91P3B9RKG",
+  "materialized_at": "2026-07-28T08:17:08.072011+00:00",
+  "mission_number": "",
+  "mission_slug": "annoying-bugs-sweep-01KYHQ9F",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "codex",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYKWRZFJ1EJXSZNTXFHEWDCA",
+      "last_transition_at": "2026-07-28T08:17:04.498117+00:00",
+      "shell_pid": 3020505,
+      "shell_pid_created_at": "1785157835.25"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "codex",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYKWS0EJM51BEMMBW3V3HQS0",
+      "last_transition_at": "2026-07-28T08:17:05.490113+00:00",
+      "shell_pid": 3020505,
+      "shell_pid_created_at": "1785157835.25"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYKWS19GMH9K595MT25K33MX",
+      "last_transition_at": "2026-07-28T08:17:06.352026+00:00",
+      "shell_pid": 4139788,
+      "shell_pid_created_at": "1785164864.63"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYKWS24JDBVZZ20NBXA3FY3K",
+      "last_transition_at": "2026-07-28T08:17:07.218527+00:00",
+      "shell_pid": 104522,
+      "shell_pid_created_at": "1785166209.99"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYKWS2Z7FZK4ZMY91P3B9RKG",
+      "last_transition_at": "2026-07-28T08:17:08.072011+00:00",
+      "shell_pid": 3971504,
+      "shell_pid_created_at": "1785163558.72"
+    }
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "mission_slug": "annoying-bugs-sweep-01KYHQ9F",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "No seeded historical event supersedes any WP's current lane or runtime slots, universally quantified over WPs and over lane and annotation slots.",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_birth_cutover.py::test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed - passed. Full file re-run by orchestrator: 13 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP01 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:24:00Z",
+      "notes": "Reviewer traced the witness denominator to read_legacy_runtime, independently of the seed builder. Full test_birth_cutover.py re-run: 21 passed after the #2990 harness fold."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A second accept on an unchanged tree converges, in each mutating mode, with the stamp reporting success (error is None).",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_corpus_frontload_idempotent.py::test_second_cutover_run_seeds_nothing_and_is_byte_identical - passed (file: 4 passed, re-run by orchestrator).",
+      "pass_fail": "pass",
+      "verified_by": "claude (orchestrator), direct test execution",
+      "verified_at": "2026-07-27T19:35:00Z",
+      "notes": "Blocked at review time by ambient /tmp/.git (#2990); orchestrator removed that empty stray directory and the suite now passes."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The cutover still seeds genuinely-absent runtime state and still flips status_phase, so the fix does not disable the feature.",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_backfill_runtime_state.py - 43 passed; tests/integration/test_migration_backfill.py - 9 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP01 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:24:00Z",
+      "notes": "Cutover still seeds absent state and flips status_phase; reviewer confirmed _resolve_seed_anchor extraction is behavior-preserving."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Every writing caller of the shared cutover authority holds FR-001, so the fix is not accept-only.",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_birth_cutover.py::test_birth_cutover_reconciles_at_merge_no_manual_backfill (coordination + flat topologies) - 2 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP01 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:24:00Z",
+      "notes": "Reviewer grep-traced the live caller chain: merge/executor.py:997, m_zz_runtime_state_backfill.py:221, migrate_cmd.py:868/:870, accept.py via stamp_accept_cutover, _cutover_doctor.py:110."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The seed builder and verify_backfill cannot disagree about which WPs need seeding, while verify retains at least one witness derived from the legacy reader rather than from the builder.",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_backfill_runtime_state.py::test_missing_raw_claim_witness_cannot_be_masked_by_expected_event_builder - passed; reviewer's independent mutation script returns ok=False at HEAD vs ok=True at cycle-1 commit 460de7769.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP01 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:24:00Z",
+      "notes": "Cycle-1 builder/verifier tautology closed: denominator now derives from read_legacy_runtime. Reviewer added a second probe covering the synthesized-anchor branch; 3/3 caught at HEAD."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The #2985 reproduction is asserted to be selected by a named CI job, so this P0 cannot silently return.",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/ -m regression --collect-only -q -> 41/33857 selected; grep confirms the exact #2985 node is among them (1 hit).",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP01 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:24:00Z",
+      "notes": "Node is selected by the blocking regression marker, so the P0 reproduction cannot silently drop out of CI."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Every profile-load instruction names a resolver-backed command as primary.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_profile_load_resolver_guidance.py - live scan reports 18 guidance files, 0 offenders; reviewer's 11 planted probes: 11/11 as expected.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP03 review-cycle-4.md",
+      "verified_at": "2026-07-27T16:15:00Z",
+      "notes": "Reviewer imported the live _raw_profile_instruction_offenders predicate directly rather than relying on committed fixtures."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "A scoped raw-read fallback for CLI-incapable harnesses is preserved with an inline divergence caveat, so #2304 is not re-broken.",
+      "proof_type": "code_review",
+      "evidence": "Bounded read-only-harness caveat present at mission-steps/software-dev/tasks/prompt.md:555-559 and tasks-packages/prompt.md:234-238, naming all three divergence axes (overlays, specializes_from lineage, enhances/overrides). Historical revert of the real text into a scratch copy -> 2 offenders detected.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP03 review-cycle-4.md",
+      "verified_at": "2026-07-27T16:15:00Z",
+      "notes": "Reviewer swept all four #1840 raw-read sites; the other two (adversarial-squad SKILL.md:54-58, adversarial-squad-deployment.procedure.yaml:41-46) are equally bounded."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The canonical profile-load skill is self-sufficient, with mechanics in spk-doctrine-profile-load/references/*.md via CanonicalSkill.references rather than inlined.",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_spk_skill_pack.py - passing within the 5-file doctrine gate suite (23 passed, 2 skipped), including the 80-line spk-* body cap at test_spk_skill_pack.py:108.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP03 review-cycle-4.md",
+      "verified_at": "2026-07-27T16:15:00Z",
+      "notes": "Mechanics live in spk-doctrine-profile-load/references/ and resolve through CanonicalSkill.references rather than being inlined."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "An already-seeded corpus gets a deterministic append-only compatibility repair for an old colliding seed: intended pre-seed state restored, later legitimate writers still win, verification succeeds, reruns append nothing.",
+      "proof_type": "automated_test",
+      "evidence": "tests/regression/test_corpus_frontload_idempotent.py::test_second_run_does_not_reorder_the_event_log and ::test_second_corpus_walk_is_byte_identical_across_multiple_missions - passed (4 passed, re-run by orchestrator); repair half covered by ...test_issue_2985_..._repairs_old_seed.",
+      "pass_fail": "pass",
+      "verified_by": "claude (orchestrator), direct test execution",
+      "verified_at": "2026-07-27T19:35:00Z",
+      "notes": "Blocked at review time by ambient /tmp/.git (#2990); cleared by the orchestrator. COMPATIBILITY_REPAIR_ACTOR rows are filtered from the witness floor via _wp_events(include_repairs=False)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Both stale claims in the #1840 ticket body are struck: the direct-YAML-read advice and the false zero-occurrences assertion.",
+      "proof_type": "manual_verification",
+      "evidence": "GitHub issue #1840 carries a corrections section withdrawing both stale claims (the direct-YAML-read advice and the false zero-occurrences assertion).",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP03 review-cycle-4.md",
+      "verified_at": "2026-07-27T16:15:00Z",
+      "notes": "Manual per spec (verification_method: manual - permalink in PR body). Reviewer confirmed T017 satisfied on the live issue."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Doctrine and the four scoped published docs name commands that actually exist.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_status_command_guidance.py - 5 passed. 79 extracted invocations resolved against the compiled Click tree via typer.main.get_command; phantom 'spec-kitty status' planted into the real plain-language.styleguide.yaml reddens the shipping gate at line 55.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP04 review-cycle-4.md",
+      "verified_at": "2026-07-27T16:40:12Z",
+      "notes": "Reviewer independently reproduced the 79-invocation denominator (3/16/21/12/27) and confirmed it was not narrowed to dodge failures. Guard now CI-selected under arch_shard_1."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "`spec-kitty profile-invocation --help` names `spec-kitty dispatch`.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_complete.py - 16 passed; live `profile-invocation --help` renders both the Open and Close lines; _completion_manifest.json byte-identical in the diff.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP05 review-cycle-1.md",
+      "verified_at": "2026-07-27T17:40:00Z",
+      "notes": "Reviewer independently reproduced both mutations (pointer moved into help=, and epilog deleted) and confirmed each reddens the intended tests."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "The post-merge dead-code gate completes without a POSIX grep on PATH, so a successful merge still yields a verdict.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/review/test_dead_code_baseline_git.py::test_real_post_merge_cli_uses_git_as_only_path_executable - spawns a real `python -m specify_cli review` with a PATH of spies and asserts the observed executable set is exactly {'git'} (7 tests in that module). Fast sibling test_dead_code_baseline.py: 5 tests.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP02 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:01:52Z",
+      "notes": "FileNotFoundError is injected at the subprocess boundary rather than by patching shutil.which."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "A zero-symbol dead-code result means the gate examined the right files; it must scan the correct set or fail loudly.",
+      "proof_type": "automated_test",
+      "evidence": "Mixed-layout reproduction: src/marker.py + package/dead.py yields findings=[PublicMixedDead in package/dead.py], clean-zero not shown. Mutation restoring the cycle-1 `src_python_paths or ...` predicate at _dead_code.py:101 -> 2 committed tests fail.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP02 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:01:52Z",
+      "notes": "Reviewer built the fixture from scratch and git-archived lane HEAD to run the mutation, rather than trusting the fix claim."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "A fast-marked test injects FileNotFoundError at the subprocess boundary (not via shutil.which), plus a non-Python-layout fixture, so neither half can silently return.",
+      "proof_type": "automated_test",
+      "evidence": "Fast half - test_dead_code_baseline.py::test_missing_git_at_subprocess_boundary_is_undeterminable (module-level pytest.mark.fast; injects FileNotFoundError by patching subprocess.run, not shutil.which). git_repo half - test_dead_code_baseline_git.py::test_unsupported_non_python_change_is_undeterminable (non-Python-layout fixture, marked [integration, git_repo, non_sandbox], not fast). Combined review package: 119 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude (reviewer-renata), WP02 review-cycle-3.md",
+      "verified_at": "2026-07-27T15:01:52Z",
+      "notes": "Both halves guarded and neither can silently return. Split across two modules so the real-git tests do not carry pytest.mark.fast (test_pytest_marker_correctness gate); assertion count unchanged 130 -> 130, zero test functions added or lost."
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "Seed ordering, not reducer precedence: seed suppression is barred because it discards claim-borne runtime slots; verification must independently witness the three claim-borne legacy values.",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_backfill_runtime_state.py - value-keyed _unmigrated_claim_slots: a legacy claim value that diverges from authentic history still rides a deterministic carrier and is present in the raw log, while the reduced snapshot keeps the later authentic value. Upstream's two claim-suppression contract tests pass unchanged. Anti-tautology: with _build_seed_events monkeypatched to emit no claim transitions, verify_backfill() returns ok=False (6 mismatches).",
+      "pass_fail": "pass",
+      "verified_by": "claude (adversarial squad: reviewer-renata + architect-alphonso, converged independently)",
+      "verified_at": "2026-07-28T09:30:00Z",
+      "notes": "Added after the squad found C-002 had no row, so the acceptance surface could not have flagged the presence-keyed suppression regression. NFR-001 and NFR-004 remain unrowed - tracked as a gap, not evidenced here."
+    }
+  ],
+  "negative_invariants": []
+}
