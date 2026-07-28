@@ -43,15 +43,27 @@ Two tests:
 
 * :func:`test_consent_predicate_must_apply_before_limit_not_after` — a guard
   against the shallow fix: filtering blocked rows out of the *already
-  limit-truncated* selection. With a 10-event blocked backlog older than the
-  one unblocked event and ``limit=5``, a post-selection filter starves the
-  queue (the whole window is blocked, so the batch goes to zero and the drain
-  loop looks "done" while the unblocked event never gets a turn). The
-  predicate must live inside the filtered read, before ``LIMIT`` truncates —
-  mirrors the legacy ``OfflineQueue.drain_queue`` shape
-  (``sync/queue.py:1570-1593``: ``SELECT event_id, data FROM queue ORDER BY
-  timestamp ASC, id ASC LIMIT ?`` — no predicate at all), which is the sibling
-  code path this journal/dispatcher pair is meant to replace. This test also
+  limit-truncated* selection. This is expressed through
+  ``specify_cli.cli.commands.sync._run_dispatch_batches`` — the actual
+  multi-batch drain loop ``sync now`` runs (``sync.py:807-828``), not a single
+  ``dispatch(..., limit=...)`` call — because a single call cannot
+  distinguish "the predicate lives inside the filtered read" from "the
+  predicate runs after ``LIMIT`` but a later loop iteration reaches the
+  unblocked event anyway"; the multi-batch loop's own termination condition
+  (``batch.selected == 0 or not advanced: break``, ``sync.py:857``) is what a
+  post-selection filter actually breaks: a batch of all-blocked rows that get
+  filtered out post-``LIMIT`` never posts (no ``delivered``), so
+  ``terminal_progress`` is ``False``; since a transparently-filtered row is
+  never added to ``retryable_event_ids`` either, ``skip`` never grows, so
+  ``advanced`` is ``False`` and the loop exits on that very first batch,
+  stranding the unblocked event exactly as the legacy
+  ``OfflineQueue.drain_queue`` shape would (``sync/queue.py:1570-1593``:
+  ``SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?``
+  — no predicate at all), which is the sibling code path this
+  journal/dispatcher pair is meant to replace. The per-batch limit
+  (``sync.py:459``, normally 1000) is monkeypatched down to 5 purely so a
+  10-event blocked backlog is enough to force truncation within one batch —
+  the property under test is unchanged by the smaller number. This test also
   asserts the negative: none of the 10 blocked rows may ship either — a fix
   that merely reorders selection (e.g. newest-first) to surface the unblocked
   event while still shipping the blocked backlog must not pass.
@@ -70,12 +82,19 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from specify_cli.cli.commands import sync as sync_commands
+from specify_cli.cli.commands.sync import _EventSyncRuntime, _run_dispatch_batches
 from specify_cli.delivery.dispatcher import dispatch
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import StubReceiver
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import DRAIN_BLOCKED_SAAS_DISABLED, Event
+from specify_cli.sync.target_authority import (
+    OverrideMode,
+    QueueScopeStatus,
+    ResolvedSyncTarget,
+)
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -124,6 +143,26 @@ def _make_event(
 def _register_target(registry: SqliteDeliveryTargetRegistry) -> DeliveryTarget:
     return registry.register(
         url=_TARGET_URL, team_slug=_TARGET_TEAM_SLUG, user_email=_TARGET_USER_EMAIL
+    )
+
+
+def _resolved_sync_target(tmp_path: Path) -> ResolvedSyncTarget:
+    """Build a plain, no-I/O ``ResolvedSyncTarget`` to satisfy ``_EventSyncRuntime``.
+
+    ``_run_dispatch_batches`` never reads ``runtime.target`` — it only touches
+    ``runtime.journal`` and ``runtime.ledger`` — but the dataclass requires it,
+    so this is inert fixture data, not a behavioural input to the test.
+    """
+    return ResolvedSyncTarget(
+        configured_server_url=_TARGET_URL,
+        env_server_url=None,
+        override_mode=OverrideMode.NONE,
+        resolved_server_url=_TARGET_URL,
+        user_id=None,
+        team_slug=_TARGET_TEAM_SLUG,
+        derived_queue_scope=f"team:{_TARGET_TEAM_SLUG}",
+        queue_db_path=tmp_path / "queue.db",
+        active_queue_scope_status=QueueScopeStatus.MATCHES,
     )
 
 
@@ -187,7 +226,9 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
     )
 
 
-def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path) -> None:
+def test_consent_predicate_must_apply_before_limit_not_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A large blocked backlog must not starve a newer unblocked event.
 
     #3031 Defect 5 (per-event drain filtering) — NOT a #3030 consent pin. The
@@ -196,18 +237,34 @@ def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path) -> 
     ``Event.drain_blocked_reason`` (machine-global), never per-project
     consent, so it is renamed to blocked/unblocked in this docstring.
 
-    Seeds 10 blocked events older than 1 unblocked event, then drains with
-    ``limit=5``. ``ledger.select_undelivered`` preserves ``event_universe``
-    order (created_at ASC, from ``journal.read_all()``) and slices
-    ``[:limit]`` — so today's unfiltered selection returns the 5 OLDEST rows,
-    which are all blocked, and the unblocked event (created last) is never
-    even selected, let alone delivered. This reds for the same root cause as
-    the test above (no predicate at all) but demonstrates why the eventual
-    fix must apply the drain_blocked_reason predicate *inside* the filtered
-    read, before ``LIMIT`` truncates — a fix that instead filters the
-    already-selected 5-row batch would leave an empty batch and make the
-    drain loop look "done" while the unblocked event is permanently stranded
-    behind the backlog.
+    Driven through ``_run_dispatch_batches`` — the loop
+    ``specify_cli.cli.commands.sync`` runs for every ``sync now`` invocation
+    (``sync.py:807-828``), not a single ``dispatch(..., limit=...)`` call.
+    A single call cannot separate "the predicate is missing" from "the
+    predicate runs after ``LIMIT`` truncates, but a later loop iteration
+    reaches the unblocked event anyway" — both look identical through one
+    call. The multi-batch loop's own stop condition
+    (``batch.selected == 0 or not advanced: break``, ``sync.py:857``) is what
+    actually distinguishes them: a post-``LIMIT`` filter drops the batch to
+    zero *delivered* without producing any *retryable* ids either (the rows
+    were filtered transparently, not rejected), so neither ``terminal_progress``
+    nor ``skip`` growth fires, ``advanced`` is ``False``, and the loop exits
+    on the very first batch — stranding the unblocked event exactly like the
+    legacy ``OfflineQueue.drain_queue`` shape this journal/dispatcher pair
+    replaces (``sync/queue.py:1570-1593``: ``SELECT event_id, data FROM queue
+    ORDER BY timestamp ASC, id ASC LIMIT ?`` — no predicate at all).
+
+    Seeds 10 blocked events older than 1 unblocked event. The per-batch limit
+    (``sync.py:459``, normally 1000) is monkeypatched down to 5 so the same
+    10-event backlog forces truncation within a single batch instead of
+    requiring a 1000+-event fixture — the property under test (predicate
+    placement relative to ``LIMIT``) is unaffected by the constant's value.
+    With today's code (no predicate over ``drain_blocked_reason`` at all,
+    inside or outside the filtered read), the loop simply keeps calling
+    ``dispatch`` with a growing limit until the whole backlog — blocked and
+    unblocked alike — is delivered, so this test currently reds on the
+    negative assertion below: all 10 blocked ids ship alongside the unblocked
+    one.
 
     The negative assertion below (none of the 10 blocked ids ship) closes the
     cheap-green this test previously left open: reversing
@@ -216,6 +273,8 @@ def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path) -> 
     still shipping all 10 blocked rows once the batch/limit allowed it — that
     is not a correct fix and must not pass this test.
     """
+    monkeypatch.setattr(sync_commands, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 5)
+
     journal = EventJournal(tmp_path / "journal.db")
     blocked_ids = [f"evt-client-confidential-{index}" for index in range(10)]
     for index, event_id in enumerate(blocked_ids):
@@ -239,15 +298,23 @@ def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path) -> 
     registry = SqliteDeliveryTargetRegistry(":memory:")
     target = _register_target(registry)
     receiver = StubReceiver()
+    runtime = _EventSyncRuntime(
+        target=_resolved_sync_target(tmp_path),
+        journal=journal,
+        ledger=ledger,
+        registry=registry,
+    )
 
-    dispatch(journal=journal, ledger=ledger, receiver=receiver, target=target, limit=5)
+    _run_dispatch_batches(runtime, receiver, target)
 
     received_ids = set(receiver.received_event_ids())
     assert unblocked.event_id in received_ids, (
         "the one unblocked event must be delivered even behind a 10-event "
         "blocked backlog; today the drain has no drain_blocked_reason "
-        "predicate at all, so it ships the 5 OLDEST rows (all blocked) and "
-        "never reaches the unblocked event within the requested limit"
+        "predicate at all, so the batch loop ships the 5 OLDEST rows (all "
+        "blocked) in its first pass and only reaches the unblocked event "
+        "because it keeps looping — a correct fix must not depend on that "
+        "looping behaviour to avoid starving it"
     )
     shipped_blocked_ids = received_ids.intersection(blocked_ids)
     assert not shipped_blocked_ids, (
