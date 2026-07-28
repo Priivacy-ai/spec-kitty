@@ -10,7 +10,12 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mission_runtime import MissionArtifactKind, is_primary_artifact_kind, kind_for_mission_file
+from mission_runtime import (
+    MissionArtifactKind,
+    is_primary_artifact_kind,
+    kind_for_mission_file,
+    resolve_placement_only,
+)
 from specify_cli import app as cli_app
 
 
@@ -28,6 +33,63 @@ def _init_spec_kitty_repo(repo: Path) -> None:
     (repo / "README.md").write_text("# Test Repo\n", encoding="utf-8")
     subprocess.run(["git", "add", "README.md", ".kittify/config.json"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=repo, check=True, capture_output=True)
+
+
+def _seed_merged_and_pruned_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, str, str]:
+    """Seed a mission whose feature branch is merged into ``main`` and pruned.
+
+    Shared #3033 fixture shape -- exactly what ``spec-kitty merge`` + branch
+    cleanup leaves behind: the mission's ``meta.json`` still names the
+    now-deleted feature branch as ``target_branch``, and the working tree
+    ends up on a *different*, freshly-checked-out branch (mirroring a later
+    pass, e.g. authoring the retrospective, that runs from its own branch).
+
+    Extracted so both the CLI-level #3033 regression
+    (``test_public_safe_commit_succeeds_after_merged_branch_deleted_3033``)
+    and the seam-level #3033 regression
+    (``test_resolve_placement_only_rejects_pruned_target_branch_3033``) drive
+    the identical repo shape without duplicating the git choreography.
+
+    Returns ``(feature_dir, feature_branch, postmerge_branch)``.
+    """
+    feature_branch = f"feat/{mission_slug}"
+    postmerge_branch = f"review/{mission_slug}-postmerge"
+
+    _init_spec_kitty_repo(tmp_path)
+
+    def _git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    _git("checkout", "-q", "-b", feature_branch)
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    meta = {
+        "mission_id": "01KYHHR8RELATIONALCUT0001",
+        "mission_slug": mission_slug,
+        "mission_type": "software-dev",
+        "target_branch": feature_branch,
+        "friendly_name": "Relational cutover",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", f"chore({mission_slug}): seed mission meta"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Merge into main and prune the merged branch -- exactly what
+    # `spec-kitty merge` + branch cleanup leaves behind.
+    _git("checkout", "-q", "main")
+    _git("merge", "-q", "--no-ff", feature_branch, "-m", f"Merge {feature_branch}")
+    _git("branch", "-D", feature_branch)
+
+    # A later pass (e.g. the retrospective) works from a fresh branch -- the
+    # merged mission branch no longer exists anywhere in this repo.
+    _git("checkout", "-q", "-b", postmerge_branch)
+
+    return feature_dir, feature_branch, postmerge_branch
 
 
 @pytest.mark.parametrize(
@@ -201,42 +263,9 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
     mission_slug = "relational-cutover-01KYHHR8"
-    feature_branch = f"feat/{mission_slug}"
-    postmerge_branch = f"review/{mission_slug}-postmerge"
-
-    _init_spec_kitty_repo(tmp_path)
-
-    def _git(*args: str) -> None:
-        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
-
-    _git("checkout", "-q", "-b", feature_branch)
-    feature_dir = tmp_path / "kitty-specs" / mission_slug
-    feature_dir.mkdir(parents=True)
-    meta = {
-        "mission_id": "01KYHHR8RELATIONALCUT0001",
-        "mission_slug": mission_slug,
-        "mission_type": "software-dev",
-        "target_branch": feature_branch,
-        "friendly_name": "Relational cutover",
-    }
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", f"chore({mission_slug}): seed mission meta"],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
+    feature_dir, _feature_branch, _postmerge_branch = _seed_merged_and_pruned_mission(
+        tmp_path, mission_slug
     )
-
-    # Merge into main and prune the merged branch -- exactly what
-    # `spec-kitty merge` + branch cleanup leaves behind.
-    _git("checkout", "-q", "main")
-    _git("merge", "-q", "--no-ff", feature_branch, "-m", f"Merge {feature_branch}")
-    _git("branch", "-D", feature_branch)
-
-    # A later retrospective pass works from a fresh branch -- the merged
-    # mission branch no longer exists anywhere in this repo.
-    _git("checkout", "-q", "-b", postmerge_branch)
 
     retro_path = feature_dir / "retrospective.yaml"
     retro_path.write_text(
@@ -317,3 +346,73 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
         "Post-merge writes must not require the merged branch to still exist."
         in committed_blob
     ), committed_blob
+
+
+@pytest.mark.regression
+def test_resolve_placement_only_rejects_pruned_target_branch_3033(
+    tmp_path: Path,
+) -> None:
+    """#3033: the seam itself hands back a pruned branch -- not a CLI artifact.
+
+    #3033 SS7 is explicit: "Fixing it at one call site is whack-a-field."
+    ``test_public_safe_commit_succeeds_after_merged_branch_deleted_3033``
+    above documents its own "Honest limit": because it drives only the
+    public ``safe-commit`` CLI, a call-site patch inside
+    ``safe_commit_cmd._resolve_commit_target`` that falls back to the
+    checked-out ``HEAD`` branch whenever the resolved ``target_branch``
+    doesn't exist would ALSO satisfy that test's assertions -- ``HEAD`` is by
+    construction an existing, readable ref, so "ref exists" and "content
+    readable back from that ref" are both trivially true for a HEAD
+    fallback. That test alone cannot mechanically force the fix to live at
+    the seam. This test exists BECAUSE of that gap, and the two are meant to
+    be discharged TOGETHER, not interchangeably.
+
+    This test never calls ``safe-commit`` and never goes near
+    ``_resolve_commit_target``. It calls the placement seam directly:
+    ``mission_runtime.resolve_placement_only`` -- which, for a
+    ``MissionArtifactKind.RETROSPECTIVE`` (a PRIMARY-partition kind), returns
+    ``CommitTarget(ref=target_branch)`` where ``target_branch`` comes
+    straight from ``specify_cli.core.paths.get_feature_target_branch``: a
+    bare ``meta.json`` read of ``target_branch`` with NO existence check
+    against git and no lifecycle-phase input (see
+    ``src/mission_runtime/resolution.py`` around ``resolve_placement_only``'s
+    ``if kind in _PRIMARY_ARTIFACT_KINDS: return CommitTarget(ref=target_branch)``
+    arm, and ``get_feature_target_branch`` in
+    ``src/specify_cli/core/paths.py``). A ``_resolve_commit_target``
+    HEAD-fallback patch cannot make this test pass -- it is not on this call
+    path at all; the only way to turn this red pin green is to make the seam
+    itself existence-checked / lifecycle-aware, which is exactly #3033 SS7's
+    binding constraint.
+
+    Contract pinned: for a mission whose ``target_branch`` has been merged
+    and pruned, the placement seam must resolve a destination that actually
+    exists in the repository -- it must not hand back a ref naming a branch
+    that is gone.
+    """
+    mission_slug = "relational-cutover-01KYHHR8"
+    feature_dir, feature_branch, _postmerge_branch = _seed_merged_and_pruned_mission(
+        tmp_path, mission_slug
+    )
+    assert feature_dir.exists()  # sanity: the shared fixture did seed the mission
+
+    target = resolve_placement_only(
+        tmp_path, mission_slug, kind=MissionArtifactKind.RETROSPECTIVE
+    )
+
+    ref_exists = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{target.ref}"],
+        cwd=tmp_path,
+        capture_output=True,
+    )
+    assert ref_exists.returncode == 0, (
+        f"resolve_placement_only resolved {target.ref!r} for a mission whose "
+        "feature branch was merged and pruned -- the placement seam handed "
+        "back a destination git can no longer verify. Per #3033 SS7, the fix "
+        "belongs at the seam (get_feature_target_branch / "
+        "resolve_placement_only gaining post-merge lifecycle awareness), not "
+        "as a call-site HEAD fallback in _resolve_commit_target."
+    )
+    assert target.ref != feature_branch, (
+        f"resolve_placement_only must not hand back the pruned feature "
+        f"branch {feature_branch!r} verbatim"
+    )
