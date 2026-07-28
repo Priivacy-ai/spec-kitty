@@ -294,6 +294,13 @@ jobs:
               - 'tests/contract/**'
               - 'tests/init/**'
               - 'tests/integration/**'
+              # The `misc` shard owns tests/regression + tests/regressions (see
+              # its run list below), but neither directory was claimed by this
+              # filter — so a PR touching only an issue-pinned reproduction did
+              # not activate `core_misc`, the shard never ran, and the pin was
+              # structurally uncollectable on that PR.
+              - 'tests/regression/**'
+              - 'tests/regressions/**'
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
               - 'tests/tasks/**'
