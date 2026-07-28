@@ -13,14 +13,12 @@ WP03 additions:
 from __future__ import annotations
 
 import dataclasses
-import io
-import os
 from pathlib import Path
 from typing import Any, Literal
 
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
+from kernel.yaml_io import write_mapping_atomic
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.schema import (
     GenActor,
@@ -159,86 +157,32 @@ def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) 
     """Atomically write a dict as YAML to ``canonical``.
 
     Shared primitive used by both ``write_record`` and ``write_gen_record``.
+    Delegates the serialize + fsync + atomic-rename sequence to the
+    kernel-layer :func:`kernel.yaml_io.write_mapping_atomic` primitive, which
+    every caller here already invokes with ``target_dir == canonical.parent``
+    (both call sites ``mkdir`` the target directory before reaching this
+    function) — asserted below so a future caller that passes a divergent
+    directory fails loudly instead of silently fsyncing the wrong directory.
 
-    Sequence:
-    1. Serialize ``data`` via ruamel.yaml round-trip dumper to a uniquely-named
-       tempfile in ``target_dir`` (same filesystem as ``canonical`` →
-       ``os.replace`` is guaranteed atomic on POSIX/APFS/NTFS).
-    2. ``fsync()`` the tempfile fd, close.
-    3. ``os.replace(tmp, canonical)`` — atomic rename.
-    4. Best-effort ``fsync()`` on the parent directory fd to flush the rename
-       into the inode (non-fatal on failure).
+    Width stays 120 here (not the kernel's wider 4096 default): retrospective
+    records intentionally keep the narrower wrap; widening it is a separate,
+    open decision tracked by #3059.
 
     Raises:
         WriterError: On any IO or serialization error.  The tempfile is
             unlinked on failure so no partial file remains.
     """
-    tmp_name = f"{RETROSPECTIVE_FILENAME}.tmp.{os.getpid()}.{os.urandom(4).hex()}"
-    tmp_path = target_dir / tmp_name
+    if target_dir != canonical.parent:
+        raise WriterError(
+            f"target_dir {target_dir} must equal canonical.parent {canonical.parent}"
+        )
 
     try:
-        yaml = YAML(typ="rt")
-        yaml.default_flow_style = False
-        yaml.preserve_quotes = True
-        yaml.width = 120
-
-        buf = io.BytesIO()
-        yaml.dump(data, buf)
-        serialized = _normalize_nonsemantic_trailing_whitespace(buf.getvalue())
-
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        try:
-            os.write(fd, serialized)
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-
-        os.replace(str(tmp_path), str(canonical))
-
-        # Best-effort dir fsync.
-        try:
-            dir_fd = os.open(str(target_dir), os.O_RDONLY)
-            try:
-                os.fsync(dir_fd)
-            finally:
-                os.close(dir_fd)
-        except OSError:
-            pass
-
-    except WriterError:
-        raise
+        write_mapping_atomic(data, canonical, width=120)
     except OSError as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise WriterError(f"IO error writing retrospective record: {exc}") from exc
     except Exception as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
-
-
-def _normalize_nonsemantic_trailing_whitespace(serialized: bytes) -> bytes:
-    """Remove writer wrapping artifacts only when YAML meaning remains unchanged.
-
-    Falls back to the original bytes if the safety re-parse cannot confirm the
-    normalized form is semantically identical, so normalization is never worse
-    than emitting the un-normalized dump.
-    """
-    normalized = b"\n".join(line.rstrip(b" \t\r") for line in serialized.split(b"\n"))
-    if normalized == serialized:
-        return serialized
-
-    yaml = YAML(typ="safe")
-    try:
-        original_data = yaml.load(serialized)
-        normalized_data = yaml.load(normalized)
-    except YAMLError:
-        return serialized
-    return normalized if normalized_data == original_data else serialized
 
 
 def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
