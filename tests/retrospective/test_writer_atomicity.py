@@ -271,6 +271,32 @@ def test_atomic_write_yaml_writes_data_to_canonical(tmp_path: Path) -> None:
     assert loaded == data
 
 
+def test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars(tmp_path: Path) -> None:
+    """Wrapped retrospective details must not leave a whitespace-only suffix."""
+    canonical = tmp_path / "retrospective.yaml"
+    details = "An analysis-report.md artifact is present for this mission. Review its findings to understand documented issues and decisions."
+    data = {
+        "not_helpful": [
+            {
+                "id": "n-001",
+                "category": "doc",
+                "summary": "analysis-report.md present with findings",
+                "evidence_refs": ["e-007"],
+                "details": details,
+            }
+        ]
+    }
+
+    _atomic_write_yaml(data, canonical, tmp_path)
+
+    text = canonical.read_text(encoding="utf-8")
+    assert all(not line.endswith((" ", "\t")) for line in text.splitlines())
+
+    from ruamel.yaml import YAML
+
+    assert YAML(typ="safe").load(text) == data
+
+
 def test_atomic_write_yaml_uses_temp_then_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Helper must write to a .tmp file FIRST, then rename it to canonical atomically."""
     import os as _os

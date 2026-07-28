@@ -184,6 +184,10 @@ def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) 
         buf = io.BytesIO()
         yaml.dump(data, buf)
         serialized = buf.getvalue()
+        # ruamel can retain the wrap separator at the end of an indented scalar
+        # line. Retrospectives are tracked artifacts, so normalize that writer
+        # artifact without changing scalar content or newline structure.
+        serialized = b"\n".join(line.rstrip(b" \t\r") for line in serialized.split(b"\n"))
 
         fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
         try:
