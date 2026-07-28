@@ -2534,6 +2534,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/charter-activation-reachability-assessment.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/charter-path-resolution-gaps.md
   tag: current
   divio_type: none
