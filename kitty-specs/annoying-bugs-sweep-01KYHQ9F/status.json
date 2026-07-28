@@ -19,53 +19,166 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "codex",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYKWRZFJ1EJXSZNTXFHEWDCA",
       "last_transition_at": "2026-07-28T08:17:04.498117+00:00",
-      "shell_pid": 3020505,
-      "shell_pid_created_at": "1785157835.25"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 2: independent legacy-runtime-derived claim witness; unit 43 passed, integration 9 passed, #2985 node 1 passed, merge coord+flat 2 passed, regression collection 41 selected incl. exact node, ruff 0, mypy clean",
+        "Cycle-2 review APPROVED. Cycle-1 builder/verifier tautology independently confirmed fixed: reviewer-written mutation script returns ok=True on cycle-1 tree (460de7769) and ok=False at HEAD with 'raw claim-slot witness missing' for all 3 claim slots; control (mutation-only, claim seed intact) inert at ok=True. Second probe covers the synthesized-anchor denominator branch and total builder suppression: 3/3 caught at HEAD, 3/3 vacuous at cycle-1. Denominator inputs all trace to read_legacy_runtime/_claim_anchors/frontmatter; stream reaches it only via _wp_history_floor which filters _is_migration_actor. _resolve_seed_anchor extraction verified logically identical; later-legitimate-writer semantics byte-identical. Gates: unit 43 passed, integration 9 passed, exact #2985 node 1 passed, merge caller coord+flat 2 passed, regression collect 41/33857 incl. exact node, ruff exit 0, mypy clean. Adjacent suites HEAD 34F/307P vs base 34F/296P: 0 introduced, 0 masked, 34 identical pre-existing (ambient /tmp/.git PlacementMismatchError, #2990); +11 passed == 11 new tests. Verdict artifact: review-cycle-3.md (cycle-2 filename occupied by machine restatement of cycle-1, #2996)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 4135209,
+      "shell_pid_created_at": "1785164813.38",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T027": "done"
+      },
+      "tracker_refs": [
+        "#2985"
+      ]
     },
     "WP02": {
       "actor": "merge",
       "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYKWS0EJM51BEMMBW3V3HQS0",
       "last_transition_at": "2026-07-28T08:17:05.490113+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation commit 789ac1ae3; python-pedro loaded via canonical resolver; 125 affected tests passed, 95% focused coverage, Ruff and mypy clean.",
+        "Cycle-2 mixed-layout reviewer fix committed as 3e06a6032; review suites 126 passed, focused coverage 95%, Ruff and mypy clean.",
+        "Cycle-2 review passed; verdict recorded in review-cycle-3.md. Cycle-1 defect remediated by 3e06a6032 and independently mutation-proved. Gates: 12 focused / 126 suite passed, ruff+mypy clean, 95% coverage on _dead_code.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
       "shell_pid": 3020505,
-      "shell_pid_created_at": "1785157835.25"
+      "shell_pid_created_at": "1785157835.25",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T028": "done"
+      },
+      "tracker_refs": [
+        "#2987"
+      ]
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYKWS19GMH9K595MT25K33MX",
       "last_transition_at": "2026-07-28T08:17:06.352026+00:00",
-      "shell_pid": 4139788,
-      "shell_pid_created_at": "1785164864.63"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented resolver-first profile doctrine at c3f290654; tracker evidence https://github.com/Priivacy-ai/spec-kitty/issues/1840#issuecomment-5092362051",
+        "Cycle 2 ready for review",
+        "Cycle-2 independent reviewer override: latest rejected artifact repeats cycle-1 findings, both are remediated in 096e50b0e; exact raw-directory mutation detects the offender, live scan reports zero offenders, focused suite passes 23 tests with 2 expected skips, Ruff passes, and tracker/projection/ownership checks pass",
+        "Cycle 3: regenerated 24 twelve-agent parity baselines + 4 codex/vibe snapshots invalidated by the 096e50b0e prompt edit (28 red -> 311 passed, matching base dfc90cc24); folded mission-step prompts + baselines into owned_files on the planning branch; ratcheted _GUIDANCE_FILE_FLOOR 12->18",
+        "Approved cycle 4: cycle-3 regression closed and independently verified (311 passed at HEAD, exactly matching base dfc90cc24 — count matched, not just colour). Baseline regeneration audited against the diff: 28 files, uniform 5 ins/1 del, exactly ONE distinct removed line (the old unbounded fallback), no unrelated drift absorbed. Glossary-annotation variance corrected and root-caused: first-occurrence-per-term-per-file explains both the 24/4 harness split and the 12/16 project split the implementer's summary missed; all 24 codex/vibe snapshots carry zero annotations, so the skill renderer runs no glossary pass. Zero stale 'look for profiles under' in src/doctrine, baselines, or the 12 agent dirs present in the lane; the 3 survivors are immutable review artifacts and the guard's own planted fixture. No generated agent copies hand-edited (diff touches none; passing parity gates prove baseline == renderer output byte-for-byte). _GUIDANCE_FILE_FLOOR 12->18 judged SOUND: >= assertion so only shrink trips it, floor 12 permitted a 33% silent shrink, failure is loud with a documented one-line adjudication, and module-constant style is the prevailing convention (7+ arch gates) vs _baselines.yaml (3). owned_files: 14 paths, YAML parses across all 5 WPs, disjoint by declaration AND in fact vs lanes a/b/d/e, covering all 37 changed files, byte-identical on planning/mission/lane branches so no revert risk. Extra: verified every instructed CLI surface exists against lane source (show/list/charter context/dispatch + flags) — no phantom-command regression; #1840 body carries the T017 corrections. Base-vs-HEAD failing-node diff over tests/architectural+doctrine+skills+regression: BASE 1 failed/4558 passed, HEAD 1 failed/4565 passed, IDENTICAL failing node (pre-existing test_no_raw_mission_spec_paths) — zero introduced, zero masked; +7 passed exactly matches WP03's 7 new tests. Gates: 23 passed/2 skipped doctrine suite; 4 passed terminology; ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "operator",
+        "at": "2026-07-27T14:23:25Z",
+        "reason": "Cycle-2 independent reviewer override: latest rejected artifact repeats cycle-1 findings, both are remediated in 096e50b0e; exact raw-directory mutation detects the offender, live scan reports zero offenders, focused suite passes 23 tests with 2 expected skips, Ruff passes, and tracker/projection/ownership checks pass",
+        "wp_id": "WP03"
+      },
+      "role": "reviewer",
+      "shell_pid": 95274,
+      "shell_pid_created_at": "1785166076.24",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T029": "done"
+      },
+      "tracker_refs": [
+        "#1840"
+      ]
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYKWS24JDBVZZ20NBXA3FY3K",
       "last_transition_at": "2026-07-28T08:17:07.218527+00:00",
-      "shell_pid": 104522,
-      "shell_pid_created_at": "1785166209.99"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 implementation complete: live Typer-tree status guidance guard and mutation proof passed.",
+        "Cycle 2: guard now extracts only concrete fenced/inline invocations in command position (prose excluded) and resolves them through typer.main.get_command() — the compiled Click tree — fixing the verify_setup/verify-setup false verdict. Source denominator (5) and invocation denominator (79) retained; mutation proof reverts the styleguide good_example to 'spec-kitty status' and asserts the same validation path reddens.",
+        "Cycle 3: added pytestmark = [architectural, docs_scoped] to test_status_command_guidance.py. Guard now collects 5 tests under the full arch-adversarial CI expression (arch_shard_1 claims it); test_gate_coverage.py 31 passed / 0 failed (was 1 failed on test_no_new_orphan_surfaces). Extraction logic, command-tree resolution, 79-invocation denominator and mutation proof untouched; phantom plant still reddens the gate and the styleguide was restored."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 232672,
+      "shell_pid_created_at": "1785168063.79",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T030": "done"
+      },
+      "tracker_refs": [
+        "#2983"
+      ]
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYKWS2Z7FZK4ZMY91P3B9RKG",
       "last_transition_at": "2026-07-28T08:17:08.072011+00:00",
-      "shell_pid": 3971504,
-      "shell_pid_created_at": "1785163558.72"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Epilog-only opener guidance: profile-invocation --help now names 'spec-kitty dispatch' (FR-013). No alias, no help= change, completion manifest byte-identical (live-CLI drift guard + scoped pin), completed event/JSON payload pinned unchanged. Gates: focused suite 16 passed (exit 0), ruff exit 0, mypy 1 pre-existing error only.",
+        "Approved cycle 1: epilog rendered live (verified via PYTHONPATH=<lane-e>/src, editable install points at a different checkout); manifest byte-identical (2-file diff, no _completion_manifest.json change); manifest pin proven non-circular (live build_manifest_from_command vs committed JSON) and non-vacuous by two reviewer-run mutations (help= -> 2 red incl. manifest pin; epilog removed -> 2 red), both restored; mypy 4 (base) -> 1 (branch), remaining :89 no-any-return confirmed pre-existing on base worktree; type: ignore[override] justified (typer renames click's first param, both supertypes unsatisfiable) and narrower than the blanket ignore it replaced; C-005 disjoint vs lanes a-d; gates green incl. 619-test regression sweep."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 8656,
+      "shell_pid_created_at": "1785165261.45",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T031": "done"
+      },
+      "tracker_refs": [
+        "#2984"
+      ]
     }
   }
 }
