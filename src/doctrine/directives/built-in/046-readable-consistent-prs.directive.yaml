@@ -11,10 +11,10 @@ intent: >
   branch finishes the work it set out to do and does not defer genuinely small
   remaining items to a follow-up, deferring only work that is genuinely
   high-effort or mission-sized; (3) INDEPENDENTLY REVIEWED — the aggregate diff
-  has had an independent review before, or in parallel to, opening the draft PR,
-  with real findings folded in while the PR is still a draft. The adversarial
-  review squad (adversarial-squad-deployment) is the RECOMMENDED review mechanism
-  — not a mandated gate; it stays optional per its own doctrine.
+  has had an independent review before, or in parallel to, opening a full,
+  non-draft PR, with real findings folded before hand-off. The adversarial review
+  squad (adversarial-squad-deployment) is the RECOMMENDED review mechanism — not
+  a mandated gate; it stays optional per its own doctrine.
 enforcement: required
 scope: >
   Applies to every agent-prepared mission branch and pull request in the SDD flow,
@@ -30,15 +30,15 @@ procedures:
     clean-linear-commit-history tactic (a non-reordering, behaviour-preserving
     snapshot chain) — never an interactive reorder. Prefer rebase over merge for
     integrating the upstream base.
-  - Before opening the draft PR, confirm the intended scope is complete. If a
+  - Before opening a full, non-draft PR, confirm the intended scope is complete. If a
     remaining item is small enough to finish now, finish it; only defer work that
     is genuinely high-effort or mission-sized, and when deferring, record it as a
     tracked follow-up with a one-line rationale.
   - Obtain an independent review of the aggregate diff before or in parallel to
-    opening the draft PR — the adversarial review squad (adversarial-squad-deployment)
+    opening the full PR — the adversarial review squad (adversarial-squad-deployment)
     is the recommended mechanism. Synthesize a LAND / HOLD verdict and fold every
-    real finding in while the PR is still a draft. Per-WP green and green CI are
-    not, by themselves, the final gate.
+    real finding before hand-off. Per-WP green and green CI are not, by themselves,
+    the final gate.
   - Write a PR body that states the change, the review evidence (per-WP plus the
     aggregate squad verdict), and any remaining reviewer or Sonar work, so a later
     reviewer does not re-derive the context.

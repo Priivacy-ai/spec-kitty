@@ -373,9 +373,9 @@ references:
     it set out to do and does not defer genuinely small remaining items to a follow-up,
     deferring only work that is genuinely high-effort or mission-sized; (3) INDEPENDENTLY
     REVIEWED — the aggregate diff has had an independent review before, or in parallel
-    to, opening the draft PR, with real findings folded in while the PR is still a
-    draft. The adversarial review squad (adversarial-squad-deployment) is the RECOMMENDED
-    review mechanism — not a mandated gate; it stays optional per its own doctrine.\n"
+    to, opening a full, non-draft PR, with real findings folded before hand-off. The
+    adversarial review squad (adversarial-squad-deployment) is the RECOMMENDED review
+    mechanism — not a mandated gate; it stays optional per its own doctrine.\n"
   source_path: ''
   local_path: _LIBRARY/directive-directive-046.md
 - id: TACTIC:acceptance-test-first
@@ -1808,11 +1808,11 @@ references:
   kind: procedure
   title: Mission Wrap-Up Sequence
   summary: "Drive a mission from \"all work packages approved\" to \"a clean, reviewable
-    draft pull request handed to the operator\" through one standing, repeatable close-out
+    full, non-draft pull request handed to the operator\" through one standing, repeatable close-out
     sequence. The sequence makes the last mile deterministic: it verifies readiness,
     resolves every tracked-issue verdict, subjects the aggregate diff to an independent
     review, lands locally, compacts the branch into readable history, and opens a
-    draft PR — so no mission ends in an ad-hoc, unreviewed, or messy state. It complements
+    full PR — so no mission ends in an ad-hoc, unreviewed, or messy state. It complements
     (does not replace) the per-work-package implement/review loop.\n"
   source_path: ''
   local_path: _LIBRARY/procedure-mission-wrap-up-sequence.md

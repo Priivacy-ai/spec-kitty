@@ -328,13 +328,17 @@ persona automatically.
 
 ### GitHub Actions Workflow Changes
 
-If this WP adds or modifies `.github/workflows/*`, use a draft PR before review hand-off:
+If this WP adds or modifies `.github/workflows/*`, finish the mission's coherent,
+locally validated slice before opening a full, non-draft PR:
 
 1. Push the WP branch.
-2. Open a draft PR so the workflow runs on a real GitHub Actions runner.
-3. Iterate on the draft PR until the changed workflow has a successful run.
+2. Open a full PR so the workflow runs on a real GitHub Actions runner.
+3. Iterate until the changed workflow has a successful run.
 4. Record the successful run ID or Actions URL in `kitty-specs/<mission>/workflow-evidence.md`.
 5. Only then move the WP to `for_review`.
+
+Do not open a pull request solely to use a runner, and never use GitHub's draft state
+as a staging mechanism.
 
 The reviewer will then use `/ad-hoc-profile-load` with the reviewer profile and apply
 its self-review gates automatically.

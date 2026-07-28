@@ -16,7 +16,7 @@ related:
 
 This page is a **reusable priming prompt** for a prospective co-maintainer's AI
 session (Claude Code + Spec Kitty). It encodes the team's standard Spec-Driven
-Development (SDD) cadence — spec → plan → tasks → draft PR — with the adversarial
+Development (SDD) cadence — spec → plan → tasks → full PR — with the adversarial
 squad checkpoints and operator-led architecture gates baked in, so an onboarding
 run teaches the *why*, not just the sequence.
 
@@ -56,8 +56,8 @@ origin/main — you never do.
   guard before pushing any prose/doctrine:
   `pytest tests/architectural/test_no_legacy_terminology.py`.
 - Git law: `origin` = your fork, `upstream` = Priivacy-ai. NEVER `git push origin
-  main`. All shared changes go through a draft PR. `spec-kitty merge` is LOCAL only;
-  the operator merges to origin/main.
+  main`. Open a full, non-draft PR only for a coherent, locally validated slice.
+  `spec-kitty merge` is LOCAL only; the operator merges to origin/main.
 
 ## Known current friction points
 Read `docs/development/known-friction-points.md` BEFORE you start — it is the
@@ -113,7 +113,7 @@ UNLOCKED — it is decided WITH the operator in step 2, not asserted here.>
    pre-flight squad cadence catches undersizing 4–5×. Fold findings into the plan.
 
 8. **Commit and push to fork.** Commit the planning artifacts; push the branch to
-   `origin` (your fork). The draft PR comes at step 12, but pushing early keeps a
+   `origin` (your fork). The full PR comes at step 12, but pushing early keeps a
    backup and a visible trail. Never to origin/main.
 
 9. **Rebase onto latest upstream/main + drift check.** `git fetch upstream main &&
@@ -136,12 +136,13 @@ UNLOCKED — it is decided WITH the operator in step 2, not asserted here.>
     inference. Classify every red into PR-defect / contract-crossed /
     pre-existing-main / flake — never retry-to-green.
 
-12. **Draft PR + self-review.** Open a DRAFT PR from the mission branch
-    (`gh pr create --draft`). Write a readable PR per DIRECTIVE_046 (what / why /
-    verification; call out any remaining Sonar or UI work). Run the
-    mission-wrap-up-sequence procedure. Then SELF-REVIEW with a fresh squad lens
-    (architect + reviewer) over the aggregate diff and synthesize a LAND/HOLD verdict
-    for the operator. 🛑 Hand off — the operator merges. You never run `gh pr merge`.
+12. **Full PR + automated review.** Open a full, non-draft PR from the mission branch
+    (`gh pr create`) only after the intended scope is coherent and locally validated.
+    Write a readable PR per DIRECTIVE_046 (what / why / verification; call out any
+    remaining Sonar or UI work). Run the mission-wrap-up-sequence procedure. Then
+    request automated review and SELF-REVIEW with a fresh squad lens (architect +
+    reviewer) over the aggregate diff; synthesize a LAND/HOLD verdict for the operator.
+    🛑 Hand off — the operator merges. You never run `gh pr merge`.
 
 ## Discipline that applies at every step
 - Squads are BOUNDED and PROFILE-LOADED (load the YAML; delegations LOAD the profile,

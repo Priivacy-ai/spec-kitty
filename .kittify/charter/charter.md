@@ -127,11 +127,13 @@ How missions are executed between the operator (human-in-command) and the agent 
   mission's tickets (assign the operator + a comment naming the mission), **plans**
   (spec → plan → tasks, with an adversarial squad at each planning point-cut), and
   **runs** the implement→review loop to completion.
-- **Draft PR first.** Completed mission work is opened as a DRAFT pull request to the
-  protected branch, with history compressed (admin bunched, code by slice).
-- **Ready-for-review only when green.** The agent marks the PR ready-for-review **only
-  after** self-review (an adversarial review pass, findings folded) AND CI pass — i.e.
-  it prepares the PR merge-ready (green, un-drafted, issues linked) and hands off.
+- **Full PRs only.** Completed mission work is opened as a **full, non-draft** pull
+  request only when it is a coherent, locally validated slice that is eligible to
+  merge once required remote checks pass. History remains compressed (admin bunched,
+  code by slice).
+- **Automated proof before hand-off.** The agent runs self-review and the relevant
+  automated test, type, and lint checks before opening the full PR. Remote review and
+  CI run on that full PR; the agent folds real findings before handing it off.
 - **The operator merges.** Agents never merge to protected main; the human-in-command
   performs the merge. → git/workflow discipline (`DIRECTIVE_045`), Agent Operating
   Discipline above.
@@ -306,9 +308,9 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 
 - **Linear** — rebased onto the current upstream base and compacted into a small set of logically-sliced commits (rebase over merge; a non-reordering, behaviour-preserving snapshot chain per the `clean-linear-commit-history` tactic, never an interactive reorder).
 - **Consistent / complete** — the intended scope is finished; only genuinely high-effort / mission-sized work is deferred, and only as a tracked follow-up with a rationale.
-- **Independently reviewed** — the aggregate diff has had an independent review before, or in parallel to, opening the draft PR, with real findings folded in while it is still a draft; an adversarial review squad is the recommended mechanism (not a mandated gate).
+- **Independently reviewed** — the aggregate diff has had an independent review before, or in parallel to, opening the full PR, with real findings folded before hand-off; an adversarial review squad is the recommended mechanism (not a mandated gate).
 
-The standing close-out sequence that produces such a PR — accept → resolve issue verdicts → aggregate review squad → local merge → compact history → rebase onto upstream → draft PR + pre-merge squad → hand off — is captured as the `mission-wrap-up-sequence` procedure (active). The operator, not the agent, performs the mainline merge (`045-prs-only-and-read-intent`).
+The standing close-out sequence that produces such a PR — accept → resolve issue verdicts → aggregate review squad → local merge → compact history → rebase onto upstream → full PR + automated review → hand off — is captured as the `mission-wrap-up-sequence` procedure (active). The operator, not the agent, performs the mainline merge (`045-prs-only-and-read-intent`).
 
 ### Code Review Checklist
 

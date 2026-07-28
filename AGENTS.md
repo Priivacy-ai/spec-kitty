@@ -12,7 +12,7 @@ The charter is the binding governance document. It carries rules that are NOT re
 
 - **Governing principles** — single canonical authority, architectural alignment, DDD + tiered rigour, ATDD-first, terminology adherence.
 - **Quality & Tech-Debt Standing Orders** — the eight binding practices (adversarial squad cadence, campsite cleaning, mission tracer files, test-remediation/red-first discipline, architectural gate discipline, canonical sources, git/workflow discipline, mission hygiene).
-- **Agent operating discipline and collaboration strategy** — model routing, profile-loaded delegation, draft-PR-first, the operator merges.
+- **Agent operating discipline and collaboration strategy** — model routing, profile-loaded delegation, full-PR-only, the operator merges.
 - **Governance by workflow action** — which rules bind specify/plan/implement/review/merge.
 
 For action-scoped detail, load the doctrine context via `spec-kitty charter context --action <name>` rather than improvising. If the charter and this file ever disagree, the charter wins — flag the drift instead of picking silently.
@@ -59,6 +59,15 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 - Distinguish **local main** (your checkout) vs **origin/main** (the remote); qualify which branch you mean (see the `primary`/`merge` footgun note under Terminology Canon).
 
 **Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
+
+### Pull-Request Creation
+
+- Open a **full, non-draft** pull request only for a coherent, locally validated
+  slice that is ready to merge when its required remote checks pass.
+- Do not open a pull request merely because a change exists, a reviewer might
+  prefer a smaller diff, or a remote runner is convenient.
+- Optimize for automated proof and regression coverage. A pull request never
+  begins in GitHub's draft state.
 
 **Recovery:** If you accidentally push to origin/main, do NOT force-push (branch protection blocks it). Instead: create a `revert/<slug>` branch from origin/main, commit a revert, open a PR to merge it, then open the real mission PR.
 
