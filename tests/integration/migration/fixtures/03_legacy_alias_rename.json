@@ -1,5 +1,5 @@
 {
-  "description": "Rule 2: legacy alias rename — feature_slug -> mission_slug, work_package_id -> wp_id",
+  "description": "Rule 2: legacy alias rename \u2014 feature_slug -> mission_slug, work_package_id -> wp_id",
   "input": {
     "data": {
       "feature_slug": "old-feature",
@@ -30,11 +30,15 @@
       "execution_mode": "direct_repo",
       "reason": null,
       "review_ref": null,
+      "review_result": null,
       "evidence": null,
       "policy_metadata": null,
       "mission_id": "TESTMISSIONID12345678901234"
     },
-    "actions": ["renamed_key:feature_slug->mission_slug", "renamed_key:work_package_id->wp_id"],
+    "actions": [
+      "renamed_key:feature_slug->mission_slug",
+      "renamed_key:work_package_id->wp_id"
+    ],
     "error": null,
     "generated_ids_after": null
   }
