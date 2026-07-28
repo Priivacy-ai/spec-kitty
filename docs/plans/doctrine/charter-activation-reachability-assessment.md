@@ -1,6 +1,6 @@
 ---
 title: 'Charter Activation vs DRG Reachability: Which Path Actually Reaches an Agent'
-description: Assessment of why 185 charter-activated doctrine artefacts do not surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering ahead of missions B1/B2.
+description: Why 185 charter-activated doctrine artefacts never surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering.
 doc_status: active
 updated: '2026-07-28'
 type: explanation
