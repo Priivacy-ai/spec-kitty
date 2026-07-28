@@ -34,6 +34,7 @@ from specify_cli.cli.commands.profile_invocation import profile_invocation_app
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.writer import EVENTS_DIR
+from tests._support.ansi import strip_ansi
 
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
@@ -302,8 +303,23 @@ def test_cli_close_appends_artifact_and_commit_links_after_completed(
 
 
 def _flatten(text: str) -> str:
-    """Collapse Rich's wrapping/padding so assertions survive any console width."""
-    return " ".join(text.split())
+    """Normalise Rich's help rendering so assertions survive any environment.
+
+    Two independent renderings have to be collapsed before a literal can match:
+
+    * **Colour.** Typer renders ``--help`` through its own ``rich`` console in
+      :mod:`typer.rich_utils`, which reads ``FORCE_COLOR``/``CI`` from the
+      environment at render time. That console is *not* one of the
+      ``specify_cli.cli.console`` singletons, so the ``_plain_cli_console_seam``
+      autouse fixture in ``tests/conftest.py`` cannot reach it — under a
+      colour-forcing harness the captured help carries SGR codes, and Rich
+      splices them *inside* tokens (``--outcome`` renders as a styled ``-``
+      followed by a styled ``-outcome``). Stripping them restores the plain text
+      the user actually reads.
+    * **Width.** Rich wraps and pads to the console width, so a literal spanning
+      a wrap point needs whitespace collapsed.
+    """
+    return " ".join(strip_ansi(text).split())
 
 
 def _resolve_group() -> click.Command:

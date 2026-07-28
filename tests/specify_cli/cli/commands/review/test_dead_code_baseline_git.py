@@ -33,6 +33,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.review._dead_code import _discover_changed_symbols
+from tests._support.ansi import strip_ansi
 from tests.specify_cli.cli.commands.review._dead_code_fixtures import scan
 
 # ``non_sandbox``: these tests spawn the real git binary and the installed CLI,
@@ -348,6 +349,16 @@ def test_real_post_merge_cli_uses_git_as_only_path_executable(tmp_path: Path) ->
         "XDG_DATA_HOME": str(xdg_data_home),
         "XDG_STATE_HOME": str(xdg_state_home),
     }
+    # Colour-neutralise the CHILD env (#2632 pattern, mirrored from the
+    # ``isolated_env`` fixture in ``tests/conftest.py``). This spawns the real
+    # CLI, so the in-process ``CliConsole.set_all_plain`` seam cannot reach it;
+    # inheriting ``os.environ`` wholesale would let a colour-forcing harness
+    # (the Claude Code harness exports ``FORCE_COLOR=3``) splice SGR codes into
+    # the child's stdout. Curating this explicit child-env dict is not an
+    # ``os.environ`` mutation, so it cannot leak into sibling in-process tests.
+    env.pop("FORCE_COLOR", None)
+    env.pop("CLICOLOR_FORCE", None)
+    env["NO_COLOR"] = "1"
 
     result = subprocess.run(
         [
@@ -367,7 +378,12 @@ def test_real_post_merge_cli_uses_git_as_only_path_executable(tmp_path: Path) ->
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "1 unreferenced public symbol(s)" in result.stdout
-    assert "DeliberatelyUnreferenced" in result.stdout
-    assert "0 unreferenced public symbols" not in result.stdout
+    # Belt to the child-env braces above: assert on the plain text the user
+    # reads. This matters most for the negative assertion -- with SGR codes
+    # present it could pass *vacuously* (Rich splices styling inside the
+    # phrase), reporting success while the guarded regression was live.
+    stdout = strip_ansi(result.stdout)
+    assert "1 unreferenced public symbol(s)" in stdout
+    assert "DeliberatelyUnreferenced" in stdout
+    assert "0 unreferenced public symbols" not in stdout
     assert set(executable_log.read_text(encoding="utf-8").splitlines()) == {"git"}
