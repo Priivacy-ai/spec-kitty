@@ -41,7 +41,13 @@ from specify_cli.sync.routing import (
     resolve_checkout_sync_routing_readonly,
 )
 
-pytestmark = pytest.mark.fast
+# ``regression`` is the live index of open-P0 red-first reproductions: the
+# blocking ``regression tests`` CI job selects on it, and the marker is removed
+# once a pin goes green (see ``tests/delivery/test_poison_batch_2736.py``).
+# Without it this file's five reds — #3031's fail-open-default arm, i.e. the
+# arm behind the live 1,322-event leak — never appear in that index, leaving it
+# showing only a partial view of #3031.
+pytestmark = [pytest.mark.fast, pytest.mark.regression]
 
 # A realistic owner/repo pair: consent must not depend on the slug looking
 # special, and this is the shape ``git_metadata.parse_repo_slug`` produces.
