@@ -1028,7 +1028,10 @@ def _resolve_status_surface_dir(
     lives in ``coordination.surface_resolver``, outside this WP's owned files,
     and is not adopted here (a separate, later port).
     """
-    from specify_cli.coordination.surface_resolver import resolve_status_surface
+    from specify_cli.coordination.surface_resolver import (
+        is_under_worktrees_segment,
+        resolve_status_surface,
+    )
     from specify_cli.missions._read_path_resolver import (
         StatusReadPathNotFound,
         candidate_feature_dir_for_mission,
@@ -1049,6 +1052,16 @@ def _resolve_status_surface_dir(
         )
         return fallback_dir
     surface_parent: Path = surface.parent
+    # ``resolve_status_surface`` deliberately composes a coordination path in the
+    # create→first-write window. A mission context is a read authority, so it must
+    # match the aggregate reader: until that coord surface exists, canonical status
+    # remains on the primary checkout. Returning the composed path lets a query
+    # reduce an empty log and, if it materializes a derived snapshot, create a husk.
+    if is_under_worktrees_segment(surface_parent) and not surface_parent.exists():
+        create_window_dir: Path = candidate_feature_dir_for_mission(
+            primary_root, mission_slug, resolver=resolver
+        )
+        return create_window_dir
     return surface_parent
 
 

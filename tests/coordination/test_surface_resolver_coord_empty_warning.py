@@ -118,8 +118,9 @@ def _materialise_coord_empty(
     )
     _git(repo_root, "branch", coordination_branch)
     mid8 = mission_id[:8]
-    coord_root = CoordinationWorkspace.worktree_path(repo_root, slug, mid8)
-    coord_root.mkdir(parents=True)  # materialised, NO mission dir inside
+    # Register a real worktree: a plain directory is a retired husk and must
+    # not enter the materialized-but-empty warning branch.
+    CoordinationWorkspace.resolve(repo_root, slug, mid8)
     return primary_dir
 
 

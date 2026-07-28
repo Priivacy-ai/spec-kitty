@@ -55,6 +55,7 @@ realistic test data, no synthetic short IDs).
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -138,10 +139,13 @@ def _build_solo_pr_bound_coord_mission(repo_root: Path) -> Path:
 
     # Materialize the coord worktree ROOT only (mirrors BookkeepingTransaction
     # .acquire()'s CoordinationWorkspace.resolve() before append_event() ever
-    # runs, and the existing coord-empty-warning fixture pattern) — the
-    # kitty-specs/<slug> mission dir inside it is deliberately absent.
-    coord_root = CoordinationWorkspace.worktree_path(repo_root, _SLUG, _MID8)
-    coord_root.mkdir(parents=True)
+    # runs) — the kitty-specs/<slug> mission dir inside it is deliberately
+    # absent. A plain directory would be an unregistered teardown husk instead.
+    coord_root = CoordinationWorkspace.resolve(repo_root, _SLUG, _MID8)
+    # The fixture commits primary metadata before minting the branch, so a real
+    # checkout initially contains that directory. Remove only this temporary
+    # checkout copy to model the registered root before its first status write.
+    shutil.rmtree(coord_root / "kitty-specs" / _SLUG)
 
     return primary_dir
 

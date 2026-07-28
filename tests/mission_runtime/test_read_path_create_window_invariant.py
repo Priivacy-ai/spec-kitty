@@ -309,6 +309,22 @@ class TestCreateWindowMutationGuard:
         )
 
 
+def test_mission_context_status_surface_uses_primary_in_create_window(
+    tmp_path: Path,
+) -> None:
+    """Mission-context reads agree with the primary create-window authority."""
+    from mission_runtime import MissionArtifactKind, mission_context_for
+
+    primary_dir, coord_path = _build_declared_unmaterialised_coord(tmp_path)
+
+    context = mission_context_for(tmp_path, _BARE_SLUG)
+    status = context.artifact(MissionArtifactKind.STATUS_STATE)
+
+    assert not coord_path.parent.parent.exists()
+    assert status.read_dir == primary_dir
+    assert status.write_dir == primary_dir
+
+
 # ---------------------------------------------------------------------------
 # T025 (WP07 / NFR-001 / #1718) — Create→first-write boundary: reads resolve
 # to PRIMARY; materialisation triggers only at the COMMIT boundary.

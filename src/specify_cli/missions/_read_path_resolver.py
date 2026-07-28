@@ -302,16 +302,24 @@ def probe_coord_state(
     supplied (the read path supplies it from the primary ``meta.json``); without
     it the absent-coord case stays ``UNMATERIALIZED`` (no branch to interrogate).
 
-    Pure-path except the single ``git rev-parse`` on the absent-coord +
-    branch-supplied path; ``MATERIALIZED`` / ``EMPTY`` / ``UNMATERIALIZED`` touch
-    only ``Path.exists()``.
+    A coordination-looking directory is authoritative only when git registers
+    it as a worktree; an unregistered husk must take the absent-coord path so it
+    cannot shadow primary state. Non-git callers retain the historical pure-path
+    shape behavior for fixture and diagnostics use. The registry probe and the
+    ``DELETED`` branch probe are the only git operations in a repository; all
+    other path checks are filesystem-only.
     """
     if not mid8:
         return CoordState.NONE
     feature_dir = coord_feature_dir(repo_root, mission_slug, mid8)
     coord_root = feature_dir.parent.parent
     if coord_root.exists():
-        return CoordState.MATERIALIZED if feature_dir.exists() else CoordState.EMPTY
+        if not (repo_root / ".git").exists():
+            return CoordState.MATERIALIZED if feature_dir.exists() else CoordState.EMPTY
+        from specify_cli.coordination.surface_resolver import is_registered_coord_worktree
+
+        if is_registered_coord_worktree(feature_dir, repo_root=repo_root):
+            return CoordState.MATERIALIZED if feature_dir.exists() else CoordState.EMPTY
     # Coord root absent. A supplied branch lets us split UNMATERIALIZED (branch
     # still in git) from DELETED (branch gone) — the single git rev-parse arm.
     if coordination_branch is not None:

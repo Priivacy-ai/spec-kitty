@@ -2108,7 +2108,11 @@ def query_current_state(
         raise MissionNotFoundError(mission_slug)
 
     mission_type = mission_context.mission_type
-    progress = _compute_wp_progress(task_board.read_dir, status_dir=status_state.read_dir)
+    progress = _compute_wp_progress(
+        task_board.read_dir,
+        status_dir=status_state.read_dir,
+        read_only=True,
+    )
 
     run_ref = _existing_run_ref(mission_slug, repo_root, mission_type)
     ephemeral_run_store: Path | None = None

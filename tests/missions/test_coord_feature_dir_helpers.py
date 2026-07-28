@@ -18,6 +18,7 @@ every branch, including the deleted-branch ``DELETED`` verdict via a real
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -27,6 +28,7 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.missions._read_path_resolver import (
     CoordState,
+    candidate_feature_dir_for_mission,
     coord_feature_dir,
     probe_coord_state,
 )
@@ -62,9 +64,10 @@ def real_git_repo(tmp_path: Path) -> Path:
 
 
 def _materialize_coord_root(repo: Path) -> Path:
-    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
-    coord_root.mkdir(parents=True)
-    return coord_root
+    """Materialize a registered coordination worktree on its canonical branch."""
+    branch = CoordinationWorkspace.branch_name(_SLUG, _MID8)
+    _git(repo, "branch", branch)
+    return CoordinationWorkspace.resolve(repo, _SLUG, _MID8)
 
 
 # --------------------------------------------------------------------------- #
@@ -74,17 +77,11 @@ def _materialize_coord_root(repo: Path) -> Path:
 
 def test_coord_feature_dir_composes_canonical_shape(tmp_path: Path) -> None:
     result = coord_feature_dir(tmp_path, _SLUG, _MID8)
-    expected = (
-        CoordinationWorkspace.worktree_path(tmp_path, _SLUG, _MID8)
-        / KITTY_SPECS_DIR
-        / f"{_SLUG}-{_MID8}"
-    )
+    expected = CoordinationWorkspace.worktree_path(tmp_path, _SLUG, _MID8) / KITTY_SPECS_DIR / f"{_SLUG}-{_MID8}"
     assert result == expected
     # The parent.parent of the mission dir is the coord worktree ROOT — the
     # contract probe_coord_state relies on.
-    assert result.parent.parent == CoordinationWorkspace.worktree_path(
-        tmp_path, _SLUG, _MID8
-    )
+    assert result.parent.parent == CoordinationWorkspace.worktree_path(tmp_path, _SLUG, _MID8)
 
 
 # --------------------------------------------------------------------------- #
@@ -104,12 +101,7 @@ def test_probe_unmaterialized_when_coord_absent_no_branch(tmp_path: Path) -> Non
 def test_probe_unmaterialized_when_branch_still_present(real_git_repo: Path) -> None:
     """Coord absent but the declared branch still exists in git → UNMATERIALIZED."""
     _git(real_git_repo, "branch", _COORD_BRANCH)
-    assert (
-        probe_coord_state(
-            real_git_repo, _SLUG, _MID8, coordination_branch=_COORD_BRANCH
-        )
-        is CoordState.UNMATERIALIZED
-    )
+    assert probe_coord_state(real_git_repo, _SLUG, _MID8, coordination_branch=_COORD_BRANCH) is CoordState.UNMATERIALIZED
 
 
 def test_probe_empty_when_coord_root_without_mission_dir(real_git_repo: Path) -> None:
@@ -120,6 +112,7 @@ def test_probe_empty_when_coord_root_without_mission_dir(real_git_repo: Path) ->
 
 def test_probe_materialized_when_mission_dir_present(real_git_repo: Path) -> None:
     """Coord root AND its mission dir both exist → MATERIALIZED."""
+    _materialize_coord_root(real_git_repo)
     coord_feature_dir(real_git_repo, _SLUG, _MID8).mkdir(parents=True)
     assert probe_coord_state(real_git_repo, _SLUG, _MID8) is CoordState.MATERIALIZED
 
@@ -132,24 +125,43 @@ def test_probe_deleted_when_coord_absent_and_branch_gone(real_git_repo: Path) ->
     """
     _git(real_git_repo, "branch", _COORD_BRANCH)
     _git(real_git_repo, "branch", "-D", _COORD_BRANCH)
-    assert (
-        probe_coord_state(
-            real_git_repo, _SLUG, _MID8, coordination_branch=_COORD_BRANCH
-        )
-        is CoordState.DELETED
-    )
+    assert probe_coord_state(real_git_repo, _SLUG, _MID8, coordination_branch=_COORD_BRANCH) is CoordState.DELETED
 
 
-def test_probe_materialized_ignores_deleted_branch(real_git_repo: Path) -> None:
-    """A materialized coord wins even if its branch is gone (DELETED arm skipped).
-
-    The git rev-parse only runs on the absent-coord path; once the worktree is
-    on disk the topology is MATERIALIZED regardless of branch state.
-    """
+def test_probe_materialized_without_branch_signal(real_git_repo: Path) -> None:
+    """A registered coord worktree is MATERIALIZED without a branch probe."""
+    _materialize_coord_root(real_git_repo)
     coord_feature_dir(real_git_repo, _SLUG, _MID8).mkdir(parents=True)
-    assert (
-        probe_coord_state(
-            real_git_repo, _SLUG, _MID8, coordination_branch=_COORD_BRANCH
-        )
-        is CoordState.MATERIALIZED
+    assert probe_coord_state(real_git_repo, _SLUG, _MID8) is CoordState.MATERIALIZED
+
+
+def test_probe_ignores_unregistered_coord_husk(real_git_repo: Path) -> None:
+    """A lookalike directory cannot shadow primary state without registration."""
+    _git(real_git_repo, "branch", _COORD_BRANCH)
+    coord_feature_dir(real_git_repo, _SLUG, _MID8).mkdir(parents=True)
+
+    assert probe_coord_state(real_git_repo, _SLUG, _MID8, coordination_branch=_COORD_BRANCH) is CoordState.UNMATERIALIZED
+
+
+def test_unregistered_coord_husk_cannot_shadow_primary_read(
+    real_git_repo: Path,
+) -> None:
+    """The public candidate read stays on primary despite a zero-state husk."""
+    primary = real_git_repo / KITTY_SPECS_DIR / f"{_SLUG}-{_MID8}"
+    primary.mkdir(parents=True)
+    (primary / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01KVN754ABCD3FGH4JKLMN5PQR",
+                "mission_slug": _SLUG,
+                "coordination_branch": _COORD_BRANCH,
+                "topology": "coord",
+            }
+        ),
+        encoding="utf-8",
     )
+    coord_dir = coord_feature_dir(real_git_repo, _SLUG, _MID8)
+    coord_dir.mkdir(parents=True)
+    (coord_dir / "status.json").write_text("{}\n", encoding="utf-8")
+
+    assert candidate_feature_dir_for_mission(real_git_repo, f"{_SLUG}-{_MID8}") == primary

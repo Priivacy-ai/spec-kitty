@@ -85,15 +85,17 @@ def _materialise_coord_empty(repo_root: Path, slug: str) -> Path:
     """
     _init_repo(repo_root)
     primary_dir = repo_root / "kitty-specs" / slug
+    coord_branch = CoordinationWorkspace.branch_name(slug, MID8)
     _write_meta(
         primary_dir,
         mission_id=MISSION_ID,
-        coordination_branch=COORD_BRANCH,
+        coordination_branch=coord_branch,
         topology="lanes_with_coord",
     )
-    _git(repo_root, "branch", COORD_BRANCH)
-    coord_root = CoordinationWorkspace.worktree_path(repo_root, slug, MID8)
-    coord_root.mkdir(parents=True)  # materialised, NO mission dir inside
+    _git(repo_root, "branch", coord_branch)
+    # A plain directory is a retired husk, not a materialized worktree. This
+    # fixture needs a real registered worktree so it exercises the EMPTY arm.
+    CoordinationWorkspace.resolve(repo_root, slug, MID8)
     return primary_dir
 
 

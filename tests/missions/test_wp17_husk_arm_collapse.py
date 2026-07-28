@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     candidate_feature_dir_for_mission,
@@ -83,6 +84,13 @@ def _write_meta(feature_dir: Path, meta: dict[str, object]) -> None:
 def _write_malformed_meta(feature_dir: Path) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text("{ this is not valid json", encoding="utf-8")
+
+
+def _materialize_coord_root(repo_root: Path) -> Path:
+    """Create the production-shaped, registered coordination worktree."""
+    branch = CoordinationWorkspace.branch_name(SLUG, MID8)
+    _git(repo_root, "branch", branch)
+    return CoordinationWorkspace.resolve(repo_root, SLUG, MID8)
 
 
 # --------------------------------------------------------------------------- #
@@ -215,10 +223,11 @@ def test_keep_c003_five_hop_feature_dir_path(tmp_path: Path) -> None:
         "topology": MissionTopology.COORD.value,
     }
     _write_meta(tmp_path / "kitty-specs" / SLUG_WITH_MID8, coord_meta)
-    coord_root = tmp_path / ".worktrees" / f"{SLUG_WITH_MID8}-coord"
+    coord_root = _materialize_coord_root(tmp_path)
     coord_dir = coord_root / "kitty-specs" / SLUG_WITH_MID8
     coord_dir.mkdir(parents=True)
     _write_meta(coord_dir, coord_meta)
+    (coord_dir / "status.events.jsonl").touch()
 
     resolved = candidate_feature_dir_for_mission(tmp_path, SLUG_WITH_MID8)
     assert resolved.resolve() == coord_dir.resolve()
@@ -245,11 +254,10 @@ def test_keep_c005_probe_coord_state_empty_and_deleted(tmp_path: Path) -> None:
     fixture; the four verdicts are mutual negative controls.
     """
     _init_repo(tmp_path)
-    coord_root = tmp_path / ".worktrees" / f"{SLUG_WITH_MID8}-coord"
+    coord_root = _materialize_coord_root(tmp_path)
     coord_dir = coord_root / "kitty-specs" / SLUG_WITH_MID8
 
-    # EMPTY: coord root materialized, mission dir absent.
-    coord_root.mkdir(parents=True)
+    # EMPTY: registered coord root materialized, mission dir absent.
     assert probe_coord_state(tmp_path, SLUG_WITH_MID8, MID8) is CoordState.EMPTY
 
     # MATERIALIZED: mission dir present (negative control for EMPTY).

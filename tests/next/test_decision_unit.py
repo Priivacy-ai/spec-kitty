@@ -426,6 +426,12 @@ class TestWPHelpers:
         assert progress["done_wps"] == 1
         assert progress["for_review_wps"] == 1
 
+    def test_compute_wp_progress_read_only_does_not_materialize(self, feature_with_tasks: Path) -> None:
+        progress = _compute_wp_progress(feature_with_tasks, read_only=True)
+
+        assert progress is not None
+        assert not (feature_with_tasks / "status.json").exists()
+
     def test_find_first_wp_by_lane_planned(self, feature_with_tasks: Path) -> None:
         assert _find_first_wp_by_lane(feature_with_tasks, "planned") == "WP01"
 

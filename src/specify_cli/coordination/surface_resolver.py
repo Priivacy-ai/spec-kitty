@@ -832,6 +832,18 @@ def resolve_status_surface_with_anchor(
             coord_candidate=composed_coord_dir,
             primary_candidate=feature_dir,
         )
+    # A registered worktree is classified above as MATERIALIZED or EMPTY. In a
+    # git repository, an extant coord root that still probes UNMATERIALIZED is an
+    # unregistered teardown husk; its status files cannot become authoritative.
+    # Re-anchor on primary instead of composing the husk path.
+    if (
+        coord_state is CoordState.UNMATERIALIZED
+        and composed_coord_dir.parent.parent.exists()
+    ):
+        return ResolvedStatusSurface(
+            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=feature_dir,
+        )
     # Option B loud primary fallback (FR-001 / FR-003 / #1716): the coord worktree
     # root is materialized but its mission dir is absent (coord-empty). Reading the
     # primary checkout may expose a stale, split-brain status surface (#1589/#1821),

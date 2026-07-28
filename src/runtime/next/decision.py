@@ -306,8 +306,9 @@ def _compute_wp_progress(
     feature_dir: Path,
     *,
     status_dir: Path | None = None,
+    read_only: bool = False,
 ) -> dict[str, int | float] | None:
-    """Compute WP lane counts and weighted progress for the progress field from the event log."""
+    """Compute progress from the event log, optionally without derived writes."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
@@ -353,12 +354,18 @@ def _compute_wp_progress(
         elif state.progress_bucket() == "not_started":
             counts["planned_wps"] += 1
 
-    # Compute weighted progress from the materialized snapshot
+    # Query callers must never create ``status.json`` while inspecting progress.
+    # ``materialize_snapshot`` performs the same deterministic reduction as the
+    # writer but leaves the mission filesystem untouched.
     try:
         from specify_cli.status import compute_weighted_progress
-        from specify_cli.status import materialize
+        from specify_cli.status import materialize, materialize_snapshot
 
-        snapshot = materialize(lane_read_dir)
+        snapshot = (
+            materialize_snapshot(lane_read_dir)
+            if read_only
+            else materialize(lane_read_dir)
+        )
         progress = compute_weighted_progress(snapshot)
         counts["weighted_percentage"] = round(progress.percentage, 1)
     except Exception:
