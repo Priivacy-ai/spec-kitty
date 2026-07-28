@@ -55,7 +55,7 @@ import pytest
 from specify_cli.event_journal.journal import CaptureGateState, capture_teamspace_bound
 from specify_cli.event_journal.models import Event
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.regression, pytest.mark.fast]
 
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
 

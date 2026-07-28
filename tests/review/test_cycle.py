@@ -141,6 +141,7 @@ WP_ID = "WP03"
 WP_SLUG = "WP03-ledger-grammar"
 
 
+@pytest.mark.regression
 def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
     """Pin #2996(b): handing ``create_rejected_review_cycle`` the WP's OWN
     prior ``review-cycle-N.md`` as ``feedback_source`` must be refused, not
@@ -217,6 +218,7 @@ def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
     assert latest.reviewer_agent == "reviewer-renata"
 
 
+@pytest.mark.regression
 def test_new_cycle_body_never_duplicates_a_prior_cycle_file(tmp_path: Path) -> None:
     """General invariant (#2996(b)): no newly-written review-cycle artifact's
     ``body`` may be byte-identical to the full text of any prior

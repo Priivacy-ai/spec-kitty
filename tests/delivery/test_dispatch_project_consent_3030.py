@@ -49,7 +49,7 @@ from specify_cli.event_journal import (
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.regression, pytest.mark.fast]
 
 # A realistic owner/repo pair — consent keying must not depend on the slug
 # looking special (mirrors tests/sync/test_sync_consent_default_deny.py:48).

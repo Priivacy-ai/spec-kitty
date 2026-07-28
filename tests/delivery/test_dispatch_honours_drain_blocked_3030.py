@@ -60,7 +60,7 @@ from specify_cli.event_journal.models import DRAIN_BLOCKED_SAAS_DISABLED, Event
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.regression, pytest.mark.fast]
 
 _TARGET_URL = "https://hosted.example.com"
 _TARGET_TEAM_SLUG = "team"

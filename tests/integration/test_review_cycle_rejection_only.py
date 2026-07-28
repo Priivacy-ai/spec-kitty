@@ -345,6 +345,7 @@ def test_two_rejections_produce_two_distinct_artifacts(
     assert p1.stat().st_mtime_ns == p1_mtime
 
 
+@pytest.mark.regression
 def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     for_review_repo: tuple[Path, Path, Path],
 ) -> None:

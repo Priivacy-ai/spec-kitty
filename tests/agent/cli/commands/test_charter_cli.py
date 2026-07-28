@@ -490,6 +490,7 @@ def test_help_output() -> None:
     assert "status" in result.stdout
 
 
+@pytest.mark.regression
 def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(mock_repo: Path) -> None:
     """#3045: ``charter sync`` always reports success on the human surface,
     even when the JSON surface (same invocation, same repo state) reports

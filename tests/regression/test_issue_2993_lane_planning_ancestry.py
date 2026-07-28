@@ -60,10 +60,14 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.missions._create import ensure_coordination_branch
+
+pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
 
 MISSION_SLUG = "annoying-bugs-sweep-01KYHQ9F"
 MISSION_ID = "01KYHQ9FTN3W7C5J4K2M6R8QDS"
