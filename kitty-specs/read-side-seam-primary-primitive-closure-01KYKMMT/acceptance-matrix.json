@@ -1,0 +1,249 @@
+{
+  "mission_slug": "read-side-seam-primary-primitive-closure-01KYKMMT",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP01,WP07 approved (reviewer-renata, opus). fold-prescription gate kind-discriminated (WP01); status/aggregate.py:522 affirmatively checked, plant-2->3 verified (WP07)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP03 approved (reviewer-renata, opus). wrapper delegates to placement_seam(...).read_dir(PRIMARY_METADATA); no RecursionError; 1478 behaviour-preservation green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP03 approved (reviewer-renata, opus). backfill-recovery delta pinned red-first in test_primary_read_delegation.py; every divergence attributed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP04,WP05,WP06,WP07 approved (reviewer-renata, opus). 34 consumer sites route through read_dir(<kind>); each kind verified against artifacts.py partition source",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP07 approved (reviewer-renata, opus). four foundation sites recorded by name, unrouted, re-pointed at leaf by WP08; structural acyclicity proof (sys.setprofile depth 1)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP08 approved (reviewer-renata, opus). public wrapper DELETED: `import primary_feature_dir_for_mission` raises ImportError (orchestrator-verified)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved (reviewer-renata, opus). two use-count floors retired; guarantee transferred to read-side census; DIRECTIVE_043 adjudication in commit body",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved (reviewer-renata, opus). ledger grammar constrained (one-table/verbatim-heading/trailing-discriminator); mutation tests bite per rule",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved (reviewer-renata, opus). index gains (rel_path,qualname,primitive,site_token) discriminator; four-site qualname representable; two-sided bite verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved (reviewer-renata, opus). AST census of resolve_feature_dir_for_mission, both axes, per-disposition counts (1 migrate-fail-loud / 7 stay-lenient)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP04 approved (reviewer-renata, opus). PRIMARY-artifact reads routed; stay-lenient sites carry per-site rationale",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "FR-012 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved (reviewer-renata, opus). resolve_feature_dir_for_mission added to censused callees; per-primitive non-vacuity; alias resistance",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "FR-013 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP04 approved (reviewer-renata, opus). BOTH _run_documentation_wiring reads + the write route through one authority; closeout gate 11/11 green; #2886 closed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "FR-014 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved (reviewer-renata, opus). #2214 pin and its pin-existence test retired together",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "FR-015 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP05,WP06,WP07 approved (reviewer-renata, opus). all eight misleading comments corrected (2 acceptance + 3 executor + 1 next_cmd + 2 runtime-bridge)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "FR-016 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP01,WP02 approved (reviewer-renata, opus). stale counts corrected in ledger + gate docstring; Known-gap names gate+axis; #3014 closed with corrected census",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "FR-017 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP02 approved (reviewer-renata, opus). honest bounds enumerated with sizes (wrong-kind, wrapper-laundering, latent sibling, foundation/seam-internal, no-kind artifacts)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "FR-018 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP09 approved (reviewer-renata, opus). artifact-placement-seam.md: verified layer model (L2 two functions, L4 selects); every module:symbol citation resolves post-WP08",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "FR-019 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP09 approved (reviewer-renata, opus). Routing disambiguation in orchestration.md + Terminology Canon line; frozen glossary stores untouched-green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "FR-020 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP09 approved (reviewer-renata, opus). branch-target-routing.md narrowed to branch sense; retired alias removed; links out (SC-017)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "FR-021 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP03 approved (reviewer-renata, opus). terminal assembler _compose_primary_feature_dir extracted; seam PRIMARY leg re-pointed; zero call-site changes; census 46/43 unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "FR-022 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP08 approved (reviewer-renata, opus). _canonicalize_primary_read_handle drained from 12 no-op sites/8 files; non-public; foundation callers only",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "FR-023 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "WP01 approved (reviewer-renata, opus). suite re-expressed against target design; every red an assertion traceable to an FR; zero collection errors",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "FR-024 satisfied and independently reviewed",
+      "proof_type": "code_review",
+      "evidence": "all WPs approved (reviewer-renata, opus). each WP body carried its doctrine as resolvable `charter context --include` citations; all 16 ids resolve",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator aggregate",
+      "verified_at": "2026-07-28T21:32:41Z",
+      "notes": "Verified via the WP's approved review; read-side census green (test_no_read_side_bypass.py 52/52), six C-008 gates 195/195."
+    }
+  ],
+  "negative_invariants": []
+}
