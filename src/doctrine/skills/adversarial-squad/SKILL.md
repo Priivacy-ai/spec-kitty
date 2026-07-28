@@ -47,9 +47,14 @@ Do NOT use it as a rubber stamp, and do NOT wire it as a mandatory gate.
    - `doctrine-daphne` — doctrine integrity / DRG wiring
    Scale past 4 only for an explicit "audit / comprehensive" ask.
 3. **Dispatch in parallel, profile-LOADED.** Each delegate's prompt MUST begin with:
-   *"FIRST read `src/doctrine/agent_profiles/built-in/<id>.agent.yaml` and adopt its
-   directives/tactics; state which you applied."* Loading the profile — not naming a
-   persona — is the point. Keep delegates read-only unless the task is an isolated
+   *"FIRST run `spec-kitty agent profile show <id>` and
+   `spec-kitty charter context --action <action> --json`; apply the resolved
+   initialization, boundaries, directives, and tactics, then state which you applied."*
+   Loading the profile — not naming a persona — is the point. Only a read-only harness
+   that cannot invoke the CLI may read
+   `src/doctrine/agent_profiles/built-in/<id>.agent.yaml`; that degraded fallback can
+   diverge because overlays, `specializes_from` lineage, and `enhances`/`overrides`
+   semantics are not applied. Keep delegates read-only unless the task is an isolated
    implementation in its own worktree.
 4. **Require structured, non-fakeable output.** Each returns findings as
    `[SEVERITY] file:line — issue — recommendation`, ending in a verdict, grounded in cited
