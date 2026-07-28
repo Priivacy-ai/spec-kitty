@@ -20,92 +20,210 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYJD93TJ3DNYYXMRSNA2FG58",
       "last_transition_at": "2026-07-27T18:27:01.586137+00:00",
-      "shell_pid": 2777475,
-      "shell_pid_created_at": "1785155277.67"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE: two-line fix exact; genuine red-first; gates green",
+        "Review passed: #2921 frontmatter padding fix verified (red→green); issue-matrix Gate-4 populated"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3270114,
+      "shell_pid_created_at": "1785159967.21",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYJD94PS581VJ1C7CPRCSJRN",
       "last_transition_at": "2026-07-27T18:27:02.489256+00:00",
-      "shell_pid": 2795013,
-      "shell_pid_created_at": "1785155555.9"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: AST-verified classification ledger (60 files / 90 sites), docs inventory+index freshened, ambiguous multi-kind archive defaulted stay-lenient",
+        "Review passed (independent AST census recomputed, matches ledger exactly: 62 grep->60 consumers->90 real sites/54 files, 31 kind-blind + 59 kind-aware, same 6 no-site files & per-line numbers). 100% coverage, no 'unknown'; verdict math consistent (72 migrate + 16 stay-lenient + 2 sanction = 90). Spot-checked hardest ambiguous/multi-kind rationales against source (tasks_status_cmd.py:160 CWD-derived root, next_cmd.py:377 dead except per primitive docstring, archive.py:65 genuine multi-kind); FR-003 sanction set correct. Docs freshness gate clean (exit 0). NOTE (non-blocking ownership-map): commit also edits docs/development/3-2-page-inventory.yaml + 3-2-docs-retrieval-index.yaml, outside WP02 owned_files (flagged by commit guard) but explicitly mandated by T006 to freshen the docs gate; no other lane touches them. Recommend adding both YAMLs to WP02 owned_files/docs-infra ownership map."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3427082,
+      "shell_pid_created_at": "1785160860.52",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYJD96B1ASFX0HAJH27W6RM1",
       "last_transition_at": "2026-07-27T18:27:04.161354+00:00",
-      "shell_pid": 3485163,
-      "shell_pid_created_at": "1785161248.35"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: migrated agent CLI read sites through PlacementSeam with red-first fail-loud coverage; agent tests, ruff, mypy, and terminology guard pass",
+        "Review passed (approved via --force: sole blocker was another agent's WP07 review-cycle-1.md, which WP isolation forbids me committing; status-surface files correctly ignored). All 12 WP03 agent-CLI migrate-fail-loud sites routed to PlacementSeam.read_dir(kind) with ledger-correct kinds; 2 ledger stay-lenient sites preserved (tasks_status_cmd.py:159 CWD-derived, tasks_move_task.py:2368 coord probe); WP07-owned mission_record_analysis.py:321 untouched. No second read authority (workflow.py _resolve_workflow_read_dir is a thin wrapper over the single shared placement_seam). Monkeypatched tests retargeted to the seam; AST-census + NFR-002 healthy-identical + deleted-coord CoordinationBranchDeleted pins pass. Gates: agent suite 1509 passed/2 pre-existing xfail, ruff clean, mypy reds pre-existing (tasks_shared.py:467 unchanged return; runtime schema.py) not WP03 regressions."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3745571,
+      "shell_pid_created_at": "1785162477.12",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYJD974QPTC8K4H9HRHAWMN9",
       "last_transition_at": "2026-07-27T18:27:04.983388+00:00",
-      "shell_pid": 3537468,
-      "shell_pid_created_at": "1785161575.86"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: CLI-commands cluster migrated per ledger; stay-lenient residuals retained; ATDD pins green",
+        "Review passed: 7 migrate-fail-loud sites routed to placement_seam().read_dir(KIND) with ledger-declared kinds (_widen/merge/mission_type/next_cmd/verify=PRIMARY_METADATA, research=RESEARCH+FINALIZED_EXECUTION_PLAN, validate_tasks=WORK_PACKAGE_TASK); stay-lenient/multi-kind sites (archive:65, _coordination_doctor:933/1057, reconcile:126, retrospect:110/1005, decision no-site) left on lenient primitives, pinned by AST-census test. No second read authority (C-001). ruff clean, strict mypy exit 0, 81 pytest passed. --force used only because the single blocking file is WP07's review-cycle-1.md (parallel agent), not WP04-owned; WP04 files committed at 8c7398283."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3797655,
+      "shell_pid_created_at": "1785162681.7",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYJD97Z11AMQRK6QB41F72K1",
       "last_transition_at": "2026-07-27T18:27:05.825162+00:00",
-      "shell_pid": 3603387,
-      "shell_pid_created_at": "1785161907.5"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: migrated all ledger-classified merge and lanes reads to PlacementSeam.read_dir with red-first healthy/deleted-coordination coverage; force bypasses only the false WP05 ownership classification of WP07 review-cycle-1.md; pre-review regression gate remains enabled",
+        "Review passed (reviewer-renata): all 13 real WP05 ledger sites migrated to placement_seam.read_dir with EXACTLY the ledger-prescribed kinds. STATUS_STATE legs fail-loud on deleted coord (CoordinationBranchDeleted), verified red-first. Gates: ruff=0, pytest=0 (116 passed); mypy 4 errors pre-existing on base (zero new). No scope/frozen violations."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3969207,
+      "shell_pid_created_at": "1785163548.7",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYJD98S359Z2C20G1SBCQ8ZQ",
       "last_transition_at": "2026-07-27T18:27:06.659789+00:00",
-      "shell_pid": 3688521,
-      "shell_pid_created_at": "1785162232.55"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: migrated fail-loud diagnostic-cluster sites to PlacementSeam; stay-lenient scanner/aggregate/summary/dossier preserved with NFR-001 pins",
+        "Verified: fail-loud migrations (PRIMARY_METADATA x2, LANE_STATE, STATUS_STATE, WORK_PACKAGE_TASK) match ledger sec-WP06; stay-lenient sites confirmed untouched; ATDD 10/10 + regression 177/177 passed; ruff clean; mypy pre-existing-only (baseline 7 errors, WP06 diff has 6, no new errors).",
+        "Review passed (reviewer-renata): ledger §WP06 site-for-site conformance; 4 fail-loud kinds correct; 4 stay-lenient preserved; ATDD genuine (10 passed); regressions 167+46 passed; mypy zero new (7->6, fixed decisions:173); baseline red pre-existing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 4036371,
+      "shell_pid_created_at": "1785164111.97",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYJD99K6TM2B9W18N2TA5R10",
       "last_transition_at": "2026-07-27T18:27:07.494738+00:00",
-      "shell_pid": 3989098,
-      "shell_pid_created_at": "1785163719.89"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata): §WP07 ledger-conformant site-for-site; manifest.py stay-lenient preserved; no-op sites untouched; red-first + discriminating negative verified; pytest/ruff/mypy all exit 0; 7 agent_utils reds pre-existing; stray rejected artifact reconciled on both surfaces."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 62796,
+      "shell_pid_created_at": "1785165646.95",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYJD9ADCBXZ3D5N2Q04PMYDX",
       "last_transition_at": "2026-07-27T18:27:08.332062+00:00",
-      "shell_pid": 125890,
-      "shell_pid_created_at": "1785166515.56"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 386863,
+      "shell_pid_created_at": "1785173568.74",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP09": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYJD95H4D98MZTY8XZA55KTD",
       "last_transition_at": "2026-07-27T18:27:03.332378+00:00",
-      "shell_pid": 2816084,
-      "shell_pid_created_at": "1785155716.26"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: audited aae140e8f; PRIMARY read_dir mission identity verified through public backfill path; targeted tests, Ruff, and mypy pass; broader migration failures classified as unrelated placement-resolution baseline",
+        "Review passed: _mission_id now reads PRIMARY read_dir (mirrors _synthesize_claim_anchor); all 3 callers thread read_dir end-to-end; _synthesize_claim_anchor untouched; 4 new tests green (red-first, drive real prod path); ruff+mypy clean; 18 migration-suite failures are pre-existing placement-port reds reproduced identically on mission base (zero WP09 regressions)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3463228,
+      "shell_pid_created_at": "1785161058.07",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     }
   }
 }

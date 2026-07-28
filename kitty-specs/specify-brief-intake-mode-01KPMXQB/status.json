@@ -1,5 +1,5 @@
 {
-  "event_count": 16,
+  "event_count": 18,
   "last_event_id": "01KPN0Z3TY7FKPYM4CVG49CRT7",
   "materialized_at": "2026-04-20T08:43:59.710451+00:00",
   "mission_number": "89",
@@ -19,17 +19,34 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KPN06NXNS4A9JBGYVHRYNFGR",
-      "last_transition_at": "2026-04-20T08:30:39.029143+00:00"
+      "last_transition_at": "2026-04-20T08:30:39.029143+00:00",
+      "shell_pid": 96385,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KPN0Z3TY7FKPYM4CVG49CRT7",
-      "last_transition_at": "2026-04-20T08:43:59.710451+00:00"
+      "last_transition_at": "2026-04-20T08:43:59.710451+00:00",
+      "shell_pid": 1686,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }

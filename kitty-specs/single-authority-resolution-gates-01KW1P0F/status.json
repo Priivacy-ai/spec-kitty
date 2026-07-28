@@ -1,5 +1,5 @@
 {
-  "event_count": 41,
+  "event_count": 49,
   "last_event_id": "01KW25D640V7VT77PWN8402DGN",
   "materialized_at": "2026-06-26T14:30:11.840882+00:00",
   "mission_number": "",
@@ -19,59 +19,130 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW1YVD125MK381X70T4977CM",
-      "last_transition_at": "2026-06-26T12:35:37.634241+00:00"
+      "last_transition_at": "2026-06-26T12:35:37.634241+00:00",
+      "shell_pid": 2919649,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW222WBRTNT8TBRQ59V6Y6GM",
-      "last_transition_at": "2026-06-26T13:32:08.440698+00:00"
+      "last_transition_at": "2026-06-26T13:32:08.440698+00:00",
+      "shell_pid": 3076371,
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW21BV55826A0SK2VHQHDTPF",
-      "last_transition_at": "2026-06-26T13:19:33.541373+00:00"
+      "last_transition_at": "2026-06-26T13:19:33.541373+00:00",
+      "shell_pid": 3065322,
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW2063E9EXPXJN4V4FTSAS7A",
-      "last_transition_at": "2026-06-26T12:58:56.841521+00:00"
+      "last_transition_at": "2026-06-26T12:58:56.841521+00:00",
+      "shell_pid": 2992342,
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW22ADDK5G12BT02FR4CJW3P",
-      "last_transition_at": "2026-06-26T13:36:15.283349+00:00"
+      "last_transition_at": "2026-06-26T13:36:15.283349+00:00",
+      "shell_pid": 3065322,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW25D4HXMFC695HGK0D8QR39",
-      "last_transition_at": "2026-06-26T14:30:10.237831+00:00"
+      "last_transition_at": "2026-06-26T14:30:10.237831+00:00",
+      "shell_pid": 3109006,
+      "subtasks": {
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned"
+      }
     },
     "WP07": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW2052H02MNH4C3SVF9QDJA7",
-      "last_transition_at": "2026-06-26T12:58:23.136173+00:00"
+      "last_transition_at": "2026-06-26T12:58:23.136173+00:00",
+      "shell_pid": 2985328,
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
     },
     "WP08": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW25D640V7VT77PWN8402DGN",
-      "last_transition_at": "2026-06-26T14:30:11.840882+00:00"
+      "last_transition_at": "2026-06-26T14:30:11.840882+00:00",
+      "subtasks": {
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned",
+        "T040": "planned"
+      }
     }
   }
 }

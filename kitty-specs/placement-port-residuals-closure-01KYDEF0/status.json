@@ -19,73 +19,168 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "pedro-wp01",
+      "agent": "renata-wp01",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGXT9ZN1CJ7F9RHCMM45ED7",
       "last_transition_at": "2026-07-27T04:37:33.301056+00:00",
-      "shell_pid": 640713,
-      "shell_pid_created_at": "1785098822.59"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-001 fail-closed verified (raise before any write; nothing written on mismatch; repo_root from resolve_canonical_root(feature_dir) not cwd; degrade catches only resolver-infra raises, a genuine mismatch still raises). FR-002 verified (event write stays COORD/status_dir; only tasks read moved to PRIMARY; read_dir default keeps 3 single-leg callers byte-unchanged). Red-first genuine: all 4 named tests RED on base (FR-002 shows seeded_count=0 silent-loss), GREEN on branch, not skipped. Out-of-scope test_birth_cutover.py re-pin is a legitimate stale-test re-pin (old fixture encoded the fixed COORD-read bug); no WP owns that file. ruff+mypy --strict clean. #2917 corpus test red identically on base (not a regression)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 757232,
+      "shell_pid_created_at": "1785101086.24",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "pedro-wp02",
+      "agent": "renata-wp02",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGXTD413CMQ908SQSMXCE5S",
       "last_transition_at": "2026-07-27T04:37:36.513174+00:00",
-      "shell_pid": 774282,
-      "shell_pid_created_at": "1785101589.8"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Verified no-op: FR-011 already satisfied on rebased base. Empty executor.py diff; status.events.jsonl routes into committed set on both paths; 2 FR-011 tests passed 0 skipped."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 796185,
+      "shell_pid_created_at": "1785101966.85",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "pedro-wp03",
+      "agent": "renata-wp03",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGXTEN1Z1KDJRQES1X1GKST",
       "last_transition_at": "2026-07-27T04:37:38.081513+00:00",
-      "shell_pid": 802393,
-      "shell_pid_created_at": "1785102161.59"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: FR-003/004 prefix-drop + lockstep verified; FR-008/012 already-satisfied confirmed; 55 gate tests green; ruff/mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 865520,
+      "shell_pid_created_at": "1785104488.57",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T030": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "pedro-wp04",
+      "agent": "renata-wp04",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYGXTAT287ZXJ7RCCW4ZQS53",
       "last_transition_at": "2026-07-27T04:37:34.146654+00:00",
-      "shell_pid": 736631,
-      "shell_pid_created_at": "1785100555.11"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Cycle-2 fix: resolve-first semantics restored in resolve_write_target_or_degrade (degrade_ref now Optional, raise only after resolution genuinely fails). Fixed the circular import the module-level specify_cli.missions._read_path_resolver import introduced (deferred to function scope). Fixed test_birth_cutover.py monkeypatch seam + removed 4 stale checkout-grammar ratchet descriptors (coordination note in both files). Replaced vacuous SC-004 test with real AST assertion. Added pytestmark to test_write_target_degrade.py (was gate-uncovered). All 4 named regression tests + MR-1 lockstep + full architectural suite (1156 passed) green. ruff/mypy clean.",
+        "Cycle-2 rejection (resolve-first regression) VERIFIED FIXED in ac1111138 -> APPROVE. Helper resolves FIRST (_mission_meta_exists->resolve_placement_only), raises only when resolution genuinely fails AND degrade_ref is None; callers pure passthroughs; decision_log fail-OPEN, bookkeeping fail-CLOSED (not flattened). 18 tests green incl 3 retrospective_triggering + birth_cutover coord-seed + new TestBookkeepingCommitResolvesFirstOnBranchNone (asserts resolve_placement_only consulted). MR-1 __all__==_PUBLIC_SURFACE (7/7); 1 _mission_meta_exists def in src/ (SC-004); ruff+mypy --strict clean; layer-rules 17/17. ORCHESTRATOR: 2 non-owned collateral edits ALREADY COMMITTED (ac1111138), required for aggregate-green: test_birth_cutover.py (spy repoint; base reds AttributeError) + test_no_write_side_rederivation.py [WP03-owned] (4 stale allow-list descriptors removed; base reds at collection). Both merge CLEANLY with WP03 disjoint-region change (merge-tree: no conflict, no clobber). Normal lane merge carries both; no manual reconciliation needed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 963914,
+      "shell_pid_created_at": "1785126467.17",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "pedro-wp05",
+      "agent": "renata-wp05",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGXTDWCT5X702RRM8CSAPTM",
       "last_transition_at": "2026-07-27T04:37:37.292576+00:00",
-      "shell_pid": 896471,
-      "shell_pid_created_at": "1785106112.09"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Approved: helper adopted from mission_runtime package (degrade_ref=coord_branch or get_feature_target_branch, STATUS_STATE, .ref); genuine red-first behavior-change fix (bootstrap-window coord_branch now honored); STATUS_STATE->COORD preserved for bootstrapped case; ruff clean; 4 mypy errors pre-existing outside WP05 diff."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 918109,
+      "shell_pid_created_at": "1785106974.78",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
-      "agent": "pedro-wp06",
+      "agent": "renata-wp06",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGXTBJVBS728BXC1KKTCZ1T",
       "last_transition_at": "2026-07-27T04:37:34.939306+00:00",
-      "shell_pid": 644121,
-      "shell_pid_created_at": "1785098844.99"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 708591,
+      "shell_pid_created_at": "1785099855.53",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
-      "agent": "pedro-wp07",
+      "agent": "renata-wp07",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGXTCBB4PTGSGAPRY1J5TT5",
       "last_transition_at": "2026-07-27T04:37:35.723347+00:00",
-      "shell_pid": 647298,
-      "shell_pid_created_at": "1785098861.59"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 710816,
+      "shell_pid_created_at": "1785099872.06",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "event_count": 22,
+  "event_count": 24,
   "last_event_id": "01KQH8EKP4QN6Z05Q84PJ0F9PV",
   "materialized_at": "2026-05-01T07:53:31.588601+00:00",
   "mission_number": "110",
@@ -19,17 +19,35 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "codex:gpt-4o:python-pedro:reviewer",
       "force_count": 6,
       "lane": "done",
       "last_event_id": "01KQH8EKP4QN6Z05Q84PJ0F9PV",
-      "last_transition_at": "2026-05-01T07:53:31.588601+00:00"
+      "last_transition_at": "2026-05-01T07:53:31.588601+00:00",
+      "shell_pid": 14453,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "codex:gpt-4o:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQH8EBZZJNAGGYDW2C9Q8Z4M",
-      "last_transition_at": "2026-05-01T07:53:23.712023+00:00"
+      "last_transition_at": "2026-05-01T07:53:23.712023+00:00",
+      "shell_pid": 79820,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     }
   }
 }

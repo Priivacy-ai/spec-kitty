@@ -1,5 +1,5 @@
 {
-  "event_count": 28,
+  "event_count": 32,
   "last_event_id": "01KQAY1WY4Q864QW3AP6KMZV2H",
   "materialized_at": "2026-04-28T20:56:22.724386+00:00",
   "mission_number": "106",
@@ -19,31 +19,65 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQAY1WG94EVJYV09FFZ8W030",
-      "last_transition_at": "2026-04-28T20:56:22.281953+00:00"
+      "last_transition_at": "2026-04-28T20:56:22.281953+00:00",
+      "shell_pid": 76652,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQAY1WSYVWW3E06CRPR7NWSH",
-      "last_transition_at": "2026-04-28T20:56:22.590483+00:00"
+      "last_transition_at": "2026-04-28T20:56:22.590483+00:00",
+      "shell_pid": 86752,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQAY1WWC56J0YTJC5MMT6A26",
-      "last_transition_at": "2026-04-28T20:56:22.668492+00:00"
+      "last_transition_at": "2026-04-28T20:56:22.668492+00:00",
+      "shell_pid": 78452,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQAY1WY4Q864QW3AP6KMZV2H",
-      "last_transition_at": "2026-04-28T20:56:22.724386+00:00"
+      "last_transition_at": "2026-04-28T20:56:22.724386+00:00",
+      "shell_pid": 86584,
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     }
   }
 }

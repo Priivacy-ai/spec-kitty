@@ -1,5 +1,5 @@
 {
-  "event_count": 14,
+  "event_count": 16,
   "last_event_id": "01KS088208QV3BAP4G3ZJB42AN",
   "materialized_at": "2026-05-19T13:54:15.176066+00:00",
   "mission_number": "",
@@ -19,17 +19,21 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KS088027R054SPVDAD9SRTP7",
-      "last_transition_at": "2026-05-19T13:54:13.191560+00:00"
+      "last_transition_at": "2026-05-19T13:54:13.191560+00:00",
+      "shell_pid": 66929
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KS088208QV3BAP4G3ZJB42AN",
-      "last_transition_at": "2026-05-19T13:54:15.176066+00:00"
+      "last_transition_at": "2026-05-19T13:54:15.176066+00:00",
+      "shell_pid": 70145
     }
   }
 }

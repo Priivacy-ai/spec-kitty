@@ -1,5 +1,5 @@
 {
-  "event_count": 30,
+  "event_count": 34,
   "last_event_id": "01KPQQ3DQDVZTT6G9XVQR228QE",
   "materialized_at": "2026-04-21T09:49:18.445382+00:00",
   "mission_number": "91",
@@ -19,31 +19,74 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KPQNNMBGVFR6CAYCY859MNV5",
-      "last_transition_at": "2026-04-21T09:24:17.904772+00:00"
+      "last_transition_at": "2026-04-21T09:24:17.904772+00:00",
+      "shell_pid": 62357,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KPQP2WX1FGXTFJR1M5AJ81QX",
-      "last_transition_at": "2026-04-21T09:31:32.641205+00:00"
+      "last_transition_at": "2026-04-21T09:31:32.641205+00:00",
+      "shell_pid": 70133,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 3,
       "lane": "approved",
       "last_event_id": "01KPQPKBMF48JMZZM64WNFH00J",
-      "last_transition_at": "2026-04-21T09:40:32.015108+00:00"
+      "last_transition_at": "2026-04-21T09:40:32.015108+00:00",
+      "shell_pid": 79894,
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KPQQ3DQDVZTT6G9XVQR228QE",
-      "last_transition_at": "2026-04-21T09:49:18.445382+00:00"
+      "last_transition_at": "2026-04-21T09:49:18.445382+00:00",
+      "shell_pid": 87454,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     }
   }
 }

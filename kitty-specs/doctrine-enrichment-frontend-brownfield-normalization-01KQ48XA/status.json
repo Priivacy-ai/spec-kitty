@@ -1,5 +1,5 @@
 {
-  "event_count": 72,
+  "event_count": 81,
   "last_event_id": "01KQ4YKREMATPKG5D4JHTGAGVW",
   "materialized_at": "2026-04-26T13:10:41.364334+00:00",
   "mission_number": "100",
@@ -19,66 +19,136 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YJXMSTV5CP288H1F0EDN6",
-      "last_transition_at": "2026-04-26T13:10:13.913812+00:00"
+      "last_transition_at": "2026-04-26T13:10:13.913812+00:00",
+      "shell_pid": 80879,
+      "subtasks": {
+        "T003": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet:curator-carla:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YK1320AJCATVP5AYHPM5Y",
-      "last_transition_at": "2026-04-26T13:10:17.442140+00:00"
+      "last_transition_at": "2026-04-26T13:10:17.442140+00:00",
+      "shell_pid": 82277,
+      "subtasks": {
+        "T002": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YK4FQ3DENTF8ATVCSGTB9",
-      "last_transition_at": "2026-04-26T13:10:20.919359+00:00"
+      "last_transition_at": "2026-04-26T13:10:20.919359+00:00",
+      "shell_pid": 81134,
+      "subtasks": {
+        "T004": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:sonnet:curator-carla:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YK7T6N211XV47CR1F0QMX",
-      "last_transition_at": "2026-04-26T13:10:24.326950+00:00"
+      "last_transition_at": "2026-04-26T13:10:24.326950+00:00",
+      "shell_pid": 82277,
+      "subtasks": {
+        "T001": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:sonnet:curator-carla:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YKB2X0KC6A77DRH0NJSSQ",
-      "last_transition_at": "2026-04-26T13:10:27.677893+00:00"
+      "last_transition_at": "2026-04-26T13:10:27.677893+00:00",
+      "shell_pid": 96504,
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:sonnet:curator-carla:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YKEC3X97NBBS86JSCCA7M",
-      "last_transition_at": "2026-04-26T13:10:31.043457+00:00"
+      "last_transition_at": "2026-04-26T13:10:31.043457+00:00",
+      "shell_pid": 99634,
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP07": {
       "actor": "user",
+      "agent": "claude:sonnet:curator-carla:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YKHQNYTP7WS5A87K69VCR",
-      "last_transition_at": "2026-04-26T13:10:34.485220+00:00"
+      "last_transition_at": "2026-04-26T13:10:34.485220+00:00",
+      "shell_pid": 103898,
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP08": {
       "actor": "user",
+      "agent": "claude:sonnet:curator-carla:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YKN2NERRPEP4J963MF04A",
-      "last_transition_at": "2026-04-26T13:10:37.909168+00:00"
+      "last_transition_at": "2026-04-26T13:10:37.909168+00:00",
+      "shell_pid": 104942,
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
     },
     "WP09": {
       "actor": "user",
+      "agent": "claude:sonnet:python-pedro:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ4YKREMATPKG5D4JHTGAGVW",
-      "last_transition_at": "2026-04-26T13:10:41.364334+00:00"
+      "last_transition_at": "2026-04-26T13:10:41.364334+00:00",
+      "shell_pid": 106942,
+      "subtasks": {
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
     }
   }
 }

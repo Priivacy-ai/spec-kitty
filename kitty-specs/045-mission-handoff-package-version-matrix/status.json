@@ -22,42 +22,76 @@
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KJ60CQW5EKA56A4MGK91VH3B",
-      "last_transition_at": "2026-02-23T19:42:33.861435+00:00"
+      "last_transition_at": "2026-02-23T19:42:33.861435+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KJ60Q2KMC8J8RRJY9RJHBP66",
-      "last_transition_at": "2026-02-23T19:48:12.532182+00:00"
+      "last_transition_at": "2026-02-23T19:48:12.532182+00:00",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP03": {
       "actor": "user",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KJ62530DKQVED63CX0GRRMB0",
-      "last_transition_at": "2026-02-23T20:13:20.270000+00:00"
+      "last_transition_at": "2026-02-23T20:13:20.270000+00:00",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP04": {
       "actor": "user",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KJ62SM9QM3R46D25QTVKMFTB",
-      "last_transition_at": "2026-02-23T20:24:33.335604+00:00"
+      "last_transition_at": "2026-02-23T20:24:33.335604+00:00",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP05": {
       "actor": "user",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KJ63CC4X6Q1TCKCVJ63CRSNN",
-      "last_transition_at": "2026-02-23T20:34:47.581700+00:00"
+      "last_transition_at": "2026-02-23T20:34:47.581700+00:00",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP06": {
       "actor": "user",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KJ64AKHA7JYMT8TZKPSR84WZ",
-      "last_transition_at": "2026-02-23T20:51:18.186697+00:00"
+      "last_transition_at": "2026-02-23T20:51:18.186697+00:00",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     }
   }
 }

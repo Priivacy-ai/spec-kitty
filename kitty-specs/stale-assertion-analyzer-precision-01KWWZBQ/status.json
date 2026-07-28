@@ -1,5 +1,5 @@
 {
-  "event_count": 7,
+  "event_count": 8,
   "last_event_id": "01KWX3C3PF3N7YMMDR61F82H28",
   "materialized_at": "2026-07-07T01:34:09.103566+00:00",
   "mission_number": "167",
@@ -19,10 +19,17 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KWX3C3PF3N7YMMDR61F82H28",
-      "last_transition_at": "2026-07-07T01:34:09.103566+00:00"
+      "last_transition_at": "2026-07-07T01:34:09.103566+00:00",
+      "shell_pid": 1584876,
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned"
+      }
     }
   }
 }

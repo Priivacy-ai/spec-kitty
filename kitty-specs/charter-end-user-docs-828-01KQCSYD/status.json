@@ -1,6 +1,6 @@
 {
-  "event_count": 10,
-  "last_event_id": "01KQCZ4CGQKY0D0YZ6KRJREYS3",
+  "event_count": 20,
+  "last_event_id": "7FSX6EX04S73HF1J66KZ0JSC1Y",
   "materialized_at": "2026-04-29T15:53:41.655991+00:00",
   "mission_number": "",
   "mission_slug": "charter-end-user-docs-828-01KQCSYD",
@@ -9,83 +9,158 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 10,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 10
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "researcher-robbie",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4BPP5XR5HBWG30AR3SHZ",
-      "last_transition_at": "2026-04-29T15:53:40.822889+00:00"
+      "lane": "claimed",
+      "last_event_id": "1N7Z8QQNC44EB6MFDZ1TYG931S",
+      "last_transition_at": "2026-04-29T15:53:40.822889+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4BZVE44M4SSYRKJP0K92",
-      "last_transition_at": "2026-04-29T15:53:41.115799+00:00"
+      "lane": "claimed",
+      "last_event_id": "3ZKTE5YKJCTEJR8YM51RD5ME07",
+      "last_transition_at": "2026-04-29T15:53:41.115799+00:00",
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
+      }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4C28ZDA99B519PTB5END",
-      "last_transition_at": "2026-04-29T15:53:41.192526+00:00"
+      "lane": "claimed",
+      "last_event_id": "2FVDNMZW04YBGFP1P6NF6HED1H",
+      "last_transition_at": "2026-04-29T15:53:41.192526+00:00",
+      "subtasks": {
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned"
+      }
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4C4MWGKKNCX3BY8ZBMDA",
-      "last_transition_at": "2026-04-29T15:53:41.269024+00:00"
+      "lane": "claimed",
+      "last_event_id": "5ZR01DEJPD7GT24XQ49YDJGHC1",
+      "last_transition_at": "2026-04-29T15:53:41.269024+00:00",
+      "subtasks": {
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
+      }
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4C6CXE8CQJCGMHA8W8HY",
-      "last_transition_at": "2026-04-29T15:53:41.324509+00:00"
+      "lane": "claimed",
+      "last_event_id": "77G41RAPK3Z4J848696T2T5M9S",
+      "last_transition_at": "2026-04-29T15:53:41.324509+00:00",
+      "subtasks": {
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned"
+      }
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4C8F433R7GJVZ7F7ACEJ",
-      "last_transition_at": "2026-04-29T15:53:41.391521+00:00"
+      "lane": "claimed",
+      "last_event_id": "52TFCSR9JZ642PNTSW1S8CJC8Q",
+      "last_transition_at": "2026-04-29T15:53:41.391521+00:00",
+      "subtasks": {
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned"
+      }
     },
     "WP07": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4CAGMP5YK8VE2ZQMG801",
-      "last_transition_at": "2026-04-29T15:53:41.456460+00:00"
+      "lane": "claimed",
+      "last_event_id": "4XWSVRAQJNKTS19KXJ05VXZS4K",
+      "last_transition_at": "2026-04-29T15:53:41.456460+00:00",
+      "subtasks": {
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned"
+      }
     },
     "WP08": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4CCHM39Q9QY4J47QDWF1",
-      "last_transition_at": "2026-04-29T15:53:41.521638+00:00"
+      "lane": "claimed",
+      "last_event_id": "7MKW3FQ51SZRG6NGCEZWBRRH32",
+      "last_transition_at": "2026-04-29T15:53:41.521638+00:00",
+      "subtasks": {
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned"
+      }
     },
     "WP09": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "reviewer-renata",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4CERMRYAWVWXPY078NT6",
-      "last_transition_at": "2026-04-29T15:53:41.592934+00:00"
+      "lane": "claimed",
+      "last_event_id": "14REJ01J9APT0JVJ0N3PRY59WE",
+      "last_transition_at": "2026-04-29T15:53:41.592934+00:00",
+      "subtasks": {
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned",
+        "T040": "planned",
+        "T041": "planned"
+      }
     },
     "WP10": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "curator-carla",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQCZ4CGQKY0D0YZ6KRJREYS3",
-      "last_transition_at": "2026-04-29T15:53:41.655991+00:00"
+      "lane": "claimed",
+      "last_event_id": "7FSX6EX04S73HF1J66KZ0JSC1Y",
+      "last_transition_at": "2026-04-29T15:53:41.655991+00:00",
+      "subtasks": {
+        "T042": "planned",
+        "T043": "planned",
+        "T044": "planned",
+        "T045": "planned"
+      }
     }
   }
 }

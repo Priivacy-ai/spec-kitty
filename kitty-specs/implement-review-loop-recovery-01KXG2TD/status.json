@@ -1,5 +1,5 @@
 {
-  "event_count": 12,
+  "event_count": 13,
   "last_event_id": "01KXGDWJ60NBHABG6SBNXF7D97",
   "materialized_at": "2026-07-14T13:43:28.192501+00:00",
   "mission_number": "178",
@@ -19,10 +19,16 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "codex:default:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KXGDWJ60NBHABG6SBNXF7D97",
-      "last_transition_at": "2026-07-14T13:43:28.192501+00:00"
+      "last_transition_at": "2026-07-14T13:43:28.192501+00:00",
+      "shell_pid": 664495,
+      "shell_pid_created_at": "1784035860.82",
+      "tracker_refs": [
+        "#2573"
+      ]
     }
   }
 }

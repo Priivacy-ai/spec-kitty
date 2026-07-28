@@ -1,5 +1,5 @@
 {
-  "event_count": 55,
+  "event_count": 63,
   "last_event_id": "01KS2KCWPMHRD4BKA1N4CSVYZH",
   "materialized_at": "2026-05-20T11:47:36.788440+00:00",
   "mission_number": "",
@@ -19,59 +19,134 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KC8HNT4A3NJDJDQF61NXA",
-      "last_transition_at": "2026-05-20T11:47:16.149888+00:00"
+      "last_transition_at": "2026-05-20T11:47:16.149888+00:00",
+      "shell_pid": 60867,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KCBVTBPSSVW7YQW5BPJ9S",
-      "last_transition_at": "2026-05-20T11:47:19.546142+00:00"
+      "last_transition_at": "2026-05-20T11:47:19.546142+00:00",
+      "shell_pid": 62266,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KS1XCMD1FV1Y8WHYSP2TAGHG",
-      "last_transition_at": "2026-05-20T05:22:59.617772+00:00"
+      "last_transition_at": "2026-05-20T05:22:59.617772+00:00",
+      "shell_pid": 62711,
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KCF3FGSG7QMBZASAW5N02",
-      "last_transition_at": "2026-05-20T11:47:22.863354+00:00"
+      "last_transition_at": "2026-05-20T11:47:22.863354+00:00",
+      "shell_pid": 64254,
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KCJGCQJFNGDW6CDF3VG8C",
-      "last_transition_at": "2026-05-20T11:47:26.348808+00:00"
+      "last_transition_at": "2026-05-20T11:47:26.348808+00:00",
+      "shell_pid": 65704,
+      "subtasks": {
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KCNXFYS8PENXFC97NRPJ3",
-      "last_transition_at": "2026-05-20T11:47:29.839719+00:00"
+      "last_transition_at": "2026-05-20T11:47:29.839719+00:00",
+      "shell_pid": 65704,
+      "subtasks": {
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned"
+      }
     },
     "WP07": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KCSA0W65BWJ8VW2CJEVGG",
-      "last_transition_at": "2026-05-20T11:47:33.312790+00:00"
+      "last_transition_at": "2026-05-20T11:47:33.312790+00:00",
+      "shell_pid": 65704,
+      "subtasks": {
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned"
+      }
     },
     "WP08": {
       "actor": "user",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 4,
       "lane": "planned",
       "last_event_id": "01KS2KCWPMHRD4BKA1N4CSVYZH",
-      "last_transition_at": "2026-05-20T11:47:36.788440+00:00"
+      "last_transition_at": "2026-05-20T11:47:36.788440+00:00",
+      "shell_pid": 65704,
+      "subtasks": {
+        "T040": "planned",
+        "T041": "planned",
+        "T042": "planned",
+        "T043": "planned"
+      }
     }
   }
 }

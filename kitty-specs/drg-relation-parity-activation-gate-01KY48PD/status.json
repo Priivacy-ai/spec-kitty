@@ -19,53 +19,135 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY4NSX4XHK07AF0604X75C7V",
       "last_transition_at": "2026-07-22T10:26:38.365790+00:00",
-      "shell_pid": 2299213,
-      "shell_pid_created_at": "1784710891.61"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fixed the live stem<->canonical activation-gate bug (research.md D1). filter_graph_by_activation batch-resolves each per-kind activated_* set to canonical URNs ONCE per call (_resolve_activated_urns_by_kind) via charter.kind_vocabulary.resolve_artifact_urn; doctrine_root sourced from charter.catalog.resolve_doctrine_root() (never pack_roots[0]); unknown stems skip-with-report (UnknownArtifactIdError caught, never raised); anti_pattern excluded from stem resolution (no file-backed stem for that kind -- added PackContext.org_roots accessor to avoid a 3rd open-coded pack_roots[1:] copy. _node_is_activated now takes the pre-resolved map as an internal param and stays a pure full-URN membership check; PUBLIC gate signature unchanged.\n\nRed-first evidence (T001, verified empirically before applying the fix): test_stem_form_activation_survives_the_gate was RED on merge-base (directive:DIRECTIVE_001 dropped because stem 001-architectural-integrity-standard never equals canonical DIRECTIVE_001); test_canonical_form_control_isolates_the_merge_base_defect (activated_directives={DIRECTIVE_001}) was GREEN on merge-base, isolating the cause as stem<->canonical mismatch not an incidental populated-list bug. Both surviving assertions differ post-fix: stem test is now GREEN; canonical-id test's assertion flips to 'excluded' because C-002 (require-canonical, contract row 4) makes a raw canonical id an unsupported activated_directives entry -- resolve_artifact_urn cannot resolve DIRECTIVE_001 as a stem (no file named that), so it is correctly skip-with-report post-fix. This is a documented, deliberate resolution of a conflict between the WP task doc's imprecise summary line and the authoritative contract; flagging for reviewer attention.\n\ntest_drg_filtering.py rationale (out-of-owned_files edit): this pre-existing file is NOT owned by any WP (checked WP02-WP05 owned_files -- none claim it), directly calls the private _node_is_activated with the old 3-arg signature, and 2 of its filter_graph_by_activation tests used synthetic non-real ids (dir-kept/dir-blocked) that never resolve post-fix. Left unfixed it would be permanently broken with no other agent responsible. Fixed as fallout: (1) _node_is_activated call sites updated to supply a hand-built resolved_urns_by_kind dict directly (keeps that test hermetic/synthetic, matching pre-WP01 intent); (2) the 2 filter_graph_by_activation tests switched to the real 001-architectural-integrity-standard/DIRECTIVE_001 stem<->canonical pair since the public function now does real resolution. All behavior-intent preserved; only the calling convention and id realism changed, consistent with research.md D1 ('stale assertion to update, not preserve').\n\nGates (all foreground): pytest tests/charter/test_drg_activation_gate.py tests/charter/test_drg_filtering.py -q -> 22 passed. pytest tests/charter/ -q -> 1651 passed, 1 skipped. pytest tests/charter/ tests/doctrine/ -q -> 4416 passed, 1 skipped, 0 failed (up from 4402 passed/13 failed pre-fallout-fix; zero unexplained regressions). Diff-scoped lint: ruff check on drg.py/pack_context.py/test_drg_filtering.py/test_drg_activation_gate.py -> exit 0 all four. mypy --strict src/charter -> exit 1 but ONLY 7 pre-existing errors in write_pipeline.py/resynthesize_pipeline.py/mission_type_profiles.py (confirmed zero diff in those 3 files -- baseline red, not mine); mypy --strict on the 2 owned source files alone -> exit 0 clean. Commit fd7e82ada.",
+        "Review claim via move-task workaround",
+        "Review APPROVED by reviewer-renata/opus: red-first proven vs merge-base, all discriminating tests + gates verified, anti_pattern bypass correct, zero blocking findings"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 2301578,
+      "shell_pid_created_at": "1784710920.87",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KY4NSYS0MZQH3804PNNSS71F",
       "last_transition_at": "2026-07-22T10:26:40.032941+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T006: deleted tension-scan trio (_resolve_activated_urns_for_kind/_node_is_tension_scan_active/_build_tension_active_urns), re-pointed _build_tension_active_urns onto filter_graph_by_activation. Verdict-unchanged proof: ran tests/charter/test_tension_unreconciled.py + tests/doctrine/test_activation_parity_guard.py on merge-base e66940a2e (24 passed) vs post-change (24 passed after fixing 1 collateral KIND-format assertion, see below) -- all 9 pre-existing tension-scan tests (incl. real-corpus SC-002 live before/after) pass byte-identically, no verdict changed. T007: re-pointed _check_graph_kind_parity KIND-granular->per-ID consuming filter_graph_by_activation directly; rewrote its stale docstring + ConsistencyReport.graph_kind_gaps docstring; narrow except UnknownArtifactIdError (never broad except Exception) for per-stem resolution, kept broad except Exception only for DRG-load/validate (structurally distinct failure mode); new tests/charter/test_check_graph_kind_parity.py (5 tests): sibling GREEN, per-ID gap naming id when node absent from graph, unresolvable stem names id in verification_errors, guard test proving a non-UnknownArtifactIdError raises (not swallowed as drift), DRG-load-failure fail-closed unchanged. T008: deleted orphaned _DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER (both call sites vanished with T006/T007); confirmed no other orphans. Collateral fix (rationale-backed leeway, no WP owns this file): tests/doctrine/test_activation_parity_guard.py::test_config_kind_absent_from_graph_bites asserted the old bare-kind format ('directive' in graph_kind_gaps); updated to the new per-ID format (directive/<stem>) with an inline campsite-note rationale. Gates (foreground): tests/charter/ full suite 1656 passed/1 skipped/0 failed; tests/architectural/test_no_dead_symbols.py+test_no_dead_modules.py+test_ratchet_baselines.py 28 passed/1 pre-existing-red (test_example_round_trip._SKIP_MARKED_BLOCKS, confirmed red on merge-base too, unrelated to this WP, not touched); ruff clean on both owned files; mypy --strict src/charter clean except 7 pre-existing errors in write_pipeline.py/resynthesize_pipeline.py/mission_type_profiles.py (confirmed present on merge-base, zero diff, not in consistency_check.py); diff-scoped ruff check exit 0. C-001 respected: charter/compiler.py references.yaml projection untouched. Commit 547868632. NOTE: --force used only to bypass an untracked kitty-specs/coord-authority-trio-degod-01KX2T1Q/plan.md left by an unrelated mission (#2160 Wave 2, not WP02); my own diff is fully committed and git status is otherwise clean.",
+        "Review claim via move-task workaround",
+        "Review APPROVED by reviewer-renata/opus: narrow-except verified genuinely narrow, non-drift guard discriminates, tension verdicts unchanged, zero blocking findings"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 2421488,
-      "shell_pid_created_at": "1784713356.81"
+      "shell_pid_created_at": "1784713356.81",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY4NSZH7ZPYDVQMT78V653X2",
       "last_transition_at": "2026-07-22T10:26:40.807469+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "5-consumer regression net (T009-T013), each asserting a named observable: executor.py:182 -> resolved_delegations/unresolved_candidates on the delegation to DIRECTIVE_001 (test_executor_activation.py); reference_resolver.py:67 -> ResolveTransitiveRefsResult.directives; compiler.py:1037 closure -> same closure .directives (distinct from the surviving :88 references.yaml projection); consistency_check.py::_check_drg_cross_kind_refs:424 -> missing_from_doctrine ('tactic/<all>' flagged only when the DIRECTIVE_001->tactic edge survives the gate); context.py:928 -> _ActionDoctrineBundle.directive_ids (test_activation_consumers.py). None-path = structural identity (pack_context=None vs all-None PackContext, or raw-graph-vs-filtered node/edge set comparison for the one consumer with no None-skip branch) computed live, no merge-base literal. Populated-path uses WP01's real stem/canonical pair (001-architectural-integrity-standard -> DIRECTIVE_001); confirmed discriminating by swapping in the pre-WP01 drg.py and re-running: all 5 populated-path assertions went RED there, all 5 None-path assertions stayed GREEN on both. Foreground: tests/charter/test_activation_consumers.py + test_executor_activation.py = 10 passed; full tests/charter/ tests/doctrine/ -n auto = 4424 passed, 1 skipped, 0 failed. Diff-scoped ruff (echo $CHANGED | xargs uv run ruff check, zsh needs xargs since unquoted vars don't word-split) = All checks passed, exit 0. mypy clean on both new files. Commit e838fcfe2.",
+        "Review claim via move-task workaround",
+        "Review APPROVED by reviewer-renata/opus: all 5 populated-path tests proven RED on pre-fix gate via swap, None-path structural identity confirmed, zero blocking findings"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 2421488,
-      "shell_pid_created_at": "1784713356.81"
+      "shell_pid_created_at": "1784713356.81",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude:sonnet:doctrine-daphne:implementer",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY4NSY1EDS4G1TX319SWMHTA",
       "last_transition_at": "2026-07-22T10:26:39.278867+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Backfilled RELATION_DESCRIPTIONS for all 12 undescribed members (applies vs scope named distinctly; vocabulary/refines/delegates_to described as intended-but-dormant; enhances/overrides/replaces described as org-pack overlay by design), grounded in verified edge counts (applies=1, scope=157, requires=255, suggests=330, instantiates=8, specializes_from=4; others=0) confirmed via grep over src/doctrine/*.graph.yaml and real call sites in src/doctrine/drg/query.py. Converted test_models.py completeness gate to ==set(Relation) + non-empty over all 15. Extended docs/context/doctrine.md with 12 new paraphrased glossary entries, explicitly marked NOT the parity-enforced surface (that is docs/architecture/doctrine-relationships.md, WP05 -- untouched). No graph edges rewired (C-006). Gates: pytest tests/doctrine/drg/test_models.py -q = 28 passed; pytest tests/architectural/test_no_legacy_terminology.py -q = 3 passed; mypy --strict src/doctrine = Success, no issues in 85 files; markdownlint-cli2 on docs/context/doctrine.md = 0 errors; diff-scoped ruff check (bash, to avoid zsh no-split-on-newline artifact) = All checks passed, exit 0. Commit 9743b7048.",
+        "Review claim via move-task workaround (agent action review needs --invocation-id for --model in 3.2.6)",
+        "Review APPROVED by reviewer-renata/opus; issue-matrix verdicts filled"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 2301578,
-      "shell_pid_created_at": "1784710920.87"
+      "shell_pid_created_at": "1784710920.87",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude:sonnet:doctrine-daphne:implementer",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY4NT09ASP9T6MRSGXKPZD03",
       "last_transition_at": "2026-07-22T10:26:41.578570+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Restructured docs/architecture/doctrine-relationships.md into 15 dedicated per-relation ### sections (bodies generated verbatim from RELATION_DESCRIPTIONS via a Python import, zero transcription risk), split the grouped Augmentation heading into 3 (enhances/overrides/replaces), trimmed Lineage/Delegation bodies to registry text, re-homed all YAML examples into a new 'Authoring examples' section. Widened _SCOPED_RELATIONS to tuple(Relation) (3->15) and updated the stale 'twelve out of scope / follow-up' docstrings + doc prose to reflect this mission as the follow-up. Validation: pytest tests/doctrine/test_relation_doc_parity.py -q = 19 passed; pytest tests/architectural/test_no_legacy_terminology.py -q = 3 passed; markdownlint-cli2 0.18.1 = 0 errors; diff-scoped ruff check tests/doctrine/test_relation_doc_parity.py = exit 0. No edges touched (C-006). Commit f77e90c40.",
+        "Review claim via move-task workaround",
+        "Review APPROVED by reviewer-renata/opus: verbatim parity verified for all 15, gates re-run, comparator not weakened, zero findings"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 2394119,
-      "shell_pid_created_at": "1784712348.18"
+      "shell_pid_created_at": "1784712348.18",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     }
   }
 }
