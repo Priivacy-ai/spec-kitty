@@ -52,7 +52,7 @@ anti_patterns:
       the append-only event log before you emit the transition.
     good_example: |
       # In a first-run tutorial:
-      Run `spec-kitty status` to see where each work package is. (Under the
+      Run `spec-kitty agent tasks status` to see where each work package is. (Under the
       hood this reads an event log; you do not need to know the details yet.)
   - name: Passive, hedged, filler-laden instruction
     description: >
