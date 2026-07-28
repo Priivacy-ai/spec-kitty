@@ -1,5 +1,5 @@
 {
-  "event_count": 97,
+  "event_count": 105,
   "last_event_id": "01KNK3P25ASJ0PVDJA7GDXB5N6",
   "materialized_at": "2026-04-07T04:37:18.122746+00:00",
   "mission_number": "65",
@@ -19,59 +19,135 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "codex",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNK3P23HR46V1NXDX0Q3KMMW",
-      "last_transition_at": "2026-04-07T04:37:18.065921+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.065921+00:00",
+      "shell_pid": 347031,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "opencode",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KNK3P245S0EG2E6YTQ6XEJN3",
-      "last_transition_at": "2026-04-07T04:37:18.085929+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.085929+00:00",
+      "shell_pid": 152804,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "opencode",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KNK3P24CP3P769G4RVNMX4SX",
-      "last_transition_at": "2026-04-07T04:37:18.092023+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.092023+00:00",
+      "shell_pid": 152804,
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "opencode",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KNK3P24JDCA2KP4C57ZCY224",
-      "last_transition_at": "2026-04-07T04:37:18.098127+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.098127+00:00",
+      "shell_pid": 152804,
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "opencode",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNK3P24S6CJACP426GM1R666",
-      "last_transition_at": "2026-04-07T04:37:18.105129+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.105129+00:00",
+      "shell_pid": 152804,
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
+      "agent": "opencode",
       "force_count": 5,
       "lane": "done",
       "last_event_id": "01KNK3P24YRA58NR7F56ZVNX5F",
-      "last_transition_at": "2026-04-07T04:37:18.110911+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.110911+00:00",
+      "shell_pid": 152804,
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
+      "agent": "codex",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KNK3P254SQAAFHDEND2PX419",
-      "last_transition_at": "2026-04-07T04:37:18.116401+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.116401+00:00",
+      "shell_pid": 226958,
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
+      "agent": "opencode",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KNK3P25ASJ0PVDJA7GDXB5N6",
-      "last_transition_at": "2026-04-07T04:37:18.122746+00:00"
+      "last_transition_at": "2026-04-07T04:37:18.122746+00:00",
+      "shell_pid": 152804,
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done"
+      }
     }
   }
 }

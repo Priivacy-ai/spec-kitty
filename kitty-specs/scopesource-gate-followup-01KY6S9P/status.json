@@ -19,53 +19,153 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY7TFW37CFF2VTNH9FQ36M40",
       "last_transition_at": "2026-07-23T15:46:15.783881+00:00",
-      "shell_pid": 1000127,
-      "shell_pid_created_at": "1784808807.75"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Re-pinned canonical parity harness (_capture.py + test_transition_gate_parity.py) from e4ef6e850 to lane HEAD 7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41 (byte-identical to mission base eb06ca176 under src/specify_cli/review/ and tests/review/ -- confirmed via empty git diff --stat). Added override_nonempty scenario generator (NFR-006): drives _mt_pre_review_gate_with_override_scope -> evaluate_with_scope(scope_source=None) -> run_scoped_tests_at_head with a non-empty (\"tests/foo\",) target list, verified non-vacuous via captured run_state=='completed' and non-empty test_targets in the fixture + a dedicated replay assertion. Captured NFR-001 registry-path golden (12 fixtures, unchanged content, provenance-only diff) + NFR-006 override golden (4 new fixtures, full block/force 2x2 matrix). test_transition_gate_parity.py replays all 16 goldens green (56 tests incl. the previously-xfail through-hook arm, now green from an earlier mission). Added tests/review/test_pre_review_gate_sole_caller_audit.py (T005, green-on-base characterization, not red-first): confirms via AST call-site scan that evaluate_pre_review_gate has exactly 2 production callers (gate_registry.py's _spec_kitty_pre_review_handler, which always passes a non-None scope_source -- confirmed both structurally and via a monkeypatch spy -- and tasks_move_task.py's _mt_pre_review_gate_verdict, whose call site omits scope_source entirely, reaching the census branch), and that _mt_pre_review_gate_verdict itself has zero production call sites (dead code, only a compat re-export + a name-listing test reference it). ruff + mypy --strict clean on all changed/created files, zero suppressions.",
+        "Safety-net oracle verified by opus review (renata): non-circular re-pin to lane HEAD 7081cf053, non-vacuous override golden, genuine sole-caller audit, ruff/mypy clean, 56 pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1043070,
+      "shell_pid_created_at": "1784809629.95",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#2873"
+      ]
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY7TG2T7B5VW5SQW055K6KDC",
       "last_transition_at": "2026-07-23T15:46:22.663202+00:00",
-      "shell_pid": 1089850,
-      "shell_pid_created_at": "1784810426.03"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Factory+selection (T006/T010, both branches tested, spec-kitty->GateCoverageScopeSource confirmed); source-owned parse_mode + scope_source_identity single-authority (T007, dispatch-through-parse_mode proven via monkeypatch spy/branch-flip); two independent predicates proven via synthetic one-not-other source (T008); ScopeBreakdownMixin refactor with WP01 golden replayed byte-identical (T009); NFR-005 dual-root test_command/identity equality + structural same-helper pin (T012); intent-migration off isinstance onto predicates (T011). Allowlisted the 7 new additive symbols in test_no_dead_symbols.py (consumed by WP03/WP04, #2873) since this WP does not wire tasks_move_task/baseline/pre_review_gate callers by design. mypy --strict + ruff clean; 145 tests green (test_scope_source.py + test_transition_gate_parity.py + test_no_dead_symbols.py + test_golden_count_ban.py).",
+        "APPROVED. Anti-dup (paula GAP) verified: scope_source_identity delegates ONLY to source-owned parse_mode, never re-inspects raw — proven by contradictory-parse_mode test (forces text on no-artifact GateCoverage, token follows parse_mode). DeclaredCommand.parse_results genuinely dispatches through parse_mode (behavioral spy flips branch on forced 'none'); GateCoverage.parse_mode is 'junit_xml' even no-artifact. NFR-001 golden replays 50 passed byte-identical; file_to_scope IS ScopeBreakdownMixin.file_to_scope, DeclaredCommand inherits neither mixin nor ClassVar. Predicates read DISTINCT signals (isinstance vs ClassVar getattr), synthetic one-not-other passes. FR-014 selection reads baseline._get_test_command surface, spec-kitty (no review.test_command) explicitly routes to GateCoverageScopeSource; stale :51-55 comment + review-gates.md:174 fixed. mypy --strict + ruff clean, zero suppressions. Only owned files + arch-gate touched; no pre_review_gate/baseline/workflow_executor/tasks_move_task edits. Ratchet red is _SKIP_MARKED_BLOCKS (#2825), pre-existing — lane-b never touches that file. TECH-DEBT FLAG: WP02 appends _CATEGORY_C_WP_IN_FLIGHT_SCOPE_SOURCE_HUB (7 symbols) to tests/architectural/test_no_dead_symbols.py to allowlist the additive surface with no callers yet. This is justified (WP02 introduces the symbols, so its own dead-symbol gate would flag them) but WP04 MUST DELETE this _CATEGORY_C_WP_IN_FLIGHT_SCOPE_SOURCE_HUB category (and its union line) once WP03/WP04 wire live src/ callers, else it becomes permanent masking. The category comment itself records this obligation (#2873)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1124969,
+      "shell_pid_created_at": "1784812026.28",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "#2873"
+      ]
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY7TG9B9N58K5VSMVBZAPRY6",
       "last_transition_at": "2026-07-23T15:46:29.353906+00:00",
-      "shell_pid": 1139613,
-      "shell_pid_created_at": "1784812600.35"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "B1 fixed: parse-before-teardown + cwd-anchored artifact path in _capture_baseline_via_scope_source; source_identity recorded via scope_source_identity at the same point. Direct red-first repro (real git repo, real DeclaredCommandScopeSource, worktree-relative --junitxml): OBSERVED RED pre-fix -- baseline.failures[0].test == '<declared-command>' (synthetic whole-run placeholder) instead of the real JUnit identity 'tests.test_thing.test_boom', and source_identity stuck at 'unknown'. GREEN after T014. from_dict defaults source_identity to 'unknown' for legacy artifacts (no KeyError). workflow_executor.implement_capture_baseline now injects scope_source=resolve_scope_source(main_repo_root) using the existing root (T015). GateCoverageScopeSource unaffected (absolute tempfile path, is_absolute() short-circuits) -- test_transition_gate_parity.py stays green. Boyscout: dropped unused timezone import, tightened ruff.toml baseline.py entry to [ARG001, S314], ruff+mypy --strict clean. Pre-existing red test_ratchet_baselines.py::test_growing_an_allowlist_above_baseline_fails (#2825, unrelated to this diff) confirmed present, left untouched.",
+        "B1 fix verified: genuine-red confirmed (test fails with both fix legs reverted -> '<declared-command>' synthetic vs real 'tests.test_thing.test_boom' JUnit identity; green with fix). Anchoring (relative junitxml -> cwd) + parse-before-teardown both load-bearing; is_absolute() short-circuits so GateCoverageScopeSource unaffected (parity green). source_identity field to_dict/from_dict legacy-safe (unknown default). Factory injection reuses main_repo_root, import cycle-free. Anti-narrowing guard (verbatim argv + structural param) present. Boyscout clean (timezone gone, ruff.toml -> [ARG001,S314]). No forbidden edits. ruff + mypy --strict clean on both files, complexity <=15. Ratchet + schema.py reds pre-existing/unrelated to WP03 owned files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1185404,
+      "shell_pid_created_at": "1784814020.39",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      },
+      "tracker_refs": [
+        "#2873"
+      ]
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY7TGFWCXTKZNYWW2S0WP9CB",
       "last_transition_at": "2026-07-23T15:46:36.044390+00:00",
-      "shell_pid": 1197446,
-      "shell_pid_created_at": "1784814917.35"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Deleted 12 dead census symbols + census branch from pre_review_gate.py (WP01 goldens byte-identical); atomic compat delete of _mt_pre_review_gate_verdict (157->156); SOURCE_MISMATCH added + fail-open asserted; head path rewired onto resolve_scope_source (FR-014, priti-M1); 4-combo baseline<->head parity + SC-004 mismatch demo green, one combo driven through the real _mt_resolve_scope_source wrapper; migrated all test-suite fallout from the deletion (test_pre_review_gate_engine.py, test_scope_source.py, test_pre_review_scope_singlesource.py, deleted test_census_parity.py, re-adjudicated test_pre_review_gate_sole_caller_audit.py); retired the scope_source dead-symbol allowlist hub, replaced with a narrowly-justified entry for the 4 concrete ScopeSource classes that are structurally never cross-module-imported by the Protocol-port design; fixed a latent relative-junitxml head-side bug the parity suite surfaced. ruff/mypy --strict clean on owned src files. Pre-existing reds confirmed unrelated: test_baseline_anti_narrowing.py golden-count (WP03), test_ratchet_baselines.py _SKIP_MARKED_BLOCKS 12->13, tasks_move_task.py:1803 mypy no-any-return.",
+        "APPROVED. Deletion (12 census symbols + scope_source-is-None branch + filter_groups/composite_routing params + scope_source=None default) correct; keep-live C-002 set survives; private scope_source.py census copy untouched; both parity golden arms replay byte-identical green (381 passed). Atomic compat: SYMBOL_TO_MODULE 157->156 with golden-count marker kept, tuple entry + tasks.py re-export removed, docstring 76->75, all in one commit d19bd566c. SOURCE_MISMATCH built in _evaluate_via_scope_source (compares already-loaded baseline only; no new baseline read); fail-open ASSERTED not edited (WARN_PROCEED via real aggregate_verdicts even block_enabled); console ladder has SOURCE_MISMATCH + explicit NO_NEW_FAILURES + defensive else. Head-path rewire delegates to resolve_scope_source; parity combo-2 drives the REAL _mt_resolve_scope_source wrapper; _run_raw_command relative-junitxml B1 fix mirrors baseline.py:479-480 and is correct (cwd=repo_root). 4-combo parity + SC-004 all green. Gate reds all confirmed PRE-EXISTING (not WP04): mypy no-any-return at _mt_shell_pid_baseline (untouched by WP04), golden-count-ban tests/review ceiling reproduced at pre-WP04 tree 24fc2fc3b (from WP03, count stayed 1), ratchet (WP04 adds no skip marks). ruff+mypy otherwise clean, complexity ok, zero suppressions. NEW ALLOWLIST ENTRY _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED is JUSTIFIED not masking: all 4 classes (GateCoverageScopeSource, DeclaredCommandScopeSource, FileScopeBreakdown, ScopeBreakdownMixin) are genuinely live (constructed via resolve_scope_source at scope_source.py:686-687, mixin inherited, FileScopeBreakdown returned) but never named cross-module by Protocol-port design; the 4 now-wired symbols were correctly removed from the old allowlist. TEST-MIGRATION WP04 ABSORBED (WP05/FR-004 reconciliation): (a) FR-004a census_parity.py DELETED (correct-one compared copy gone); the 6 _derive tests in test_pre_review_gate_engine.py were MIGRATED FORWARD onto _scope_result_from_source (not deleted-they now cover a live path); (b) FR-004b both derive_test_scope-oracle tests repointed to literal goldens; (c) FR-004c the 8 verdict-diff tests MIGRATED to evaluate_with_scope(ScopeResult,scope_source=None) kept-live tail (NOT the plan's scope_source= injection, but coverage-equivalent and actually protects the NFR-006 keep-live tail; intent preserved: NO_COVERAGE/terminal/None+sentinel-baseline/NEW_FAILURES); (d) M-mut mutation-bite MIGRATED FORWARD IN-PLACE in test_pre_review_scope_singlesource.py onto GateCoverageScopeSource private helpers-live-topology proof preserved (still reads gc.load_workflow_models()+gc._COMPOSITE_ROUTING); (e) sole-caller audit re-adjudicated to a meaningful post-deletion pin. WP05 STILL OWES (NOT done by WP04): FR-004d committed coverage-parity-inventory.md; T029 test_pre_review_gate_integration.py stale derive_test_scope docstrings (lines 7,27,765-runtime-safe, passes); and reconcile the now-REDUNDANT planned new file test_gate_coverage_census_topology.py since the mutation-bite already migrated in-place. Shared-file edits into WP05/WP02-owned files are sanctioned by the WP04 prompt (green-gate necessity) and documented in the commit."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1278432,
+      "shell_pid_created_at": "1784819143.2",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "#2873"
+      ]
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY7TGPATZF8EXVSNSJTT29PW",
       "last_transition_at": "2026-07-23T15:46:42.650273+00:00",
-      "shell_pid": 1290749,
-      "shell_pid_created_at": "1784819918.49"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-004d inventory (migration discharged by WP04, mapped) + integration docstring scrub; T026-028 verified done-by-WP04",
+        "FR-004d coverage-parity inventory + docstring scrub verified. Inventory ACCURATE/COMPLETE/FALSIFIABLE: spot-checked 8 verdict-diff tests (test_empty_scope→evaluate_with_scope(_VALIDATORS_EMPTY_CONE_SCOPE); test_run_that_does_not_complete + test_terminal_interruption→evaluate_with_scope(_GIT_NONEMPTY_SCOPE); end-to-end→scope_source=GateCoverageScopeSource(filter_groups_override=...)) — all match. Mutation-bite migrated in place in test_pre_review_scope_singlesource.py (10 tests, live topology preserved via gc.load_workflow_models/_COMPOSITE_ROUTING; _gate_coverage.py untouched). test_census_parity.py deleted (absent). 6 _derive tests retargeted onto GateCoverageScopeSource (all present). FR-004b oracle→pinned golden. 18 rows, each→named surviving id or explicit rationale. Docstring scrub prose-only (assertions == [] unchanged, only comments/docstrings). No re-migration: lane-e WP05 diff touches ONLY test_pre_review_gate_integration.py; redundant test_gate_coverage_census_topology.py correctly NOT created. Gates: 451 passed/1 skipped. #2825 golden-count red confirmed pre-existing at WP05 base 950fe04fc, not WP05's."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1310125,
+      "shell_pid_created_at": "1784820772.18",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      },
+      "tracker_refs": [
+        "#2873"
+      ]
     }
   }
 }

@@ -1,6 +1,6 @@
 {
-  "event_count": 3,
-  "last_event_id": "01KRKVE4DWY7VSHYZ6AYQ21ZP5",
+  "event_count": 6,
+  "last_event_id": "43ZC0FYMDZKWZBNQN255FV5QK6",
   "materialized_at": "2026-05-14T18:19:29.596660+00:00",
   "mission_number": "",
   "mission_slug": "workflow-parity-988-989-991-01KRKTT5",
@@ -9,34 +9,52 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 3,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRKVE47X8H2FKBHX0RHC19EA",
-      "last_transition_at": "2026-05-14T18:19:29.405223+00:00"
+      "lane": "claimed",
+      "last_event_id": "0D2649N5KY8QZK0AAZMRMCGDXD",
+      "last_transition_at": "2026-05-14T18:19:29.405223+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRKVE4CHXF6NWN2NMBKQF1AT",
-      "last_transition_at": "2026-05-14T18:19:29.553316+00:00"
+      "lane": "claimed",
+      "last_event_id": "6R5HSR34SEPFQMS02YWM6M1GPD",
+      "last_transition_at": "2026-05-14T18:19:29.553316+00:00",
+      "subtasks": {
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
+      }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRKVE4DWY7VSHYZ6AYQ21ZP5",
-      "last_transition_at": "2026-05-14T18:19:29.596660+00:00"
+      "lane": "claimed",
+      "last_event_id": "43ZC0FYMDZKWZBNQN255FV5QK6",
+      "last_transition_at": "2026-05-14T18:19:29.596660+00:00",
+      "subtasks": {
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "event_count": 54,
+  "event_count": 60,
   "last_event_id": "01KT1404Z63G8PP2P0RN0CHJ0K",
   "materialized_at": "2026-06-01T08:14:58.022592+00:00",
   "mission_number": "",
@@ -19,45 +19,57 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 7,
       "lane": "done",
       "last_event_id": "01KT1404W0FKD3P19WWQ6AWNJJ",
-      "last_transition_at": "2026-06-01T08:14:57.921016+00:00"
+      "last_transition_at": "2026-06-01T08:14:57.921016+00:00",
+      "shell_pid": 67940
     },
     "WP02": {
       "actor": "claude",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT1404WJW4FYJ44Z5VDMXET0",
-      "last_transition_at": "2026-06-01T08:14:57.938424+00:00"
+      "last_transition_at": "2026-06-01T08:14:57.938424+00:00",
+      "shell_pid": 69792
     },
     "WP03": {
       "actor": "claude",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT1404X38NXXZCQ5Z24J57NM",
-      "last_transition_at": "2026-06-01T08:14:57.955352+00:00"
+      "last_transition_at": "2026-06-01T08:14:57.955352+00:00",
+      "shell_pid": 71097
     },
     "WP04": {
       "actor": "claude",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT1404XMFCMBGK55PTKPYMCA",
-      "last_transition_at": "2026-06-01T08:14:57.972327+00:00"
+      "last_transition_at": "2026-06-01T08:14:57.972327+00:00",
+      "shell_pid": 72403
     },
     "WP05": {
       "actor": "claude",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT1404Y4TYRQWW13D2267GW7",
-      "last_transition_at": "2026-06-01T08:14:57.989011+00:00"
+      "last_transition_at": "2026-06-01T08:14:57.989011+00:00",
+      "shell_pid": 73732
     },
     "WP06": {
       "actor": "claude",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KT1404Z63G8PP2P0RN0CHJ0K",
-      "last_transition_at": "2026-06-01T08:14:58.022592+00:00"
+      "last_transition_at": "2026-06-01T08:14:58.022592+00:00",
+      "shell_pid": 82827
     }
   }
 }

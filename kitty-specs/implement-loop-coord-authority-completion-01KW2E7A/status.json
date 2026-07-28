@@ -1,5 +1,5 @@
 {
-  "event_count": 60,
+  "event_count": 69,
   "last_event_id": "01KW3QJ3GMY812V6Q9QYT4669G",
   "materialized_at": "2026-06-27T05:06:41.812703+00:00",
   "mission_number": "",
@@ -19,20 +19,25 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet:python-pedro:implementer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KW2QFWHBSXF10YSJXR28TDH1",
-      "last_transition_at": "2026-06-26T19:46:14.699583+00:00"
+      "last_transition_at": "2026-06-26T19:46:14.699583+00:00",
+      "shell_pid": 3898818
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet:python-pedro:implementer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KW2RXTVNHV50QSM93AANHA4T",
-      "last_transition_at": "2026-06-26T20:11:20.309316+00:00"
+      "last_transition_at": "2026-06-26T20:11:20.309316+00:00",
+      "shell_pid": 3901291
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW2VQYGKG0WN9D8KVW3R1XBF",
@@ -40,6 +45,7 @@
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW2XA5PZCN6V9PA2N8E54V6Q",
@@ -47,6 +53,7 @@
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW3HD6Y0GCD7JR4ADFPBSEFQ",
@@ -54,6 +61,7 @@
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW3KZT8437CHBPVE0ZWRK3ZF",
@@ -61,6 +69,7 @@
     },
     "WP07": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW3QJ3GMY812V6Q9QYT4669G",
@@ -68,6 +77,7 @@
     },
     "WP08": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW2SFGHJVW0A6C7PYEZZE7HR",
@@ -75,10 +85,12 @@
     },
     "WP09": {
       "actor": "user",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW2P3BFMFPTPVKGN33R4VB2Y",
-      "last_transition_at": "2026-06-26T19:21:55.444825+00:00"
+      "last_transition_at": "2026-06-26T19:21:55.444825+00:00",
+      "shell_pid": 3940829
     }
   }
 }

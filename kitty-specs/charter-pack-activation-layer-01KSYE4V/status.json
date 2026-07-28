@@ -1,5 +1,5 @@
 {
-  "event_count": 99,
+  "event_count": 110,
   "last_event_id": "01KSZB42WG0TM0XM3TGB49J8WG",
   "materialized_at": "2026-05-31T15:40:58.128957+00:00",
   "mission_number": "125",
@@ -19,80 +19,175 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KSZB42HTBF9VKM8091QPTGDY",
-      "last_transition_at": "2026-05-31T15:40:57.786378+00:00"
+      "last_transition_at": "2026-05-31T15:40:57.786378+00:00",
+      "shell_pid": 4108021,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSZB42MZ182BCNZ0JZD583KN",
-      "last_transition_at": "2026-05-31T15:40:57.887117+00:00"
+      "last_transition_at": "2026-05-31T15:40:57.887117+00:00",
+      "shell_pid": 4091832,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KSZB42NRW2AV40MD42E4WFZB",
-      "last_transition_at": "2026-05-31T15:40:57.912619+00:00"
+      "last_transition_at": "2026-05-31T15:40:57.912619+00:00",
+      "shell_pid": 4145326,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSZB42PM847FTBJA4S9PRV8Y",
-      "last_transition_at": "2026-05-31T15:40:57.940622+00:00"
+      "last_transition_at": "2026-05-31T15:40:57.940622+00:00",
+      "shell_pid": 4177146,
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSZB42RBHWPZDGM551QV84XJ",
-      "last_transition_at": "2026-05-31T15:40:57.995632+00:00"
+      "last_transition_at": "2026-05-31T15:40:57.995632+00:00",
+      "shell_pid": 127447,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSZB42S6TPDMFJMGJ43KNAJY",
-      "last_transition_at": "2026-05-31T15:40:58.022071+00:00"
+      "last_transition_at": "2026-05-31T15:40:58.022071+00:00",
+      "shell_pid": 114664,
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KSZB42T2KFAVK3CH6AN0YF3X",
-      "last_transition_at": "2026-05-31T15:40:58.050595+00:00"
+      "last_transition_at": "2026-05-31T15:40:58.050595+00:00",
+      "shell_pid": 171216,
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSZB42QE8SCD6GZZZ19XD5P8",
-      "last_transition_at": "2026-05-31T15:40:57.966024+00:00"
+      "last_transition_at": "2026-05-31T15:40:57.966024+00:00",
+      "shell_pid": 4188422,
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
     },
     "WP09": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KSZB42TW3HZZB39FRGTZ1K8A",
-      "last_transition_at": "2026-05-31T15:40:58.076098+00:00"
+      "last_transition_at": "2026-05-31T15:40:58.076098+00:00",
+      "shell_pid": 321527,
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      }
     },
     "WP10": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KSZB42VSNDM0FWVW7WDEQVQQ",
-      "last_transition_at": "2026-05-31T15:40:58.105752+00:00"
+      "last_transition_at": "2026-05-31T15:40:58.105752+00:00",
+      "shell_pid": 279946,
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
     },
     "WP11": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSZB42WG0TM0XM3TGB49J8WG",
-      "last_transition_at": "2026-05-31T15:40:58.128957+00:00"
+      "last_transition_at": "2026-05-31T15:40:58.128957+00:00",
+      "shell_pid": 64266,
+      "subtasks": {
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done"
+      }
     }
   }
 }

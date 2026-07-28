@@ -1,5 +1,5 @@
 {
-  "event_count": 80,
+  "event_count": 92,
   "last_event_id": "01KSH87MMKXYECG9HD1SB0BB8E",
   "materialized_at": "2026-05-26T04:21:06.836004+00:00",
   "mission_number": "123",
@@ -19,87 +19,179 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFVKN4CBAYEXS1QVD8XEYJ3",
-      "last_transition_at": "2026-05-25T15:21:14.636815+00:00"
+      "last_transition_at": "2026-05-25T15:21:14.636815+00:00",
+      "shell_pid": 2059479,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFX9G4ZHJ51SW8DAR99VJ7A",
-      "last_transition_at": "2026-05-25T15:50:39.007105+00:00"
+      "last_transition_at": "2026-05-25T15:50:39.007105+00:00",
+      "shell_pid": 2173274,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFWDE5085AZ733V4RHXHYKR",
-      "last_transition_at": "2026-05-25T15:35:19.456948+00:00"
+      "last_transition_at": "2026-05-25T15:35:19.456948+00:00",
+      "shell_pid": 2135001,
+      "subtasks": {
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSH87MMKXYECG9HD1SB0BB8E",
-      "last_transition_at": "2026-05-26T04:21:06.836004+00:00"
+      "last_transition_at": "2026-05-26T04:21:06.836004+00:00",
+      "shell_pid": 2463096,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFSDJYRF3325MWGH3W5EXDT",
-      "last_transition_at": "2026-05-25T14:42:58.648576+00:00"
+      "last_transition_at": "2026-05-25T14:42:58.648576+00:00",
+      "shell_pid": 1882060,
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 5,
       "lane": "approved",
       "last_event_id": "01KSFX45Y0VBT5F52S2X8NQAQS",
-      "last_transition_at": "2026-05-25T15:47:44.704182+00:00"
+      "last_transition_at": "2026-05-25T15:47:44.704182+00:00",
+      "shell_pid": 2175625,
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP07": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFXRA1G2KVNYN54CH3BNP3E",
-      "last_transition_at": "2026-05-25T15:58:44.272260+00:00"
+      "last_transition_at": "2026-05-25T15:58:44.272260+00:00",
+      "shell_pid": 2228711,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     },
     "WP08": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSH83D4HSJR6N8VR4CW4XRM4",
-      "last_transition_at": "2026-05-26T04:18:48.081735+00:00"
+      "last_transition_at": "2026-05-26T04:18:48.081735+00:00",
+      "shell_pid": 2458199,
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
     },
     "WP09": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KSFTC38N2C4WYG899HFTSFPV",
-      "last_transition_at": "2026-05-25T14:59:38.389799+00:00"
+      "last_transition_at": "2026-05-25T14:59:38.389799+00:00",
+      "shell_pid": 1966774,
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
     },
     "WP10": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFTXB2CEVD4K75XK48Q6VM1",
-      "last_transition_at": "2026-05-25T15:09:03.436845+00:00"
+      "last_transition_at": "2026-05-25T15:09:03.436845+00:00",
+      "shell_pid": 2021235,
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
     },
     "WP11": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFT15QF8J3WDQCW7JMR9RDQ",
-      "last_transition_at": "2026-05-25T14:53:40.463636+00:00"
+      "last_transition_at": "2026-05-25T14:53:40.463636+00:00",
+      "shell_pid": 1939171,
+      "subtasks": {
+        "T034": "done",
+        "T035": "done"
+      }
     },
     "WP12": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KSFSK2BQ5S68SMG2JP6V09JH",
-      "last_transition_at": "2026-05-25T14:45:58.263124+00:00"
+      "last_transition_at": "2026-05-25T14:45:58.263124+00:00",
+      "shell_pid": 1890802,
+      "subtasks": {
+        "T042": "done",
+        "T043": "done",
+        "T044": "done"
+      }
     }
   }
 }

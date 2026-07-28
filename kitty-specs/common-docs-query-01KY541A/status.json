@@ -20,32 +20,83 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude:sonnet:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY58N86BPB4K524ZFZXZN3Z2",
       "last_transition_at": "2026-07-22T15:56:08.779242+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: packaged src/specify_cli/docs/index_model.py (Anchor/DocsQueryEntry/render_index/parse_index/compare_index/IndexDrift/DocsIndexStore/DEFAULT_INDEX_PATH, no scripts import) + scripts/docs/docs_index.py generator (generate_index/scan_headings/resolve_title/resolve_abstract/slug_for_headings/run_generate_and_compare/__main__, reuses parse_frontmatter+DivioType+split_frontmatter+canonical slugify+ordinal pattern, never forks). Generated+committed docs/development/3-2-docs-retrieval-index.yaml over 646 live pages, --strict round-trips exit 0. 24 tests in tests/docs/test_docs_index.py all green (T001 red-first byte-stability via ascending-path assertion + subprocess regen under different PYTHONHASHSEED; T002-T004 unit coverage; T005 live-index sanity; T006 positive slugify-import + C-001 no-PageInventoryEntry + src/scripts layering AST assertions). ruff clean, mypy clean (--explicit-package-bases --follow-imports=skip to isolate pre-existing unrelated mypy debt in generate_kitty_specs_docs.py, which WP01 does not own/touch). Full tests/docs/ (551) and shared-package-boundary/pyproject-shape/terminology arch suites green — no regressions.",
+        "Opus/reviewer-renata review (manual orchestration; agent-action-review claim blocked by 3.2.6 invocation-id bug)",
+        "APPROVE (opus/reviewer-renata): all 7 criteria cited — packaging split holds (no scripts import in index_model, no src->scripts), C-001 byte-untouched, slugify imported not forked, byte-stability cross-PYTHONHASHSEED subprocess, 24/24 green, ruff+src-mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
       "shell_pid": 3114019,
-      "shell_pid_created_at": "1784733059.49"
+      "shell_pid_created_at": "1784733059.49",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude:sonnet:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY58N93KVP7Q4VTJMVZ8YFKS",
       "last_transition_at": "2026-07-22T15:56:09.715330+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T007-T010 done. Added _check_docs_index_drift (DOCS-INDEX-DRIFT, error severity) mirroring _check_inventory_lockfile_drift exactly; consumes scripts.docs.docs_index.run_generate_and_compare (no re-implementation). Registered additively at the existing sub-check-5 site (append-only diff around it, byte-identical elsewhere - C-001 verified via git diff and green test_inventory_lockfile.py/test_check_docs_freshness.py runs). .github/workflows/docs-freshness.yml is a verified no-op (already calls the --ci aggregate). New tests/docs/test_docs_index_freshness.py: fresh->pass, stale->error-severity DOCS-INDEX-DRIFT + aggregate exit 1, regenerate->green, missing-prereq skip, plus C-001 snapshot pinning INVENTORY-LOCKFILE-DRIFT findings. Gates: pytest 7 passed; check_docs_freshness --ci exit=0; ruff clean; mypy hits the known pre-existing 'found twice under different module names' quirk (reproduces identically on untouched inventory_lockfile.py - environmental, not this diff). ad-hoc-profile-load python-pedro applied: TDD, type hints, canonical-sources reuse (no re-impl of WP01 generation), locality/additive edits only.",
+        "Opus/reviewer-renata review (manual orchestration; 3.2.6 claim bug)",
+        "APPROVE (opus/reviewer-renata): additive DOCS-INDEX-DRIFT ruler, C-001 byte-honored + snapshot-pinned, genuine mutate->detect->regenerate test (severity==error), CI via aggregate --ci, 51 tests green, ruff clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
       "shell_pid": 3224609,
-      "shell_pid_created_at": "1784734522.68"
+      "shell_pid_created_at": "1784734522.68",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude:sonnet:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KY58N9VPGEKC3WS80RXR3YXJ",
       "last_transition_at": "2026-07-22T15:56:10.486494+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Gates green: pytest tests/docs/test_docs_query_cli.py 14 passed; ruff+mypy clean on docs.py + __init__.py + test file; live smoke: docs query worktree --json returns matches, docs query zzzznomatch --json -> [] exit 0. Import rule honored (specify_cli.docs.index_model only, no scripts.*). __init__.py registration is the one pre-authorized out-of-map edit. DivioType validated against a literal value set (tutorial|how-to|reference|explanation|none) since neither existing packaged DivioType (doc_analysis.gap_analysis, wrong values) nor the correct scripts-side enum (unpackaged) could be reused -- flagged as a follow-up consolidation gap, not forked into a duplicate schema.",
+        "Opus/reviewer-renata review (manual orchestration; 3.2.6 claim bug)",
+        "APPROVE (opus/reviewer-renata): all 7 criteria; src->src import honored, FR-003 discriminating anchor test, no-markup-leak + structural NFR-002 spy tests, DivioType literal-tuple concurred (values match committed index; consolidation deferred), 14 green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
       "shell_pid": 3224609,
-      "shell_pid_created_at": "1784734522.68"
+      "shell_pid_created_at": "1784734522.68",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     }
   }
 }

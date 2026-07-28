@@ -1,5 +1,5 @@
 {
-  "event_count": 15,
+  "event_count": 24,
   "last_event_id": "01KN8039A5785Z8MWAQFA6WZKX",
   "materialized_at": "2026-04-02T21:02:58.373981+00:00",
   "mission_number": "62",
@@ -9,69 +9,142 @@
     "approved": 1,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 7,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KN7ZFYJ0NQ9H8RKZBE2XPFYZ",
-      "last_transition_at": "2026-04-02T20:52:24.768281+00:00"
+      "last_transition_at": "2026-04-02T20:52:24.768281+00:00",
+      "shell_pid": 2451078,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 1,
       "lane": "in_progress",
       "last_event_id": "01KN8039A5785Z8MWAQFA6WZKX",
-      "last_transition_at": "2026-04-02T21:02:58.373981+00:00"
+      "last_transition_at": "2026-04-02T21:02:58.373981+00:00",
+      "shell_pid": 13292,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN7XJS7KJ08R4PX7XT9ZG57P",
-      "last_transition_at": "2026-04-02T20:19:00.467676+00:00"
+      "lane": "claimed",
+      "last_event_id": "0JPR86HHP9J5TJQZRXKNEQV5BN",
+      "last_transition_at": "2026-04-02T20:19:00.467676+00:00",
+      "shell_pid": 191531,
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP04": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN7XJS7M4TBY3A2PV46TWH6Q",
-      "last_transition_at": "2026-04-02T20:19:00.468492+00:00"
+      "lane": "claimed",
+      "last_event_id": "1QTXN7VSEAFY9Q7YG7CZPYJHD6",
+      "last_transition_at": "2026-04-02T20:19:00.468492+00:00",
+      "shell_pid": 194292,
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP05": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN7XJS7N8ATC29H2AZTFCXDH",
-      "last_transition_at": "2026-04-02T20:19:00.469279+00:00"
+      "lane": "claimed",
+      "last_event_id": "1D8BTKSNPH96MY16HJ7QAD2VH2",
+      "last_transition_at": "2026-04-02T20:19:00.469279+00:00",
+      "shell_pid": 199038,
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP06": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN7XJS7PQ8T3H0T6MP9C0HMP",
-      "last_transition_at": "2026-04-02T20:19:00.470384+00:00"
+      "lane": "claimed",
+      "last_event_id": "2M4G1WRAKDGSQ2ZEA6MJ8F3WKA",
+      "last_transition_at": "2026-04-02T20:19:00.470384+00:00",
+      "shell_pid": 203316,
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP07": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
+      "assignee": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN7XJS7Q2Q4TYJN170SV09M6",
-      "last_transition_at": "2026-04-02T20:19:00.471402+00:00"
+      "lane": "claimed",
+      "last_event_id": "3AK1HRC3YX7W4AY8T33CB4HCJ7",
+      "last_transition_at": "2026-04-02T20:19:00.471402+00:00",
+      "shell_pid": 254171,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     },
     "WP08": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN7XJS7R2RC0ZDESQXWG5HZP",
-      "last_transition_at": "2026-04-02T20:19:00.472233+00:00"
+      "lane": "claimed",
+      "last_event_id": "7QYKMA5G69HKTSMXND0NHFRH4Y",
+      "last_transition_at": "2026-04-02T20:19:00.472233+00:00",
+      "shell_pid": 254171,
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
+    },
+    "WP11": {
+      "actor": "migration:backfill_runtime_state",
+      "agent": "opencode",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "1M3VC8KWJ7WHBJ94JV4XTDY9AP",
+      "last_transition_at": "2026-04-02T16:48:38.348783+00:00",
+      "shell_pid": 254171
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "event_count": 13,
+  "event_count": 14,
   "last_event_id": "01KRC7F7FWZADV0ATGVC434YD7",
   "materialized_at": "2026-05-11T19:15:52.956890+00:00",
   "mission_number": "",
@@ -22,7 +22,8 @@
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KRC6Z74X7RFFBEFF2DY7MEG4",
-      "last_transition_at": "2026-05-11T19:07:08.317354+00:00"
+      "last_transition_at": "2026-05-11T19:07:08.317354+00:00",
+      "shell_pid": 68506
     },
     "WP02": {
       "actor": "user",

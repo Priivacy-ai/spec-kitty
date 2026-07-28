@@ -1,5 +1,5 @@
 {
-  "event_count": 76,
+  "event_count": 84,
   "last_event_id": "01KWCFMMT3BEH62H5R17ZNW912",
   "materialized_at": "2026-06-30T14:41:26.339173+00:00",
   "mission_number": "154",
@@ -19,59 +19,130 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KWCFMBR3HGVG17D30SECCJT3",
-      "last_transition_at": "2026-06-30T14:41:17.059304+00:00"
+      "last_transition_at": "2026-06-30T14:41:17.059304+00:00",
+      "shell_pid": 78305,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KWCFMEDFBF8N6KF1PW6FBV7T",
-      "last_transition_at": "2026-06-30T14:41:19.791932+00:00"
+      "last_transition_at": "2026-06-30T14:41:19.791932+00:00",
+      "shell_pid": 85545,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KWCFMFN5E4T3GRMSCXK2GX0R",
-      "last_transition_at": "2026-06-30T14:41:21.061176+00:00"
+      "last_transition_at": "2026-06-30T14:41:21.061176+00:00",
+      "shell_pid": 22145,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KWCFMD6ZE2GZQAD2T4XZY435",
-      "last_transition_at": "2026-06-30T14:41:18.560002+00:00"
+      "last_transition_at": "2026-06-30T14:41:18.560002+00:00",
+      "shell_pid": 19999,
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KWCFMGYW41GDCEFDXAMGDRS5",
-      "last_transition_at": "2026-06-30T14:41:22.396549+00:00"
+      "last_transition_at": "2026-06-30T14:41:22.396549+00:00",
+      "shell_pid": 5567,
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KWCFMJ7EKTWJZXBRQF8DQS54",
-      "last_transition_at": "2026-06-30T14:41:23.694976+00:00"
+      "last_transition_at": "2026-06-30T14:41:23.694976+00:00",
+      "shell_pid": 16552,
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KWCFMKJF1Q9DD5W2GNZMRPE8",
-      "last_transition_at": "2026-06-30T14:41:25.071925+00:00"
+      "last_transition_at": "2026-06-30T14:41:25.071925+00:00",
+      "shell_pid": 26864,
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KWCFMMT3BEH62H5R17ZNW912",
-      "last_transition_at": "2026-06-30T14:41:26.339173+00:00"
+      "last_transition_at": "2026-06-30T14:41:26.339173+00:00",
+      "shell_pid": 97073,
+      "subtasks": {
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned"
+      }
     }
   }
 }

@@ -20,192 +20,518 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKM6YNQF66WBC0Q840VVJE",
       "last_transition_at": "2026-07-24T17:44:01.237985+00:00",
-      "shell_pid": 1810414,
-      "shell_pid_created_at": "1784862235.6"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: RED-first repro of #2795 claim-time consolidation blocker through pre-existing entry points (advance_branch_ref + set_vcs_lock); fix tolerates VCS-lock-only meta.json changes in ref_advance dirty scan (topology-agnostic C-004, behaviour-preserving C-010); genuine meta edits still block (no false-open); implement.py/preflight.py unmodified; ruff+mypy clean; NFR-004 suites green unmodified; NFR-005 baseline re-verified.",
+        "APPROVE (redo on corrected 181-file-newer base). Base-correctness CONFIRMED: TopologySurface present in mission_runtime/artifacts.py (COORD replaced former PLACEMENT), no duplicate Surface enum; set_vcs_lock (mission_metadata.py:512) writes only vcs+vcs_locked_at matching _VCS_LOCK_META_FIELDS; placement_seam(...).read_dir(SPEC) resolves to PRIMARY kitty-specs/<slug>/ (test asserts line 100); COORD_OWNED_STATUS_FILES importable from specify_cli.status. Red-first: fix absent on both lane-base (2eb92000c) and mission base (grep _is_vcs_lock_only_meta_change=0); test drives real advance_branch_ref+set_vcs_lock+placement_seam (DIRECTIVE_041), 8/8 pass; negative guard test_genuine_meta_edit_still_blocks_consolidation non-vacuous (real friendly_name+vcs edit still raises RefAdvanceDirtyWorktreeError). Helper correctness verified: empty diff->False, non-lock key->blocks, added/committed={}->blocks, malformed/deletion->blocks (no false-open); JSON parsed-object compare immune to write_meta formatting churn. Scope: commit 94a430f1a touches ONLY git/ref_advance.py + new test; implement.py/preflight.py unmodified; ruff+mypy clean on both files; C901 complexity <=15; no new suppressions; working tree clean (NFR-004 suites unmodified)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1830135,
+      "shell_pid_created_at": "1784863189.42",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKMDMC3MGTP36P825NFHK2",
       "last_transition_at": "2026-07-24T17:44:08.076245+00:00",
-      "shell_pid": 1834748,
-      "shell_pid_created_at": "1784863385.39"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: total surface→filesystem translation seam (TopologySurface extended + resolve_artifact_surface/translate_surface; translators repointed onto it)",
+        "APPROVE — surface->filesystem translation seam (schema root). Extend-not-duplicate confirmed: exactly ONE TopologySurface enum in mission_runtime/artifacts.py:23 with PRIMARY/COORD/LANE/CONSOLIDATED/TEMP; the 3 new members ADDED to the existing enum (COORD replaces PLACEMENT), no bare Surface enum in mission_runtime. One total translation (translate_surface + resolve_artifact_surface, resolution.py:1463/1577) consumes the EXISTING probe_coord_state/CoordState classifier; assert_surface_totality run on every translate (1479). Four CoordState answers present (DELETED raise:1554 / MATERIALIZED coord:1566 / EMPTY+UNMAT primary:1570 / flat affirmative:1526). 37 seam tests + 5 coord_read_seam pins green; AH-1 read/write symmetry parametrized over list(MissionArtifactKind) (non-vacuous). All 4 named translators repointed; sole survivor merge/executor._coord_worktree_root is a genuine distinct concern (merge-time status-surface worktree). DELETED fail-loud correct at accept; None-soft preserved for non-accept consumers via coord_read_dir_for. ruff/mypy/C901 clean, zero new suppressions. Two non-WP02 reds attributed honestly and NOT folded: two_surface tests are stale vs the ANALYSIS_REPORT re-home (60715438f, is_primary now True) — WP02 touches none of the inputs; orphan is WP01's test_issue_2795_claim_blocker.py lacking a gate marker (WP01 defect)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1940735,
+      "shell_pid_created_at": "1784865849.44",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKMV0KJMDBAA2C8MFHS5QX",
       "last_transition_at": "2026-07-24T17:44:21.779039+00:00",
-      "shell_pid": 1959964,
-      "shell_pid_created_at": "1784866559.79"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "APPROVE: C1 behavioural mutant-kill verified (3 seeded surfaces, verdict follows context.surface, coord=fail decoys=pass, cwd-independent via monkeypatch.chdir); GEC-5 cannot-evaluate honest-label confirmed value-object + e2e (blocked check acceptance_matrix_cannot_evaluate, no pass-by-default); LifecyclePhase PH-1 ordered + IMPLEMENT exclusion justified; total 4-CoordState resolution consumes WP02 resolve_artifact_surface (DELETED raises, EMPTY/UNMAT stamp PRIMARY, MATERIALIZED coord); 53 consumer regression/integration tests green (no behaviour-change regression); C-004 no flattened read; CI-config leeway follows tests/characterization precedent (minimal, alphabetical); ruff+mypy+C901 clean, no new blanket suppressions."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2052069,
+      "shell_pid_created_at": "1784869551.91",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKN8D6PTS1NWH64DWPS9WE",
       "last_transition_at": "2026-07-24T17:44:35.494692+00:00",
-      "shell_pid": 2062801,
-      "shell_pid_created_at": "1784869922.2"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: NI provenance (NI-1) + deferral (NI-3/C4/C9) + pass_pending_consolidation verdict (NI-5) + terminal-set preservation guard (NI-2/C3) + single-home scaffolder (C8/AH-3); 23 new tests + full acceptance suites green; ruff+mypy clean",
+        "APPROVED (reviewer-renata, independent). NI-2 terminal-set guard correct: enforce_negative_invariants keys on TERMINAL_INVARIANT_RESULTS={confirmed_absent,still_present,verification_error}; deferred_to_consolidation handled in a separate branch (not frozen), preserving C6 re-judgeability. NFR-004/C3 preservation intact (test_ni2_recorded_terminal_preserved_verbatim re-runs against a different surface, asserts verbatim). NI-5 ordering correct: overall_verdict checks fail>pending>pass_pending_consolidation>pass; pending/still_present dominate deferral (pinned); clean terminal-only matrix still passes. C2 round-trip: to_dict omits null/legacy defaults, from_dict restores via dataclass defaults (test passes). NI-1 validation enforces recorded-terminal provenance + anti-phantom origin; pending/deferred exempt (defensible: no surface to attribute). NI-3/C9 deferral wired into accept gate via context; NI-7 disclosure emitted as skipped_check. S105 suppression on VERDICT_PASS_PENDING_CONSOLIDATION: genuine false positive (verdict literal contains 'pass', not a secret), narrow single-line, inline-justified, and the value must match the data-model vocabulary so renaming is worse -- ACCEPTED per charter narrow-suppression clause. 23/23 provenance tests pass; re-pins (result-vocab + **_kw stub) are correct API-expansion consequences, not weakening. ruff clean, complexity<=15, matrix.py mypy-clean; the 6 file-by-file no-any-return hits are the documented follow_imports=skip artifact on non-WP04 lines and clear under whole-package mypy. #2882 single-home: scaffolder now home-aware -- closes the finalize/scaffold divergence vector WP04 owns (C8/FR-010); residual coord commit-router placement belongs to the structural write-placement mission (#2841), not a WP04 gap. Leeway on gates_core.py + mission_finalize.py documented."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2128485,
+      "shell_pid_created_at": "1784871797.26",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKNWEPPQC2SXQ4HBS6EB2N",
       "last_transition_at": "2026-07-24T17:44:56.022667+00:00",
-      "shell_pid": 2215380,
-      "shell_pid_created_at": "1784874356.37"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "REJECT (Reviewer Renata) — single blocker: FR-014 CLI wiring. All other checks green.\n\n[BLOCKER #5] FR-014 = an operator-runnable one-time migration a maintainer runs. run_backfill_provenance_migration is currently unreachable dead code: no 'spec-kitty migrate backfill-provenance' subcommand and ZERO references anywhere in src/ (grep-confirmed). All 7 sibling migrations in cli/commands/migrate/ are CLI-registered in migrate_cmd.py; the identical-shaped twin charter_encoding.py (run_charter_encoding_migration, same run_*_migration(project_root,dry_run,...) shape) is wired at migrate_cmd.py:426 as @app.command(name='charter-encoding'). As delivered, FR-014 cannot be invoked, so it is not satisfied. FIX: add @app.command(name='backfill-provenance') in migrate_cmd.py delegating to run_backfill_provenance_migration (small in-scope leeway edit — no other WP owns migrate_cmd.py, no overlap), surfacing --dry-run and --json + a summary print + non-zero exit when summary.result=='errors_present'; add a focused CLI test mirroring tests/migrate/test_charter_encoding_migration.py; update cli/commands/migrate/__init__.py docstring (it lists only charter_encoding).\n\nVERIFIED GREEN (no action needed): #1 oracle 11/11 pass, legacy_unrecorded leaves verified_ref/verified_surface_kind null, NI-2/C3 already-recorded rows preserved; #2 byte-stability reconciliation correct — re-injects the sentinel WP04 to_dict() omits, onto a copy of the raw dict, without churning untouched rows/keys (not masking a WP04 gap); #3 commit-or-revert red-first test genuinely reverts a physically-written first file after a 2nd-write OSError; local _CorpusWriteTransaction justified (corpus-wide across missions; BookkeepingTransaction is per-mission coord-scoped so literal reuse is infeasible; task+plan explicitly sanctioned the one-off; migration-local, NOT a TAO-3 lifecycle compensator; never uses git checkout --); #4 AM-4 AST + report-not-raise guards pass, no archive symbol reachable; #6 glob covers all 155 matrices, none nested deeper; #7 ruff+mypy clean, complexity <=4, zero suppressions, owned_files respected.",
+        "Added CLI subcommand; migration now operator-invokable per FR-014",
+        "APPROVE (Reviewer Renata, cycle 2) — single rejection axis (FR-014 CLI wiring) fully addressed; all prior green checks still hold.\n\nCLI-WIRING FIX VERIFIED (commit c07b2e7e7):\n- Registered + reachable: 'spec-kitty migrate backfill-provenance --help' lists the command live (from lane-e). @app.command(name='backfill-provenance') at migrate_cmd.py:514 mirrors the charter-encoding twin exactly — same option shape (--dry-run/--json/--project-root), delegates to run_backfill_provenance_migration, prints summary, raises typer.Exit(1) on summary.errors (matches sibling exit-code convention: 0 clean / 1 unparseable).\n- Minimal leeway, no sibling disturbed: diff is additions only (new command inserted between charter-encoding and normalize-lifecycle) + a docstring listing line in migrate_cmd.py header + migrate/__init__.py; @app.command count now 8 (7 siblings intact + 1 new). Commit body carries the outside-owned_files rationale.\n- Library half UNCHANGED this pass: git show c07b2e7e7 -- backfill_provenance.py is empty, so cycle-1 green checks (oracle 11/11, byte-stability reconciliation, red-first commit-or-revert, AM-4, 155-corpus) all still hold.\n- Test coverage: 4 new CliRunner tests exercise the real command — help registers subcommand+3 options; dry-run+json reports migrated=1 with on-disk bytes unchanged; live run writes the legacy_unrecorded sentinel and exits 0; unparseable matrix -> exit 1 + result=='errors_present'. Full file 15/15 pass.\n- Quality: ruff clean, mypy clean on touched files. Only added suppression is '# noqa: PLC0415' on the lazy import — the identical established convention every sibling subcommand in migrate_cmd.py uses (charter-encoding included), NOT a new suppression; zero type:ignore added (the no-any-return was resolved via explicit annotation, mypy confirms clean)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2322990,
+      "shell_pid_created_at": "1784876136.89",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKP31JBAXND9AYETWZGZDC",
       "last_transition_at": "2026-07-24T17:45:02.770610+00:00",
-      "shell_pid": 2151016,
-      "shell_pid_created_at": "1784872601.46"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "APPROVE. Contract negative-invariant-provenance.md C6/C7 + FR-004/005 fully met. (1) Zero merge/ coupling verified: imports only mission_runtime/execution_context/matrix/dataclasses/pathlib (post_consolidation.py:42-59); AST test_module_has_zero_merge_or_rollback_coupling robust vs static-import regressions (known gap: dynamic importlib/re-export not caught, but module has no dynamic imports). (2) C6 re-judge sound: _should_defer returns False at POST_CONSOLIDATION (matrix.py:528) so deferral is NOT re-applied, invariant is genuinely judged + stamped CONSOLIDATED/consolidation-ref. (3) C7 fail-op-not-consolidation confirmed by test_c7_consolidation_left_untouched_on_violation (byte-identical tree). (4) verification_error-fails-op is CORRECT, not over-broad: mirrors existing gate rollup matrix.py:203 treating verification_error==still_present==fail (fail-closed: an errored check is not a clean pass). (5) unjudgeable-stays-deferred sound via identity check (post_consolidation.py:261), does not swallow real invariants. 10/10 tests pass; ruff+mypy clean under project config; complexity <15. MINOR FOLLOW-UP (non-blocking): line 177 carries an inert '# noqa: S106' that suppresses nothing (S106 does not fire; RUF100-removable) and contradicts the zero-suppressions claim — sweep before WP18 rebases or as a campsite item."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2201720,
+      "shell_pid_created_at": "1784873956.47",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKNF41NFWJ9HG27M1B3PK0",
       "last_transition_at": "2026-07-24T17:44:42.369677+00:00",
-      "shell_pid": 2140955,
-      "shell_pid_created_at": "1784872269.02"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: two-partition split fixes #2885; preview and real consolidation agree (SC-002); signature preserved to respect ownership",
+        "Review passed: two-partition resolution correct (lane-state→STATUS_STATE coord husk, review-cycle→WORK_PACKAGE_TASK PRIMARY, each from own home; silent-degradation materialize(feature_dir) REMOVED→materialize(lane_state_dir)). SC-002 test 3/3 pass, agreement test non-vacuous (len==1+verdict guards). @rayjohnson attribution present (C-007). T040 signature-preserving fix functionally equivalent to Ray's (repo_root,mission_slug) — resolve_canonical_root+feature_dir.name derive same partition from either caller dir, proven empirically by preview==consolidation; preflight.py untouched, narrower footprint correct. WorkspaceRootNotFound→feature_dir fallback production-unreachable (only fires outside any git repo) + returns caller's own dir (flat self-home, not NFR-001 substitution). ruff/mypy/C901 clean, zero new suppressions, scope=3 owned files, leeway unused. Gate reds are the known WP01 orphan-marker (test_issue_2795), not WP07."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2216068,
+      "shell_pid_created_at": "1784874361.9",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKMMAVGM226XT1Y9HDGBBT",
       "last_transition_at": "2026-07-24T17:44:14.939935+00:00",
-      "shell_pid": 1974545,
-      "shell_pid_created_at": "1784866894.75"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "APPROVE (reviewer-renata, independent). Behaviour-free campsite split verified. Oracle test_transaction.py byte-identical to base (empty diff) and 35/35 green unchanged. AST diff: every moved symbol identical to base except the 3 legacy predicates, which only swap inline meta-read for the new _load_mission_meta helper (T042 fold) - verified behaviour-identical (same feature_dir, same on_malformed=none; runtime read count unchanged, so no read-timing risk). Re-exports keep from-transaction imports and transaction.X monkeypatch anchors resolving; _acquire_locked calls legacy helpers as bare globals. Dead threading.local sentinel had zero repo refs; import threading removed. 6 flattened refs (R-005) intact (tx 2 + legacy_resolution 4). Arch allow-list append for legacy_resolution.py is the sanctioned-constructor relocation (code-follows-move). Gates: ruff clean, mypy clean under real gate mypy --strict src/specify_cli src/charter src/doctrine (1067 files, 0 issues; subset Any-returns are the documented follow_imports=skip artifact, identical in base), zero new suppressions. 119 downstream consumer tests green. C10 (transaction.py <=1000) DEFERRED TO WP09: WP08 lands at 1016 LOC - the confined-write orchestration (_resolve/_write/_unlink, 92 LOC) cannot extract behaviour-free because the frozen oracle monkeypatches transaction._resolve_confined_artifact_path and counts a fixed 3 resolve calls through the transaction namespace; reaching ~924 needs a DI seam that is behaviour-CHANGING (WP09 territory, per orchestrator decision). Genuine oracle-coupling constraint, not laziness."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2063229,
+      "shell_pid_created_at": "1784869927.98",
+      "subtasks": {
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done"
+      }
     },
     "WP09": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKN1PR6FCM4T0A38QVC592",
       "last_transition_at": "2026-07-24T17:44:28.632669+00:00",
-      "shell_pid": 2084109,
-      "shell_pid_created_at": "1784870522.2"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: tool-artifact owner generalized (non-coord destination + subprocess enrolment), executor adopts single owner compensator, projection compensator collapsed (C4b symbols absent), one canonical churn classifier (FR-012), NFR-002 fork+SIGKILL harness green, transaction.py 963 LOC via DI seam",
+        "REJECT (single axis: NFR-002 harness adequacy). Everything else PASSES: C4b symbols absent from src/ (verified in worktree); TAO-3 exactly one compensator restore_generated_artifact_snapshots in atomic_write.py:303 consumed by BOTH transaction._rollback (transaction.py:929) and executor (executor.py:724); C10 transaction.py=963 LOC; oracle test_transaction.py UNCHANGED and 35 pass; confinement attack test_write_artifact_refuses_parent_swap_after_final_validation still exercises resolve_count==3 through the injected module-level resolver; FR-012 is_toolchain_generated_churn is the single union classifier (coherence.py:43) adopted by executor:946; all leeway edits forced+semantics-preserving; ruff/mypy--strict(1067 files)/complexity all green; 209 merge/arch tests pass under --dist loadfile.\n\nACTION REQUIRED:\n1. NFR-002 harness (tests/integration/test_tool_artifact_owner.py::test_nfr002_enrolled_path_never_observes_a_third_state) is VACUOUS for the property it must guard. Its kill arm sleeps 30s BEFORE the write (kill always lands during sleep, write never starts -> pre) and its complete arm runs the full write to completion before the parent reads (-> post). NO trial ever kills DURING the temp-write/os.replace. Therefore the assert data in (pre,post) is a tautology that holds for ANY write implementation, atomic or not: a future regression replacing the atomic temp+os.replace (atomic_write.py:131) with a non-atomic in-place write would leave this test GREEN. The both-outcomes floor (completed>=1, killed_before>=1) is satisfied trivially by trial%2 and does NOT establish kill-atomicity.\n2. This contradicts the harness docstring which claims to follow tests/integration/test_intake_atomic_writes.py. That reference idiom races a RANDOM 0-1ms delay SIGKILL against an IMMEDIATE child write so some kills land mid-write; its own comment warns: if the OS always finishes before the SIGKILL we are not really testing atomicity. WP09 fell into exactly that trap by construction.\n3. FIX (product code unchanged): adopt the reference idiom. Child writes immediately (no pre-write sleep); parent sleeps a small random delay then SIGKILLs, racing the write. Keep the both-outcomes floor (>=1 pre, >=1 post) so the race demonstrably lands kills on both sides of the replace. Then the assert can actually fail on a non-atomic regression.\n\nMINOR (non-blocking, address if touching): tests/merge/test_merge_done_recording.py aliases the retired name restore_generated_artifact_snapshots as _restore_final_bookkeeping_snapshots. Test-only, outside C4b src/ scope, semantics-preserving, but keeps a retired name alive; prefer renaming the local usages.",
+        "NFR-002 harness now races mid-write; addresses review feedback",
+        "APPROVE. Focused re-verification of the single prior rejection axis (vacuous NFR-002 harness) — RESOLVED. Product code UNCHANGED (2fc18517a touches only 2 test files; transaction.py still 963 LOC; oracle test_transaction.py git-diff empty, 35/35). C4b symbols still absent from src/.\n\nHarness now genuinely races the kill against the write: child writes the ~1 MiB post payload IMMEDIATELY (no pre-write sleep); parent sleeps rng.uniform(0, max(3x write_dur, 1ms)) then SIGKILLs, so kills land mid temp-write / mid os.replace. Falsifiability confirmed by reasoning: the atomic temp+os.replace impl leaves target = pre (tmp orphaned) or post, never partial; a non-atomic in-place regression killed mid-loop would leave a truncated post-prefix (len != 1MiB, content != pre and != post) tripping assert data in (pre,post). Empirical evidence across 3 runs: killed/survived = 119/81, 115/85, 132/68 (healthy both-outcomes split, NOT a trial%2 tautology); mid-write temp orphans = 50, 51, 64 per 200 trials = ~25% of SIGKILLs landing DURING the temp-write phase. The both-outcomes floor (killed>=1 AND completed>=1) now fails LOUDLY on a vacuous run rather than passing silently. 11/11 tool-artifact-owner tests pass; oracle+merge 69/69 pass. Minor prior nit also resolved: the retired name _restore_final_bookkeeping_snapshots is no longer aliased in test_merge_done_recording.py (import and both call sites now use canonical restore_generated_artifact_snapshots; tests green). Meets NFR-002 / DIRECTIVE_041."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2275515,
+      "shell_pid_created_at": "1784874998.67",
+      "subtasks": {
+        "T046": "done",
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
     },
     "WP10": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKNNT1CRTMEM2Y2CFTY48M",
       "last_transition_at": "2026-07-24T17:44:49.217189+00:00",
-      "shell_pid": 2298022,
-      "shell_pid_created_at": "1784875324.36"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: exemption registry (11 per-mechanism rows) + anti-ninth ratchet + enrolment inventory + cross-gate agreement (C7 red-first xfail)",
+        "APPROVE. Single permitted structural test (NFR-008 amended) is negative + registry-backed, never a positive count. Verified: (1) 11 per-mechanism rows under registry/ (one file per mechanism, stem==mechanism) so retirements delete disjoint rows; suite green, C7 cross-gate xfailed. (3) C9 anti-ninth drives the REAL check_undercount seam + names is_toolchain_generated_churn; non-vacuous (registered literal does not false-red). (4) C1 inventory faithfully clones untrusted_path_audit (undercount+overcount+drift-proof composite key); scope bounded to owner surfaces transaction.py+bookkeeping_projection.py, documented growth path -- acceptable for the countermeasure. (5) C7 test_all_churn_gates_agree_on_corpus genuinely RED (strict xfail, currently xfailed); _ref_advance_churn faithfully models base tracked-path behaviour; strict=True guarantees XPASS->failure when WP11/WP13 route ref_advance onto owner -- cannot silently stay green. (6) C8a/C8b each kill a filename-only mutant. (7) golden-count-ban green (no collision); shard registration negative via shard_for. (8) ruff/mypy clean, complexity<=15, zero suppressions; 17 files all test-only under tests/architectural/. NON-BLOCKING FIX (documentary only): registry/_exclude_coord_owned.md labels retirement-wp WP13/IC-07c, but WP14 prompt line 54 authoritatively assigns it to WP14/IC-07d ('the plan double-listed it; resolved during tasking'). retirement_wp is parsed into RegistryRow but consumed by NO assertion -- retirements delete rows by the RED symbol-presence/overcount scan keyed off (module,symbol) and the mechanism-named row file, never the label. Correct to retirement-wp: WP14, retirement-ref: IC-07d, and fix prose ('...by WP14')."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2374018,
+      "shell_pid_created_at": "1784877808.22",
+      "subtasks": {
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done"
+      }
     },
     "WP11": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKP9NPFA2R5ECA0HXAPHGK",
       "last_transition_at": "2026-07-24T17:45:09.558336+00:00",
-      "shell_pid": 2383061,
-      "shell_pid_created_at": "1784878291.37"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "APPROVE (reviewer-renata, independent). Decisive Q2: is_self_bookkeeping_churn is a GENUINE OWNER COMPONENT, not a relocated exemption. It lives in the owner module coordination/coherence.py, is in __all__, and is composed into the canonical classifier is_toolchain_generated_churn as one of its two legs; ALL FOUR consumers (git_probes, dirty_classifier, mission_record_analysis, acceptance) import it FROM the owner and carry no private literal. Per-symbol absence confirmed: is_self_bookkeeping_path/_SELF_BOOKKEEPING_FILENAMES/_SELF_BOOKKEEPING_SUFFIXES/_KITTY_OPS_OP_RECORD_RE all absent from src/. Unlike WP15's sin (predicate kept in a consumer with each gate applying its own copy), here the classification is single-sourced in the owner and consulted through it -> unification, the mission goal state. No justified-survivor row needed: R-014 tracks SCATTERED per-gate exemptions needing retirement onto the owner and only-shrinks; this predicate IS the owner/route R-014 names, not an exemption outside it. Function-local literals are the route's implementation detail (self-bookkeeping files are identified structurally by path -- no declared kind exists for a kitty-ops ULID orphan), not a scan-dodge. Q2b: sub-leg routing (not the full union) is a JUSTIFIED C6 preservation -- is_coordination_artifact_residue_path projects COORD unconditionally (artifacts.py:344), consumers topology-gate the residue leg separately (mission_record_analysis.py:194-196) and dirty_classifier has no residue leg at all; the full union would fire residue unconditionally and widen the drop (C6 regression). FR-012 satisfied: each leg single-sourced, no two gates can disagree; sub-leg routing is composition, not fragmentation. Behaviour byte-identical to retired predicate. C5 green; ratchet+migrated tests 62 passed; consumer gates 1067 passed; C7 xfail intact (unaffected, WP13's ref_advance leg); ratchet-set edit minimal single-line. ruff clean, complexity clean, zero new suppressions; 2 mypy errors pre-existing on untouched lines (acceptance __init__ 247/673); executor untouched. Test migrations exemplary DIR-041 (edge-cases preserved, internal-constant introspection converted to behavioural assertion, mock seam re-pointed correctly). Full-arch F attribution: 5 failed all PRE-EXISTING/non-WP11 -- 4x TID251 no-module-ruff (known red) + 1x test_layer_rules mission_runtime->specify_cli.lanes.branch_naming ledger violation introduced by WP02, red at WP11 parent 7ceef748e, WP11 touches neither resolution.py nor the ledger."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2535402,
+      "shell_pid_created_at": "1784881978.49",
+      "subtasks": {
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done"
+      }
     },
     "WP12": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKQ4BKXCZSKRWXM1720ZG2",
       "last_transition_at": "2026-07-24T17:45:36.883211+00:00",
-      "shell_pid": 2611389,
-      "shell_pid_created_at": "1784883760.33"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "APPROVE — is_coordination_artifact_residue_path fully retired (only docstring prose remains in src/); reimplemented byte-identically as coherence.is_coord_residue_churn (kind_for_mission_file is a thin wrapper of the old _artifact_kind_for_path, then kind_is_coordination_residue(kind, COORD) — structurally identical). All 8 consumers route through the owner leg or the is_toolchain_generated_churn union; no private residue survivor (kind_is_coordination_residue only in owner). auto_rebase C-010 abort-on-dirt preserved (predicate byte-identical; unrecognised dirt still returns False->Manual->abort). C7 xfail INTACT: test_all_churn_gates_agree_on_corpus still XFAIL (strict=True, _ref_advance_churn untouched, only the forced import swap). mission_runtime surface swap exposes primitive kind_is_coordination_residue (package-root, MR-1/MR-2 respected). Leeway edits (commit_router/implement/implement_cores/acceptance/mission_record_analysis/git_probes) are import+call-site+docstring only. Registry row deleted, ratchet green. Gates: ratchet+surface 22 passed/1 xfailed; lanes+merge-wp13 446 passed/1 skipped; ruff clean; mypy clean on all touched files except 2 PRE-EXISTING acceptance/__init__.py errors on untouched lines 249/675; zero new suppressions."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2679301,
+      "shell_pid_created_at": "1784886403.46",
+      "subtasks": {
+        "T063": "done",
+        "T064": "done",
+        "T065": "done",
+        "T066": "done"
+      }
     },
     "WP13": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKQHJA15ZK4B48EGCX4RZ7",
       "last_transition_at": "2026-07-24T17:45:50.410390+00:00",
-      "shell_pid": 2688652,
-      "shell_pid_created_at": "1784886769.24"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 8-site COORD_OWNED_STATUS_FILES retirement + C7 cross-gate flip green",
+        "C5: COORD_OWNED_STATUS_FILES + coord_owned_filenames absent from live src (only doc-comments); registry row deleted; ratchet green. C7 FLIP GENUINE: test_cross_gate_churn_agreement passes (4), xfail removed, _ref_advance_churn delegates to real is_toolchain_generated_churn which prod callers inject — faithful model, not weakened. #3 meta.json widening = APPROVE: contract C7 explicitly names git_probes' unconditional meta.json exemption as reference-correct and ref_advance's block as the #2795 defect, so unifying ref_advance onto the owner (unconditional exempt for tracked entries) is the mission's ratified FR-012 resolution, not an open operator call. is_self_bookkeeping_churn's unconditional meta.json leg is pre-existing (WP11); WP01's vcs-lock-only narrow was a local stopgap and is preserved for None-predicate callers (test split honest: without-predicate still blocks, owner-routed exempts). is_status_state_path narrow (STATUS_STATE kind only = old status pair, delegates to kind_for_mission_file, no filename list, not a 9th mechanism). Quality: ruff+mypy clean, zero new suppressions, C901<=15. 107 WP13-touched + 21 ratchet/WP01 + 4 C7 pass. Dead-symbol _write_mission_number_to_branch untouched (body-only edit; __all__/imports unchanged)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2861815,
+      "shell_pid_created_at": "1784891250.98",
+      "subtasks": {
+        "T067": "done",
+        "T068": "done",
+        "T069": "done",
+        "T070": "done",
+        "T071": "done"
+      }
     },
     "WP14": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKQYXDXVHWA2AW6ZFH8QHB",
       "last_transition_at": "2026-07-24T17:46:04.077165+00:00",
-      "shell_pid": 2884764,
-      "shell_pid_created_at": "1784891761.41"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: merged _drop_vcs_lock_only_meta/_drop_runtime_frontmatter_only_wp/_exclude_coord_owned into one _drop_if; _exclude_coord_owned routed fully onto is_status_state_path (owner leg); vcs-lock/frontmatter pair merged into _is_self_write_only_diff, registered as a justified-survivor (diff-scoped, not kind-scoped -- cannot route onto is_toolchain_generated_churn without a C6 regression). 3 registry rows deleted, 1 justified-survivor row added, ratchet extended + green. Per-symbol absence holds (live defs gone; only historical prose mentions remain, matching WP11-13 precedent). Full narrow suite green (127 passed); ruff+mypy clean. NOTE for reviewer: test_implement_vcs_lock_claim.py::test_second_auto_commit_false_claim_not_blocked_by_lock_self_write flaked twice under the full tests/architectural+tests/specify_cli/cli -n auto run (charter-preflight-bypass related) but passes 100% in isolation, alone with tests/specify_cli/cli (3065 tests), with architectural+single-file, and reproduced the SAME flake on the pre-WP14 baseline commit under one config -- looks like a pre-existing high-parallelism test-isolation flake unrelated to this diff (WP14 never touches charter/preflight code), not a WP14 regression, but please double-check.",
+        "APPROVE (reviewer-renata). IC-07d final exemption retirement. Check #3 DECISIVE-PASS: _is_self_write_only_diff is a genuinely different-KIND mechanism (a diff-content classifier reading working+committed baselines to compare changed keys/body) vs the owner's whole-file path/kind churn classifier -- it legitimately cannot route onto is_toolchain_generated_churn without a C6 regression, so it is a correct justified-survivor, NOT a WP15-style dodge. Preserves WP01's narrow claim-time contract: test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim + test_non_runtime_frontmatter_change_still_blocks green. #1 per-symbol absence: all 3 retired symbols + twin (_WP_FILENAME_PATTERN/_is_wp_filename) gone from live code; remaining grep hits are docstring/comment prose only; 3 registry rows deleted incl. _exclude_coord_owned (routed FULLY onto is_status_state_path), 1 justified-survivor row added; ratchet+trio-seam 32 passed. #2 _drop_if is one generic filter at both retired call sites. #4 IC-01: WP01 (94a430f1a) does NOT touch implement_cores.py -- claim-time gate is a separate mechanism from #2795 ref_advance fix. #5 ruff+mypy clean, zero new suppressions, complexity ok. #6 flake test_second_auto_commit_false_claim_not_blocked_by_lock_self_write PASSES in isolation; WP14 touches no charter/preflight code -> confirmed pre-existing parallelism flake. Behaviour preserved (auto_commit gate moved to caller; disjoint-filename filters folded to one pass; keep-on-parse-fail semantics identical). MINOR non-blocking nit: frontmatter.py:275 comment still names retired _drop_runtime_frontmatter_only_wp (now _is_self_write_only_diff) -- prose-only drift in an owned file, safe to fold at consolidation."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3111065,
+      "shell_pid_created_at": "1784896900.82",
+      "subtasks": {
+        "T072": "done",
+        "T073": "done",
+        "T074": "done",
+        "T075": "done"
+      }
     },
     "WP15": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKPG786NDY6MT77EKG432P",
       "last_transition_at": "2026-07-24T17:45:16.264820+00:00",
-      "shell_pid": 2390534,
-      "shell_pid_created_at": "1784878624.77"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: RUNTIME_STATE_ALLOWLIST/_runtime_state_exemption retired; 4/6 basenames route through is_toolchain_generated_churn, 2 review-lifecycle basenames (review-cycle-*.md, notes.md) kept as a function-local check (not a module-level mechanism); registry row deleted; ratchet+bulk_edit suites green; ruff/mypy clean",
+        "Registered the review-lifecycle predicate as an explicit justified survivor per plan L233-235; addresses review-cycle-1 feedback",
+        "Cycle-2 re-review APPROVE (artifact review-cycle-3.md). Silent-survivor defect resolved on commit 80c24ebe6: _is_review_lifecycle_basename is an explicit justified-survivor registry row, enumerated in the census and held by the negative symbol-presence arm. justified-survivor vocabulary minimal + acceptable. Ratchet 12, bulk_edit 130, ruff+mypy clean, per-symbol absence EMPTY."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2543868,
+      "shell_pid_created_at": "1784882181.9",
+      "subtasks": {
+        "T076": "done",
+        "T077": "done",
+        "T078": "done"
+      }
     },
     "WP16": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KYAKPPXMFVG0N7GYF56Y8G42",
       "last_transition_at": "2026-07-24T17:45:23.124422+00:00",
-      "shell_pid": 2397825,
-      "shell_pid_created_at": "1784878958.34"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Re-claiming after review-cycle-1 rejection to address the C3 enrolment defect",
+        "Resuming implementation",
+        "Byproduct now genuinely enrolled in the owner compensator; tests re-pinned on byte effect; addresses review-cycle-1",
+        "APPROVE cycle 3 (commit 62e8797b2) supersedes my own cycle-1/2 rejection (review-cycle-2.md), which is now fully resolved and independently re-verified. C3 enrolment genuine: _mt_enrol_gate_byproducts retains the {path:None} snapshot; _mt_run_transition_gates calls restore_generated_artifact_snapshots on effect.should_exit (TERMINAL/BLOCK) -> byproduct unlinked on abort, committed on pass. Same single compensator (TAO-3), no new one. Bare capture+restore correct (gate subproc runs in lane worktree not coord). Byte-effect tests re-pinned (not sentinel.exists() PRIMARY on block/interrupt; read_text==byproduct on pass; preserve-me deleted). Compat golden 156->157 complete. ruff clean; mypy :1860 no-any-return pre-existing/untouched; no new suppressions. 397 tests green.",
+        "Reverting improper --skip-review-artifact-check approval; re-approving through the proper review-artifact gate (substance already verified)",
+        "Re-review APPROVE (reviewer-renata claude/opus): compensator genuinely wired (restore_generated_artifact_snapshots on should_exit, TAO-3); byte-effect tests green (335 passed); ratchet green (12); symbol absent; compat golden 157. See review-cycle-3.md verdict: approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "operator",
+        "at": "2026-07-24T08:53:20Z",
+        "reason": "APPROVE cycle 3 (commit 62e8797b2) supersedes my own cycle-1/2 rejection (review-cycle-2.md), which is now fully resolved and independently re-verified. C3 enrolment genuine: _mt_enrol_gate_byproducts retains the {path:None} snapshot; _mt_run_transition_gates calls restore_generated_artifact_snapshots on effect.should_exit (TERMINAL/BLOCK) -> byproduct unlinked on abort, committed on pass. Same single compensator (TAO-3), no new one. Bare capture+restore correct (gate subproc runs in lane worktree not coord). Byte-effect tests re-pinned (not sentinel.exists() PRIMARY on block/interrupt; read_text==byproduct on pass; preserve-me deleted). Compat golden 156->157 complete. ruff clean; mypy :1860 no-any-return pre-existing/untouched; no new suppressions. 397 tests green.",
+        "wp_id": "WP16"
+      },
+      "role": "reviewer",
+      "shell_pid": 2603996,
+      "shell_pid_created_at": "1784883439.57",
+      "subtasks": {
+        "T079": "done",
+        "T080": "done",
+        "T081": "done",
+        "T082": "done"
+      }
     },
     "WP17": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKQR922A6PN77YB64G2992",
       "last_transition_at": "2026-07-24T17:45:57.282215+00:00",
-      "shell_pid": 2695356,
-      "shell_pid_created_at": "1784887103.04"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review (orchestrator completed handoff; gates green foreground)",
+        "REJECT (cycle 1): accept-gate false-pass widening. _is_accept_pipeline_own_write routes on STATUS_STATE kind, which maps from BOTH status.json AND status.events.jsonl; retired ACCEPT_OWNED_PATHS was {acceptance-matrix.json,status.json} only. Empirically confirmed: under flat topology status.events.jsonl flips blocking->benign. Accept only READS status.events.jsonl (never appends) so it is NOT an own-write - pure C6 false pass on the lane-state source-of-truth. Own convergence-test oracle (acceptance-matrix.json,status.json) and the canonical owner both contradict the predicate. Fix: scope predicate off the coarse kind to the two own-write paths + add red-first test that flat-mission dirty status.events.jsonl BLOCKS accept. Checks 1/3/4/5/6 PASS; survivor split is honest.",
+        "Scoped accept own-write to the 2 genuine paths; status.events.jsonl blocks again; red-first test added; addresses review-cycle-1",
+        "APPROVE (cycle 2 / artifact cycle-3): cycle-1 BLOCKER 1 CLOSED. _is_accept_pipeline_own_write (acceptance/__init__.py:161-166) scopes STATUS_STATE to basename=='status.json'; status.events.jsonl now BLOCKS under flat (empirical: events->0, status.json->1, acceptance-matrix->1, other-mission status.json->0). Genuine red-first block-test TestAcceptGateOwnWriteScoping asserts len(result)==1 on real _accept_dirty_gate (reddens on old kind-only predicate) + 3 counter-contracts. Suites: accept+convergence 18 passed, ratchet 12 passed. No frozenset reintroduced (ACCEPT_OWNED_PATHS absent). ruff clean; mypy 2 pre-existing errors line-shifted to :270/:696; zero new suppressions. Survivor split + all cycle-1 PASS checks intact."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2831210,
+      "shell_pid_created_at": "1784890856.69",
+      "subtasks": {
+        "T083": "done",
+        "T084": "done",
+        "T085": "done",
+        "T086": "done",
+        "T087": "done"
+      }
     },
     "WP18": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKQAXE0H7SR93E784BZKV0",
       "last_transition_at": "2026-07-24T17:45:43.598543+00:00",
-      "shell_pid": 2327429,
-      "shell_pid_created_at": "1784876313.87"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "FR-016/017/018 all satisfied. FR-016: check_dangling_deferrals.py (stdlib-only, warn-skips malformed JSON) wired as deferral-consistency-check job with no needs (runs at front) and added to quality-gate.needs (blocks merge); two-authority JOB_GROUPS invariant preserved (test_workflow_coherence + test_suite_jobs_gate_blocking + test_ci_quality_path_filters = 38 passed). FR-017 adjudication CORRECT: disclosure was genuinely delivered by WP04 (gates_core.py:420-435, commit d009e879c) emitting a negative_invariants_deferred skipped-check that names both NI-7 halves (loop does-not-verify + post-consolidation/PR-CI gate needed), rendered to the operator via accept.py:361-364; WP18 correctly left gates_core.py untouched and added test-only coverage. FR-018: accept-and-merge.md explains deferral + post-consolidation verification + downstream-gate need with the 'repo without an equivalent check never verifies' callout; ADR + orchestration#topology-surface cross-links resolve. FR-017 tests drive real unmocked enforce_negative_invariants/_evaluate_acceptance_matrix. Terminology green; docs-freshness exit=0/0 errors (4 warnings are pre-existing external link probes on unrelated files); generated index regenerated not hand-edited. ruff+mypy clean; sole # noqa:S105 is a justified wire-value suppression matching canonical DEFERRED_TO_CONSOLIDATION. Scope within owned_files + declared leeway."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2367682,
+      "shell_pid_created_at": "1784877601.56",
+      "subtasks": {
+        "T088": "done",
+        "T089": "done",
+        "T090": "done",
+        "T091": "done",
+        "T092": "done"
+      }
     },
     "WP19": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAKPXNHSX8S9H8D4KXKGEHK",
       "last_transition_at": "2026-07-24T17:45:30.033207+00:00",
-      "shell_pid": 2267890,
-      "shell_pid_created_at": "1784874915.96"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "AM-1..5 guards verified. AM-1: reason+terminal enforced, no record on refusal (list_archived_missions==[]). AM-2: still_present refused. AM-3: append-only .kittify/archive/archived-missions.jsonl, is_mission_archived excludes/list enumerates. AM-4 durability: archived_by required (empty->AM-4); source scan walks cli/commands/migrate/ via rglob, which is exactly WP05 backfill_provenance.py's authoritative_surface -> guarantee does not lapse on merge. AM-5: deferrals cleared to canceled only on cancellation, merged untouched, deferrals never block (only still_present) -> intentional no-deadlock, upstream NI-5 gates done. resolve_terminal_state: all-done->merged, mixed-terminal-w/-canceled->canceled, any active/blocked/empty->None; live mission cannot be misclassified terminal (real-reducer tests confirm). ruff+mypy clean, complexity<=15, 0 suppressions (3 noqa:S101 removed), owned_files respected, __init__.py additive-only, sink outside untrusted-path-audit (containment 12/12 green). 9/9 integration tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2336922,
+      "shell_pid_created_at": "1784876565.12",
+      "subtasks": {
+        "T093": "done",
+        "T094": "done",
+        "T095": "done",
+        "T096": "done",
+        "T097": "done",
+        "T098": "done"
+      }
     }
   }
 }

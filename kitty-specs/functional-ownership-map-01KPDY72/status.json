@@ -1,5 +1,5 @@
 {
-  "event_count": 25,
+  "event_count": 28,
   "last_event_id": "01KPFQ9SV9K8Y0FGJPDYPB264Y",
   "materialized_at": "2026-04-18T07:18:52.009535+00:00",
   "mission_number": "",
@@ -19,24 +19,52 @@
   "work_packages": {
     "WP01": {
       "actor": "cursor",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KPFQ9SRGB3BCD5V1FFE8HJVK",
-      "last_transition_at": "2026-04-18T07:18:51.920389+00:00"
+      "last_transition_at": "2026-04-18T07:18:51.920389+00:00",
+      "shell_pid": 980115,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "cursor",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KPFQ9SV9K8Y0FGJPDYPB264Y",
-      "last_transition_at": "2026-04-18T07:18:52.009535+00:00"
+      "last_transition_at": "2026-04-18T07:18:52.009535+00:00",
+      "shell_pid": 1020155,
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP03": {
       "actor": "cursor",
+      "agent": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KPFQ9EXPE810J43PHFFM7303",
-      "last_transition_at": "2026-04-18T07:18:40.822136+00:00"
+      "last_transition_at": "2026-04-18T07:18:40.822136+00:00",
+      "shell_pid": 1022467,
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     }
   }
 }

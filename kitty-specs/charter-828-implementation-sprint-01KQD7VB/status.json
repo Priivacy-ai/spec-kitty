@@ -1,5 +1,5 @@
 {
-  "event_count": 28,
+  "event_count": 32,
   "last_event_id": "01KQDBKJVX2WSKZ7FJBK2PNBBM",
   "materialized_at": "2026-04-29T19:31:42.589077+00:00",
   "mission_number": "",
@@ -19,31 +19,59 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet:researcher-robbie:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQDBKE1B2FV2RXG3AV06X7H4",
-      "last_transition_at": "2026-04-29T19:31:37.643500+00:00"
+      "last_transition_at": "2026-04-29T19:31:37.643500+00:00",
+      "shell_pid": 86606,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet:researcher-robbie:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQDBKFQGN4PVXWV1XAEFB8S6",
-      "last_transition_at": "2026-04-29T19:31:39.376222+00:00"
+      "last_transition_at": "2026-04-29T19:31:39.376222+00:00",
+      "shell_pid": 90890,
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:sonnet:researcher-robbie:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQDBKH9CSSFZZRT3RPZ7H1MT",
-      "last_transition_at": "2026-04-29T19:31:40.972209+00:00"
+      "last_transition_at": "2026-04-29T19:31:40.972209+00:00",
+      "shell_pid": 91691,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:sonnet:researcher-robbie:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQDBKJVX2WSKZ7FJBK2PNBBM",
-      "last_transition_at": "2026-04-29T19:31:42.589077+00:00"
+      "last_transition_at": "2026-04-29T19:31:42.589077+00:00",
+      "shell_pid": 92426,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     }
   }
 }

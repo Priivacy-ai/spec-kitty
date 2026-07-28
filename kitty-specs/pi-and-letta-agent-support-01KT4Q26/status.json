@@ -1,5 +1,5 @@
 {
-  "event_count": 12,
+  "event_count": 14,
   "last_event_id": "01KT5074PJXPN0J64QJ2YK3RWM",
   "materialized_at": "2026-06-02T20:25:50.546210+00:00",
   "mission_number": "",
@@ -19,17 +19,34 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:implementer-ivan:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KT5074PJXPN0J64QJ2YK3RWM",
-      "last_transition_at": "2026-06-02T20:25:50.546210+00:00"
+      "last_transition_at": "2026-06-02T20:25:50.546210+00:00",
+      "shell_pid": 35915,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:curator-carla:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KT502W6SPYJ0D10NSJ7TQQ4Z",
-      "last_transition_at": "2026-06-02T20:23:30.777732+00:00"
+      "last_transition_at": "2026-06-02T20:23:30.777732+00:00",
+      "shell_pid": 33209,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }

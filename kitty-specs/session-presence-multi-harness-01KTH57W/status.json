@@ -1,5 +1,5 @@
 {
-  "event_count": 49,
+  "event_count": 55,
   "last_event_id": "01KTHG7NBAM07MMQYKFHA8DJVW",
   "materialized_at": "2026-06-07T16:56:37.994691+00:00",
   "mission_number": "",
@@ -19,6 +19,7 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTHG797747WA27DQ7RPDSRVV",
@@ -26,6 +27,7 @@
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTHG7BV0BJ0BJZ46AVEC9353",
@@ -33,6 +35,7 @@
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KTHG7E5DB70T6BT0HSSTRDTZ",
@@ -40,6 +43,7 @@
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KTHG7GGK3Z3YRAWJDP8DJBBJ",
@@ -47,6 +51,7 @@
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTHG7JYD06MD2F6GC5W2BADA",
@@ -54,6 +59,7 @@
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTHG7NBAM07MMQYKFHA8DJVW",
