@@ -4,10 +4,10 @@ description: How a mission artifact's kind and topology resolve to a physical tr
 doc_status: active
 updated: '2026-07-28'
 related:
-- branch-target-routing.md
-- ../adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md
-- ../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md
-- ../context/orchestration.md
+- docs/architecture/branch-target-routing.md
+- docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md
+- docs/adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md
+- docs/context/orchestration.md
 ---
 # The Artifact Placement Seam
 

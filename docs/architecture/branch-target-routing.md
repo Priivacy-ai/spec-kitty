@@ -5,9 +5,9 @@ doc_status: active
 updated: '2026-07-28'
 type: explanation
 related:
-- artifact-placement-seam.md
-- execution-lanes.md
-- git-worktrees.md
+- docs/architecture/artifact-placement-seam.md
+- docs/architecture/execution-lanes.md
+- docs/architecture/git-worktrees.md
 ---
 # Branch-Target Routing
 
