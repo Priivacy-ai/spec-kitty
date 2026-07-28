@@ -106,14 +106,24 @@ src/specify_cli/
 
 - **Purpose**: Convert the silent leak into a refusal with no schema change, so containment ships in
   hours rather than behind a migration.
-- **Relevant requirements**: FR-002, FR-003, FR-004, FR-005; NFR-001 (partial); SC-003
-- **Affected surfaces**: `sync/routing.py:82-87,114-116`, a `delivery/dispatcher.py` pre-flight,
-  `cli/commands/sync.py:1001-1049`, `sync/batch.py:1092-1156` (empty-batch short-circuit and the
-  misleading no-Private-Teamspace message at `batch.py:1484-1488`)
+- **Relevant requirements**: FR-004, FR-005; FR-003 (other paths only — see risk); SC-003
+- **Affected surfaces**: a `delivery/dispatcher.py` pre-flight, `cli/commands/sync.py:1001-1049`,
+  `sync/routing.py:114-116`, `sync/batch.py:1092-1156` (empty-batch short-circuit and the misleading
+  no-Private-Teamspace message at `batch.py:1484-1488`)
 - **Sequencing/depends-on**: none — critical path, lands first
-- **Risks**: FR-002's inversion can strand a legitimately consented project whose record is missing.
-  The per-project report (IC-05) is what makes that visible, so FR-002 must ship with an operator
-  message naming the remedy, not a bare denial.
+- **Risks**: **Containment comes from FR-004 alone, not from the fail-closed gate.** Verified:
+  `is_sync_enabled_for_checkout` has zero callers under `delivery/` — its only callers are
+  `sync/emitter.py:1890,1921`, `sync/batch.py:338`, `sync/body_upload.py:150` and
+  `sync/runtime.py:77`. So FR-003 hardens the emit path, the daemon batch drain and body uploads, but
+  **does not touch the drain that leaked**. Do not let FR-003 create a false sense of containment.
+  FR-004 is implementable here with no schema change because it inspects only the already-selected
+  batch (a bounded set) and resolves identity in-memory from `payload` — the journal's
+  `ORDERED_COLUMNS` (`event_journal/models.py:31-40`) carries no identity column, so in-memory
+  resolution over a bounded batch is the only option pre-IC-02, and it does not violate NFR-003,
+  which constrains full-store decode. Note FR-004 is a no-op on a single-project machine; its value
+  is precisely the incident's multi-project case.
+- **Honest limit**: this concern makes the leak loud, not fixed. Correct delivery for a
+  multi-project machine arrives with IC-04.
 
 ### IC-02 — Project identity as a stored, indexed journal column
 
@@ -131,7 +141,10 @@ src/specify_cli/
 ### IC-03 — Consent index and resolution rule
 
 - **Purpose**: Give the predicate a durable, machine-global data source keyed the way events are.
-- **Relevant requirements**: FR-013, FR-002
+- **Relevant requirements**: FR-013, FR-002 (FR-002 moved here from IC-01: "absence of a consent
+  record denies" cannot be evaluated per-project on the dispatcher path until this index exists,
+  because consent is otherwise only readable per-checkout via `routing.py`, which the dispatcher never
+  calls)
 - **Affected surfaces**: new `sync/consent.py`, `sync/config.py:186-234`,
   `sync/routing.py:64,89-98,130-182` (`enable_checkout_sync`/`disable_checkout_sync` already hold both
   `repo_root` and the resolved uuid at decision time)
