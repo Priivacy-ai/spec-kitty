@@ -149,8 +149,24 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     the only member that leaves by deletion. The node carried no edges in
 #:     either direction (verified: its sole graph appearance was its own node
 #:     line), so nothing else in the graph moves.
+#: (7) Same ruling, the other half of #3009 remedy 4: the eight remaining
+#:     ``_ACTIVATED_BUT_UNREACHABLE`` artefacts are WIRED via
+#:     ``_CURATED_ARTIFACT_EDGES``. The charter activated them while the graph
+#:     gave them no inbound edge, so cascade reached none of them -- the same
+#:     failure WP09 fixed once (entry 5), with no edge at all rather than an
+#:     unfollowed relation. +0 nodes / +7 edges / -8 orphans.
+#:     Seven new edges de-orphan seven targets; the EIGHTH artefact,
+#:     ``directive:DIRECTIVE_035``, leaves the orphan set without an edge of its
+#:     own by becoming the SOURCE of one (``_orphan_urns`` counts incidence, so a
+#:     first outbound edge de-orphans just as an inbound one does). That is why
+#:     the orphan delta is -8 while the edge delta is +7.
+#:     Composed: 304/757/31 - 0/-7/+8 -> 304/764/23.
+#:     Each edge follows an existing (source_kind -> target_kind, relation)
+#:     pattern in the shipped graph; ``requires`` where the source mandates the
+#:     target, ``suggests`` where it recommends. ``paradigm:atomic-design`` is
+#:     deliberately NOT wired -- see ``_ACTIVATED_BUT_UNREACHABLE``.
 _EXPECTED_NODE_COUNT = 304
-_EXPECTED_EDGE_COUNT = 757
+_EXPECTED_EDGE_COUNT = 764
 
 # ---------------------------------------------------------------------------
 # Orphan MEMBERSHIP, not an orphan count
@@ -251,23 +267,25 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: ``035-bulk-edit-occurrence-classification``, so no directive could ever
 #: match. Fixing an artefact here removes its line; nothing may be added
 #: without an issue reference.
+#:
+#: RESOLVED 2026-07-28 (operator ruling, landing pass for PR #3007). Of the ten:
+#: ``toolguide:rtk-search-tooling`` was DELETED (ledger entry 6) and eight were
+#: WIRED via ``_CURATED_ARTIFACT_EDGES`` (ledger entry 7) -- seven targets plus
+#: ``directive:DIRECTIVE_035``, which leaves this set by becoming an edge SOURCE
+#: rather than by gaining an inbound edge. ``paradigm:atomic-design`` is the only
+#: survivor: it is frontend-interface-specific and no shipped doctrine artefact is
+#: a defensible source, so wiring it would mean inventing a relationship rather
+#: than recording one. It stays enrolled and visible pending an operator ruling.
 _ACTIVATED_BUT_UNREACHABLE: frozenset[str] = frozenset(
     {
-        "directive:DIRECTIVE_035",
         "paradigm:atomic-design",
-        "procedure:red-main-release-discipline",
-        "styleguide:deployable-skill-authoring",
-        "styleguide:reasons-canvas-writing",
-        "tactic:decision-marker-capture",
-        "tactic:no-parallel-duplicate-test-runs",
-        "tactic:occurrence-classification-workflow",
-        "toolguide:python-review-checks",
     }
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 4 + 1 + 10 = 32, the cardinality the retired ``_EXPECTED_ORPHAN_COUNT``
-#: pinned -- now a consequence of the membership rather than the whole contract.
+#: 17 + 4 + 1 + 1 = 23. The retired ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the
+#: difference is ledger entries (6) and (7) -- one deletion and eight wirings --
+#: and is now a consequence of the membership rather than the whole contract.
 _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES

@@ -191,6 +191,9 @@ edges:
 - source: paradigm:structured-prompt-driven-development
   target: directive:DIRECTIVE_038
   relation: requires
+- source: paradigm:structured-prompt-driven-development
+  target: styleguide:reasons-canvas-writing
+  relation: suggests
 - source: paradigm:trunk-based
   target: directive:DIRECTIVE_029
   relation: requires
