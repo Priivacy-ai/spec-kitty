@@ -510,3 +510,62 @@ def test_the_retired_relationship_error_does_not_point_at_a_dead_path() -> None:
     message = str(excinfo.value)
     assert "src/doctrine/graph.yaml" not in message
     assert ".graph.yaml" in message
+
+
+# ---------------------------------------------------------------------------
+# Landing fold (#2977) -- the FOURTH writer is bound to the model too
+# ---------------------------------------------------------------------------
+
+
+def test_the_migration_writer_also_emits_every_declared_edge_field() -> None:
+    """``rewrite_opposed_by`` restates the edge field list by hand (#2977).
+
+    The extractor's writers were derived from ``model_fields`` by this mission, so
+    a new field survives that path by construction. ``rewrite_opposed_by`` was
+    reported rather than swept, and it is the *org-pack migration* path -- a
+    dropped field there lands in a downstream consumer's tree, not ours.
+
+    Unifying the two writers is deliberately NOT done here: ``rewrite_opposed_by``
+    lives under ``src/specify_cli/`` and reaches doctrine only through the
+    ``charter.*`` facade (ADR ``2026-03-27-1``), so consuming the extractor's
+    private serializer would breach that boundary. Promoting a public serializer
+    across it is the architectural call #2977 asks for.
+
+    What this test does instead is remove the *silence*. It is GREEN today -- the
+    hand-restated list is currently complete -- and goes RED the moment mission B1
+    adds ``impacts`` / ``is_symmetric`` or B2 adds ``aliases``, which is precisely
+    when the decision has to be made. Without it that addition ships as a silent
+    drop with no test to notice: the mission's own defect class, surviving in the
+    one writer the mission did not close.
+    """
+    from specify_cli.migration import rewrite_opposed_by
+
+    edge = DRGEdge(
+        source="tactic:a",
+        target="tactic:b",
+        relation=Relation.REQUIRES,
+        when="a condition",
+        reason="a rationale",
+        provenance="org:acme",
+    )
+
+    emitted = set(rewrite_opposed_by._edge_to_dict(edge))
+
+    assert emitted == set(DRGEdge.model_fields) - extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+
+
+def test_the_migration_writer_also_emits_every_declared_node_field() -> None:
+    """Same binding for ``rewrite_opposed_by._node_to_dict`` (see the sibling above)."""
+    from specify_cli.migration import rewrite_opposed_by
+
+    node = DRGNode(
+        urn="anti_pattern:big-ball-of-mud",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Big Ball of Mud",
+        provenance="org:acme",
+        tags=["smell"],
+    )
+
+    emitted = set(rewrite_opposed_by._node_to_dict(node))
+
+    assert emitted == set(DRGNode.model_fields) - extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
