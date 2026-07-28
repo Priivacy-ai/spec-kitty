@@ -244,6 +244,76 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "procedure:onboard-external-agent-to-pack",
         Relation.REQUIRES,
     ),
+    # Landing pass for PR #3007, operator ruling 2026-07-28 (#3009 remedy 4).
+    # Seven of the nine ``_ACTIVATED_BUT_UNREACHABLE`` artefacts are oversights,
+    # not design: the charter ACTIVATES them while the graph gives them no inbound
+    # edge, so a cascade or context walk reaches none of them. Each edge below
+    # follows an existing (source_kind -> target_kind, relation) pattern in the
+    # shipped graph rather than inventing one; the relation is ``requires`` where
+    # the source MANDATES the target and ``suggests`` where it recommends it.
+    #
+    # ``toolguide:rtk-search-tooling`` is deliberately absent -- it was deleted
+    # outright by the same ruling. ``paradigm:atomic-design`` is also absent and
+    # stays an enrolled orphan: it is frontend-interface-specific and no shipped
+    # doctrine artefact is a defensible source, so wiring it would mean inventing
+    # a relationship rather than recording one. It needs an operator ruling, not
+    # a guess.
+    #
+    # DIRECTIVE_035 IS bulk-edit occurrence classification; this tactic is the
+    # workflow it mandates. (#3009 names exactly this pairing.)
+    (
+        "directive:DIRECTIVE_035",
+        "tactic:occurrence-classification-workflow",
+        Relation.REQUIRES,
+    ),
+    # DIRECTIVE_003 (Decision Documentation Requirement) already ``requires``
+    # ``tactic:traceable-decisions`` above; marker capture is the other half of
+    # the same obligation -- capturing the decision at the point it is made.
+    (
+        "directive:DIRECTIVE_003",
+        "tactic:decision-marker-capture",
+        Relation.REQUIRES,
+    ),
+    # DIRECTIVE_028 (Efficient Local Tooling). The tactic's own stated rationale
+    # is resource waste and a degraded dev loop, which is that directive's
+    # subject. Advisory, not mandated -- hence ``suggests``.
+    (
+        "directive:DIRECTIVE_028",
+        "tactic:no-parallel-duplicate-test-runs",
+        Relation.SUGGESTS,
+    ),
+    # DIRECTIVE_030 (Test and Typecheck Quality Gate). The procedure keeps the
+    # mainline CI signal honest and authoritative for release, which is the gate
+    # this directive governs. Charter standing order #9 is the prose form.
+    (
+        "directive:DIRECTIVE_030",
+        "procedure:red-main-release-discipline",
+        Relation.SUGGESTS,
+    ),
+    # styleguide -> toolguide ``suggests`` is the established pattern (x4). The
+    # toolguide is a catalog of automated checks for Python review; the Python
+    # styleguide is what sends a reviewer to it.
+    (
+        "styleguide:python-conventions",
+        "toolguide:python-review-checks",
+        Relation.SUGGESTS,
+    ),
+    # Onboarding an external agent to a pack is precisely when deployable skills
+    # get authored, so the procedure is the natural referrer
+    # (``procedure -> styleguide suggests``, x2 today).
+    (
+        "procedure:onboard-external-agent-to-pack",
+        "styleguide:deployable-skill-authoring",
+        Relation.SUGGESTS,
+    ),
+    # The REASONS canvas is the SPDD artefact, so the SPDD paradigm is its owner
+    # (``paradigm -> styleguide suggests``). Without this edge, selecting SPDD
+    # reached none of the guidance on writing the canvas it asks for.
+    (
+        "paradigm:structured-prompt-driven-development",
+        "styleguide:reasons-canvas-writing",
+        Relation.SUGGESTS,
+    ),
 )
 
 

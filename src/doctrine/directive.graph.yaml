@@ -85,6 +85,9 @@ edges:
   target: tactic:paula-patterns-architecture-scout-review
   relation: requires
 - source: directive:DIRECTIVE_003
+  target: tactic:decision-marker-capture
+  relation: requires
+- source: directive:DIRECTIVE_003
   target: tactic:traceable-decisions
   relation: requires
 - source: directive:DIRECTIVE_024
@@ -108,10 +111,16 @@ edges:
   target: tactic:frozen-baseline-shrink-only-ratchet
   relation: suggests
 - source: directive:DIRECTIVE_028
+  target: tactic:no-parallel-duplicate-test-runs
+  relation: suggests
+- source: directive:DIRECTIVE_028
   target: toolguide:efficient-local-tooling
   relation: suggests
 - source: directive:DIRECTIVE_029
   target: toolguide:git-agent-commit-signing
+  relation: suggests
+- source: directive:DIRECTIVE_030
+  target: procedure:red-main-release-discipline
   relation: suggests
 - source: directive:DIRECTIVE_030
   target: styleguide:tiered-standards
@@ -131,6 +140,9 @@ edges:
 - source: directive:DIRECTIVE_032
   target: tactic:language-driven-design
   relation: suggests
+- source: directive:DIRECTIVE_035
+  target: tactic:occurrence-classification-workflow
+  relation: requires
 - source: directive:DIRECTIVE_036
   target: directive:DIRECTIVE_030
   relation: requires

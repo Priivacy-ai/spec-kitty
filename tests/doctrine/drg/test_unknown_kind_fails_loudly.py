@@ -82,8 +82,19 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 #: NFR-004 — the shipped graph's content must not move. Re-measured on this
 #: branch. If it moves, that is a finding to ledger, never a number to bump.
-_EXPECTED_NODE_COUNT = 311
-_EXPECTED_EDGE_COUNT = 774
+#:
+#: Moved 2026-07-28 by an operator ruling on #3009 (landing pass for PR #3007),
+#: and ledgered — not bumped. The ruling is recorded as entries (6) and (7) of
+#: the composition ledger in
+#: ``tests/doctrine/drg/migration/test_extractor_projection.py``, which is the
+#: authority for the delta; this pin is the shipped-graph (post-overlay) view of
+#: the same two changes:
+#:   (6) ``toolguide:rtk-search-tooling`` deleted outright  -> -1 node
+#:   (7) eight activated-but-unreachable artefacts wired    -> +7 edges
+#: 311/774 - 1/0 + 0/7 = 310/781, and 310/781 = pure 304/764 plus the
+#: hand-authored overlay's 6 nodes / 17 edges.
+_EXPECTED_NODE_COUNT = 310
+_EXPECTED_EDGE_COUNT = 781
 
 _DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "src" / "doctrine"
 
