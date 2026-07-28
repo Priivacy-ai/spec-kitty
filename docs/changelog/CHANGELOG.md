@@ -245,6 +245,31 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     missions whose runtime state is already canonical. **Already-corrupted logs
     do not self-heal** — they still need the #3003 corpus regenerate, which
     this unblocks.
+  - **`doctor mission-state --fix` no longer destroys `review_result`, log
+    order, or dropped duplicates (#3003).** `_build_canonical_row` is a closed
+    allowlist that omitted `review_result` — a first-class `StatusEvent` field
+    *and* a hard FSM guard, since every transition out of `in_review` is
+    rejected without it. Repairing a corpus therefore converted valid history
+    into events the reducer could no longer validate: 268 transitions across 44
+    missions, with none failing beforehand. The loss was worst-shaped, because
+    `DoneEvidence.review` mirrors the payload only on approval — so the
+    `changes_requested` rows were the irrecoverable ones. The allowlist is now
+    gated against `StatusEvent.__dataclass_fields__` so a newly added model
+    field cannot be dropped the same way. Two further fixes: rows now sort on
+    `at` **or** `timestamp` (lifecycle and retrospective rows date themselves
+    with the latter, so 839 of them were collapsing to `""` and being hoisted to
+    the head of an append-only log), and a dropped duplicate `event_id` row is
+    quarantined rather than only hashed.
+  - **The reducer no longer lets a concurrent unforced event rewind a terminal
+    work package (#3003).** `done`/`canceled` require `force` to leave, but that
+    was enforced only for sequential events. On a timestamp tie precedence fell
+    through to the arbitrary `(at, event_id)` sort order, and
+    `migration:backfill_runtime_state` minted non-ULID ids that sort lexically
+    after genuine ULIDs — so an unforced `planned → claimed` backfill silently
+    folded finished work packages back to `claimed` (6 of them, turning one
+    merged mission into `done: 3, claimed: 5`). `_should_apply_event` now
+    refuses that case; a deliberate forced rewind still applies. **The malformed
+    ids remain in 307 mission logs** — this guards the symptom, not the data.
   - The classification ledger is now the *mechanical* authority for the
     stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
     drift apart silently. The gate additionally resolves import aliases, and its
