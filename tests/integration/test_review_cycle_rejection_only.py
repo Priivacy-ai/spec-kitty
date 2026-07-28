@@ -277,15 +277,23 @@ def test_review_cycle_counter_advances_only_on_real_rejection(
             [
                 "implement",
                 "WP01",
-                "--feature",
+                "--mission",
                 MISSION_SLUG,
                 "--agent",
                 "claude",
             ],
         )
-        # The CLI may exit 0 or 1 depending on workspace plumbing; for the
-        # purposes of this test we only care that no review-cycle artifact
-        # appeared as a side effect.
+        # Exit code 2 is a Typer usage error (e.g. an unknown/misspelled
+        # option) -- that means `implement` never actually ran, which would
+        # make the artifact-count assertion below vacuously true. The CLI
+        # may legitimately exit 0 (successful no-op resume) or 1 (a real
+        # workspace-plumbing failure) depending on fixture completeness, but
+        # 2 must never pass silently as if it proved the no-op contract.
+        assert result.exit_code in (0, 1), (
+            f"Implement rerun #{attempt + 1} returned a Typer usage error "
+            f"(exit {result.exit_code}) -- `implement` never ran, so this "
+            f"assertion would otherwise be vacuous. CLI stdout:\n{result.stdout}"
+        )
         assert _count_cycle_artifacts(sub_artifact_dir) == 0, (
             f"Implement rerun #{attempt + 1} unexpectedly created an artifact: "
             f"{_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
@@ -310,11 +318,18 @@ def test_review_cycle_counter_advances_only_on_real_rejection(
         [
             "implement",
             "WP01",
-            "--feature",
+            "--mission",
             MISSION_SLUG,
             "--agent",
             "claude",
         ],
+    )
+    # As above: 2 is a Typer usage error and would mean `implement` never
+    # ran, making the no-inflation assertion below vacuous.
+    assert result.exit_code in (0, 1), (
+        f"Implement rerun after rejection returned a Typer usage error "
+        f"(exit {result.exit_code}) -- `implement` never ran. "
+        f"CLI stdout:\n{result.stdout}"
     )
     assert _count_cycle_artifacts(sub_artifact_dir) == 1, (
         f"Implement rerun after rejection unexpectedly inflated counter; "
