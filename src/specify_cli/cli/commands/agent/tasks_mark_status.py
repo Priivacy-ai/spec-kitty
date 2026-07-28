@@ -184,6 +184,9 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
     st.feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    # #3027: this TASKS_INDEX-resolved dir is also handed to
+    # owning_wp_from_authored_roster, which reads WORK_PACKAGE_TASK-kinded
+    # ``tasks/*.md`` files — see the pinning comment on that function.
     from specify_cli.coordination import resolve_status_surface
 
     st.status_dir = resolve_status_surface(st.main_repo_root, st.mission_slug).parent
@@ -526,6 +529,24 @@ def owning_wp_from_authored_roster(feature_dir: Path, task_id: str) -> str | Non
     An unreadable or ambiguous WP file is skipped rather than raised: the guard
     already reports roster corruption on its own path, and the callers here have
     a NOT_FOUND route whose message is the more useful one.
+
+    Pinned assumption (#3027): ``feature_dir`` is resolved by the caller via
+    ``planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)``
+    (``_ms_resolve_read_dir``), but the ``tasks/*.md`` files read here are
+    ``WORK_PACKAGE_TASK``-kinded artifacts. This is a no-op today only because
+    ``mission_runtime.artifacts._PRIMARY_ARTIFACT_KINDS`` places both kinds in
+    the same partition, so they resolve to the same directory — the same
+    co-membership :func:`authored_subtask_roster` (``core/subtask_rows.py``)
+    and its other callers (``status/emit.py``, ``tasks_shared.py``,
+    ``tasks_move_task.py``) all rely on implicitly via a shared ``feature_dir``.
+    Declaring the kind explicitly here alone would not close the risk (the
+    sibling callers would still assume it), so this is intentionally a pinning
+    comment rather than a partial fix; see
+    ``test_owning_wp_from_authored_roster_kind_co_membership_is_pinned`` in
+    ``test_mark_status_authored_roster.py``, which fails loud if
+    ``WORK_PACKAGE_TASK`` and ``TASKS_INDEX`` are ever placed in different
+    partitions (e.g. a future re-home like ``ANALYSIS_REPORT``'s COORD→PRIMARY
+    move, recorded in ``artifacts.py``).
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
