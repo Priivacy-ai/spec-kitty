@@ -294,19 +294,22 @@ src/specify_cli/
   (`queue.py:1820-1841`) exists but `drain_queue` has no `retry_count` predicate. Without this
   concern a refused project pins the FIFO head forever. Folds #3005.
 
-### IC-08 — Daemon drain parity
+### IC-08 — Remove the legacy queue drain (containment wave)
 
-- **Purpose**: Ensure the second live drain cannot ship non-consenting events.
+- **Purpose**: Delete the second live drain rather than teaching it consent. Decision 1 resolved to
+  *remove* — see Open decisions for the evidence.
 - **Relevant requirements**: FR-012; SC-005
-- **Affected surfaces**: `sync/background.py:395,455-461,589-592`, `sync/batch.py:1064-1080`
-- **Sequencing/depends-on**: **undetermined until research decision 1 is answered — which is why that
-  decision must be resolved before `/spec-kitty.tasks`.** If the answer is *enforce*, this depends on
-  IC-03. If the answer is *remove*, it has **no** dependency on IC-03, needs no schema, and is the
-  single highest-value containment action available — it deletes an entire leaking drain — so it
-  belongs in the containment wave beside IC-01. The current sequencing silently assumes *enforce*.
-- **Risks**: `queue.py:1-12` warns that removing it before the journal dispatcher is fully authoritative
-  "would strand in-flight events" — that is the argument to weigh. Note C-004 couples IC-06 to the same
-  decision ("treat `queue.remove_project_events` as superseded and remove it").
+- **Affected surfaces**: `sync/background.py:395,455-461,589-592` (`BackgroundSyncService(queue=OfflineQueue())`,
+  `_sync_once` → `batch_sync`, `_perform_full_sync` → `sync_all_queued_events`),
+  `sync/batch.py:1064-1080`, and `queue.remove_project_events` (`queue.py:1702-1723`) which C-004 retires
+  with it
+- **Sequencing/depends-on**: **none** — no schema, no consent index. Belongs beside IC-01 in the
+  containment wave.
+- **Risks**: The removal must not silently discard rows. Precondition: require/run
+  `migrate_queues_to_journal` first, assert the legacy queue is empty, and **fail loudly** if it is not —
+  pre-WP03 rows may predate journal capture and would otherwise vanish. SC-005 becomes "no code path
+  constructs the queue-backed drain", which is a stronger and cheaper assertion than proving a gate
+  works.
 
 ### IC-10 — Live verification (owns the anti-fake-green controls)
 
@@ -333,8 +336,25 @@ src/specify_cli/
 
 ## Open decisions for research
 
-1. **Daemon drain: enforce or remove?** (IC-08) — governs whether FR-012 is a gate or a deletion.
-   **Still open.**
+1. ~~**Daemon drain: enforce or remove?**~~ **RESOLVED: remove.** Evidence: `_capture_to_journal` is
+   called at `sync/emitter.py:2057`, **before** the identity check at `:2081-2085` and before every
+   gate. Its own comment states the deciding fact — *"Capture-first (FR-017, contract §2; SC-009):
+   durably record the Teamspace-bound fact in the producer-scoped event journal BEFORE any delivery
+   gate… The journal write is unconditional; the gates only set the recorded `drain_blocked_reason`,
+   never whether the durable write happens."* So **every** event that reaches the legacy queue — including
+   the identity-less ones that `:2083` routes to `self.queue.queue_event(event)` and that skip
+   `_route_event` entirely — already has a journal copy the dispatcher can deliver. Removing the queue
+   drain therefore strands nothing, which retires the one objection `queue.py:1-12` raises. That same
+   comment's stated precondition ("deferred until the WP07 journal-based dispatcher is the active drain
+   path") is satisfied per `cli/commands/sync.py:2360-2367`.
+   **Consequences for slicing**: IC-08 loses its IC-03 dependency, needs no schema, and moves into the
+   containment wave beside IC-01 — deleting a whole leaking drain is the highest-value containment
+   action available. FR-012 becomes a deletion, not a gate. C-004's "treat
+   `queue.remove_project_events` as superseded and remove it" now follows automatically.
+   **Precondition**: rows enqueued *before* journal capture existed (pre-WP03) may have no journal copy,
+   which is exactly what `migrate_queues_to_journal` (`sync/migrate_journal.py:652`) exists for. So the
+   removal WP must (a) run/require the migration first, (b) assert the legacy queue is empty, and
+   (c) fail loudly rather than silently discarding rows if it is not.
 2. **Ledger history on purge: retain or remove?** (IC-06) — affects NFR-006's differential count.
    **Still open.**
 3. ~~**Consent-index storage**: YAML or SQLite?~~ **Resolved** in IC-03: keep YAML, backfill as a
