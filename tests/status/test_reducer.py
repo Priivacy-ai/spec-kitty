@@ -700,3 +700,205 @@ class TestMaterializeGitClean:
             capture_output=True, text=True,
         )
         assert result.stdout.strip() == "", f"Unexpected dirty files: {result.stdout}"
+
+
+def test_concurrent_unforced_event_does_not_displace_terminal_lane() -> None:
+    """A same-timestamp, unforced event must not pull a WP out of ``done``.
+
+    ``done`` is terminal: leaving it requires ``force`` (9-lane state machine).
+    ``migration:backfill_runtime_state`` minted events sharing the genuine
+    event's timestamp but with non-monotonic, non-ULID ``event_id``s that sort
+    lexically later, so the arbitrary ``(at, event_id)`` tiebreak let an
+    unforced ``planned -> claimed`` backfill silently rewind finished work
+    packages (#3003: 046 WP08, 048 WP01-05).
+    """
+    at = "2026-03-09T04:29:01.271691+00:00"
+    genuine = _make_event(
+        event_id="01KK8DP1YQWYJJBTFE8HEP8577",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.DONE,
+        at=at,
+        force=True,
+    )
+    # Sorts lexically AFTER the genuine ULID, so it wins the naive tiebreak.
+    backfill = _make_event(
+        event_id="2E420M42Z6ZC3MYNJBW365MM64",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at=at,
+        actor="migration:backfill_runtime_state",
+        force=False,
+    )
+    assert backfill.event_id > genuine.event_id
+
+    snapshot = reduce([genuine, backfill])
+
+    assert snapshot.work_packages["WP01"]["lane"] == Lane.DONE.value
+
+
+def test_concurrent_forced_event_may_still_leave_terminal_lane() -> None:
+    """The terminal guard keys on ``force``, so a deliberate forced rewind still applies."""
+    at = "2026-03-09T04:29:01.271691+00:00"
+    done = _make_event(
+        event_id="01KK8DP1YQWYJJBTFE8HEP8577",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.DONE,
+        at=at,
+        force=True,
+    )
+    forced_rewind = _make_event(
+        event_id="2E420M42Z6ZC3MYNJBW365MM64",
+        from_lane=Lane.DONE,
+        to_lane=Lane.IN_PROGRESS,
+        at=at,
+        force=True,
+        reason="reopening deliberately",
+    )
+
+    snapshot = reduce([done, forced_rewind])
+
+    assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS.value
+
+
+def test_concurrent_review_rejection_still_beats_a_done_transition() -> None:
+    """Rollback precedence must outrank the terminal-lane guard (#3003 C1).
+
+    A review rejection is emitted UNFORCED (`in_review -> in_progress`). If the
+    terminal guard is evaluated before rollback precedence, a rejection racing a
+    concurrent `in_review -> done` is swallowed and the work package presents as
+    complete — the exact outcome the guard must not cause.
+    """
+    at = "2026-01-01T10:00:00+00:00"
+    done = _make_event(
+        event_id="01HXYZ000000000000000000DN", from_lane=Lane.IN_REVIEW, to_lane=Lane.DONE, at=at
+    )
+    rejection = _make_event(
+        event_id="01HXYZ000000000000000000RJ",
+        from_lane=Lane.IN_REVIEW,
+        to_lane=Lane.IN_PROGRESS,
+        at=at,
+    )
+
+    # Outcome must not depend on which one sorts first.
+    assert reduce([done, rejection]).work_packages["WP01"]["lane"] == Lane.IN_PROGRESS.value
+    assert reduce([rejection, done]).work_packages["WP01"]["lane"] == Lane.IN_PROGRESS.value
+
+
+def test_legacy_review_rejection_shape_also_beats_done() -> None:
+    """The legacy rollback shape (`for_review -> in_progress` + review_ref) too."""
+    at = "2026-01-01T10:00:00+00:00"
+    done = _make_event(
+        event_id="01HXYZ000000000000000000DN", from_lane=Lane.IN_REVIEW, to_lane=Lane.DONE, at=at
+    )
+    rejection = _make_event(
+        event_id="01HXYZ000000000000000000RJ",
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.IN_PROGRESS,
+        at=at,
+        review_ref="feedback://wp01",
+    )
+
+    assert reduce([done, rejection]).work_packages["WP01"]["lane"] == Lane.IN_PROGRESS.value
+
+
+def test_terminal_guard_compares_instants_not_timestamp_spelling() -> None:
+    """Concurrency is decided on the instant, not how it was spelled (#3003 C4).
+
+    The corpus carries both `…+00:00` with 6-digit fractions and `Z` at second
+    precision, and some work packages mix the two, so raw string equality left
+    the guard inert on real ties.
+    """
+    done = _make_event(
+        event_id="01HXYZ000000000000000000DN",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.DONE,
+        at="2026-01-01T10:00:00+00:00",
+        force=True,
+    )
+    backfill = _make_event(
+        event_id="2E420M42Z6ZC3MYNJBW365MM64",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at="2026-01-01T10:00:00Z",  # same instant, different spelling
+        actor="migration:backfill_runtime_state",
+    )
+
+    assert reduce([done, backfill]).work_packages["WP01"]["lane"] == Lane.DONE.value
+
+
+def test_refused_backfill_still_delivers_its_runtime_slots() -> None:
+    """A refused `planned -> claimed` row must not lose its runtime payload (#3003 C3).
+
+    That transition is the only carrier for `shell_pid`/`agent`
+    (`_wp_state_from_event` claim exception), and
+    `migration:backfill_runtime_state` seeds runtime state precisely this way.
+    Refusing the lane must not discard the data.
+    """
+    at = "2026-01-01T10:00:00+00:00"
+    done = _make_event(
+        event_id="01HXYZ000000000000000000DN",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.DONE,
+        at=at,
+        force=True,
+    )
+    backfill = StatusEvent(
+        event_id="2E420M42Z6ZC3MYNJBW365MM64",
+        mission_slug="034-feature-name",
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at=at,
+        actor="migration:backfill_runtime_state",
+        force=False,
+        execution_mode="worktree",
+        policy_metadata={"agent": "claude-sonnet", "shell_pid": 1520139},
+    )
+
+    wp = reduce([done, backfill]).work_packages["WP01"]
+
+    assert wp["lane"] == Lane.DONE.value
+    assert wp["agent"] == "claude-sonnet"
+    assert wp["shell_pid"] == 1520139
+
+
+def test_refused_backfill_never_overwrites_a_real_runtime_value() -> None:
+    """Backfilled slots fill gaps only — a genuine value outranks them."""
+    at = "2026-01-01T10:00:00+00:00"
+    claim = StatusEvent(
+        event_id="01HXYZ000000000000000000CL",
+        mission_slug="034-feature-name",
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at="2025-12-31T09:00:00+00:00",
+        actor="codex",
+        force=False,
+        execution_mode="worktree",
+        policy_metadata={"agent": "real-agent", "shell_pid": 999},
+    )
+    done = _make_event(
+        event_id="01HXYZ000000000000000000DN",
+        from_lane=Lane.CLAIMED,
+        to_lane=Lane.DONE,
+        at=at,
+        force=True,
+    )
+    backfill = StatusEvent(
+        event_id="2E420M42Z6ZC3MYNJBW365MM64",
+        mission_slug="034-feature-name",
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at=at,
+        actor="migration:backfill_runtime_state",
+        force=False,
+        execution_mode="worktree",
+        policy_metadata={"agent": "backfilled", "shell_pid": 1},
+    )
+
+    wp = reduce([claim, done, backfill]).work_packages["WP01"]
+
+    assert wp["lane"] == Lane.DONE.value
+    assert wp["agent"] == "real-agent"
+    assert wp["shell_pid"] == 999
