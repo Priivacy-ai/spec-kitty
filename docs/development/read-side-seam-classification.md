@@ -38,8 +38,10 @@ covered:
   worktree); it inherits the guarantee transferred from WP01's retired
   use-count floors (`tests/architectural/test_resolution_authority_gates.py`).
 
-The censused-callee set is now **four** primitives, all defined in
-`src/specify_cli/missions/_read_path_resolver.py`:
+The censused-callee set is now **five** primitives. The first four are
+defined in `src/specify_cli/missions/_read_path_resolver.py`; the fifth is the
+module-private leaf WP03/WP08 extracted from (and WP08 re-pointed the deleted
+public wrapper's foundation callers onto):
 
 | Primitive | Kind-aware? | Topology-aware? | Status this revision |
 |---|---|---|---|
@@ -47,6 +49,49 @@ The censused-callee set is now **four** primitives, all defined in
 | `resolve_planning_read_dir` | yes | yes (per-kind) | migrated (historical record below) |
 | `resolve_feature_dir_for_mission` | no | yes (via `resolve_action_context`) | **censused + classified this revision** |
 | `primary_feature_dir_for_mission` | no | no (deliberately blind) | **censused this revision; classification is a later WP's job** |
+| `_compose_primary_feature_dir` | no | no (pure `KITTY_SPECS_DIR` join) | **post-merge closeout: promoted from alias-only bookkeeping to a first-class censused callee (see § "Post-merge closeout" below)** |
+
+**Post-merge closeout (fix/read-side-seam-primary-primitive-closure follow-up,
+aggregate-squad cross-lane-integration finding).** WP08 deleted the public
+wrapper `primary_feature_dir_for_mission` and re-pointed its five named
+FR-005/NFR-009 foundation callers at the module-private leaf
+`_compose_primary_feature_dir` directly (`core/paths.py` ×2, `core/git_ops.py`,
+`coordination/surface_resolver.py`, `retrospective/writer.py`) — but left the
+leaf itself OUT of `_TARGET_CALLEE_NAMES`, relying solely on
+`_LEAF_PRIMITIVE_ALIASES` to fold its bookkeeping back onto the old primitive
+name for the ledger's own reconciliation. That left the gate enforcing a
+**dead name with zero live call sites** while the **live leaf itself** —
+importable and callable from any module — carried no census entry at all: a
+future module outside the five named foundation sites could import
+`_compose_primary_feature_dir` and call it with a canonical handle, reopening
+the exact canonical-handle + caller-chosen-partition bypass shape this mission
+exists to end, invisibly to every one of the four gates. This closeout adds
+the leaf to `_TARGET_CALLEE_NAMES` as its own censused primitive (proven by
+`test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules`
+in the gate) and sanctions its two previously-unclaimed real call sites
+(`retrospective/writer.py::resolve_retrospective_home`,
+`status/aggregate.py::MissionStatus._find_meta_path` — both deferred by WP06/
+WP08, see the "WP06 correction" note below) via two new
+`_FOUNDATION_SANCTION_SEED` entries, bringing the FR-005/NFR-009 foundation
+population to its full **five** sites / **four** files. `_LEAF_PRIMITIVE_ALIASES`
+keeps mapping the leaf's literal name back onto the `primary_feature_dir_for_mission`
+bucket for `_entry_primitive`'s bookkeeping/reconciliation purposes (so the §
+"Live census summary" and § "Foundation-site sanctions" rows below keep
+counting these five sites under the OLD primitive name, preserving the
+historical continuity WP08 established) — the alias mechanism is consulted
+FIRST, before the literal-name match, so adding the leaf to
+`_TARGET_CALLEE_NAMES` does not silently reclassify these five bookkept
+entries. The leaf's OWN § "Live census summary" row is therefore a deliberate,
+permanent `0 declared / 5 live` mismatch — the exact mirror image of
+`primary_feature_dir_for_mission`'s existing permanent `3→5 declared / 0 live`
+mismatch below — recorded as a second entry in
+`test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`'s
+`expected_end_state_reds`. Both mismatches describe the SAME underlying
+foundation-sanctioned population, counted once, under the old name, for
+continuity; nothing here reopens the gap the closeout exists to close (the
+main ratchet's offender check keys on `(rel_path, qualname, token_line)`, never
+on the primitive-bucket label, so this bookkeeping choice has zero effect on
+what the gate actually flags).
 
 `tests/architectural/test_no_read_side_bypass.py` (WP02, this revision) parses
 this ledger as the authority for the machine-checked stay-lenient index and
@@ -239,9 +284,14 @@ Editing any row here, or the § "Stay-lenient allow-list index" /
 | Total real call sites | 8 | 7 | `resolve_feature_dir_for_mission` |
 | migrate-fail-loud | 0 | 0 | `primary_feature_dir_for_mission` |
 | stay-lenient | 0 | 0 | `primary_feature_dir_for_mission` |
-| sanction-infra | 3 | 2 | `primary_feature_dir_for_mission` |
+| sanction-infra | 5 | 4 | `primary_feature_dir_for_mission` |
 | expected-red (unrouted) | 0 | 0 | `primary_feature_dir_for_mission` |
-| Total real call sites | 3 | 2 | `primary_feature_dir_for_mission` |
+| Total real call sites | 5 | 4 | `primary_feature_dir_for_mission` |
+| migrate-fail-loud | 0 | 0 | `_compose_primary_feature_dir` |
+| stay-lenient | 0 | 0 | `_compose_primary_feature_dir` |
+| sanction-infra | 0 | 0 | `_compose_primary_feature_dir` |
+| expected-red (unrouted) | 0 | 0 | `_compose_primary_feature_dir` |
+| Total real call sites | 0 | 0 | `_compose_primary_feature_dir` |
 
 **WP08 (T039) closeout.** `resolve_feature_dir_for_mission` is now FULLY
 reconciled: its one `migrate-fail-loud` site (`decisions/emit.py:71`) was
@@ -253,34 +303,51 @@ census exactly (8 sites / 7 files) — no exemption remains for this primitive.
 `primary_feature_dir_for_mission` carries a **permanent**, not transitional,
 reconciliation red. The public wrapper is DELETED (T035, SC-001): nothing in
 `src/` can call it by that name any more, so a fresh live census now finds
-**0** real call sites for it, not the 3 this row still declares. This is NOT
-"not yet converged" (T010.3's original framing, written before the wrapper's
-deletion was designed as an outright delete rather than a rename) — it is
-structurally *unconvergeable* by construction: the row's `sanction-infra: 3 /
-2` count is not a live-call tally any more, it is a frozen historical pointer
-to the three FR-005/NFR-009 foundation sites (`core/paths.py` x2,
-`core/git_ops.py`) that were sanctioned for this primitive and are now
-permanently re-pointed at the module-private `_compose_primary_feature_dir`
-leaf (`_FOUNDATION_SANCTION_SEED`'s `_LEAF_PRIMITIVE_ALIASES` maps the leaf's
-literal name back onto this primitive column purely for that bookkeeping
-continuity — see the § "Foundation-site sanctions" table above). Retiring
-this row to `0` and dropping `_FOUNDATION_SANCTION_SEED`'s three entries
-instead would sever that historical trace for no live-behaviour gain, so this
-WP keeps the row as WP02 declared it and keeps the reconciliation exemption
-(`test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`'s
+**0** real call sites for it, not the 5 this row now declares (post-merge
+closeout: was 3, see below). This is NOT "not yet converged" (T010.3's
+original framing, written before the wrapper's deletion was designed as an
+outright delete rather than a rename) — it is structurally *unconvergeable* by
+construction: the row's `sanction-infra: 5 / 4` count is not a live-call tally
+any more, it is a frozen historical pointer to the five FR-005/NFR-009
+foundation sites (`core/paths.py` x2, `core/git_ops.py`,
+`retrospective/writer.py`, `status/aggregate.py` — the latter two added by the
+post-merge aggregate-squad closeout, see § "Post-merge closeout" above) that
+were sanctioned for this primitive and are now permanently re-pointed at the
+module-private `_compose_primary_feature_dir` leaf (`_FOUNDATION_SANCTION_SEED`'s
+`_LEAF_PRIMITIVE_ALIASES` maps the leaf's literal name back onto this
+primitive column purely for that bookkeeping continuity — see the §
+"Foundation-site sanctions" table above). Retiring this row to `0` and
+dropping `_FOUNDATION_SANCTION_SEED`'s five entries instead would sever that
+historical trace for no live-behaviour gain, so this closeout keeps the row's
+bookkeeping identity (only its count grows 3→5) and keeps the reconciliation
+exemption (`test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`'s
 `expected_end_state_reds`) for this ONE primitive, permanently, with this
 paragraph as the record of why.
+
+**`_compose_primary_feature_dir` carries the mirror-image permanent
+reconciliation red.** Its own § "Live census summary" row above declares `0`
+in every bucket (nothing is bookkept under the leaf's own literal name — see
+the preceding paragraph), yet a fresh live census finds **5** real call sites
+for it (the same five foundation sites, counted once, under the OLD
+primitive's name). This is the structural mirror of
+`primary_feature_dir_for_mission`'s `5 declared / 0 live` red: here it is
+`0 declared / 5 live`, permanently, for the identical bookkeeping-continuity
+reason. Both mismatches are recorded together in
+`expected_end_state_reds` (post-merge closeout, this commit).
 
 **This is a deliberate, recorded reconciliation red, not an oversight.**
 `test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`
 mismatches on `primary_feature_dir_for_mission`'s `Total real call sites` row
-— "ledger declares 3 total real call sites but a fresh census finds 0" — by
-permanent design (see the preceding paragraph). That mismatch is recorded in
-`research/expected-reds.md` § WP08. `resolve_feature_dir_for_mission`'s
-sibling mismatch, by contrast, was transitional and is now CLOSED (this
-commit) — its declared numbers were updated to match a fresh live census
-exactly, and it was removed from `expected_end_state_reds` (only WP08 is
-permitted to edit either, per `tasks.md` § 6).
+— "ledger declares 5 total real call sites but a fresh census finds 0" — and
+symmetrically on `_compose_primary_feature_dir`'s — "ledger declares 0 total
+real call sites but a fresh census finds 5" — both by permanent design (see
+the preceding two paragraphs). `resolve_feature_dir_for_mission`'s sibling
+mismatch, by contrast, was transitional and was CLOSED at WP08 — its declared
+numbers were updated to match a fresh live census exactly, and it was removed
+from `expected_end_state_reds` (only WP08 is permitted to edit either, per
+`tasks.md` § 6; this post-merge closeout is the mission's own follow-up
+remediation, not a new WP, and edits both per the aggregate-squad finding it
+resolves).
 
 The **`expected-red (unrouted)`** bucket's role changes with this framing: at
 end state every primitive's row is `0 | 0` by definition (there is nothing
@@ -391,38 +458,58 @@ primitive's `migrate-fail-loud` count `1 → 0` and `stay-lenient` `7 → 8`
 
 WP02 (T011/E3, FR-005) — the fourth named foundation site,
 `coordination/surface_resolver.py`, is already a whole-module sanctioned
-entry above; these **three** are per-SITE sanctions instead, because
-`core/paths.py` and `core/git_ops.py` are large, general-purpose modules —
-whole-module sanctioning either would be exactly the path-scoped blanket
-C-003 forbids. Each calls the module-private leaf `_compose_primary_feature_dir`
-from beneath the seam's own composition root; routing either risks a
-resolution cycle (NFR-009). `tests/architectural/test_no_read_side_bypass.py`
-parses this table (`_ledger_foundation_index`) and asserts set equality
-against its `_FOUNDATION_SANCTION_SEED`, and reconciles the `sanction-infra`
-row of § "Live census summary" against it. These sites are **recorded by name
-and remain unrouted** — never migrated, never absorbed into the stay-lenient
-index (a separate table, so foundation-infra counts never blend into the
+entry above; the remaining named foundation sites are per-SITE sanctions
+instead, because `core/paths.py`, `core/git_ops.py`, `retrospective/writer.py`,
+and `status/aggregate.py` are general-purpose modules carrying substantial
+unrelated logic — whole-module sanctioning any of them would be exactly the
+path-scoped blanket C-003 forbids. Each calls the module-private leaf
+`_compose_primary_feature_dir` from beneath the seam's own composition root
+(or, for `retrospective/writer.py`, beneath `PlacementSeam.read_dir`'s
+`RETROSPECTIVE` short-circuit); routing any risks a resolution cycle
+(NFR-009). `tests/architectural/test_no_read_side_bypass.py` parses this
+table (`_ledger_foundation_index`) and asserts set equality against its
+`_FOUNDATION_SANCTION_SEED`, and reconciles the `sanction-infra` row of §
+"Live census summary" against it. These sites are **recorded by name and
+remain unrouted** — never migrated, never absorbed into the stay-lenient index
+(a separate table, so foundation-infra counts never blend into the
 stay-lenient business-logic counts). Same trailing **`site token`** column
 (cycle-1 review fix, G2) as the stay-lenient index above — `core/paths.py`
-carries two of these three sites, so the site token disambiguates the two
-rows sharing that one file (their qualnames already differ, so no collision
-exists here today, but the shape must match the stay-lenient index's, per
-G1's "one grammar" discipline).
+carries two of these five sites, so the site token disambiguates the two rows
+sharing that one file (their qualnames already differ, so no collision exists
+here today, but the shape must match the stay-lenient index's, per G1's "one
+grammar" discipline).
 
 read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the `site
 token` column was re-pointed from `primary_feature_dir_for_mission (` to
 `_compose_primary_feature_dir (` in the same commit as the public wrapper's
-deletion — WP08 re-pointed all three call sites at the leaf (the M1
-build-break fix WP07 deferred), and `_entry_primitive`'s
+deletion — WP08 re-pointed the three `core/*.py` call sites at the leaf (the
+M1 build-break fix WP07 deferred), and `_entry_primitive`'s
 `_LEAF_PRIMITIVE_ALIASES` maps the leaf name back onto the
 `primary_feature_dir_for_mission` primitive column so these rows keep
 counting toward that primitive's `sanction-infra` bucket, not a new one.
+
+**Post-merge closeout (aggregate-squad finding, this commit)** adds the
+remaining two named FR-005/NFR-009 foundation sites that WP06/WP08 explicitly
+deferred (see the "WP06 correction" note further below):
+`retrospective/writer.py::resolve_retrospective_home` and
+`status/aggregate.py::MissionStatus._find_meta_path`. Both already called the
+leaf directly (WP03/WP08 re-pointed them in prior commits) and both already
+carry an equivalent entry in `resolution_gate_allowlist.yaml`'s canonicalizer
+allow-list — this table and `_FOUNDATION_SANCTION_SEED` were simply the two
+machine-checked entries not yet added. This closeout also adds
+`_compose_primary_feature_dir` itself to `_TARGET_CALLEE_NAMES` (§
+"Post-merge closeout" above) so the gate's main ratchet can flag a *new*,
+un-sanctioned call to the leaf — these five rows are precisely the sites the
+ratchet would otherwise flag once the leaf became censused, sanctioned here
+exactly as `core/paths.py`/`core/git_ops.py` already were.
 
 | rel_path | qualname | primitive | site token |
 |---|---|---|---|
 | `src/specify_cli/core/paths.py` | `get_feature_target_branch` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
 | `src/specify_cli/core/paths.py` | `resolve_merge_target_branch` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
 | `src/specify_cli/core/git_ops.py` | `resolve_target_branch` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
+| `src/specify_cli/retrospective/writer.py` | `resolve_retrospective_home` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
+| `src/specify_cli/status/aggregate.py` | `MissionStatus._find_meta_path` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
 
 ## `resolve_feature_dir_for_mission` — classification (WP02, FR-010/FR-012)
 
@@ -514,13 +601,17 @@ which reds when mutated back to the wrapper — checked non-vacuous), and no
 cycle in the `read_dir` call graph. Consequence: the enumerated finding set
 this row belonged to drops **32 → 31** (mission-wide) / this ledger's
 in-flight `primary_feature_dir_for_mission` count drops **31 → 30** routable
-sites. This row is **not** added to the machine-checked § "Foundation-site
-sanctions" table above — that table's set is asserted against
-`test_no_read_side_bypass.py`'s `_FOUNDATION_SANCTION_SEED`, which WP06 does
-not own and must not edit (`tasks.md` § 6); recording a 4th ledger row there
-without a matching code-side seed entry would itself be a new gate
-mismatch. WP08's end-state reconciliation (T039) is the owner of folding this
-site into that machine-checked set and of the surrounding aggregate counts.
+sites. At WP06/WP08 time this row was **not** added to the machine-checked §
+"Foundation-site sanctions" table above — that table's set is asserted
+against `test_no_read_side_bypass.py`'s `_FOUNDATION_SANCTION_SEED`, which
+WP06 did not own and could not edit (`tasks.md` § 6); recording a 4th ledger
+row there without a matching code-side seed entry would have been a new gate
+mismatch. **This row (and `status/aggregate.py::MissionStatus._find_meta_path`,
+the same deferral) was finally folded into that machine-checked set by the
+post-merge aggregate-squad closeout** (§ "Foundation-site sanctions" above,
+this commit) — the census-gap the squad found was exactly this: the leaf
+itself was never censused at all, so these two verified-but-unclaimed sites
+sat outside every gate's view rather than merely outside one table.
 
 ## Known gap — `primary_feature_dir_for_mission` (CORRECTED, FR-016)
 

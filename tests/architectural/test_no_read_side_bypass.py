@@ -20,9 +20,23 @@ FR-005 foundation sites (31 remain), plus the one newly-classified
 **expected red** until a later WP routes them. That red is this mission's
 acceptance signal (US8 / FR-023), not a defect.
 
+Post-merge aggregate-squad closeout (fix/read-side-seam-primary-primitive-
+closure follow-up, cross-lane integration lens): the censused callee set grew
+**4 → 5** here — ``_compose_primary_feature_dir``, the module-private leaf
+WP03 extracted and WP08 re-pointed the deleted public wrapper's foundation
+callers onto, joins the four above. Before this closeout the leaf was censused
+ONLY via ``_LEAF_PRIMITIVE_ALIASES`` bookkeeping, never a member of
+``_TARGET_CALLEE_NAMES`` itself, so the gate enforced the deleted wrapper's
+*dead name* (zero live call sites, permanently) while the *live leaf* carried
+no census entry at all -- a module outside the five named foundation sites
+could import it directly and call it with a canonical handle, reopening the
+exact canonical-handle + caller-chosen-partition bypass this mission exists to
+end, invisibly to this gate. See ``docs/development/read-side-seam-classification.md``'s
+"Post-merge closeout" section for the full record.
+
 Scope of the guarantee (honest bounds — do NOT overstate)
 ----------------------------------------------------------
-This gate makes a new call to **any of the four ledger-censused primitives**
+This gate makes a new call to **any of the five ledger-censused primitives**
 un-addable outside the sanctioned + allow-listed sets. It does NOT make every
 conceivable read-side bypass "unrepresentable":
 
@@ -151,18 +165,33 @@ pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-#: The four kind-blind / lenient-kind-aware read bypass primitives this gate
+#: The five kind-blind / lenient-kind-aware read bypass primitives this gate
 #: forbids outside the sanctioned + allow-listed sets (contract "Finding").
 #: WP02 (FR-012) grew this 2 -> 4: ``resolve_feature_dir_for_mission`` (the one
 #: resolver no prior gate covered, #3014) and ``primary_feature_dir_for_mission``
 #: (receiving the guarantee transferred from WP01's retired use-count floors)
 #: join the original two.
+#:
+#: Post-merge aggregate-squad closeout (fix/read-side-seam-primary-primitive-
+#: closure follow-up) grew this 4 -> 5: ``_compose_primary_feature_dir``, the
+#: module-private leaf WP03 extracted and WP08 re-pointed the deleted public
+#: wrapper's foundation callers onto. Before this closeout the leaf was
+#: censused ONLY via ``_LEAF_PRIMITIVE_ALIASES`` bookkeeping (see below) --
+#: never a member of this set -- so the gate enforced the *deleted wrapper's
+#: dead name* (zero live call sites) while the *live leaf itself* carried no
+#: census entry at all: a module outside the five named foundation sites could
+#: import ``_compose_primary_feature_dir`` directly and call it with a
+#: canonical handle, reopening the exact canonical-handle +
+#: caller-chosen-partition bypass shape this mission exists to end, invisibly
+#: to this gate. Adding it here closes that gap (see
+#: ``test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules``).
 _TARGET_CALLEE_NAMES: frozenset[str] = frozenset(
     {
         "candidate_feature_dir_for_mission",
         "resolve_planning_read_dir",
         "resolve_feature_dir_for_mission",
         "primary_feature_dir_for_mission",
+        "_compose_primary_feature_dir",
     }
 )
 
@@ -481,10 +510,19 @@ def _assert_no_duplicate_keys(keys: list[tuple[str, ...]], *, heading: str) -> N
 #: sanctioned foundation-infra population for the SAME censused primitive --
 #: only the literal callee name changed, not what is being sanctioned -- so
 #: ``_entry_primitive`` maps the leaf's name back onto its primitive for
-#: bookkeeping/grouping purposes (this alias is consulted ONLY here, never by
-#: ``_scan_read_bypass``, which never adds the leaf to ``_TARGET_CALLEE_NAMES``
-#: -- doing so would flag every one of the leaf's own in-module callers as a
-#: fresh bypass finding).
+#: bookkeeping/grouping purposes.
+#:
+#: Post-merge aggregate-squad closeout: the leaf is now ALSO a first-class
+#: member of ``_TARGET_CALLEE_NAMES`` (``_scan_read_bypass`` DOES flag it,
+#: closing the census gap the squad found -- see that set's docstring). This
+#: alias mapping is NOT retired by that change: ``_entry_primitive`` checks it
+#: FIRST, before the literal-name match, so the five ``_FOUNDATION_SANCTION_SEED``
+#: entries whose ``token_substring`` names the leaf keep bucketing under
+#: ``primary_feature_dir_for_mission`` for the ledger's bookkeeping/
+#: reconciliation purposes -- preserving the historical continuity WP08
+#: established -- while the RATCHET's own offender check (keyed on
+#: ``(rel_path, qualname, token_line)``, never on this primitive label) is
+#: completely unaffected by which bucket a sanctioned entry counts toward.
 _LEAF_PRIMITIVE_ALIASES: dict[str, str] = {
     "_compose_primary_feature_dir": "primary_feature_dir_for_mission",
 }
@@ -497,13 +535,22 @@ def _entry_primitive(token_substring: str) -> str:
     ``token_substring`` already names its callee literally (it IS the
     normalized call token) -- deriving the discriminator from it, rather than
     hand-restating a parallel field, means the two can never drift apart.
+
+    Alias check runs FIRST (post-merge closeout): every seed entry whose token
+    names the ``_compose_primary_feature_dir`` leaf resolves to the bookkept
+    ``primary_feature_dir_for_mission`` bucket, not to the leaf's own literal
+    name -- even though the leaf is now ALSO a member of
+    ``_TARGET_CALLEE_NAMES`` in its own right (for the ratchet's offender
+    check, which does not consult this function at all). Checking the alias
+    first is what keeps that bookkeeping stable across the leaf's promotion to
+    a first-class censused callee.
     """
-    for name in _TARGET_CALLEE_NAMES:
-        if name in token_substring:
-            return name
     for leaf_name, primitive in _LEAF_PRIMITIVE_ALIASES.items():
         if leaf_name in token_substring:
             return primitive
+    for name in _TARGET_CALLEE_NAMES:
+        if name in token_substring:
+            return name
     raise AssertionError(
         f"token_substring {token_substring!r} names none of {sorted(_TARGET_CALLEE_NAMES)} "
         "-- every allow-list/foundation-sanction entry's token_substring must "
@@ -1008,6 +1055,68 @@ _FOUNDATION_SANCTION_SEED: tuple[ContentDescriptor, ...] = (
             "deletion, same M1 rationale."
         ),
     ),
+    # ---- Post-merge aggregate-squad closeout (fix/read-side-seam-primary-
+    # ---- primitive-closure follow-up): the remaining two named FR-005/
+    # ---- NFR-009 foundation sites, deferred at WP06/WP08 time (ledger's "WP06
+    # ---- correction" note: "WP08's end-state reconciliation (T039) is the
+    # ---- owner of folding this site into that machine-checked set" -- WP08
+    # ---- closed resolve_feature_dir_for_mission's reconciliation but left
+    # ---- these two rows unclaimed). Both already called the leaf directly
+    # ---- (WP03/WP08 re-pointed them in prior commits) and both already carry
+    # ---- an equivalent entry in resolution_gate_allowlist.yaml's
+    # ---- canonicalizer allow-list -- this closeout adds the two machine-
+    # ---- checked entries the prior WPs deferred, and (separately)
+    # ---- _compose_primary_feature_dir itself to _TARGET_CALLEE_NAMES so the
+    # ---- ratchet can flag any FUTURE un-sanctioned call to the leaf.
+    ContentDescriptor(
+        rel_path="src/specify_cli/retrospective/writer.py",
+        qualname="resolve_retrospective_home",
+        token_substring="_compose_primary_feature_dir (",
+        occurrence=None,
+        rationale=(
+            "FR-005 foundation site 4/5: the durable retrospective-home "
+            "resolver sits BENEATH PlacementSeam.read_dir's RETROSPECTIVE "
+            "short-circuit (resolution.py:1454) -- calling back through the "
+            "(now-deleted) public wrapper would close a "
+            "read_dir -> resolve_retrospective_home -> wrapper -> read_dir "
+            "cycle (NFR-009), so this site calls the leaf directly and "
+            "permanently, exactly like core/paths.py and core/git_ops.py "
+            "above. WP06 verified (not routed) this exact site -- confirmed "
+            "the call target, the standing regression guard "
+            "(test_home_resolution_single_authority.py::"
+            "test_writer_authority_gates_on_primary_partition_kind, which "
+            "reds when mutated back to the wrapper) -- and explicitly "
+            "deferred its machine-checked sanction to a later WP (ledger's "
+            "'WP06 correction' note). This closeout is that later step: the "
+            "leaf itself was never censused at all (not merely missing from "
+            "this one table), so this site sat outside every gate's view "
+            "until now."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/status/aggregate.py",
+        qualname="MissionStatus._find_meta_path",
+        token_substring="_compose_primary_feature_dir (",
+        occurrence=None,
+        rationale=(
+            "FR-005 foundation site 5/5: bare_dir_name is the on-disk composed "
+            "dir NAME already returned by resolve_bare_modern_mission_dir_name "
+            "-- already-canonical by provenance, the PERMANENT canonicalizer "
+            "fixture (resolution_gate_allowlist.yaml, qualname "
+            "MissionStatus._find_meta_path, WP08-authored) predating this "
+            "closeout. This same qualname also carries an existing "
+            "candidate_feature_dir_for_mission stay-lenient allow-list entry "
+            "above (SC-015's four-site acceptance fixture) -- the token here "
+            "names the LEAF, not the kind-blind primitive, so it resolves to "
+            "the DIFFERENT, distinct call site at this qualname's line 537, "
+            "never colliding with that entry (resolve_descriptor requires "
+            "exactly-one per (qualname, token_substring), enforced at import "
+            "time by the staleness twin-guard below). WP08 (T039) re-pointed "
+            "this call at the leaf when it deleted the public wrapper but did "
+            "not add the corresponding machine-checked sanction row; this "
+            "closeout adds it."
+        ),
+    ),
 )
 
 #: Composite key resolved LIVE for each ``_FOUNDATION_SANCTION_SEED`` entry.
@@ -1266,7 +1375,7 @@ def _reconciliation_errors(text: str) -> list[str]:
 def test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves() -> None:
     """The ledger's live-census Summary counts bind the allow-list/foundation-set shape.
 
-    Per-primitive reconciliation (G3, T010), for EACH of the four censused
+    Per-primitive reconciliation (G3, T010), for EACH of the five censused
     primitives independently:
 
     1. ``stay-lenient`` sites/files == that primitive's allow-list entries.
@@ -1287,27 +1396,39 @@ def test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves() ->
     ``primary_feature_dir_for_mission`` carries a PERMANENT exemption instead
     of a transitional one: WP08 (T035) deleted the public wrapper outright
     (SC-001), so a fresh live census permanently finds 0 real call sites for
-    it, never converging on the declared `3` (a frozen bookkeeping pointer to
-    the three FR-005/NFR-009 foundation sites, not a live-call tally -- see
-    the ledger's "WP08 (T039) closeout" paragraph for the full record). Any
-    OTHER mismatch on any of the four primitives is unexpected and reds this
-    test.
+    it, never converging on the declared `5` (a frozen bookkeeping pointer to
+    the five FR-005/NFR-009 foundation sites, not a live-call tally -- see
+    the ledger's "WP08 (T039) closeout" paragraph for the full record).
+
+    Post-merge aggregate-squad closeout adds a SECOND, mirror-image permanent
+    exemption: ``_compose_primary_feature_dir`` (the leaf, newly promoted to a
+    first-class member of ``_TARGET_CALLEE_NAMES``) declares `0` in every
+    bucket -- nothing is bookkept under the leaf's own literal name, since
+    ``_entry_primitive``'s alias check keeps routing those five entries to the
+    ``primary_feature_dir_for_mission`` bucket above -- yet a fresh live
+    census permanently finds the same 5 real call sites for it. Both
+    exemptions describe the identical five-site population, counted once,
+    under the old primitive's name; see the ledger's "Post-merge closeout"
+    and mirror-image paragraphs for the full record. Any OTHER mismatch on
+    any of the five primitives is unexpected and reds this test.
     """
     errors = _reconciliation_errors(_ledger_text())
-    expected_end_state_reds = ("primary_feature_dir_for_mission: ledger declares",)
+    expected_end_state_reds = (
+        "primary_feature_dir_for_mission: ledger declares",
+        "_compose_primary_feature_dir: ledger declares",
+    )
     unexpected = [e for e in errors if not e.startswith(expected_end_state_reds)]
     assert not unexpected, (
         "ledger live-census Summary reconciliation failed with an UNEXPECTED "
-        "mismatch (beyond the two T010.3 end-state total-count reds noted "
+        "mismatch (beyond the two permanent end-state total-count reds noted "
         "above):\n" + "\n".join(unexpected)
     )
     for expected_prefix in expected_end_state_reds:
         assert any(e.startswith(expected_prefix) for e in errors), (
-            f"expected the T010.3 end-state reconciliation red for "
+            f"expected the permanent end-state reconciliation red for "
             f"{expected_prefix!r} to be present -- if the live census has "
-            "caught up to the declared end state, WP08 (the sole permitted "
-            "editor of these count rows, tasks.md § 6) should have already "
-            "updated this exemption"
+            "caught up to the declared end state, whoever edits these count "
+            "rows should have already updated this exemption"
         )
 
 
@@ -1317,7 +1438,7 @@ def test_per_primitive_summary_mutation_reds(primitive: str) -> None:
 
     The exact vacuity this closes: a single-primitive mutation test would
     pass happily while a SECOND primitive's row is entirely unenforced. This
-    test is parameterised over all four censused primitives so each one is
+    test is parameterised over all five censused primitives so each one is
     proven to bite on its own -- not riding on another primitive's coverage.
 
     Non-blocking review-cycle-1 hardening, two independent fixes:
@@ -1331,13 +1452,16 @@ def test_per_primitive_summary_mutation_reds(primitive: str) -> None:
        an equal stay-lenient count, making the per-primitive claim false
        while staying green.
     2. **New-error diff, not bare truthiness.** T010.3 (this cycle's Blocker 2
-       fix) makes the ledger's baseline reconciliation carry TWO permanent
-       reds (``resolve_feature_dir_for_mission`` / ``primary_feature_dir_for_mission``,
-       both expected until WP08). A bare ``assert errors`` would now pass
-       vacuously for those two primitives even if the mutation introduced NO
-       new error at all, since the baseline itself is already non-empty. This
-       asserts the mutation adds a NEW error that specifically names the
-       mutated primitive.
+       fix) makes the ledger's baseline reconciliation carry permanent reds.
+       Post-merge closeout update: those are now
+       ``primary_feature_dir_for_mission`` / ``_compose_primary_feature_dir``
+       (the mirror-image pair described in
+       ``test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves``'s
+       docstring), not ``resolve_feature_dir_for_mission`` (closed at WP08). A
+       bare ``assert errors`` would now pass vacuously for those two
+       primitives even if the mutation introduced NO new error at all, since
+       the baseline itself is already non-empty. This asserts the mutation
+       adds a NEW error that specifically names the mutated primitive.
     """
     text = _ledger_text()
     baseline_errors = set(_reconciliation_errors(text))
@@ -1354,11 +1478,11 @@ def test_per_primitive_summary_mutation_reds(primitive: str) -> None:
     new_errors = set(_reconciliation_errors(mutated)) - baseline_errors
     assert new_errors, (
         f"mutating the stay-lenient count for {primitive!r} did not introduce a "
-        "NEW reconciliation error beyond the WP02 end-state baseline (T010.3 "
-        "legitimately carries persistent reconciliation reds for "
-        "resolve_feature_dir_for_mission / primary_feature_dir_for_mission "
-        "until WP08 routes them) -- the per-primitive mutation gate is "
-        "vacuous for this primitive"
+        "NEW reconciliation error beyond the permanent end-state baseline "
+        "(primary_feature_dir_for_mission / _compose_primary_feature_dir "
+        "legitimately carry persistent reconciliation reds by permanent "
+        "design) -- the per-primitive mutation gate is vacuous for this "
+        "primitive"
     )
     assert any(primitive in e for e in new_errors), (
         f"the new reconciliation error(s) do not name {primitive!r}: {sorted(new_errors)}"
@@ -1619,6 +1743,54 @@ def test_ratchet_ignores_a_prose_only_mention() -> None:
     )
 
 
+def test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules() -> None:
+    """Post-merge aggregate-squad closeout: a rogue call to the LEAF primitive
+    itself, planted in a module the read-side scan actually walks, is flagged
+    AND would be a genuine offender -- never masked by an existing allow-list
+    or foundation-sanction entry.
+
+    This is the bite test the census gap made impossible before this
+    closeout: ``_compose_primary_feature_dir`` was absent from
+    ``_TARGET_CALLEE_NAMES`` entirely, so ``_scan_read_bypass`` produced ZERO
+    findings for it no matter where it was called from -- a module OUTSIDE the
+    five named foundation sites could import the leaf directly and call it
+    with a canonical handle, reopening the exact canonical-handle +
+    caller-chosen-partition bypass shape this mission exists to end,
+    invisibly to every one of the four gates (the finding this test proves
+    against never existed to be masked; it simply never fired).
+
+    Proved by construction, mirroring the other four bite tests above: a
+    fixture source with a planted call is fed straight to the real detector
+    (never a mocked or hypothetical scanner), and the resulting finding's
+    composite key is asserted to fall OUTSIDE both the allow-list and the
+    foundation-sanction set -- so this is not merely "the detector matched a
+    name", it is "the main ratchet's own offender-membership check would flag
+    this exact finding as red", the identical check
+    ``test_no_read_side_bypass_outside_sanctioned_and_allow_listed`` performs
+    against every real scanned module.
+    """
+    fixture_source = (
+        "def _rogue_leaf_bypass_site(root, slug):\n"
+        "    return _compose_primary_feature_dir(root, slug)\n"
+    )
+    rogue_path = _REPO_ROOT / "src" / "specify_cli" / "manifest.py"  # scanned, unsanctioned
+    findings = _scan_read_bypass(fixture_source, rogue_path)
+    callees = {f.callee for f in findings}
+    assert "_compose_primary_feature_dir" in callees, (
+        "ratchet failed to flag a planted call to the leaf primitive itself "
+        f"(the exact census gap this closeout fixes); found {callees}"
+    )
+
+    finding = next(f for f in findings if f.callee == "_compose_primary_feature_dir")
+    key = finding.as_allow_key()
+    assert key not in _ALLOW_LIST and key not in _FOUNDATION_SANCTIONED, (
+        f"the planted rogue finding's key {key!r} unexpectedly matches an "
+        "existing allow-list/foundation-sanction entry -- this bite test must "
+        "plant a genuinely NEW offender, never one already excused, or the "
+        "proof would be vacuous"
+    )
+
+
 #: The write gate module this symmetry meta-test cross-checks against.
 _WRITE_GATE_PATH = Path(__file__).resolve().parent / "test_no_write_side_rederivation.py"
 
@@ -1723,7 +1895,33 @@ def test_read_sanctioned_modules_have_real_findings_that_would_otherwise_red() -
 #: wrapper's deletion), so it too now has zero real
 #: ``primary_feature_dir_for_mission`` call sites. It remains sanctioned
 #: overall (non-vacuous for ``candidate_feature_dir_for_mission``).
-_NEWLY_CENSUSED_SANCTION_CLAIMS: dict[str, str] = {}
+#:
+#: Post-merge aggregate-squad closeout: repopulated for the NEWLY-censused
+#: ``_compose_primary_feature_dir`` leaf itself (THE bar this closeout must
+#: clear -- "the meta-tests must still prove each sanctioned module carries a
+#: real finding *for the leaf primitive* too"). Every whole-module
+#: ``_READ_SANCTIONED_MODULES`` entry that has a real, live call to the leaf is
+#: named here so its exclusion cannot be vacuously "proved" by riding on one of
+#: the OTHER three primitives' unrelated findings:
+#:
+#: - ``_read_path_resolver.py`` defines the leaf and calls it internally
+#:   (``:464``, ``:845``, ``:982``, ``:1004``, ``:1055``, ``:1259``, ``:1458``)
+#:   to compose ``resolve_planning_read_dir``'s PRIMARY leg and the module's
+#:   other resolver-internal helpers.
+#: - ``coordination/surface_resolver.py`` calls it at its own foundation site
+#:   (``:748``, ``resolve_status_surface_with_anchor``'s PRIMARY anchor).
+#: - ``mission_runtime/resolution.py`` (the seam itself) calls it at four
+#:   internal sites (``:430``, ``:762``, ``:811``, ``:1008``) to compose its
+#:   own PRIMARY-partition leg.
+#:
+#: ``write_target_degrade.py`` is NOT listed: it has zero real calls to the
+#: leaf (confirmed by a direct scan of the file), so claiming coverage for it
+#: here would itself be the exact vacuity this meta-test exists to catch.
+_NEWLY_CENSUSED_SANCTION_CLAIMS: dict[str, str] = {
+    "src/specify_cli/missions/_read_path_resolver.py": "_compose_primary_feature_dir",
+    "src/specify_cli/coordination/surface_resolver.py": "_compose_primary_feature_dir",
+    "src/mission_runtime/resolution.py": "_compose_primary_feature_dir",
+}
 
 
 def test_sanctioned_modules_are_non_vacuous_for_the_newly_censused_primitive() -> None:
