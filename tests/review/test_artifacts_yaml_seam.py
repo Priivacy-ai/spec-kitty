@@ -5,10 +5,13 @@
 width=4096) is an exact configuration match for
 ``serialize_mapping``'s defaults. This test proves that match holds for a
 representative frontmatter payload — including the optional
-affected-files / override fields — so the migration in
-``src/specify_cli/review/artifacts.py`` (``write()``) is provably a pure
-internal seam consolidation with zero on-disk byte change, not a silent
-format drift.
+affected-files / override fields — with every scalar within the 4096 wrap
+width, so the migration in ``src/specify_cli/review/artifacts.py``
+(``write()``) is a pure internal seam consolidation with no on-disk byte
+change for real review-cycle payloads, not a silent format drift. (The one
+input where the two diverge — a scalar that wraps past 4096 columns —
+strips non-semantic trailing whitespace the old path left, a strict
+improvement, not covered here.)
 
 If this test ever goes red because ``_make_yaml()``'s dump legitimately
 diverges from ``serialize_mapping``, that is the signal to REVERT the

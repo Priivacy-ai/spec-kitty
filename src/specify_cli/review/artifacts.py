@@ -204,9 +204,14 @@ class ReviewCycleArtifact:
         Serialization is delegated to :func:`kernel.yaml_io.serialize_mapping`
         (#3058 follow-up): its rt/preserve_quotes/default_flow_style/width=4096
         configuration is byte-for-byte identical to :func:`_make_yaml`'s for
-        every frontmatter shape this artifact produces (verified by
-        ``tests/review/test_artifacts_yaml_seam.py``), so this migration is a
-        pure internal seam consolidation with no observable output change.
+        every frontmatter scalar within the 4096 wrap width (verified by
+        ``tests/review/test_artifacts_yaml_seam.py``) — the payloads this
+        artifact produces. The sole divergence is a scalar long enough to wrap
+        past 4096 columns, where ``serialize_mapping`` additionally strips the
+        non-semantic trailing whitespace the old path left (a strict
+        improvement, semantically identical). So this migration is a pure
+        internal seam consolidation with no observable output change for real
+        review-cycle payloads.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         frontmatter_text = serialize_mapping(self.to_dict()).decode("utf-8")
