@@ -65,10 +65,14 @@ nothing consumer-meaningful remains.
   `pytest tests/git/`. Not prose: `steps[].description` with fenced commands the
   actor is told to run. A consumer activating this procedure cannot execute
   step 1.
-- **`toolguides/built-in/TERMINOLOGY_GUARD.md`** (6 hits) + its manifest
-  `terminology-guard.toolguide.yaml` (2) — the whole artefact is a runbook for
+- **`toolguides/built-in/TERMINOLOGY_GUARD.md`** (6 hits) — the whole artefact
+  is a runbook for
   `pytest tests/architectural/test_no_legacy_terminology.py`, including a
-  `## Command` section. No consumer-resolvable content at all.
+  `## Command` section. No consumer-resolvable content at all. (Its manifest
+  `terminology-guard.toolguide.yaml` returns **0** hits under this pattern — its
+  three are `src/doctrine/` prefixes, so they belong to the §4 class, not this
+  one. The 52/7 total is correct precisely because the manifest contributes
+  nothing here.)
 - **`tactics/built-in/architectural-gate-non-vacuity.tactic.yaml`** (12 hits) —
   names one of our test files as "the current live exemplar", ships a literal
   `_ALLOWLIST` containing `src/specify_cli/git/protection_policy.py`, and
