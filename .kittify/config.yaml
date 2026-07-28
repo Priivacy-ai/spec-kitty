@@ -165,7 +165,6 @@ activated_toolguides:
 - plantuml-diagramming
 - python-mutation-tools
 - python-review-checks
-- rtk-search-tooling
 - typescript-mutation-tools
 - terminology-guard
 - github-tracker

@@ -1164,12 +1164,6 @@ catalog:
     summary: "Catalog of automated checks a reviewer should run or verify have been run before approving Python code. Organized by category: formatting, linting, type safety, architecture, security, and test quality.\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-python-review-checks.md
-  - id: TOOLGUIDE:rtk-search-tooling
-    kind: toolguide
-    title: RTK Interception and Search Tooling
-    summary: "Explains RTK's hook-based command interception, which commands it wraps, which advanced invocations break silently, and the correct search tooling patterns (rg, fd, shell globs) to use in worktree sessions.\n"
-    source_path: ''
-    local_path: _LIBRARY/toolguide-rtk-search-tooling.md
   - id: TOOLGUIDE:terminology-guard
     kind: toolguide
     title: Terminology Guard
@@ -1561,7 +1555,6 @@ activated_toolguides:
 - plantuml-diagramming
 - python-mutation-tools
 - python-review-checks
-- rtk-search-tooling
 - typescript-mutation-tools
 - terminology-guard
 - github-tracker
