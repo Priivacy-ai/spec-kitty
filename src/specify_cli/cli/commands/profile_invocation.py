@@ -34,9 +34,21 @@ def _get_repo_root() -> Path:
     return result
 
 
+# The opener lives at the top level (``spec-kitty dispatch``) while the closer
+# lives here, so operators who find the closer first assume a sibling
+# ``profile-invocation dispatch`` exists (#2984). The pointer goes in the Typer
+# *epilog*, never in ``help=``: the shell-completion manifest schema is
+# ``{help, hidden, deprecated, commands}``, so an epilog carries the guidance
+# without regenerating ``_completion_manifest.json``.
+_OPENER_EPILOG = (
+    'Open:  spec-kitty dispatch "<request>"\n\n'
+    "Close: spec-kitty profile-invocation complete --invocation-id <id> --outcome <outcome>"
+)
+
 profile_invocation_app = typer.Typer(
     name="profile-invocation",
     help="Manage invocation records.",
+    epilog=_OPENER_EPILOG,
 )
 
 
