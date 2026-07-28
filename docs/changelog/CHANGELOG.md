@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-27'
+updated: '2026-07-28'
 ---
 # Changelog
 
@@ -219,6 +219,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   keep the plain count badge (no false `0/N`). The kanban task payload gains
   additive `subtasks_done`/`subtasks_total` fields; the typed-contract
   baseline is regenerated accordingly.
+- **Seven activated governance artefacts are now reachable from the doctrine
+  graph, so `charter activate --cascade` pulls them in.** Each of these was
+  shipped active in the default charter pack but had no inbound edge from
+  anything, which meant no cascade, no traversal, and no way for an agent to
+  arrive at it except by naming it directly. The authored edges are:
+  `DIRECTIVE_035` → occurrence-classification-workflow, `DIRECTIVE_003` →
+  decision-marker-capture, `DIRECTIVE_030` → no-parallel-duplicate-test-runs,
+  `DIRECTIVE_030` → red-main-release-discipline, `python-conventions` →
+  python-review-checks, `atomic-design-review-checklist` → atomic-design, and
+  `structured-prompt-driven-development` → reasons-canvas-writing. **This
+  changes what a cascade brings in for your project:** activating one of the
+  seven source artefacts with `--cascade` now also activates the target that
+  was previously stranded. If you have been relying on a cascade to produce a
+  specific, narrow set, re-check it after upgrading — the sets are now larger
+  by design, because the targets were always meant to travel with their
+  sources.
 
 ### 🐛 Fixed
 
@@ -794,6 +810,31 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   problems in its `errors` array but deliberately keeps exit code 0 — it is a
   reporting surface, not a gate, and scripts that treat its exit code as a pass
   or fail signal are unaffected.
+- **The `rtk-search-tooling` toolguide is removed, including from the default
+  charter pack — an upgrade migration cleans up projects that already have it
+  activated.** RTK is fiddly to set up correctly and can materially change how
+  a project's tests execute, so shipping it as an artefact every new project
+  activates by default was a liability rather than a service. The toolguide,
+  its guide document, and its node in the doctrine graph are gone, and it no
+  longer appears in `src/charter/packs/default.yaml`.
+
+  This is a breaking removal for existing projects because of how the entry got
+  there. The 3.2.0rc35 default-pack migration copied the pack's
+  `activated_toolguides` list verbatim into each project's
+  `.kittify/config.yaml`, and by design only ever writes keys that are
+  *absent* — so no later upgrade would have taken a retired member back out.
+  Charter compilation is deliberately fail-closed and refuses to quietly skip a
+  reference it cannot resolve, so a project left holding the stale entry would
+  hard-fail on the next compile with `UnknownArtifactIdError: No toolguide
+  artifact with config ID 'rtk-search-tooling' found`.
+
+  The new `3.2.6_retire_rtk_search_tooling` migration removes the entry from
+  `.kittify/config.yaml` and strips the matching compiled blocks from
+  `.kittify/charter/charter.yaml` and `.kittify/charter/references.yaml`, which
+  would otherwise still name a source file that no longer exists. It runs
+  automatically on `spec-kitty upgrade`, does nothing on a project that never
+  had the entry, and is safe to run more than once. If you deliberately want
+  RTK guidance, keep it in your own org doctrine pack.
 
 ## [3.2.5] - 2026-07-08
 
