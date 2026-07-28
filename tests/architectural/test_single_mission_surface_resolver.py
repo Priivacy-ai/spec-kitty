@@ -191,11 +191,32 @@ _ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = (
 # ---------------------------------------------------------------------------
 # Minimum discovered-row floor (T031 anti-vacuous assertion).
 #
-# The WP01 walker produced 27 rows on the pre-WP08 tree (26 in the stale
-# inventory, +1 for the shifted seam).  A walk that returns fewer than this
+# read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T038, NFR-007
+# floor->census transfer, DIRECTIVE_043): retired 20 -> 15. The old floor
+# (set when the live tree still carried ~27 rows) counted many
+# `primary_feature_dir_for_mission`-sink rows this scanner tracked by literal
+# callee name. WP08 (T035) deletes that wrapper outright, and the sites that
+# used to call it now call the module-private `_compose_primary_feature_dir`
+# leaf, which this OLDER scanner's tracked-sink name set was never taught (it
+# predates WP03's T016 leaf extraction) -- so those internal composition
+# calls permanently and correctly fall out of THIS census's tracking scope.
+# This is not a vacuity regression: the terminal, whole-tree authority for
+# that migration is `tests/architectural/test_no_read_side_bypass.py`'s
+# census (now fully green for both primitives) -- but that census's live scan
+# deliberately does NOT track the leaf by name (doing so would flag every one
+# of the leaf's own legitimate in-module callers as a fresh bypass finding;
+# `_LEAF_PRIMITIVE_ALIASES` there is consulted ONLY for ledger/allow-list
+# bookkeeping, never by the scanner itself). A rogue (non-canonical-handle)
+# call to the leaf is instead caught by the separate canonicalizer authority
+# gate (`tests/architectural/test_resolution_authority_gates.py`'s
+# `CANONICALIZER_PRIMITIVE_NAMES`, which recognises the leaf by name). The
+# live, hand-verified count at this floor's
+# retirement is exactly 15 (see `inventory.md`'s WP08 hand-edit note) --
+# genuinely non-vacuous still (the walk is not empty), just smaller because
+# the migration it was counting is done. A walk that returns fewer than this
 # floor is almost certainly misconfigured or operating on an empty source tree.
 # ---------------------------------------------------------------------------
-_MIN_DISCOVERED_ROWS: int = 20
+_MIN_DISCOVERED_ROWS: int = 15
 
 # ---------------------------------------------------------------------------
 # Allowlisted raw-path-join rows (T030 — explicit disposition with rationale;
@@ -279,25 +300,31 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
             "no FS sink (raise is immediate)."
         ),
     ),
-    # ----- _read_path_resolver.py: primary_feature_dir_for_mission definition -----
-    # This IS the topology-blind primitive (``primary_feature_dir_for_mission``).
-    # It calls ``assert_safe_path_segment(mission_slug)`` at the line before the
-    # join and wraps ``get_main_repo_root(repo_root)`` on the left.  The join is
-    # the DEFINITION of the blessed seam, not a bypass of it.  All callers that
-    # need topology-blind primary-dir access delegate through THIS function.
+    # ----- _read_path_resolver.py: _compose_primary_feature_dir definition -----
+    # This IS the body of the topology-blind primitive, extracted to a
+    # module-private leaf by read-side-seam-primary-primitive-closure-01KYKMMT
+    # WP03 (T015/T017): ``primary_feature_dir_for_mission`` (the public wrapper,
+    # unchanged qualname) now delegates to this leaf, which owns the actual
+    # ``KITTY_SPECS_DIR`` join. It calls ``assert_safe_path_segment(mission_slug)``
+    # at the line before the join and wraps ``get_main_repo_root(repo_root)`` on
+    # the left. The join is the DEFINITION of the blessed seam, not a bypass of
+    # it. All callers that need topology-blind primary-dir access delegate
+    # through the leaf (directly, or via the public wrapper).
     ContentDescriptor(
         rel_path="specify_cli/missions/_read_path_resolver.py",
-        qualname="primary_feature_dir_for_mission",
+        qualname="_compose_primary_feature_dir",
         token_substring=(
             "primary_dir : Path = get_main_repo_root ( repo_root ) / "
             "KITTY_SPECS_DIR / mission_slug"
         ),
         occurrence=None,
         rationale=(
-            "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
+            "TBYD — IS the _compose_primary_feature_dir leaf definition (WP03 "
+            "T015 extraction of the former primary_feature_dir_for_mission body); "
             "assert_safe_path_segment called just above (NFR-002); "
             "get_main_repo_root wraps the left operand; "
-            "this function is the canonical topology-blind entry point."
+            "this leaf is the canonical topology-blind entry point, surviving "
+            "WP08's deletion of the (now-thin) public wrapper."
         ),
     ),
     # ----- mission_creation.py: seam-grammar output -----

@@ -37,10 +37,6 @@ from __future__ import annotations
 from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
 )
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 import json
 import logging
 import re
@@ -883,20 +879,29 @@ def _analysis_report_gate_dir(main_repo_root: Path, mission_slug: str) -> Path:
     the freshness hash, so the gate would falsely report it missing). Extracted as
     a named seam so the read-anchor decision is unit-testable in isolation.
     """
-    # WP05/FR-005: route through _canonicalize_primary_read_handle so every handle
-    # form (bare mid8 / ULID / numeric prefix / bare human slug) lands on the
-    # correct composed primary dir.
-    return primary_feature_dir_for_mission(
-        main_repo_root,
-        _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    # through the kind-aware seam (ANALYSIS_REPORT is a PRIMARY-partition kind)
+    # instead of the kind-blind coord husk. For a PRIMARY-partition kind the
+    # seam short-circuits to PRIMARY before any coord probe, so it never lands
+    # on the coordination worktree the way ``candidate_feature_dir_for_mission``
+    # / ``resolve_feature_dir_for_mission`` (both kind-blind) can.
+    return _resolve_workflow_read_dir(
+        repo_root=main_repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.ANALYSIS_REPORT,
     )
 
 
 def _mission_id_for_claim(main_repo_root: Path, mission_slug: str) -> str:
     """Resolve claim identity from the canonical primary planning surface."""
-    primary_dir = primary_feature_dir_for_mission(
-        main_repo_root,
-        _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: meta.json
+    # lives only on PRIMARY (PRIMARY_METADATA is a PRIMARY-partition kind), so
+    # the kind-aware seam resolves it identically for every topology without
+    # ever consulting the coordination worktree.
+    primary_dir = _resolve_workflow_read_dir(
+        repo_root=main_repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
     )
     return resolve_mission_identity(primary_dir).mission_id
 

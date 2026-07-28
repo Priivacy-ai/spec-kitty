@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 
     from doctrine.missions.step_contracts import GateBinding
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
     MissionHandle,
     TasksPorts,
@@ -96,10 +96,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import first_set_sync_disable_env
 from specify_cli.core.paths import is_worktree_context
 from specify_cli.core.vcs.git import merge_base_changed_files
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
@@ -298,10 +294,15 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
 
     claim_mission_id: str | None = None
     if st.invocation_id is not None:
-        primary_feature_dir = primary_feature_dir_for_mission(
-            st.main_repo_root,
-            _canonicalize_primary_read_handle(st.main_repo_root, st.mission_slug),
-        )
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed
+        # off the retiring ``primary_feature_dir_for_mission`` wrapper onto the
+        # seam directly — PRIMARY_METADATA, since the read is meta.json's
+        # ``mission_id`` (resolve_mission_identity). WP08 (T036): dropped the
+        # caller-side canonicalizer fold — redundant with the seam's own
+        # internal fold for a PRIMARY-partition kind.
+        primary_feature_dir = placement_seam(
+            st.main_repo_root, st.mission_slug
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
     st.resolved_binding = _resolve_dispatch_binding(
         model=st.model,
@@ -681,23 +682,29 @@ def _mt_done_ancestry_facts(st: _MoveTaskState) -> tuple[str | None, bool, str]:
 def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
     """Late fact: issue-matrix approval blocker.
 
-    C-002: the canonicalizer fold + the blind primitive
-    ``primary_feature_dir_for_mission`` stay co-located in the command module —
-    NEVER routed through a port. The blind primitive is reached via
-    ``_tasks.<attr>``: its ``tasks`` binding is a live patch seam
-    (``@patch("...agent.tasks.primary_feature_dir_for_mission")``,
-    test_pre30_guard_wiring).
-    """
-    from specify_cli.cli.commands.agent import tasks as _tasks
+    read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): the blind
+    primitive ``primary_feature_dir_for_mission`` — formerly reached via the
+    ``_tasks.<attr>`` patch seam (``@patch("...agent.tasks.
+    primary_feature_dir_for_mission")``, test_pre30_guard_wiring /
+    test_patched_primary_feature_dir_intercepts_issue_matrix_facts) — is routed
+    off that retiring wrapper onto the kind-aware seam directly. Kind is
+    ``SPEC``, not ``ISSUE_MATRIX``: ``_issue_matrix_approval_blocker``'s
+    ``primary_feature_dir`` argument is consulted ONLY to detect ``spec.md``'s
+    referenced issues (a genuine PRIMARY-partition artifact); the
+    issue-matrix.md read itself uses ``st.feature_dir`` — the caller's already
+    topology-resolved COORD surface — unchanged.
 
+    WP08 (T036): the caller-side canonicalizer fold DROPPED — redundant with
+    the seam's own internal fold for a PRIMARY-partition kind (``SPEC``); the
+    handle is passed straight through.
+    """
     if st.target_lane not in (Lane.APPROVED, Lane.DONE):
         return None
-    canonical_handle = _canonicalize_primary_read_handle(st.main_repo_root, st.mission_slug)
     blocker: str | None = _issue_matrix_approval_blocker(
         st.feature_dir,
         target_lane=st.target_lane,
-        primary_feature_dir=_tasks.primary_feature_dir_for_mission(
-            st.main_repo_root, canonical_handle
+        primary_feature_dir=placement_seam(st.main_repo_root, st.mission_slug).read_dir(
+            MissionArtifactKind.SPEC
         ),
     )
     return blocker

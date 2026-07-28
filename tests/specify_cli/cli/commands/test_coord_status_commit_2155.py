@@ -42,6 +42,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -97,37 +98,76 @@ _COMPOSED = f"{_MISSION_SLUG}-{_MID8}"
 # =========================================================================== #
 # T009 — #2154 3-leg convergence (coord AND flat topologies), injected context.
 # =========================================================================== #
-def _install_distinguishable_topology(monkeypatch: pytest.MonkeyPatch, *, coord: bool) -> tuple[Path, Path]:
+def _install_distinguishable_topology(
+    monkeypatch: pytest.MonkeyPatch, *, coord: bool
+) -> tuple[Path, Path, dict[str, MagicMock]]:
     """Inject DISTINGUISHABLE primary/coord dirs into the read-path primitives.
 
-    Returns ``(primary_dir, kind_blind_dir)``. Under coordination topology the two
-    differ (the kind-blind resolver returns the coord husk); under flat topology
-    they are identical. A stub returning the SAME dir for both under coord topology
-    would make the convergence assertion vacuous (constant-stub rejection), so the
-    coord case returns deliberately distinct paths.
+    Returns ``(primary_dir, kind_blind_dir, stubs)``. Under coordination topology
+    the two dirs differ (the kind-blind resolver returns the coord husk); under
+    flat topology they are identical. A stub returning the SAME dir for both
+    under coord topology would make the convergence assertion vacuous
+    (constant-stub rejection), so the coord case returns deliberately distinct
+    paths.
+
+    ``stubs`` exposes the patched callables as :class:`MagicMock` objects keyed
+    by name, so a caller can assert ``call_count`` — proof the stub was
+    actually REACHED rather than trusting "the fixture still passes"
+    (read-side-seam-primary-primitive-closure-01KYKMMT WP03 T021,
+    tactic:architectural-gate-non-vacuity).
+
+    WP03 T016 hazard (non-vacuity, T021): this fixture used to ALSO stub the
+    public wrapper ``primary_feature_dir_for_mission`` and assert it stayed
+    unreached (the Ledger M16 recursion-cliff detector: pre-WP03,
+    ``resolve_planning_read_dir``'s PRIMARY leg called that name directly, and
+    WP03 re-pointed it at the module-private leaf ``_compose_primary_feature_dir``
+    instead to break the wrapper-delegates-to-seam recursion). WP08 (T035)
+    deletes the wrapper outright, so that detector is retired here too: there
+    is no longer an attribute to patch or a call count to assert zero on, and
+    the cliff it guarded against is now structurally impossible (the leaf
+    imports no seam and cannot recurse). The leaf stub below is the sole
+    surviving PRIMARY-composition mock.
     """
     primary_dir = Path("/synthetic/primary") / _COMPOSED
     coord_dir = Path("/synthetic/coord/.worktrees") / f"{_COMPOSED}-coord" / _COMPOSED
     kind_blind_dir = coord_dir if coord else primary_dir
 
-    # PRIMARY-partition leg of resolve_planning_read_dir composes via this primitive
-    # (after the handle fold). Return the primary dir verbatim regardless of handle.
-    monkeypatch.setattr(
-        rpr, "primary_feature_dir_for_mission", lambda _repo, _handle: primary_dir
+    # PRIMARY-partition leg of resolve_planning_read_dir composes via the
+    # module-private leaf (after the handle fold) post-WP03 T016.
+    leaf_stub = MagicMock(
+        name="_compose_primary_feature_dir",
+        side_effect=lambda _repo, _handle: primary_dir,
     )
+    monkeypatch.setattr(rpr, "_compose_primary_feature_dir", leaf_stub)
     # The fold is a no-op for an already-composed handle; pin it so the synthetic
     # handle does not hit the filesystem.
-    monkeypatch.setattr(
-        rpr, "_canonicalize_primary_read_handle", lambda _repo, handle, **_kw: handle
+    canonicalize_stub = MagicMock(
+        name="_canonicalize_primary_read_handle",
+        side_effect=lambda _repo, handle, **_kw: handle,
     )
-    # The kind-blind resolver and the STATUS-partition leg both route here.
-    monkeypatch.setattr(
-        rpr, "candidate_feature_dir_for_mission", lambda _repo, _slug, **_kw: kind_blind_dir
+    monkeypatch.setattr(rpr, "_canonicalize_primary_read_handle", canonicalize_stub)
+    # The kind-blind resolver and the STATUS-partition leg both route here. NOT
+    # reached by either TASKS_INDEX-only test below (TASKS_INDEX is a
+    # PRIMARY-partition kind) — a pre-existing fact, unrelated to WP03; kept
+    # for callers exercising a STATUS-partition kind through this fixture.
+    candidate_stub = MagicMock(
+        name="candidate_feature_dir_for_mission",
+        side_effect=lambda _repo, _slug, **_kw: kind_blind_dir,
     )
-    monkeypatch.setattr(
-        rpr, "resolve_feature_dir_for_mission", lambda _repo, _slug, **_kw: kind_blind_dir
+    monkeypatch.setattr(rpr, "candidate_feature_dir_for_mission", candidate_stub)
+    resolve_stub = MagicMock(
+        name="resolve_feature_dir_for_mission",
+        side_effect=lambda _repo, _slug, **_kw: kind_blind_dir,
     )
-    return primary_dir, kind_blind_dir
+    monkeypatch.setattr(rpr, "resolve_feature_dir_for_mission", resolve_stub)
+
+    stubs = {
+        "_compose_primary_feature_dir": leaf_stub,
+        "_canonicalize_primary_read_handle": canonicalize_stub,
+        "candidate_feature_dir_for_mission": candidate_stub,
+        "resolve_feature_dir_for_mission": resolve_stub,
+    }
+    return primary_dir, kind_blind_dir, stubs
 
 
 def _mark_status_write_leg_resolver(repo: Path, handle: str) -> Path:
@@ -172,9 +212,19 @@ def test_mark_status_write_leg_matches_commit_leg_coord_topology(
     assertion FAILS (``coord != primary``). The 3-leg divergence below pins
     exactly that gap; the T008 fix makes the write leg kind-aware so all three
     legs equal the primary dir.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP03 (T021 non-vacuity):
+    each leg call reaches ``resolve_planning_read_dir``'s PRIMARY branch, which
+    (post-WP03 T016) calls ``_compose_primary_feature_dir`` — the leaf, bound to
+    its own distinct mock. WP08 (T035) deletes the public wrapper this fixture
+    used to ALSO stub-and-assert-unreached (the Ledger M16 recursion-cliff
+    detector); that detector is retired along with the wrapper it guarded
+    against reaching.
     """
     repo = Path("/synthetic/primary")
-    primary_dir, kind_blind_dir = _install_distinguishable_topology(monkeypatch, coord=True)
+    primary_dir, kind_blind_dir, stubs = _install_distinguishable_topology(
+        monkeypatch, coord=True
+    )
 
     # Leg 1 — mark_status WRITE leg (post-T008 kind-aware authority).
     write_dir = _mark_status_write_leg_resolver(repo, _COMPOSED)
@@ -194,6 +244,17 @@ def test_mark_status_write_leg_matches_commit_leg_coord_topology(
     assert write_dir != kind_blind_dir
     assert write_dir == validation_read_dir == commit_leg_dir == primary_dir
 
+    # T021 per-stub reached/not-reached verdict for this (TASKS_INDEX-only) test:
+    # REACHED — the PRIMARY leg calls both the canonicalizer and the leaf
+    # primary-dir composer once per resolve_planning_read_dir call (3 calls here).
+    assert stubs["_canonicalize_primary_read_handle"].call_count == 3
+    assert stubs["_compose_primary_feature_dir"].call_count == 3
+    # NOT REACHED — TASKS_INDEX is a PRIMARY-partition kind, so the kind-blind /
+    # STATUS-partition legs never fire (pre-existing, unrelated to WP03 — those
+    # two stubs exist for OTHER callers of this fixture).
+    assert stubs["candidate_feature_dir_for_mission"].call_count == 0
+    assert stubs["resolve_feature_dir_for_mission"].call_count == 0
+
 
 def test_mark_status_write_leg_matches_commit_leg_flat_topology(
     monkeypatch: pytest.MonkeyPatch,
@@ -205,7 +266,9 @@ def test_mark_status_write_leg_matches_commit_leg_flat_topology(
     guarantees the T008 fix does not change flat/legacy behaviour.
     """
     repo = Path("/synthetic/primary")
-    primary_dir, kind_blind_dir = _install_distinguishable_topology(monkeypatch, coord=False)
+    primary_dir, kind_blind_dir, stubs = _install_distinguishable_topology(
+        monkeypatch, coord=False
+    )
 
     write_dir = rpr.resolve_planning_read_dir(
         repo, _COMPOSED, kind=MissionArtifactKind.TASKS_INDEX
@@ -217,6 +280,14 @@ def test_mark_status_write_leg_matches_commit_leg_flat_topology(
     # Flat topology: kind-blind and kind-aware resolve the SAME dir.
     assert kind_blind_dir == primary_dir
     assert write_dir == validation_read_dir == primary_dir
+
+    # T021 per-stub reached/not-reached verdict (see the coord-topology test above
+    # for the full rationale): REACHED — 2 resolve_planning_read_dir calls above.
+    assert stubs["_canonicalize_primary_read_handle"].call_count == 2
+    assert stubs["_compose_primary_feature_dir"].call_count == 2
+    # NOT REACHED — same pre-existing, WP03-unrelated reason as above.
+    assert stubs["candidate_feature_dir_for_mission"].call_count == 0
+    assert stubs["resolve_feature_dir_for_mission"].call_count == 0
 
 
 # =========================================================================== #

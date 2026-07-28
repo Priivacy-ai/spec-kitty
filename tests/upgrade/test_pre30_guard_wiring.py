@@ -344,12 +344,19 @@ class TestMapRequirementsGuard:
         assert "Pre-3.0 layout detected" in result.stdout + result.stderr
 
     def test_passes_post30_project(self, tmp_path: Path) -> None:
-        """Post-3.0 layout does not trigger the guard."""
+        """Post-3.0 layout does not trigger the guard.
+
+        read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T037, Ledger
+        M15): the ``agent.tasks.primary_feature_dir_for_mission`` patch this
+        test used to install is retired along with the (now-deleted, DIRECTIVE_
+        041 PATCHWORK) re-export it targeted -- the re-export had NO production
+        caller (map-requirements' guard never read through it; the patch was
+        vestigial, never asserted as called). The guard behaviour this test
+        actually exercises (``_base_patches`` + the CLI invocation) is
+        unaffected by removing it.
+        """
         fd = _post30_feature(tmp_path)
-        with _base_patches(tmp_path, fd), patch(
-            "specify_cli.cli.commands.agent.tasks.primary_feature_dir_for_mission",
-            return_value=fd,
-        ):
+        with _base_patches(tmp_path, fd):
             result = runner.invoke(
                 app,
                 ["map-requirements", "--wp", "WP01", "--refs", "FR-001"],

@@ -415,15 +415,19 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     # FR-006: canonical reader contract (a) — None on a missing file, ValueError on
     # malformed; the ``except ValueError`` below reproduces the historical
     # malformed→"" degrade. Defaults are stated explicitly to document the chosen arm.
     # WP05/FR-005: extract to local so the canonicalized handle feeds load_meta.
+    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
+    # module-private leaf directly, not the public wrapper — the wrapper now
+    # (T019) delegates to the seam, which reaches this module's callers again
+    # (Ledger M16 recursion guard).
     try:
-        primary_dir = primary_feature_dir_for_mission(
+        primary_dir = _compose_primary_feature_dir(
             repo_root,
             _canonicalize_primary_read_handle(repo_root, mission_slug),
         )
@@ -745,14 +749,17 @@ def _resolve_coordination_branch(
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
     # WP03/FR-002: ``resolver`` is threaded to the canonicalizer so this read
     # reaches the single injected walk (no bypass) — ``None`` is byte-identical
     # to the pre-WP03 behaviour.
-    primary_dir = primary_feature_dir_for_mission(
+    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
+    # leaf directly — the wrapper delegates to the seam, which reaches this
+    # module again (Ledger M16 recursion guard).
+    primary_dir = _compose_primary_feature_dir(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
@@ -792,13 +799,16 @@ def _resolve_topology(
     from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
     # WP03/FR-002: ``resolver`` threaded through so this shell read reaches the
     # single injected walk (no bypass).
-    primary_dir = primary_feature_dir_for_mission(
+    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
+    # leaf directly — the wrapper delegates to the seam, which reaches this
+    # module again (Ledger M16 recursion guard).
+    primary_dir = _compose_primary_feature_dir(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
@@ -988,11 +998,14 @@ def _resolve_mission_id(
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    primary_dir = primary_feature_dir_for_mission(
+    # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
+    # leaf directly — the wrapper delegates to the seam, which reaches this
+    # module again (Ledger M16 recursion guard).
+    primary_dir = _compose_primary_feature_dir(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )

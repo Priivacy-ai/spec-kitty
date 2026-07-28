@@ -77,6 +77,18 @@ ALLOWLIST_PATH = _THIS.parent / "resolution_gate_allowlist.yaml"
 
 # Call targets the two discriminators scan for.
 CANONICALIZER_PRIMITIVE = "primary_feature_dir_for_mission"
+# read-side-seam-primary-primitive-closure-01KYKMMT WP03 (T015/T016): the pure
+# ``KITTY_SPECS_DIR`` join moved into a module-private leaf
+# (``_compose_primary_feature_dir``) that the seam's PRIMARY leg and this
+# module's own permanent raw-probe sanctions (below) now call DIRECTLY —
+# never through the public wrapper, to avoid recursing through the placement
+# seam. The scanner must recognize a raw-handle call to EITHER name as "the
+# canonicalizer primitive": the leaf is now the actual topology-blind body a
+# non-canonicalized handle can reach, and the wrapper survives (unrouted
+# external callers still use it) until WP08 deletes it.
+CANONICALIZER_PRIMITIVE_NAMES = frozenset(
+    {CANONICALIZER_PRIMITIVE, "_compose_primary_feature_dir"}
+)
 COORD_BLIND_RESOLVER = "resolve_feature_dir_for_mission"
 
 # The canonical fold the handle arg must flow from (intra-function def-use).
@@ -88,29 +100,31 @@ BARE_MODERN_FOLD_SEAM = "_canonicalize_bare_modern_handle"
 # The kind-aware authorities a flagged coord write must route through instead.
 COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_dir(kind=)"
 
-# Concrete integer floors (NFR-002). These are the live census counts measured
-# on the current ``src/`` tree, NOT ``> 0`` placeholders. If the scanners are
-# correct and the tree grows, raise these to the new honest census.
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T003, FR-007):
+# RETIRED both use-count floors that used to live here — ``CANONICALIZER_FLOOR``
+# (was 44) and ``ROUTED_CANONICALIZER_FLOOR`` / ``..._MARGIN`` (were 40 / 4,
+# below). Live re-derived census at retirement (per quickstart.md §1's alias-
+# resolving AST recipe, run fresh — NOT the stale 44/40 figures the comment
+# block below had drifted to): 46 total canonicalizer call sites, 43 of them
+# def-use-routed. This is a RETIREMENT, not a re-pin: after Step 2 (WP05) the
+# floors' subject population is only resolver-internal + named-sanctioned
+# sites, where a raw handle is correct by contract — so a floor obliging the
+# primitive to REMAIN in use would invert its own purpose (the precedent for a
+# routing-driven floor move, not a relaxation, is the read-surface-ssot-
+# closeout WP05 shrink recorded against the coord-authority floor below: "a
+# genuine routing shrink, not a re-pin"). DIRECTIVE_043 adjudication (required):
+# a gate must have a concrete floor to avoid vacuity — that guarantee is
+# PRESERVED BY TRANSFER, not abandoned. It moves to the read-side bypass census
+# (``test_no_read_side_bypass.py``, WP02), which carries its own concrete
+# floor, per-primitive non-vacuity proof, alias resistance, and a shrink-only
+# allow-list under a staleness twin-guard — see
+# ``tactic:architectural-gate-non-vacuity`` + ``DIRECTIVE_043``. The
+# corresponding equality pins on these two constants (imported by
+# ``test_coord_read_residuals_closeout.py``) are retired in the SAME commit
+# (T004) — deleting the constants without retiring that import raises
+# ``ImportError`` at collection (~20 tests), which is DIRECTIVE_034's exact
+# collection-error hazard, not red-first evidence.
 #
-# coord-read-residuals WP01 (FR-010 floor honesty): the #2186 identity routing
-# added SEVEN new DIRECT ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
-# anchors (NOT the ``resolve_planning_read_dir`` seam — so the census DOES move):
-#   1. next_cmd._pair_previous_lifecycle_record
-#   2. next_cmd._write_issuance_lifecycle_record
-#   3. next_cmd._handle_answer_flow
-#   4. implement.implement (json-output identity, was :1394)
-#   5. workflow sparse-checkout preflight (was :1282)
-#   6. workflow get_mission_type leg (own anchor, was :1644)
-#   7. workflow review-prompt metadata (was :2739)
-# Census: total 38 → 45, routed 35 → 42 (measured before/after on the merged base).
-# read-surface-ssot-closeout WP05 (FR-001/NFR-001, SHRINK-ONLY): routing
-# ``implement.implement``'s detect-feature-context ``feature_dir`` read onto
-# ``placement_seam(...).read_dir(SPEC)`` removed the direct
-# ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
-# fallback-cascade anchor that call site's meta.json-existence check used to
-# fall back to — draining the live census 45 → 44 (a genuine routing shrink,
-# not a re-pin; the seam's internal anchor is not scanned as a caller-site).
-CANONICALIZER_FLOOR = 44
 # WP07 re-pin: WP06 routing reduced the live write-classified coord census from 17 to 14;
 # 3 sites were removed (list_dependents, review at one former line, one list_tasks variant).
 # REBASE (2026-06-27): concurrent mission #1057 inserted a check_pre30_layout boundary
@@ -162,33 +176,13 @@ COORD_AUTHORITY_WRITE_FLOOR = 4
 # a floor dropped far below live (masking un-routed writes) fails the gate.
 COORD_AUTHORITY_WRITE_FLOOR_MARGIN = 2
 
-# WP07 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
-# The number of canonicalizer call sites that are *routed* (def-use-canonical,
-# i.e. NOT relying on an allowlist sanction) must stay at or above the SC-004
-# census of genuinely-bare sites that WP02-WP07 routed. After T031 teaches the
-# discriminator the bare-modern fold, 4 formerly-allowlisted sites auto-route:
-# live routed count is 35 (38 total sites minus the 3 permanent sanctions).
-# Floor = 35 − MARGIN(4) = 31. Both bounds are asserted in test_routed_count_floor:
-#   live − MARGIN <= floor < live  (lower: prevents loose ratchet; upper: anti-vacuous).
-# The floor is the concrete census integer, NOT ``len(scanned)`` — a tautological
-# ``>= len(routed)`` would pass under mass-allowlisting, which is exactly what
-# this guard exists to catch.
-ROUTED_CANONICALIZER_FLOOR_MARGIN = 4
-# WP07 recomputed: post-T031 live routed = 35; floor = 35 − MARGIN(4) = 31.
-# coord-read-residuals WP01 (FR-010): the 7 new identity anchors routed through the
-# DIRECT primitive (not the seam) raised the live routed census 35 → 42; floor
-# recomputed 42 − MARGIN(4) = 38. This is a REAL gain (not a re-pinned integer):
-# 7 identity reads that previously resolved off coord-aware resolvers now provably
-# anchor on PRIMARY via the canonical fold, and the gate counts them.
-# tasks-py-degod WP02 (C-002): the TasksPorts co-design adds ONE new DIRECT
-# primitive anchor — ``RealFsReader.primary_anchor_dir`` co-locates
-# ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))`` inside
-# the adapter (the intra-function fold C-002 mandates). Live routed census 42 → 43;
-# floor recomputed 43 − MARGIN(4) = 39. Honest before/after, not a re-pin.
-# runtime-state-corpus-cutover (#2816): durable dispatch-claim correlation
-# resolves the canonical mission id from the primary feature directory, adding
-# one direct routed anchor. Live routed census 43 → 44; floor 39 → 40.
-ROUTED_CANONICALIZER_FLOOR = 40
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T003, FR-007):
+# ``ROUTED_CANONICALIZER_FLOOR`` / ``ROUTED_CANONICALIZER_FLOOR_MARGIN`` (the
+# SC-004 anti-mass-allowlist routed-count floor, formerly 40 / 4) are RETIRED
+# together with ``CANONICALIZER_FLOOR`` above — see that constant's retirement
+# comment for the honest re-derived census, the retirement-vs-re-pin reasoning,
+# and the DIRECTIVE_043 transfer adjudication. ``test_routed_count_floor`` (the
+# consumer) is retired in the same commit.
 
 
 # --------------------------------------------------------------------------- #
@@ -620,7 +614,7 @@ def scan_canonicalizer_call_sites(src_root: Path) -> list[CanonicalizerSite]:
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
-            if _callee_name(node) != CANONICALIZER_PRIMITIVE:
+            if _callee_name(node) not in CANONICALIZER_PRIMITIVE_NAMES:
                 continue
             qualname = _qualname_from_parents(parents, node)
             fn = _enclosing_function(parents, node)
@@ -1601,65 +1595,20 @@ def test_real_allowlist_declares_no_count_qualifiers() -> None:
 
 
 # --- T006: concrete floors + shrink-only twin-guard ------------------------
-def test_canonicalizer_gate_floor() -> None:
-    """Concrete floor: the canonicalizer scan finds >= 45 real call sites (NFR-002).
-
-    The literal 45 is the live census on the current ``src/`` tree; a broken
-    scanner returning zero rows trivially fails this. ``> 0`` / ``>= 1`` are
-    explicitly rejected by NFR-002.
-    """
-    count = len(scan_canonicalizer_call_sites(SRC_ROOT))
-    assert count >= CANONICALIZER_FLOOR, (
-        f"canonicalizer census dropped to {count}; expected >= {CANONICALIZER_FLOOR}. "
-        "A shrinking census likely means the scanner stopped matching call sites."
-    )
-
-
-def test_routed_count_floor() -> None:
-    """SC-004 anti-mass-allowlist guard: routed canonicalizer sites stay >= floor.
-
-    WP02-WP07 ROUTED the bare ``primary_feature_dir_for_mission`` call sites
-    through ``_canonicalize_primary_read_handle`` or ``_canonicalize_bare_modern_handle``
-    (T031 — or a provably-canonical ``feature_dir.name`` read) — they did NOT
-    mass-allowlist them. This test proves that: it counts the sites the def-use
-    discriminator classifies as *canonical* (routed) and asserts that count stays
-    within ``ROUTED_CANONICALIZER_FLOOR_MARGIN`` of the floor AND strictly above it.
-
-    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 40``), NOT
-    ``>= len(scanned routed sites)``. A tautological ``>= live_routed`` would be
-    satisfied even if a future regression allowlisted every site instead of routing
-    it (routed → 0, allowlist → 45, gate still green). Hard-coding the census
-    makes mass-allowlisting CI-red.
-
-    Live routed count is 44. The floor 40 is
-    ``44 − ROUTED_CANONICALIZER_FLOOR_MARGIN(4)`` — deliberately below live so the
-    assertion has teeth, but tight enough to catch a loose ratchet.
-
-    Both bounds are enforced:
-    * ``live − MARGIN <= floor < live``  (lower: floor is tight; upper: anti-vacuous)
-    """
-    sites = scan_canonicalizer_call_sites(SRC_ROOT)
-    routed = [s for s in sites if s.is_canonical]
-    assert len(routed) >= ROUTED_CANONICALIZER_FLOOR, (
-        f"routed (def-use-canonical) canonicalizer census dropped to "
-        f"{len(routed)}; expected >= {ROUTED_CANONICALIZER_FLOOR} (SC-004). "
-        "A drop below this floor means sites were allowlisted instead of routed "
-        "(mass-allowlisting) — route them through the canonical fold seam."
-    )
-    # Upper bound: the floor is NOT tautological — it must be strictly below live.
-    assert len(routed) > ROUTED_CANONICALIZER_FLOOR, (
-        "ROUTED_CANONICALIZER_FLOOR must be a concrete census integer strictly "
-        "below the live routed count, not ``>= len(routed)`` (NFR-002 anti-vacuous)."
-    )
-    # Lower bound (T033): the floor is tight — within MARGIN of the live count.
-    # This prevents the floor from drifting silently below a meaningful threshold
-    # (a floor of 0 would pass the upper check but provide no guard at all).
-    assert len(routed) - ROUTED_CANONICALIZER_FLOOR <= ROUTED_CANONICALIZER_FLOOR_MARGIN, (
-        f"ROUTED_CANONICALIZER_FLOOR ({ROUTED_CANONICALIZER_FLOOR}) is more than "
-        f"ROUTED_CANONICALIZER_FLOOR_MARGIN ({ROUTED_CANONICALIZER_FLOOR_MARGIN}) "
-        f"below the live routed count ({len(routed)}); tighten the floor to within "
-        "the margin to prevent a loose ratchet."
-    )
+#
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T003, FR-007):
+# ``test_canonicalizer_gate_floor`` and ``test_routed_count_floor`` are RETIRED
+# here — see ``CANONICALIZER_FLOOR``'s retirement comment above for the
+# DIRECTIVE_043 transfer adjudication (the guarantee moves to the read-side
+# bypass census, WP02's ``test_no_read_side_bypass.py``, which carries its own
+# concrete floor + per-primitive non-vacuity). DIRECTIVE_041 disposition:
+# STALE — the subject population these floors counted is the primitive itself,
+# which this mission deliberately drains; their assertion (the primitive must
+# stay in use) inverts to a defect-class guard for exactly nothing once Step 2
+# lands. Nothing else in the tree asserts the primitive must remain in use
+# (grep for ``CANONICALIZER_FLOOR`` / ``ROUTED_CANONICALIZER_FLOOR`` — the only
+# remaining consumer, the closeout module's floor-honesty pins, is retired in
+# this SAME commit, T004).
 
 
 def test_coord_authority_gate_floor() -> None:

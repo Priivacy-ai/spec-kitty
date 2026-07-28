@@ -23,10 +23,6 @@ from specify_cli.acceptance import (
 )
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -261,15 +257,18 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
     # worktree once it exists, which is exactly the surface that lacks
     # ``meta.json``, so using it here would send the phase stamp to the wrong leg.
     #
-    # WP05/FR-005 idiom (mirrors runtime_bridge.py and runtime_bridge_identity.py):
-    # the primitive composes the dir name verbatim, so the handle is folded to its
-    # canonical on-disk form first. ``mission_slug`` is already
-    # ``resolved.mission_slug`` at this call site, but routing it keeps the stamp
-    # correct for every handle form instead of depending on that invariant holding
-    # at every future caller.
-    feature_dir = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — PRIMARY_METADATA, since the read/write target is meta.json's
+    # ``status_phase`` (per ``stamp_accept_cutover``'s own contract docstring).
+    # WP08 (T036): the caller-side canonicalizer fold DROPPED — redundant with
+    # the seam's own internal fold for a PRIMARY-partition kind (the SAME
+    # ``_canonicalize_primary_read_handle`` primitive
+    # ``resolve_planning_read_dir``'s PRIMARY leg applies before composing).
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     if not feature_dir.is_dir():
         return  # nothing to stamp
@@ -278,8 +277,8 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str) -> None:
 
     # COORD leg comes from the kind-aware placement seam (see
     # :func:`_coord_status_feature_dir`) rather than a hand-built join under the
-    # coordination worktree root: ``primary_feature_dir_for_mission`` would
-    # redirect this back to the primary checkout (it normalises through
+    # coordination worktree root: a PRIMARY-kind seam read would redirect this
+    # back to the primary checkout (it normalises through
     # ``get_main_repo_root``) and collapse the very partition split this
     # function exists to preserve, while a raw mission-spec-dir join re-derives
     # placement the seam already owns.

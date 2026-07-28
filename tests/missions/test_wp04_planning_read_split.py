@@ -38,7 +38,7 @@ import pytest
 from mission_runtime import MissionArtifactKind, MissionTopology
 from specify_cli.missions._read_path_resolver import (
     CoordState,
-    primary_feature_dir_for_mission,
+    _compose_primary_feature_dir,
     probe_coord_state,
     resolve_planning_read_dir,
 )
@@ -176,14 +176,16 @@ def test_planning_read_dir_matches_primary_primitive(tmp_path: Path) -> None:
     """INV-5 symmetry: the planning READ dir equals the primary WRITE dir.
 
     The planning read resolves the SAME surface the write side authors to
-    (``primary_feature_dir_for_mission``) — no read(coord)/write(primary) split.
+    (the module-private ``_compose_primary_feature_dir`` leaf, read-side-seam-
+    primary-primitive-closure-01KYKMMT WP08 T035 -- the deleted public wrapper's
+    topology-blind compose, unchanged) — no read(coord)/write(primary) split.
     """
     _seed_coord_topology_with_stale_husk(tmp_path)
     assert (
         resolve_planning_read_dir(
             tmp_path, SLUG_WITH_MID8, kind=MissionArtifactKind.TASKS_INDEX
         ).resolve()
-        == primary_feature_dir_for_mission(tmp_path, SLUG_WITH_MID8).resolve()
+        == _compose_primary_feature_dir(tmp_path, SLUG_WITH_MID8).resolve()
     )
 
 

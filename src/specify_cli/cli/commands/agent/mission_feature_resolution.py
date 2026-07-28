@@ -135,16 +135,16 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
     placement because the main checkout HEAD is the target branch, not the coord
     branch.
     """
+    from mission_runtime import placement_seam
     from specify_cli.mission_metadata import load_meta
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
 
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    feature_dir = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — PRIMARY_METADATA, since the read is meta.json (FR-003 above).
+    # WP08 (T036): the caller-side canonicalizer fold DROPPED — redundant with
+    # the seam's own internal fold for a PRIMARY-partition kind.
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     try:
         meta = load_meta(feature_dir)

@@ -2,7 +2,7 @@
 title: Read-side placement-seam classification ledger
 description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
-updated: '2026-07-27'
+updated: '2026-07-28'
 type: reference
 related:
 - docs/architecture/execution-lanes.md
@@ -11,37 +11,85 @@ related:
 # Read-side placement-seam classification ledger
 
 `PlacementSeam.read_dir(kind)` (`src/mission_runtime/resolution.py:1404`, which
-delegates to `resolve_artifact_surface` at `:1634`) is the one kind-aware,
+delegates to `resolve_artifact_surface` at `:1705`) is the one kind-aware,
 fail-loud read authority: it raises `CoordinationBranchDeleted` when a
 COORD-partition kind is required but the mission's declared coordination
 branch has been deleted from git, and it resolves identically to the
 historical primitives for every other cell. PR #2920 hardened that seam but
-did not migrate its ~60 pre-existing bypassers.
+did not migrate its pre-existing bypassers.
 
-This ledger is the classification spine for the read-side-placement-seam-migration
-mission (WP02): it enumerates **every** production call site of the two bypass
-primitives defined in `src/specify_cli/missions/_read_path_resolver.py` —
+This ledger is the classification spine for the read-side placement-seam
+migration programme. It was authored by the **read-side-placement-seam-migration-01KYHP67**
+mission (WP02 there) for the original two bypass primitives, and that
+migration has since **completed** — nearly all of its `migrate-fail-loud`
+sites are now routed through the seam; only sanctioned-infra and
+deliberately-`stay-lenient` residuals still call the two primitives directly.
 
-- `candidate_feature_dir_for_mission(repo_root, mission_slug)` — **kind-blind**
-  (no `MissionArtifactKind` at all; always topology-routed).
-- `resolve_planning_read_dir(repo_root, mission_slug, kind=K)` — **kind-aware
-  but lenient** (never raises `CoordinationBranchDeleted`).
+**read-side-seam-primary-primitive-closure-01KYKMMT (WP02, this revision,
+FR-008/FR-009/FR-010/FR-012/FR-016/FR-017)** extends this SAME ledger — never
+a second authority (C-002) — to police the two primitives no prior gate
+covered:
 
-— and assigns each site exactly one verdict: **migrate-fail-loud** (route
-through `PlacementSeam.read_dir(kind)`), **stay-lenient** (diagnostic/audit
-path that must tolerate a half-materialized or deleted coord branch; recorded
-as a future allow-list entry with rationale), or **sanction-infra** (the read
-authority's own implementation; migrating it would be self-referential).
+- `resolve_feature_dir_for_mission(repo_root, mission_slug, *, cwd=None, env=None)`
+  — kind-blind, routes through `mission_runtime.resolve_action_context` (a
+  richer, structured-error-raising resolver than the other three primitives).
+- `primary_feature_dir_for_mission(repo_root, mission_slug)` — kind-blind
+  **and** deliberately topology-blind (never routes to a coordination
+  worktree); it inherits the guarantee transferred from WP01's retired
+  use-count floors (`tests/architectural/test_resolution_authority_gates.py`).
 
-## Method (how this census was built)
+The censused-callee set is now **four** primitives, all defined in
+`src/specify_cli/missions/_read_path_resolver.py`:
+
+| Primitive | Kind-aware? | Topology-aware? | Status this revision |
+|---|---|---|---|
+| `candidate_feature_dir_for_mission` | no | yes | migrated (historical record below) |
+| `resolve_planning_read_dir` | yes | yes (per-kind) | migrated (historical record below) |
+| `resolve_feature_dir_for_mission` | no | yes (via `resolve_action_context`) | **censused + classified this revision** |
+| `primary_feature_dir_for_mission` | no | no (deliberately blind) | **censused this revision; classification is a later WP's job** |
+
+`tests/architectural/test_no_read_side_bypass.py` (WP02, this revision) parses
+this ledger as the authority for the machine-checked stay-lenient index and
+foundation-sanction index, and for the live-census Summary counts it
+reconciles against. Every count below is re-derived fresh against the tree at
+authoring time (T014 / SC-008) — none is copied from a prior mission's figure
+or from issue #3014 (whose own count is stale, see the corrected Known-gap
+section below).
+
+## ⚠ This revision deliberately leaves part of the census red
+
+Growing the censused callees to their terminal set of four means the gate
+begins flagging every real `primary_feature_dir_for_mission` call site that is
+neither sanctioned nor allow-listed — **31 sites across 17 files** — plus the
+one `resolve_feature_dir_for_mission` site classified `migrate-fail-loud`
+(`decisions/emit.py:71`, not yet routed). That is **32 expected-red findings**,
+recorded in
+`kitty-specs/read-side-seam-primary-primitive-closure-01KYKMMT/research/expected-reds.md`
+§ WP02. **This is the acceptance signal (US8 / FR-023), not a defect** — later
+WPs (WP04–WP08) turn these green by routing each site per its eventual
+classification. Do not allow-list them preemptively (the allow-list is
+shrink-only; pre-populating 31 entries you intend to delete would invert the
+ratchet), and do not soften the gate to avoid the red.
+
+**A second, related expected red (T010.3, NFR-008)**: because the
+§ "Live census summary" table below declares the **post-migration end
+state** rather than today's in-flight tree, its `Total real call sites` rows
+for `resolve_feature_dir_for_mission` and `primary_feature_dir_for_mission`
+mismatch the live census
+(`test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`)
+from this commit onward — also recorded in `research/expected-reds.md`
+§ WP02, with **WP08** named as its greening owner. See § "Live census
+summary" below for the full reasoning.
+
+## Method (how the original 2-primitive census was built — historical)
 
 1. `grep -rl -E "candidate_feature_dir_for_mission|resolve_planning_read_dir" src --include="*.py"`
    found **62 files**. Removing the two DEFINITION modules
    (`src/specify_cli/missions/_read_path_resolver.py`, which defines both
    primitives, and `src/mission_runtime/resolution.py`, which is the seam
-   itself and calls `resolve_planning_read_dir` once internally to canonicalize
-   a handle) leaves **60 consumer files** — this is the file-level census this
-   ledger's row count reconciles against (§ Coverage reconciliation).
+   itself and calls `resolve_planning_read_dir` once internally to
+   canonicalize a handle) leaves **60 consumer files** — this is the
+   file-level census the historical ledger below reconciled against.
 2. A textual line grep (`symbol\(`) over those 60 files found 93 apparent call
    sites. **3 were false positives** — prose/docstring mentions that happen to
    contain a literal `symbol(...)` substring (one plain `#` comment, two inside
@@ -52,13 +100,40 @@ authority's own implementation; migrating it would be self-referential).
    the authoritative, zero-false-positive site list: **90 real call sites**
    across **54 files** (the other 6 of the 60 have a grep hit but zero real
    `ast.Call` sites — a comment or docstring mention only). This is exactly
-   the discrimination the future structural gate (`test_no_read_side_bypass.py`,
-   WP08) must make via its own AST walk — the bite test ("a prose/docstring
+   the discrimination the structural gate (`test_no_read_side_bypass.py`)
+   must make via its own AST walk — the bite test ("a prose/docstring
    mention stays green") this ledger's method already had to get right.
 4. Of the 90 real sites: **31 kind-blind** (`candidate_feature_dir_for_mission`)
    and **59 kind-aware** (`resolve_planning_read_dir`).
 
-## Coverage reconciliation
+**This entire section describes the pre-migration state.** Since then, every
+`migrate-fail-loud` site from that census has been routed through the seam;
+the only real call sites remaining today are the sanctioned-infra and
+stay-lenient residuals reconciled in the live-census Summary below.
+
+## Method (WP02 this revision — the live 4-primitive re-derivation)
+
+Re-derive, never trust a written count (quickstart.md § 1's alias-resolving
+recipe, extended to all four primitives and scoped to the read gate's actual
+`_read_side_scan_scope()` — the shared whole-tree `scan_scope()` minus the
+four sanctioned-infra modules, never a second scanner, NFR-006):
+
+```
+candidate_feature_dir_for_mission : 12 sites / 9 files   (unchanged; historical migration complete)
+resolve_planning_read_dir         :  4 sites / 2 files   (unchanged; historical migration complete)
+resolve_feature_dir_for_mission   :  8 sites / 7 files   (NEW this revision — fully classified below)
+primary_feature_dir_for_mission   : 34 sites / 19 files  (NEW this revision — 3 sanctioned + 31 expected-red)
+```
+
+The four sanctioned-infra modules excluded from this scan (`_READ_SANCTIONED_MODULES`
+in the gate): `missions/_read_path_resolver.py` (the primitive authority
+itself), `mission_runtime/resolution.py` (the seam itself — self-reference),
+`mission_runtime/write_target_degrade.py` (bootstrap-window degrade helper),
+and `coordination/surface_resolver.py` (the canonical surface resolver both
+`candidate_feature_dir_for_mission` and, now, `primary_feature_dir_for_mission`
+are partly built to serve).
+
+## Coverage reconciliation (historical 2-primitive record)
 
 ```
 grep -rl -E "candidate_feature_dir_for_mission|resolve_planning_read_dir" src --include="*.py" | wc -l
@@ -68,26 +143,18 @@ minus the 2 definition modules (_read_path_resolver.py, mission_runtime/resoluti
           appears exactly once, either in a verdict table or the "no real call
           site" table)
 AST-verified real call sites across those 60 files: 90  == the sum of every
-  per-file "sites" column below (72 migrate + 16 stay-lenient + 2 sanction-infra)
+  per-file "sites" column in the historical § Full ledger below (72 migrate + 16 stay-lenient + 2 sanction-infra)
 ```
 
-100% of the 60 consumer files and 100% of the 90 real call sites are
-classified below. No row carries an `unknown` verdict.
+100% of the 60 consumer files and 100% of the 90 real call sites from the
+original census were classified. No row carried an `unknown` verdict. **This
+record is historical (NFR-008): it is preserved as an audit trail of the
+pre-migration state and is not reconciled against by any gate.** The gate's
+live reconciliation runs against the § "Live census summary" table below.
 
-File counts below are **site-containing** (a mixed file such as
-`tasks_status_cmd.py` appears in both migrate and stay-lenient).
+File counts in the historical ledger are **site-containing** (a mixed file
+such as `tasks_status_cmd.py` appears in both migrate and stay-lenient).
 `54 = 42 migrate-containing + 11 stay-containing − 1 mixed + 2 sanction`.
-
-## Summary
-
-| Verdict | Sites | Files (site-containing) |
-|---|---|---|
-| migrate-fail-loud | 72 | 42 |
-| stay-lenient | 16 | 11 |
-| sanction-infra | 2 | 2 |
-| **Total real call sites** | **90** | **54** |
-| No real call site (docstring/comment mention only) | 0 | 6 |
-| **Grand total (file-level census)** | | **60** |
 
 - **Ambiguous — reviewer confirm** (defaulted to the safer disposition, per
   mission instructions): 9 stay-lenient sites — `tasks_move_task.py:2368`,
@@ -111,13 +178,21 @@ File counts below are **site-containing** (a mixed file such as
     authority itself (excluded from the consumer census entirely, per FR-003 —
     it does not call itself).
   - `src/specify_cli/coordination/surface_resolver.py` — canonical surface
-    resolver infra (FR-003 explicit).
+    resolver infra (FR-003 explicit). WP02 this revision: also calls
+    `primary_feature_dir_for_mission` (:739) as one of the four named FR-005
+    foundation sites — the same sanction covers both primitives.
   - `src/mission_runtime/write_target_degrade.py` — already covered by the
     `src/mission_runtime/` `BOUNDARY_SANCTIONED_PREFIXES` blanket on the
     write-side gate; carries its own per-file rationale here too so the
     read-side gate's sanctioned-module test can assert it directly, matching
     the "carries a rationale" discipline `test_sanctioned_modules_carry_a_rationale`
     already enforces on the write side.
+  - `src/mission_runtime/resolution.py` — the seam itself. WP02 this revision
+    adds this as an explicit per-file entry (previously covered only via the
+    prefix blanket): it calls `primary_feature_dir_for_mission` internally
+    (four sites: the mid8/coordination-branch/topology/mission-id resolution
+    helpers) to compose its own PRIMARY-partition leg — self-reference, not a
+    bypass.
 - **Doctrine-named stay-lenient modules** (research.md hard cases, honoured
   verbatim): `_coordination_doctor.py`, `dashboard/scanner.py`,
   `status/aggregate.py`, `retrospective/summary.py`, and the `retrospect.py`
@@ -133,64 +208,368 @@ File counts below are **site-containing** (a mixed file such as
   this ledger performs, not real calls). Recorded here so WP03 does not
   over-scope its `workflow.py` slice against the inflated textual figure.
 
+## Live census summary (machine-checked, end-state)
+
+**This is the table the gate parses (`_ledger_summary_counts`).** T010.3
+resolves the "live" ambiguity explicitly: these counts are the
+**POST-MIGRATION END STATE** — what the census will read once every
+`migrate-fail-loud`/expected-red site above has been routed through the seam
+— never the as-of-today in-flight tree, and never the historical
+pre-migration totals in § below (NFR-008 covers both directions: neither a
+historical nor an in-flight figure may be rewritten to make a check pass).
+Editing any row here, or the § "Stay-lenient allow-list index" /
+§ "Foundation-site sanctions" tables below, REDS the gate.
+
+| Verdict | Sites | Files | Primitive |
+|---|---|---|---|
+| migrate-fail-loud | 0 | 0 | `candidate_feature_dir_for_mission` |
+| stay-lenient | 12 | 9 | `candidate_feature_dir_for_mission` |
+| sanction-infra | 0 | 0 | `candidate_feature_dir_for_mission` |
+| expected-red (unrouted) | 0 | 0 | `candidate_feature_dir_for_mission` |
+| Total real call sites | 12 | 9 | `candidate_feature_dir_for_mission` |
+| migrate-fail-loud | 0 | 0 | `resolve_planning_read_dir` |
+| stay-lenient | 4 | 2 | `resolve_planning_read_dir` |
+| sanction-infra | 0 | 0 | `resolve_planning_read_dir` |
+| expected-red (unrouted) | 0 | 0 | `resolve_planning_read_dir` |
+| Total real call sites | 4 | 2 | `resolve_planning_read_dir` |
+| migrate-fail-loud | 0 | 0 | `resolve_feature_dir_for_mission` |
+| stay-lenient | 8 | 7 | `resolve_feature_dir_for_mission` |
+| sanction-infra | 0 | 0 | `resolve_feature_dir_for_mission` |
+| expected-red (unrouted) | 0 | 0 | `resolve_feature_dir_for_mission` |
+| Total real call sites | 8 | 7 | `resolve_feature_dir_for_mission` |
+| migrate-fail-loud | 0 | 0 | `primary_feature_dir_for_mission` |
+| stay-lenient | 0 | 0 | `primary_feature_dir_for_mission` |
+| sanction-infra | 3 | 2 | `primary_feature_dir_for_mission` |
+| expected-red (unrouted) | 0 | 0 | `primary_feature_dir_for_mission` |
+| Total real call sites | 3 | 2 | `primary_feature_dir_for_mission` |
+
+**WP08 (T039) closeout.** `resolve_feature_dir_for_mission` is now FULLY
+reconciled: its one `migrate-fail-loud` site (`decisions/emit.py:71`) was
+allow-listed rather than routed (reconciliation item #5 — see § below and
+`research/expected-reds.md` § WP08), moving it `migrate-fail-loud 1 → 0` /
+`stay-lenient 7 → 8`, so the declared row above now equals a fresh live
+census exactly (8 sites / 7 files) — no exemption remains for this primitive.
+
+`primary_feature_dir_for_mission` carries a **permanent**, not transitional,
+reconciliation red. The public wrapper is DELETED (T035, SC-001): nothing in
+`src/` can call it by that name any more, so a fresh live census now finds
+**0** real call sites for it, not the 3 this row still declares. This is NOT
+"not yet converged" (T010.3's original framing, written before the wrapper's
+deletion was designed as an outright delete rather than a rename) — it is
+structurally *unconvergeable* by construction: the row's `sanction-infra: 3 /
+2` count is not a live-call tally any more, it is a frozen historical pointer
+to the three FR-005/NFR-009 foundation sites (`core/paths.py` x2,
+`core/git_ops.py`) that were sanctioned for this primitive and are now
+permanently re-pointed at the module-private `_compose_primary_feature_dir`
+leaf (`_FOUNDATION_SANCTION_SEED`'s `_LEAF_PRIMITIVE_ALIASES` maps the leaf's
+literal name back onto this primitive column purely for that bookkeeping
+continuity — see the § "Foundation-site sanctions" table above). Retiring
+this row to `0` and dropping `_FOUNDATION_SANCTION_SEED`'s three entries
+instead would sever that historical trace for no live-behaviour gain, so this
+WP keeps the row as WP02 declared it and keeps the reconciliation exemption
+(`test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`'s
+`expected_end_state_reds`) for this ONE primitive, permanently, with this
+paragraph as the record of why.
+
+**This is a deliberate, recorded reconciliation red, not an oversight.**
+`test_ledger_summary_counts_reconcile_with_the_allow_list_and_themselves`
+mismatches on `primary_feature_dir_for_mission`'s `Total real call sites` row
+— "ledger declares 3 total real call sites but a fresh census finds 0" — by
+permanent design (see the preceding paragraph). That mismatch is recorded in
+`research/expected-reds.md` § WP08. `resolve_feature_dir_for_mission`'s
+sibling mismatch, by contrast, was transitional and is now CLOSED (this
+commit) — its declared numbers were updated to match a fresh live census
+exactly, and it was removed from `expected_end_state_reds` (only WP08 is
+permitted to edit either, per `tasks.md` § 6).
+
+The **`expected-red (unrouted)`** bucket's role changes with this framing: at
+end state every primitive's row is `0 | 0` by definition (there is nothing
+left unrouted once WP08 closes out), so this bucket no longer carries an
+as-of-now residual count. Its job going forward is to stay the *visible zero*
+the end-state declaration commits to — a nonzero value here after WP08 would
+mean a brand-new, still-uncensused bypass appeared, which the main ratchet
+(`test_no_read_side_bypass_outside_sanctioned_and_allow_listed`) would
+already independently catch.
+
+## Summary (historical — pre-migration 2-primitive audit record, NFR-008)
+
+**Preserved verbatim as an audit trail; not reconciled by any gate.** This is
+the census as it stood before the read-side-placement-seam-migration-01KYHP67
+mission routed its `migrate-fail-loud` sites through the seam.
+
+| Verdict | Sites | Files (site-containing) |
+|---|---|---|
+| migrate-fail-loud | 72 | 42 |
+| stay-lenient | 16 | 11 |
+| sanction-infra | 2 | 2 |
+| **Total real call sites** | **90** | **54** |
+| No real call site (docstring/comment mention only) | 0 | 6 |
+| **Grand total (file-level census)** | | **60** |
+
 ## Stay-lenient allow-list index (machine-checked)
 
 This table is the **authoritative membership list** for the read-side gate's
 allow-list. `tests/architectural/test_no_read_side_bypass.py` parses it
 (`_ledger_stay_lenient_index`) and asserts set equality against its
-`_ALLOW_LIST_SEED`, and parses the § Summary table
-(`_ledger_summary_counts`) for the stay-lenient site/file counts. Editing a row
-here — or the `stay-lenient` numbers in § Summary — REDS that gate. The gate's
-seed carries only the per-site content descriptors (token substring + condensed
-rationale) that markdown cannot express; it never declares its own membership
-or cardinality.
+`_ALLOW_LIST_SEED`, and parses the § "Live census summary" table
+(`_ledger_summary_counts`) for each primitive's stay-lenient site/file counts.
+Editing a row here — or the `stay-lenient` numbers in § "Live census summary"
+— REDS that gate. The gate's seed carries only the per-site content
+descriptors (token substring + condensed rationale) that markdown cannot
+express; it never declares its own membership or cardinality.
 
 Rows are the AST-verified `(rel_path, enclosing qualname)` of each
-stay-lenient site in § Full ledger, one row per **site** (a file with two
-lenient sites gets two rows). Shrink-only: when a residual is finally routed
-through the seam, delete its row here and its descriptor in the gate.
+stay-lenient site in § Full ledger (historical rows) or § below (this
+revision's `resolve_feature_dir_for_mission` rows), one row per **site** (a
+file with two lenient sites gets two rows), plus a trailing **`primitive`**
+column (WP02 T009, G2) — **and now a second trailing `site token` column**
+(cycle-1 review fix, G2/DIRECTIVE_041): `(rel_path, qualname, primitive)`
+alone still cannot address more than ONE site when several censused sites of
+the *same* primitive share one qualname, which is exactly the acceptance
+fixture below. The `site token` column carries the site's own normalised
+token line (the SAME `token_substring` the gate's `_ALLOW_LIST_SEED` /
+`_FOUNDATION_SANCTION_SEED` descriptor already declares for that site — never
+a hand-restated duplicate, and never a line number: DIRECTIVE_041 forbids
+anchoring on `file.py:NNN`, which drifts on every unrelated edit above it).
+With a genuine per-call assignment-target or argument shape, the token line
+differs site-by-site even within one qualname.
 
-| rel_path | qualname |
-|---|---|
-| `src/specify_cli/cli/commands/agent/tasks_move_task.py` | `_coord_status_events_path` |
-| `src/specify_cli/cli/commands/agent/tasks_status_cmd.py` | `_st_resolve_dirs` |
-| `src/specify_cli/cli/commands/archive.py` | `create` |
-| `src/specify_cli/cli/commands/_coordination_doctor.py` | `_finding_for_reconcile_marker` |
-| `src/specify_cli/cli/commands/_coordination_doctor.py` | `_heal_one_strand` |
-| `src/specify_cli/cli/commands/reconcile.py` | `reconcile_mission_dossier` |
-| `src/specify_cli/cli/commands/retrospect.py` | `_canonical_events_path` |
-| `src/specify_cli/cli/commands/retrospect.py` | `summary_cmd` |
-| `src/specify_cli/dashboard/scanner.py` | `_resolve_identity_primary_first` |
-| `src/specify_cli/dashboard/scanner.py` | `_resolve_planning_dir_primary_first` |
-| `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_overview` |
-| `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_snapshot_export` |
-| `src/specify_cli/dossier/api.py` | `DossierAPIHandler._load_dossier` |
-| `src/specify_cli/retrospective/summary.py` | `_read_proposal_events` |
-| `src/specify_cli/status/aggregate.py` | `MissionStatus._find_meta_path` |
-| `src/specify_cli/manifest.py` | `WorktreeStatus.get_feature_status` |
+The discriminator's acceptance fixture is
+`status/aggregate.py::MissionStatus._find_meta_path`, which carries one
+existing `candidate_feature_dir_for_mission` site (row below) plus three
+newly-censused `primary_feature_dir_for_mission` sites (`:499`, `:522`,
+`:543` — **not yet classified/allow-listed**; they are part of this
+revision's 31 `primary_feature_dir_for_mission` expected-red sites, see
+`research/expected-reds.md` § WP02; a later WP will decide their disposition
+and, if `stay-lenient`, add their rows here — the four-column shape below
+already lets those three land as three DISTINCT rows sharing one qualname).
+Shrink-only: when a residual is finally routed through the seam, delete its
+row here and its descriptor in the gate.
 
-## Known gap — `primary_feature_dir_for_mission` (tracked follow-up)
+| rel_path | qualname | primitive | site token |
+|---|---|---|---|
+| `src/specify_cli/cli/commands/agent/tasks_move_task.py` | `_coord_status_events_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( coord_root , mission_dir )` |
+| `src/specify_cli/cli/commands/agent/tasks_status_cmd.py` | `_st_resolve_dirs` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( status_read_root , st . mission_slug )` |
+| `src/specify_cli/cli/commands/archive.py` | `create` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( root , mission )` |
+| `src/specify_cli/cli/commands/_coordination_doctor.py` | `_finding_for_reconcile_marker` | `resolve_planning_read_dir` | `feature_dir = resolve_planning_read_dir (` |
+| `src/specify_cli/cli/commands/_coordination_doctor.py` | `_heal_one_strand` | `resolve_planning_read_dir` | `feature_dir = resolve_planning_read_dir (` |
+| `src/specify_cli/cli/commands/reconcile.py` | `reconcile_mission_dossier` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( root , mission_slug )` |
+| `src/specify_cli/cli/commands/retrospect.py` | `_canonical_events_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( repo_root , mission_slug )` |
+| `src/specify_cli/cli/commands/retrospect.py` | `summary_cmd` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( resolved_project , mission_slug )` |
+| `src/specify_cli/dashboard/scanner.py` | `_resolve_identity_primary_first` | `resolve_planning_read_dir` | `primary_dir = resolve_planning_read_dir (` |
+| `src/specify_cli/dashboard/scanner.py` | `_resolve_planning_dir_primary_first` | `resolve_planning_read_dir` | `candidate = resolve_planning_read_dir (` |
+| `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_overview` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
+| `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_snapshot_export` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
+| `src/specify_cli/dossier/api.py` | `DossierAPIHandler._load_dossier` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
+| `src/specify_cli/retrospective/summary.py` | `_read_proposal_events` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( project_path , mission_slug )` |
+| `src/specify_cli/status/aggregate.py` | `MissionStatus._find_meta_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( repo_root , mission_slug )` |
+| `src/specify_cli/manifest.py` | `WorktreeStatus.get_feature_status` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( worktree_path , feature )` |
+| `src/specify_cli/agent_tasks_ports.py` | `RealCoordCommitRouter.feature_write_dir` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission (` |
+| `src/specify_cli/cli/commands/decision.py` | `_resolve_repo_root_and_slug` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_handle )` |
+| `src/specify_cli/cli/commands/mission_type.py` | `current_cmd` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( project_root , mission_slug )` |
+| `src/specify_cli/cli/commands/mission_type.py` | `close_cmd` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
+| `src/specify_cli/context/resolver.py` | `resolve_context` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
+| `src/specify_cli/lanes/recovery.py` | `reconcile_status` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
+| `src/specify_cli/widen/state.py` | `WidenPendingStore.__init__` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
+| `src/specify_cli/decisions/emit.py` | `_mission_dir` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
 
-This ledger, and the gate derived from it, census **two** primitives:
-`candidate_feature_dir_for_mission` and `resolve_planning_read_dir`. A third,
-`primary_feature_dir_for_mission` (`_read_path_resolver.py:1257`), is also
-topology-blind and is **not** policed: an AST census counts **40 real call
-sites across 21 files** in `src/` (excluding the definition module) that this
-mission does not classify.
+read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T039, reconciliation
+item #5): `decisions/emit.py:71` was WP02's one `migrate-fail-loud` finding
+for this primitive (STATUS_STATE), deliberately left unrouted pending
+adjudication. WP04's reviewer confirmed routing is directory-identical to
+`test_resolution_authority_gates.py`'s coord-authority gate's own PERMANENT
+sanction of the same call (`_COORD_WRITE_BY_DESIGN`); full routing needs
+gate-owner work (teach that gate the seam idiom, re-token its allow-list,
+transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter, so it is
+allow-listed here instead of routed or left an unexplained offender — tracked
+at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. This moves the
+primitive's `migrate-fail-loud` count `1 → 0` and `stay-lenient` `7 → 8`
+(files `6 → 7`), which is why § "Live census summary" below now declares
+`Total = 8`, not the previously-declared `7`.
 
-Adding it to the gate's `_TARGET_CALLEE_NAMES` today would demand a
-comparably sized per-site classification pass and ~40 further allow-list
-entries — out of scope here. Tracked as
-[#3014](https://github.com/Priivacy-ai/spec-kitty/issues/3014) under epic
-#1878, which carries the reproducible census script and the per-file
-breakdown. It is recorded as follow-up work so nobody reads
-the gate's green as proof that *every* kind-blind read has been routed: it
-proves only that no **new** call to the two censused primitives can be added
-outside the sanctioned + allow-listed sets.
+## Foundation-site sanctions (machine-checked)
+
+WP02 (T011/E3, FR-005) — the fourth named foundation site,
+`coordination/surface_resolver.py`, is already a whole-module sanctioned
+entry above; these **three** are per-SITE sanctions instead, because
+`core/paths.py` and `core/git_ops.py` are large, general-purpose modules —
+whole-module sanctioning either would be exactly the path-scoped blanket
+C-003 forbids. Each calls the module-private leaf `_compose_primary_feature_dir`
+from beneath the seam's own composition root; routing either risks a
+resolution cycle (NFR-009). `tests/architectural/test_no_read_side_bypass.py`
+parses this table (`_ledger_foundation_index`) and asserts set equality
+against its `_FOUNDATION_SANCTION_SEED`, and reconciles the `sanction-infra`
+row of § "Live census summary" against it. These sites are **recorded by name
+and remain unrouted** — never migrated, never absorbed into the stay-lenient
+index (a separate table, so foundation-infra counts never blend into the
+stay-lenient business-logic counts). Same trailing **`site token`** column
+(cycle-1 review fix, G2) as the stay-lenient index above — `core/paths.py`
+carries two of these three sites, so the site token disambiguates the two
+rows sharing that one file (their qualnames already differ, so no collision
+exists here today, but the shape must match the stay-lenient index's, per
+G1's "one grammar" discipline).
+
+read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the `site
+token` column was re-pointed from `primary_feature_dir_for_mission (` to
+`_compose_primary_feature_dir (` in the same commit as the public wrapper's
+deletion — WP08 re-pointed all three call sites at the leaf (the M1
+build-break fix WP07 deferred), and `_entry_primitive`'s
+`_LEAF_PRIMITIVE_ALIASES` maps the leaf name back onto the
+`primary_feature_dir_for_mission` primitive column so these rows keep
+counting toward that primitive's `sanction-infra` bucket, not a new one.
+
+| rel_path | qualname | primitive | site token |
+|---|---|---|---|
+| `src/specify_cli/core/paths.py` | `get_feature_target_branch` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
+| `src/specify_cli/core/paths.py` | `resolve_merge_target_branch` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
+| `src/specify_cli/core/git_ops.py` | `resolve_target_branch` | `primary_feature_dir_for_mission` | `_compose_primary_feature_dir (` |
+
+## `resolve_feature_dir_for_mission` — classification (WP02, FR-010/FR-012)
+
+The 8 real call sites (7 files; `mission_type.py` carries two), confirmed by
+the live census above — re-derived, not trusted from the WP prompt or
+#3014 (both stale). Each site is classified on **both** axes (disposition,
+and raise-vs-degrade), with its anchoring root and rationale of record. Per
+T012's vacuity guard: the census does **not** yield zero `migrate-fail-loud`
+sites (there is exactly one), so the SC-005 zero-case discharge does not
+apply here.
+
+Per-disposition counts: **migrate-fail-loud = 1**, **stay-lenient = 7**,
+**sanction-infra = 0**.
+
+| rel_path | qualname | disposition | raise/degrade | anchoring root | target kind | rationale |
+|---|---|---|---|---|---|---|
+| `agent_tasks_ports.py:323` | `RealCoordCommitRouter.feature_write_dir` | stay-lenient | raise (propagates `ActionContextError`) | `mission.repo_root` (`MissionHandle`, same anchoring as the adjacent `RealFsReader.primary_anchor_dir`) | n/a | `tasks_move_task.py:348-353`'s production comment is the rationale of record: "resolves the FR-010 coord husk — NEVER a primary kind... It is NEVER repointed to a primary kind — that would move the event-log read off the coord husk and reintroduce the split-brain FR-010 closes." Ambiguous whether a COORD-kind `read_dir()` swap would preserve `resolve_action_context`'s richer resolution; defaulted lenient. |
+| `cli/commands/decision.py:130` | `_resolve_repo_root_and_slug` | stay-lenient | raise (propagates `ActionContextError`) | `repo_root = locate_project_root() or Path.cwd()` (main-repo-anchored, CWD fallback) | n/a | Own production comment: "deliberately EXCLUDED from the `read_dir(kind)` migration" — relies on `resolve_action_context`'s structured error (e.g. `COORDINATION_BRANCH_DELETED`) for the #8 live-symptom fix pinned by `test_decision_single_authority.py`. |
+| `cli/commands/mission_type.py:238` | `current_cmd` | stay-lenient | raise (propagates `ActionContextError`) | `project_root` (`get_project_root_or_exit()`) | n/a | Own comment: mirrors `close_cmd`/`decision.py`; shares the identical existence-probe shape needing the structured-error contract. |
+| `cli/commands/mission_type.py:582` | `close_cmd` | stay-lenient | raise (propagates `ActionContextError`) | `repo_root = _resolve_primary_repo_root(project_root)` | n/a | Own comment: pinned tests require an unresolvable/ambiguous handle to raise the structured error, never a silent "not found" or wrong pick; both `read_dir(kind)` legs are lenient by design and would swallow it. |
+| `context/resolver.py:191` | `resolve_context` | stay-lenient | degrade (catches `ActionContextError`, translates to `FeatureNotFoundError`) | `repo_root` (caller-supplied, main-repo-anchored) | n/a | Own comment: exists to canonicalize the caller's HANDLE to a directory NAME, not to read a PRIMARY-partition artifact off the returned dir; re-routing would over-claim a single funnel over the `*_feature_dir_for_mission` primitives beyond what the gate enforces. |
+| `decisions/emit.py:71` | `_mission_dir` | stay-lenient (WP08 allow-list, gate-owner work pending) | raise (currently propagates whatever the resolver raises; `STATUS_STATE` is fail-loud-appropriate) | `repo_root` (param, passed through) | `STATUS_STATE` | Feeds `_events_path` → the shared `status.events.jsonl` coord-authoritative surface (the same file decision-point events append into). Originally classified `migrate-fail-loud`; WP08 (T039, reconciliation item #5) found `test_resolution_authority_gates.py`'s coord-authority gate PERMANENTLY sanctions this exact call as a legitimate coord-owned write (`_COORD_WRITE_BY_DESIGN`) — routing is directory-identical (WP04 reviewer-verified) but needs gate-owner work (teach that gate the seam idiom, re-token its allow-list, transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter. Allow-listed per the WP08 prompt's escape hatch rather than routed unilaterally or left an unexplained offender; tracked at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. |
+| `lanes/recovery.py:781` | `reconcile_status` | stay-lenient | raise | `repo_root` (param) | n/a | Own comment: "KEEP coord-aware (C-001 / #2155 analog): this `feature_dir` feeds `emit_status_transition_transactional` below — a STATUS-WRITE leg. The status event log lives on the coordination worktree for coord-topology missions, so this MUST stay on the coord-aware resolver — never route it." |
+| `widen/state.py:63` | `WidenPendingStore.__init__` | stay-lenient (ambiguous — reviewer confirm) | raise | `repo_root` (constructor param) | n/a | No protective comment; `widen-pending.jsonl`'s partition (PRIMARY vs COORD) is not established anywhere else in the module, and the store's own "a missing file is equivalent to an empty store — never raises" invariant would be broken by a `read_dir(kind)` swap that CAN raise on a deleted coord branch for a COORD-partition kind. Defaulted lenient pending a bespoke kind decision (not a reason to skip classifying, per T012's vacuity guard). |
+
+## `primary_feature_dir_for_mission` — live census (WP02, FR-012)
+
+34 real call sites across 19 files (live census above). **3** are the FR-005
+foundation sites (§ above, sanctioned, unrouted by design). The remaining
+**31** (17 files) are this revision's expected-red set — **not classified by
+this WP** (T012's classification scope is `resolve_feature_dir_for_mission`
+only; scope statement repeated in the WP body). They are recorded here as
+`(rel_path, qualname)` composite keys and duplicated into
+`research/expected-reds.md` § WP02 so later WPs can prove *zero additions*
+against a concrete list rather than staring at an undifferentiated red:
+
+```text
+runtime/next/runtime_bridge.py :: _mission_routes_through_coordination
+runtime/next/runtime_bridge.py :: _dn_bootstrap
+runtime/next/runtime_bridge_identity.py :: _primary_runtime_feature_dir
+specify_cli/acceptance/__init__.py :: _primary_anchor_feature_dir
+specify_cli/agent_tasks_ports.py :: RealFsReader.primary_anchor_dir
+specify_cli/cli/commands/accept.py :: _stamp_birth_cutover_for_accept
+specify_cli/cli/commands/agent/mission_feature_resolution.py :: _safe_load_meta
+specify_cli/cli/commands/agent/mission_finalize.py :: finalize_tasks
+specify_cli/cli/commands/agent/tasks_move_task.py :: _mt_resolve_targets
+specify_cli/cli/commands/agent/tasks_move_task.py :: _mt_issue_matrix_facts
+specify_cli/cli/commands/agent/workflow.py :: _analysis_report_gate_dir
+specify_cli/cli/commands/agent/workflow.py :: _mission_id_for_claim
+specify_cli/cli/commands/agent/workflow_executor.py :: implement_sparse_checkout_preflight
+specify_cli/cli/commands/agent/workflow_executor.py :: implement_resolve_mission_type
+specify_cli/cli/commands/agent/workflow_executor.py :: review_finalize_and_print
+specify_cli/cli/commands/implement.py :: find_wp_file
+specify_cli/cli/commands/implement.py :: _load_primary_anchored_mission_meta
+specify_cli/cli/commands/implement.py :: _planning_artifact_source_dir
+specify_cli/cli/commands/implement.py :: _build_implement_json_payload
+specify_cli/cli/commands/mission_type.py :: close_cmd
+specify_cli/cli/commands/mission_type.py :: _resolve_mission_handle
+specify_cli/cli/commands/next_cmd.py :: _pair_previous_lifecycle_record
+specify_cli/cli/commands/next_cmd.py :: _write_issuance_lifecycle_record
+specify_cli/cli/commands/next_cmd.py :: _handle_answer
+specify_cli/coordination/commit_router.py :: _resolve_mid8
+specify_cli/merge/executor.py :: _run_lane_based_merge_locked
+specify_cli/status/aggregate.py :: MissionStatus._find_meta_path   (x3: :499, :522, :543)
+specify_cli/status/aggregate.py :: MissionStatus.save
+```
+
+(16 distinct qualnames-in-files above; `status/aggregate.py::MissionStatus._find_meta_path`
+carries 3 of the 30 sites, so the count is 16 files / 30 sites. This is one
+qualname/site fewer than the file/site tallies stated above this list (17
+files / 31 sites) — see the correction note immediately below; **WP08's
+end-state reconciliation is what makes the surrounding prose counts agree**
+(`tasks.md` § 6).)
+
+**WP06 correction (scoped ledger exception, `tasks.md` § 6 — the single
+authorized row):** this list previously also carried
+`specify_cli/retrospective/writer.py :: resolve_retrospective_home`. That row
+is now **stale**: WP03's cycle-1 fix (`research/expected-reds.md` § WP03,
+Ledger cycle-1 B1/B2) re-pointed that call at the module-private leaf
+`_compose_primary_feature_dir` — a FIFTH FR-005/NFR-009 foundation site,
+sitting beneath `PlacementSeam.read_dir`'s `RETROSPECTIVE` short-circuit
+(`mission_runtime/resolution.py:1454`), not a routable `migrate-fail-loud`
+bypass. Its corrected verdict is **`sanction-infra` (verify-only)** —
+`resolve_retrospective_home` calls the leaf directly and permanently, even
+after WP08 deletes the public wrapper. WP06 verified (not routed) this site:
+confirmed the call target, the standing regression guard
+(`tests/retrospective/test_home_resolution_single_authority.py::test_writer_authority_gates_on_primary_partition_kind`,
+which reds when mutated back to the wrapper — checked non-vacuous), and no
+cycle in the `read_dir` call graph. Consequence: the enumerated finding set
+this row belonged to drops **32 → 31** (mission-wide) / this ledger's
+in-flight `primary_feature_dir_for_mission` count drops **31 → 30** routable
+sites. This row is **not** added to the machine-checked § "Foundation-site
+sanctions" table above — that table's set is asserted against
+`test_no_read_side_bypass.py`'s `_FOUNDATION_SANCTION_SEED`, which WP06 does
+not own and must not edit (`tasks.md` § 6); recording a 4th ledger row there
+without a matching code-side seed entry would itself be a new gate
+mismatch. WP08's end-state reconciliation (T039) is the owner of folding this
+site into that machine-checked set and of the surrounding aggregate counts.
+
+## Known gap — `primary_feature_dir_for_mission` (CORRECTED, FR-016)
+
+**This section previously claimed the primary primitive was "policed by
+nothing".  That claim was false and is what manufactured
+[#3014](https://github.com/Priivacy-ai/spec-kitty/issues/3014).** It is, and
+always was, policed on the **anchoring axis** by
+`tests/architectural/test_resolution_authority_gates.py` (the retired-floor
+gate WP01 rewrites; see that mission's own ledger). What was actually true is
+narrower: no gate policed it on the **call-site-bypass axis** — i.e. nothing
+stopped a *new* call to it outside a tracked set. That gap is what this
+revision closes: `primary_feature_dir_for_mission` is now one of the four
+`_TARGET_CALLEE_NAMES` in `test_no_read_side_bypass.py`, with its 3 foundation
+sites sanctioned above and its 31 remaining sites tracked as expected-red
+(§ above) pending routing by WP04–WP08.
+
+`resolve_feature_dir_for_mission` is likewise no longer a gap: it is fully
+censused and classified in this revision (§ above).
+
+**Remaining honest bounds** (named with sizes, per T013):
+
+- **Wrong-`kind` argument class**: a call site that passes an incorrect
+  `MissionArtifactKind` to `resolve_planning_read_dir`/`read_dir` is
+  census-invisible by construction — this gate polices *which primitive is
+  called*, not *which kind argument is correct*. Zero known instances; not
+  discoverable by this gate's grammar regardless.
+- **Wrapper laundering**: `resolve_subtasks_gate_dir` (`_read_path_resolver.py`)
+  wraps `resolve_planning_read_dir` with a pinned `TASKS_INDEX` kind — a
+  callee-name census cannot see through the wrapper to the primitive it
+  launders. One wrapper, zero additional censused call sites (it is itself
+  one of `resolve_planning_read_dir`'s already-counted historical sites).
+- **Zero-site latent sibling — `resolve_feature_dir_for_slug`**: defined in
+  the same module, deliberately **not exported** in `__all__` and has **zero**
+  cross-module `src/` callers today (confirmed by the live census: it does
+  not appear in any scan above). Importing it anywhere would silently
+  re-open the exact gap this ledger closes for its siblings — it is not
+  censused because there is nothing to census yet, not because it is safe.
+- **Sanctioned foundation + resolver-internal sites**: 4 foundation sites
+  (§ above) + resolver-internal self-reference in `_read_path_resolver.py`
+  and `mission_runtime/resolution.py` — recorded by name, deliberately
+  unrouted (NFR-009).
+- **Artifacts with no kind**: `gap-analysis.md` anchors on a resolved
+  directory rather than being routed through any `MissionArtifactKind` — an
+  honest bound recorded in the mission spec, out of this gate's scope
+  entirely (it never calls a censused primitive to begin with).
 
 ## Known gap — raw `KITTY_SPECS_DIR` joins (out of census grammar)
 
-The census grammar is "calls to the two primitives", so a site that
+The census grammar is "calls to the four primitives", so a site that
 reconstructs a mission directory by **joining path constants** is invisible to
 it. One such site was found during the landing pass and is not represented by
 any row above:
@@ -203,15 +582,23 @@ This class is policed by a *different* gate —
 `tests/architectural/test_no_raw_mission_spec_paths.py`, which is what caught
 this site — not by `test_no_read_side_bypass.py`. The two gates are
 complementary and neither subsumes the other; the counts above deliberately
-exclude this row so the "90 real call sites" arithmetic keeps meaning "call
-sites of the two censused primitives".
+exclude this row so the real-call-site arithmetic keeps meaning "call sites of
+the four censused primitives".
 
-## Full ledger
+## Full ledger (historical — the original 2-primitive migration, WP03–WP07 of
+## read-side-placement-seam-migration-01KYHP67)
+
+**Preserved verbatim as the audit record of the completed migration (NFR-008)
+— not machine-parsed, not reconciled against the live census above.** Every
+`migrate-fail-loud` row below describes a site that has SINCE been routed
+through the seam; only the `stay-lenient` rows still call the primitive
+directly (and are re-declared, live, in the § "Stay-lenient allow-list index"
+table above).
 
 Columns: `file` · `symbol(s)` · `sites` (file:line) · `family` · `verdict` ·
 `kind` (target `MissionArtifactKind` for a kind-blind migrate site; `n/a` for
 sanction/stay-lenient/already-kind-aware) · `cluster` (which migration WP
-consumes this row) · `rationale`.
+consumed this row) · `rationale`.
 
 ### Sanction-infra
 
@@ -293,18 +680,20 @@ consumes this row) · `rationale`.
 | `core/stale_detection.py` | `resolve_planning_read_dir` | 1 (:446) | kind-aware | migrate-fail-loud | `WORK_PACKAGE_TASK` | WP07 | Already wrapped in a broad `except Exception: return None` at the call site, independent of the seam's own fail-loud behavior. |
 | `core/worktree_topology.py` | `resolve_planning_read_dir` | 1 (:145) | kind-aware | migrate-fail-loud | `LANE_STATE` | WP07 | Co-resolves identity + `lanes.json` + dependency graph from one PRIMARY anchor; documented single-kind anchor (all three are PRIMARY-partition). |
 | `doctrine_synthesizer/apply.py` | `resolve_planning_read_dir` | 1 (:167) | kind-aware | migrate-fail-loud | `STATUS_STATE` | WP07 | Per-kind apply logic's STATUS surface read; a genuine functional (not diagnostic) read — fail-loud-appropriate. |
-| `manifest.py` | `candidate_feature_dir_for_mission` | 1 (:272) | kind-blind | **stay-lenient** (ambiguous — reviewer confirm) | n/a | WP07 | The `worktree_path` (not `repo_root`) is passed as the resolver's first arg — a deliberate "what artifacts physically exist in THIS worktree" probe, compared against the sibling `artifacts_in_main` leg (already migrated to `placement_seam(self.repo_root, feature).read_dir(PRIMARY_METADATA)` per the adjacent comment). Structurally incompatible with the seam's repo_root+topology contract; migrating would collapse the main-vs-worktree drift comparison this diagnostic exists to make. |
+| `manifest.py` | `candidate_feature_dir_for_mission` | 1 (:272) | kind-blind | **stay-lenient** (ambiguous — reviewer confirm) | n/a | WP07 | The `worktree_path` (not `repo_root`) is passed as the resolver's first arg — a deliberate "what artifacts physically exist in THIS worktree" probe, compared against the sibling `artifacts_in_main` leg (already migrated to `placement_seam(self.repo_root, feature).read_dir(PRIMARY_METADATA)` per the adjacent comment). Structurally incompatible with the seam's `repo_root`+topology contract; migrating would collapse the main-vs-worktree drift comparison this diagnostic exists to make. |
 | `mission_loader/command.py` | `candidate_feature_dir_for_mission` | 1 (:157) | kind-blind | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | Feeds `_ensure_feature_metadata(feature_dir, ...)` — a `meta.json`-adjacent read. |
 | `missions/plan/plan_interview.py` | `resolve_planning_read_dir` | 1 (:66) | kind-aware | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | `mission_id` read for the plan interview; already kind-annotated. |
 | `missions/plan/specify_interview.py` | `resolve_planning_read_dir` | 1 (:66) | kind-aware | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | Same pattern as `plan_interview.py:66` (near-duplicate module pair). |
 | `orchestrator_api/commands.py` | — | 0 real (grep hit only) | n/a | no-site | n/a | WP07 | Grep hit at `:1544` is a comment describing the seam route; zero `ast.Call` sites. |
-| `runtime/next/runtime_bridge_identity.py` | — | 0 real (grep hit only) | n/a | no-site | n/a | WP07 | Grep hit at `:97` is a docstring mention of `candidate_feature_dir_for_mission`; zero `ast.Call` sites. Also the shared-package-boundary file the spec's edge cases flag for a routing confirmation — moot here since there is no real call to route. |
+| `runtime/next/runtime_bridge_identity.py` | — | 0 real (grep hit only) | n/a | no-site | n/a | WP07 | Grep hit at `:97` is a docstring mention of `candidate_feature_dir_for_mission`; zero `ast.Call` sites. Also the shared-package-boundary file the spec's edge cases flag for a routing confirmation — moot here since there is no real call to route. This mission's own census finds THREE real `primary_feature_dir_for_mission` calls in this same file (`runtime/next/runtime_bridge.py:260,1244` and `runtime_bridge_identity.py:118`) — see § "primary_feature_dir_for_mission — live census" above; a different primitive, not a re-derivation of this row. |
 | `sync/events.py` | `candidate_feature_dir_for_mission` | 1 (:120) | kind-blind | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | "Best-effort lookup of the canonical `mission_id`" for a dashboard sync trigger; reads `meta.json` only. |
 | `task_utils/support.py` | `resolve_planning_read_dir` | 1 (:548) | kind-aware | migrate-fail-loud | `WORK_PACKAGE_TASK` | WP07 | `tasks/` root read for the CLI task-view reconstruction. |
 | `workspace/context.py` | `resolve_planning_read_dir` | 6 (:481, :679, :730, :770, :811, :877) | kind-aware | migrate-fail-loud (all 6) | `WORK_PACKAGE_TASK` (:481, :679, :730); `LANE_STATE` (:770, :811, :877) | WP07 | Partially migrated already: line 477 (adjacent to :481) already uses `placement_seam(repo_root, context.mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)` directly — the remaining 6 sites are the same file's not-yet-migrated PRIMARY-partition legs. |
 
-## Notes for the migration WPs (WP03–WP07)
+## Notes for the migration WPs (WP03–WP08)
 
 - **The 6-site slug-canonicalization idiom** (`legacy_dir = candidate_feature_dir_for_mission(...); if legacy_dir.exists(): return legacy_dir.name`) recurs verbatim in `cli/commands/agent/status.py:72`, `cli/commands/agent/tasks_shared.py:252`, `cli/commands/agent/workflow.py:820`, `cli/commands/mission_type.py:413`, `cli/commands/next_cmd.py:377`, and `merge/resolve.py:67` — all six migrate to `PlacementSeam.read_dir(MissionArtifactKind.PRIMARY_METADATA)`, mirroring the seam's own internal canonicalization pattern in `resolve_artifact_surface`. Six near-identical duplications of the same "resolve a handle to its canonical on-disk directory name" operation is itself a recurring-boundary-leak worth a follow-up consolidation ticket (a shared helper), but is out of this mission's scope (C-001 forbids introducing a second read authority; a shared *helper* built atop the one authority would not violate that, but is not requested by any FR here).
 - **Two files fall outside the WP03–WP07 directory globs but are explicitly assigned by the mission's own cluster list**: `cli/commands/agent/mission_record_analysis.py` (physically under `cli/commands/agent/**`, WP03's glob) is assigned to **WP07**, and `cli/commands/charter/_widen.py` (not under a bare `cli/commands/*.py` glob) is assigned to **WP04** explicitly. Both are called out here so the corresponding `owned_files` lists match the mission's cluster assignment, not the naive directory glob.
-- No bypass file fell outside all five clusters (WP03–WP07) or the sanctioned-infra set — every one of the 60 consumer files is accounted for above.
+- No bypass file fell outside all five clusters (WP03–WP07) or the sanctioned-infra set — every one of the 60 consumer files is accounted for above (all historical, all `candidate_feature_dir_for_mission`/`resolve_planning_read_dir`).
+- **This revision's `resolve_feature_dir_for_mission` classification** (§ above) is the new authority for the 8 sites this primitive covers; WP04's cluster table applies it (never re-derives it).
+- **This revision's `primary_feature_dir_for_mission` expected-red list** (§ above) is not yet classified — a later WP applies the shared migration procedure per site and reports any ledger gap back to WP02's owner rather than authoring a row itself (tasks.md § 6).

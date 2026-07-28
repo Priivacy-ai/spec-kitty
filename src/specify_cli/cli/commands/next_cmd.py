@@ -20,10 +20,6 @@ opened directly from the next command.
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 import contextlib
 import io
 import importlib
@@ -186,11 +182,15 @@ def _pair_previous_lifecycle_record(
     # Anchor identity on the topology-blind PRIMARY dir (handle folded first so a
     # bare mid8 / human slug resolves the durable ``<slug>-<mid8>`` home; an
     # ambiguous handle RAISES — no silent pick, C-003).
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — PRIMARY_METADATA, since the read is meta.json's ``mission_id``.
+    # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
+    # the seam's own internal fold for a PRIMARY-partition kind.
     try:
-        feature_dir = primary_feature_dir_for_mission(
-            repo_root_path,
-            _canonicalize_primary_read_handle(repo_root_path, mission_slug),
-        )
+        feature_dir = placement_seam(
+            repo_root_path, mission_slug
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except Exception:
         return
 
@@ -265,11 +265,15 @@ def _write_issuance_lifecycle_record(
     # FR-004 (#2186): same PRIMARY anchoring as the completion pairing above — the
     # ``started`` lifecycle record's ``mission_id`` must come from the PRIMARY
     # meta.json, never the coord husk (which lacks it or carries a stale id).
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — PRIMARY_METADATA, since the read is meta.json's ``mission_id``.
+    # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
+    # the seam's own internal fold for a PRIMARY-partition kind.
     try:
-        feature_dir = primary_feature_dir_for_mission(
-            repo_root_path,
-            _canonicalize_primary_read_handle(repo_root_path, mission_slug),
-        )
+        feature_dir = placement_seam(
+            repo_root_path, mission_slug
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except Exception:
         return
 
@@ -664,14 +668,21 @@ def _handle_answer(
         from specify_cli.mission import get_mission_type
 
         # FR-004 (#2186): the mission TYPE drives ``get_or_start_run``. Reading it
-        # off the topology-aware resolver lands on the STATUS-only coord husk (no
-        # meta.json) → ``get_mission_type`` returns the default ``software-dev``,
-        # starting the run with the WRONG type for a non-default mission. Anchor on
-        # the PRIMARY dir so the type is read from the real meta.json.
-        feature_dir = primary_feature_dir_for_mission(
-            repo_root_path,
-            _canonicalize_primary_read_handle(repo_root_path, mission_slug),
-        )
+        # off ``resolve_feature_dir_for_mission`` (the KIND-BLIND, topology-aware
+        # resolver) lands on the STATUS-only coord husk (no meta.json) →
+        # ``get_mission_type`` returns the default ``software-dev``, starting the
+        # run with the WRONG type for a non-default mission — that failure mode is
+        # real and stays true of that resolver. It is FALSE of the kind-aware
+        # seam below: for a PRIMARY-partition kind (``PRIMARY_METADATA``) the
+        # decision layer short-circuits straight to the PRIMARY anchor before any
+        # coord probe (read-side-seam-primary-primitive-closure-01KYKMMT WP06,
+        # T030 — corrects the prior wording, which conflated the two). Anchor on
+        # the PRIMARY dir so the type is read from the real meta.json. WP08
+        # (T036): dropped the caller-side canonicalizer fold — redundant with
+        # the seam's own internal fold for a PRIMARY-partition kind.
+        feature_dir = placement_seam(
+            repo_root_path, mission_slug
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         mission_type = get_mission_type(feature_dir)
         run_ref = runtime_bridge.get_or_start_run(mission_slug, repo_root_path, mission_type)
 
