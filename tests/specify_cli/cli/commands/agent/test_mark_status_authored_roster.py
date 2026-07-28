@@ -171,3 +171,38 @@ def test_owning_wp_is_resolvable_for_the_event_emit(feature_dir: Path) -> None:
 def test_owning_wp_is_none_for_an_unknown_id(feature_dir: Path) -> None:
     """Non-vacuity for the shared helper: it must not attribute an id it never saw."""
     assert owning_wp_from_authored_roster(feature_dir, "T999") is None
+
+
+def test_owning_wp_from_authored_roster_kind_co_membership_is_pinned() -> None:
+    """#3027: pin the undeclared TASKS_INDEX/WORK_PACKAGE_TASK co-membership.
+
+    ``owning_wp_from_authored_roster`` (and ``_resolve_authored_roster``) are
+    called with a ``feature_dir`` the caller (``_ms_resolve_read_dir``)
+    resolves via ``planning_read_dir(handle, kind=MissionArtifactKind.
+    TASKS_INDEX)`` — but the ``tasks/*.md`` files this function globs are
+    ``WORK_PACKAGE_TASK``-kinded artifacts. That is a no-op TODAY only because
+    ``mission_runtime.artifacts`` places both kinds in the same partition
+    (``_PRIMARY_ARTIFACT_KINDS``). ``ANALYSIS_REPORT`` has already been
+    re-homed COORD->PRIMARY once (see the FR-003 comment in ``artifacts.py``),
+    so this assertion is the gate that fails LOUD if ``WORK_PACKAGE_TASK`` is
+    ever re-homed away from ``TASKS_INDEX`` — instead of the roster read
+    silently starting to point at the wrong partition.
+    """
+    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
+
+    tasks_index_is_primary = is_primary_artifact_kind(MissionArtifactKind.TASKS_INDEX)
+    work_package_task_is_primary = is_primary_artifact_kind(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+
+    assert tasks_index_is_primary == work_package_task_is_primary, (
+        "TASKS_INDEX and WORK_PACKAGE_TASK have diverged into different "
+        "partitions. owning_wp_from_authored_roster's feature_dir is resolved "
+        "via TASKS_INDEX but reads WORK_PACKAGE_TASK-kinded tasks/*.md files "
+        "(#3027) — that read must be updated to resolve its own directory "
+        "via WORK_PACKAGE_TASK before this divergence ships."
+    )
+    # The call site assumes PRIMARY specifically (not merely "the same
+    # surface"), so pin that too rather than only pinning equality.
+    assert tasks_index_is_primary is True
+    assert work_package_task_is_primary is True
