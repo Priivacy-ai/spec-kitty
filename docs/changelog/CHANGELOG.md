@@ -264,12 +264,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     work package (#3003).** `done`/`canceled` require `force` to leave, but that
     was enforced only for sequential events. On a timestamp tie precedence fell
     through to the arbitrary `(at, event_id)` sort order, and
-    `migration:backfill_runtime_state` minted non-ULID ids that sort lexically
-    after genuine ULIDs — so an unforced `planned → claimed` backfill silently
-    folded finished work packages back to `claimed` (6 of them, turning one
-    merged mission into `done: 3, claimed: 5`). `_should_apply_event` now
-    refuses that case; a deliberate forced rewind still applies. **The malformed
-    ids remain in 307 mission logs** — this guards the symptom, not the data.
+    `migration:backfill_runtime_state` seeds carry deterministic, digest-derived
+    ids whose sort position is deliberately chosen so a seed loses to real
+    history (#2985). Historical rows written before that guarantee do not have
+    it, so an unforced `planned → claimed` backfill silently folded finished
+    work packages back to `claimed` — 6 of them, turning one merged mission into
+    `done: 3, claimed: 5`. `_should_apply_event` now refuses that case; a
+    deliberate forced rewind still applies.
   - The classification ledger is now the *mechanical* authority for the
     stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
     drift apart silently. The gate additionally resolves import aliases, and its

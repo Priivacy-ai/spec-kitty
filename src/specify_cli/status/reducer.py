@@ -281,9 +281,10 @@ def _refuses_terminal_lane(
     ``done``/``canceled`` are terminal: leaving them requires ``force``. The
     reducer enforced that for sequential events but not concurrent ones, so a tie
     fell through to the arbitrary ``(at, event_id)`` sort order — and
-    ``migration:backfill_runtime_state`` minted non-ULID event_ids that sort
-    lexically after the genuine ULID, silently rewinding finished work packages
-    to ``claimed`` (#3003).
+    historical ``migration:backfill_runtime_state`` rows carry digest-derived
+    event_ids that sort lexically after a genuine ULID, silently rewinding
+    finished work packages to ``claimed`` (#3003). Current seeds are ordered
+    deliberately so they lose to real history (#2985); these predate that.
 
     Evaluated only AFTER rollback precedence: a review rejection
     (``in_review -> in_progress``) is emitted unforced, so checking this first
