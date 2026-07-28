@@ -160,11 +160,20 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     own by becoming the SOURCE of one (``_orphan_urns`` counts incidence, so a
 #:     first outbound edge de-orphans just as an inbound one does). That is why
 #:     the orphan delta is -8 while the edge delta is +7.
-#:     Composed: 304/757/31 - 0/-7/+8 -> 304/764/23.
+#:     Composed: 304/757/31 + 0/+7/-8 = 304/764/23.
 #:     Each edge follows an existing (source_kind -> target_kind, relation)
 #:     pattern in the shipped graph; ``requires`` where the source mandates the
-#:     target, ``suggests`` where it recommends. ``paradigm:atomic-design`` is
-#:     deliberately NOT wired -- see ``_ACTIVATED_BUT_UNREACHABLE``.
+#:     target, ``suggests`` where it recommends.
+#:     Review corrected WHICH artefacts, not how many: the invented
+#:     onboarding->skill-styleguide edge was dropped and an
+#:     ``atomic-design-review-checklist -> atomic-design`` edge added in its
+#:     place, and ``DIRECTIVE_028 -> no-parallel-duplicate-test-runs`` was
+#:     re-pointed to ``DIRECTIVE_030`` (028 scopes tool SELECTION; the tactic is
+#:     a discipline on how a suite is RUN). Totals are unchanged; only
+#:     ``_ACTIVATED_BUT_UNREACHABLE``'s membership moved. A bare cardinality
+#:     could not have shown that swap -- which is the case for naming members.
+#:     ``styleguide:deployable-skill-authoring`` is now the one deliberately NOT
+#:     wired -- see ``_ACTIVATED_BUT_UNREACHABLE``.
 _EXPECTED_NODE_COUNT = 304
 _EXPECTED_EDGE_COUNT = 764
 
@@ -272,13 +281,24 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: ``toolguide:rtk-search-tooling`` was DELETED (ledger entry 6) and eight were
 #: WIRED via ``_CURATED_ARTIFACT_EDGES`` (ledger entry 7) -- seven targets plus
 #: ``directive:DIRECTIVE_035``, which leaves this set by becoming an edge SOURCE
-#: rather than by gaining an inbound edge. ``paradigm:atomic-design`` is the only
-#: survivor: it is frontend-interface-specific and no shipped doctrine artefact is
-#: a defensible source, so wiring it would mean inventing a relationship rather
-#: than recording one. It stays enrolled and visible pending an operator ruling.
+#: rather than by gaining an inbound edge.
+#: ``styleguide:deployable-skill-authoring`` is the only survivor.
+#:
+#: The first pass had ``paradigm:atomic-design`` here instead, claiming no
+#: defensible source existed. Review refuted that from the corpus:
+#: ``tactic:atomic-design-review-checklist`` ships, is activated in both the
+#: default pack and this project, and ``tactic -> paradigm suggests`` is the
+#: commonest inbound-to-paradigm shape in the graph (9 edges, 6 of them exactly
+#: this, via the semantic-compression family). The two dispositions were
+#: INVERTED: the artefact WITH a name-identical source was refused, while an
+#: edge was invented for the one without. ``deployable-skill-authoring``
+#: genuinely has no owner -- the onboarding procedure mentions "skill" zero
+#: times, and the styleguide is a distribution-surface concern, not a
+#: pack-authoring one. Corrected so the standard is applied once: record
+#: relationships that exist, refuse to invent ones that do not.
 _ACTIVATED_BUT_UNREACHABLE: frozenset[str] = frozenset(
     {
-        "paradigm:atomic-design",
+        "styleguide:deployable-skill-authoring",
     }
 )
 
@@ -293,7 +313,7 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
     | _ACTIVATED_BUT_UNREACHABLE
 )
 
-#: The pure-extractor figure (32) and the shipped-graph figure (30) differ by
+#: The pure-extractor figure (23) and the shipped-graph figure (21) differ by
 #: exactly these two, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and they land on these nodes.
@@ -428,7 +448,7 @@ class TestDRGZeroDelta:
         )
 
     def test_shipped_graph_orphans_are_the_pure_set_minus_the_overlay(self) -> None:
-        """The two figures (pure 32, shipped 30) differ by a stated cause.
+        """The two figures (pure 23, shipped 21) differ by a stated cause.
 
         Asserting each against its own constant would let them drift apart while
         both stayed green. Here the shipped set is *derived* from the pure set,
