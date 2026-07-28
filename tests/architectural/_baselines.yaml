@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 95  # justification: 95 after the coord-write-placement-closure mission added m_3_2_6_decisions_event_log_merge_driver (decisions.events.jsonl merge-driver seeding, target 3.2.6), registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer -- same auto-discovery shape as the sibling m_3_2_6_meta_traces_merge_drivers / m_3_2_6_gate_artifact_merge_drivers; no runtime caller by design.
+  category_1_auto_discovered_migrations: 96  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer, so this is registration, not suppression.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
