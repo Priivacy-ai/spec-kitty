@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -32,6 +33,7 @@ from .models import (
     actor_identity_str,
 )
 from .store import read_event_stream, read_events_raw
+from .transitions import is_terminal
 
 #: Per-WP runtime slots carried forward across lane transitions (per-field
 #: independence, FR-002). A transition updates ``lane``/``actor``/… and MUST
@@ -152,6 +154,27 @@ def _wp_state_from_event(
     return state
 
 
+def _absorb_refused_runtime_slots(state: dict[str, Any], event: StatusEvent) -> None:
+    """Fold a refused event's carried runtime slots into ``state`` in place.
+
+    Mirrors the claim exception in :func:`_wp_state_from_event`: a
+    ``planned -> claimed`` transition is the only one that writes
+    ``shell_pid``/``shell_pid_created_at``/``agent`` out of its
+    ``policy_metadata`` sidecar. When the terminal-lane guard refuses such a row
+    the lane must not move, but the runtime state it carries is still real and
+    has no other delivery path — ``migration:backfill_runtime_state`` seeds it
+    precisely this way. Only unset slots are filled, so a genuine later value
+    always outranks a backfilled one.
+    """
+    if event.from_lane != Lane.PLANNED or event.to_lane != Lane.CLAIMED:
+        return
+    meta = event.policy_metadata or {}
+    for slot in ("shell_pid", "shell_pid_created_at", "agent"):
+        value = meta.get(slot)
+        if value is not None and state.get(slot) is None:
+            state[slot] = value
+
+
 def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> None:
     """Fold a typed :class:`WPInnerStateDelta` into a per-WP snapshot dict.
 
@@ -212,6 +235,67 @@ def _dedup_preserve_order(refs: list[str]) -> list[str]:
     return result
 
 
+def _parse_instant(value: object) -> datetime | None:
+    """Parse an ISO-8601 timestamp to an aware instant, or ``None`` if unparseable.
+
+    Concurrency must be decided on the *instant*, not on how it was spelled. The
+    corpus carries two spellings of the same wall clock — offset with 6-digit
+    fractions (``…+00:00``) and ``Z`` at second precision — and some work
+    packages mix both within one history, so raw string equality would silently
+    miss real ties (#3003).
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    if text.endswith(("z", "Z")):
+        text = f"{text[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def _is_concurrent(current_timestamp: object, new_at: str) -> bool:
+    """Return True when two events carry the same instant.
+
+    Falls back to exact string comparison only when either side is unparseable,
+    so malformed history degrades to the previous behaviour rather than becoming
+    silently non-concurrent.
+    """
+    left = _parse_instant(current_timestamp)
+    right = _parse_instant(new_at)
+    if left is None or right is None:
+        return current_timestamp == new_at
+    return left == right
+
+
+def _refuses_terminal_lane(
+    current_state: dict[str, Any],
+    new_event: StatusEvent,
+) -> bool:
+    """Return True when a concurrent event must not move the WP out of a terminal lane.
+
+    ``done``/``canceled`` are terminal: leaving them requires ``force``. The
+    reducer enforced that for sequential events but not concurrent ones, so a tie
+    fell through to the arbitrary ``(at, event_id)`` sort order — and
+    ``migration:backfill_runtime_state`` minted non-ULID event_ids that sort
+    lexically after the genuine ULID, silently rewinding finished work packages
+    to ``claimed`` (#3003).
+
+    Evaluated only AFTER rollback precedence: a review rejection
+    (``in_review -> in_progress``) is emitted unforced, so checking this first
+    would swallow a rejection that raced a ``done`` and present a rejected work
+    package as complete.
+    """
+    if new_event.force:
+        return False
+    current_lane = current_state.get("lane")
+    return isinstance(current_lane, str) and is_terminal(current_lane)
+
+
 def _should_apply_event(
     current_state: dict[str, Any] | None,
     new_event: StatusEvent,
@@ -235,7 +319,7 @@ def _should_apply_event(
 
     # If this event has the same timestamp as the current state's event,
     # they are concurrent. Check rollback precedence.
-    if current_timestamp == new_event.at:
+    if _is_concurrent(current_timestamp, new_event.at):
         # If the new event is a rollback, it beats a forward transition
         if _is_rollback_event(new_event):
             # Check if the current state was set by a non-rollback event
@@ -257,6 +341,10 @@ def _should_apply_event(
                     break
             if current_setter is not None and _is_rollback_event(current_setter) and not _is_rollback_event(new_event):
                 return False  # Forward does not beat rollback
+
+        # Terminal-lane guard, evaluated LAST so rollback precedence wins first.
+        if _refuses_terminal_lane(current_state, new_event):
+            return False
 
     # Default: apply the event (later in sort order wins)
     return True
@@ -329,6 +417,13 @@ def reduce(
         current = wp_states.get(event.wp_id)
         if _should_apply_event(current, event, sorted_events):
             wp_states[event.wp_id] = _wp_state_from_event(event, current)
+        elif current is not None:
+            # The event's LANE was refused, but a `planned -> claimed` row is the
+            # only carrier for the `shell_pid`/`shell_pid_created_at`/`agent`
+            # runtime slots (FR-004 claim path). Dropping the row wholesale would
+            # discard the runtime state the backfill exists to deliver, so fold
+            # those slots without letting the lane move (#3003).
+            _absorb_refused_runtime_slots(current, event)
 
     # Step 4: Annotation post-pass (event-kind partition — folded AFTER every
     # transition, never interleaved by timestamp). A single O(annotations) walk
