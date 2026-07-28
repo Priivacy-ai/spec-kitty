@@ -287,12 +287,28 @@ def test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars(tmp_p
         ]
     }
 
+    # Precondition guard: prove the un-normalized dump genuinely wraps and
+    # leaves a trailing-whitespace line, so this test cannot silently go vacuous
+    # if a future ruamel stops emitting the artifact.
+    import io as _io
+
+    from ruamel.yaml import YAML
+
+    probe = YAML(typ="rt")
+    probe.default_flow_style = False
+    probe.preserve_quotes = True
+    probe.width = 120
+    probe_buf = _io.BytesIO()
+    probe.dump(data, probe_buf)
+    raw = probe_buf.getvalue().decode("utf-8")
+    assert any(line.endswith((" ", "\t")) for line in raw.splitlines()), (
+        "expected the raw dump to contain a trailing-whitespace line; test is vacuous otherwise"
+    )
+
     _atomic_write_yaml(data, canonical, tmp_path)
 
     text = canonical.read_text(encoding="utf-8")
     assert all(not line.endswith((" ", "\t")) for line in text.splitlines())
-
-    from ruamel.yaml import YAML
 
     assert YAML(typ="safe").load(text) == data
 

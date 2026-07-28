@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.schema import (
@@ -221,14 +222,22 @@ def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) 
 
 
 def _normalize_nonsemantic_trailing_whitespace(serialized: bytes) -> bytes:
-    """Remove writer wrapping artifacts only when YAML meaning remains unchanged."""
+    """Remove writer wrapping artifacts only when YAML meaning remains unchanged.
+
+    Falls back to the original bytes if the safety re-parse cannot confirm the
+    normalized form is semantically identical, so normalization is never worse
+    than emitting the un-normalized dump.
+    """
     normalized = b"\n".join(line.rstrip(b" \t\r") for line in serialized.split(b"\n"))
     if normalized == serialized:
         return serialized
 
     yaml = YAML(typ="safe")
-    original_data = yaml.load(serialized)
-    normalized_data = yaml.load(normalized)
+    try:
+        original_data = yaml.load(serialized)
+        normalized_data = yaml.load(normalized)
+    except YAMLError:
+        return serialized
     return normalized if normalized_data == original_data else serialized
 
 
