@@ -136,7 +136,20 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     Orphan count is unaffected
 #:     because ``_orphan_urns`` counts incidence, not relation.
 #:     Guarded by ``tests/architectural/test_no_authored_applies_edge.py``.
-_EXPECTED_NODE_COUNT = 305
+#: (6) Landing pass for PR #3007, operator ruling 2026-07-28 (#3009 remedy 4):
+#:     ``toolguide:rtk-search-tooling`` is REMOVED outright -- artefact, its
+#:     245-line guide, its entry in the default charter pack's toolguide
+#:     activations, and this repository's own activation. RTK will not be pushed
+#:     to the userbase: it is difficult to set up correctly and can significantly
+#:     affect test execution, so shipping an activated toolguide for it is a
+#:     liability rather than an oversight to be wired.
+#:     -1 node / +0 edges / -1 orphan. Composed: 305/757/32 - 1/0/1 = 304/757/31.
+#:     It was one of the nine ``_ACTIVATED_BUT_UNREACHABLE`` entries below; the
+#:     other eight are oversights and are wired rather than deleted, so this is
+#:     the only member that leaves by deletion. The node carried no edges in
+#:     either direction (verified: its sole graph appearance was its own node
+#:     line), so nothing else in the graph moves.
+_EXPECTED_NODE_COUNT = 304
 _EXPECTED_EDGE_COUNT = 757
 
 # ---------------------------------------------------------------------------
@@ -249,7 +262,6 @@ _ACTIVATED_BUT_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:no-parallel-duplicate-test-runs",
         "tactic:occurrence-classification-workflow",
         "toolguide:python-review-checks",
-        "toolguide:rtk-search-tooling",
     }
 )
 
