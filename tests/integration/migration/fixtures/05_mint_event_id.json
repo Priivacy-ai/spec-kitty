@@ -29,12 +29,17 @@
       "execution_mode": "direct_repo",
       "reason": null,
       "review_ref": null,
+      "review_result": null,
       "evidence": null,
       "policy_metadata": null,
       "mission_id": "TESTMISSIONID12345678901234"
     },
-    "actions": ["event_id_deterministically_backfilled"],
+    "actions": [
+      "event_id_deterministically_backfilled"
+    ],
     "error": null,
-    "generated_ids_after": ["79N5BH400R0DBD5WN6JMAX8ZF4"]
+    "generated_ids_after": [
+      "79N5BH400R0DBD5WN6JMAX8ZF4"
+    ]
   }
 }
