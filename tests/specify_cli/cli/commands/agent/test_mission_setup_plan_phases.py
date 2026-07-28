@@ -761,6 +761,83 @@ def test_commit_plan_substantive_commits_with_no_scaffold_flag(monkeypatch: pyte
     assert scaffold_only is False
 
 
+def test_commit_plan_substantive_routes_plan_completed_event_with_plan(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The plan commit owns its durable PlanCompleted lifecycle evidence."""
+    from specify_cli.cli.commands.agent import mission as mission_mod
+    from specify_cli.status import PLAN_COMPLETED
+
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("## Technical Context\n**Language/Version**: Python 3.12\n**Primary Dependencies**: typer\n")
+    event_log = tmp_path / "status.events.jsonl"
+    emitted_events: list[str] = []
+    commit_kwargs: list[dict[str, object]] = []
+
+    monkeypatch.setattr("specify_cli.missions._substantive.is_substantive", lambda *a, **k: True)
+
+    def _emit_artifact_phase(feature_dir: Path, *, event_type: str, **_kwargs: object) -> dict[str, object]:
+        emitted_events.append(event_type)
+        (feature_dir / "status.events.jsonl").write_text('{"event_type":"PlanCompleted"}\n', encoding="utf-8")
+        return {"event_type": event_type}
+
+    def _commit(*_args: object, **kwargs: object) -> seam.CommitToBranchResult:
+        commit_kwargs.append(kwargs)
+        return seam.CommitToBranchResult(status="committed", placement_ref="main", commit_hash="abc1234")
+
+    monkeypatch.setattr("specify_cli.status.emit_artifact_phase", _emit_artifact_phase)
+    monkeypatch.setattr(mission_mod, "_commit_to_branch", _commit)
+
+    commit_result, blocked_reason, scaffold_only = seam._commit_plan_if_substantive(
+        plan_file,
+        tmp_path,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        json_output=True,
+        plan_template=_resolution(tmp_path / "unused.md"),
+    )
+
+    assert commit_result is not None
+    assert blocked_reason is None
+    assert scaffold_only is False
+    assert emitted_events == [PLAN_COMPLETED]
+    assert commit_kwargs == [{"additional_files": (event_log,)}]
+
+
+def test_commit_plan_substantive_refuses_commit_when_completion_event_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A plan is never committed without its required completion event."""
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("## Technical Context\n**Language/Version**: Python 3.12\n**Primary Dependencies**: typer\n")
+
+    monkeypatch.setattr("specify_cli.missions._substantive.is_substantive", lambda *a, **k: True)
+
+    def _emit_failure(*_args: object, **_kwargs: object) -> None:
+        raise OSError("status store unavailable")
+
+    monkeypatch.setattr("specify_cli.status.emit_artifact_phase", _emit_failure)
+    monkeypatch.setattr(
+        mission_mod,
+        "_commit_to_branch",
+        lambda *_a, **_k: pytest.fail("plan commit must not run after lifecycle persistence fails"),
+    )
+
+    with pytest.raises(RuntimeError, match="PlanCompleted lifecycle event could not be persisted"):
+        seam._commit_plan_if_substantive(
+            plan_file,
+            tmp_path,
+            "001-demo",
+            tmp_path,
+            target_branch="main",
+            json_output=True,
+            plan_template=_resolution(tmp_path / "unused.md"),
+        )
+
+
 # ---------------------------------------------------------------------------
 # _run_documentation_wiring (non-doc mission no-op)
 # ---------------------------------------------------------------------------

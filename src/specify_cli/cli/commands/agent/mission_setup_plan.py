@@ -173,8 +173,10 @@ def _commit_to_branch(
     repo_root: Path,
     _target_branch: str,
     json_output: bool = False,
+    *,
+    additional_files: tuple[Path, ...] = (),
 ) -> CommitToBranchResult:
-    """Commit a planning artifact to its single resolved placement.
+    """Commit a planning artifact and its durable lifecycle evidence.
 
     WP02 / T027 / IC-02 (#2056): now delegates to
     :func:`~specify_cli.coordination.commit_router.commit_for_mission`
@@ -199,6 +201,8 @@ def _commit_to_branch(
         _target_branch: Branch the mission targets; passed to commit_for_mission
             for the post-commit ff-advance (WP09 / FR-010 / #1878).
         json_output: If True, suppress Rich console output
+        additional_files: Related status evidence to route in the same commit
+            transaction as ``file_path``.
 
     Returns:
         CommitToBranchResult: the typed commit outcome (see the class docstring).
@@ -216,7 +220,7 @@ def _commit_to_branch(
     router_result = commit_for_mission(
         repo_root=repo_root,
         mission_slug=mission_slug,
-        files=(file_path,),
+        files=(file_path, *additional_files),
         message=commit_msg,
         policy=policy,
         kind=_kind_for_artifact(artifact_type),
@@ -293,10 +297,13 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
     try:
         from mission_runtime import ActionContextError
 
-        return _mission._find_feature_directory(
-            repo_root,
-            cwd,
-            explicit_feature=resolved_feature,
+        return cast(
+            Path,
+            _mission._find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=resolved_feature,
+            ),
         )
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
@@ -517,9 +524,11 @@ def _is_plan_pristine(
     """
     from specify_cli.missions._substantive import is_pristine_scaffold
 
-    return is_pristine_scaffold(
-        plan_file.read_text(encoding="utf-8"),
-        plan_template.path.read_text(encoding="utf-8"),
+    return bool(
+        is_pristine_scaffold(
+            plan_file.read_text(encoding="utf-8"),
+            plan_template.path.read_text(encoding="utf-8"),
+        )
     )
 
 
@@ -576,7 +585,6 @@ def _commit_plan_if_substantive(
     from specify_cli.missions._substantive import is_committed, is_substantive
 
     if is_substantive(plan_file, "plan"):
-        commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
         try:
             from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
 
@@ -587,8 +595,22 @@ def _commit_plan_if_substantive(
                 actor=SETUP_PLAN_COMMAND_NAME,
                 artifact_path=_mission._branch_tree_relative_path(plan_file, repo_root),
             )
-        except Exception as _plan_exc:  # noqa: BLE001
-            logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
+        except Exception as plan_exc:  # noqa: BLE001
+            raise RuntimeError("PlanCompleted lifecycle event could not be persisted") from plan_exc
+
+        event_log = feature_dir / "status.events.jsonl"
+        if not event_log.is_file():
+            raise RuntimeError("PlanCompleted lifecycle event did not create status.events.jsonl")
+
+        commit_result = _mission._commit_to_branch(
+            plan_file,
+            mission_slug,
+            "plan",
+            repo_root,
+            target_branch,
+            json_output,
+            additional_files=(event_log,),
+        )
         return commit_result, None, False
 
     _, scaffold_only = _resolve_plan_result_state(

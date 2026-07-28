@@ -12,6 +12,7 @@ from rich.console import Console
 import specify_cli.cli.commands.agent.mission as mission_module
 import specify_cli.cli.commands.agent.mission_setup_plan as setup_plan_module
 import specify_cli.coordination.commit_router as commit_router_module
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.cli.commands.agent.mission import _commit_to_branch
 
 pytestmark = pytest.mark.git_repo
@@ -138,6 +139,37 @@ def test_commit_to_branch_still_commits_changed_artifact(tmp_path: Path) -> None
     )
 
     assert _run_git(tmp_path, "log", "-1", "--pretty=%s") == "Add plan for feature 001-demo"
+
+
+def test_commit_to_branch_routes_additional_lifecycle_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Plan commits include status evidence in the router transaction."""
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    status_log = tmp_path / "status.events.jsonl"
+    status_log.write_text('{"event_type":"PlanCompleted"}\n', encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def _commit_for_mission(**kwargs: object) -> CommitRouterResult:
+        captured.update(kwargs)
+        return CommitRouterResult(status="committed", placement_ref="mission/work", commit_hash="a" * 40)
+
+    monkeypatch.setattr(commit_router_module, "commit_for_mission", _commit_for_mission)
+
+    result = _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=True,
+        additional_files=(status_log,),
+    )
+
+    assert result.status == "committed"
+    assert captured["files"] == (plan_file, status_log)
 
 
 def test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty(tmp_path: Path) -> None:
