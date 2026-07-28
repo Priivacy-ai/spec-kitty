@@ -1354,6 +1354,10 @@ def _canonicalize_status_rows(
         actions = list(result.actions)
         if event_id in seen_event_ids:
             actions.append("duplicate_event_id_dropped")
+            # Quarantine before dropping: duplicates observed so far have been
+            # byte-identical to their survivor, but a *divergent* duplicate would
+            # otherwise be deleted leaving only a sha256 behind.
+            quarantine_lines.append(row.text)
             row_changes.append(
                 RowTransformation(
                     artifact_path=rel,
@@ -1380,7 +1384,7 @@ def _canonicalize_status_rows(
                 )
             )
 
-    sorted_rows = sorted(canonical_rows, key=lambda item: (str(item.get("at", "")), str(item.get("event_id", ""))))
+    sorted_rows = sorted(canonical_rows, key=_row_sort_key)
     return sorted_rows, row_changes, quarantine_lines, errors
 
 
@@ -1392,6 +1396,18 @@ def _canonicalize_status_rows(
 
 # Type alias for the row state used by all rules below.
 _Row = dict[str, Any]
+
+
+def _row_sort_key(item: Mapping[str, Any]) -> tuple[str, str]:
+    """Chronological sort key for a status-log row.
+
+    Lane rows date themselves with ``at``; the preserved non-lane rows
+    (lifecycle / retrospective envelopes) use ``timestamp``. Reading only ``at``
+    collapses every one of the latter to ``""`` and hoists them to the head of
+    an append-only log, so both spellings are honoured here.
+    """
+    when = item.get("at") or item.get("timestamp") or ""
+    return (str(when), str(item.get("event_id", "")))
 
 
 def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
@@ -1629,7 +1645,13 @@ def _default_force_and_mode(new_row: _Row, new_actions: list[str]) -> None:
 
 
 def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
-    """Build the canonical shape from a normalized row."""
+    """Build the canonical shape from a normalized row.
+
+    This is an allowlist: any ``StatusEvent`` field omitted here is dropped from
+    the repaired log. ``review_result`` in particular is a hard FSM guard input
+    (every transition out of ``in_review`` is rejected without it), so omitting
+    it silently converts valid history into unvalidatable events.
+    """
     return {
         "event_id": str(new_row["event_id"]),
         "mission_slug": str(new_row["mission_slug"]),
@@ -1643,6 +1665,7 @@ def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
         "reason": new_row.get("reason"),
         "review_ref": new_row.get("review_ref"),
         "evidence": new_row.get("evidence"),
+        "review_result": new_row.get("review_result"),
         "policy_metadata": new_row.get("policy_metadata"),
         "mission_id": mission_id,
     }
