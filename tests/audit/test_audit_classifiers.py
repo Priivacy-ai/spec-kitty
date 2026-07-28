@@ -331,9 +331,13 @@ def test_status_events_forbidden_key(tmp_path: Path) -> None:
     assert "FORBIDDEN_KEY" in _codes(findings)
 
 
-def test_status_events_actor_drift(tmp_path: Path) -> None:
-    """Event row with bad actor format → ACTOR_DRIFT warning."""
-    row = {**_MODERN_EVENT, "actor": "UPPERCASE_ACTOR"}
+@pytest.mark.parametrize(
+    "actor",
+    ["UPPERCASE_ACTOR", {"role": "reviewer"}],
+)
+def test_status_events_actor_drift(tmp_path: Path, actor: object) -> None:
+    """Malformed transition actors produce an ACTOR_DRIFT warning."""
+    row = {**_MODERN_EVENT, "actor": actor}
     _write_jsonl(tmp_path / "status.events.jsonl", [row])
     findings, _ = classify_status_events_jsonl(tmp_path)
     assert "ACTOR_DRIFT" in _codes(findings)
@@ -351,6 +355,38 @@ def test_status_events_valid_actor_formats(tmp_path: Path) -> None:
         findings, _ = classify_status_events_jsonl(tmp_path)
         drift = [f for f in findings if f.code == "ACTOR_DRIFT"]
         assert drift == [], f"Unexpected ACTOR_DRIFT for actor={actor!r}"
+
+
+def test_status_events_valid_structured_transition_actor(tmp_path: Path) -> None:
+    """A resolved-binding actor is canonical transition provenance, not drift."""
+    row = {
+        **_MODERN_EVENT,
+        "actor": {
+            "role": "reviewer",
+            "profile": "reviewer-renata",
+            "tool": "codex",
+            "model": None,
+        },
+    }
+    _write_jsonl(tmp_path / "status.events.jsonl", [row])
+
+    findings, _ = classify_status_events_jsonl(tmp_path)
+
+    assert "ACTOR_DRIFT" not in _codes(findings)
+
+
+def test_status_events_runtime_actor_is_not_a_transition_actor(tmp_path: Path) -> None:
+    """Runtime provenance rows do not use the transition-actor contract."""
+    row = {
+        "actor": {"kind": "runtime", "id": "spec-kitty-generator", "display": None},
+        "event_id": _MODERN_EVENT["event_id"],
+        "type": "RetrospectiveCaptured",
+    }
+    _write_jsonl(tmp_path / "status.events.jsonl", [row])
+
+    findings, _ = classify_status_events_jsonl(tmp_path)
+
+    assert "ACTOR_DRIFT" not in _codes(findings)
 
 
 def test_status_events_collects_all_corrupt_lines(tmp_path: Path) -> None:

@@ -5,8 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
-from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane, has_event_log
-from specify_cli.status import StoreError
+from specify_cli.status import StoreError, has_event_log, read_events, reduce
 
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
@@ -19,6 +18,33 @@ _TERMINAL_LANES = frozenset({"done", "approved"})
 _fm_manager = FrontmatterManager()
 
 
+def _canonical_wp_state(mission_dir: Path) -> tuple[dict[str, str], set[str]]:
+    """Return canonical lanes and terminal evidence-bearing work packages.
+
+    The event stream is the single authority for lane and evidence state.  WP
+    frontmatter remains a planning artifact and must not duplicate evidence that
+    has already been persisted in a terminal transition.
+    """
+    if not has_event_log(mission_dir):
+        return {}, set()
+    try:
+        events = read_events(mission_dir)
+        snapshot = reduce(events)
+    except (OSError, StoreError):
+        # The status-events classifier reports the underlying log failure.
+        return {}, set()
+    lanes = {
+        wp_id: str(state.get("lane", ""))
+        for wp_id, state in snapshot.work_packages.items()
+    }
+    evidence_wps = {
+        event.wp_id
+        for event in events
+        if str(event.to_lane) in _TERMINAL_LANES and event.evidence is not None
+    }
+    return lanes, evidence_wps
+
+
 def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
     """Classify WP*.md frontmatter for legacy keys, unknown keys, and missing evidence.
 
@@ -29,7 +55,7 @@ def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
     - Emits ``UNKNOWN_SHAPE`` (info) for files whose frontmatter YAML cannot be parsed.
     - Detects legacy keys and unknown keys.
     - Emits ``MISSING_EVIDENCE`` (warning) when a terminal lane (done/approved)
-      has no ``evidence`` field or ``evidence`` is null.
+      has no evidence in the canonical status-event stream.
 
     ``artifact_path`` values use forward slashes (e.g. ``"tasks/WP01.md"``).
 
@@ -49,6 +75,7 @@ def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
         return []
 
     findings: list[MissionFinding] = []
+    canonical_lanes, evidence_wps = _canonical_wp_state(mission_dir)
 
     for wp_path in wp_files:
         filename = wp_path.name
@@ -90,29 +117,20 @@ def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
         # Unknown key detection
         findings.extend(check_unknown_keys("wp_frontmatter", frontmatter, artifact_path))
 
-        # Missing evidence check for terminal lanes
-        # Phase-2 invariant: read lane from event log, never from frontmatter.
-        # Guard: if no event log exists (pre-3.0 / unfinalized mission), skip check.
-        if has_event_log(mission_dir):
-            raw_wp_id = frontmatter.get("work_package_id")
-            wp_id = str(raw_wp_id).strip() if raw_wp_id is not None else ""
-            canonical_wp_id = wp_id or wp_path.stem
-            try:
-                lane: str | None = str(get_wp_lane(mission_dir, canonical_wp_id))
-            except (CanonicalStatusNotFoundError, StoreError):
-                lane = None
-        else:
-            lane = None
-        if isinstance(lane, str) and lane in _TERMINAL_LANES:
-            evidence = frontmatter.get("evidence")
-            if evidence is None:
-                findings.append(
-                    MissionFinding(
-                        code="MISSING_EVIDENCE",
-                        severity=Severity.WARNING,
-                        artifact_path=artifact_path,
-                        detail=f"terminal lane {lane!r} but evidence is absent",
-                    )
+        # Phase-2 invariant: the canonical event stream owns both lane and
+        # terminal evidence.  Frontmatter must not become a competing source.
+        raw_wp_id = frontmatter.get("work_package_id")
+        wp_id = str(raw_wp_id).strip() if raw_wp_id is not None else ""
+        canonical_wp_id = wp_id or wp_path.stem
+        lane = canonical_lanes.get(canonical_wp_id)
+        if lane in _TERMINAL_LANES and canonical_wp_id not in evidence_wps:
+            findings.append(
+                MissionFinding(
+                    code="MISSING_EVIDENCE",
+                    severity=Severity.WARNING,
+                    artifact_path=artifact_path,
+                    detail=f"terminal lane {lane!r} but evidence is absent",
+                )
                 )
 
     return findings

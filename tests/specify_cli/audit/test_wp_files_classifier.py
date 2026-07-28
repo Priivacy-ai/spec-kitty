@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from specify_cli.audit.classifiers.wp_files import classify_wp_files
-from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+from specify_cli.status import StoreError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -135,12 +135,42 @@ def test_classify_wp_files_reads_suffixed_wp_id_from_frontmatter(
     assert missing_evidence[0].artifact_path == "tasks/WP01-real-task.md"
 
 
-def test_classify_wp_files_handles_get_wp_lane_race(
+def test_classify_wp_files_reads_evidence_from_canonical_terminal_event(tmp_path: Path) -> None:
+    """Terminal-event evidence satisfies the audit without frontmatter duplication."""
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\ndependencies: []\n---\n\n# Body\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                **_BASE_EVENT,
+                "to_lane": "done",
+                "from_lane": "approved",
+                "evidence": {
+                    "review": {
+                        "reviewer": "reviewer-renata",
+                        "verdict": "approved",
+                        "reference": "review://WP01",
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    findings = classify_wp_files(tmp_path)
+
+    assert "MISSING_EVIDENCE" not in [finding.code for finding in findings]
+
+
+def test_classify_wp_files_handles_canonical_event_read_race(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """classify_wp_files() handles TOCTOU race where get_wp_lane raises after
-    has_event_log returned True (except CanonicalStatusNotFoundError branch).
-    """
+    """A canonical event-read failure stays visible to its owning classifier."""
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP01.md").write_text(
@@ -153,9 +183,9 @@ def test_classify_wp_files_handles_get_wp_lane_race(
     )
 
     def _raise(*_args: object) -> None:
-        raise CanonicalStatusNotFoundError("simulated race: file deleted")
+        raise StoreError("simulated race: file deleted")
 
-    monkeypatch.setattr("specify_cli.audit.classifiers.wp_files.get_wp_lane", _raise)
+    monkeypatch.setattr("specify_cli.audit.classifiers.wp_files.read_events", _raise)
 
     result = classify_wp_files(tmp_path)
     assert isinstance(result, list)
