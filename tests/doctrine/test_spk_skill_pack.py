@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.skills.registry import SkillRegistry
+
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -128,3 +130,30 @@ def test_legacy_alias_skills_remain_installed() -> None:
     }
 
     assert actual >= LEGACY_ALIAS_SKILLS
+
+
+def test_profile_load_skill_owns_and_installs_detailed_mechanics() -> None:
+    registry = SkillRegistry.from_local_repo(REPO_ROOT)
+    skill = registry.get_skill("spk-doctrine-profile-load")
+
+    assert skill is not None
+    reference = (
+        SKILLS_ROOT
+        / "spk-doctrine-profile-load"
+        / "references"
+        / "profile-load-mechanics.md"
+    )
+    assert skill.references == [reference]
+
+    skill_text = skill.skill_md.read_text(encoding="utf-8")
+    alias_text = (
+        SKILLS_ROOT / "ad-hoc-profile-load" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    reference_text = reference.read_text(encoding="utf-8")
+
+    assert "`ad-hoc-profile-load` is a compatibility alias that points here" in skill_text
+    assert "`spk-doctrine-profile-load`" in alias_text
+    assert "spec-kitty agent profile show <profile-id>" in reference_text
+    assert "spec-kitty charter context --action <action> --json" in reference_text
+    assert "read-only harness that cannot invoke the CLI" in reference_text
+    assert "specializes_from" in reference_text
