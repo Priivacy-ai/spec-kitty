@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "34QTX0CX38ECCB09Z5SWTNC5QC",
-  "materialized_at": "2026-05-21T10:51:15.301005+00:00",
+  "event_count": 12,
+  "last_event_id": "2MDF9BATX72SYVG1SZV9PKKW6E",
+  "materialized_at": "2026-05-21T10:51:15.301006+00:00",
   "mission_number": "",
   "mission_slug": "identity-boundary-ci-gate-rerun-01KS51YK",
   "mission_type": "software-dev",
@@ -9,21 +9,21 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 4,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "2447QM14EY1NBMV20MDEM4P1TB",
-      "last_transition_at": "2026-05-21T10:51:14.985667+00:00",
+      "lane": "planned",
+      "last_event_id": "7HWY6XAMGBRXFJEW3VFGA6PV4K",
+      "last_transition_at": "2026-05-21T10:51:14.985668+00:00",
       "subtasks": {
         "T001": "planned",
         "T002": "planned",
@@ -32,12 +32,12 @@
       }
     },
     "WP02": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "7HCPMRRJ0DG27JAHQEFYHPGN2E",
-      "last_transition_at": "2026-05-21T10:51:15.212687+00:00",
+      "lane": "planned",
+      "last_event_id": "5346VX2RFCTYBR6XBZ5QNTYJJ4",
+      "last_transition_at": "2026-05-21T10:51:15.212688+00:00",
       "subtasks": {
         "T005": "planned",
         "T006": "planned",
@@ -46,12 +46,12 @@
       }
     },
     "WP03": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "051FAJ5T28S6NSNE0F1FNPNM0Z",
-      "last_transition_at": "2026-05-21T10:51:15.256041+00:00",
+      "lane": "planned",
+      "last_event_id": "018WSYHSZSK01VZW0K8DT1MJJ8",
+      "last_transition_at": "2026-05-21T10:51:15.256042+00:00",
       "subtasks": {
         "T009": "planned",
         "T010": "planned",
@@ -60,12 +60,12 @@
       }
     },
     "WP04": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "34QTX0CX38ECCB09Z5SWTNC5QC",
-      "last_transition_at": "2026-05-21T10:51:15.301005+00:00",
+      "lane": "planned",
+      "last_event_id": "2MDF9BATX72SYVG1SZV9PKKW6E",
+      "last_transition_at": "2026-05-21T10:51:15.301006+00:00",
       "subtasks": {
         "T013": "planned"
       }

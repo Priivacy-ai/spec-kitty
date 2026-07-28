@@ -1,7 +1,7 @@
 {
-  "event_count": 13,
-  "last_event_id": "26R4RHSADZTP4SC226Z4413QA4",
-  "materialized_at": "2026-04-09T07:43:40.905859+00:00",
+  "event_count": 19,
+  "last_event_id": "3CD8MJR25YEC4GB9V7WRWREJ5A",
+  "materialized_at": "2026-04-09T07:43:40.905860+00:00",
   "mission_number": "79",
   "mission_slug": "079-post-555-release-hardening",
   "mission_type": "software-dev",
@@ -9,12 +9,12 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 6,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -33,12 +33,12 @@
       }
     },
     "WP02": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude:opus:reviewer:reviewer",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "4BM65WCAH7MREJS9TG634NSCQF",
-      "last_transition_at": "2026-04-09T07:43:40.880503+00:00",
+      "lane": "planned",
+      "last_event_id": "4W5GSDDP5MMMC8J76TZM76GGBQ",
+      "last_transition_at": "2026-04-09T07:43:40.880504+00:00",
       "shell_pid": 65044,
       "subtasks": {
         "T007": "planned",
@@ -47,12 +47,12 @@
       }
     },
     "WP03": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude:opus:reviewer:reviewer",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "349R564XXMZWXK3B8QQZCHNT0N",
-      "last_transition_at": "2026-04-09T07:43:40.886696+00:00",
+      "lane": "planned",
+      "last_event_id": "6S2KVX7G33ZKMGDMC2ANBTTBFY",
+      "last_transition_at": "2026-04-09T07:43:40.886697+00:00",
       "shell_pid": 98850,
       "subtasks": {
         "T010": "planned",
@@ -64,12 +64,12 @@
       }
     },
     "WP04": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude:opus:reviewer:reviewer",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "7JM7G942VFZ6NE06APQ1F2WDX7",
-      "last_transition_at": "2026-04-09T07:43:40.891389+00:00",
+      "lane": "planned",
+      "last_event_id": "4J17B2B994XHJ4YR5M2M19SFV8",
+      "last_transition_at": "2026-04-09T07:43:40.891390+00:00",
       "shell_pid": 2994,
       "subtasks": {
         "T016": "planned",
@@ -79,12 +79,12 @@
       }
     },
     "WP05": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude:opus:reviewer:reviewer",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "7YT186Y2Q697NV9PYGXSVQWJHZ",
-      "last_transition_at": "2026-04-09T07:43:40.896405+00:00",
+      "lane": "planned",
+      "last_event_id": "7CD80XSY2CTSQEQTQFJ18GTFJ4",
+      "last_transition_at": "2026-04-09T07:43:40.896406+00:00",
       "shell_pid": 4240,
       "subtasks": {
         "T020": "planned",
@@ -94,12 +94,12 @@
       }
     },
     "WP06": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude:opus:reviewer:reviewer",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "5C64GHTK4YBRFYA4CY2ZSP98QD",
-      "last_transition_at": "2026-04-09T07:43:40.901661+00:00",
+      "lane": "planned",
+      "last_event_id": "66CA99FGGSFZQNZZC1Z1JSG7HR",
+      "last_transition_at": "2026-04-09T07:43:40.901662+00:00",
       "shell_pid": 5550,
       "subtasks": {
         "T024": "planned",
@@ -109,12 +109,12 @@
       }
     },
     "WP07": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude:opus:reviewer:reviewer",
       "force_count": 1,
-      "lane": "claimed",
-      "last_event_id": "26R4RHSADZTP4SC226Z4413QA4",
-      "last_transition_at": "2026-04-09T07:43:40.905859+00:00",
+      "lane": "planned",
+      "last_event_id": "3CD8MJR25YEC4GB9V7WRWREJ5A",
+      "last_transition_at": "2026-04-09T07:43:40.905860+00:00",
       "shell_pid": 10806,
       "subtasks": {
         "T028": "planned",

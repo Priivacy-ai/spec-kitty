@@ -1,5 +1,5 @@
 {
-  "event_count": 30,
+  "event_count": 31,
   "last_event_id": "01KW0Y57BFX1GT7Q5G7JXRD990",
   "materialized_at": "2026-06-26T03:04:16.495418+00:00",
   "mission_number": "",
@@ -9,12 +9,12 @@
     "approved": 4,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -53,12 +53,12 @@
       "last_transition_at": "2026-06-26T03:04:16.495418+00:00"
     },
     "WP05": {
-      "actor": "migration:backfill_runtime_state",
+      "actor": "migration:backfill_runtime_state:compatibility",
       "agent": "claude",
       "force_count": 0,
-      "lane": "claimed",
-      "last_event_id": "5VKS4RCFWP43G5CYYZS1820SX7",
-      "last_transition_at": "2026-06-26T01:03:25.603014+00:00"
+      "lane": "planned",
+      "last_event_id": "5EVQDD4PVX60AH3NJX3Q898049",
+      "last_transition_at": "2026-06-26T01:03:25.603015+00:00"
     }
   }
 }
