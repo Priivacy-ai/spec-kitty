@@ -7828,10 +7828,23 @@ pages:
     - {slug: "validated-as-predictive-strengths", text: "Validated as predictive (strengths)", level: 3}
     - {slug: "concrete-gaps-fed-back-to-wp04-wp05", text: "Concrete gaps (fed back to WP04/WP05)", level: 3}
     - {slug: "summary-of-live-mutations", text: "Summary of live mutations", level: 2}
+  - path: "docs/plans/doctrine/built-in-doctrine-repo-coupling-audit.md"
+    title: "Repo-Coupling Audit of Built-In Doctrine"
+    divio_type: "explanation"
+    abstract: "Classified audit of repository-local references in shipped built-in doctrine, the gate that currently requires one, and the relocation order for follow-on missions."
+    anchors:
+    - {slug: "1-counts-and-why-the-raw-number-is-a-trap", text: "1. Counts, and why the raw number is a trap", level: 2}
+    - {slug: "2-class-a-the-offenders", text: "2. Class (a) — the offenders", level: 2}
+    - {slug: "3-class-b-do-not-fix-these", text: "3. Class (b) — do not \"fix\" these", level: 2}
+    - {slug: "4-the-quick-check-has-a-blind-spot-larger-than-what-it-finds", text: "4. The quick-check has a blind spot larger than what it finds", level: 2}
+    - {slug: "5-a-gate-currently-requires-one-of-these-references", text: "5. A gate currently REQUIRES one of these references", level: 2}
+    - {slug: "6-what-remains-repo-local-in-doctrine-daphne-after-the-2026-07-28-reword", text: "6. What remains repo-local in `doctrine-daphne` after the 2026-07-28 reword", level: 2}
+    - {slug: "7-where-a-relocated-artefact-can-actually-go", text: "7. Where a relocated artefact can actually go", level: 2}
+    - {slug: "8-recommended-order", text: "8. Recommended order", level: 2}
   - path: "docs/plans/doctrine/charter-activation-reachability-assessment.md"
     title: "Charter Activation vs DRG Reachability: Which Path Actually Reaches an Agent"
     divio_type: "explanation"
-    abstract: "Assessment of why 185 charter-activated doctrine artefacts do not surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering ahead of missions B1/B2."
+    abstract: "Why 185 charter-activated doctrine artefacts never surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering."
     anchors:
     - {slug: "1-what-was-measured", text: "1. What was measured", level: 2}
     - {slug: "2-why-three-parallel-activation-vocabularies", text: "2. Why — three parallel activation vocabularies", level: 2}
