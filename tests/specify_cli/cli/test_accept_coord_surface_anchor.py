@@ -79,10 +79,6 @@ def test_coord_stamp_leg_does_not_round_trip_through_git(
         lambda *_a, **_k: pytest.fail("the COORD stamp leg must not shell out to git"),
     )
     monkeypatch.setattr(
-        accept_mod, "primary_feature_dir_for_mission", lambda *_a, **_k: surfaces["primary"]
-    )
-    monkeypatch.setattr(accept_mod, "_canonicalize_primary_read_handle", lambda _r, h: h)
-    monkeypatch.setattr(
         mission_runtime,
         "resolve_artifact_surface",
         lambda *_a, **_k: ResolvedSurface(
