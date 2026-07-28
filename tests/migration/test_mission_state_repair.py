@@ -589,6 +589,89 @@ def test_teamspace_dry_run_synthesizes_missing_historical_approval_evidence(tmp_
     assert len(dry_run.row_mappings) == 2
 
 
+def test_repair_normalizes_historical_review_return_contract(tmp_path: Path) -> None:
+    """Repair makes historical review returns valid TeamSpace status events."""
+    if not _has_events_5():
+        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-historical-review-contract"
+    mission.mkdir(parents=True)
+    mission_id = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Historical Review Contract",
+            "mission_id": mission_id,
+            "mission_number": 1,
+            "mission_slug": "001-historical-review-contract",
+            "mission_type": "software-dev",
+            "slug": "001-historical-review-contract",
+            "target_branch": "main",
+        },
+    )
+    rows = [
+        {
+            "actor": "codex",
+            "at": "2026-01-01T00:00:00+00:00",
+            "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+            "execution_mode": "worktree",
+            "force": True,
+            "from_lane": "for_review",
+            "mission_id": mission_id,
+            "mission_slug": "001-historical-review-contract",
+            "policy_metadata": None,
+            "reason": "historical review return",
+            "review_ref": None,
+            "evidence": None,
+            "to_lane": "in_progress",
+            "wp_id": "WP01",
+        },
+        {
+            "actor": "codex",
+            "at": "2026-01-01T00:00:01+00:00",
+            "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
+            "execution_mode": "worktree",
+            "force": False,
+            "from_lane": "in_progress",
+            "mission_id": mission_id,
+            "mission_slug": "001-historical-review-contract",
+            "policy_metadata": None,
+            "reason": None,
+            "review_ref": None,
+            "evidence": None,
+            "to_lane": "planned",
+            "wp_id": "WP01",
+        },
+    ]
+    (mission / "status.events.jsonl").write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    repair_repo(repo, mission="001-historical-review-contract")
+
+    repaired_rows = [
+        json.loads(line)
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert repaired_rows[0]["review_ref"] == (
+        "feedback://historical-mission-state-repair/"
+        "001-historical-review-contract/WP01/01KQHRB8GCFJAX7HM4ZY52AQGS.md"
+    )
+    assert repaired_rows[1]["force"] is True
+    assert repaired_rows[1]["reason"] == (
+        "historical review-rejection rollback: in_progress -> planned"
+    )
+
+    dry_run = teamspace_dry_run(repo, mission="001-historical-review-contract")
+
+    assert dry_run.valid
+    assert dry_run.errors == ()
+
+
 def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     class _Result:
         def __init__(self, stdout: str) -> None:

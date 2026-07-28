@@ -262,6 +262,8 @@ META_LEGACY_ALIASES = frozenset({"feature_slug", "feature_number", "mission_key"
 LANE_ALIASES = {"doing": "in_progress"}
 VALID_LANES = frozenset(lane.value for lane in Lane)
 VALID_EXECUTION_MODES = frozenset({"worktree", "direct_repo"})
+REVIEW_RETURN_LANES = frozenset({"for_review", "in_review", "approved"})
+REVIEW_REJECTION_LANES = REVIEW_RETURN_LANES | {"in_progress"}
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _ACTOR_SAFE = re.compile(r"[^a-z0-9_.:-]+")
@@ -1586,6 +1588,41 @@ def _default_force_and_mode(new_row: _Row, new_actions: list[str]) -> None:
         new_actions.append("execution_mode_defaulted")
 
 
+def _normalize_historical_review_transition_contract(
+    new_row: _Row, new_actions: list[str]
+) -> None:
+    """Backfill the required contract fields for historical review transitions.
+
+    The TeamSpace status contract requires a review reference when work returns
+    from a review lane to ``in_progress``. Its review-rejection family also
+    requires forced ``* -> planned`` rewinds to carry a reason. Historical
+    event logs predate those requirements, so repair records deterministic
+    provenance only where the original row has no usable value.
+    """
+    from_lane = str(new_row["from_lane"])
+    to_lane = str(new_row["to_lane"])
+
+    if from_lane in REVIEW_RETURN_LANES and to_lane == "in_progress":
+        review_ref = new_row.get("review_ref")
+        if not isinstance(review_ref, str) or not review_ref.strip():
+            new_row["review_ref"] = (
+                "feedback://historical-mission-state-repair/"
+                f"{new_row['mission_slug']}/{new_row['wp_id']}/{new_row['event_id']}.md"
+            )
+            new_actions.append("historical_review_ref_backfilled")
+
+    if from_lane in REVIEW_REJECTION_LANES and to_lane == "planned":
+        if new_row.get("force") is not True:
+            new_row["force"] = True
+            new_actions.append("historical_review_rejection_force_set")
+        reason = new_row.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            new_row["reason"] = (
+                f"historical review-rejection rollback: {from_lane} -> {to_lane}"
+            )
+            new_actions.append("historical_review_rejection_reason_defaulted")
+
+
 def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
     """Build the canonical shape from a normalized row."""
     return {
@@ -1626,6 +1663,7 @@ def _rule_normalize_lanes(
 
     _normalize_actor_field(new_row, new_actions)
     _default_force_and_mode(new_row, new_actions)
+    _normalize_historical_review_transition_contract(new_row, new_actions)
 
     canonical = _build_canonical_row(new_row, ctx.mission_id)
     try:

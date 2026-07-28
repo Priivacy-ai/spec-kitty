@@ -76,6 +76,7 @@ If another contributor has mission changes in flight, merge those changes first 
 - Legacy keys such as `feature_slug`, `feature_number`, `mission_key`, and `legacy_aggregate_id` are removed.
 - `status.events.jsonl` rows are normalized from historical status-row shapes to current status event fields.
 - Known lane aliases such as `doing` are normalized to current lane names.
+- Historical review returns receive a deterministic `feedback://` reference when no review reference was recorded; review-rejection rollbacks to `planned` are explicitly forced and given a reason when missing.
 - `status.json` is regenerated with the same production reducer/materializer semantics used by normal status writes.
 - Typed side-log rows found in `status.events.jsonl` are quarantined under the migration manifest directory instead of being imported into TeamSpace.
 
