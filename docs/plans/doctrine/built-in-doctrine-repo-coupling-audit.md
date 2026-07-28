@@ -199,8 +199,9 @@ Established while auditing; load-bearing for every follow-on.
   and `agent_profile` resolve to `None`, so the caller *skips the node and its
   edges*. Relocating a profile there yields an artefact that loads, validates,
   and **is not a graph node** — the defect class this programme exists to close.
-- **`.kittify/doctrine/` is already a parallel surface.** Its 14 committed files
-  are `.md`, written by the retrospective synthesizer; the repositories glob
+- **`.kittify/doctrine/` is already a parallel surface.** Of its 14 committed
+  files, 5 are `.md` written by the retrospective synthesizer (the rest are
+  `.provenance/` and `overlays/` YAML); the repositories glob
   `*.<kind>.yaml`. `DoctrineService` reads none of them. Only `overlays/` is
   consumed, by the calibration walker.
 - **The org-pack tier does admit assets.** `_ORG_DRG_KIND_ALIASES` includes

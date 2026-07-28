@@ -274,11 +274,15 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:decision-marker-capture",
         Relation.REQUIRES,
     ),
-    # DIRECTIVE_028 (Efficient Local Tooling). The tactic's own stated rationale
-    # is resource waste and a degraded dev loop, which is that directive's
-    # subject. Advisory, not mandated -- hence ``suggests``.
+    # DIRECTIVE_030 (Test and Typecheck Quality Gate). Re-pointed from
+    # DIRECTIVE_028 (Efficient Local Tooling) on review: 028 scopes itself to
+    # tool SELECTION (ripgrep, pagers, archive tools, git ergonomics) and none of
+    # its procedures concern running a suite. This tactic is a discipline on HOW
+    # the suite is run and how its result is read, which is 030's subject. The
+    # 028 reading argued from a shared side-effect (resource waste), not a shared
+    # subject -- the signature of a convenient owner rather than the right one.
     (
-        "directive:DIRECTIVE_028",
+        "directive:DIRECTIVE_030",
         "tactic:no-parallel-duplicate-test-runs",
         Relation.SUGGESTS,
     ),
@@ -298,12 +302,19 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "toolguide:python-review-checks",
         Relation.SUGGESTS,
     ),
-    # Onboarding an external agent to a pack is precisely when deployable skills
-    # get authored, so the procedure is the natural referrer
-    # (``procedure -> styleguide suggests``, x2 today).
+    # ``tactic -> paradigm suggests`` is the most common inbound-to-paradigm
+    # pattern in the shipped graph (9 edges, 6 of them this exact shape -- the
+    # semantic-compression tactic family each suggesting their paradigm). The
+    # checklist's own summary is "respects atomic design level boundaries",
+    # so this records a name-identical relationship rather than inventing one.
+    # NOTE: this de-orphans the paradigm by incidence but does NOT make it
+    # reachable -- the checklist tactic is itself outbound-only. The frontend
+    # cluster (checklist + atomic-state-ownership + compositional-stream-
+    # boundaries + cross-cutting-state-via-store + the paradigm) is a
+    # disconnected island needing one ruling, not one edge. Tracked in #3009.
     (
-        "procedure:onboard-external-agent-to-pack",
-        "styleguide:deployable-skill-authoring",
+        "tactic:atomic-design-review-checklist",
+        "paradigm:atomic-design",
         Relation.SUGGESTS,
     ),
     # The REASONS canvas is the SPDD artefact, so the SPDD paradigm is its owner

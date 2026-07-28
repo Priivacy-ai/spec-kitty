@@ -111,9 +111,6 @@ edges:
   target: tactic:frozen-baseline-shrink-only-ratchet
   relation: suggests
 - source: directive:DIRECTIVE_028
-  target: tactic:no-parallel-duplicate-test-runs
-  relation: suggests
-- source: directive:DIRECTIVE_028
   target: toolguide:efficient-local-tooling
   relation: suggests
 - source: directive:DIRECTIVE_029
@@ -124,6 +121,9 @@ edges:
   relation: suggests
 - source: directive:DIRECTIVE_030
   target: styleguide:tiered-standards
+  relation: suggests
+- source: directive:DIRECTIVE_030
+  target: tactic:no-parallel-duplicate-test-runs
   relation: suggests
 - source: directive:DIRECTIVE_031
   target: directive:DIRECTIVE_001

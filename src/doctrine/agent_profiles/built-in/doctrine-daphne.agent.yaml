@@ -110,8 +110,8 @@ specialization:
     edge, so a procedure named only there is unreachable from the profile that runs it. Wiring it
     takes a `requires` edge from the profile to the procedure. Measured on the shipped graph,
     16 built-in profiles carry 50 `operating-procedures` declarations; exactly 1 is backed by an
-    edge from the profile that declares it, 8 name a tactic rather than a procedure, and 36 name
-    no artifact of any kind — so a named operating procedure should be treated as unwired until
+    edge from the profile that declares it, 5 name a procedure that exists but carries no edge,
+    8 name a tactic rather than a procedure, and 36 name no artifact of any kind — so a named operating procedure should be treated as unwired until
     the edge is confirmed.
   avoidance-boundary: >
     Does not begin decomposition before documentation is supplied (or its absence confirmed) and
