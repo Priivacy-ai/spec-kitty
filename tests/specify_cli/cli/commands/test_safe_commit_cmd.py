@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from mission_runtime import MissionArtifactKind, is_primary_artifact_kind, kind_for_mission_file
 from specify_cli import app as cli_app
 
 
@@ -172,11 +173,29 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     direct ``safe-commit`` of a PRIMARY-kind mission artifact (retrospective,
     spec, plan, tasks, analysis-report, ...) once the feature branch is gone.
 
-    This test asserts the OUTCOME (``success`` / ``committed``), not a
-    particular destination branch: a fix that special-cases "commit to HEAD"
-    would relieve this symptom while leaving the same hole open for the
-    retrospective terminus and the acceptance-matrix refresh, both of which
-    share the same ``get_feature_target_branch`` read.
+    This test asserts the OUTCOME, not a particular destination branch name
+    (#3033 SS7: "asserted through the seam, not through the review command" /
+    "lands on a surface that can be resolved and read back"): beyond
+    ``success`` / ``committed``, it re-resolves the branch the commit actually
+    left ``HEAD`` on, asserts that ref still exists (``git rev-parse
+    --verify``), and reads the artifact content back from it via ``git show
+    <ref>:<path>``. A fix that reports ``committed: true`` without the
+    content being durably retrievable from an existing ref must not pass.
+
+    Honest limit: because this test drives only the public ``safe-commit``
+    CLI (a black-box entry point), a call-site patch in
+    ``_resolve_commit_target`` that falls back to the current ``HEAD`` branch
+    when the resolved ``target_branch`` does not exist would ALSO satisfy
+    these assertions -- ``HEAD`` is by construction an existing, readable ref.
+    These assertions catch a broken/fake "success" (nothing durably
+    committed, or committed somewhere unresolvable); they cannot mechanically
+    prove the fix lives at the seam (``get_feature_target_branch`` /
+    ``resolve_placement_only`` gaining post-merge lifecycle awareness) rather
+    than at this one call site. Per #3033 SS7 that seam-level placement is the
+    binding fix constraint -- whack-a-field call-site patches leave the
+    retrospective terminus (SS6) and the acceptance-matrix refresh exposed to
+    the identical hole -- but confirming that requires a test on the seam
+    itself, not on this command.
     """
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
@@ -227,6 +246,22 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
         encoding="utf-8",
     )
 
+    # Precondition (MINOR guard): this test's entire value rests on
+    # `retrospective.yaml` classifying to a PRIMARY-partition kind -- an
+    # unclassified basename falls through to the generic HEAD path (see
+    # docstring) and succeeds regardless of the defect. Assert that
+    # classification through the public helpers so a future reclassification
+    # (or a COORD re-home) makes THIS assertion fail loudly instead of the
+    # test silently going green for the wrong reason.
+    retro_kind = kind_for_mission_file(
+        retro_path.relative_to(tmp_path), mission_slug=mission_slug
+    )
+    assert retro_kind is MissionArtifactKind.RETROSPECTIVE, retro_kind
+    assert is_primary_artifact_kind(retro_kind), (
+        "retrospective.yaml must classify to a PRIMARY-partition kind for "
+        "this regression to exercise the #3033 defect"
+    )
+
     old_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
@@ -248,3 +283,37 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
 
     assert payload["success"] is True, payload
     assert payload["committed"] is True, payload
+
+    # Strengthened per #3033 SS7 ("lands on a surface that can be resolved and
+    # read back"): a bare success/committed flag is satisfied by a fix that
+    # silently drops the write. Re-resolve the ref the commit actually landed
+    # on (safe_commit's own HEAD-match guard means that ref is whatever branch
+    # is checked out post-invocation) and prove it is (a) a ref git can still
+    # resolve, and (b) the artifact's content is retrievable from it -- not
+    # merely present in the working tree.
+    landed_ref = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "rev-parse", "--verify", landed_ref],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+
+    retro_rel = retro_path.relative_to(tmp_path).as_posix()
+    committed_blob = subprocess.run(
+        ["git", "show", f"{landed_ref}:{retro_rel}"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert (
+        "Post-merge writes must not require the merged branch to still exist."
+        in committed_blob
+    ), committed_blob
