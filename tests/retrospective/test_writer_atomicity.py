@@ -297,6 +297,23 @@ def test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars(tmp_p
     assert YAML(typ="safe").load(text) == data
 
 
+@pytest.mark.parametrize("trailing", [" ", "\t"])
+def test_atomic_write_yaml_preserves_literal_scalar_trailing_whitespace(
+    tmp_path: Path, trailing: str
+) -> None:
+    """Literal scalar content may intentionally end a line with whitespace."""
+    from ruamel.yaml import YAML
+    from ruamel.yaml.scalarstring import LiteralScalarString
+
+    canonical = tmp_path / "retrospective.yaml"
+    details = LiteralScalarString(f"first line ends in semantic whitespace{trailing}\nsecond line")
+
+    _atomic_write_yaml({"details": details}, canonical, tmp_path)
+
+    loaded = YAML(typ="safe").load(canonical.read_text(encoding="utf-8"))
+    assert loaded == {"details": str(details)}
+
+
 def test_atomic_write_yaml_uses_temp_then_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Helper must write to a .tmp file FIRST, then rename it to canonical atomically."""
     import os as _os
