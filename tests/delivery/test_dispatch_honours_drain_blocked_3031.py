@@ -1,14 +1,32 @@
-"""RED pins: the drain must honour the capture-time consent classification (#3030).
+"""RED pins: the drain must filter *per event*, not per process (#3031 Defect 5).
 
-Background (see ``docs/development/read-side-seam-classification.md`` sibling
-investigation and issue #3030). ``event_journal/models.py:113-129`` — the
-``Event`` dataclass has no project field. ``SELECT_ALL_SQL``
-(``event_journal/models.py:78``) has no WHERE clause; ``EventJournal.read_all()``
-(``event_journal/journal.py:258``) takes no predicate; ``_select_undelivered``
-(``delivery/dispatcher.py:192-223``) sets ``universe = journal.read_all()`` and
-never inspects ``Event.drain_blocked_reason`` at all. The column exists — it is
-populated at capture time by ``capture_teamspace_bound`` via
-``classify_drain_blocked_reason`` — but nothing on the drain side reads it back.
+Rescoped from an earlier #3030 framing (see git history / PR #3050 landing
+notes): this file's original docstring claimed a ``drain_blocked_reason``
+predicate implemented per-project consent. It does not. ``drain_blocked_reason``
+is a **capture-time snapshot of machine-global gates**
+(``classify_drain_blocked_reason``, ``event_journal/journal.py:338-351`` —
+SaaS-enabled flag, checkout-enabled flag, auth state, team resolution). Every
+project on the machine that emits at the same moment gets the *same*
+classification, because none of those gates are project-scoped. A predicate
+that filters on this column therefore implements **no per-project consent
+whatsoever** — it can only ever answer "was the whole process/checkout
+blocked at capture time", never "did *this* project consent". Per-project
+consent (repo-slug-keyed, resolvable per event) is a distinct defect, pinned
+separately in ``tests/delivery/test_dispatch_project_consent_3030.py``
+(#3030). Do not read a green here as #3030 coverage.
+
+What #3031 Defect 5 actually is (see
+``docs/development/read-side-seam-classification.md`` and the sibling
+``tests/sync/test_sync_consent_default_deny.py`` docstring, which flags this
+exact gap as uncovered): ``event_journal/models.py:113-129`` — the ``Event``
+dataclass has no project field. ``SELECT_ALL_SQL`` (``event_journal/models.py:78``)
+has no WHERE clause; ``EventJournal.read_all()`` (``event_journal/journal.py:258``)
+takes no predicate; ``_select_undelivered`` (``delivery/dispatcher.py:192-223``)
+sets ``universe = journal.read_all()`` and never inspects
+``Event.drain_blocked_reason`` at all. The column exists — it is populated at
+capture time by ``capture_teamspace_bound`` via ``classify_drain_blocked_reason``
+— but nothing on the drain side reads it back, so even the coarse, machine-global
+signal that DOES exist on the row is silently discarded at drain time.
 ``sync/batch.py:357`` (``_prepare_events_for_ingress``) actively *strips*
 ``drain_blocked_reason`` from the legacy queue payload before POSTing, which
 confirms the field is understood elsewhere as "must not leave the machine
@@ -19,22 +37,24 @@ Two tests:
 
 * :func:`test_dispatch_excludes_events_with_recorded_drain_blocked_reason` —
   the direct pin: one blocked event, one unblocked event, single dispatch call.
-  Also closes the #3031 "Defect 5, per-event drain filtering" gap (the sibling
-  ``tests/sync/test_sync_consent_default_deny.py`` docstring flags this as
-  uncovered): both events are drained in the SAME call (one process tick), so
-  a fix that filters per-*process* rather than per-*event* cannot pass this.
+  Both events are drained in the SAME call (one process tick), so a fix that
+  filters per-*process* rather than per-*event* cannot pass this — the
+  predicate must inspect ``Event.drain_blocked_reason`` on each row.
 
 * :func:`test_consent_predicate_must_apply_before_limit_not_after` — a guard
   against the shallow fix: filtering blocked rows out of the *already
   limit-truncated* selection. With a 10-event blocked backlog older than the
-  one consenting event and ``limit=5``, a post-selection filter starves the
+  one unblocked event and ``limit=5``, a post-selection filter starves the
   queue (the whole window is blocked, so the batch goes to zero and the drain
-  loop looks "done" while the consenting event never gets a turn). The
+  loop looks "done" while the unblocked event never gets a turn). The
   predicate must live inside the filtered read, before ``LIMIT`` truncates —
   mirrors the legacy ``OfflineQueue.drain_queue`` shape
   (``sync/queue.py:1570-1593``: ``SELECT event_id, data FROM queue ORDER BY
   timestamp ASC, id ASC LIMIT ?`` — no predicate at all), which is the sibling
-  code path this journal/dispatcher pair is meant to replace.
+  code path this journal/dispatcher pair is meant to replace. This test also
+  asserts the negative: none of the 10 blocked rows may ship either — a fix
+  that merely reorders selection (e.g. newest-first) to surface the unblocked
+  event while still shipping the blocked backlog must not pass.
 
 Both tests are additive: they do not alter any assertion in
 ``tests/delivery/test_dispatcher.py``, whose own fixtures never populate
@@ -76,10 +96,12 @@ def _make_event(
 ) -> Event:
     """Build a realistic, production-shaped journal event.
 
-    The payload mirrors the wire envelope's project correlation field
-    (``project_slug`` — see ``sync/emitter.py:2038``), even though today's
-    dispatcher never looks inside the payload to make a delivery decision;
-    that is the point of the wider #3030 defect.
+    The payload carries the wire envelope's project correlation field
+    (``project_slug`` — see ``sync/emitter.py:2038``) for payload-shape
+    realism only; this file's pin is about ``Event.drain_blocked_reason``
+    (a machine-global, capture-time column), never about ``project_slug`` or
+    per-project consent — that's #3030, pinned in the sibling
+    ``test_dispatch_project_consent_3030.py``.
     """
     payload = json.dumps(
         {
@@ -109,6 +131,11 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
     tmp_path: Path,
 ) -> None:
     """A journal row captured as ``drain_blocked_reason=saas_disabled`` must not ship.
+
+    #3031 Defect 5 (per-event drain filtering) — NOT a #3030 consent pin.
+    ``drain_blocked_reason`` is a machine-global gate snapshot (SaaS-enabled /
+    checkout-enabled / auth / team resolution), not a per-project decision;
+    a fix satisfying this test alone implements no project-scoped consent.
 
     Reds today: the dispatcher delivers BOTH events. ``_select_undelivered``
     only excludes rows with a terminal-success or terminal-failed *ledger*
@@ -161,38 +188,52 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
 
 
 def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path) -> None:
-    """A large blocked backlog must not starve a newer consenting event.
+    """A large blocked backlog must not starve a newer unblocked event.
 
-    Seeds 10 non-consenting (blocked) events older than 1 consenting
-    (unblocked) event, then drains with ``limit=5``. ``ledger.select_undelivered``
-    preserves ``event_universe`` order (created_at ASC, from
-    ``journal.read_all()``) and slices ``[:limit]`` — so today's unfiltered
-    selection returns the 5 OLDEST rows, which are all blocked, and the
-    consenting event (created last) is never even selected, let alone
-    delivered. This reds for the same root cause as the test above (no
-    predicate at all) but demonstrates why the eventual fix must apply the
-    consent predicate *inside* the filtered read, before ``LIMIT`` truncates —
-    a fix that instead filters the alreadyselected 5-row batch would leave an
-    empty batch and make the drain loop look "done" while the consenting event
-    is permanently stranded behind the backlog.
+    #3031 Defect 5 (per-event drain filtering) — NOT a #3030 consent pin. The
+    "consenting"/"non-consenting" naming below is legacy from this file's
+    original #3030 framing; the only property under test is
+    ``Event.drain_blocked_reason`` (machine-global), never per-project
+    consent, so it is renamed to blocked/unblocked in this docstring.
+
+    Seeds 10 blocked events older than 1 unblocked event, then drains with
+    ``limit=5``. ``ledger.select_undelivered`` preserves ``event_universe``
+    order (created_at ASC, from ``journal.read_all()``) and slices
+    ``[:limit]`` — so today's unfiltered selection returns the 5 OLDEST rows,
+    which are all blocked, and the unblocked event (created last) is never
+    even selected, let alone delivered. This reds for the same root cause as
+    the test above (no predicate at all) but demonstrates why the eventual
+    fix must apply the drain_blocked_reason predicate *inside* the filtered
+    read, before ``LIMIT`` truncates — a fix that instead filters the
+    already-selected 5-row batch would leave an empty batch and make the
+    drain loop look "done" while the unblocked event is permanently stranded
+    behind the backlog.
+
+    The negative assertion below (none of the 10 blocked ids ship) closes the
+    cheap-green this test previously left open: reversing
+    ``_select_undelivered``'s ordering to newest-first would deliver the
+    unblocked event first and satisfy the old positive-only assertion while
+    still shipping all 10 blocked rows once the batch/limit allowed it — that
+    is not a correct fix and must not pass this test.
     """
     journal = EventJournal(tmp_path / "journal.db")
-    for index in range(10):
+    blocked_ids = [f"evt-client-confidential-{index}" for index in range(10)]
+    for index, event_id in enumerate(blocked_ids):
         journal.append(
             _make_event(
-                f"evt-client-confidential-{index}",
+                event_id,
                 project_slug="client-confidential",
                 drain_blocked_reason=DRAIN_BLOCKED_SAAS_DISABLED,
                 created_at=f"2026-06-29T00:00:{index:02d}+00:00",
             )
         )
-    consenting = _make_event(
+    unblocked = _make_event(
         "evt-engagement-assistant-0",
         project_slug="engagement-assistant",
         drain_blocked_reason=None,
         created_at="2026-06-29T00:01:00+00:00",
     )
-    journal.append(consenting)
+    journal.append(unblocked)
 
     ledger = SqliteDeliveryLedger(":memory:")
     registry = SqliteDeliveryTargetRegistry(":memory:")
@@ -202,9 +243,18 @@ def test_consent_predicate_must_apply_before_limit_not_after(tmp_path: Path) -> 
     dispatch(journal=journal, ledger=ledger, receiver=receiver, target=target, limit=5)
 
     received_ids = set(receiver.received_event_ids())
-    assert consenting.event_id in received_ids, (
-        "the one consenting event must be delivered even behind a 10-event "
-        "blocked backlog; today the drain has no consent predicate at all, "
-        "so it ships the 5 OLDEST rows (all blocked) and never reaches the "
-        "consenting event within the requested limit"
+    assert unblocked.event_id in received_ids, (
+        "the one unblocked event must be delivered even behind a 10-event "
+        "blocked backlog; today the drain has no drain_blocked_reason "
+        "predicate at all, so it ships the 5 OLDEST rows (all blocked) and "
+        "never reaches the unblocked event within the requested limit"
+    )
+    shipped_blocked_ids = received_ids.intersection(blocked_ids)
+    assert not shipped_blocked_ids, (
+        "none of the 10 blocked backlog rows may ship, regardless of how the "
+        f"unblocked event is surfaced — got {sorted(shipped_blocked_ids)!r} "
+        "shipped; a fix that reorders selection (e.g. newest-first) to reach "
+        "the unblocked event while still shipping blocked rows once the "
+        "batch/limit allows is not a correct per-event drain_blocked_reason "
+        "filter and must not pass this test"
     )
