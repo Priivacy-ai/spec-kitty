@@ -343,3 +343,160 @@ def test_two_rejections_produce_two_distinct_artifacts(
     ]
     # First artifact untouched.
     assert p1.stat().st_mtime_ns == p1_mtime
+
+
+def test_approving_a_rejected_wp_writes_no_verdict_artifact(
+    for_review_repo: tuple[Path, Path, Path],
+) -> None:
+    """Pin #2996(a): once a WP has EVER been rejected, no normal
+    ``move-task --to approved`` invocation can ever record an approval
+    verdict artifact -- even after the WP has been fully reworked and
+    resubmitted through claimed -> in_progress -> for_review -> in_review.
+
+    Root cause (traced against ``main`` @ upstream/main): the rejected-verdict
+    guard (``_guard_rejected_verdict``,
+    ``src/specify_cli/cli/commands/agent/tasks_transition_core.py:364-388``)
+    reads the WP's *latest* ``review-cycle-N.md`` verdict regardless of how
+    many times the WP has since re-entered ``for_review``/``in_review`` --
+    there is no notion of "this rejection was already acted upon by a
+    subsequent resubmission". Every approve attempt after any rejection ever
+    recorded is refused unless the caller passes
+    ``--skip-review-artifact-check --note ...``. The guard's OWN override arm
+    is not the fix either: ``_authorize_review_override`` computes ``True``
+    and is stamped onto ``Emit.authorize_review_override``
+    (``tasks_transition_core.py:173,391-399,664``), but that field is never
+    read anywhere in ``tasks_move_task.py`` -- contrast with sibling ``Emit``
+    fields ``planned_rollback``/``arbiter_forward``/``done_override_note``/
+    ``skip_primary``, which ARE consumed there. No code path -- override flags
+    or not -- ever writes a new ``review-cycle-N.md`` with ``verdict:
+    approved``. ``ReviewCycleArtifact.write()``
+    (``src/specify_cli/review/artifacts.py:199``) has exactly one caller,
+    ``create_rejected_review_cycle`` (``src/specify_cli/review/cycle.py:320``),
+    which hardcodes ``verdict="rejected"``.
+
+    This test drives the full, well-behaved lifecycle a reviewer would
+    actually use -- reject once, then rework and resubmit for a SECOND
+    genuine review -- and shows that a plain
+    ``move-task WP01 --to approved --note ... --no-auto-commit`` (no
+    ``--skip-review-artifact-check``, no ``--force``) is refused, and no
+    ``review-cycle-2.md`` is ever created to represent the eventual approval.
+
+    Beware the false green this test replaces coverage for:
+    ``tests/post_merge/test_review_artifact_consistency.py:214`` passes today
+    because its fixture (``_write_review_artifact``) calls
+    ``ReviewCycleArtifact(..., verdict="approved").write(...)`` directly,
+    substituting for the exact production step (a real ``move-task --to
+    approved`` writing an approved verdict artifact) that this defect
+    removes. That test proves the POST-MERGE AUDIT gate exists; it does not
+    prove any live path can produce the artifact the audit expects to find.
+    """
+    from specify_cli.cli.commands.agent import tasks as agent_tasks
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+
+    repo, feature_dir, sub_artifact_dir = for_review_repo
+
+    # WP starts at for_review (fixture). Move it into in_review for the FIRST
+    # (real) review round.
+    append_event(
+        feature_dir,
+        _make_event(
+            event_id="01TEST00000000000000000004",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+        ),
+    )
+
+    # Reviewer rejects cycle 1.
+    persisted = _trigger_rejection(repo, "## Cycle 1 issues\n\nFix the off-by-one.")
+    assert persisted.name == "review-cycle-1.md"
+    latest_after_rejection = ReviewCycleArtifact.latest(sub_artifact_dir)
+    assert latest_after_rejection is not None
+    assert latest_after_rejection.verdict == "rejected"
+
+    # Drive the WP back through the FULL lifecycle after the rejection --
+    # in_review -> planned (rejected) -> claimed -> in_progress -> for_review
+    # -> in_review -- exactly as a real implementer reworking and
+    # resubmitting the WP for a genuine second review round would.
+    append_event(
+        feature_dir,
+        _make_event(
+            event_id="01TEST00000000000000000005",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.PLANNED,
+        ),
+    )
+    append_event(
+        feature_dir,
+        _make_event(
+            event_id="01TEST00000000000000000006",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+        ),
+    )
+    append_event(
+        feature_dir,
+        _make_event(
+            event_id="01TEST00000000000000000007",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+        ),
+    )
+    append_event(
+        feature_dir,
+        _make_event(
+            event_id="01TEST00000000000000000008",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.FOR_REVIEW,
+        ),
+    )
+    append_event(
+        feature_dir,
+        _make_event(
+            event_id="01TEST00000000000000000009",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+        ),
+    )
+
+    # The reviewer is now satisfied and approves -- a plain approve, with NO
+    # override flags. This is the exact command shape from the ticket.
+    runner = CliRunner()
+    result = runner.invoke(
+        agent_tasks.app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "approved",
+            "--mission",
+            MISSION_SLUG,
+            "--note",
+            "Approving after fixes were verified in the resubmitted review cycle.",
+            "--no-auto-commit",
+        ],
+    )
+
+    # Assert artifact FIRST (names the missing producer, not the guard).
+    latest = ReviewCycleArtifact.latest(sub_artifact_dir)
+    assert latest is not None, (
+        "expected a review-cycle-2.md verdict artifact to exist after the "
+        f"approve attempt; none was created. CLI stdout:\n{result.stdout}"
+    )
+    assert latest.cycle_number == 2, (
+        f"expected cycle_number 2 (a fresh approval verdict), got "
+        f"{latest.cycle_number} -- the stale rejected cycle 1 is still "
+        f"'latest'. CLI stdout:\n{result.stdout}"
+    )
+    assert latest.verdict == "approved", (
+        f"expected the latest review-cycle artifact's verdict to be "
+        f"'approved', got {latest.verdict!r}. CLI stdout:\n{result.stdout}"
+    )
+    assert latest.reviewer_agent != "unknown", (
+        "expected the approval artifact to carry a real reviewer identity, "
+        f"got 'unknown'. CLI stdout:\n{result.stdout}"
+    )
+
+    assert result.exit_code == 0, (
+        f"expected the well-behaved reworked-and-resubmitted approve to "
+        f"succeed; got exit code {result.exit_code}. CLI stdout:\n{result.stdout}"
+    )

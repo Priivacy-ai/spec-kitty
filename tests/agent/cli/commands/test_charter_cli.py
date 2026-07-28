@@ -488,3 +488,47 @@ def test_help_output() -> None:
     assert "context" in result.stdout
     assert "sync" in result.stdout
     assert "status" in result.stdout
+
+
+def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(mock_repo: Path) -> None:
+    """#3045: ``charter sync`` always reports success on the human surface,
+    even when the JSON surface (same invocation, same repo state) reports
+    ``stale_before: true``.
+
+    ``mock_repo`` writes only ``charter.md`` -- no ``metadata.yaml`` -- so
+    ``sync()`` computes ``stale_before=True`` (there is nothing yet to compare
+    a hash against). ``_emit_sync_human_result``
+    (``src/specify_cli/cli/commands/charter/sync.py:36-49``) unconditionally
+    prints "Charter already in sync (use --force to re-extract)" whenever
+    ``result.error`` is falsy -- it never branches on ``stale_before``. The
+    JSON payload built two lines earlier by ``_sync_json_payload``
+    (``src/specify_cli/cli/commands/charter/sync.py:23-33``) reports
+    ``stale_before: true`` for the exact same ``SyncResult``. The two surfaces
+    of the SAME command, over the SAME repo state, contradict each other: one
+    says "already in sync", the other says "was stale before this call".
+
+    This directly CONTRADICTS ``test_sync_command_success``
+    (``tests/agent/cli/commands/test_charter_cli.py:83-99``), which pins
+    ``"Charter already in sync" in result.stdout`` as "current, intentional
+    contract" and explicitly rationalizes it in its docstring as the retired
+    IC-04 extraction contract. That assertion must be deleted in the same
+    commit that fixes #3045 -- this test and that one cannot both stay green
+    once the human surface is made to agree with the JSON surface.
+    """
+    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = mock_repo
+
+        json_result = runner.invoke(app, ["sync", "--json"])
+        human_result = runner.invoke(app, ["sync"])
+
+        assert json_result.exit_code == 0
+        assert human_result.exit_code == 0
+
+        payload = json.loads(json_result.stdout)
+        assert payload["stale_before"] is True
+
+        assert "already in sync" not in human_result.stdout, (
+            "#3045: human surface claims the charter is already in sync while "
+            "the JSON surface (same repo state) reports stale_before=True -- "
+            f"human stdout: {human_result.stdout!r}, json payload: {payload!r}"
+        )
