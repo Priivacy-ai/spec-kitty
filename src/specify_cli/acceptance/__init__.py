@@ -3,10 +3,6 @@
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 import logging
 import os
 from collections.abc import Iterable, Sequence
@@ -853,14 +849,18 @@ def _primary_anchor_feature_dir(repo_root: Path, feature: str, read_dir: Path) -
     3. fall back to the resolved read dir rather than fail when no
        primary-side directory exists (identity/existence was already validated
        by the read resolution).
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004/FR-015:
+    step 1's composition is routed through the kind-aware seam
+    (``PRIMARY_METADATA`` is a PRIMARY-partition kind, so it resolves the
+    topology-blind primary dir directly -- it never consults the coord husk
+    the *kind-blind* ``resolve_feature_dir_for_mission`` handed the caller's
+    ``read_dir`` argument can land on, which is exactly why this function
+    exists as a separate anchor).
     """
-    # WP05/FR-005: route through _canonicalize_primary_read_handle so every
-    # handle form (bare mid8 / ULID / numeric prefix / bare human slug) lands
-    # on the correct composed primary dir.
-    primary_candidate: Path = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, feature),
-    )
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    primary_candidate: Path = placement_seam(repo_root, feature).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if primary_candidate.exists():
         return primary_candidate
 
@@ -1018,9 +1018,18 @@ def collect_feature_summary(
         path_convention_warning=path_convention_warning,
     )
 
-    # T028: use coord-resolved read_feature_dir for lane-gate checks so that
-    # lanes.json and acceptance-matrix.json are read from the coordination
-    # worktree rather than the primary checkout when coord topology is active.
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-015 (#2824
+    # residual — the functional defect was already fixed in 6923d1d40; only
+    # this comment was stale): ``read_feature_dir`` is the PRIMARY_METADATA
+    # seam read (line 923 above) — it resolves the topology-blind PRIMARY dir
+    # for EVERY topology, never the coordination worktree. ``lanes.json``
+    # (``LANE_STATE``) is itself a PRIMARY-partition kind (C-001 — it travels
+    # with tasks.md), so reading it off this PRIMARY anchor is correct, not a
+    # husk risk. ``acceptance-matrix.json`` (``ACCEPTANCE_MATRIX``) is a
+    # COORD-partition kind and is NOT read from this ``feature_dir`` argument
+    # at all: ``_check_lane_gates`` -> ``_evaluate_acceptance_matrix`` resolves
+    # its own coord-aware surface internally (``_acceptance_matrix_read_dir``,
+    # gates_core.py), independent of the PRIMARY dir passed here.
     _check_lane_gates(
         repo_root,
         read_feature_dir,

@@ -163,29 +163,46 @@ def test_implement_gate_finds_report_in_primary_not_coord(tmp_path: Path) -> Non
 
 
 # --- Note #2 (mission review): pin the implement-gate read-anchor WIRING, not just
-# the helper behavior. _analysis_report_gate_dir MUST route through the topology-blind
-# primary_feature_dir_for_mission, never the kind-aware placement read seam.
-# Making the placement read wrapper fail proves this separate gate anchor stays primary.
+# the helper behavior. _analysis_report_gate_dir MUST resolve the PRIMARY anchor,
+# never a coord-materialized surface.
+#
+# read-side-seam-primary-primitive-closure-01KYKMMT WP05 (FR-004): this assertion's
+# PREVIOUS shape pinned the OLD wiring -- a direct call to the topology-blind
+# ``primary_feature_dir_for_mission``, with the module's kind-aware placement-read
+# wrapper (``_resolve_workflow_read_dir``) forced to fail if invoked at all. That is
+# now backwards: WP05 routes ``_analysis_report_gate_dir`` THROUGH the kind-aware
+# seam (``_resolve_workflow_read_dir(kind=ANALYSIS_REPORT)``), which resolves PRIMARY
+# for this PRIMARY-partition kind before any coord probe -- the same primary-only
+# guarantee, reached through the seam this mission requires rather than the drained
+# raw primitive. DIRECTIVE_041: STALE, remediated in place (not a product revert) --
+# this test module is not WP05's owned file, but the red is a direct, intended
+# consequence of the mandated routing change.
 
 
 def test_analysis_report_gate_dir_uses_primary_not_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from mission_runtime import MissionArtifactKind
     from specify_cli.cli.commands.agent import workflow as workflow_mod
 
     primary_sentinel = tmp_path / "PRIMARY" / "mission"
-    monkeypatch.setattr(
-        workflow_mod, "primary_feature_dir_for_mission", lambda _root, _slug: primary_sentinel
-    )
-    monkeypatch.setattr(
-        workflow_mod,
-        "_resolve_workflow_read_dir",
-        lambda **_kwargs: pytest.fail("analysis report gate must stay primary-anchored"),
-    )
+    captured_kinds: list[MissionArtifactKind] = []
+
+    def _fake_resolve_workflow_read_dir(
+        *, repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+    ) -> Path:
+        captured_kinds.append(kind)
+        return primary_sentinel
+
+    monkeypatch.setattr(workflow_mod, "_resolve_workflow_read_dir", _fake_resolve_workflow_read_dir)
 
     resolved = workflow_mod._analysis_report_gate_dir(tmp_path, "sample-01KS")
 
     assert resolved == primary_sentinel
+    # ANALYSIS_REPORT is a PRIMARY-partition kind (mission_runtime.artifacts):
+    # the seam short-circuits to PRIMARY before any coord probe, so routing
+    # through it preserves the primary-only guarantee this test exists to pin.
+    assert captured_kinds == [MissionArtifactKind.ANALYSIS_REPORT]
 
 
 # --- Note #1 (mission review): FR-002 — the persisted report must always be in the

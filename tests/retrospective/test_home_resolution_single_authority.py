@@ -2,7 +2,10 @@
 
 The retrospective home (``retrospective.yaml``) must be resolved through ONE
 primary-anchored authority (``resolve_retrospective_home`` →
-``primary_feature_dir_for_mission`` gated by ``is_primary_artifact_kind``). Today
+``_compose_primary_feature_dir`` gated by ``is_primary_artifact_kind``; NEVER
+the public ``primary_feature_dir_for_mission`` wrapper — see
+read-side-seam-primary-primitive-closure-01KYKMMT WP03 cycle-1 B1, an
+NFR-009 read_dir cycle). Today
 SIX placement sites used to resolve the home independently — five via the
 coord-aware ``resolve_feature_dir_for_*`` resolvers, one via a hardcoded
 ``.kittify/missions/<id>/retrospective.yaml`` payload string. Any of them landed
@@ -228,8 +231,30 @@ def test_writer_authority_gates_on_primary_partition_kind() -> None:
     assert "RETROSPECTIVE" in referenced, (
         "resolve_retrospective_home must reference MissionArtifactKind.RETROSPECTIVE."
     )
-    assert "primary_feature_dir_for_mission" in names, (
-        "resolve_retrospective_home must compose through primary_feature_dir_for_mission."
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP03 cycle-1 (B1) fix:
+    # this function is the callee `PlacementSeam.read_dir` dispatches
+    # `RETROSPECTIVE` reads to — BENEATH `read_dir` in the call graph. The
+    # public wrapper `primary_feature_dir_for_mission` delegates to
+    # `placement_seam(...).read_dir(PRIMARY_METADATA)`, so calling it from
+    # HERE closes a `read_dir -> resolve_retrospective_home -> wrapper ->
+    # read_dir` cycle (NFR-009). The composition primitive MUST be the
+    # module-private leaf `_compose_primary_feature_dir`, never the wrapper —
+    # this pin is a forced out-of-map edit onto a file outside WP03's
+    # `owned_files` (same class as the WP01 allow-list coupling): the prior
+    # assertion enforced the wrapper name, which is the exact regression this
+    # WP's fix corrects.
+    assert "_compose_primary_feature_dir" in names, (
+        "resolve_retrospective_home must compose through the module-private leaf "
+        "_compose_primary_feature_dir, never the public wrapper "
+        "primary_feature_dir_for_mission (that closes an NFR-009 read_dir cycle: "
+        "read_dir(RETROSPECTIVE) -> resolve_retrospective_home -> wrapper -> "
+        "placement_seam(...).read_dir(PRIMARY_METADATA))."
+    )
+    assert "primary_feature_dir_for_mission" not in names, (
+        "resolve_retrospective_home must NOT call the public wrapper "
+        "primary_feature_dir_for_mission — it sits beneath read_dir's "
+        "RETROSPECTIVE chokepoint, and the wrapper delegates back into "
+        "read_dir, forming an NFR-009 cycle."
     )
     # FR-011 write leg (#2136/#2164): the handle MUST be canonicalized before the
     # topology-blind primitive composes it. Pin the CONTRACT (one of the sanctioned

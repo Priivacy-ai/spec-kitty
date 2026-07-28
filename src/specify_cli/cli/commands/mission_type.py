@@ -21,10 +21,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import (
-    primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
-)
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
@@ -601,15 +598,19 @@ def close_cmd(
     # coordination worktree exists it returns that worktree's status-only dir
     # (no meta.json → _read_mission_mid8 empties → teardown silently no-ops).
     # Re-anchor to the primary mission dir, matching how `mission reopen` resolves.
-    # FR-005/WP03: fold through _canonicalize_primary_read_handle so the gate
-    # detects the handle as provably canonical (mission_slug is feature_dir.name
-    # from :584 — already composed — but the fold is explicit for the gate seam).
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        _canonicalize_primary_read_handle,
-    )
-    feature_dir = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004): the
+    # terminal read is routed through the kind-aware placement seam directly —
+    # the (now-bypassed) primary_feature_dir_for_mission wrapper's own body was
+    # exactly this seam call reading PRIMARY_METADATA (meta.json is read right
+    # below), so passing the kind here lets the resolver decide the partition.
+    # WP08 (T036): the caller-side canonicalizer fold DROPPED — this call is
+    # ``read_dir(...)``, not a direct canonicalizer-primitive call, so it was
+    # never subject to that gate's def-use check; ``mission_slug`` is already
+    # ``feature_dir.name`` (line 593, already composed) and the seam folds it
+    # again internally regardless (idempotent no-op for an already-canonical
+    # handle).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
 
     meta_path = feature_dir / "meta.json"
@@ -1045,7 +1046,6 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
     )
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         MissionSelectorAmbiguous,
-        _canonicalize_primary_read_handle,
     )
 
     try:
@@ -1058,15 +1058,21 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
         ) from exc
     except MissionNotFoundError:
         # Legacy / no-mission_id handle: fall back to the literal slug directory.
-        # #2136/#2164: fold the handle through the proven full-fold FIRST so a bare
+        # #2136/#2164: the seam folds the handle through the proven full-fold
+        # internally (WP08 T036: no caller-side pre-fold needed) so a bare
         # human slug whose on-disk primary dir carries the composed ``<slug>-<mid8>``
         # name lands on the real dir (the identity resolver above keys on the dir NAME
         # and so cannot match a bare slug onto a composed dir — it raised
         # MissionNotFoundError). The fold is a NO-OP for a genuinely literal/legacy
         # dir name (back-compat preserved) and propagates ``MissionSelectorAmbiguous``
         # on an ambiguous handle (no silent pick — C-009).
-        canonical_handle = _canonicalize_primary_read_handle(repo_root, handle)
-        feature_dir = primary_feature_dir_for_mission(repo_root, canonical_handle)
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004): the
+        # terminal read is routed through the kind-aware placement seam
+        # directly (meta.json is read right below) rather than the
+        # (now-bypassed) primary_feature_dir_for_mission wrapper.
+        feature_dir = placement_seam(repo_root, handle).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
         meta = _safe_load_meta(feature_dir)
         return _ResolvedMissionHandle(
             mission_id=(meta or {}).get("mission_id") if meta else None,

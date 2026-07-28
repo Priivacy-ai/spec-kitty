@@ -66,9 +66,9 @@ from specify_cli.missions._read_path_resolver import (
     CoordState,
     StatusReadPathNotFound,
     _canonicalize_primary_read_handle,
+    _compose_primary_feature_dir,
     candidate_feature_dir_for_mission,
     coord_feature_dir,
-    primary_feature_dir_for_mission,
     probe_coord_state,
     read_primary_meta,
     stored_topology_from_meta,
@@ -736,7 +736,16 @@ def resolve_status_surface_with_anchor(
     # the write path then inherits via ``_identity_for_request``). Re-anchor the
     # config read on the canonical primary dir so the surface authority is
     # config-determined, never topology-determined-then-config-lost.
-    primary_dir: Path = primary_feature_dir_for_mission(
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005): RECORDED FOUNDATION SITE 4/4, deliberately UNROUTED. This module
+    # IS the canonical surface resolver the seam's COORD leg is partly built
+    # to serve, so routing this read through ``PlacementSeam.read_dir`` would
+    # be self-referential (already whole-module sanctioned via
+    # ``_READ_SANCTIONED_MODULES``). WP08 deleted the public wrapper this site
+    # imported; calls the module-private ``_compose_primary_feature_dir`` leaf
+    # directly instead.
+    primary_dir: Path = _compose_primary_feature_dir(
         repo_root,
         _canonicalize_primary_read_handle(repo_root, mission_slug),
     )

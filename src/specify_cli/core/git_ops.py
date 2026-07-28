@@ -435,13 +435,22 @@ def resolve_target_branch(
     # under coordination topology resolves to the coordination worktree (no
     # meta.json) and silently fell back to the protected repo primary ``main``
     # (WP00 / FR-004 — the implement-loop refusal-to-main bug).
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 3/4, deliberately UNROUTED —
+    # mirrors ``core/paths.py``'s target-branch resolution one layer up the
+    # git-ops composition root; same recursion rationale. WP08 deleted the
+    # public wrapper this site imported; calls the module-private
+    # ``_compose_primary_feature_dir`` leaf directly (``_FOUNDATION_SANCTION_SEED``
+    # token in ``tests/architectural/test_no_read_side_bypass.py`` re-pointed in
+    # the same commit — see that file's entry for ``resolve_target_branch``).
     from specify_cli.core.paths import read_target_branch_from_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
-    feature_dir = primary_feature_dir_for_mission(
+    feature_dir = _compose_primary_feature_dir(
         repo_path,
         _canonicalize_primary_read_handle(repo_path, mission_slug),
     )

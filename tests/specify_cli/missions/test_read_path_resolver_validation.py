@@ -1,7 +1,8 @@
 """NFR-002 tests: rejection fires INSIDE the read primitives, not at a caller.
 
 T004 — prove that:
-  (a) primary_feature_dir_for_mission raises ValueError for malformed slugs.
+  (a) the module-private ``_compose_primary_feature_dir`` leaf raises
+      ValueError for malformed slugs.
   (b) resolve_mission_read_path raises ValueError for malformed slugs.
   (c) The guard fires BEFORE _resolve_existing_for_slug is called — a guard
       placed AFTER composition would satisfy (a)/(b) while a malformed slug
@@ -9,6 +10,18 @@ T004 — prove that:
       path). The spy assertion makes this un-fakeable.
   (d) A valid real-format slug still returns the composed kitty-specs/<slug>
       path unchanged (NFR-006 regression guard).
+
+read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the public
+wrapper ``primary_feature_dir_for_mission`` this file's (a)/(d)/(e)/(f)-group
+tests originally targeted is DELETED (SC-001). Its topology-blind,
+handle-blind, traversal-guarded composition contract did not disappear with
+it — it moved to the module-private ``_compose_primary_feature_dir`` leaf
+(C-004: the PERMANENT sanctioned owner of this join), which is what these
+tests now exercise directly. ``test_primary_anchor_has_single_canonical_
+definition`` (WP03/T012, "the shim now resolves to the canonical object") is
+DELETED per DIRECTIVE_041 (PATCHWORK): its entire subject was proving the
+now-deleted wrapper had no second, shadow implementation — there is no
+wrapper left for a shadow to duplicate.
 
 Fixtures use a real temp git repo + full-ULID-bearing real-format slug
 (NFR-003: topology-true, production-shaped data only).
@@ -23,7 +36,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.missions._read_path_resolver import (
-    primary_feature_dir_for_mission,
+    _compose_primary_feature_dir,
     _resolve_mission_read_path as resolve_mission_read_path,
 )
 
@@ -71,16 +84,16 @@ def real_git_repo(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# (a) primary_feature_dir_for_mission raises for malformed slugs
+# (a) _compose_primary_feature_dir raises for malformed slugs
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("bad_slug", _TRAVERSAL_SLUGS)
 def test_primary_raises_for_malformed_slug(
     real_git_repo: Path,
     bad_slug: str,
 ) -> None:
-    """primary_feature_dir_for_mission must raise ValueError for traversal slugs."""
+    """_compose_primary_feature_dir must raise ValueError for traversal slugs."""
     with pytest.raises(ValueError, match="safe path segment"):
-        primary_feature_dir_for_mission(real_git_repo, bad_slug)
+        _compose_primary_feature_dir(real_git_repo, bad_slug)
 
 
 # ---------------------------------------------------------------------------
@@ -162,8 +175,8 @@ def test_valid_slug_returns_composed_path(real_git_repo: Path) -> None:
 
 
 def test_primary_valid_slug_returns_composed_path(real_git_repo: Path) -> None:
-    """primary_feature_dir_for_mission returns kitty-specs/<slug> for valid slug."""
-    result = primary_feature_dir_for_mission(real_git_repo, _REAL_SLUG)
+    """_compose_primary_feature_dir returns kitty-specs/<slug> for valid slug."""
+    result = _compose_primary_feature_dir(real_git_repo, _REAL_SLUG)
     assert result.name == _REAL_SLUG, (
         f"Expected directory name {_REAL_SLUG!r}, got {result.name!r}"
     )
@@ -173,44 +186,25 @@ def test_primary_valid_slug_returns_composed_path(real_git_repo: Path) -> None:
 
 
 def test_primary_full_ulid_returns_composed_path(real_git_repo: Path) -> None:
-    """primary_feature_dir_for_mission accepts a full 26-char ULID (NFR-006)."""
-    result = primary_feature_dir_for_mission(real_git_repo, _REAL_MISSION_ID)
+    """_compose_primary_feature_dir accepts a full 26-char ULID (NFR-006)."""
+    result = _compose_primary_feature_dir(real_git_repo, _REAL_MISSION_ID)
     assert result.name == _REAL_MISSION_ID
     assert "kitty-specs" in str(result)
 
 
 # ===========================================================================
-# WP03 / T012 — disambiguation + topology-blind contract + delegator policy
+# WP03 / T012 — topology-blind contract + delegator policy
 # ===========================================================================
 #
-# FR-009/T1: the two same-named ``primary_feature_dir_for_mission`` defs are
-# disambiguated by making the shim RE-EXPORT the canonical raw-slug, topology-
-# blind primary anchor. These tests prove (a) the shim name now resolves to the
-# canonical object, (b) every primary-anchored caller still reads its primary
-# ``meta.json`` after the change, and (c) the mutation that injects mid8
-# composition into the primary anchor BREAKS those primary-anchored reads.
+# FR-009/T1: these tests prove (a) every primary-anchored caller still reads
+# its primary ``meta.json`` through the leaf, and (b) the mutation that
+# injects mid8 composition into the primary anchor BREAKS those
+# primary-anchored reads.
 
 
 # ---------------------------------------------------------------------------
 # (e) The single canonical raw-slug primary anchor (T009; shim retired in WP07)
 # ---------------------------------------------------------------------------
-def test_primary_anchor_has_single_canonical_definition() -> None:
-    """``primary_feature_dir_for_mission`` is one canonical, callable def.
-
-    Post-WP07 the ``feature_dir_resolver`` shim that historically re-exported a
-    second name for this function is retired — there is exactly ONE definition,
-    in ``_read_path_resolver``. Disambiguation, not a parallel implementation:
-    every import site now resolves the primary anchor identically.
-    """
-    from specify_cli.missions import _read_path_resolver
-    from specify_cli.missions._read_path_resolver import (
-        primary_feature_dir_for_mission as canonical,
-    )
-
-    assert _read_path_resolver.primary_feature_dir_for_mission is canonical
-    assert callable(canonical)
-
-
 def test_primary_anchor_is_topology_blind_raw_slug(real_git_repo: Path) -> None:
     """The primary anchor returns the RAW slug dir, never a coord path.
 
@@ -218,11 +212,7 @@ def test_primary_anchor_is_topology_blind_raw_slug(real_git_repo: Path) -> None:
     composed via ``compose_meta_json_path``; the canonical form re-anchors to the
     primary checkout and returns ``kitty-specs/<raw-slug>``.
     """
-    from specify_cli.missions._read_path_resolver import (
-        primary_feature_dir_for_mission,
-    )
-
-    result = primary_feature_dir_for_mission(real_git_repo, _REAL_SLUG)
+    result = _compose_primary_feature_dir(real_git_repo, _REAL_SLUG)
     assert result.name == _REAL_SLUG
     assert ".worktrees" not in str(result)
     assert "kitty-specs" in str(result)
@@ -235,12 +225,8 @@ def test_primary_anchor_applies_safe_segment_guard(real_git_repo: Path) -> None:
     canonical anchor guards first. This is a strict safety improvement and proves
     the guarded body is wired, not a guard-less twin.
     """
-    from specify_cli.missions._read_path_resolver import (
-        primary_feature_dir_for_mission,
-    )
-
     with pytest.raises(ValueError, match="safe path segment"):
-        primary_feature_dir_for_mission(real_git_repo, "../escape")
+        _compose_primary_feature_dir(real_git_repo, "../escape")
 
 
 # ---------------------------------------------------------------------------
@@ -300,12 +286,12 @@ def test_mutation_mid8_composition_breaks_primary_anchored_reads(
 ) -> None:
     """Topology-blind contract is load-bearing (the mutation MUST bite).
 
-    Mutate ``primary_feature_dir_for_mission`` to compose ``<slug>-<mid8>`` (the
-    REVERSED-direction change the corrected premise forbids). The mission here
-    uses a BARE human slug (no embedded mid8) whose primary ``meta.json`` lives
-    at ``kitty-specs/<bare-slug>/`` — exactly the real layout where the mid8 is
-    declared in meta but NOT in the directory name. The mutated anchor composes
-    ``kitty-specs/<bare-slug>-<mid8>/`` (which does not exist), so
+    Mutate the topology-blind primary-dir assembler to compose ``<slug>-<mid8>``
+    (the REVERSED-direction change the corrected premise forbids). The mission
+    here uses a BARE human slug (no embedded mid8) whose primary ``meta.json``
+    lives at ``kitty-specs/<bare-slug>/`` — exactly the real layout where the
+    mid8 is declared in meta but NOT in the directory name. The mutated anchor
+    composes ``kitty-specs/<bare-slug>-<mid8>/`` (which does not exist), so
     ``_mid8_from_primary_meta`` can no longer read the meta and the mid8 is LOST.
     If this test does NOT fail under the mutation, the contract is not actually
     load-bearing and the disambiguation is decorative.
@@ -313,6 +299,18 @@ def test_mutation_mid8_composition_breaks_primary_anchored_reads(
     (For an already-mid8-embedded slug the raw and composed dir names coincide,
     so the mutation is silent — proving precisely why the anchor MUST stay
     raw-slug for the bare-slug-with-declared-mid8 case.)
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP03 (T016/T021): the
+    patch target is the module-private leaf ``_compose_primary_feature_dir``,
+    not the public wrapper ``primary_feature_dir_for_mission``. WP03 re-points
+    ``_mid8_from_primary_meta``'s function-local import at the leaf directly
+    (so the seam's PRIMARY leg cannot recurse through the wrapper) — patching
+    the wrapper name here would silently stop intercepting this call and the
+    mutation would go unnoticed (a vacuous-gate hazard, tactic:architectural-
+    gate-non-vacuity). Verified red-first against the pre-fix patch target: the
+    old ``primary_feature_dir_for_mission`` patch string leaves this assertion
+    failing (``mutated == _REAL_MID8``) because the mutation is silently never
+    invoked.
     """
     from unittest.mock import patch
 
@@ -334,12 +332,13 @@ def test_mutation_mid8_composition_breaks_primary_anchored_reads(
         composed = slug if slug.endswith(f"-{derived}") else f"{slug}-{derived}"
         return repo_root / "kitty-specs" / composed
 
-    # ``_mid8_from_primary_meta`` imports ``primary_feature_dir_for_mission``
-    # function-locally from ``_read_path_resolver``, so the mutation patches the
-    # canonical source module (where the late import resolves), proving the
-    # primary anchor — not a copy — is the load-bearing contract surface.
+    # ``_mid8_from_primary_meta`` imports ``_compose_primary_feature_dir``
+    # function-locally from ``_read_path_resolver`` (WP03 T016), so the mutation
+    # patches the canonical source module (where the late import resolves),
+    # proving the primary anchor leaf — not a copy — is the load-bearing
+    # contract surface.
     with patch(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
+        "specify_cli.missions._read_path_resolver._compose_primary_feature_dir",
         _mid8_composing_anchor,
     ):
         # The mutated anchor points at kitty-specs/<bare-slug>-<mid8>/ which has

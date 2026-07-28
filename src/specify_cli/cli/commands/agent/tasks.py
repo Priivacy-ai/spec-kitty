@@ -11,21 +11,24 @@ from __future__ import annotations
 from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
 )
-# ``primary_feature_dir_for_mission`` keeps an explicit ``as`` re-export: its
-# direct call site relocated to ``tasks_move_task`` in WP05
-# (tasks-py-degod-wave2-01KWH9EQ), but the module binding is a live patch seam
-# (``@patch("...agent.tasks.primary_feature_dir_for_mission")``,
-# test_pre30_guard_wiring) that the relocated ``_mt_issue_matrix_facts`` body
-# routes back through ``_tasks.<attr>``.
+# ``primary_feature_dir_for_mission`` re-export DELETED (read-side-seam-
+# primary-primitive-closure-01KYKMMT WP08, T037): its direct call site
+# relocated to ``tasks_move_task`` in WP05 (tasks-py-degod-wave2-01KWH9EQ),
+# and WP06 (T029) routed that relocated ``_mt_issue_matrix_facts`` call off
+# this wrapper onto ``mission_runtime.placement_seam(...).read_dir(SPEC)``
+# directly (WP06 also rewrote the ``test_tasks_move_task_seam.py``
+# interception test that pinned the old ``_tasks.<attr>`` route) — this
+# re-export had NO production caller left, kept alive only by
+# ``test_pre30_guard_wiring.py``'s vestigial patch seam (Ledger M15,
+# DIRECTIVE_041 PATCHWORK: production code kept alive by a test patch target,
+# not by any real caller). The public primitive itself is also deleted
+# (T035); this module has no substitute re-export to offer.
 # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: the kind-blind
 # ``resolve_feature_dir_for_mission`` re-export is RETIRED — its last two
 # direct call sites (``list_tasks`` / ``validate_workflow``, below) now route
 # through ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, and
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
-from specify_cli.missions._read_path_resolver import (
-    primary_feature_dir_for_mission as primary_feature_dir_for_mission,
-)
 import contextlib
 import logging
 import subprocess

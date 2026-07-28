@@ -113,10 +113,6 @@ from specify_cli.merge.state import (
 )
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
@@ -398,9 +394,10 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     # -- Resolve the canonical mission_id (ULID) to gate modern-mission invariants --
     # FR (#2186): baseline identity is a PRIMARY_METADATA read. Route it onto the
     # PRIMARY anchor (``target_feature_dir`` is the pre-routed
-    # ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(…))`` —
-    # the SAME primary leg the :1000/:1022 identity reads use). Reading off the
-    # coord-aware ``run.feature_dir`` STATUS leg lands on the meta-less / sentinel
+    # ``placement_seam(...).read_dir(PRIMARY_METADATA)`` result (WP06,
+    # read-side-seam-primary-primitive-closure-01KYKMMT T029) — the SAME primary
+    # leg the :1000/:1022 identity reads use). Reading off the coord-aware
+    # ``run.feature_dir`` STATUS leg lands on the meta-less / sentinel
     # ``-coord`` husk for a coord-topology mission → a None/wrong baseline id.
     # ``run.feature_dir`` stays the coord STATUS leg, untouched (C-001).
     try:
@@ -1434,9 +1431,15 @@ def _run_lane_based_merge_locked(
     """
     from specify_cli.lanes.compute import is_planning_artifact_only
 
-    target_feature_dir = primary_feature_dir_for_mission(
-        main_repo,
-        _canonicalize_primary_read_handle(main_repo, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — PRIMARY_METADATA, since this anchors ``run.target_feature_dir``
+    # (meta.json reads/writes: ``:867`` ``meta.json`` path, ``:996``
+    # ``cutover_mission``'s ``status_phase`` flip target). WP08 (T036):
+    # dropped the caller-side canonicalizer fold — redundant with the seam's
+    # own internal fold for a PRIMARY-partition kind.
+    target_feature_dir = placement_seam(main_repo, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)

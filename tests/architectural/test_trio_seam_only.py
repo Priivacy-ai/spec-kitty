@@ -140,11 +140,21 @@ _CORE_FILES: tuple[Path, ...] = (
 #: ``_canonicalize_*`` cascade steps, etc.) is a leaf primitive the trio must
 #: never import directly.
 _READ_PATH_RESOLVER_MODULE = "specify_cli.missions._read_path_resolver"
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T006, Ledger M5):
+# SHRUNK (a tightening, not a relaxation) -- ``primary_feature_dir_for_mission``
+# and ``_canonicalize_primary_read_handle`` are DROPPED. This mission drains
+# both from the trio (WP05 routes the 10 sites that still import them onto
+# ``resolve_handle_to_read_path`` / the ``placement_seam`` idiom), so blessing
+# them here would keep the allowlist wider than the destination design
+# requires. DIRECTIVE_041 disposition: STALE -- the two names' blessing
+# reflected the CURRENT (soon-to-be-drained) shape, not the target one.
+# Until WP05 lands, every trio file that still imports either name is an
+# EXPECTED red on ``test_trio_imports_route_only_through_seam_wrappers``
+# (recorded in research/expected-reds.md) -- that pre-existing gate now
+# structurally enforces the shrink with zero code changes to itself.
 _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
     {
-        "primary_feature_dir_for_mission",
         "resolve_handle_to_read_path",
-        "_canonicalize_primary_read_handle",
     }
 )
 
@@ -283,7 +293,7 @@ def test_trio_imports_route_only_through_seam_wrappers() -> None:
         "Trio modules import mission-read-path primitives outside the seam:\n"
         + "\n".join(f"  {line}" for line in all_violations)
         + "\n\nRoute through mission_runtime.placement_seam or the blessed "
-        "resolve_handle_to_read_path / primary_feature_dir_for_mission family "
+        "resolve_handle_to_read_path seam idiom "
         "(_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES), or justify a deliberate "
         "allowlist addition."
     )
@@ -299,13 +309,17 @@ def test_blessed_seam_imports_are_not_flagged() -> None:
 
     Guards the scanner against being accidentally too broad (e.g. flagging
     the whole ``_read_path_resolver`` module rather than specific names).
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T006): fixture
+    updated to the POST-SHRINK blessed set (``resolve_handle_to_read_path``
+    only) — DIRECTIVE_041 disposition STALE, remediated in place. This is a
+    synthetic scanner self-test, not a live production check, so it is fixed
+    now rather than carried as an expected red.
     """
     source = textwrap.dedent(
         """
         from specify_cli.missions._read_path_resolver import (
-            primary_feature_dir_for_mission,
             resolve_handle_to_read_path,
-            _canonicalize_primary_read_handle,
         )
         from mission_runtime import placement_seam
         """
@@ -369,27 +383,106 @@ def test_forbidden_mission_runtime_names_are_live_exports() -> None:
     )
 
 
-def test_allowed_read_path_resolver_names_are_currently_used() -> None:
-    """Every blessed name is actually imported by at least one trio module.
-
-    Keeps the allowlist minimal and honest (mirrors
-    ``test_allowlist_entries_are_not_stale`` in the sibling resolver guard):
-    a blessed-but-unused name would silently widen the seam for no reason.
-    ``resolve_handle_to_read_path`` is the one exception -- it is the named
-    seam entry point itself (WP05 prompt), blessed even though the current
-    trio snapshot routes through ``primary_feature_dir_for_mission`` instead.
-    """
+def _trio_resolver_module_imports() -> set[str]:
+    """Every name imported from ``_read_path_resolver`` by ANY real trio file."""
     used: set[str] = set()
     for path in _TRIO_FILES:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module == _READ_PATH_RESOLVER_MODULE:
                 used.update(alias.name for alias in node.names)
+    return used
 
-    unused = sorted(_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES - used - {"resolve_handle_to_read_path"})
-    assert not unused, (
-        f"Blessed _read_path_resolver names not imported by any trio module: {unused}. "
-        "Drop them from _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES to keep the allowlist precise."
+
+def _reacquired_leaf_primitives(used: set[str], blessed: frozenset[str]) -> set[str]:
+    """Names in *used* that are NOT in *blessed* -- a leaf-primitive reacquisition.
+
+    Deliberately NOT a subtraction that can null itself out regardless of
+    *blessed*'s size (the retired M6 shape was ``blessed - used -
+    {"resolve_handle_to_read_path"}``, which is the EMPTY set whenever
+    ``blessed <= {"resolve_handle_to_read_path"}`` -- vacuously green no
+    matter what the trio actually imports). This direction (``used -
+    blessed``) instead asks the real question: does the trio import anything
+    OUTSIDE the blessed set at all.
+    """
+    return used - blessed
+
+
+def test_allowed_read_path_resolver_names_are_currently_used() -> None:
+    """read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T006, Ledger M6):
+
+    Reviewer note (review-cycle-1, N3): this node id is now a MISNOMER — the
+    body below asserts non-reacquisition (no ``_read_path_resolver`` import
+    falls outside the blessed set) plus non-vacuity (the blessed idiom is
+    actually imported somewhere), not literally "currently used" in the
+    original sense. The node id is kept STABLE anyway because the
+    gate-coverage baselines key on it by name; renaming it would silently
+    orphan that baseline entry. Noted here so this is read as a deliberate
+    naming debt, not drift.
+
+    POSITIVE replacement for the retired self-nullifying exemption.
+
+    The prior version computed ``unused = blessed - used -
+    {"resolve_handle_to_read_path"}`` -- once the blessed set shrank to
+    exactly ``{"resolve_handle_to_read_path"}`` (T006's own shrink, above),
+    that expression is the EMPTY set BY CONSTRUCTION regardless of what the
+    trio actually imports: a gate that would stay green even if the trio
+    regressed provides no coverage (DIRECTIVE_041).
+
+    This asserts the POSITIVE directly and is NOT satisfiable by an empty
+    set: every ``_read_path_resolver`` import across the real trio files must
+    be drawn from the blessed set (no leaf-primitive reacquisition), AND the
+    blessed seam idiom must actually be imported by at least one trio file
+    (non-vacuous — an empty ``used`` cannot intersect a non-empty blessed
+    set). Today this is EXPECTED RED: four trio files still import the two
+    just-dropped leaf primitives (WP05 routes them, greening this gate).
+
+    Reviewer note (review-cycle-1, N2): the second assertion depends on
+    ``resolve_handle_to_read_path`` STAYING IMPORTED by at least one trio
+    file — today that is the two surviving function-local imports at
+    ``cli/commands/agent/workflow.py:356`` and ``acceptance/__init__.py:722``.
+    This is the same "must remain in use" shape :func:`write_arm_anchors`
+    (``test_gate_read_literal_ban.py``) relies on for the deleted
+    ``primary_feature_dir_for_mission`` wrapper, one level up at the seam
+    entry point rather than the leaf primitive — named explicitly so a later
+    routing pass does not remove either import blind and silently vacuous
+    this gate.
+    """
+    used = _trio_resolver_module_imports()
+    reacquired = sorted(_reacquired_leaf_primitives(used, _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES))
+    assert not reacquired, (
+        f"Trio module(s) import _read_path_resolver name(s) outside the blessed "
+        f"seam idiom: {reacquired}. Route through resolve_handle_to_read_path "
+        "instead (WP05 routes these sites), or justify a deliberate widening."
+    )
+    assert used & _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES, (
+        "No trio module imports any blessed _read_path_resolver name at all -- "
+        "this positive assertion cannot be satisfied by an empty set (M6 "
+        "anti-vacuity)."
+    )
+
+
+def test_reacquired_leaf_primitives_bites_on_planted_import() -> None:
+    """T006 bite test: a planted leaf-primitive import is flagged as a
+    reacquisition -- proves the helper actually catches a real regression
+    shape, not merely a hypothetical."""
+    used = {"resolve_handle_to_read_path", "primary_feature_dir_for_mission"}
+    reacquired = _reacquired_leaf_primitives(used, _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES)
+    assert reacquired == {"primary_feature_dir_for_mission"}, reacquired
+
+
+def test_reacquired_leaf_primitives_not_vacuous_when_blessed_set_shrinks() -> None:
+    """M6 anti-vacuity: an EMPTY blessed set still flags every import as a
+    reacquisition -- unlike the retired subtraction-based exemption, whose
+    teeth vanished the moment the blessed set shrank to one name. Mutating
+    the blessed set here (down to empty) does NOT make this helper go green:
+    it still has teeth."""
+    used = {"resolve_handle_to_read_path"}
+    reacquired = _reacquired_leaf_primitives(used, frozenset())
+    assert reacquired == {"resolve_handle_to_read_path"}, (
+        "with an empty blessed set every import must be flagged as a "
+        "reacquisition -- this helper's non-vacuity does not depend on the "
+        "blessed set's size, unlike the retired exemption"
     )
 
 
