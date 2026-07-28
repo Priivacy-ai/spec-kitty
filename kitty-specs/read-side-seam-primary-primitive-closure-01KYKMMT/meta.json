@@ -1,0 +1,34 @@
+{
+  "accept_commit": "d3d64a1367e1351cb3cb4914668b238dd8d064fe",
+  "acceptance_history": [
+    {
+      "accept_commit": "d3d64a1367e1351cb3cb4914668b238dd8d064fe",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-28T21:32:57.624404+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "c0db8ecace7ae50a18a52a5346cfd308f5ab6bd2"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-28T21:32:57.624404+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "c0db8ecace7ae50a18a52a5346cfd308f5ab6bd2",
+  "baseline_merge_commit": "7314d5b524be745515ee35cdca499b404e456773",
+  "coordination_branch": "kitty/mission-read-side-seam-primary-primitive-closure-01KYKMMT",
+  "created_at": "2026-07-28T05:54:59.993724+00:00",
+  "flattened": false,
+  "friendly_name": "Read-Side Seam: Placement-Authority Closure",
+  "mission_id": "01KYKMMTRS1XHXTK1QZ9QGX704",
+  "mission_number": null,
+  "mission_slug": "read-side-seam-primary-primitive-closure-01KYKMMT",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Where a mission's files live is supposed to be decided in one place, from the kind of file being read. In practice 34 call sites still decide it themselves by calling a location-specific helper, and one sibling helper is guarded by nothing at all. An audit proved the central resolver returns the same answer in every case tested — and a better answer for missions created before a recent rename. This mission moves those decisions into the resolver using a safe two-step refactor, guards the unguarded helper, closes two small related residuals, and corrects the records that misdescribed all of this.",
+  "purpose_tldr": "Move the 'which partition?' decision out of 34 call sites and into the one resolver that should own it, and guard the resolver nobody guards.",
+  "slug": "read-side-seam-primary-primitive-closure-01KYKMMT",
+  "status_phase": "1",
+  "target_branch": "fix/read-side-seam-primary-primitive-closure",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-28T10:23:28.780288+00:00"
+}

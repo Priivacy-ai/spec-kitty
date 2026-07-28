@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "mission_slug": "read-side-seam-primary-primitive-closure-01KYKMMT",
+  "mission_id": "01KYKMMTRS1XHXTK1QZ9QGX704",
+  "mission_branch": "kitty/mission-read-side-seam-primary-primitive-closure-01KYKMMT",
+  "target_branch": "fix/read-side-seam-primary-primitive-closure",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage_baseline.json",
+        "tests/architectural/_golden_count_baseline.json",
+        "tests/architectural/resolution_gate_allowlist.yaml",
+        "tests/architectural/test_coord_read_residuals_closeout.py",
+        "tests/architectural/test_gate_read_literal_ban.py",
+        "tests/architectural/test_resolution_authority_gates.py",
+        "tests/architectural/test_trio_seam_only.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/development/read-side-seam-classification.md",
+        "tests/architectural/test_no_read_side_bypass.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/architectural/test_single_mission_surface_resolver.py",
+        "tests/specify_cli/missions/test_primary_read_delegation.py",
+        "tests/specify_cli/missions/test_read_path_resolver_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/cli/commands/decision.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/context/resolver.py",
+        "src/specify_cli/decisions/emit.py",
+        "src/specify_cli/lanes/recovery.py",
+        "src/specify_cli/widen/state.py",
+        "tests/specify_cli/missions/test_topology_routed_read_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/acceptance/gates_core.py",
+        "src/specify_cli/acceptance/summary_core.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent/workflow_cores.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "tests/specify_cli/acceptance/test_trio_read_seam_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/retrospective/writer.py",
+        "tests/specify_cli/cli/commands/test_lifecycle_read_seam_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_identity.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/core/git_ops.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/status/aggregate.py",
+        "tests/specify_cli/status/test_aggregate_read_seam_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "tests/architectural/surface_resolution_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/architecture/artifact-placement-seam.md",
+        "docs/architecture/branch-target-routing.md",
+        "docs/architecture/index.md",
+        "docs/context/orchestration.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "tests/docs/test_artifact_placement_seam_page.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-h"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-28T09:45:46.781553+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
