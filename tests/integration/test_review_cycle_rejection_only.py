@@ -399,9 +399,27 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     This test drives the full, well-behaved lifecycle a reviewer would
     actually use -- reject once, then rework and resubmit for a SECOND
     genuine review -- and shows that a plain
-    ``move-task WP01 --to approved --note ... --no-auto-commit`` (no
-    ``--skip-review-artifact-check``, no ``--force``) is refused, and no
-    ``review-cycle-2.md`` is ever created to represent the eventual approval.
+    ``move-task WP01 --to approved --agent reviewer-renata --note ...
+    --no-auto-commit`` (no ``--skip-review-artifact-check``, no ``--force``)
+    is refused, and no fresh ``review-cycle-N.md`` is ever created to
+    represent the eventual approval.
+
+    Contract pinned here (per #2996 step 4 -- "a new review-cycle-(N+1).md
+    is written with verdict: approved, a real reviewer_agent, and the actual
+    affected files / repro command"): the caller *declares* its identity via
+    ``--agent`` (a real, documented option -- see
+    ``src/specify_cli/cli/commands/agent/tasks.py:610``), and the recorded
+    artifact must echo that declared identity plus reviewer-authored body
+    content. This is deliberately NOT ``reviewer_agent != "unknown"`` on an
+    invocation that declares no reviewer -- that phrasing is satisfiable by
+    *inferring* an identity from ambient state, which is the exact
+    provenance-fabrication pathology #2996(b) pins against elsewhere (a
+    ``review-cycle-2.md`` written with ``reviewer_agent: unknown`` and a body
+    byte-identical to cycle 1's, authored by nobody). Requiring the artifact
+    to echo a caller-declared identity, plus carry non-empty reviewer content,
+    closes off the cheapest satisfying "fix" -- synthesizing an empty
+    approval artifact with an inferred reviewer -- without licensing either
+    half of #2996's pathology.
 
     Beware the false green this test replaces coverage for:
     ``tests/post_merge/test_review_artifact_consistency.py:214`` passes today
@@ -481,7 +499,10 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     )
 
     # The reviewer is now satisfied and approves -- a plain approve, with NO
-    # override flags. This is the exact command shape from the ticket.
+    # override flags, and a caller-declared reviewer identity via --agent
+    # (the real option the CLI already exposes -- see
+    # src/specify_cli/cli/commands/agent/tasks.py:610).
+    reviewer_identity = "reviewer-renata"
     runner = CliRunner()
     result = runner.invoke(
         agent_tasks.app,
@@ -492,6 +513,8 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
             "approved",
             "--mission",
             MISSION_SLUG,
+            "--agent",
+            reviewer_identity,
             "--note",
             "Approving after fixes were verified in the resubmitted review cycle.",
             "--no-auto-commit",
@@ -501,11 +524,17 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     # Assert artifact FIRST (names the missing producer, not the guard).
     latest = ReviewCycleArtifact.latest(sub_artifact_dir)
     assert latest is not None, (
-        "expected a review-cycle-2.md verdict artifact to exist after the "
-        f"approve attempt; none was created. CLI stdout:\n{result.stdout}"
+        "expected a fresh review-cycle-N.md verdict artifact to exist after "
+        f"the approve attempt; none was created. CLI stdout:\n{result.stdout}"
     )
-    assert latest.cycle_number == 2, (
-        f"expected cycle_number 2 (a fresh approval verdict), got "
+    # Number-agnostic per #2996: the highest-numbered artifact must be the
+    # approval, not necessarily cycle 2 specifically -- next_cycle_number is
+    # len(glob) + 1 (a known double-increment source; see
+    # src/specify_cli/review/artifacts.py), so a correct fix could legitimately
+    # land the approval at cycle 3. What matters is that a NEW cycle was
+    # written rather than the stale rejected cycle 1 being reused.
+    assert latest.cycle_number > 1, (
+        f"expected a fresh cycle number above the rejected cycle 1, got "
         f"{latest.cycle_number} -- the stale rejected cycle 1 is still "
         f"'latest'. CLI stdout:\n{result.stdout}"
     )
@@ -513,9 +542,21 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
         f"expected the latest review-cycle artifact's verdict to be "
         f"'approved', got {latest.verdict!r}. CLI stdout:\n{result.stdout}"
     )
-    assert latest.reviewer_agent != "unknown", (
-        "expected the approval artifact to carry a real reviewer identity, "
-        f"got 'unknown'. CLI stdout:\n{result.stdout}"
+    # The artifact must echo the identity the CALLER declared -- not an
+    # identity inferred from ambient state. An invocation that declares no
+    # reviewer cannot honestly satisfy this; requiring the declared identity
+    # to be echoed keeps the contract satisfiable without inference.
+    assert latest.reviewer_agent == reviewer_identity, (
+        f"expected the approval artifact to echo the declared --agent "
+        f"identity {reviewer_identity!r}, got {latest.reviewer_agent!r}. "
+        f"CLI stdout:\n{result.stdout}"
+    )
+    # Reviewer-authored content, not a synthesized empty shell: a fix that
+    # fabricates an approval artifact with an empty body would satisfy every
+    # assertion above but must not satisfy this one.
+    assert latest.body.strip(), (
+        "expected the approval artifact to carry non-empty reviewer-authored "
+        f"body content, got an empty body. CLI stdout:\n{result.stdout}"
     )
 
     assert result.exit_code == 0, (
