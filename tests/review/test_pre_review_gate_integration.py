@@ -507,6 +507,27 @@ def test_empty_cone_composite_is_no_coverage_not_clean(
     assert metadata["blocked"] is False
 
 
+@pytest.mark.fast
+def test_advisory_timeout_verdict_commits_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+    ports, router = _fake_ports(feature_dir)
+    timeout_verdict = pre_review_gate.GateVerdict(
+        outcome=pre_review_gate.GateOutcome.NO_COVERAGE,
+        scope=pre_review_gate.ScopeResult.from_override(("tests/cli",)),
+        reason="scoped test run timed out after 300s",
+    )
+    monkeypatch.setattr(tasks_move_task, "_mt_pre_review_gate_verdict", lambda **kwargs: timeout_verdict)
+
+    _run_move(tmp_path, ports=ports)
+
+    assert len(router.status_calls) == 1
+    metadata = _gate_metadata(router.status_calls[0])
+    assert metadata["outcome"] == "no_coverage"
+    assert metadata["block_enabled"] is False
+    assert metadata["blocked"] is False
+
+
 # ---------------------------------------------------------------------------
 # T004 — opt-in block: blocks without --force, --force bypasses + is recorded
 # ---------------------------------------------------------------------------
@@ -565,12 +586,18 @@ def test_force_bypasses_block_and_is_recorded(tmp_path: Path, monkeypatch: pytes
     _seed_baseline(feature_dir, "WP01-test", failed=0)
     _write_config_yaml(tmp_path, block=True)
     ports, router = _fake_ports(feature_dir)
+    monkeypatch.setattr(
+        tasks_move_task,
+        "_mt_resolve_pre_review_workspace",
+        lambda st: (_ for _ in ()).throw(AssertionError("force must skip workspace resolution")),
+    )
 
     _run_move(tmp_path, ports=ports, force=True, workspace_resolution=_fixture_workspace(repo))
 
     assert len(router.status_calls) == 1  # --force bypassed the block
     metadata = _gate_metadata(router.status_calls[0])
-    assert metadata["outcome"] == "new_failures"
+    assert metadata["outcome"] == "no_coverage"
+    assert "--force" in metadata["reason"]
     assert metadata["block_enabled"] is True
     assert metadata["blocked"] is False
     assert metadata["force_bypassed"] is True
@@ -748,8 +775,9 @@ def test_override_scope_force_bypasses_block_and_is_recorded(tmp_path: Path) -> 
 
     assert len(router.status_calls) == 1  # --force bypassed the block
     metadata = _gate_metadata(router.status_calls[0])
-    assert metadata["outcome"] == "new_failures"
-    assert metadata["test_targets"] == ["tests/override-target"]
+    assert metadata["outcome"] == "no_coverage"
+    assert "--force" in metadata["reason"]
+    assert metadata["test_targets"] == []
     assert metadata["matched_shard_groups"] == []  # derive_test_scope never ran (override tier)
     assert metadata["block_enabled"] is True
     assert metadata["blocked"] is False

@@ -107,6 +107,21 @@ _LoadWorkflowModels = Callable[[], dict[str, object]]
 _AggregateFilterGroups = Callable[[dict[str, object]], dict[str, tuple[str, ...]]]
 
 _DEFAULT_HEAD_RUN_TIMEOUT = 300  # seconds; mirrors baseline.py's capture_baseline timeout.
+_HEAD_RUN_TIMEOUT_ENV = "SPEC_KITTY_PRE_REVIEW_TIMEOUT"
+
+
+def _resolve_head_run_timeout(timeout: int | None) -> int:
+    """Resolve the head-run timeout, allowing an env override for production callers."""
+    if timeout is not None:
+        return timeout
+    raw_timeout = os.environ.get(_HEAD_RUN_TIMEOUT_ENV)
+    if raw_timeout is None:
+        return _DEFAULT_HEAD_RUN_TIMEOUT
+    try:
+        resolved = int(raw_timeout)
+    except ValueError:
+        return _DEFAULT_HEAD_RUN_TIMEOUT
+    return resolved if resolved > 0 else _DEFAULT_HEAD_RUN_TIMEOUT
 
 
 class GateAuthoritiesUnavailable(RuntimeError):
@@ -359,7 +374,7 @@ def run_scoped_tests_at_head(
     test_targets: Sequence[str],
     *,
     repo_root: Path,
-    timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    timeout: int | None = None,
 ) -> HeadRunResult:
     """Run ``test_targets`` at head and parse JUnit into ``current_failures``.
 
@@ -370,6 +385,7 @@ def run_scoped_tests_at_head(
     """
     if not test_targets:
         return HeadRunResult(ran=False, error="empty test scope — nothing to run")
+    resolved_timeout = _resolve_head_run_timeout(timeout)
 
     env = dict(os.environ)
     env["PWHEADLESS"] = "1"  # never pop a browser window during an automated gate run
@@ -391,11 +407,11 @@ def run_scoped_tests_at_head(
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=timeout,
+                timeout=resolved_timeout,
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            return HeadRunResult(ran=False, error=f"scoped test run timed out after {timeout}s: {exc}")
+            return HeadRunResult(ran=False, error=f"scoped test run timed out after {resolved_timeout}s: {exc}")
         except OSError as exc:
             return HeadRunResult(ran=False, error=f"scoped test run failed to launch: {exc}")
 
@@ -453,7 +469,7 @@ def evaluate_with_scope(
     *,
     repo_root: Path,
     baseline: BaselineTestResult | None,
-    timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    timeout: int | None = None,
 ) -> GateVerdict:
     """The shared verdict tail: run ``scope`` at head, diff vs. ``baseline``.
 
@@ -516,7 +532,7 @@ def evaluate_pre_review_gate(
     *,
     repo_root: Path,
     baseline: BaselineTestResult | None,
-    timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    timeout: int | None = None,
     filter_groups: Mapping[str, tuple[str, ...]] | None = None,
     composite_routing: Mapping[str, _CompositeRoute] | None = None,
 ) -> GateVerdict:

@@ -1,20 +1,26 @@
 {
-  "root_cause": "`spec-kitty next` normalizes `--mission` through `_resolve_mission_slug()`, which calls `candidate_feature_dir_for_mission()` and ultimately `_resolve_mission_read_path()`. The read-path resolver correctly calls `assert_safe_path_segment()` before composing paths, but that guard raises `ValueError` for `..` traversal input while the `next_step()` boundary only catches `StatusReadPathNotFound` and `MissionNotFoundError`; the raw `ValueError` therefore escapes Typer's normal command error path and produces a Python traceback.",
+  "root_cause": "The pre-review gate runner has a fixed 300 second subprocess timeout and the move-task hook always pays the gate cost before deciding whether enforcement or --force should matter. Timeout is an unverified/no-coverage condition, but the transition policy is not explicitly pinned for the advisory/default path and there is no supported timeout override, so large auto-derived scopes can consume the full hard-coded budget and surface as a failed pre-review gate instead of advisory evidence. The --force path is also sequenced after the run, so it cannot serve as an immediate bypass for an expensive or doomed gate.",
   "target_files": [
-    "src/specify_cli/cli/commands/next_cmd.py",
-    "tests/agent/cli/commands/test_next_preflight.py"
+    "src/specify_cli/review/pre_review_gate.py",
+    "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+    "tests/review/test_pre_review_gate_engine.py",
+    "tests/review/test_pre_review_gate_integration.py"
   ],
   "target_functions": [
-    "next_step",
-    "_resolve_mission_slug",
-    "_emit_invalid_mission_error"
+    "run_scoped_tests_at_head",
+    "evaluate_with_scope",
+    "evaluate_pre_review_gate",
+    "_mt_pre_review_gate_with_override_scope",
+    "_mt_pre_review_gate_verdict",
+    "_mt_run_pre_review_gate"
   ],
-  "approach": "Keep the traversal guard in the resolver unchanged and translate its `ValueError` at the `next` CLI boundary. Add a small invalid-mission emitter in `next_cmd.py` (human stderr and JSON-safe payload) and catch `ValueError` from `_resolve_mission_slug()` beside the existing typed read-path handling, exiting non-zero without a traceback. Do not broaden the catch around runtime advancement or decision execution, so unrelated `ValueError`s still surface normally.",
+  "approach": "Add a small timeout resolver in `pre_review_gate.py` that reads `SPEC_KITTY_PRE_REVIEW_TIMEOUT`, validates it as a positive integer, and falls back to the existing 300 second default; change the public timeout parameters to accept `None` so tests and callers can still pass explicit values while production uses the env-aware resolver. In `tasks_move_task.py`, short-circuit `_mt_run_pre_review_gate` when `st.force` is true by recording a skipped/no_coverage metadata payload and returning before workspace resolution, diffing, or pytest execution. Add an explicit regression around a timed-out advisory verdict proving the transition still emits policy metadata with `blocked: false`, and keep the only hard block as `block_enabled and outcome == NEW_FAILURES`.",
   "tests_to_add": [
-    "Add a regression test invoking `next_step` with `mission=\"../traversal\"` that asserts non-zero `typer.Exit`, no `Traceback` text, and the safe-path guard message is rendered cleanly.",
-    "Add the same assertion for `json_output=True` if straightforward, verifying a typed error payload rather than mixed traceback output."
+    "Unit test that `SPEC_KITTY_PRE_REVIEW_TIMEOUT` is passed to `subprocess.run` and invalid/non-positive values fall back to 300 seconds.",
+    "Integration test where the pre-review evaluator returns a timeout/no_coverage verdict with `block_enabled` false and `move-task --to for_review` still commits the transition with `blocked: false`.",
+    "Integration or seam test proving `--force` skips the pre-review run entirely and records a force-bypassed/skipped metadata reason."
   ],
-  "expected_loc": 45,
-  "risk_notes": "Catching all `ValueError` from `_resolve_mission_slug()` could misclassify a future non-validation bug in that helper as invalid input; keep the catch scoped only around slug normalization and include the original message.",
-  "out_of_scope_observations": "The resolver's security behavior is already fail-closed; no path traversal bypass or source-template changes are needed."
+  "expected_loc": 95,
+  "risk_notes": "Changing timeout defaults from an integer literal to env-aware resolution touches several call sites; keep explicit timeout arguments behavior unchanged to avoid destabilizing existing tests.",
+  "out_of_scope_observations": "The adjacent reviewer_agent attribution problem is a separate review-cycle metadata issue and should not be fixed in this PR."
 }

@@ -249,6 +249,43 @@ def test_timeout_degrades_to_a_warn_not_a_crash(monkeypatch: pytest.MonkeyPatch,
 
 
 @pytest.mark.fast
+def test_env_timeout_is_passed_to_subprocess(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    seen_timeout: object = None
+
+    def _fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal seen_timeout
+        seen_timeout = kwargs["timeout"]
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("SPEC_KITTY_PRE_REVIEW_TIMEOUT", "42")
+    monkeypatch.setattr(pre_review_gate.subprocess, "run", _fake_run)
+
+    pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path)
+
+    assert seen_timeout == 42
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("raw_timeout", ["0", "-1", "not-an-int"])
+def test_invalid_env_timeout_falls_back_to_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, raw_timeout: str,
+) -> None:
+    seen_timeout: object = None
+
+    def _fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal seen_timeout
+        seen_timeout = kwargs["timeout"]
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("SPEC_KITTY_PRE_REVIEW_TIMEOUT", raw_timeout)
+    monkeypatch.setattr(pre_review_gate.subprocess, "run", _fake_run)
+
+    pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path)
+
+    assert seen_timeout == 300
+
+
+@pytest.mark.fast
 def test_launch_failure_degrades_to_a_warn_not_a_crash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     def _raise_oserror(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         raise OSError("no such file or directory")

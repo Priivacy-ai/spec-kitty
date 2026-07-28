@@ -1014,6 +1014,15 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     assert st.wp is not None
+    if st.force:
+        verdict = _mt_empty_scope_verdict("pre-review gate skipped because --force was supplied")
+        st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
+            verdict,
+            block_enabled=_mt_pre_review_block_enabled(st.main_repo_root),
+            blocked=False,
+            force_bypassed=True,
+        )
+        return
     try:
         worktree_path = _mt_resolve_pre_review_workspace(st)
         changed_files = (
