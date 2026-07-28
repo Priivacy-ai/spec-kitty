@@ -12,6 +12,7 @@ from packaging.version import Version
 
 from specify_cli.migration.mission_state import (
     MissionStateDryRunError,
+    MissionStateRepairError,
     _repo_slug,
     deterministic_ulid,
     repair_repo,
@@ -86,10 +87,24 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
         "type": "RetrospectiveCaptured",
         "payload": {"mission_slug": "042-historical-shape"},
     }
+    annotation_row = {
+        "actor": "migration:backfill_runtime_state",
+        "at": "2026-01-01T00:00:01+00:00",
+        "delta": {"subtasks": {"T001": "done"}},
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGV",
+        "kind": "annotation",
+        "wp_id": "WP01",
+    }
     (mission / "status.events.jsonl").write_text(
         "\n".join(
             json.dumps(row, sort_keys=True)
-            for row in (status_row, duplicate_row, typed_row, retrospective_row)
+            for row in (
+                status_row,
+                duplicate_row,
+                typed_row,
+                annotation_row,
+                retrospective_row,
+            )
         )
         + "\n",
         encoding="utf-8",
@@ -136,7 +151,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
         for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    assert len(rows) == 2
+    assert len(rows) == 3
     row = rows[0]
     assert row["mission_slug"] == "042-historical-shape"
     assert row["mission_id"] == meta["mission_id"]
@@ -147,16 +162,23 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "feature_slug" not in row
     assert "work_package_id" not in row
     assert "legacy_aggregate_id" not in row
+    # Runtime annotations are contracted state, read by the annotation-aware
+    # reducer rather than the lane-transition parser, so repair preserves them
+    # untouched.
+    assert rows[1] == annotation_row
     # Retrospective lifecycle rows are contracted provenance read back by
     # retrospective consumers — repair must preserve them untouched.
-    assert rows[1] == retrospective_row
+    assert rows[2] == retrospective_row
 
     status = _read_json(mission / "status.json")
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
+    work_packages = cast(dict[str, dict[str, object]], status["work_packages"])
+    assert work_packages["WP01"]["subtasks"] == {"T001": "done"}
     quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
     quarantine_text = quarantine.read_text(encoding="utf-8")
     assert "DecisionPointOpened" in quarantine_text
+    assert "migration:backfill_runtime_state" not in quarantine_text
     assert "RetrospectiveCaptured" not in quarantine_text
 
     if not _has_events_5():
@@ -250,6 +272,91 @@ def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> No
     assert first.missions[0].status == "updated"
     assert second.missions[0].status == "unchanged"
     assert second.missions[0].row_transformations == []
+
+
+def test_repair_preflight_prevents_partial_mutation_when_any_mission_is_invalid(
+    tmp_path: Path,
+) -> None:
+    """A failed semantic preflight leaves every mission artifact untouched."""
+    repo = tmp_path
+    valid = repo / "kitty-specs" / "001-valid"
+    invalid = repo / "kitty-specs" / "002-invalid"
+    valid.mkdir(parents=True)
+    invalid.mkdir(parents=True)
+
+    _write_json(
+        valid / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "001",
+            "feature_slug": "001-valid",
+            "friendly_name": "Valid",
+            "mission": "software-dev",
+            "target_branch": "main",
+        },
+    )
+    valid_row = {
+        "actor": "codex",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGW",
+        "feature_slug": "001-valid",
+        "from_lane": "doing",
+        "to_lane": "claimed",
+        "work_package_id": "WP01",
+    }
+    (valid / "status.events.jsonl").write_text(
+        json.dumps(valid_row, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    _write_json(valid / "status.json", {"stale": True})
+
+    _write_json(
+        invalid / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Invalid",
+            "mission_number": 2,
+            "mission_slug": "002-invalid",
+            "mission_type": "software-dev",
+            "slug": "002-invalid",
+            "target_branch": "main",
+        },
+    )
+    (invalid / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "actor": "codex",
+                "at": "2026-01-01T00:00:00+00:00",
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGX",
+                "from_lane": "planned",
+                "mission_slug": "002-invalid",
+                "wp_id": "WP01",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    before = {
+        path: path.read_text(encoding="utf-8")
+        for path in (
+            valid / "meta.json",
+            valid / "status.events.jsonl",
+            valid / "status.json",
+        )
+    }
+
+    with pytest.raises(
+        MissionStateRepairError,
+        match="preflight failed; no mission artifacts were written",
+    ):
+        repair_repo(repo)
+
+    assert {
+        path: path.read_text(encoding="utf-8")
+        for path in before
+    } == before
+    assert not (repo / ".kittify" / "migrations" / "mission-state").exists()
 
 
 def test_deterministic_repair_ids_follow_fork_seed_material(tmp_path: Path) -> None:
@@ -864,15 +971,14 @@ def test_manifest_top_level_keys_remain_sorted(tmp_path: Path) -> None:
 
 
 def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None:
-    """A traversal mission_slug read from meta.json must raise ValueError before
-    writing the quarantine path.
+    """A traversal mission_slug fails preflight before writing any artifact.
 
     Mutation check: removing assert_safe_path_segment from the quarantine-path
     block in _repair_mission would cause this test to fail (no ValueError raised).
 
     The test injects a traversal mission_slug via meta.json and ensures that
-    when quarantine rows are produced, repair_repo raises ValueError rather than
-    writing an escaped path.
+    when quarantine rows are produced, repair_repo raises before writing an
+    escaped path or partially canonicalizing the mission.
     """
     repo = tmp_path
     # Use a valid directory name so the mission dir is discovered
@@ -920,23 +1026,9 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
     )
     _init_git_repo(repo)
 
-    # The traversal slug causes assert_safe_path_segment to raise ValueError inside
-    # _repair_mission.  Because _repair_mission catches all exceptions and returns
-    # a MissionRepairResult with status="error", repair_repo completes without
-    # propagating the exception.  Verify that:
-    #   (a) the mission result carries status="error" (guard fired)
-    #   (b) no file was written at an escaped path outside the repo root.
-    result = repair_repo(repo)
-
-    assert len(result.missions) == 1, "Expected exactly one mission result"
-    mission_result = result.missions[0]
-    assert mission_result.status == "error", (
-        f"Expected error status when traversal slug fires guard, got: {mission_result.status!r}"
-    )
-    # The validation_errors list must contain the slug-validation message
-    assert any("safe path segment" in e or "traversal" in e for e in mission_result.validation_errors), (
-        f"Expected traversal-guard error in validation_errors, got: {mission_result.validation_errors}"
-    )
+    with pytest.raises(MissionStateRepairError, match="preflight failed") as exc_info:
+        repair_repo(repo)
+    assert "safe path segment" in str(exc_info.value) or "traversal" in str(exc_info.value)
 
     # Verify nothing was written at an escaped path
     quarantine_root = repo / ".kittify" / "migrations" / "mission-state" / "quarantine"

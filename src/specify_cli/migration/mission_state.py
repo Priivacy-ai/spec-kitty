@@ -45,8 +45,14 @@ from specify_cli.migration.canonicalization import (
     apply_rules,
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
-from specify_cli.status import materialize_snapshot, materialize_to_json
+from specify_cli.status import (
+    materialize_snapshot,
+    materialize_to_json,
+    read_event_stream_from_text,
+    reduce,
+)
 from specify_cli.status import LIFECYCLE_EVENT_TYPES, is_retrospective_lifecycle_event
+from specify_cli.status.store import ANNOTATION_KIND
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -523,7 +529,12 @@ def repair_repo(
     manifest_path: Path | None = None,
     allow_dirty: bool = False,
 ) -> RepairReport:
-    """Canonicalize historical mission state on disk and write a manifest."""
+    """Canonicalize historical mission state on disk and write a manifest.
+
+    Every selected mission passes semantic preflight before the first mission
+    artifact is written. A malformed mission therefore fails closed without
+    leaving earlier missions partially repaired.
+    """
     resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
     mission_dirs = _select_mission_dirs(resolved_repo_root, scan_root=scan_root, mission=mission)
     if not mission_dirs:
@@ -537,6 +548,18 @@ def repair_repo(
 
     _assert_git_safe(resolved_repo_root, relevant_paths, allow_dirty=allow_dirty)
     with _git_lock(resolved_repo_root):
+        preflight_errors: list[str] = []
+        for mission_dir in mission_dirs:
+            try:
+                _preflight_mission_repair(resolved_repo_root, mission_dir)
+            except Exception as exc:
+                preflight_errors.append(f"{mission_dir.name}: {exc}")
+        if preflight_errors:
+            raise MissionStateRepairError(
+                "Mission-state repair preflight failed; no mission artifacts were written.\n"
+                + "\n".join(f"- {error}" for error in preflight_errors)
+            )
+
         results: list[MissionRepairResult] = []
         # Mission 8 (#930): collect every deterministic ID minted during
         # the run so the manifest can list them all under ``generated_ids``.
@@ -1026,6 +1049,51 @@ def _count_jsonl_rows(path: Path) -> int:
         return 0
 
 
+def _preflight_mission_repair(repo_root: Path, mission_dir: Path) -> None:
+    """Validate one mission's repaired state without writing repository artifacts.
+
+    The write pass remains deliberately simple and uses the production
+    materializer. This preflight executes the same meta and row
+    canonicalization, validates quarantined-path safety, then parses and
+    reduces the would-be event stream. Semantic failures are thus discovered
+    for *every* selected mission before any ``meta.json``, JSONL, snapshot, or
+    repair manifest mutation can occur.
+    """
+    raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
+    meta, _ = _canonicalize_meta(mission_dir, raw_rows)
+    mission_slug = str(meta.get("mission_slug") or mission_dir.name)
+    mission_id = str(meta.get("mission_id") or "")
+
+    status_path = mission_dir / EVENTS_FILENAME
+    if not status_path.exists():
+        return
+
+    canonical_rows, _transforms, quarantine_lines, row_errors = _canonicalize_status_rows(
+        repo_root,
+        mission_dir,
+        raw_rows,
+        mission_slug=mission_slug,
+        mission_id=mission_id,
+    )
+    if row_errors:
+        raise MissionStateRepairError("; ".join(row_errors))
+    if raw_rows and not canonical_rows:
+        raise MissionStateRepairError(
+            f"Refusing to empty {_repo_relpath(repo_root, status_path)}: "
+            f"all {len(raw_rows)} row(s) were dropped by repair. This usually "
+            "indicates a row-classification bug."
+        )
+    if quarantine_lines:
+        # ``mission_slug`` originates in meta.json and can reach the quarantine
+        # path during the write pass. Validate it now, before any mission file
+        # has changed.
+        assert_safe_path_segment(mission_slug)
+
+    status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
+    stream = read_event_stream_from_text(mission_dir, status_text)
+    reduce(stream.transitions, stream.annotations)
+
+
 def _repair_mission(
     repo_root: Path,
     mission_dir: Path,
@@ -1299,7 +1367,7 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
 
     ``status.events.jsonl`` is a *shared* append log. Lane-transition rows are
     flat (``wp_id`` / ``from_lane`` / ``to_lane``); other subsystems co-locate
-    ``event_type`` / ``type`` rows. Two of those classes have **no other
+    ``event_type`` / ``type`` / ``kind`` rows. Three of those classes have **no other
     per-mission home**, so quarantining them is real data loss (issue #2376):
 
     - **Retrospective lifecycle rows** (``type`` envelope) — contracted
@@ -1309,6 +1377,11 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
       ``WPCreated``, …). :mod:`specify_cli.status.lifecycle_events` is their
       sole durable per-mission writer and declares this stream "a safe target
       for repair / replay tooling".
+    - **Runtime-state annotations** (``kind == "annotation"``), decoded by
+      :class:`specify_cli.status.models.InnerStateChanged` and folded into the
+      runtime snapshot by the annotation-aware reducer. They deliberately have
+      no lane fields, so treating them as a transition would both reject valid
+      data and block repair.
 
     Other ``event_type`` rows (e.g. Decision-Moment ``DecisionPoint*``) are NOT
     preserved here: their canonical store is elsewhere
@@ -1332,7 +1405,8 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
         return True
     return (
-        is_retrospective_lifecycle_event(row)
+        row.get("kind") == ANNOTATION_KIND
+        or is_retrospective_lifecycle_event(row)
         or row.get("event_type") in LIFECYCLE_EVENT_TYPES
     )
 
@@ -1343,10 +1417,10 @@ def _rule_reject_non_status_event(
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
     - Rows whose only per-mission home is this file
-      (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
-      events) are PRESERVED in place — the runtime reader skips them during lane
-      reduction but they are contracted data; quarantining them (issue #2376)
-      emptied healthy mission logs.
+      (:func:`_is_preserved_non_lane_row`: retrospective, canonical lifecycle,
+      and runtime annotation events) are PRESERVED in place — annotations are
+      folded by the runtime reducer, while the others are skipped during lane
+      reduction; all are contracted data and quarantining them loses state.
     - Any other ``event_type`` / ``event_name`` row is QUARANTINED (its canonical
       state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
       class before a TeamSpace dry-run.

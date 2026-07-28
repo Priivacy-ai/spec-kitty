@@ -56,7 +56,7 @@ The dry-run synthesizes canonical Spec Kitty event envelopes in memory and valid
 
 ## Distributed Git Safety
 
-`--fix` refuses to run when relevant mission paths are dirty unless `--allow-dirty` is supplied. It also checks linked worktrees that share the same Git common directory and takes an exclusive `.git/spec-kitty-mission-state.lock` while writing.
+`--fix` refuses to run when relevant mission paths are dirty unless `--allow-dirty` is supplied. Before it writes anything, it semantically preflights every selected mission; if any mission is malformed, it fails without changing any mission artifact or creating a repair manifest. It also checks linked worktrees that share the same Git common directory and takes an exclusive `.git/spec-kitty-mission-state.lock` while writing.
 
 For teams, use this sequence:
 
