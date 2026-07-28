@@ -6,6 +6,10 @@ Covers FR-003/FR-012:
 - Each outcome value is written verbatim.
 - Double close exits 1 with the structured already-closed error (rich + --json).
 - Evidence refused for legacy advisory records before any write; accepted for task_execution.
+
+WP05 (FR-013/C-005/C-007) extends this to the closer's help surface: the group
+epilog must name ``spec-kitty dispatch`` as the opener without adding a command,
+touching ``help=``, or changing anything ``complete`` records or emits.
 """
 
 from __future__ import annotations
@@ -13,13 +17,20 @@ from __future__ import annotations
 import json
 import shutil
 import sys
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
+import click
 import pytest
+from click.testing import Result
+from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
+from specify_cli import completion
+from specify_cli.cli.commands.profile_invocation import profile_invocation_app
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.writer import EVENTS_DIR
@@ -29,7 +40,16 @@ pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 
 
 class ArgvCliRunner(CliRunner):
-    def invoke(self, app, args=None, **kwargs):  # type: ignore[no-untyped-def]
+    """CliRunner that also patches ``sys.argv`` so the CLI sees the real prog name."""
+
+    # typer's CliRunner renames click's first parameter (``cli`` -> ``app``), so no
+    # override can satisfy both supertypes; the runtime contract is typer's.
+    def invoke(  # type: ignore[override]
+        self,
+        app: Any,
+        args: str | Sequence[str] | None = None,
+        **kwargs: Any,
+    ) -> Result:
         argv = ["spec-kitty", *(list(args) if args is not None and not isinstance(args, str) else [])]
         with patch.object(sys, "argv", argv):
             return super().invoke(app, args, **kwargs)
@@ -273,3 +293,96 @@ def test_cli_close_appends_artifact_and_commit_links_after_completed(
         "artifact_link",
         "commit_link",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Opener discoverability (FR-013 / SC-005): the closer's help names
+# ``spec-kitty dispatch``, and it does so from the epilog only (C-007).
+# ---------------------------------------------------------------------------
+
+
+def _flatten(text: str) -> str:
+    """Collapse Rich's wrapping/padding so assertions survive any console width."""
+    return " ".join(text.split())
+
+
+def _resolve_group() -> click.Command:
+    """Resolve the live ``profile-invocation`` group from the real CLI app."""
+    root = get_command(cli_app)
+    ctx = click.Context(root, info_name=completion.PROG_NAME)
+    group: click.Command | None = root.get_command(ctx, "profile-invocation")  # type: ignore[attr-defined]
+    assert group is not None
+    return group
+
+
+def test_group_help_names_the_dispatch_opener() -> None:
+    result = runner.invoke(cli_app, ["profile-invocation", "--help"])
+
+    assert result.exit_code == 0, result.output
+    flat = _flatten(result.output)
+    assert 'spec-kitty dispatch "<request>"' in flat
+    assert "spec-kitty profile-invocation complete --invocation-id <id> --outcome <outcome>" in flat
+
+
+def test_opener_pointer_lives_in_the_epilog_not_in_help() -> None:
+    """C-007: ``help=`` feeds the completion manifest; the epilog does not."""
+    info = profile_invocation_app.info
+
+    assert info.help == "Manage invocation records."
+    assert "dispatch" not in (info.help or "")
+    assert "spec-kitty dispatch" in (info.epilog or "")
+
+
+def test_no_profile_invocation_dispatch_subcommand() -> None:
+    """C-007: the fix is help text, not an alias command."""
+    result = runner.invoke(cli_app, ["profile-invocation", "dispatch", "--help"])
+
+    assert result.exit_code != 0
+    group = _resolve_group()
+    subcommands = group.list_commands(click.Context(group, info_name="profile-invocation"))  # type: ignore[attr-defined]
+    assert subcommands == ["complete"]
+
+
+def test_completion_manifest_entry_unchanged_by_epilog() -> None:
+    """C-007/C-005: the epilog carries no completion-manifest churn.
+
+    Rebuild the ``profile-invocation`` node from the live CLI with the real
+    generator and compare it to the committed manifest. Moving the pointer into
+    ``help=`` (or adding a subcommand) fails this — the fix is to move the text
+    back, never to regenerate the manifest.
+    """
+    live_node = completion.build_manifest_from_command(_resolve_group())
+    committed_node = completion._load_manifest()["commands"]["profile-invocation"]
+
+    assert live_node == committed_node
+    assert "dispatch" not in json.dumps(live_node)
+    assert sorted(live_node) == ["commands", "deprecated", "help", "hidden"]
+
+
+def test_close_metadata_unchanged_by_epilog(tmp_path: Path) -> None:
+    """FR-013 must not leak into what ``complete`` records or emits."""
+    project = _setup_project(tmp_path)
+    inv_id = _open_invocation(project)
+
+    result = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == {
+        "result": "success",
+        "invocation_id": inv_id,
+        "outcome": "done",
+        "evidence_ref": None,
+        "artifact_links": [],
+        "commit_link": None,
+    }
+
+    events = _read_events(project, inv_id)
+    completed = events[1]
+    assert sorted(completed) == [
+        "closed_by",
+        "completed_at",
+        "event",
+        "invocation_id",
+        "outcome",
+    ]
+    assert "dispatch" not in json.dumps(events)
