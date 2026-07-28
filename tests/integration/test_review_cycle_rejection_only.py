@@ -237,6 +237,12 @@ def _trigger_rejection(repo: Path, body: str) -> Path:
     feedback_file = repo / f"feedback_{abs(hash(body))}.md"
     feedback_file.write_text(body, encoding="utf-8")
 
+    # ``_persist_review_feedback`` is declared ``-> tuple[Path, str]`` at its
+    # definition (``agent/tasks_materialization.py``), but ``[tool.mypy]``
+    # sets ``follow_imports = "skip"`` for ``specify_cli.*``, so the symbol
+    # arrives here as ``Any``. Narrow it back at the boundary rather than
+    # suppressing the resulting ``no-any-return``.
+    persisted: Path
     persisted, _pointer = _persist_review_feedback(
         main_repo_root=repo,
         mission_slug=MISSION_SLUG,
