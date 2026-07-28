@@ -45,17 +45,32 @@ git log --oneline <coord> -- kitty-specs/<slug>/  =>  ''
    planning artifacts exist.
 2. A normal ``git commit`` of ``kitty-specs/<slug>/{spec.md,tasks.md,
    meta.json}`` onto the planning branch (captures the sha).
-3. ``_ensure_planning_artifacts_committed_git`` -- the auto-commit helper,
-   called exactly as the legacy (``placement_ref=None``) fallback path in
-   ``implement.py:1706`` invokes it when context resolution fails
-   (``_resolve_placement_ref`` returns ``None`` on ``ActionContextError``,
-   ``implement_cores.py:617-637``). Under this precondition (artifacts
-   already committed on ``HEAD``, so ``git status --porcelain`` is clean)
-   the call is a proven no-op: removing step 3 entirely reproduces the
-   identical failure on Assert A below, byte-for-byte. Step 3 is kept in
-   the drive sequence not because it contributes to the failure, but
-   because it documents the legacy ``placement_ref=None`` fallback path
-   that a fix must also address (Cause B), independently of Cause A.
+3. ``_ensure_planning_artifacts_committed_git`` -- the auto-commit helper.
+   This test is parametrized over BOTH production call shapes at
+   ``implement.py:1706`` (``_ensure_planning_artifacts_committed_git(...,
+   placement_ref=_placement_ref)``):
+
+   - ``legacy-fallback`` (``placement_ref=None``): the fallback ``implement.py``
+     takes when ``_resolve_placement_ref`` hits an ``ActionContextError``
+     (``implement_cores.py:617-637``). Under this precondition (artifacts
+     already committed on ``HEAD``, so ``git status --porcelain`` is clean)
+     the call is a proven no-op that reproduces **Cause B** -- the coord
+     branch tip never moves past its pre-artifact mint point.
+   - ``placement-ref`` (``placement_ref=CommitTarget(ref=coord_branch)``):
+     the path a HEALTHY mission takes, where ``_resolve_placement_ref``
+     successfully resolves a ``CommitTarget``. This drives
+     ``_commit_planning_artifacts_transaction``'s ``placement_ref is not
+     None`` arm, which commits the planning-artifact files VERBATIM onto
+     ``placement_ref.ref`` via ``_run_planning_artifact_commit`` -- a plain
+     content copy, not a git merge/cherry-pick from the planning-branch
+     commit. This reproduces **Cause A** -- the coord branch tip DOES move
+     (a new commit lands on it), but that commit has no ancestry
+     relationship to the planning-artifact commit on the planning branch.
+
+   Both arms leave the lane branch failing Assert A below, for two
+   genuinely different reasons: Cause B never advances the coord tip at
+   all; Cause A advances it with a disconnected copy. #2993's triage
+   requires a fix to close both.
 4. ``allocate_lane_worktree`` -- the real WP04 lane allocator.
 
 Discriminator caveat: the triage note's ``git log --oneline
@@ -67,6 +82,22 @@ history for that path (it is an ancestor, so it is "on" the branch), and
 the same heuristic reports "Cause A" for a correctly-fixed repo. Do not
 re-open #2993 on that false positive post-fix; check ancestry (Assert A
 below), not log non-emptiness.
+
+Coord-descent guard: Assert A alone only requires the lane branch to
+descend from the planning-artifact commit. A fix that satisfies Assert A by
+branching lanes off ``main`` (which also contains the planning artifacts,
+since they are committed there) would satisfy Assert A while silently
+severing the lane from the mission's coordination branch -- discarding
+coordination-branch lifecycle state (status events, WP claim history) this
+repo's coord/primary partition depends on. #2993 does sanction "branch
+lanes off the planning-artifact commit" as one legitimate fix shape, so this
+guard is not forbidding that option outright -- it is requiring that
+whichever commit the lane branches from, the lane must ALSO still descend
+from ``coord_branch``, so a fix cannot silently trade one defect (missing
+planning artifacts) for another (an orphaned lane that never sees coord
+state). This is checked immediately after Assert A (so Assert A keeps
+firing first) via ``git merge-base --is-ancestor <coord_branch>
+<lane_branch>``.
 
 Related existing coverage this test does NOT contradict:
 ``tests/specify_cli/cli/commands/test_implement.py:471-545``
@@ -89,6 +120,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import CommitTarget
 from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
@@ -162,11 +194,28 @@ def _make_manifest(coordination_branch: str) -> LanesManifest:
     )
 
 
+@pytest.mark.parametrize(
+    "use_placement_ref",
+    [False, True],
+    ids=["legacy-fallback", "placement-ref"],
+)
 def test_lane_worktree_does_not_descend_from_planning_artifacts(
     tmp_path: Path,
+    use_placement_ref: bool,
 ) -> None:
     """Pin #2993: the lane branch must contain the mission's own planning
-    artifacts. Today it does not."""
+    artifacts. Today it does not, on EITHER of the two production call
+    shapes ``implement.py:1706`` can take:
+
+    - ``legacy-fallback`` (``use_placement_ref=False``): the ``placement_ref
+      is None`` path taken when ``_resolve_placement_ref`` fails to resolve
+      an ``ActionContextError`` -- reproduces Cause B (silent no-op, coord
+      tip never moves).
+    - ``placement-ref`` (``use_placement_ref=True``): the path a healthy
+      mission takes, where a resolved ``CommitTarget`` is threaded through
+      -- reproduces Cause A (the coord tip moves, but via a disconnected
+      verbatim copy, not a merge/cherry-pick preserving ancestry).
+    """
     repo = tmp_path / "repo"
     _init_repo(repo)
 
@@ -200,9 +249,14 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     _git(repo, "commit", "-q", "-m", f"docs: spec+tasks for {MISSION_SLUG}")
     planning_artifact_sha = _git(repo, "rev-parse", "HEAD")
 
-    # Step 3: run the real auto-commit helper, legacy (placement_ref=None)
-    # fallback path -- exactly as implement.py falls back to when
-    # _resolve_placement_ref's context resolution fails.
+    # Step 3: run the real auto-commit helper. ``placement_ref`` reproduces
+    # the exact value ``implement.py:1706`` threads through in production:
+    # ``None`` on the legacy-fallback arm (context resolution failed), or a
+    # resolved ``CommitTarget(ref=coord_branch)`` on the healthy-mission arm
+    # (mirrors what ``_resolve_placement_ref`` returns for a topology whose
+    # ``meta.json`` carries this mission's own ``coordination_branch`` --
+    # exactly the fixture state written by ``_write_meta`` above).
+    placement_ref = CommitTarget(ref=coord_branch) if use_placement_ref else None
     _ensure_planning_artifacts_committed_git(
         repo_root=repo,
         feature_dir=feature_dir,
@@ -210,6 +264,7 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
         wp_id=WP_ID,
         planning_branch="main",
         auto_commit=True,
+        placement_ref=placement_ref,
     )
 
     # Step 4: allocate the lane worktree -- the real WP04 lane allocator.
@@ -243,6 +298,35 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
         f"returned {ancestry.returncode} (stderr: {ancestry.stderr!r}). This is "
         "the #2993 defect: the coordination branch tip was never advanced past "
         "its pre-artifact mint point before the lane branched off it."
+    )
+
+    # Assert A' -- coord-descent guard: a fix must not satisfy Assert A by
+    # severing the lane from the mission's coordination branch (e.g. by
+    # branching lanes off ``main`` instead). The lane must ALSO still
+    # descend from ``coord_branch``, so coordination-branch lifecycle state
+    # (status events, WP claim history) is never discarded as a side effect
+    # of restoring planning-artifact ancestry. Ordered after Assert A so
+    # Assert A keeps firing first.
+    coord_ancestry = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "merge-base",
+            "--is-ancestor",
+            coord_branch,
+            lane_branch,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert coord_ancestry.returncode == 0, (
+        f"lane branch {lane_branch!r} should still descend from the mission's "
+        f"coordination branch {coord_branch!r}, but `git merge-base "
+        f"--is-ancestor` returned {coord_ancestry.returncode} (stderr: "
+        f"{coord_ancestry.stderr!r}). A fix for #2993 must not restore "
+        "planning-artifact ancestry by orphaning the lane from coordination "
+        "branch lifecycle state."
     )
 
     # Assert B -- silent-revert half: amend tasks.md on the planning branch
