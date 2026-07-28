@@ -27,8 +27,19 @@ no-op because the branch already exists, ``_create_lane_worktree`` runs
 ``git worktree add -b <lane> <path> <coordination_branch>``), the resulting
 lane branch never contains the planning artifacts at all.
 
-This test drives the four real production entry points named in the mission
-ticket, in the exact order that reproduces the defect:
+This test drives four real production entry points, in the order below.
+Empirically (instrumented run against this exact sequence), this test
+reproduces **Cause B** (the silent no-op) of the two independent causes
+triage identified for #2993, not Cause A (the copy-onto-coordination-branch
+path):
+
+```
+coord tip at mint: 71cffbdd38ff...
+helper returned: None
+coord tip AFTER helper: 71cffbdd38ff...  (moved: False)
+git log --oneline <coord> -- kitty-specs/<slug>/  =>  ''
+=> CAUSE B (silent no-op)
+```
 
 1. ``ensure_coordination_branch`` -- mint the coord branch BEFORE the
    planning artifacts exist.
@@ -38,8 +49,24 @@ ticket, in the exact order that reproduces the defect:
    called exactly as the legacy (``placement_ref=None``) fallback path in
    ``implement.py:1706`` invokes it when context resolution fails
    (``_resolve_placement_ref`` returns ``None`` on ``ActionContextError``,
-   ``implement_cores.py:617-637``).
+   ``implement_cores.py:617-637``). Under this precondition (artifacts
+   already committed on ``HEAD``, so ``git status --porcelain`` is clean)
+   the call is a proven no-op: removing step 3 entirely reproduces the
+   identical failure on Assert A below, byte-for-byte. Step 3 is kept in
+   the drive sequence not because it contributes to the failure, but
+   because it documents the legacy ``placement_ref=None`` fallback path
+   that a fix must also address (Cause B), independently of Cause A.
 4. ``allocate_lane_worktree`` -- the real WP04 lane allocator.
+
+Discriminator caveat: the triage note's ``git log --oneline
+<coordination-branch> -- kitty-specs/<slug>/`` heuristic (non-empty =>
+Cause A, empty => Cause B) is a sound *pre-fix* triage signal only. Once
+ancestry is genuinely established -- the fix this pin demands -- the
+planning-artifact commit legitimately appears in the coordination branch's
+history for that path (it is an ancestor, so it is "on" the branch), and
+the same heuristic reports "Cause A" for a correctly-fixed repo. Do not
+re-open #2993 on that false positive post-fix; check ancestry (Assert A
+below), not log non-emptiness.
 
 Related existing coverage this test does NOT contradict:
 ``tests/specify_cli/cli/commands/test_implement.py:471-545``
@@ -158,7 +185,12 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     # uncommitted edit.
     feature_dir = repo / "kitty-specs" / MISSION_SLUG
     (feature_dir).mkdir(parents=True, exist_ok=True)
-    (feature_dir / "spec.md").write_text("# Annoying bugs sweep\n", encoding="utf-8")
+    (feature_dir / "spec.md").write_text(
+        "# Annoying bugs sweep\n\n"
+        "## NFR-002 Retracted Constraint\n\n"
+        "This constraint block must be removed after correction.\n",
+        encoding="utf-8",
+    )
     (feature_dir / "tasks.md").write_text(
         "## WP03 Ledger grammar and census\n\n- [ ] T001 Draft grammar\n",
         encoding="utf-8",
@@ -259,4 +291,48 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     ), (
         "the union-merge should carry forward the amended tasks.md; instead it "
         f"kept the lane's stale copy:\n{show.stdout!r}"
+    )
+
+    # Assert C -- deletion-only half. #2993's acceptance criteria singles this
+    # out as "the sharp case, since it vanishes under a union merge": delete
+    # (not amend) the NFR-002 block from spec.md on the planning branch AFTER
+    # the lane exists, then union-merge the two branches. A phrase-presence
+    # check (like Assert B's) cannot see a resurrected deletion -- only a
+    # phrase-ABSENCE check can. A healthy lane must let the deletion win; a
+    # lane carrying a stale/frozen copy of the pre-deletion text risks a
+    # naive conflict resolution silently reviving text the mission owner
+    # deliberately retracted.
+    (feature_dir / "spec.md").write_text("# Annoying bugs sweep\n", encoding="utf-8")
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "docs: retract NFR-002 for WP03")
+
+    deletion_merge_tree = subprocess.run(
+        ["git", "-C", str(repo), "merge-tree", "--write-tree", lane_branch, "main"],
+        capture_output=True,
+        text=True,
+    )
+    assert deletion_merge_tree.returncode == 0, (
+        "expected a clean union-merge between the lane branch and the "
+        f"deletion-carrying planning branch, got a conflict:\n{deletion_merge_tree.stdout}"
+        f"\n{deletion_merge_tree.stderr}"
+    )
+    deletion_merged_tree_sha = deletion_merge_tree.stdout.strip().splitlines()[0]
+
+    deletion_show = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "show",
+            f"{deletion_merged_tree_sha}:kitty-specs/{MISSION_SLUG}/spec.md",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert deletion_show.returncode == 0, (
+        f"spec.md missing from the union-merge tree entirely: {deletion_show.stderr!r}"
+    )
+    assert "NFR-002 Retracted Constraint" not in deletion_show.stdout, (
+        "the union-merge silently resurrected a block that was deleted on the "
+        f"planning branch after the lane existed:\n{deletion_show.stdout!r}"
     )
