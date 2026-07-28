@@ -1,0 +1,206 @@
+schema_version: 1
+mission_id: 01KYHQ9F9BCK9E301PQJG6T7QZ
+mission_slug: annoying-bugs-sweep-01KYHQ9F
+mission_number:
+friendly_name: Annoying Bugs Sweep
+mission_type: software-dev
+target_branch: fix/annoying-bugs-sweep
+created_at: '2026-07-28T08:17:28.203306+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-28T08:17:28.203306+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+not_helpful:
+- id: n-011
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-021
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-007
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-017
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-008
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-018
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-009
+  category: implementation
+  summary: WP03 needed 3 implementation cycles
+  evidence_refs:
+  - e-019
+  details: WP WP03 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-010
+  category: implementation
+  summary: WP04 needed 3 implementation cycles
+  evidence_refs:
+  - e-020
+  details: WP WP04 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-005
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP01 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP02 was sent back from review to planning 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP03 was sent back from review to planning 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP04 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP04 was sent back from review to planning 2 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/tasks/WP01-birth-cutover-seed-ordering.md
+- id: e-006
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/tasks/WP02-portable-dead-code-verdict.md
+- id: e-007
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/tasks/WP03-resolver-backed-profile-load-doctrine.md
+- id: e-008
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/tasks/WP04-real-status-command-guidance.md
+- id: e-009
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/tasks/WP05-invocation-opener-discoverability.md
+- id: e-010
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+- id: e-011
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: 01KYHZXP6KXRN22Z1E8S073AY5
+- id: e-012
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: 01KYHZH0JESQK0DM0Y2FPQY477
+- id: e-013
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: 01KYHYNV5YQFRC2EVV0QW17506
+- id: e-014
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: 01KYJ03J0BMB0QGT1RMHAERGGG..01KYJ32E5TGT0VR5N261X1EWG6
+- id: e-015
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: 01KYJ1TBB5D85V4H35MZJ6C57F
+- id: e-016
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: 01KYJ32E5TGT0VR5N261X1EWG6
+- id: e-017
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: implementation_cycles
+- id: e-018
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: implementation_cycles
+- id: e-019
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: implementation_cycles
+- id: e-020
+  kind: event_range
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/status.events.jsonl
+  range: implementation_cycles
+- id: e-021
+  kind: file
+  path: kitty-specs/annoying-bugs-sweep-01KYHQ9F/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
