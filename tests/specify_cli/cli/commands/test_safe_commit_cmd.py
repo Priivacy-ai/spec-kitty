@@ -136,6 +136,7 @@ def test_public_safe_commit_rejects_protected_branch_in_test_mode(
     assert head_after == head_before
 
 
+@pytest.mark.regression
 def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
