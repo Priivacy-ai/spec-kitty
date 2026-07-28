@@ -3,9 +3,18 @@
 These tests exercise the command end-to-end using a temporary filesystem
 fixture and verify:
 
-- Exit 0 + verdict: pass when all WPs are in done and no findings
 - Exit 1 + verdict: fail when any WP is not in done
-- Report file has valid frontmatter with expected keys
+- The lightweight missing/null-baseline hard failures
+- The ``uv tool`` remediation guidance for a missing pytest
+- The ``--check-residual`` and env-skew preflight seams
+
+Scope of *this* module: the ``fast`` half. Nothing here spawns a process — the
+CLI runs in-process through ``typer.testing.CliRunner`` and every fixture is
+pure filesystem work. The tests that need a real git repository to earn a
+dead-code diff baseline live in the sibling ``test_review_git_baseline.py``
+(``integration`` + ``git_repo``), keeping the ``fast`` lane's no-subprocess
+promise intact — see ``tests/architectural/test_pytest_marker_correctness.py``
+and ``docs/context/testing-taxonomy.md`` under "Fast".
 """
 
 from __future__ import annotations
@@ -16,116 +25,24 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests.specify_cli.cli.commands._review_fixtures import (
+    MISSION_SLUG as _MISSION_SLUG,
+)
+from tests.specify_cli.cli.commands._review_fixtures import (
+    build_cli_app as _build_cli_app,
+)
+from tests.specify_cli.cli.commands._review_fixtures import (
+    make_mock_resolved as _make_mock_resolved,
+)
+from tests.specify_cli.cli.commands._review_fixtures import (
+    setup_fixture as _setup_fixture,
+)
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-_MISSION_SLUG = "test-review-mission-01KQTEST0"
-_MISSION_ID = "01KQTEST000000000000000000"
-_MISSING_BASELINE = object()
-
-
-def _write_meta(
-    feature_dir: Path,
-    *,
-    baseline_merge_commit: str | None | object = _MISSING_BASELINE,
-) -> None:
-    """Write a minimal meta.json to feature_dir."""
-    meta: dict[str, object] = {
-        "mission_id": _MISSION_ID,
-        "mission_slug": _MISSION_SLUG,
-        "friendly_name": "Test Review Mission",
-        "mission_type": "software-dev",
-        "mission_number": None,
-    }
-    if baseline_merge_commit is not _MISSING_BASELINE:
-        meta["baseline_merge_commit"] = baseline_merge_commit
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-
-
-def _seed_wp_event(
-    feature_dir: Path,
-    wp_id: str,
-    to_lane: str,
-    event_id: str,
-) -> None:
-    """Append a single status event taking a WP directly to *to_lane*."""
-    from_lane = "planned" if to_lane != "planned" else "planned"
-    event = StatusEvent(
-        event_id=event_id,
-        mission_slug=_MISSION_SLUG,
-        wp_id=wp_id,
-        from_lane=Lane(from_lane),
-        to_lane=Lane(to_lane),
-        at="2026-04-30T12:00:00+00:00",
-        actor="test-agent",
-        force=False,
-        execution_mode="worktree",
-    )
-    append_event(feature_dir, event)
-
-
-def _build_cli_app():
-    """Return a Typer app with the review command as the default command."""
-    import typer
-
-    from specify_cli.cli.commands.review import review_mission
-
-    app = typer.Typer()
-    # Register as the default (unnamed) command so runner.invoke(app, ["--mission", ...]) works
-    app.command()(review_mission)
-    return app
-
-
-def _setup_fixture(
-    tmp_path: Path,
-    wp_lanes: dict[str, str],
-    *,
-    baseline_merge_commit: str | None | object = _MISSING_BASELINE,
-) -> tuple[Path, Path]:
-    """Create a minimal mission fixture.
-
-    Returns (repo_root, feature_dir).
-    """
-    repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
-
-    _write_meta(feature_dir, baseline_merge_commit=baseline_merge_commit)
-
-    for idx, (wp_id, lane) in enumerate(wp_lanes.items()):
-        event_id = f"01KQTEST{idx:018d}"
-        _seed_wp_event(feature_dir, wp_id, lane, event_id)
-
-    return repo_root, feature_dir
-
-
-def _write_malformed_review_artifact(feature_dir: Path, wp_id: str) -> Path:
-    """Write a review-cycle artifact with legacy string affected_files entries."""
-    artifact_dir = feature_dir / "tasks" / f"{wp_id}-regression-harness"
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-    artifact_path = artifact_dir / "review-cycle-1.md"
-    artifact_path.write_text(
-        "---\n"
-        "affected_files:\n"
-        "  - src/foo.py\n"
-        "cycle_number: 1\n"
-        f"mission_slug: {_MISSION_SLUG}\n"
-        "reviewed_at: '2026-06-05T12:00:00+00:00'\n"
-        "reviewer_agent: reviewer-renata\n"
-        "verdict: approved\n"
-        f"wp_id: {wp_id}\n"
-        "---\n"
-        "\n"
-        "# Review\n",
-        encoding="utf-8",
-    )
-    return artifact_path
 
 
 def _make_uv_runtime(
@@ -196,48 +113,6 @@ def _uv_req(**kwargs: object) -> object:
 # ---------------------------------------------------------------------------
 
 
-def test_review_passes_when_all_done(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Exit 0 and verdict: pass when all WPs are done and a baseline_merge_commit is present.
-
-    Modern missions (with ``mission_id`` set) now require ``baseline_merge_commit``
-    for lightweight review (issue #989). Provide one so the dead-code gate has a
-    diff baseline; with no real git diff under ``tmp_path`` the scan finds nothing.
-    """
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done", "WP02": "done"},
-        baseline_merge_commit="0000000000000000000000000000000000000000",
-    )
-
-    # Patch find_repo_root to return our tmp repo
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    # Patch mission resolver to return a resolved mission pointing at feature_dir
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    from specify_cli.cli.commands.review import review_mission
-
-    runner = CliRunner()
-    app = _build_cli_app()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
-
-    assert result.exit_code == 0, result.output
-
-    report_path = feature_dir / "mission-review-report.md"
-    assert report_path.exists(), "mission-review-report.md was not written"
-
-    content = report_path.read_text(encoding="utf-8")
-    assert "verdict: pass" in content
-    assert "findings: 0" in content
-
-
 def test_review_fails_when_wp_not_done(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Exit 1 and verdict: fail when a WP is in in_progress."""
     repo_root, feature_dir = _setup_fixture(
@@ -271,97 +146,6 @@ def test_review_fails_when_wp_not_done(tmp_path: Path, monkeypatch: pytest.Monke
     assert "WP01" in content
 
 
-def test_review_fails_with_schema_diagnostic_for_malformed_review_artifact(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Review lane gate must not crash on schema-invalid review-cycle frontmatter."""
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done"},
-        baseline_merge_commit="0000000000000000000000000000000000000000",
-    )
-    _write_malformed_review_artifact(feature_dir, "WP01")
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
-
-    assert result.exit_code == 1, result.output
-    assert "diagnostic_code: REVIEW_ARTIFACT_SCHEMA_INVALID" in result.output
-    assert "affected_files entries must be mappings" in result.output.replace("\n", "")
-    assert "Traceback" not in result.output
-
-    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
-    assert "verdict: fail" in report_text
-    assert "review_artifact_schema_invalid" in report_text
-    assert "REVIEW_ARTIFACT_SCHEMA_INVALID" in report_text
-
-
-def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Report file has valid YAML frontmatter with verdict, reviewed_at, findings keys."""
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done"},
-        baseline_merge_commit="0000000000000000000000000000000000000000",
-    )
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
-
-    assert result.exit_code == 0, result.output
-
-    report_path = feature_dir / "mission-review-report.md"
-    content = report_path.read_text(encoding="utf-8")
-
-    # Must start with frontmatter delimiters
-    assert content.startswith("---\n"), f"Expected frontmatter, got: {content[:80]!r}"
-
-    # Parse the frontmatter block manually
-    lines = content.splitlines()
-    end_idx = lines.index("---", 1)
-    fm_lines = lines[1:end_idx]
-    fm_dict: dict[str, str] = {}
-    for fl in fm_lines:
-        key, _, value = fl.partition(": ")
-        fm_dict[key.strip()] = value.strip()
-
-    assert "verdict" in fm_dict, f"Missing 'verdict' in frontmatter: {fm_dict}"
-    assert "reviewed_at" in fm_dict, f"Missing 'reviewed_at' in frontmatter: {fm_dict}"
-    assert "findings" in fm_dict, f"Missing 'findings' in frontmatter: {fm_dict}"
-    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), (
-        f"Invalid verdict: {fm_dict['verdict']}"
-    )
-    # reviewed_at must look like an ISO timestamp
-    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], (
-        f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
-    )
-    assert fm_dict["findings"].isdigit(), f"findings must be integer, got: {fm_dict['findings']!r}"
-
-
 def test_review_exits_2_when_mission_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Exit code 2 when --mission flag is empty."""
     repo_root = tmp_path / "repo"
@@ -378,96 +162,6 @@ def test_review_exits_2_when_mission_is_empty(tmp_path: Path, monkeypatch: pytes
     result = runner.invoke(app, ["--mission", ""])
 
     assert result.exit_code == 2, result.output
-
-
-def test_review_post_merge_requires_issue_matrix(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Post-merge mode must fail when issue-matrix.md is missing."""
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done"},
-        baseline_merge_commit="0000000000000000000000000000000000000000",
-    )
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.assert_pytest_available",
-        lambda _: None,
-    )
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "post-merge"])
-
-    assert result.exit_code == 1, result.output
-
-    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
-    assert "verdict: fail" in report_text
-    assert "ISSUE_MATRIX_MISSING" in result.output
-    assert "issue_matrix_present: false" in report_text
-
-
-def test_review_post_merge_invalid_issue_matrix_exits_nonzero(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Post-merge mode must fail when issue-matrix.md validator diagnostics fire."""
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done"},
-        baseline_merge_commit="0000000000000000000000000000000000000000",
-    )
-    (feature_dir / "issue-matrix.md").write_text(
-        "\n".join(
-            [
-                "# Issue Matrix",
-                "",
-                "| issue | verdict | evidence_ref |",
-                "|-------|---------|--------------|",
-                "| #123 | deferred | commit abc123 |",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.assert_pytest_available",
-        lambda _: None,
-    )
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "post-merge"])
-
-    assert result.exit_code == 1, result.output
-
-    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
-    assert "verdict: fail" in report_text
-    assert "ISSUE_MATRIX_VERDICT_UNKNOWN" in result.output
-    assert "ISSUE_MATRIX_VERDICT_UNKNOWN" in report_text
-    assert "issue_matrix_present: true" in report_text
 
 
 def test_issue_matrix_violation_is_hard_failure(tmp_path: Path) -> None:
@@ -958,84 +652,6 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
 
 
 # ---------------------------------------------------------------------------
-# Internal helper
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_resolved(feature_dir: Path) -> object:
-    """Return a minimal ResolvedMission-like object for monkeypatching."""
-    from dataclasses import dataclass
-
-    @dataclass(frozen=True)
-    class _MockResolved:
-        mission_id: str
-        mission_slug: str
-        feature_dir: Path
-        mid8: str
-
-    return _MockResolved(
-        mission_id=_MISSION_ID,
-        mission_slug=_MISSION_SLUG,
-        feature_dir=feature_dir,
-        mid8=_MISSION_ID[:8],
-    )
-
-
-def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done"},
-        baseline_merge_commit="abc123",
-    )
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    from types import SimpleNamespace
-
-    def _fake_run(cmd, cwd=None, capture_output=False, text=False):  # type: ignore[no-untyped-def]
-        # WP01 hermetic-gate preflight: pytest-availability probe. The
-        # production path is `assert_pytest_available()` in
-        # `specify_cli.cli.commands._test_env_check`, but the monkeypatch
-        # below targets `subprocess.run` globally, so this branch must
-        # accept the probe shape and report success.
-        if len(cmd) == 3 and cmd[1:] == ["-c", "import pytest"]:
-            return SimpleNamespace(stdout="", stderr="", returncode=0)
-        if cmd[:2] == ["git", "diff"]:
-            return SimpleNamespace(
-                stdout="+++ b/src/pkg/example.py\n+def PublicSymbol():\n",
-                returncode=0,
-            )
-        if cmd[:3] == ["grep", "-r", "--include=*.py"]:
-            return SimpleNamespace(stdout="", returncode=1)
-        if cmd[:2] == ["grep", "-rn"]:
-            return SimpleNamespace(stdout="", returncode=1)
-        raise AssertionError(f"unexpected command: {cmd!r}")
-
-    monkeypatch.setattr("specify_cli.cli.commands.review.subprocess.run", _fake_run)
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
-
-    assert result.exit_code == 0, result.output
-    report_path = feature_dir / "mission-review-report.md"
-    content = report_path.read_text(encoding="utf-8")
-    assert "verdict: pass_with_notes" in content
-    assert "dead_code" in content
-
-
-# ---------------------------------------------------------------------------
 # --check-residual / _check_env_skew CLI-seam coverage (#2283 Phase 3
 # pre-merge findings): these behaviors previously had zero test coverage,
 # which is how the tuple-repr bug in the fail-closed branch shipped.
@@ -1093,58 +709,6 @@ def test_review_check_residual_runs_selection_and_propagates_exit_code(
     result = runner.invoke(app, ["--check-residual"])
 
     assert result.exit_code == 7, result.output
-
-
-def test_check_env_skew_warn_branch_prints_mismatch_and_continues(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Warn-loud (default) divergence prints the mismatch message but does
-    NOT exit -- the review command must run through to completion (SC-001).
-    """
-    repo_root, feature_dir = _setup_fixture(
-        tmp_path,
-        {"WP01": "done", "WP02": "done"},
-        baseline_merge_commit="0000000000000000000000000000000000000000",
-    )
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.assert_pytest_available",
-        lambda _: None,
-    )
-    _mock_resolved = _make_mock_resolved(feature_dir)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        lambda handle, repo_root: _mock_resolved,
-    )
-
-    from specify_cli.cli.commands.review import PackageSkew
-
-    mismatches = [PackageSkew("typer", "0.24.2", "0.26.0")]
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.assert_typer_click_lock_parity",
-        lambda repo_root: mismatches,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
-
-    assert result.exit_code == 0, result.output
-    assert "locked=0.24.2" in result.output
-    assert "installed=0.26.0" in result.output
-
-    # The review must have run to completion past the warn-loud preflight,
-    # not exited early.
-    report_path = feature_dir / "mission-review-report.md"
-    assert report_path.exists(), (
-        "warn-loud env-skew divergence must not stop the review from running"
-    )
 
 
 def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(
