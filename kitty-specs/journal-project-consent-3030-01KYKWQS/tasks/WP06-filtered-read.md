@@ -10,7 +10,6 @@ requirement_refs:
 - NFR-001
 - NFR-002
 - NFR-003
-- NFR-007
 planning_base_branch: feat/journal-project-consent-3030
 merge_target_branch: feat/journal-project-consent-3030
 branch_strategy: Planning artifacts for this mission were generated on feat/journal-project-consent-3030. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/journal-project-consent-3030 unless the human explicitly redirects the landing branch.
@@ -20,7 +19,6 @@ subtasks:
 - T017
 - T018
 - T019
-- T020
 history: []
 execution_mode: code_change
 tags: []

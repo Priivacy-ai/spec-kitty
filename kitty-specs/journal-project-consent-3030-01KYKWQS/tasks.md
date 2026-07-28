@@ -40,7 +40,7 @@
 | T017 | Project-filtered journal read as an **identity projection** (`event_id`, `created_at`, `project_uuid`; no payload BLOB) with **no `LIMIT`**; payload hydration via `read_by_id` over the ledger-selected batch (FR-008, NFR-003) | WP06 | |
 | T018 | `_select_undelivered` consumes the filtered read; stored column is the **sole authority** for selection (FR-007, NFR-001) | WP06 | |
 | T019 | Liveness: 2,000 non-consented events older than 10 consented → one drain delivers all 10 (NFR-002, SC-002) | WP06 | |
-| T020 | Recording ingress advertises a realistic `max_events_per_batch` over a host passing `_should_probe_advertised_limits` (`batch.py:177-183` returns False for localhost/`.example`) (NFR-007) | WP06 | |
+| T020 | **Corrected target**: `max_events_per_batch`/`_should_probe_advertised_limits` exist **only** in `sync/batch.py` — the dead daemon path WP02 deletes. The journal drain's window is the local constant `_EVENT_SYNC_DISPATCH_BATCH_LIMIT` in `_run_dispatch_batches` (`cli/commands/sync.py:807-820`), halved and regrown on HTTP 413. Exercise the real window there; a fake advertising batch limits would test a corpse (NFR-007) | WP07 | |
 | T021 | Per-project breakdown in `sync doctor`/`status`/`migrate`, reconciled against the journal's retained count — **not** `OfflineQueue().get_queue_stats()`. Folds #3004. Renders unresolved-identity and `unresolved`-consent rows (FR-011, FR-015, SC-004) | WP07 | Y |
 | T022 | `sync purge --project <slug-or-uuid>` (dry-run default) + `--all`, over journal **and** ledger, via `delivery/retention.py` (FR-016, FR-017, NFR-006, SC-006) | WP08 | Y |
 | T023 | Document that `SPEC_KITTY_ENABLE_SAAS_SYNC`/`SPEC_KITTY_SAAS_URL` are machine-global; CI-checkable anchor (FR-018) | WP09 | Y |
