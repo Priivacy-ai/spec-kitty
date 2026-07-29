@@ -114,6 +114,9 @@ class DoctrineSelectionConfig(BaseModel):
     """Charter-active glossary-pack IDs (mirrors
     ``DoctrineService.glossary_packs``). Default empty preserves backwards
     compatibility (NFR-005)."""
+    selected_assets: list[str] = Field(default_factory=list)
+    """Charter-active asset IDs (mirrors ``DoctrineService.assets``).
+    Default empty preserves backwards compatibility (NFR-005)."""
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
     authority_paths: list[str] = Field(default_factory=list)
@@ -328,6 +331,11 @@ _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
     # the glossary-pack selection field so a fresh project doesn't start
     # emitting `selected_glossary_packs: []` into every charter (NFR-005).
     "selected_glossary_packs",
+    # Wave B landing fold (write-side-seam-matrix-tracer): the ASSET kind's
+    # selection field gets the same additive-optional treatment so a fresh
+    # project doesn't start emitting `selected_assets: []` into every
+    # charter (NFR-005).
+    "selected_assets",
     # WP01 T008 (charter-mediated-doctrine-selection): activation registry
     # block on GovernanceConfig — empty list ⇒ omit from emitted YAML so
     # the default-config fixture remains byte-stable (NFR-005).
