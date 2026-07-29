@@ -73,6 +73,7 @@ def _default_private_team_token_manager(monkeypatch: pytest.MonkeyPatch) -> None
     fake_tm.get_current_session.return_value = fake_session
     fake_tm.is_authenticated = True
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr("specify_cli.sync.batch.is_sync_enabled_for_checkout", lambda: True)
 
 
 @pytest.fixture

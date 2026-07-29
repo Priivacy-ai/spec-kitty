@@ -143,6 +143,7 @@ class TestEventEnvelope:
             raise RuntimeError("Not authenticated")
 
         monkeypatch.setattr("specify_cli.auth.get_token_manager", _boom)
+        monkeypatch.setattr("specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True)
         em = EventEmitter(
             clock=temp_clock,
             config=mock_config,

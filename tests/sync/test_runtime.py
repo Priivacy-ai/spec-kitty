@@ -50,21 +50,21 @@ class TestAutoStartEnabled:
         monkeypatch.chdir(tmp_path)
         assert _auto_start_enabled() is True
 
-    def test_returns_true_when_config_has_no_sync_section(self, tmp_path, monkeypatch):
-        """Returns True when config exists but has no sync section."""
+    def test_returns_false_when_config_has_no_sync_section(self, tmp_path, monkeypatch):
+        """Absent project consent prevents an unnecessary background runtime."""
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("agents:\n  available: []\n")
-        assert _auto_start_enabled() is True
+        assert _auto_start_enabled() is False
 
-    def test_returns_true_when_auto_start_not_set(self, tmp_path, monkeypatch):
-        """Returns True when sync section exists but auto_start not set."""
+    def test_returns_false_when_consent_is_not_set(self, tmp_path, monkeypatch):
+        """A sync section without ``enabled: true`` remains deny-by-default."""
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("sync:\n  server_url: https://example.com\n")
-        assert _auto_start_enabled() is True
+        assert _auto_start_enabled() is False
 
     def test_returns_true_when_auto_start_true(self, tmp_path, monkeypatch):
         """Returns True when auto_start is explicitly True."""
@@ -83,13 +83,13 @@ class TestAutoStartEnabled:
         ):
             assert _auto_start_enabled() is False
 
-    def test_returns_true_on_invalid_yaml(self, tmp_path, monkeypatch):
-        """Returns True when config file is invalid YAML."""
+    def test_returns_false_on_invalid_yaml(self, tmp_path, monkeypatch):
+        """Invalid consent configuration cannot start a sync runtime."""
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("invalid: yaml: content: [")
-        assert _auto_start_enabled() is True
+        assert _auto_start_enabled() is False
 
 
 class TestSyncRuntime:

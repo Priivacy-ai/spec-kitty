@@ -1941,12 +1941,13 @@ class EventEmitter:
         occurred_at: str,
         team_slug: str | None,
     ) -> None:
-        """Capture-first durable write to the producer-scoped event journal.
+        """Capture a consented event in the producer-scoped event journal.
 
-        Runs before every delivery gate so a Teamspace-bound fact survives even
-        when all gates block (FR-017, contract §2; SC-009). Producer-scoped,
-        never server-scoped (FR-003). A journal I/O error is warned but never
-        propagated — capture-first must not make emission fail.
+        Consent is the first storage gate: a project that has not explicitly
+        opted in does not create a journal row.  For consented Teamspace-bound
+        facts this remains the durable capture-before-delivery path (FR-017,
+        contract §2; SC-009). A refusal is logged with the project identity so
+        the no-write decision is observable rather than silent.
 
         The journal payload BLOB stores the **full wire envelope** (``event``),
         not just the inner ``payload`` field. The dispatcher decodes this BLOB
@@ -1956,6 +1957,14 @@ class EventEmitter:
         ``lamport_clock``, ``schema_version``) survives the capture→drain path.
         The ``event_id``/``event_type`` journal columns still index the envelope.
         """
+        gate = self._capture_gate_state(team_slug)
+        if not gate.checkout_enabled:
+            logger.warning(
+                "Skipping event journal capture because project sync consent is disabled: %s",
+                event.get("project_slug") or event.get("project_uuid") or "unknown-project",
+            )
+            return
+
         try:
             payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
             capture_teamspace_bound(
@@ -1964,7 +1973,7 @@ class EventEmitter:
                 event_type=event_type,
                 payload=payload_bytes,
                 occurred_at=occurred_at,
-                gate=self._capture_gate_state(team_slug),
+                gate=gate,
             )
         except Exception as exc:
             _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")
@@ -2048,12 +2057,9 @@ class EventEmitter:
             if envelope_fields:
                 event.update(envelope_fields)
 
-            # Capture-first (FR-017, contract §2; SC-009): durably record the
-            # Teamspace-bound fact in the producer-scoped event journal BEFORE
-            # any delivery gate (validation, contract gate, project routing,
-            # WebSocket, drain) can decide whether to ship it. The journal write
-            # is unconditional; the gates only set the recorded
-            # drain_blocked_reason, never whether the durable write happens.
+            # Capture after the project-consent gate: a consented Teamspace-bound
+            # fact is durable before later delivery gates, while an opted-out
+            # project leaves no shared-journal row to leak on a later drain.
             self._capture_to_journal(
                 event_id=event_id,
                 event_type=event_type,

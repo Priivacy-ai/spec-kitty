@@ -211,7 +211,12 @@ def _select_undelivered(
     past events that made no progress this pass); it never changes durable ledger
     state, so the ledger's non-terminal re-selection contract is preserved.
     """
-    universe = journal.read_all()
+    # A captured drain blocker is an event-level eligibility decision.  Filter
+    # it before the ledger query and limit so a blocked backlog cannot either
+    # leak or starve a later eligible event.
+    universe = [
+        event for event in journal.read_all() if event.drain_blocked_reason is None
+    ]
     by_id = {event.event_id: event for event in universe}
     selected_ids = ledger.select_undelivered(
         target_id=target_id,

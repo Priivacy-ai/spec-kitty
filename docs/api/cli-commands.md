@@ -4265,8 +4265,8 @@ _Synchronization commands_
  Enable SaaS sync for this checkout.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --checkout-only            Enable only this checkout; do not update the      │
-│                            remembered default for future checkouts.          │
+│ --checkout-only            Deprecated: sync consent is always stored in this │
+│                            project's .kittify/config.yaml.                   │
 │ --help           -h        Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4279,8 +4279,8 @@ _Synchronization commands_
  Disable SaaS sync for this checkout and purge its pending uploads.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --checkout-only                  Disable only this checkout; do not remember │
-│                                  the repo default for future checkouts.      │
+│ --checkout-only                  Deprecated: sync consent is always stored   │
+│                                  in this project's .kittify/config.yaml.     │
 │ --delete-private-data            After disabling sync, offer to delete       │
 │                                  already-synced private-only SaaS data for   │
 │                                  this checkout.                              │

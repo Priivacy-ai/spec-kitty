@@ -134,6 +134,9 @@ def test_event_durable_when_unauthenticated(
     def _boom():
         raise RuntimeError("Not authenticated")
 
+    monkeypatch.setattr(
+        "specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True
+    )
     monkeypatch.setattr("specify_cli.auth.get_token_manager", _boom)
 
     em = _make_emitter(fresh_queue, fresh_clock, identity_with_remote, "org/repo")
@@ -161,6 +164,9 @@ def test_event_durable_when_no_private_teamspace(
     tm.get_current_session.return_value = MagicMock()
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
     monkeypatch.setattr(
+        "specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True
+    )
+    monkeypatch.setattr(
         "specify_cli.sync._team.resolve_private_team_id_for_ingress",
         lambda *_a, **_kw: None,
     )
@@ -175,7 +181,7 @@ def test_event_durable_when_no_private_teamspace(
 
 
 def test_build_registered_succeeds_without_repo_slug(
-    fresh_queue, fresh_clock, identity_with_remote, authed_token_manager
+    fresh_queue, fresh_clock, identity_with_remote, authed_token_manager, monkeypatch
 ):
     """FR-5 / issue #1074: BuildRegistered requires only build_id (project_uuid is enrichment).
 
@@ -183,6 +189,9 @@ def test_build_registered_succeeds_without_repo_slug(
     ``project_uuid`` + ``build_id`` but no git remote slug. The event
     must validate, queue, and be drainable once auth/team are in place.
     """
+    monkeypatch.setattr(
+        "specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True
+    )
     em = _make_emitter(
         fresh_queue,
         fresh_clock,
@@ -322,6 +331,10 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     project_path = tmp_path / "fresh-project"
     project_path.mkdir()
     (project_path / ".kittify").mkdir()
+    (project_path / ".kittify" / "config.yaml").write_text(
+        "sync:\n  enabled: true\n",
+        encoding="utf-8",
+    )
     outside_path = tmp_path / "outside"
     outside_path.mkdir()
     monkeypatch.chdir(outside_path)

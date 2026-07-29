@@ -73,8 +73,9 @@ def _default_private_team_token_manager(monkeypatch: pytest.MonkeyPatch) -> None
 
 @pytest.fixture(autouse=True)
 def _enable_saas_sync(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Force the SaaS-sync feature flag on for every test in this module."""
+    """Model an explicitly consented checkout for batch-transport tests."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setattr("specify_cli.sync.batch.is_sync_enabled_for_checkout", lambda: True)
 
 
 @pytest.fixture

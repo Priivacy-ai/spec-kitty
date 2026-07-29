@@ -34,11 +34,12 @@ def temp_queue():
 
 @pytest.fixture(autouse=True)
 def private_ingress_scope(monkeypatch):
-    """These replay tests exercise batching, not auth/team resolution."""
+    """Model consented private ingress for replay tests."""
     monkeypatch.setattr(
         "specify_cli.sync.batch._current_team_slug",
         lambda: "private-teamspace-id",
     )
+    monkeypatch.setattr("specify_cli.sync.batch.is_sync_enabled_for_checkout", lambda: True)
 
 
 def create_test_event(index: int, node_id: str = "test-node") -> dict:

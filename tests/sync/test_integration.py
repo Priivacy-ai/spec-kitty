@@ -24,6 +24,13 @@ from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.clock import LamportClock
 
 
+@pytest.fixture(autouse=True)
+def consented_checkout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep this emit-to-upload suite focused on its transport contract."""
+    monkeypatch.setattr("specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True)
+    monkeypatch.setattr("specify_cli.sync.batch.is_sync_enabled_for_checkout", lambda: True)
+
+
 class TestFullFlow:
     """Test emit → queue → batch sync → server."""
 

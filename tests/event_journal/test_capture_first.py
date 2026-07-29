@@ -1,9 +1,8 @@
-"""Capture-first durability tests (WP03 / T016-T019, contract §2 + SC-009).
+"""Journal durability tests for consented Teamspace-bound facts (WP03 / T016-T019).
 
-Observable acceptance (NFR-001): with sync disabled or missing auth/team, a
-Teamspace-bound fact is durably journaled with a ``drain_blocked_reason`` and
-no delivery is attempted. We assert the *result* (a row exists even though the
-gate blocked), never the internal call order.
+``capture_teamspace_bound`` remains the durable writer after the emitter has
+accepted a project's explicit consent. The live emit-path tests below separately
+assert that a disabled consent gate never reaches this writer.
 """
 from __future__ import annotations
 
@@ -176,7 +175,7 @@ def _stub_emitter():
     return em
 
 
-def test_emit_writes_journal_before_delivery_gates_when_disabled(
+def test_emit_does_not_write_journal_when_sync_consent_is_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from specify_cli.sync import emitter as emitter_mod
@@ -192,13 +191,11 @@ def test_emit_writes_journal_before_delivery_gates_when_disabled(
     )
 
     rows = get_journal(team_slug=None).read_all()
-    assert len(rows) == 1
-    assert rows[0].event_type == "ErrorLogged"
-    assert rows[0].drain_blocked_reason == DRAIN_BLOCKED_SAAS_DISABLED
+    assert rows == []
     assert em.ws_client is None  # no delivery channel was opened
 
 
-def test_emit_n_events_when_disabled_yields_n_distinct_journal_rows(
+def test_emit_n_events_when_sync_consent_is_disabled_yields_no_journal_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from specify_cli.sync import emitter as emitter_mod
@@ -214,7 +211,4 @@ def test_emit_n_events_when_disabled_yields_n_distinct_journal_rows(
             payload={"i": i},
         )
 
-    rows = get_journal(team_slug=None).read_all()
-    assert len(rows) == 3
-    assert len({r.event_id for r in rows}) == 3
-    assert all(r.drain_blocked_reason == DRAIN_BLOCKED_SAAS_DISABLED for r in rows)
+    assert get_journal(team_slug=None).read_all() == []

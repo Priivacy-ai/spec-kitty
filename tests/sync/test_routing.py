@@ -20,28 +20,31 @@ from specify_cli.sync.routing import (
 pytestmark = pytest.mark.fast
 
 
-def _write_repo_config(repo_root: Path, *, project_uuid: str | None = None, repo_slug: str = "acme/spec-kitty") -> None:
+def _write_repo_config(
+    repo_root: Path,
+    *,
+    project_uuid: str | None = None,
+    repo_slug: str = "acme/spec-kitty",
+    sync_enabled: bool | None = None,
+) -> None:
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     if project_uuid is None:
         project_uuid = str(uuid4())
-    (config_dir / "config.yaml").write_text(
-        "\n".join(
-            [
-                "project:",
-                f"  uuid: {project_uuid}",
-                "  slug: spec-kitty-local",
-                "  node_id: node12345678",
-                f"  repo_slug: {repo_slug}",
-                "  build_id: build-123",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    lines = [
+        "project:",
+        f"  uuid: {project_uuid}",
+        "  slug: spec-kitty-local",
+        "  node_id: node12345678",
+        f"  repo_slug: {repo_slug}",
+        "  build_id: build-123",
+    ]
+    if sync_enabled is not None:
+        lines.extend(["sync:", f"  enabled: {str(sync_enabled).lower()}"])
+    (config_dir / "config.yaml").write_text("\n".join([*lines, ""]), encoding="utf-8")
 
 
-def test_resolve_checkout_sync_routing_uses_global_repo_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_checkout_sync_routing_does_not_use_global_repo_default_as_consent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     repo_root = tmp_path / "repo"
     home.mkdir()
@@ -53,7 +56,7 @@ def test_resolve_checkout_sync_routing_uses_global_repo_default(tmp_path: Path, 
     config_file = home / ".spec-kitty" / "config.toml"
     config_file.parent.mkdir(parents=True, exist_ok=True)
     config_file.write_text(
-        '[sync.repo_defaults."acme/spec-kitty"]\nenabled = false\n',
+        '[sync.repo_defaults."acme/spec-kitty"]\nenabled = true\n',
         encoding="utf-8",
     )
 
@@ -62,7 +65,7 @@ def test_resolve_checkout_sync_routing_uses_global_repo_default(tmp_path: Path, 
     assert routing is not None
     assert routing.repo_slug == "acme/spec-kitty"
     assert routing.local_sync_enabled is None
-    assert routing.repo_default_sync_enabled is False
+    assert routing.repo_default_sync_enabled is True
     assert routing.effective_sync_enabled is False
 
 
@@ -84,12 +87,12 @@ def test_readonly_routing_does_not_create_project_identity(tmp_path: Path, monke
     assert not (repo_root / ".kittify" / "config.yaml").exists()
 
 
-def test_local_override_beats_global_repo_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_project_consent_beats_legacy_global_repo_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     repo_root = tmp_path / "repo"
     home.mkdir()
     repo_root.mkdir()
-    _write_repo_config(repo_root)
+    _write_repo_config(repo_root, sync_enabled=True)
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.chdir(repo_root)
 
@@ -99,8 +102,6 @@ def test_local_override_beats_global_repo_default(tmp_path: Path, monkeypatch: p
         '[sync.repo_defaults."acme/spec-kitty"]\nenabled = false\n',
         encoding="utf-8",
     )
-    write_local_sync_enabled(repo_root, True)
-
     routing = resolve_checkout_sync_routing()
 
     assert routing is not None
@@ -109,7 +110,7 @@ def test_local_override_beats_global_repo_default(tmp_path: Path, monkeypatch: p
     assert routing.effective_sync_enabled is True
 
 
-def test_local_override_is_persisted_outside_repo_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_project_consent_is_persisted_in_repo_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     repo_root = tmp_path / "repo"
     home.mkdir()
@@ -117,15 +118,12 @@ def test_local_override_is_persisted_outside_repo_config(tmp_path: Path, monkeyp
     _write_repo_config(repo_root)
     monkeypatch.setenv("HOME", str(home))
 
-    original_repo_config = (repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
-
     write_local_sync_enabled(repo_root, False)
 
-    assert (repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8") == original_repo_config
-    config_toml = (home / ".spec-kitty" / "config.toml").read_text(encoding="utf-8")
-    assert str(repo_root.resolve()) in config_toml
-    assert "checkout_overrides" in config_toml
-    assert "enabled = false" in config_toml
+    config_yaml = (repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+    assert "sync:" in config_yaml
+    assert "enabled: false" in config_yaml
+    assert not (home / ".spec-kitty" / "config.toml").exists()
 
 
 def test_disable_checkout_sync_purges_only_matching_project_data(
@@ -194,6 +192,6 @@ def test_disable_checkout_sync_purges_only_matching_project_data(
     assert result.removed_body_uploads == 1
     assert queue.size() == 1
     assert body_queue.size() == 1
-    config_toml = (home / ".spec-kitty" / "config.toml").read_text(encoding="utf-8")
-    assert "acme/spec-kitty" in config_toml
-    assert "enabled = false" in config_toml
+    config_yaml = (repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+    assert "sync:" in config_yaml
+    assert "enabled: false" in config_yaml

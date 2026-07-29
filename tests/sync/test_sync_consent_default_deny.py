@@ -203,7 +203,11 @@ def test_machine_global_opt_in_does_not_leak_to_sibling_projects(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
 
-    _write_project_config(consenting, repo_slug="my-org/intended-project")
+    _write_project_config(
+        consenting,
+        repo_slug="my-org/intended-project",
+        sync_enabled=True,
+    )
     _write_project_config(unrelated, repo_slug="client-org/confidential-work")
 
     config_file = home / ".spec-kitty" / "config.toml"

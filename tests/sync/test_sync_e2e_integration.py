@@ -283,7 +283,10 @@ class TestUnauthenticatedGracefulDegradation:
         monkeypatch.chdir(temp_repo)
 
         mock_service = MagicMock()
-        with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
+        with (
+            patch("specify_cli.sync.background.get_sync_service") as mock_get_service,
+            patch("specify_cli.sync.runtime.is_sync_enabled_for_checkout", return_value=True),
+        ):
             mock_get_service.return_value = mock_service
             # Mission 080: ``SyncRuntime`` now reads auth state via
             # ``specify_cli.auth.get_token_manager`` instead of the deleted

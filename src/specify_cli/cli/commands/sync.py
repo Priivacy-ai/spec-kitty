@@ -1425,7 +1425,7 @@ def opt_out(
     checkout_only: bool = typer.Option(
         False,
         "--checkout-only",
-        help="Disable only this checkout; do not remember the repo default for future checkouts.",
+        help="Deprecated: sync consent is always stored in this project's .kittify/config.yaml.",
     ),
     delete_private_data: bool = typer.Option(
         False,
@@ -1446,13 +1446,12 @@ def opt_out(
         list_repository_shares_sync,
     )
 
+    del checkout_only
+
     _require_daemon_owner_coherence("spec-kitty sync opt-out")
 
     routing = _require_active_checkout()
-    result = disable_checkout_sync(
-        routing.repo_root,
-        remember_repo_default=not checkout_only,
-    )
+    result = disable_checkout_sync(routing.repo_root)
 
     console.print(
         f"[green]✓[/green] Disabled SaaS sync for this checkout "
@@ -1462,9 +1461,6 @@ def opt_out(
         f"[dim]Removed {result.removed_events} queued event(s) and "
         f"{result.removed_body_uploads} queued body upload(s) for this checkout.[/dim]"
     )
-    if result.remembered_for_repo:
-        console.print("[dim]Future checkouts of this repository will also default to sync disabled.[/dim]")
-
     if not delete_private_data or not routing.project_uuid:
         return
 
@@ -1569,11 +1565,13 @@ def opt_in(
     checkout_only: bool = typer.Option(
         False,
         "--checkout-only",
-        help="Enable only this checkout; do not update the remembered default for future checkouts.",
+        help="Deprecated: sync consent is always stored in this project's .kittify/config.yaml.",
     ),
 ) -> None:
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
+
+    del checkout_only
 
     if not is_saas_sync_enabled():
         # Non-green + non-zero (#2264 item 3): opt-in cannot take effect while
@@ -1596,10 +1594,7 @@ def opt_in(
     )
 
     routing = _require_active_checkout()
-    refreshed = enable_checkout_sync(
-        routing.repo_root,
-        remember_repo_default=not checkout_only,
-    )
+    refreshed = enable_checkout_sync(routing.repo_root)
 
     # Honest confirmation (#2264): opt-in writes LOCAL routing flags only — no
     # auth, no remote round-trip, no history import. The message must not imply
@@ -1607,11 +1602,6 @@ def opt_in(
     # false-green that escalated #2264 to P1).
     scope_label = refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid
     console.print(f"[green]✓[/green] {saas_sync_opt_in_recorded_message(scope_label)}")
-    if not checkout_only and refreshed.repo_slug:
-        console.print(
-            "[dim]Future checkouts of this repository will also default to this local preference.[/dim]"
-        )
-
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
     """Detect current workspace and feature context.

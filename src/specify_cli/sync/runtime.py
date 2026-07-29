@@ -62,8 +62,9 @@ def _safe_queue_size(queue_obj: object) -> int:
 def _auto_start_enabled() -> bool:
     """Check if sync auto-start is enabled via config.
 
-    Local checkout overrides win. If none is present, the remembered
-    repository default from ``~/.spec-kitty/config.toml`` is used.
+    ``sync.auto_start`` can explicitly control the local runtime. Otherwise,
+    project-owned hosted-sync consent determines whether a background runtime
+    is useful; absence or ambiguity denies by default.
     """
     project_root = locate_project_root(Path.cwd())
     if project_root is None:

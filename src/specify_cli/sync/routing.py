@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 
+from ruamel.yaml import YAML
+
+from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import locate_project_root
 
 from .body_queue import OfflineBodyUploadQueue
@@ -79,12 +83,11 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
         else None
     )
 
-    if local_sync_enabled is not None:
-        effective_sync_enabled = local_sync_enabled
-    elif repo_default_sync_enabled is not None:
-        effective_sync_enabled = repo_default_sync_enabled
-    else:
-        effective_sync_enabled = True
+    # Hosted-sync consent belongs to the project it governs.  The legacy
+    # machine-global repository preference remains observable for migration and
+    # diagnostics, but is deliberately not an authority that can widen consent.
+    # An absent or malformed project setting therefore denies by default.
+    effective_sync_enabled = local_sync_enabled is True
 
     return CheckoutSyncRouting(
         repo_root=repo_root,
@@ -113,18 +116,60 @@ def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
     """
     routing = resolve_checkout_sync_routing_readonly(start=start)
     if routing is None:
-        return True
+        return False
     return routing.effective_sync_enabled
 
 
 def read_local_sync_enabled(repo_root: Path) -> bool | None:
-    """Read the checkout-local sync override from global machine config."""
-    return SyncConfig().get_checkout_sync_enabled(repo_root)
+    """Read the project-owned hosted-sync consent decision.
+
+    ``.kittify/config.yaml`` is the canonical authority because it travels with
+    the checkout, is reviewable, and cannot spill consent into another project.
+    Invalid or absent values return ``None``; the caller's deny-by-default
+    policy turns either state into a closed gate.
+    """
+    config_path = repo_root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        return None
+
+    try:
+        config = YAML(typ="safe").load(config_path)
+    except Exception:
+        return None
+    if not isinstance(config, dict):
+        return None
+
+    sync = config.get("sync")
+    if not isinstance(sync, dict):
+        return None
+    enabled = sync.get("enabled")
+    return enabled if isinstance(enabled, bool) else None
 
 
 def write_local_sync_enabled(repo_root: Path, enabled: bool) -> None:
-    """Persist the checkout-local sync override in global machine config."""
-    SyncConfig().set_checkout_sync_enabled(repo_root, enabled)
+    """Persist hosted-sync consent in the project's canonical configuration."""
+    config_path = repo_root / ".kittify" / "config.yaml"
+    yaml = YAML()
+    yaml.preserve_quotes = True
+
+    try:
+        config = yaml.load(config_path) if config_path.exists() else {}
+    except Exception as exc:
+        raise ValueError(f"Could not update project sync consent: {exc}") from exc
+    if not isinstance(config, dict):
+        raise ValueError("Could not update project sync consent: config root must be a mapping")
+
+    sync = config.get("sync")
+    if sync is None:
+        sync = {}
+        config["sync"] = sync
+    if not isinstance(sync, dict):
+        raise ValueError("Could not update project sync consent: sync must be a mapping")
+    sync["enabled"] = bool(enabled)
+
+    rendered = StringIO()
+    yaml.dump(config, rendered)
+    atomic_write(config_path, rendered.getvalue(), mkdir=True)
 
 
 def enable_checkout_sync(
@@ -132,14 +177,17 @@ def enable_checkout_sync(
     *,
     remember_repo_default: bool = True,
 ) -> CheckoutSyncRouting:
-    """Enable SaaS sync for this checkout and optionally future repo checkouts."""
+    """Record hosted-sync consent in this project's configuration.
+
+    ``remember_repo_default`` is retained for API compatibility, but cannot
+    widen consent beyond this project.
+    """
+    del remember_repo_default
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
 
     write_local_sync_enabled(repo_root, True)
-    if remember_repo_default and routing.repo_slug:
-        SyncConfig().set_repository_sync_enabled(routing.repo_slug, True)
     refreshed = resolve_checkout_sync_routing(repo_root)
     assert refreshed is not None
     return refreshed
@@ -150,14 +198,17 @@ def disable_checkout_sync(
     *,
     remember_repo_default: bool = True,
 ) -> SyncOptOutResult:
-    """Disable SaaS sync for this checkout and purge its pending uploads."""
+    """Revoke this project's hosted-sync consent and purge its pending uploads.
+
+    ``remember_repo_default`` is retained for API compatibility, but cannot
+    alter consent for another project.
+    """
+    del remember_repo_default
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
 
     write_local_sync_enabled(repo_root, False)
-    if remember_repo_default and routing.repo_slug:
-        SyncConfig().set_repository_sync_enabled(routing.repo_slug, False)
 
     queue = OfflineQueue()
     removed_events = (
@@ -178,5 +229,5 @@ def disable_checkout_sync(
         routing=refreshed,
         removed_events=removed_events,
         removed_body_uploads=removed_body_uploads,
-        remembered_for_repo=bool(remember_repo_default and routing.repo_slug),
+        remembered_for_repo=False,
     )

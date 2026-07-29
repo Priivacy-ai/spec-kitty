@@ -21,6 +21,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 
@@ -29,6 +30,7 @@ from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import StubReceiver, _build_payload
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal import (
+    CaptureGateState,
     get_journal,
     reset_coalesce_strategy,
     reset_journal_cache,
@@ -68,7 +70,7 @@ def _stub_emitter() -> EventEmitter:
 
     em = EventEmitter()
     em._identity = SimpleNamespace(
-        build_id="build-1", project_uuid=None, project_slug=None
+        build_id="build-1", project_uuid=uuid4(), project_slug="envelope-contract"
     )
     em._get_git_metadata = lambda: GitMetadata()  # type: ignore[method-assign]
     return em
@@ -81,7 +83,14 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     from specify_cli.sync import emitter as emitter_mod
 
     monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
+    monkeypatch.setattr(emitter_mod, "is_sync_enabled_for_checkout", lambda: True)
     em = _stub_emitter()
+    em._capture_gate_state = lambda _team_slug: CaptureGateState(
+        saas_enabled=True,
+        checkout_enabled=True,
+        authenticated=True,
+        team_slug="team",
+    )
 
     inner = {"error_type": "runtime", "error_message": "boom", "wp_id": "WP01"}
     envelope = em._emit(
