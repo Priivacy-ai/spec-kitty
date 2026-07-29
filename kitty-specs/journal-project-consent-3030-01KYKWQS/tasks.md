@@ -34,7 +34,7 @@
 | T011 | Promote the identity resolver to `sync/project_identity.py` as **one ordered constant chain** incl. the fourth site `payload.subject.project_uuid` (`emitter.py:2037`); nil sentinel normalizes to NULL. Test asserts a single definition site (NFR-001) | WP04 | |
 | T012 | `project_uuid`/`project_slug` in `ORDERED_COLUMNS` + indexes; idempotent, lossless backfill using T011's chain (FR-006, FR-009, NFR-004, SC-007) | WP04 | |
 | T013 | Count unresolved-identity events for FR-011 (WP07 owns surfacing them) | WP04 | |
-| T014 | `sync/consent.py`: uuid-keyed consent index, written by `enable_checkout_sync`/`disable_checkout_sync`; conflict rule **deny if any checkout of the project is opted out**, encoded once (FR-013) | WP05 | |
+| T014 | `sync/consent.py`: the **one** consent resolver, encoding the FR-013×FR-019 precedence chain exactly once (see spec.md "FR-013 × FR-019 reconciliation"): project-local `.kittify/config.yaml` (refusal outranks grant) → machine-global uuid-keyed index → env var (never a grant alone) → absent = deny. Index is written by `enable_checkout_sync`/`disable_checkout_sync` and is a **cache**, not a second source of truth: when a readable checkout disagrees, the file wins and the index is corrected (FR-013, FR-019) | WP05 | |
 | T015 | Absence of a consent record denies — expressed as **resolver semantics in `consent.py`** (WP05's file). The matching `routing.py:87` default-allow flip is a **WP01 DoD item**, since WP01 owns `routing.py`; splitting it this way keeps both inside their lane and keeps the emit/body paths deny-by-default too (FR-002) | WP05 | |
 | T016 | Backfill path-keyed → uuid-keyed as a **single batched write**; unreadable paths retain the path entry with an `unresolved` marker the predicate ignores and WP07 renders; `enable_checkout_sync` **fails loudly** when no uuid resolves | WP05 | |
 | T017 | Project-filtered journal read as an **identity projection** (`event_id`, `created_at`, `project_uuid`; no payload BLOB) with **no `LIMIT`**; payload hydration via `read_by_id` over the ledger-selected batch (FR-008, NFR-003) | WP06 | |
@@ -106,7 +106,7 @@ the ALTER step, adding columns to `ORDERED_COLUMNS` breaks every existing journa
 
 ## WP05 — Consent index and resolution rule
 
-Subtasks: T014–T016. Dependencies: WP04. `execution_mode: code_change`. Requirements: FR-002, FR-013.
+Subtasks: T014–T016. Dependencies: WP04. `execution_mode: code_change`. Requirements: FR-002, FR-013, FR-019.
 Consent is keyed by absolute path today (`config.py:216,233`) while events carry `project_uuid`; this
 supplies the missing join. `SyncConfig` setters are unlocked whole-file read-modify-writes, so a lost
 record is now a silent delivery denial — hence the single batched write.

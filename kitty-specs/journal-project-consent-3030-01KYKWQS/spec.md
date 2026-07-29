@@ -331,6 +331,32 @@ expressible in the project's own `.kittify/config.yaml` and must outrank the mac
 the env var (pins 3 and 4). This partially supersedes FR-013's uuid-keyed index — reconcile the two
 before implementing either.
 
+### FR-013 × FR-019 reconciliation (operator decision, 2026-07-29)
+
+**Both, with project-local winning.** FR-019 supersedes FR-013 on *authority*, not on *existence*:
+
+1. **`.kittify/config.yaml` in the project** — authoritative whenever the checkout is readable. A
+   project-local **refusal outranks a project-local grant** (the many-to-one case: two checkouts of one
+   `project_uuid` with opposite settings resolve to deny, per FR-013's stated conflict rule).
+2. **Machine-global uuid-keyed index** — the drain's lookup, and it must exist. The dispatcher resolves
+   consent for events carrying only a `project_uuid`, and it must still answer when the checkout has
+   moved, been renamed or deleted. A project-local-only design cannot: reading
+   `.kittify/config.yaml` requires the path (`routing.py:64`), so a relocated checkout would strand the
+   operator's own history — the "consented checkout moved" edge case and US2 scenario 3's
+   "consented but unresolvable" row.
+3. **Env var** — never a grant on its own. `SPEC_KITTY_ENABLE_SAAS_SYNC` is machine-global arming, not
+   per-project consent; pin 5 (`test_machine_global_opt_in_does_not_leak_to_sibling_projects`) is
+   exactly this.
+4. **Absence at every level → deny** (FR-002).
+
+Consequences for WP05: two writers, **one** resolver. The precedence chain is encoded once in
+`sync/consent.py` and never re-derived per call site — the same single-definition rule T011 applies to
+identity resolution, for the same reason (a second copy is how the reporting surface and the drain come
+to disagree). The machine-global index is a **cache with a stated staleness rule**, not a second source
+of truth: when a checkout is readable and its file disagrees with the index, the file wins and the index
+is corrected. FR-015's report must render which level answered, or an operator cannot tell a
+project-local grant from a stale cached one.
+
 ## Folded dependencies
 
 Both were characterised as "incidental" on #3030 and `saas#585`. Neither is:
