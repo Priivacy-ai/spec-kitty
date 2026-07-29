@@ -13,10 +13,11 @@ created_at: '2026-07-29T11:05:47.586998+00:00'
 subtasks:
 - T023
 history: []
-authoritative_surface: docs/guides/
+authoritative_surface: docs/
 execution_mode: code_change
 owned_files:
-- docs/guides/sync-workspaces.md
+- docs/api/environment-variables.md
+- tests/docs/test_env_var_scope_warning.py
 tags: []
 tracker_refs: []
 ---
