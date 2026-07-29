@@ -15,6 +15,7 @@ subtasks:
 - T007
 - T008
 - T009
+- T046
 history:
 - at: '2026-07-29T09:24:15Z'
   actor: system
@@ -28,6 +29,7 @@ owned_files:
 - src/specify_cli/decisions/emit.py
 - tests/architectural/test_resolution_authority_gates.py
 - tests/architectural/resolution_gate_allowlist.yaml
+- docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md
 role: implementer
 tags: []
 task_type: implement
@@ -71,6 +73,9 @@ Convert `decisions/emit.py:_mission_dir:71` to the kind-aware seam (`write_targe
 ### T009 — Assert the three by-design sites remain
 Add/keep an assertion that `widen/state.py`, `agent_tasks_ports.py`, and `lanes/recovery.py` are still counted as by-design kind-blind coord writes, so the floor of 3 is non-vacuous. Document the non-vacuity invariant: the live census MUST NOT drop below 3.
 
+### T046 — Ratify the governing ADR (operator-approved 2026-07-29)
+Flip `docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md` from `status: Proposed` to `status: Accepted`. This WP re-pins the census floor that ADR governs (Move A) and names it the Move B amendment target, so it is the natural ratification site (post-tasks squad m5 / architect M3; HiC-approved). Keep the two-ADRs-share-`2026-06-26-1` cite-by-slug discipline intact.
+
 ## Branch Strategy
 
 Both planning and merge target are `feat/write-side-seam-matrix-tracer`. Allocate via `/spec-kitty.implement WP02`.
@@ -78,6 +83,7 @@ Both planning and merge target are `feat/write-side-seam-matrix-tracer`. Allocat
 ## Definition of Done
 - `emit.py` routed; floor at 3; allow-list + by-design entries updated in the **same commit**.
 - The four named gate tests pass; non-vacuity tests (T006) pass; three by-design sites still counted.
+- ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` ratified Proposed→Accepted (T046, HiC-approved).
 - `ruff`/`mypy` clean; complexity ≤ 15.
 
 ## Risks / Reviewer guidance

@@ -44,6 +44,7 @@
 | T007 | Route `decisions/emit.py:71` to the kind-aware seam (`write_target`) | WP02 | |
 | T008 | Re-pin `COORD_AUTHORITY_WRITE_FLOOR` 4→3 + baseline; drop `emit.py` from allow-list + `_COORD_WRITE_BY_DESIGN` | WP02 | |
 | T009 | Assert the three by-design sites (`widen/state.py`,`agent_tasks_ports.py`,`lanes/recovery.py`) stay kind-blind (floor non-vacuous at 3) | WP02 | |
+| T046 | Ratify ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` Proposed→Accepted (HiC-approved) | WP02 | |
 | T010 | New shared write-seam helper: `write_target`+`commit_for_mission`, zero-write refusal (FR-011), idempotent structured result (FR-012) | WP03 | |
 | T011 | Route #2663 `implement.py::_partition_files_for_commit` partition arm through the helper | WP03 | |
 | T012 | Route `status/emit.py` write (#2966 slice) through the helper (route-only, C-003) | WP03 | |
