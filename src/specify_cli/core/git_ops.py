@@ -439,11 +439,18 @@ def resolve_target_branch(
     # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
     # FR-005 / NFR-009): RECORDED FOUNDATION SITE 3/4, deliberately UNROUTED —
     # mirrors ``core/paths.py``'s target-branch resolution one layer up the
-    # git-ops composition root; same recursion rationale. WP08 deleted the
-    # public wrapper this site imported; calls the module-private
-    # ``_compose_primary_feature_dir`` leaf directly (``_FOUNDATION_SANCTION_SEED``
-    # token in ``tests/architectural/test_no_read_side_bypass.py`` re-pointed in
-    # the same commit — see that file's entry for ``resolve_target_branch``).
+    # git-ops composition root; same import-layering + behaviour-preservation
+    # rationale (``PlacementSeam.read_dir`` never reaches this target-branch
+    # resolution -- it routes to ``resolve_retrospective_home`` or
+    # ``resolve_artifact_surface``, neither of which calls
+    # ``resolve_target_branch`` -- so no literal cycle is at stake here either;
+    # the constraints are early-import layering for ``core/git_ops.py`` and
+    # behaviour-preservation with the deleted wrapper's pre-delegation body).
+    # WP08 deleted the public wrapper this site imported; calls the
+    # module-private ``_compose_primary_feature_dir`` leaf directly
+    # (``_FOUNDATION_SANCTION_SEED`` token in
+    # ``tests/architectural/test_no_read_side_bypass.py`` re-pointed in the
+    # same commit — see that file's entry for ``resolve_target_branch``).
     from specify_cli.core.paths import read_target_branch_from_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,

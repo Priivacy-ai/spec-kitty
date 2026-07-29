@@ -721,9 +721,16 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
     # FR-005 / NFR-009): RECORDED FOUNDATION SITE 1/4, deliberately UNROUTED.
     # This read feeds the write-side composition root
-    # (``resolve_placement_only``); routing it through
-    # ``PlacementSeam.read_dir`` risks a resolution cycle. WP08 deleted the
-    # public wrapper (``primary_feature_dir_for_mission``) this site used to
+    # (``resolve_placement_only``). ``PlacementSeam.read_dir`` never reaches this
+    # target-branch resolution -- it routes to ``resolve_retrospective_home`` or
+    # ``resolve_artifact_surface``, neither of which calls
+    # ``get_feature_target_branch`` -- so routing here would NOT close the
+    # literal cycle a naive reading suggests. The real constraints are (a)
+    # import-layering: ``core/paths.py`` is imported very early, so this pulls
+    # the missions layer in via a deferred import to dodge the missions<->core
+    # import cycle, and (b) behaviour-preservation: this leaf call is
+    # byte-identical to the deleted wrapper's pre-delegation body. WP08 deleted
+    # the public wrapper (``primary_feature_dir_for_mission``) this site used to
     # import, so this now calls the module-private ``_compose_primary_feature_dir``
     # leaf directly -- see ``tests/architectural/test_no_read_side_bypass.py``'s
     # ``_FOUNDATION_SANCTION_SEED`` entry for ``get_feature_target_branch``
@@ -781,11 +788,14 @@ def resolve_merge_target_branch(
     #
     # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
     # FR-005 / NFR-009): RECORDED FOUNDATION SITE 2/4, deliberately UNROUTED —
-    # same write-side-composition-root recursion rationale as
-    # ``get_feature_target_branch`` above. WP08 deleted the public wrapper this
-    # site imported; calls the module-private ``_compose_primary_feature_dir``
-    # leaf directly (``_FOUNDATION_SANCTION_SEED`` token re-pointed in the same
-    # commit).
+    # same import-layering + behaviour-preservation rationale as
+    # ``get_feature_target_branch`` above (``PlacementSeam.read_dir`` never
+    # reaches this target-branch resolution, so no literal cycle is at stake;
+    # the constraints are the early-import deferred-import layering noted above
+    # and behaviour-preservation with the deleted wrapper's pre-delegation
+    # body). WP08 deleted the public wrapper this site imported; calls the
+    # module-private ``_compose_primary_feature_dir`` leaf directly
+    # (``_FOUNDATION_SANCTION_SEED`` token re-pointed in the same commit).
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,

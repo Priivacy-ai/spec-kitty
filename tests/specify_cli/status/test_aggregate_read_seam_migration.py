@@ -6,9 +6,11 @@ FR-004 / NFR-001). ``_find_meta_path`` routed 2 of its 3 ``primary_feature_dir_
 for_mission`` sites (``:499``, ``:543``) through ``placement_seam(...).
 read_dir(MissionArtifactKind.PRIMARY_METADATA)``; ``save()``'s diagnostic-path
 site was routed identically. The third site (``bare_dir_name = resolve_bare_
-modern_mission_dir_name(...)``) is deliberately left calling the deprecated
-wrapper — see the in-code rationale and the WP07 handoff report for why (a
-PERMANENT canonicalizer-gate allow-list fixture predating this mission).
+modern_mission_dir_name(...)``) is deliberately left calling the
+module-private ``_compose_primary_feature_dir`` leaf (WP08, T035,
+re-pointed here when the public wrapper was deleted) rather than the seam —
+see the in-code rationale and the WP07 handoff report for why (a PERMANENT
+canonicalizer-gate allow-list fixture predating this mission).
 
 Since ``primary_feature_dir_for_mission`` already delegates to
 ``placement_seam(...).read_dir(PRIMARY_METADATA)`` (WP03 T019), routing a call

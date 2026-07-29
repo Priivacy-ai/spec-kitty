@@ -421,6 +421,12 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     # FR-006: canonical reader contract (a) — None on a missing file, ValueError on
     # malformed; the ``except ValueError`` below reproduces the historical
     # malformed→"" degrade. Defaults are stated explicitly to document the chosen arm.
+    # That ``except`` is BROADER than the reader contract alone: it also swallows
+    # the path-traversal-guard ``ValueError`` (``assert_safe_path_segment``) raised
+    # inside ``_compose_primary_feature_dir`` below, degrading an unsafe segment to
+    # ``""`` the same way a malformed meta.json does. ``MissionSelectorAmbiguous``
+    # (raised by ``_canonicalize_primary_read_handle``) is NOT a ``ValueError`` and
+    # correctly still propagates uncaught.
     # WP05/FR-005: extract to local so the canonicalized handle feeds load_meta.
     # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
     # module-private leaf directly, not the public wrapper — the wrapper now

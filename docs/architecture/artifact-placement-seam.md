@@ -74,7 +74,7 @@ call site instead of routing through L0–L3.
 **A third `read_dir` route, not shown as a table row.** `PlacementSeam.read_dir`
 (`src/mission_runtime/resolution.py:1417`) short-circuits exactly one kind —
 `MissionArtifactKind.RETROSPECTIVE` — to `resolve_retrospective_home`
-(`src/specify_cli/retrospective/writer.py:37`) at `resolution.py:1454`, **before** any of L2's
+(`src/specify_cli/retrospective/writer.py:36`) at `resolution.py:1454`, **before** any of L2's
 classification runs. See [Honest bounds](#honest-bounds) for why this is load-bearing rather
 than a footnote.
 
@@ -149,7 +149,7 @@ behavior, since membership (not the Python identifier) is what every consumer re
 
 **The `RETROSPECTIVE` short-circuit is a foundation site, not a footnote.** `PlacementSeam.
 read_dir` routes `MissionArtifactKind.RETROSPECTIVE` to `resolve_retrospective_home`
-(`src/specify_cli/retrospective/writer.py:37`) before `resolve_artifact_surface` ever runs —
+(`src/specify_cli/retrospective/writer.py:36`) before `resolve_artifact_surface` ever runs —
 because a second RETROSPECTIVE-home computation would duplicate the single authority that
 function already is. `resolve_retrospective_home` itself calls the module-private leaf
 `_compose_primary_feature_dir` (`src/specify_cli/missions/_read_path_resolver.py:1263`)
