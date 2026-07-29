@@ -458,6 +458,9 @@ edges:
   relation: suggests
   when: Adversarial scenarios help clarify which boundaries need testing
 - source: tactic:atomic-design-review-checklist
+  target: paradigm:atomic-design
+  relation: suggests
+- source: tactic:atomic-design-review-checklist
   target: tactic:atomic-state-ownership
   relation: suggests
   when: Reviewing state ownership per atomic level (steps 1-3).

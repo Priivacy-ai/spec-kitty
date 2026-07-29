@@ -1064,14 +1064,31 @@ def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
     """Non-vacuity guard: the SAME fixture yields ZERO findings under the raw resolver.
 
     Simulates the pre-fix code path by swapping the canonicalizing
-    ``resolve_planning_read_dir`` for the raw ``primary_feature_dir_for_mission``,
-    which composes ``kitty-specs/<bare>`` — a directory that does not exist. The
-    committed ref is then unreadable → no events → ``coord_incoherent_done_wps``
-    returns ``[]`` → the split-brain safety net silently declares the marker stale.
-    This proves the positive test above genuinely distinguishes the canonicalizing
-    resolver from the broken raw one (it would RED before the resolver-unification
-    fix). ``_check_stranded_coord_revert`` imports the resolver function-locally, so
+    ``resolve_planning_read_dir`` for the raw, module-private
+    ``_compose_primary_feature_dir`` leaf, which composes ``kitty-specs/<bare>``
+    — a directory that does not exist. The committed ref is then unreadable →
+    no events → ``coord_incoherent_done_wps`` returns ``[]`` → the split-brain
+    safety net silently declares the marker stale. This proves the positive
+    test above genuinely distinguishes the canonicalizing resolver from the
+    broken raw one (it would RED before the resolver-unification fix).
+    ``_check_stranded_coord_revert`` imports the resolver function-locally, so
     patching the module attribute swaps in the pre-fix behaviour.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T039,
+    reconciliation item #4): this ``_raw`` helper used to route through the
+    public wrapper ``primary_feature_dir_for_mission``, which WP03's Half-B
+    delegation (T019) made re-enter ``read_dir`` — so patching
+    ``resolve_planning_read_dir`` to route through ``_raw`` closed a
+    ``_raw → wrapper → read_dir → resolve_planning_read_dir`` cycle
+    (``RecursionError``, GREEN at the true mission base `765cdcc59`, RED from
+    WP03 onward — a genuine mission regression in this TEST fixture, never in
+    production: WP03's reviewer proved ``read_dir`` production-acyclic across
+    all 16 kinds). The wrapper is now deleted (T035) and this helper's actual
+    intent -- a genuinely raw, non-canonicalizing composition -- is exactly
+    what the module-private leaf ``_compose_primary_feature_dir`` is: it
+    imports no seam and cannot re-enter ``read_dir``, restoring the test's
+    real, non-recursive intent (STALE test per DIRECTIVE_041; production was
+    always acyclic).
     """
     from specify_cli.missions import _read_path_resolver as rpr
 
@@ -1081,7 +1098,7 @@ def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
     def _raw(repo_root: Path, mission_slug: str, **_kwargs: object) -> Path:
         # Bind explicitly: the resolver crosses the ``follow_imports=skip``
         # boundary, so mypy widens the ``-> Path`` primitive to ``Any``.
-        resolved: Path = rpr.primary_feature_dir_for_mission(repo_root, mission_slug)
+        resolved: Path = rpr._compose_primary_feature_dir(repo_root, mission_slug)
         return resolved
 
     monkeypatch.setattr(rpr, "resolve_planning_read_dir", _raw)

@@ -1,5 +1,5 @@
 {
-  "event_count": 58,
+  "event_count": 66,
   "last_event_id": "01KQ323GWJBKV7PJ2316W3ZYZQ",
   "materialized_at": "2026-04-25T19:33:14.770300+00:00",
   "mission_number": "99",
@@ -19,59 +19,132 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ323EYYRV0CXPXX5WPVSRS6",
-      "last_transition_at": "2026-04-25T19:33:12.798106+00:00"
+      "last_transition_at": "2026-04-25T19:33:12.798106+00:00",
+      "shell_pid": 33338,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KQ323GJNXWQ0WY55J9K5N3PC",
-      "last_transition_at": "2026-04-25T19:33:14.453221+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.453221+00:00",
+      "shell_pid": 35312,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KQ323GM8QNNT2QH8SF8AS0G1",
-      "last_transition_at": "2026-04-25T19:33:14.504123+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.504123+00:00",
+      "shell_pid": 36738,
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQ323GNWCK18BA439C51ZZAC",
-      "last_transition_at": "2026-04-25T19:33:14.556081+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.556081+00:00",
+      "shell_pid": 38425,
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ323GQGDS4EH7X67W5530BD",
-      "last_transition_at": "2026-04-25T19:33:14.608908+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.608908+00:00",
+      "shell_pid": 43429,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ323GS5N00RDFAB3JMS101Q",
-      "last_transition_at": "2026-04-25T19:33:14.661469+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.661469+00:00",
+      "shell_pid": 48051,
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQ323GTX4K8ESS68JM8QST5C",
-      "last_transition_at": "2026-04-25T19:33:14.717855+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.717855+00:00",
+      "shell_pid": 53630,
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQ323GWJBKV7PJ2316W3ZYZQ",
-      "last_transition_at": "2026-04-25T19:33:14.770300+00:00"
+      "last_transition_at": "2026-04-25T19:33:14.770300+00:00",
+      "shell_pid": 57141,
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
     }
   }
 }

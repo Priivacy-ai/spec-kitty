@@ -86,7 +86,7 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
         "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
         ],
         "edges": [],
         "schema_version": "1",
@@ -487,7 +487,7 @@ class TestEc4ZeroMatch:
         # Build a DRG with a paradigm URN that no artifact references
         extended_drg = dict(base_request.drg_snapshot)
         extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
-            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}
+            {"urn": "paradigm:evidence-first", "kind": "paradigm"}
         ]
         ec4_request = SynthesisRequest(
             target=base_request.target,
@@ -523,7 +523,7 @@ class TestEc4ZeroMatch:
 
         extended_drg = dict(base_request.drg_snapshot)
         extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
-            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}
+            {"urn": "paradigm:evidence-first", "kind": "paradigm"}
         ]
         ec4_request = SynthesisRequest(
             target=base_request.target,

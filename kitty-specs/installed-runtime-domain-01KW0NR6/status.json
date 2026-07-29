@@ -1,5 +1,5 @@
 {
-  "event_count": 42,
+  "event_count": 48,
   "last_event_id": "01KW1M68SKGQRAH5VXRY5SV30J",
   "materialized_at": "2026-06-26T09:29:19.411367+00:00",
   "mission_number": "",
@@ -22,42 +22,48 @@
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW0S4JVJSWST2A0R3P0HA22T",
-      "last_transition_at": "2026-06-26T01:36:32.626146+00:00"
+      "last_transition_at": "2026-06-26T01:36:32.626146+00:00",
+      "shell_pid": 1001497
     },
     "WP02": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW0W3MYQ3K09CH8SSS1BYYA2",
-      "last_transition_at": "2026-06-26T02:28:27.735922+00:00"
+      "last_transition_at": "2026-06-26T02:28:27.735922+00:00",
+      "shell_pid": 1100822
     },
     "WP03": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW0ZGC8RGZXSH0VSC4JYAFW2",
-      "last_transition_at": "2026-06-26T03:27:50.552140+00:00"
+      "last_transition_at": "2026-06-26T03:27:50.552140+00:00",
+      "shell_pid": 1410366
     },
     "WP04": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW1DWM8QMXKVKCQXAW56E5W1",
-      "last_transition_at": "2026-06-26T07:39:12.023096+00:00"
+      "last_transition_at": "2026-06-26T07:39:12.023096+00:00",
+      "shell_pid": 1730852
     },
     "WP05": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW1HMCWABKYJ0W2HJAXG4RB1",
-      "last_transition_at": "2026-06-26T08:44:36.618048+00:00"
+      "last_transition_at": "2026-06-26T08:44:36.618048+00:00",
+      "shell_pid": 2377874
     },
     "WP06": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW1M68SKGQRAH5VXRY5SV30J",
-      "last_transition_at": "2026-06-26T09:29:19.411367+00:00"
+      "last_transition_at": "2026-06-26T09:29:19.411367+00:00",
+      "shell_pid": 2508825
     },
     "WP07": {
       "actor": "finalize-tasks",

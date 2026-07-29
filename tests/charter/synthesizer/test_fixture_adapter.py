@@ -73,7 +73,7 @@ def _make_request(
             "styleguides": {},
         },
         drg_snapshot={
-            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
             "edges": [],
             "schema_version": "1",
         },
@@ -168,7 +168,7 @@ class TestNormalizationInvariance:
             "styleguides": {},
         }
         drg = {
-            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
             "edges": [],
             "schema_version": "1",
         }

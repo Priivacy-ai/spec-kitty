@@ -1,5 +1,5 @@
 {
-  "event_count": 7,
+  "event_count": 8,
   "last_event_id": "01KS4G6BJZT40M271PYCQNK2GY",
   "materialized_at": "2026-05-21T05:30:05.791649+00:00",
   "mission_number": "",
@@ -19,10 +19,16 @@
   "work_packages": {
     "WP01": {
       "actor": "reviewer-renata",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KS4G6BJZT40M271PYCQNK2GY",
-      "last_transition_at": "2026-05-21T05:30:05.791649+00:00"
+      "last_transition_at": "2026-05-21T05:30:05.791649+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     }
   }
 }

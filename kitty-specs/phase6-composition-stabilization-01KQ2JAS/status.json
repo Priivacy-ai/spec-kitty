@@ -1,5 +1,5 @@
 {
-  "event_count": 22,
+  "event_count": 25,
   "last_event_id": "01KQ2MCPDACGGN9TS1C808BM5K",
   "materialized_at": "2026-04-25T15:33:35.274966+00:00",
   "mission_number": "98",
@@ -19,24 +19,52 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus:reviewer:reviewer",
       "force_count": 3,
       "lane": "approved",
       "last_event_id": "01KQ2M3VD6R6ACH8N8311R9WC4",
-      "last_transition_at": "2026-04-25T15:28:45.478320+00:00"
+      "last_transition_at": "2026-04-25T15:28:45.478320+00:00",
+      "shell_pid": 8970,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:opus:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KQ2KW1P6DB5SYNZKB2438CBA",
-      "last_transition_at": "2026-04-25T15:24:29.766555+00:00"
+      "last_transition_at": "2026-04-25T15:24:29.766555+00:00",
+      "shell_pid": 2750,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:opus:reviewer:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KQ2MCPDACGGN9TS1C808BM5K",
-      "last_transition_at": "2026-04-25T15:33:35.274966+00:00"
+      "last_transition_at": "2026-04-25T15:33:35.274966+00:00",
+      "shell_pid": 14046,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     }
   }
 }

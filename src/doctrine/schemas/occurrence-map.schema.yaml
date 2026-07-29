@@ -59,6 +59,45 @@ definitions:
         $ref: '#/definitions/action'
       reason:
         type: string
+      field_path:
+        description: >-
+          Optional dot-separated YAML field path (e.g.
+          "context-sources.tactics") scoping this exception to ONE field
+          inside files matching `path` (WP02, FR-002/C-005). Without this,
+          `path` overrides the WHOLE file's verdict — which cannot express a
+          mission whose exemptions are field-scoped when every governed file
+          ALSO carries entries the category-level action must still classify
+          normally (e.g. an agent profile's `directive-references` field
+          must never change while `context-sources.directives` in the SAME
+          file migrates). When present, the file's category-level action
+          still governs the whole file, and the reviewer-facing diff check
+          additionally records that `field_path` is pinned to `action`
+          (see `specify_cli.bulk_edit.diff_check.assess_file`). Omitting
+          this key leaves legacy single-term maps validating unchanged
+          (C-OMAP-1).
+
+          KNOWN LIMITATION — do not read the zero-producer lint's green as
+          coverage of this slot. `field_path` collides as a BARE NAME with
+          unrelated locals in six src/doctrine/**/validation.py modules, so it
+          reads as "produced" whether or not any artefact authors it. Verified
+          by mutation: deleting every deliberate producer leaves that lint
+          green. Closing it needs per-kind namespacing in the lint, which its
+          own docstring places out of scope. Tracked upstream as #2967.
+
+          Consequence to know BEFORE that lands: `field_path` has no in-tree
+          artefact producer at all. Its only real producers are per-mission
+          `kitty-specs/**/occurrence_map.yaml` files, which the lint does not
+          scan. So when namespacing lands this slot surfaces as a FALSE POSITIVE,
+          not as debt. Do not spend the zero-slack `unassigned` baseline hatch on
+          it, and do not "fix" it by re-uncommenting the template example — that
+          shipped consumer projects a live placeholder exception, which is why it
+          was reverted.
+
+          A pin is ADVISORY: it surfaces the field to the reviewer and does not
+          block, and nothing verifies the field was actually unchanged. `mission
+          B2` must not read `do_not_change` here as enforcement.
+        type: string
+        minLength: 1
   move_entry:
     type: object
     additionalProperties: false

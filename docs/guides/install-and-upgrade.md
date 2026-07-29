@@ -121,7 +121,7 @@ Upgrade with: pipx upgrade spec-kitty-cli
 Throttled to **once per 24 hours** by default. Configure:
 
 ```bash
-SPEC_KITTY_NAG_THROTTLE_SECONDS=3600 spec-kitty status   # 1-hour window
+SPEC_KITTY_NAG_THROTTLE_SECONDS=3600 spec-kitty upgrade --cli   # 1-hour window
 ```
 
 Or in `~/.config/spec-kitty/upgrade.yaml`:
@@ -134,8 +134,8 @@ nag:
 Disable entirely:
 
 ```bash
-spec-kitty status --no-nag              # this invocation only
-SPEC_KITTY_NO_NAG=1 spec-kitty status   # this shell session
+spec-kitty upgrade --cli --no-nag              # this invocation only
+SPEC_KITTY_NO_NAG=1 spec-kitty upgrade --cli   # this shell session
 ```
 
 ---
@@ -175,9 +175,15 @@ Remediate: upgrade the CLI. `--yes` and `--force` do **not** bypass this block.
 ```bash
 spec-kitty --help
 spec-kitty --version
-spec-kitty status              # read-only
 spec-kitty upgrade --dry-run   # always allowed
 spec-kitty upgrade --cli       # always allowed
+```
+
+After the project schema is compatible, inspect the current Mission's work
+packages with:
+
+```bash
+spec-kitty agent tasks status --mission <mission>
 ```
 
 ---

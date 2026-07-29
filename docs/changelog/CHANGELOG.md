@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-27'
+updated: '2026-07-29'
 ---
 # Changelog
 
@@ -18,6 +18,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
+
+- **New checks that catch a change which looks like it worked and did nothing
+  (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
+  failure mode — a declaration that loads, validates, reports success, and then
+  has no effect:
+  - A **zero-producer lint** fails the build when a schema field is declared but
+    no code path ever writes it. Three such fields had shipped in this
+    repository, one of them inert for months behind passing tests. The findings
+    that already exist are frozen as a shrink-only baseline; the list can only
+    get smaller, every entry names an owner and the fix it is waiting on, and a
+    test refuses to let an entry outlive the work that was meant to remove it.
+  - **`scripts/generate_schemas.py --check` now runs in CI**, in the always-on
+    `lint` job rather than behind a path filter, so a model change that leaves
+    its generated YAML schema behind fails immediately. Seven schemas were
+    already stale and are reconciled here.
+  - **`spec-kitty doctor doctrine` now reports org-pack edges that point at
+    nothing** (see Breaking Changes).
+  - **Occurrence maps can protect a single field inside a file that is otherwise
+    migrating.** The `do_not_change` classification used to accept only
+    whole-file path globs, so a file containing both governed keys and keys that
+    should be renamed could not be described. It now accepts a YAML field path.
 
 - **CLI UX: shell autocompletion, a `-h` short-help alias, and alphabetical
   command listing (#2232, #2234, #2235).** Three additive quality-of-life
@@ -198,6 +219,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   keep the plain count badge (no false `0/N`). The kanban task payload gains
   additive `subtasks_done`/`subtasks_total` fields; the typed-contract
   baseline is regenerated accordingly.
+- **Seven activated governance artefacts are now reachable from the doctrine
+  graph, so `charter activate --cascade` pulls them in.** Each of these was
+  shipped active in the default charter pack but had no inbound edge from
+  anything, which meant no cascade, no traversal, and no way for an agent to
+  arrive at it except by naming it directly. The authored edges are:
+  `DIRECTIVE_035` → occurrence-classification-workflow, `DIRECTIVE_003` →
+  decision-marker-capture, `DIRECTIVE_030` → no-parallel-duplicate-test-runs,
+  `DIRECTIVE_030` → red-main-release-discipline, `python-conventions` →
+  python-review-checks, `atomic-design-review-checklist` → atomic-design, and
+  `structured-prompt-driven-development` → reasons-canvas-writing. **This
+  changes what a cascade brings in for your project:** activating one of the
+  seven source artefacts with `--cascade` now also activates the target that
+  was previously stranded. If you have been relying on a cascade to produce a
+  specific, narrow set, re-check it after upgrading — the sets are now larger
+  by design, because the targets were always meant to travel with their
+  sources.
 
 ### 🐛 Fixed
 
@@ -245,11 +282,106 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     missions whose runtime state is already canonical. **Already-corrupted logs
     do not self-heal** — they still need the #3003 corpus regenerate, which
     this unblocks.
+  - **`doctor mission-state --fix` no longer destroys `review_result`, log
+    order, or dropped duplicates (#3003).** `_build_canonical_row` is a closed
+    allowlist that omitted `review_result` — a first-class `StatusEvent` field
+    *and* a hard FSM guard, since every transition out of `in_review` is
+    rejected without it. Repairing a corpus therefore converted valid history
+    into events the reducer could no longer validate: 268 transitions across 44
+    missions, with none failing beforehand. The loss was worst-shaped, because
+    `DoneEvidence.review` mirrors the payload only on approval — so the
+    `changes_requested` rows were the irrecoverable ones. The allowlist is now
+    gated against `StatusEvent.__dataclass_fields__` so a newly added model
+    field cannot be dropped the same way. Two further fixes: rows now sort on
+    `at` **or** `timestamp` (lifecycle and retrospective rows date themselves
+    with the latter, so 839 of them were collapsing to `""` and being hoisted to
+    the head of an append-only log), and a dropped duplicate `event_id` row is
+    quarantined rather than only hashed.
   - The classification ledger is now the *mechanical* authority for the
     stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
     drift apart silently. The gate additionally resolves import aliases, and its
     coverage bounds (including the unpoliced `primary_feature_dir_for_mission`)
     are stated explicitly rather than implied.
+- **Almost the entire test suite was being skipped on pushes to `main` (#2957).**
+  CI decides which test jobs to start by looking at which paths a change
+  touched. That is a sensible optimisation for a pull request, but it was
+  applied to pushes to the protected branch as well — so a merge whose diff
+  happened to match none of the path filters started **10 of 50** test jobs and
+  left **31,547 of 33,822** test cases (93.3%) running nowhere. This was not
+  theoretical: four test files that pin frozen contracts were failing on `main`
+  while `main` CI reported green, because the only jobs that would have run them
+  were filtered out. Path filtering is now a pull-request optimisation only. A
+  push to a protected branch starts 49 of the 50 suite jobs and leaves no test
+  uncollected; pull requests are unchanged. A new check
+  (`tests/architectural/test_ci_collection_completeness.py`) fails if any
+  collected test is left with no job that would run it on a push to `main`. It
+  has no baseline and no allowlist — the only way to satisfy it is to make a job
+  actually run the test.
+
+- **Doctrine packs could declare things that quietly had no effect (mission
+  `doctrine-silence-guards`; ADRs [2026-07-26-1](../adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md),
+  [2026-07-26-2](../adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md),
+  [2026-07-26-3](../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)).**
+  The doctrine layer's characteristic failure was silence rather than error: a
+  declaration was accepted, validated, reported as loaded, and then dropped. Every
+  case below now either works or fails with a message naming what was wrong.
+  - **Five of the sixteen artifact kinds were missing from the doctrine-graph
+    extractor** — `anti_pattern`, `asset`, `glossary`, `glossary_pack` and
+    `glossary_scope` were dropped whenever the graph was rebuilt. All sixteen are
+    handled, and the mapping is now checked for completeness instead of being
+    maintained by hand.
+  - **Two of the twelve org-pack directory names crashed the merge outright**
+    with a bare `KeyError` (`mission_types/`, `glossary_packs/`). One consequence
+    worth naming: the shipped test fixture called `augment-all-kinds-pack` could
+    not be merged at all, so the "all kinds" fixture never exercised all kinds.
+  - **Edges derived automatically from an org pack's agent-profile fields never
+    reached the graph.** The producer emitted fully-qualified `<kind>:<id>`
+    endpoints; the code that consumed them looked up bare ids. Nothing matched,
+    so 100% of that path's output was discarded, silently.
+  - **An edge from a built-in artifact to a pack artifact was dropped** with
+    neither a warning nor an error. It now resolves, or reports a typed error
+    naming the endpoint it could not resolve.
+  - **A bare name that referred to a styleguide was turned into a made-up
+    `directive:<name>` node** rather than the `styleguide:<name>` the author
+    meant.
+  - **Unrecognised keys in agent profiles and in graph nodes and edges were
+    silently ignored**, so a typo or a retired key left an artifact that read
+    one way and behaved another (see Breaking Changes).
+  - **Activating the `doctrine-daphne` agent profile pulled in 76 related
+    artifacts but not the one procedure the profile itself says it runs.** The
+    edge to that procedure used a relation type (`applies`) that nothing
+    traverses, and it was the procedure's only inbound edge, so the profile's own
+    operating procedure was unreachable. The edge is retyped to `requires`, and
+    authoring an `applies` edge into the shipped tree is now rejected.
+  - **Error messages sent operators to files that do not exist** — an inline
+    reference rejection pointed at `src/doctrine/graph.yaml`, split into per-kind
+    fragments long ago, and two operator-facing skill documents told authors to
+    read a `src/doctrine/<kind>/shipped/` layer that has never existed on disk.
+    Both are corrected and both are now guarded.
+  - **The generated schema for the docs structural lint had widened to "any
+    object"**, so a malformed lint configuration validated cleanly and the lint
+    ran on settings nobody had checked. The generator now emits the real
+    ten-key contract.
+  - **The documented example for declaring agent-profile lineage used a syntax
+    that exists nowhere in the vocabulary** (`urn:profile:…`). Anyone who copied
+    it got a declaration that merged without complaint and produced no edge. The
+    example is corrected in `AGENTS.md` / `CLAUDE.md` and in
+    [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md), and
+    the accepted forms are now enforced at merge time.
+
+- **`spec-kitty agent tasks mark-status` could not find subtask ids written the
+  way the shipped template tells you to write them (#2962).** The command
+  resolved a subtask id by matching a row shape in `tasks.md` — a checkbox, a
+  pipe-table row, or an inline `Subtasks: T001, T002` list. The shipped
+  `software-dev` template instructs authors that subtask rows are reference
+  rows and explicitly *not* checkboxes, so a `tasks.md` that follows the
+  template matched none of those shapes and every id came back `NOT_FOUND`.
+  That blocked the review workflow on every work package of every mission using
+  that template. The command now falls back to the authored `subtasks:` roster
+  in work-package frontmatter — the same list the lane-transition guard already
+  treats as canonical, so the two surfaces agree on what a work package's
+  subtasks are. The fallback runs last, so every row shape that worked before
+  resolves exactly as before.
 
 - **Placement-port residuals: partition routing is now enforced by the port, not
   by caller discipline (#2923, #2924, #2926, #2932; epic #2931).** Closes the
@@ -640,6 +772,106 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (lenient) read contracts (#2465). No user-facing behaviour change; pinned by
   seam-only + cores-no-I/O architectural tests and a characterization safety net over
   implement / review / accept / next.
+- **Read-side placement seam closure: the last unpoliced primitive is gone
+  (#2886, #3014; closes the read-side placement-seam migration opened by
+  #2922/#2921).** The #2922 migration above left one gap on purpose — its own
+  gate coverage bounds named `primary_feature_dir_for_mission` as unpoliced,
+  because the wrapper itself, and the ~34 call sites still composing a
+  mission's primary directory by calling it directly, hadn't been routed
+  through the seam yet. They are now: every one of those call sites asks
+  `placement_seam(root, slug).read_dir(<kind>)` for the artifact kind it
+  actually wants, instead of asking a topology-blind wrapper to guess a path
+  from a slug. The terminal `KITTY_SPECS_DIR` assembler survives as the
+  seam's own module-private leaf — the one place still allowed to compose a
+  path, because something has to. One behavioural nuance was accepted rather
+  than papered over: on a backfilled mission where the old blind composition
+  returned a directory that does not exist, the seam now recovers the real
+  bare-`<slug>` directory instead of repeating the miss (identity-confirmed,
+  not just path-shaped). A new architecture reference,
+  [`docs/architecture/artifact-placement-seam.md`](../architecture/artifact-placement-seam.md),
+  documents the L0–L4 read-placement layering end to end; `branch-target-routing.md`
+  is narrowed to the branch-target sense now that placement has its own home.
+  Governed by ADR
+  [2026-06-24-1](../adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
+  and ADR
+  [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md);
+  no new architectural decision was needed.
+
+### 💥 Breaking Changes
+
+- **`primary_feature_dir_for_mission` is removed; importing it now raises
+  `ImportError` (#2886, #3014).** It was the last kind-blind wrapper left over
+  from before the read-side placement seam (#2922): callers passed it a slug
+  and it guessed a mission's primary directory by path composition, with no
+  artifact-kind awareness and no way to fail loud when the guess was wrong. The
+  invariant "reads go through the seam" is now structural rather than
+  counted — there is no bypass left to police, so the gate that used to name it
+  as an accepted gap has nothing left to accept. If you imported this function
+  directly (an internal API, but importable), replace the call with
+  `placement_seam(root, slug).read_dir(<kind>)` for the artifact kind you
+  actually need; see the Changed entry above and
+  [`docs/architecture/artifact-placement-seam.md`](../architecture/artifact-placement-seam.md)
+  for the read-placement layering it now goes through.
+- **An org doctrine pack whose agent profile carries an unrecognised key now
+  fails to load (mission `doctrine-silence-guards`).** Agent profiles and DRG
+  nodes and edges used to accept keys the code did not know about and drop them,
+  so a typo or a key retired in an earlier release produced an artifact that
+  looked complete and behaved differently from how it read. Those keys are now
+  rejected outright. Silently dropping them is the defect being closed, so this
+  is deliberate — but **if you maintain an org pack, check it before you
+  upgrade**: run `spec-kitty doctor doctrine --json` and read the
+  `skipped_profiles` list. A pack containing an invalid profile is reported
+  unhealthy rather than crashing the command or passing as healthy. The
+  blast-radius check for this change covered this repository only; packs outside
+  it were not surveyed.
+- **Cross-pack references in an org pack must now be written in full.** An edge
+  endpoint in a pack's `drg/` fragment is either `<kind>:<id>` — for example
+  `styleguide:acme-sty-001` — or a bare id declared in that same fragment's own
+  `nodes:` block. A bare id no longer resolves against a *different* pack in the
+  same merge. That old behaviour made the resulting graph depend on the order
+  packs happen to be listed in `organisation_packs:`: the same two packs in two
+  orders produced two different graphs, and nothing was reported either way. An
+  endpoint that cannot be resolved is now refused at merge time with an
+  `unresolved_edge_endpoint` conflict naming the token, instead of being dropped
+  or silently re-pointed at an invented node. See
+  [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md).
+- **A push to a protected branch now starts 49 of 50 test jobs instead of about
+  10.** Pull requests are unaffected — path filtering still narrows a PR to the
+  suites its diff touches. This is a deliberate trade of CI minutes for
+  coverage: filtering is a pull-request optimisation, and the protected branch
+  is precisely where the frozen contracts have to actually run. See the #2957
+  entry under Fixed.
+- **`spec-kitty doctor doctrine` now fails when an org pack declares an edge
+  endpoint that resolves to nothing.** The dangling endpoints are listed in the
+  report and the command exits non-zero. `charter status` reports the same
+  problems in its `errors` array but deliberately keeps exit code 0 — it is a
+  reporting surface, not a gate, and scripts that treat its exit code as a pass
+  or fail signal are unaffected.
+- **The `rtk-search-tooling` toolguide is removed, including from the default
+  charter pack — an upgrade migration cleans up projects that already have it
+  activated.** RTK is fiddly to set up correctly and can materially change how
+  a project's tests execute, so shipping it as an artefact every new project
+  activates by default was a liability rather than a service. The toolguide,
+  its guide document, and its node in the doctrine graph are gone, and it no
+  longer appears in `src/charter/packs/default.yaml`.
+
+  This is a breaking removal for existing projects because of how the entry got
+  there. The 3.2.0rc35 default-pack migration copied the pack's
+  `activated_toolguides` list verbatim into each project's
+  `.kittify/config.yaml`, and by design only ever writes keys that are
+  *absent* — so no later upgrade would have taken a retired member back out.
+  Charter compilation is deliberately fail-closed and refuses to quietly skip a
+  reference it cannot resolve, so a project left holding the stale entry would
+  hard-fail on the next compile with `UnknownArtifactIdError: No toolguide
+  artifact with config ID 'rtk-search-tooling' found`.
+
+  The new `3.2.6_retire_rtk_search_tooling` migration removes the entry from
+  `.kittify/config.yaml` and strips the matching compiled blocks from
+  `.kittify/charter/charter.yaml` and `.kittify/charter/references.yaml`, which
+  would otherwise still name a source file that no longer exists. It runs
+  automatically on `spec-kitty upgrade`, does nothing on a project that never
+  had the entry, and is safe to run more than once. If you deliberately want
+  RTK guidance, keep it in your own org doctrine pack.
 
 ## [3.2.5] - 2026-07-08
 

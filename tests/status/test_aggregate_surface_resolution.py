@@ -34,10 +34,10 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.missions._read_path_resolver import (
     MISSION_AMBIGUOUS_SELECTOR_CODE,
     MissionSelectorAmbiguous,
-    primary_feature_dir_for_mission,
 )
 from specify_cli.status.aggregate import (
     MissionMetadataUnavailable,
@@ -413,15 +413,17 @@ def test_save_without_identity_raises_via_blessed_path_constructor(
     mission), ``save()`` cannot persist via ``BookkeepingTransaction`` and must
     raise :class:`MissionMetadataUnavailable`. WP01 routes the *diagnostic*
     ``primary_candidate`` / ``meta_path`` through the blessed
-    ``primary_feature_dir_for_mission`` constructor rather than a raw
+    kind-aware ``placement_seam(...).read_dir(PRIMARY_METADATA)`` seam rather than a raw
     ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition — even on this
     error path. This test executes that branch (the function-local import + the
-    ``diag_primary = primary_feature_dir_for_mission(...)`` call) and asserts the
+    ``diag_primary = placement_seam(...).read_dir(PRIMARY_METADATA)`` call) and asserts the
     payload is exactly what the constructor yields. Mutation: re-inlining a raw
     path here (or dropping the guard) makes the payload diverge or the call not
     raise → this test fails.
     """
-    expected_primary = primary_feature_dir_for_mission(tmp_path, MISSION_SLUG)
+    expected_primary = placement_seam(tmp_path, MISSION_SLUG).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
 
     aggregate = MissionStatus(
         mission_slug=MISSION_SLUG,
@@ -453,7 +455,9 @@ def test_save_with_blank_mid8_raises_via_blessed_path_constructor(
     blessed-path diagnostic branch. Covering this second disjunct arm keeps the
     guard from silently narrowing to ``mission_id is None`` alone.
     """
-    expected_primary = primary_feature_dir_for_mission(tmp_path, MISSION_SLUG)
+    expected_primary = placement_seam(tmp_path, MISSION_SLUG).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
 
     aggregate = MissionStatus(
         mission_slug=MISSION_SLUG,

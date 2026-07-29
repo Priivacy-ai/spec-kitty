@@ -1,5 +1,5 @@
 {
-  "event_count": 20,
+  "event_count": 24,
   "last_event_id": "01KTBR4N8CXYR4GHAYJPZYHDSV",
   "materialized_at": "2026-06-05T11:19:21.612992+00:00",
   "mission_number": "",
@@ -19,31 +19,39 @@
   "work_packages": {
     "WP01": {
       "actor": "claude:sonnet",
+      "agent": "claude:sonnet:architect-alphonso:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTBR4N6TH666GPMFFQPFXH51",
-      "last_transition_at": "2026-06-05T11:19:21.562167+00:00"
+      "last_transition_at": "2026-06-05T11:19:21.562167+00:00",
+      "shell_pid": 52775
     },
     "WP02": {
       "actor": "claude:sonnet",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTBR4N7CM233KG83T15RRDFE",
-      "last_transition_at": "2026-06-05T11:19:21.580620+00:00"
+      "last_transition_at": "2026-06-05T11:19:21.580620+00:00",
+      "shell_pid": 57432
     },
     "WP03": {
       "actor": "claude:sonnet",
+      "agent": "claude:sonnet:implementer-ivan:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTBR4N7WYC3077HFJ6SETT47",
-      "last_transition_at": "2026-06-05T11:19:21.597027+00:00"
+      "last_transition_at": "2026-06-05T11:19:21.597027+00:00",
+      "shell_pid": 58728
     },
     "WP04": {
       "actor": "claude:sonnet",
+      "agent": "claude:sonnet:curator-carla:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTBR4N8CXYR4GHAYJPZYHDSV",
-      "last_transition_at": "2026-06-05T11:19:21.612992+00:00"
+      "last_transition_at": "2026-06-05T11:19:21.612992+00:00",
+      "shell_pid": 59686
     }
   }
 }

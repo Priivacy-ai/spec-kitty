@@ -27,6 +27,7 @@ from ._profile_health_render import _SELECTION_KIND_PLURALS
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from doctrine.drg.merge import OrgDRGConflictError
     from doctrine.drg.models import DRGGraph
     from doctrine.glossary_packs import GlossaryPack
 
@@ -484,6 +485,15 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     result: dict[str, object] = {
         "configured_packs": [],
         "collision_warnings": [],
+        # Unconditionally present. It used to be written only when non-empty, so
+        # a missing key conflated "the completeness check ran and found nothing"
+        # with "the check never ran" — the ambiguity the broad handler below is
+        # commented against ("a check that could not RUN is not a check that
+        # PASSED"). An absent key is not a finding of absence. When the merge
+        # refuses the graph the check genuinely cannot run; that case is not
+        # signalled by this key but by the hard-failure entry in ``errors``,
+        # which is the channel the health verdict reads.
+        "dangling_endpoints": [],
         "errors": [],
     }
 
@@ -514,6 +524,14 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     if not fragments:
         return result
 
+    # The merge is the ONLY thing in this try. The post-merge checks used to sit
+    # inside it, which cost twice: a hard-fail raise aborted the block before
+    # they ran (so a refused pack reported no dangling endpoints and no
+    # unsanctioned overrides — "more breakage" read as "fewer findings"), and a
+    # crash in either check was attributed to "merge check failed". Separating
+    # them lets each defect report itself.
+    built_in = None
+    merged = None
     try:
         built_in = load_built_in_graph()
         # WP08 (FR-010): reuse the SAME merge the org-layer section already runs
@@ -522,35 +540,106 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         merged = merge_three_layers(
             built_in=built_in, org_fragments=fragments, project=None
         )
-        built_in_urns = frozenset(node.urn for node in built_in.nodes)
-        unsanctioned = _adjudicate_org_overrides(merged, built_in_urns, repo_root)
-        if unsanctioned:
-            # Dedicated key for precise rendering (human/JSON) AND an entry in
-            # ``errors`` so the honest ``DoctrineHealthReport.healthy`` predicate
-            # flips the report unhealthy (RC=1) without a parallel health path.
-            result["unsanctioned_overrides"] = unsanctioned
-            _append_org_errors(
-                result,
-                [
-                    f"unsanctioned built-in override: {f['urn']} "
-                    f"({f['kind']}) — {f['why']}"
-                    for f in unsanctioned
-                ],
-            )
     except OrgDRGConflictError as exc:
-        result["collision_warnings"] = [
-            {
-                "kind": c.kind,
-                "target_id": c.target_id,
-                "conflicting_layers": c.conflicting_layers,
-                "resolution": c.resolution_applied,
-            }
-            for c in exc.conflicts
-        ]
-    except Exception:  # noqa: BLE001
-        pass
+        _record_org_conflicts(result, exc)
+    except Exception as exc:  # noqa: BLE001 — doctor must not crash on a bad pack
+        # A check that could not RUN is not a check that PASSED. This handler
+        # used to be a bare ``pass``; since the block also decides org-layer
+        # completeness, swallowing meant a crashed merge produced ``errors: []``
+        # and ``DoctrineHealthReport.healthy`` read that as clean — RC=0 having
+        # verified nothing. Report it on the same channel the load failure above
+        # already uses, so the diagnostic degrades loudly instead of silently.
+        _append_org_errors(result, [f"org-layer merge check failed: {exc}"])
+
+    if merged is None or built_in is None:
+        # No graph: the post-merge checks have nothing to inspect. ``errors``
+        # already carries why, so the report is unhealthy without inventing a
+        # verdict for a check that never ran.
+        return result
+
+    try:
+        _run_post_merge_org_checks(result, merged, built_in, repo_root)
+    except Exception as exc:  # noqa: BLE001 — doctor must not crash on a bad pack
+        # Same principle, its own attribution: the merge succeeded, so blaming
+        # this on the merge would send the operator to the wrong artefact.
+        _append_org_errors(result, [f"org-layer post-merge check failed: {exc}"])
 
     return result
+
+
+def _record_org_conflicts(result: dict[str, object], exc: OrgDRGConflictError) -> None:
+    """Route a refused merge onto BOTH the advisory and the verdict channels.
+
+    ``merge_three_layers`` raises with every conflict it found, mixing advisory
+    precedence records with the fatal refusals that caused the raise. All of
+    them keep their typed record in ``collision_warnings`` (a flat error string
+    is too lossy to drive tooling), but only the fatal ones are copied into
+    ``errors``.
+
+    That copy is the fix for this module's headline defect: ``errors`` is the
+    only channel ``DoctrineHealthReport.healthy`` reads, so writing a hard
+    failure exclusively to ``collision_warnings`` reported a graph the merge
+    layer had *refused to assemble* as ``healthy: True`` with ``RC=0``.
+    Partitioning by ``resolution_applied`` is delegated to
+    ``OrgDRGConflictError`` rather than re-derived here, so all three collectors
+    agree on what "fatal" means.
+    """
+    result["collision_warnings"] = [
+        {
+            "kind": c.kind,
+            "target_id": c.target_id,
+            "conflicting_layers": c.conflicting_layers,
+            "resolution": c.resolution_applied,
+        }
+        for c in exc.conflicts
+    ]
+    _append_org_errors(result, exc.hard_failure_messages)
+
+
+def _run_post_merge_org_checks(
+    result: dict[str, object],
+    merged: DRGGraph,
+    built_in: DRGGraph,
+    repo_root: Path,
+) -> None:
+    """Run the checks that need an assembled graph, and record their findings.
+
+    The endpoint policy's post-assembly half. ``merge_three_layers`` accepts a
+    fully-qualified endpoint verbatim (a sibling pack or a later layer may
+    supply the node) and only WARNs when it binds to nothing, because it cannot
+    know whether its caller merged the whole graph or a deliberate subset.
+
+    The rule for running the escalation is a predicate on the merge, not a
+    property of this command: run it iff you merged the COMPLETE graph — the
+    real shipped built-in against every configured pack. The caller satisfies
+    that, so a dangling endpoint is an error here. Its two siblings
+    (``_render_org_layer_section``, ``_collect_org_layer_status``) build the
+    same merge from the same inputs and run it for the same reason; ``charter
+    lint`` merges against an intentionally EMPTY built-in and therefore must
+    not. The predicate lives on ``validate_dangling_references``; use the
+    canonical check rather than a doctor-local restatement of "dangling".
+    """
+    from charter.drg import validate_dangling_references  # noqa: PLC0415
+
+    dangling = validate_dangling_references(merged)
+    if dangling:
+        result["dangling_endpoints"] = dangling
+        _append_org_errors(result, dangling)
+
+    built_in_urns = frozenset(node.urn for node in built_in.nodes)
+    unsanctioned = _adjudicate_org_overrides(merged, built_in_urns, repo_root)
+    if unsanctioned:
+        # Dedicated key for precise rendering (human/JSON) AND an entry in
+        # ``errors`` so the honest ``DoctrineHealthReport.healthy`` predicate
+        # flips the report unhealthy (RC=1) without a parallel health path.
+        result["unsanctioned_overrides"] = unsanctioned
+        _append_org_errors(
+            result,
+            [
+                f"unsanctioned built-in override: {f['urn']} ({f['kind']}) — {f['why']}"
+                for f in unsanctioned
+            ],
+        )
 
 
 def _append_org_errors(result: dict[str, object], messages: list[str]) -> None:

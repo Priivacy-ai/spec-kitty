@@ -21,7 +21,7 @@ Entry points compared (read each before asserting over it):
 * ``status.aggregate.MissionStatus.load`` (``.read_dir`` / ``_resolve_read_dir``)
 * ``mission_runtime.resolution`` boundary (ambiguous-handle translation probe)
 
-``primary_feature_dir_for_mission`` is the FR-009 divergence companion to
+the module-private ``_compose_primary_feature_dir`` leaf is the FR-009 divergence companion to
 ``resolve_mission_read_path``; the ``coord-fresh|bare-slug`` cell is exactly the
 ``<slug>-<mid8>`` divergence column (the resolver is mid8-blind for a bare slug
 while the surface/aggregate prefer the coord worktree).
@@ -139,7 +139,7 @@ from specify_cli.migration.backfill_topology import (
 from specify_cli.missions._read_path_resolver import (
     MissionSelectorAmbiguous,
     StatusReadPathNotFound,
-    primary_feature_dir_for_mission,
+    _compose_primary_feature_dir,
     read_primary_meta,
     resolve_handle_to_read_path,
     resolve_planning_read_dir,
@@ -1092,11 +1092,13 @@ def test_unbackfilled_flattened_repro_resolves_primary_after_wp06(
 # ---------------------------------------------------------------------------
 # WP01 (retrospective-durable-home, FR-011 / #2136) — handle-safe PRIMARY read
 # seam. The kind-aware read seam ``resolve_planning_read_dir`` feeds its
-# PRIMARY-partition leg into the topology-BLIND primitive
-# ``primary_feature_dir_for_mission``. A bare ``mid8`` / human slug does NOT name
-# the on-disk ``<slug>-<mid8>`` dir, so the raw-handle compose DIVERGED (the
-# #2136 bug). WP01 canonicalizes IN THE CALLER (mirroring the live exemplars),
-# leaving the primitive blind. These cells prove the cure THROUGH the read seam.
+# PRIMARY-partition leg into the topology-BLIND leaf
+# ``_compose_primary_feature_dir`` (read-side-seam-primary-primitive-closure-
+# 01KYKMMT WP08 T035: the deleted public wrapper delegated to this same leaf).
+# A bare ``mid8`` / human slug does NOT name the on-disk ``<slug>-<mid8>`` dir,
+# so the raw-handle compose DIVERGED (the #2136 bug). WP01 canonicalizes IN THE
+# CALLER (mirroring the live exemplars), leaving the primitive blind. These
+# cells prove the cure THROUGH the read seam.
 # ---------------------------------------------------------------------------
 
 # A PRIMARY-partition kind drives the ``is_primary_artifact_kind`` leg the bug
@@ -1144,7 +1146,7 @@ def test_primary_read_seam_handle_equivalence(tmp_path: Path) -> None:
     * a bare human slug (``MISSION_SLUG`` — no mid8 tail).
 
     RED on the pre-WP01 code: the PRIMARY leg passed the RAW handle to the
-    topology-blind ``primary_feature_dir_for_mission``, so the bare forms composed
+    topology-blind leaf, so the bare forms composed
     ``kitty-specs/<bare>`` — a DIFFERENT dir than the composed anchor. GREEN after
     the caller-canonicalization: all three fold to the SAME canonical dir.
 
@@ -1208,7 +1210,7 @@ def test_primary_read_seam_canonical_handle_is_noop(tmp_path: Path) -> None:
     # No-op: the canonical handle resolves the literal composed dir — the SAME path
     # the blind primitive composes directly (the present-leg short-circuit).
     assert resolved == canonical_dir.resolve()
-    assert resolved == primary_feature_dir_for_mission(tmp_path, SLUG_WITH_MID8).resolve()
+    assert resolved == _compose_primary_feature_dir(tmp_path, SLUG_WITH_MID8).resolve()
 
 
 def test_primary_read_seam_unresolvable_handle_is_byte_identical(tmp_path: Path) -> None:
@@ -1225,14 +1227,14 @@ def test_primary_read_seam_unresolvable_handle_is_byte_identical(tmp_path: Path)
 
     resolved = resolve_planning_read_dir(tmp_path, handle, kind=kind).resolve()
     # Byte-identical to the blind primitive's literal compose (no-op fold).
-    assert resolved == primary_feature_dir_for_mission(tmp_path, handle).resolve()
+    assert resolved == _compose_primary_feature_dir(tmp_path, handle).resolve()
 
 
 def test_primitive_stays_blind_under_bare_handle(tmp_path: Path) -> None:
     """T013 step 4 (NFR-005): the primitive STILL diverges for a bare handle.
 
     The cure lives in the CALLER, not the primitive. A direct call to the
-    topology-blind ``primary_feature_dir_for_mission`` with a bare ``mid8`` STILL
+    topology-blind ``_compose_primary_feature_dir`` leaf with a bare ``mid8`` STILL
     literal-composes the bare name (``kitty-specs/<mid8>``) — a DIFFERENT dir than
     the canonical ``<slug>-<mid8>``. This proves the primitive's blind contract is
     preserved (no canonicalization folded into its body — recursion-safety) and
@@ -1240,7 +1242,7 @@ def test_primitive_stays_blind_under_bare_handle(tmp_path: Path) -> None:
     """
     canonical_dir = _build_canonical_primary(tmp_path)
 
-    blind = primary_feature_dir_for_mission(tmp_path, MID8).resolve()
+    blind = _compose_primary_feature_dir(tmp_path, MID8).resolve()
     # The blind primitive composes the bare name verbatim — it does NOT canonicalize.
     assert blind == (tmp_path / "kitty-specs" / MID8).resolve()
     # ... and that is a genuinely DIFFERENT dir than the canonical one (non-vacuous).

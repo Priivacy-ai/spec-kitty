@@ -66,9 +66,9 @@ from specify_cli.missions._read_path_resolver import (
     CoordState,
     StatusReadPathNotFound,
     _canonicalize_primary_read_handle,
+    _compose_primary_feature_dir,
     candidate_feature_dir_for_mission,
     coord_feature_dir,
-    primary_feature_dir_for_mission,
     probe_coord_state,
     read_primary_meta,
     stored_topology_from_meta,
@@ -736,7 +736,32 @@ def resolve_status_surface_with_anchor(
     # the write path then inherits via ``_identity_for_request``). Re-anchor the
     # config read on the canonical primary dir so the surface authority is
     # config-determined, never topology-determined-then-config-lost.
-    primary_dir: Path = primary_feature_dir_for_mission(
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005): RECORDED FOUNDATION SITE 4/4, deliberately UNROUTED. This module
+    # is the canonical surface authority the status read ultimately depends on
+    # (``mission_runtime.resolution._resolve_status_surface_dir`` /
+    # ``mission_context_for`` consume ``resolve_status_surface`` from this
+    # module to assemble the execution-context workspace fragment): a raw
+    # compose here produces the topology/config signal (``coordination_branch``,
+    # husk-authority) that FEEDS that surface decision, so it must precede it,
+    # not route through it. It does not literally recurse — ``PlacementSeam.
+    # read_dir``'s ``resolve_artifact_surface`` / ``declared_read_surface``
+    # classification chokepoint never calls into this module at all (a
+    # separate call path), and this module is already whole-module sanctioned
+    # via ``_READ_SANCTIONED_MODULES``. WP08 deleted the public wrapper this
+    # site imported; calls the module-private ``_compose_primary_feature_dir``
+    # leaf directly instead.
+    #
+    # Foundation-count note: this "4/4" in-code count (``core/paths.py`` x2,
+    # ``core/git_ops.py``, this module) is a DIFFERENT grouping than the
+    # 5-entry ``_FOUNDATION_SANCTION_SEED`` machine-checked table in
+    # ``tests/architectural/test_no_read_side_bypass.py`` — that table swaps
+    # this whole-module-sanctioned entry for two individually-tracked sites
+    # (``retrospective/writer.py``, ``status/aggregate.py``) instead, per its
+    # own reconciling comment above ``_FOUNDATION_SANCTIONED``. Six underlying
+    # sites total, two different countable subsets by design — not a typo.
+    primary_dir: Path = _compose_primary_feature_dir(
         repo_root,
         _canonicalize_primary_read_handle(repo_root, mission_slug),
     )

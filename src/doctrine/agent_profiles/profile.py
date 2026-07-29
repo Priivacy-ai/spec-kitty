@@ -46,7 +46,7 @@ def _reject_retired_profile_relationship_fields(data: Any) -> Any:
             f"augmentation as DRG fragment edges in a `drg/` fragment "
             f"(e.g. {{source: agent_profile:<id>, target: agent_profile:<id>, "
             f"relation: specializes_from|enhances|overrides}}) merged into "
-            f"src/doctrine/graph.yaml — not as inline profile fields."
+            f"src/doctrine/*.graph.yaml — not as inline profile fields."
         )
     return data
 
@@ -251,7 +251,11 @@ class AgentProfile(BaseModel):
     6. Initialization Declaration - startup acknowledgment
     """
 
-    model_config = ConfigDict(populate_by_name=True)
+    # FR-004: an authored key this model does not declare is a load error. The
+    # sibling ``ContextSources`` already forbids extras; ``AgentProfile`` itself
+    # did not, so a mistyped or retired top-level key was dropped in silence and
+    # the profile loaded looking complete.
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     # Frontmatter fields
     profile_id: str = Field(alias="profile-id")
@@ -301,6 +305,18 @@ class AgentProfile(BaseModel):
         data = _reject_retired_profile_relationship_fields(data)
         has_role = "role" in data
         has_roles = "roles" in data
+        if has_role and has_roles:
+            # Previously "roles wins" -- the scalar was dropped without a word,
+            # so a contradictory profile loaded as if it were coherent (FR-004).
+            # Raised here rather than left to ``extra="forbid"`` so the message
+            # names the fix instead of reporting an anonymous extra key.
+            profile_id = data.get("profile-id", "<unknown>")
+            raise ValueError(
+                f"Profile {profile_id!r} declares both the deprecated scalar "
+                f"'role:' and the canonical 'roles:'. Only one is authoritative "
+                f"and 'role:' was previously discarded without notice. Delete "
+                f"the 'role:' line and keep 'roles:'."
+            )
         if has_role and not has_roles:
             value = data["role"]
             norm = value.lower() if isinstance(value, str) else value
@@ -313,7 +329,7 @@ class AgentProfile(BaseModel):
             )
             data = {k: v for k, v in data.items() if k != "role"}
             data["roles"] = [norm]
-        # if has_roles (with or without stale "role" key), pass through unchanged
+        # if has_roles alone: pass through unchanged
         # if neither: Pydantic raises ValidationError via min_length=1 on roles
         return data
 

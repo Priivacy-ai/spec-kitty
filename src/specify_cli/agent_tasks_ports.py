@@ -55,8 +55,6 @@ from specify_cli.coordination.status_transition import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
 from specify_cli.status import StatusEvent, TransitionRequest
@@ -140,9 +138,11 @@ class FsReader(Protocol):
     def primary_anchor_dir(self, mission: MissionHandle) -> Path:
         """Resolve the topology-blind PRIMARY anchor dir.
 
-        The blind primitive ``primary_feature_dir_for_mission`` stays **inside**
-        this method, co-located with its ``_canonicalize_primary_read_handle``
-        fold (C-002).
+        Routes through the kind-aware placement seam
+        (``placement_seam(...).read_dir(PRIMARY_METADATA)``, read-side-seam-
+        primary-primitive-closure-01KYKMMT WP04/WP08), which folds the handle
+        to its canonical form internally -- no caller-side canonicalizer fold
+        is co-located here (C-002; drained WP08 T036).
         """
         ...
 
@@ -256,14 +256,24 @@ class RealFsReader:
         return feature_dir / "tasks"
 
     def primary_anchor_dir(self, mission: MissionHandle) -> Path:
-        # C-002: the canonicalizer fold and the blind primitive call are
-        # co-located in THIS method. The resolution-authority canonicalizer gate
-        # is intra-function (def-use); splitting the fold across the boundary
-        # turns it RED. Keep both here.
-        canonical = _canonicalize_primary_read_handle(
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004):
+        # routed through the kind-aware placement seam directly rather than
+        # the now-bypassed ``primary_feature_dir_for_mission`` wrapper -- every
+        # PRIMARY-partition kind resolves to the identical anchor (P-1), so
+        # ``PRIMARY_METADATA`` stands in for this port's own topology-blind
+        # answer (the wrapper's own body was exactly this seam call).
+        # WP08 (T036): the caller-side canonicalizer fold DROPPED -- it is
+        # redundant with the seam's OWN internal fold. For a PRIMARY-partition
+        # kind, ``read_dir`` folds the handle through this SAME
+        # ``_canonicalize_primary_read_handle`` primitive before composing
+        # (see ``resolve_planning_read_dir``'s PRIMARY leg), so pre-folding an
+        # already-canonical or already-raw handle here achieves nothing the
+        # seam does not already do — folding twice is idempotent, not merely
+        # equivalent (the fold's own no-op leg for an unresolvable handle
+        # returns it unchanged either way).
+        anchor: Path = placement_seam(
             mission.repo_root, mission.mission_slug
-        )
-        anchor: Path = primary_feature_dir_for_mission(mission.repo_root, canonical)
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return anchor
 
 

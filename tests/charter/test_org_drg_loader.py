@@ -532,11 +532,8 @@ class TestMergeThreeLayers:
         assert {e.relation for e in org_edges} == {Relation.REQUIRES}
         assert org_edges[0].relation == Relation.REQUIRES
 
-    def test_org_to_shipped_edge_targets_synthesized_urn(self) -> None:
-        """Edges from an org fragment may point at shipped artefacts; the
-        merge synthesises a URN for the target so the edge isn't dropped."""
-        built_in = _empty_built_in()
-        fragment = OrgDRGFragment.model_validate(
+    def _cross_pack_fragment(self, target: str) -> OrgDRGFragment:
+        return OrgDRGFragment.model_validate(
             {
                 "pack_name": "cross-pack",
                 "source_kind": "local_path",
@@ -547,25 +544,60 @@ class TestMergeThreeLayers:
                     {"id": "policy", "kind": "directives", "title": "Policy"},
                 ],
                 "edges": [
-                    # target 'caveman-comments' is not in this fragment;
-                    # bridge synthesises 'directive:caveman-comments'
-                    {
-                        "source": "policy",
-                        "target": "caveman-comments",
-                        "relation": "applies",
-                    },
+                    {"source": "policy", "target": target, "relation": "applies"},
                 ],
             }
         )
+
+    def test_org_to_shipped_edge_keeps_a_fully_qualified_target(self) -> None:
+        """Edges from an org fragment may point outside it and are not dropped.
+
+        Re-pinned by WP08 (FR-010). This test used to assert that a **bare**
+        target ``caveman-comments`` was "synthesised" into
+        ``directive:caveman-comments`` — but ``caveman-comments`` is a
+        *styleguide*, so what the bridge actually produced was a phantom node
+        of an invented kind. The intent (a cross-layer edge survives the
+        merge) is unchanged; the contract is now that the author qualifies the
+        target, and the bridge forwards it verbatim instead of guessing.
+        """
+        built_in = _empty_built_in()
+        fragment = self._cross_pack_fragment("styleguide:caveman-comments")
+
         merged = merge_three_layers(
             built_in=built_in, org_fragments=[fragment], project=None
         )
+
         cross_edges = [
-            e for e in merged.edges if e.target == "directive:caveman-comments"
+            e for e in merged.edges if e.target == "styleguide:caveman-comments"
         ]
         assert {(e.source, e.target, e.relation) for e in cross_edges} == {
-            ("directive:policy", "directive:caveman-comments", Relation.APPLIES)
+            ("directive:policy", "styleguide:caveman-comments", Relation.APPLIES)
         }
+        assert not [e for e in merged.edges if e.target.startswith("directive:caveman")], (
+            "the bridge must never invent a directive: kind for a target it "
+            "cannot resolve"
+        )
+
+    def test_org_to_shipped_edge_with_an_unresolvable_bare_target_hard_fails(
+        self,
+    ) -> None:
+        """The negative half: no guess, no silence (FR-010, SC-009).
+
+        A bare id that names nothing in any merged layer is a conflict record
+        and a hard fail — not a ``directive:<id>`` invented on the author's
+        behalf.
+        """
+        fragment = self._cross_pack_fragment("caveman-comments")
+
+        with pytest.raises(OrgDRGConflictError) as excinfo:
+            merge_three_layers(
+                built_in=_empty_built_in(), org_fragments=[fragment], project=None
+            )
+
+        assert [c.kind for c in excinfo.value.conflicts] == [
+            "unresolved_edge_endpoint"
+        ]
+        assert excinfo.value.conflicts[0].target_id == "caveman-comments"
 
     def test_edge_with_unknown_relation_raises(self) -> None:
         """FR-003 / C0.3 (mission

@@ -1,5 +1,5 @@
 {
-  "event_count": 49,
+  "event_count": 56,
   "last_event_id": "01KXM5Z12V7B6FSCKZ247687KS",
   "materialized_at": "2026-07-16T00:41:58.107838+00:00",
   "mission_number": "180",
@@ -19,52 +19,73 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5YX1VYXKP51CAT368E3ME",
-      "last_transition_at": "2026-07-16T00:41:53.979373+00:00"
+      "last_transition_at": "2026-07-16T00:41:53.979373+00:00",
+      "shell_pid": 3810609,
+      "shell_pid_created_at": "1784160240.79"
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5YXSEY5JVS9V8Y1TF2C70",
-      "last_transition_at": "2026-07-16T00:41:54.734123+00:00"
+      "last_transition_at": "2026-07-16T00:41:54.734123+00:00",
+      "shell_pid": 3768044,
+      "shell_pid_created_at": "1784159197.68"
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5YYF3HPHNB0NXWSV9C94E",
-      "last_transition_at": "2026-07-16T00:41:55.427806+00:00"
+      "last_transition_at": "2026-07-16T00:41:55.427806+00:00",
+      "shell_pid": 3690324,
+      "shell_pid_created_at": "1784158279.46"
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5YZ4368EEYVF3V5NHN7V4",
-      "last_transition_at": "2026-07-16T00:41:56.099030+00:00"
+      "last_transition_at": "2026-07-16T00:41:56.099030+00:00",
+      "shell_pid": 3692082,
+      "shell_pid_created_at": "1784158296.51"
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5YZRWB0W9XBDV1QSK337M",
-      "last_transition_at": "2026-07-16T00:41:56.764243+00:00"
+      "last_transition_at": "2026-07-16T00:41:56.764243+00:00",
+      "shell_pid": 3761962,
+      "shell_pid_created_at": "1784159093.94"
     },
     "WP06": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5Z12V7B6FSCKZ247687KS",
-      "last_transition_at": "2026-07-16T00:41:58.107838+00:00"
+      "last_transition_at": "2026-07-16T00:41:58.107838+00:00",
+      "shell_pid": 3863044,
+      "shell_pid_created_at": "1784161725.33"
     },
     "WP07": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXM5Z0DNWJAB3PTZHRJQ73RW",
-      "last_transition_at": "2026-07-16T00:41:57.429515+00:00"
+      "last_transition_at": "2026-07-16T00:41:57.429515+00:00",
+      "shell_pid": 3700776,
+      "shell_pid_created_at": "1784158387.03"
     }
   }
 }

@@ -79,9 +79,15 @@ Commands that are always allowed regardless of schema:
 ```bash
 spec-kitty --help
 spec-kitty --version
-spec-kitty status              # read-only
 spec-kitty upgrade --dry-run   # always allowed
 spec-kitty upgrade --cli       # always allowed
+```
+
+After the project schema is compatible, inspect the current Mission's work
+packages with:
+
+```bash
+spec-kitty agent tasks status --mission <mission>
 ```
 
 ## When is a project upgrade required?

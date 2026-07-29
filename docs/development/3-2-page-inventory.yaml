@@ -1106,6 +1106,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/artifact-placement-seam.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/assessments/code-as-a-crime-scene-overview.md
   tag: current
   divio_type: none
@@ -2531,6 +2537,18 @@
 - path: docs/plans/doctrine/391-doctrine-usage-test.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/built-in-doctrine-repo-coupling-audit.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/charter-activation-reachability-assessment.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

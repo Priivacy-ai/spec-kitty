@@ -116,7 +116,7 @@ def test_procedure_references_resolve_to_shipped_artifacts() -> None:
 def test_no_procedure_step_carries_inline_tactic_refs() -> None:
     """Post-WP02: shipped procedure steps must not carry inline ``tactic_refs``.
 
-    Step → tactic relationships live as edges in ``src/doctrine/graph.yaml``
+    Step → tactic relationships live as edges in ``src/doctrine/procedure.graph.yaml``
     after Phase 1 excision. This test guards against regressions that
     reintroduce step-level inline references.
     """
@@ -133,7 +133,7 @@ def test_no_procedure_step_carries_inline_tactic_refs() -> None:
 
     assert not offenders, (
         "Inline step-level `tactic_refs` reintroduced on shipped procedures — "
-        "all relationships must live in src/doctrine/graph.yaml (see WP02 of "
+        "all relationships must live in src/doctrine/procedure.graph.yaml (see WP02 of "
         "excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )

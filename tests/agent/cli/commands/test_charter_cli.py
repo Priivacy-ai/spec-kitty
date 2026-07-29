@@ -6,6 +6,7 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app
@@ -81,20 +82,33 @@ def _write_charter_yaml_bundle(charter_dir: Path) -> None:
 
 
 def test_sync_command_success(mock_repo: Path) -> None:
-    """IC-04 (#2773): ``charter.sync.sync`` extraction is retired -- it is a
-    pure staleness reporter now (``SyncResult.synced`` is hardcoded
-    ``False``; there is no derived triad left to write). ``charter sync``
-    therefore always renders the noop branch, even on a "fresh" charter that
-    has never been synced before -- pin that current, intentional contract
-    (see the module docstring in ``charter.sync``) rather than the retired
-    extraction-success message."""
+    """#3045: the assertion that used to live here --
+    ``"Charter already in sync" in result.stdout``, defended by this test's
+    prior docstring as the "current, intentional contract" -- was a STALE
+    PIN. Issue #3045 identifies it as the P0 escalator for the underlying
+    defect (``charter sync`` reports success unconditionally, even for a
+    charter that was never synced): a test asserting the misleading message
+    is *intended* means no gate could ever catch the regression. Per the
+    failing-test remediation framework a stale pin is deleted/rewritten, not
+    annotated -- removed here in the same commit that adds
+    ``test_sync_command_human_and_json_surfaces_do_not_contradict_3045``
+    below, which is the red-first replacement (see that test's docstring).
+    The two must not be re-separated later: this test defends only the
+    coverage that is still valid under EITHER sanctioned #3045 remedy
+    (repair or honest-reporter) -- it never re-materializes the retired
+    derived triad (``governance.yaml`` / ``directives.yaml`` /
+    ``metadata.yaml``, retired by IC-04 / #2773). No exit-code assertion is
+    kept either: ``mock_repo`` is exactly the "charter.md present,
+    charter.yaml absent, never synced" state the honest-reporter remedy is
+    expected to make exit non-zero for (per #3045's suggested shape) -- a
+    hard ``exit_code == 0`` pin here would forbid that remedy through a
+    second assertion in this file, recreating the same problem this
+    remediation exists to close."""
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
-        result = runner.invoke(app, ["sync"])
+        runner.invoke(app, ["sync"])
 
-        assert result.exit_code == 0
-        assert "Charter already in sync" in result.stdout
         for retired_file in ("governance.yaml", "directives.yaml", "metadata.yaml"):
             assert not (mock_repo / ".kittify" / "charter" / retired_file).exists()
 
@@ -488,3 +502,101 @@ def test_help_output() -> None:
     assert "context" in result.stdout
     assert "sync" in result.stdout
     assert "status" in result.stdout
+
+
+@pytest.mark.regression
+def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(tmp_path: Path) -> None:
+    """#3045: ``charter sync`` always reports success on the human surface,
+    even when the JSON surface (same repo state) reports
+    ``stale_before: true`` / ``success: false``.
+
+    ``_emit_sync_human_result``
+    (``src/specify_cli/cli/commands/charter/sync.py:36-49``) unconditionally
+    prints "Charter already in sync (use --force to re-extract)" whenever
+    ``result.error`` is falsy -- it never branches on ``stale_before`` or
+    ``synced``. ``_sync_json_payload``
+    (``src/specify_cli/cli/commands/charter/sync.py:23-33``) reports
+    ``success: False`` / ``stale_before: True`` for the exact same
+    ``SyncResult``. The two surfaces of the SAME command, over the SAME
+    result, contradict each other: one says "already in sync", the other
+    says "did not sync, was stale before this call".
+
+    The stale pin that used to defend the human-surface message as
+    intentional -- ``test_sync_command_success``'s
+    ``"Charter already in sync" in result.stdout`` assertion, previously
+    rationalized in its own docstring as the "current, intentional
+    contract" -- was REMOVED in this same commit (see that test's updated
+    docstring). This test is the red-first replacement, not an addition
+    alongside the old pin; the two must not be re-separated later.
+
+    Test design, addressing three problems in an earlier draft of this test:
+
+    1. **Single invocation, two rendered surfaces.** ``charter.sync.sync()``
+       is called exactly ONCE to obtain one real ``SyncResult``; both
+       ``_sync_json_payload`` and ``_emit_sync_human_result`` render from
+       that SAME object. An earlier draft invoked the ``sync`` CLI command
+       twice against one shared ``mock_repo`` -- under a *repair*-mode fix,
+       the first (``--json``) invocation would actually repair the charter,
+       so the second (human) invocation would then correctly report
+       "already in sync", falsely reding a fix that fully resolves #3045.
+       Rendering both surfaces from one result sidesteps that ordering
+       hazard entirely.
+    2. **No exit-code pin.** Honest-reporter mode (the operator's stated
+       preference is "loud failures with clear instructions") is expected to
+       fail loudly -- non-zero exit -- when nothing was actually synced.
+       Repair mode may legitimately return ``synced=True`` (and thus exit 0)
+       because restoring the pre-#2773 ``sync()`` contract means a plain
+       (non-``--force``) call auto-extracts whenever the charter IS stale.
+       This test does not hardcode which remedy is chosen; see the
+       ``payload["success"]`` branch below.
+    3. **``stale_before`` is read off the payload, not hard-asserted
+       ``True``.** It is a permanent constant today only because the
+       staleness check targets the retired ``metadata.yaml`` (#3045 remedy
+       3) -- a corrected staleness check may compute it differently.
+
+    The substantive assertion is positive, not a bare negative substring: if
+    the JSON surface reports the sync did NOT actually happen
+    (``success is False``), the human surface must not exit 0 silently --
+    it must fail loudly. A cosmetic reword of the "already in sync" string
+    alone (keeping exit 0) does not satisfy this, because the check does not
+    inspect the human surface's text at all -- only whether it raises a
+    non-zero exit given a ``SyncResult`` that itself reports nothing was
+    synced.
+    """
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.md").write_text(SAMPLE_CHARTER, encoding="utf-8")
+
+    from specify_cli.cli.commands.charter._app import console as charter_console
+    from specify_cli.cli.commands.charter.sync import (
+        _emit_sync_human_result,
+        _sync_json_payload,
+    )
+    from charter.sync import sync as sync_charter
+
+    result = sync_charter(charter_dir / "charter.md", charter_dir)
+    payload = _sync_json_payload(result)
+
+    human_exit_code: int | None = None
+    with charter_console.capture() as capture:
+        try:
+            _emit_sync_human_result(result)
+        except typer.Exit as exc:
+            human_exit_code = exc.exit_code
+    human_text = capture.get()
+
+    if payload["success"]:
+        # This single sync() call already resolved the staleness (the
+        # sanctioned *repair* remedy) -- both surfaces legitimately agree
+        # the charter is now in sync, so there is nothing to contradict.
+        return
+
+    assert human_exit_code not in (None, 0), (
+        "#3045: the JSON surface reports success=False (charter was not "
+        f"actually synced by this call; stale_before={payload['stale_before']!r}) "
+        "but the human surface exited 0 without raising -- a silent "
+        "'everything is fine' when nothing was synced. The operator's "
+        "stated preference is a loud failure naming the recovery path "
+        "('charter generate' / 'charter synthesize'), not a quiet success. "
+        f"human output: {human_text!r}, json payload: {payload!r}"
+    )

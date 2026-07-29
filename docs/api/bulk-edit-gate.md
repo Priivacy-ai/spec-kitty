@@ -44,10 +44,39 @@ categories:
     action: ...
   logs_telemetry:
     action: ...
+
+# Optional. Narrows a category verdict for specific files, or for a single
+# field inside them.
+exceptions:
+- path: "<file path or glob>"
+  action: <do_not_change | manual_review | rename | rename_if_user_visible>
+  reason: "<why this path deviates from its category verdict>"
+  # Optional. Dot-separated YAML field path, e.g. "context-sources.tactics".
+  field_path: "<field>"
 ```
 
 All eight categories MUST be present. Omitting a category fails the gate; it
 is not a default-deny.
+
+### `exceptions` (optional)
+
+Each entry requires `path` and `action`; `reason` and `field_path` are
+optional. No other keys are accepted.
+
+`field_path` scopes an exception to **one field** inside the files matching
+`path`, instead of overriding the whole file's verdict. It exists for the case
+where a governed file carries both fields that must not change and fields that
+must — for example an agent profile whose `directive-references` must stay
+fixed while `context-sources.directives` in the *same* file migrates.
+
+When `field_path` is present the file's category-level action still governs the
+whole file; the reviewer-facing diff check *additionally* records that this one
+field is pinned to `action`. It is a review-surface annotation, not an
+enforcement mechanism — mission B2 in particular must not read a
+`do_not_change` here as enforcement.
+
+Omitting `exceptions` entirely, or omitting `field_path` within an entry,
+leaves legacy single-term maps validating unchanged.
 
 ## Top-level `target:` block
 

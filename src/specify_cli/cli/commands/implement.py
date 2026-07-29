@@ -261,17 +261,14 @@ def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
     one exists, which need not carry every authored prompt — so anchor the
     WP-file read on the primary surface, consistent with finalize-tasks and
     ``mission_runtime.resolve_placement_only``.
-    """
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
 
-    # FR-011 / T012: fold the handle to its canonical on-disk dir NAME before the
-    # topology-blind primary compose, so a bare mid8 / human slug lands on the
-    # durable ``<slug>-<mid8>`` home (ambiguous handle RAISES — no silent pick).
-    _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
-    tasks_dir = primary_feature_dir_for_mission(repo_root, _canonical_handle) / "tasks"
+    read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    through the kind-aware seam (WORK_PACKAGE_TASK is a PRIMARY-partition
+    kind, so it short-circuits to PRIMARY before any coord probe and -- unlike
+    the kind-blind resolver above -- never lands on the coordination
+    worktree).
+    """
+    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
@@ -410,24 +407,25 @@ def _load_primary_anchored_mission_meta(
 
     Returns ``None`` when *repo_root* is not supplied or the primary meta is
     missing/corrupt (legacy). Does NOT catch an ambiguous-handle raise from
-    :func:`_canonicalize_primary_read_handle` — that must propagate (no
-    silent pick, C-009).
+    the seam's handle canonicalization — that must propagate (no silent
+    pick, C-009).
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    through the kind-aware seam (PRIMARY_METADATA is a PRIMARY-partition
+    kind, so it resolves PRIMARY for every topology). The seam's internal
+    handle canonicalization propagates ``MissionSelectorAmbiguous`` exactly
+    like the drained ``_canonicalize_primary_read_handle`` call did, so it is
+    deliberately called OUTSIDE the ``try`` below -- only the meta.json
+    read itself is soft-caught.
     """
     if repo_root is None:
         return None
 
     from specify_cli.mission_metadata import load_meta as _load_meta
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
 
-    # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
-    # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
-    # handle RAISES — no silent pick).
-    _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
+    primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     try:
-        return _load_meta(primary_feature_dir_for_mission(repo_root, _canonical_handle))
+        return _load_meta(primary_dir)
     except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
         return None
 
@@ -591,16 +589,15 @@ def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_sl
     except ValueError:
         return feature_dir
     if rel.parts and rel.parts[0] == WORKTREES_DIR:
-        from specify_cli.missions._read_path_resolver import (
-            _canonicalize_primary_read_handle,
-            primary_feature_dir_for_mission,
-        )
-
-        # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
-        # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
-        # handle RAISES — no silent pick).
-        _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
-        primary_dir = primary_feature_dir_for_mission(repo_root, _canonical_handle)
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+        # through the kind-aware seam. PRIMARY_METADATA is a PRIMARY-partition
+        # kind -- it resolves the SAME topology-blind primary mission dir every
+        # other PRIMARY-partition kind does (mirroring the established
+        # slug-canonicalization idiom: "resolve a handle to its canonical
+        # on-disk directory name" always migrates onto PRIMARY_METADATA,
+        # never a specific artifact's content -- this call discards content,
+        # it only needs the directory).
+        primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         if primary_dir.exists():
             return primary_dir
     return feature_dir
@@ -1441,12 +1438,11 @@ def _build_implement_json_payload(
     # PRIMARY anchor rather than relying on the conditional meta-fallback above
     # (C-EXCL-FALLBACK — so that fallback can be retired later). NFR-004: no
     # primary-dir stub — this resolves the durable PRIMARY home for real.
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
-
-    identity_dir = primary_feature_dir_for_mission(repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug))
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    # through the kind-aware seam (PRIMARY_METADATA is a PRIMARY-partition
+    # kind, so it never lands on the coord husk the topology-aware
+    # resolve→candidate cascade above can).
+    identity_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     identity = resolve_mission_identity(identity_dir)
     return {
         "workspace": workspace_rel,

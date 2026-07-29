@@ -58,10 +58,6 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 )
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.task_utils import extract_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
@@ -514,13 +510,15 @@ def implement_sparse_checkout_preflight(
     mission_id_for_preflight: str | None = None
     try:
         # FR-005 (#2186): anchor the preflight ``mission_id`` on the PRIMARY
-        # checkout. The coord-aware resolver lands on the STATUS-only husk (no
-        # meta.json) — a wrong/empty id for the sparse-checkout override log.
+        # checkout. The kind-blind coord-aware resolvers
+        # (``candidate_feature_dir_for_mission`` / ``resolve_feature_dir_for_mission``)
+        # land on the STATUS-only husk (no meta.json) — a wrong/empty id for the
+        # sparse-checkout override log. read-side-seam-primary-primitive-closure-01KYKMMT
+        # WP05/FR-004: routed through the kind-aware seam instead — PRIMARY_METADATA
+        # is a PRIMARY-partition kind, so it short-circuits to PRIMARY before any
+        # coord probe and never lands on that husk.
         identity = resolve_mission_identity(
-            primary_feature_dir_for_mission(
-                repo_root,
-                _canonicalize_primary_read_handle(repo_root, mission_slug),
-            )
+            placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         )
         mission_id_for_preflight = identity.mission_id
     except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
@@ -675,11 +673,14 @@ def implement_resolve_mission_type(repo_root: Path, mission_slug: str) -> tuple[
 
     FR-005 (#2186): the mission TYPE is a meta.json read and meta.json lives
     ONLY on PRIMARY — always resolved off its OWN PRIMARY-anchored dir, not
-    the STATUS-leg ``feature_dir`` the surrounding flow otherwise threads.
+    the STATUS-leg ``feature_dir`` the surrounding flow otherwise threads. The
+    kind-blind coord-aware resolvers would land on the STATUS-only husk for a
+    coord-topology mission (no meta.json there). read-side-seam-primary-
+    primitive-closure-01KYKMMT WP05/FR-004: routed through the kind-aware seam
+    instead — PRIMARY_METADATA is a PRIMARY-partition kind, so it resolves
+    PRIMARY for every topology without ever consulting that husk.
     """
-    mission_type_dir = primary_feature_dir_for_mission(
-        repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
-    )
+    mission_type_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     mission_type = get_mission_type(mission_type_dir)
     deliverables_path = None
     if mission_type == MISSION_TYPE_RESEARCH:
@@ -1981,12 +1982,13 @@ def review_finalize_and_print(
     full_content = "\n".join(prompt_lines)
     # FR-005 (#2186): the review-prompt metadata ``mission_id`` is a meta.json
     # read → PRIMARY only. Anchor on the topology-blind PRIMARY dir, not the
-    # coord-aware resolver (which selects the meta-less husk).
+    # kind-blind coord-aware resolver (which selects the meta-less husk).
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    # through the kind-aware seam — PRIMARY_METADATA is a PRIMARY-partition
+    # kind, so it short-circuits to PRIMARY before any coord probe and never
+    # lands on that husk.
     mission_identity = resolve_mission_identity(
-        primary_feature_dir_for_mission(
-            main_repo_root,
-            _canonicalize_primary_read_handle(main_repo_root, mission_slug),
-        )
+        placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     )
     review_metadata = build_review_prompt_metadata(
         repo_root=main_repo_root,

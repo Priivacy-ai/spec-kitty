@@ -30,7 +30,7 @@ from specify_cli.acceptance import collect_feature_summary
 from specify_cli.core.git_ops import resolve_target_branch
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.missions._read_path_resolver import (
-    primary_feature_dir_for_mission,
+    _compose_primary_feature_dir,
     resolve_planning_read_dir,
 )
 
@@ -141,10 +141,15 @@ def test_all_reads_resolve_target_branch_dir(
 def test_primary_anchor_is_the_flattened_dir(
     flattened_mission: tuple[Path, Path],
 ) -> None:
-    """The primary anchor for a flattened mission IS the single feature dir."""
+    """The primary anchor for a flattened mission IS the single feature dir.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): re-pointed
+    from the deleted public wrapper to the module-private
+    ``_compose_primary_feature_dir`` leaf it delegated to.
+    """
     repo_root, feature_dir = flattened_mission
     assert (
-        primary_feature_dir_for_mission(repo_root, _HANDLE).resolve()
+        _compose_primary_feature_dir(repo_root, _HANDLE).resolve()
         == feature_dir.resolve()
     )
 

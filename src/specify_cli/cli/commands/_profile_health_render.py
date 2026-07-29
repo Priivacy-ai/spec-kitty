@@ -33,6 +33,8 @@ from specify_cli.cli.console import console
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from doctrine.drg.merge import OrgDRGConflict, OrgDRGConflictError
+
     from ._doctrine_health import DoctrineHealthReport
 
 __all__ = [
@@ -252,11 +254,41 @@ def _emit_doctrine_no_packs(
         console.print(line)
 
 
+#: Verbosity cap for the org-layer findings lists, per the WP07 risk table
+#: (risk 4). Applied to collisions and to dangling endpoints alike so one
+#: misconfigured pack cannot bury the rest of the ``doctor doctrine`` report.
+_ORG_FINDINGS_SHOWN = 3
+
+
+def _render_dangling_org_endpoints(console: Console, dangling: list[str]) -> None:
+    """Render org edge endpoints that name no node in the merged graph.
+
+    Companion to the collision block: a distinct check gets a distinct verdict
+    line, so ``collisions: none`` keeps meaning "no collisions" rather than
+    quietly standing in for "org layer is fine".
+    """
+    if not dangling:
+        console.print("  dangling endpoints: none")
+        return
+    console.print(
+        f"  [red]dangling endpoints:[/red] {len(dangling)} org edge endpoint(s) "
+        "name no node in any merged layer"
+    )
+    for message in dangling[:_ORG_FINDINGS_SHOWN]:
+        console.print(f"    [red]•[/red] {message}")
+    if len(dangling) > _ORG_FINDINGS_SHOWN:
+        console.print(
+            f"    … and {len(dangling) - _ORG_FINDINGS_SHOWN} more "
+            "(run spec-kitty doctor doctrine --json for the full list)"
+        )
+
+
 def _render_org_layer_section(repo_root: Path, console: Console) -> None:
     """Surface organisation-tier DRG state in ``doctor doctrine`` (FR-007).
 
     Lists each configured pack with its fetched/missing status, node/edge
-    counts, and any collision warnings from ``merge_three_layers``.
+    counts, any collision warnings from ``merge_three_layers``, and any org
+    edge endpoint that binds to nothing.
 
     Diagnostic commands are READ-ONLY and must never crash on operator
     misconfiguration.  All exceptions are caught and rendered as findings
@@ -268,6 +300,7 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
         load_built_in_graph,
         load_org_drg,
         merge_three_layers,
+        validate_dangling_references,
     )
 
     console.print("\n[bold]Organisation Layer[/bold] (WP07 / FR-007)")
@@ -294,25 +327,93 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
             f"✓ loaded ({node_count} nodes, {edge_count} edges)"
         )
 
-    # Merge with built-in layer to surface collision warnings.
-    # Truncate to ≤3 lines per the WP07 risk table (risk 4: verbosity mitigation).
+    # Merge with the built-in layer to surface collision warnings AND graph
+    # completeness. Both findings lists are truncated per the WP07 risk table
+    # (risk 4: verbosity mitigation). The merge is the only statement in the
+    # try — see ``_collect_org_layer_data`` for why the completeness check no
+    # longer shares a handler with it.
+    merged = None
     try:
         built_in = load_built_in_graph()
-        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=fragments, project=None
+        )
         console.print("  collisions: none")
     except OrgDRGConflictError as exc:
-        shown = exc.conflicts[:3]
-        console.print(f"  collisions: {len(exc.conflicts)} built-in invariant override(s)")
-        for conflict in shown:
-            console.print(
-                f"    [yellow]•[/yellow] {conflict.kind} "
-                f"target={conflict.target_id} "
-                f"resolution={conflict.resolution_applied}"
-            )
-        if len(exc.conflicts) > 3:
-            console.print(f"    … and {len(exc.conflicts) - 3} more (run charter lint for details)")
+        _render_org_conflicts(console, exc)
     except Exception as exc:  # noqa: BLE001 — doctor must not crash
-        console.print(f"  [yellow]collision check skipped:[/yellow] {exc}")
+        # Widened from "collision check skipped": the block now also owns the
+        # completeness check, and naming only one of the two checks it skipped
+        # would understate what the operator is missing.
+        console.print(f"  [yellow]org-layer merge checks skipped:[/yellow] {exc}")
+
+    if merged is None:
+        # "Not checked" and "checked, found nothing" are different answers, and
+        # only one of them is true here. Printing ``dangling endpoints: none``
+        # would assert a result the command never computed — the merge refused
+        # to assemble a graph, so there was nothing to walk.
+        console.print(
+            "  [yellow]dangling endpoints: not checked[/yellow] "
+            "(no merged graph — see the merge findings above)"
+        )
+        return
+
+    try:
+        # Same merge, same inputs, same predicate as ``_collect_org_layer_data``
+        # — the real shipped built-in against every configured pack, i.e. the
+        # COMPLETE graph, which is when ``validate_dangling_references`` may
+        # escalate (see its docstring; ``charter lint`` merges against an
+        # intentionally EMPTY built-in and must not). That collector documents
+        # itself as a mirror of *this* function, so wiring the check into one and
+        # not the other left the two halves of one command disagreeing:
+        # ``--json`` reported the dangling endpoint under ``org_drg.errors``
+        # while this section printed the pack ``✓ loaded`` and nothing else.
+        _render_dangling_org_endpoints(console, validate_dangling_references(merged))
+    except Exception as exc:  # noqa: BLE001 — doctor must not crash
+        console.print(f"  [yellow]dangling endpoints: not checked[/yellow] ({exc})")
+
+
+def _render_org_conflicts(console: Console, exc: OrgDRGConflictError) -> None:
+    """Render a refused merge, separating refusals from resolved precedence.
+
+    ``merge_three_layers`` raises with every conflict it found. Rendering them
+    as one undifferentiated "override(s)" list told the operator that a pack
+    the merge REFUSED was in the same category as a permitted built-in
+    override — the human half of the defect where a hard failure reached only
+    the advisory channel. The partition comes from ``OrgDRGConflictError`` so
+    this renderer and the two JSON collectors cannot disagree about severity.
+    """
+    fatal = exc.hard_failures
+    advisory = exc.advisory_conflicts
+
+    if fatal:
+        console.print(
+            f"  [red]org-DRG REFUSED:[/red] {len(fatal)} fatal conflict(s) — "
+            "the merged graph could not be assembled"
+        )
+        _render_conflict_bullets(console, fatal, style="red")
+    if advisory:
+        console.print(f"  collisions: {len(advisory)} built-in invariant override(s)")
+        _render_conflict_bullets(console, advisory, style="yellow")
+    elif not fatal:  # pragma: no cover — the merge only raises when one exists
+        console.print("  collisions: none")
+
+
+def _render_conflict_bullets(
+    console: Console, conflicts: list[OrgDRGConflict], *, style: str
+) -> None:
+    """Print up to :data:`_ORG_FINDINGS_SHOWN` conflicts, then a truncation note."""
+    for conflict in conflicts[:_ORG_FINDINGS_SHOWN]:
+        console.print(
+            f"    [{style}]•[/{style}] {conflict.kind} "
+            f"target={conflict.target_id} "
+            f"resolution={conflict.resolution_applied}"
+        )
+    if len(conflicts) > _ORG_FINDINGS_SHOWN:
+        console.print(
+            f"    … and {len(conflicts) - _ORG_FINDINGS_SHOWN} more "
+            "(run charter lint for details)"
+        )
 
 
 def _render_selection_block_lines(

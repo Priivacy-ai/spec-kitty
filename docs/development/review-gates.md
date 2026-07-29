@@ -230,10 +230,31 @@ toolguide, or glossary pack, reject any of these:
   downstream customers to add executable scripts or CI to their own repos to
   satisfy our doctrine.
 
-**Quick check:** `grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' src/doctrine/*/built-in/`
-should return nothing that a consumer is expected to *resolve or run*. Prose that
-merely describes an internal practice ("maintained by periodic review") is fine;
-a path presented as a live gate or resolvable artifact is not.
+**Quick check** — run **both** patterns:
+
+```bash
+# repo-local tooling paths
+grep -rEn 'scripts/|\.github/|src/specify_cli|tests/' src/doctrine/*/built-in/
+# source-tree PREFIXES -- the content ships, the `src/` prefix does not
+grep -rEn 'src/doctrine/|src/mission_runtime|src/charter/|src/runtime/|src/glossary/' \
+  src/doctrine/*/built-in/
+```
+
+Neither should return anything a consumer is expected to *resolve or run*. The
+second pattern matters as much as the first and is easy to forget: an installed
+consumer has `doctrine/` in site-packages, never `src/doctrine/`, so a
+`guide_path:` or `references:` entry carrying the source-tree prefix is a
+dangling reference downstream even though the artefact itself ships.
+
+**Classify before you fix — a raw hit count is not a defect count.** Prose that
+merely describes an internal practice ("maintained by periodic review") is fine,
+as are generic conventions (`tests/**` globs, `ruff check src/ tests/`); a path
+presented as a live gate or resolvable artifact is not. Measured 2026-07-28, the
+first pattern returned **84 hits across 23 files of which 52 were real** — the
+rest were permitted prose or a regex false positive. The worked classification,
+the relocation order, and the gate that currently *requires* one of these
+references live in
+[`built-in-doctrine-repo-coupling-audit.md`](../plans/doctrine/built-in-doctrine-repo-coupling-audit.md).
 
 ## See also
 

@@ -77,6 +77,8 @@ contexts:
         definition: "The operator-only act of publishing merged mission work to `origin/main`, always through a pull request — never a direct push. Represented in the merge flow by `push_requested`. `spec-kitty merge` deliberately does not perform this step; it stops at LOCAL consolidation. This is `merge` Sense 3 — the publish operation, sometimes called \"operator merge\"."
       - name: "Repository"
         definition: "The local git repository that a Project is initialized from and executes within."
+      - name: "Routing"
+        definition: "\"Routing\" has no single meaning in this codebase — it is an umbrella word covering at least seven governed decisions plus several infrastructural ones that are explicitly out of scope here. This entry extends, not restates, PRIMARY partition / COORD partition / Topology Surface above, which already frame the placement sense; naming an exclusion is disambiguation, silence is not."
       - name: "Runtime Bridge"
         definition: "The adapter that connects the CLI's decision loop to the mission execution engine. It translates internal runtime decisions into the format the HiC or agent sees while keeping mission identity separate from mission-run identity."
       - name: "start branch"

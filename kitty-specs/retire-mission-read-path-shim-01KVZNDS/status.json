@@ -1,5 +1,5 @@
 {
-  "event_count": 7,
+  "event_count": 8,
   "last_event_id": "01KVZT1Z7TN853V2J4R343H15X",
   "materialized_at": "2026-06-25T16:33:21.146886+00:00",
   "mission_number": "149",
@@ -19,10 +19,24 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KVZT1Z7TN853V2J4R343H15X",
-      "last_transition_at": "2026-06-25T16:33:21.146886+00:00"
+      "last_transition_at": "2026-06-25T16:33:21.146886+00:00",
+      "shell_pid": 328733,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      },
+      "tracker_refs": [
+        "2048"
+      ]
     }
   }
 }

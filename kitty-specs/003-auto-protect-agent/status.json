@@ -22,35 +22,85 @@
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KN2376091Z51PV90Y7XRAQPA",
-      "last_transition_at": "2026-03-31T14:02:05.181939+00:00"
+      "last_transition_at": "2026-03-31T14:02:05.181939+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned"
+      }
     },
     "WP02": {
       "actor": "migration",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KN2376091Z51PV90Y7XRAQPB",
-      "last_transition_at": "2026-03-31T14:02:05.181939+00:00"
+      "last_transition_at": "2026-03-31T14:02:05.181939+00:00",
+      "subtasks": {
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
+      }
     },
     "WP03": {
       "actor": "migration",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KN2376091Z51PV90Y7XRAQPC",
-      "last_transition_at": "2026-03-31T14:02:05.181939+00:00"
+      "last_transition_at": "2026-03-31T14:02:05.181939+00:00",
+      "subtasks": {
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned"
+      }
     },
     "WP04": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JN86FXE08A275GKCWJ",
-      "last_transition_at": "2025-11-10T10:00:00Z"
+      "last_transition_at": "2025-11-10T10:00:00Z",
+      "subtasks": {
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned"
+      }
     },
     "WP05": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JP3MFY4SW9YHVZDWY5",
-      "last_transition_at": "2025-11-10T10:00:00Z"
+      "last_transition_at": "2025-11-10T10:00:00Z",
+      "subtasks": {
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned",
+        "T040": "planned"
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "event_count": 39,
+  "event_count": 45,
   "last_event_id": "01KT16JAY82ECETAK8K07GDTFC",
   "materialized_at": "2026-06-01T08:59:51.112855+00:00",
   "mission_number": "126",
@@ -19,45 +19,97 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KT16J5PP79SQJ58BAC4V1Q5J",
-      "last_transition_at": "2026-06-01T08:59:45.750176+00:00"
+      "last_transition_at": "2026-06-01T08:59:45.750176+00:00",
+      "shell_pid": 64378,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT16J6N9V7A2804DXERQCH8P",
-      "last_transition_at": "2026-06-01T08:59:46.729082+00:00"
+      "last_transition_at": "2026-06-01T08:59:46.729082+00:00",
+      "shell_pid": 72351,
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT16J7NQPA3XE4GRXN3E3S01",
-      "last_transition_at": "2026-06-01T08:59:47.767893+00:00"
+      "last_transition_at": "2026-06-01T08:59:47.767893+00:00",
+      "shell_pid": 73148,
+      "subtasks": {
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KT16J8QKK3VB2T2XNK3ZS66S",
-      "last_transition_at": "2026-06-01T08:59:48.851247+00:00"
+      "last_transition_at": "2026-06-01T08:59:48.851247+00:00",
+      "shell_pid": 67186,
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT16JA0E7AHSQ8K55A322F45",
-      "last_transition_at": "2026-06-01T08:59:50.158120+00:00"
+      "last_transition_at": "2026-06-01T08:59:50.158120+00:00",
+      "shell_pid": 68886,
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KT16JAY82ECETAK8K07GDTFC",
-      "last_transition_at": "2026-06-01T08:59:51.112855+00:00"
+      "last_transition_at": "2026-06-01T08:59:51.112855+00:00",
+      "shell_pid": 73756,
+      "subtasks": {
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
+      }
     }
   }
 }

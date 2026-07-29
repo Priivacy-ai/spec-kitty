@@ -169,6 +169,9 @@ edges:
 - source: styleguide:python-conventions
   target: tactic:tdd-red-green-refactor
   relation: suggests
+- source: styleguide:python-conventions
+  target: toolguide:python-review-checks
+  relation: suggests
 - source: styleguide:research-citation-discipline
   target: directive:DIRECTIVE_003
   relation: suggests

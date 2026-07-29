@@ -18,7 +18,7 @@ procedures:
   - 'Record local tooling availability, session decisions, and remediation notes in `.kittify/memory/available_tooling.md`.'
   - Use operation-appropriate tools such as ripgrep for repository search, pagers for large-file inspection, and stream-oriented archive tools for compressed content.
   - Favor environment defaults and workflow choices that reduce local overhead, including repository-safe git settings and performant Windows or WSL workflows where relevant.
-  - Prefer token-optimized CLI proxies (such as rtk) when available. These reduce agent token consumption on common dev operations by filtering output to only the information the agent needs.
+  - Favor tooling that filters output to only the information the agent needs, reducing token consumption on common dev operations, over commands that emit unfiltered noise.
   - Fall back to less efficient tooling only when the preferred local option is unavailable or does not support the required operation safely.
   - When a more efficient local tool is missing, warn the user that it exists and offer to guide them through installation or setup.
 integrity_rules:

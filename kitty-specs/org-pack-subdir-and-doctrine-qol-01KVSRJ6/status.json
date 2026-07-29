@@ -1,5 +1,5 @@
 {
-  "event_count": 40,
+  "event_count": 45,
   "last_event_id": "01KVT3N1TCPPY9JK2VPGV9CWDP",
   "materialized_at": "2026-06-23T11:25:36.972788+00:00",
   "mission_number": "",
@@ -19,38 +19,76 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KVT3MZYBP3E2RX7FKS7B86SD",
-      "last_transition_at": "2026-06-23T11:25:35.051257+00:00"
+      "last_transition_at": "2026-06-23T11:25:35.051257+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KVT3N1TCPPY9JK2VPGV9CWDP",
-      "last_transition_at": "2026-06-23T11:25:36.972788+00:00"
+      "last_transition_at": "2026-06-23T11:25:36.972788+00:00",
+      "subtasks": {
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KVT3N0F2FTHA4ZFGEC0ZCH2G",
-      "last_transition_at": "2026-06-23T11:25:35.586073+00:00"
+      "last_transition_at": "2026-06-23T11:25:35.586073+00:00",
+      "subtasks": {
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KVT3N0XKDNSFP2E7663R83EW",
-      "last_transition_at": "2026-06-23T11:25:36.051588+00:00"
+      "last_transition_at": "2026-06-23T11:25:36.051588+00:00",
+      "subtasks": {
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KVT3N1C7BWWEB1WNMPA6VRBV",
-      "last_transition_at": "2026-06-23T11:25:36.519969+00:00"
+      "last_transition_at": "2026-06-23T11:25:36.519969+00:00",
+      "subtasks": {
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
+      }
     }
   }
 }

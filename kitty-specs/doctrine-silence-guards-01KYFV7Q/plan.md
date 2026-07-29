@@ -14,7 +14,7 @@ unknown kind is bucketed and dropped. An unknown field is ignored, because the D
 `model_config` and the writers enumerate fields by hand. A schema slot with no producer ships green
 and stays inert — three times in this repo, one for 162 days behind passing tests.
 
-Nine work packages, all of them guards or campsite. **Nothing here changes graph content** — node,
+Ten work packages, all of them guards or campsite. **Nothing here changes graph content** — node,
 edge and orphan counts move by exactly zero, with one ledgered exception (WP09's `applies` retype,
 which changes a relation at constant cardinality).
 
@@ -32,7 +32,7 @@ regeneration, and the tests would stay green.
 **Project Type**: single project
 **Performance Goals**: no runtime regression; the new lints are test-time only and must not add measurable time to graph load
 **Constraints**: zero graph-content change (NFR-004); every gate non-vacuous with a zero-entry allowlist (NFR-001); no `# noqa` / `# type: ignore` to pass ruff or mypy
-**Scale/Scope**: 4 silent-drop sites · 3 pydantic models · 7 stale schemas · 4 reference enums · 22 `shipped/` hits across 9 files · ~10 dead-`graph.yaml` sites · 16 `NodeKind` members · ~55–70 files total
+**Scale/Scope**: 4 silent-drop sites · 3 pydantic models · 7 stale schemas · 4 reference enums · 22 `shipped/` hits across 9 files · **17** dead-`graph.yaml` carrier files (raw grep — the earlier "~10" implied a filtering that does not exist yet) · 16 `NodeKind` members · 1 CI collection-completeness gap · **~60–80 files total** (was ~55–70 before #2957 folded in; **5–7 agent-days**, was 4–6)
 
 ### Measured ground truth (executed on this branch, 2026-07-26)
 
@@ -46,7 +46,8 @@ supersede it where they differ.
 | `extractor._KIND_MAP` entries | **11** — drops `anti_pattern`, `asset`, `glossary`, `glossary_pack`, `glossary_scope` |
 | `query.py:230-242` | 16 buckets filled, **10 read out** → 6 kinds lost |
 | `charter/context.py:672-683` | 4 kind branches, **no `else`** → 12 kinds lost |
-| `DRGNode` / `DRGEdge` / `AgentProfile` `model_config` | **absent on all three** |
+| `DRGNode` / `DRGEdge` `model_config` | **absent on both** |
+| `AgentProfile` `model_config` | **PRESENT** (`profile.py:254`) — sibling `ContextSources:181` already uses `extra="forbid"`. The earlier "absent on all three" was a static-read error; WP04's AgentProfile change is a one-line addition to an existing config |
 | `generate_schemas.py --check` | **exits 1**, 7 stale schemas |
 | `shipped/` references under `src/doctrine/` | **22 across 9 files** (≥1 is prose, not a path) |
 | Graph baseline | 311 nodes / 774 edges; `applies` 1, `refines` 0 |
@@ -71,7 +72,8 @@ supersede it where they differ.
 
 ```
 kitty-specs/doctrine-silence-guards-01KYFV7Q/
-├── spec.md            # FR-001..FR-012, NFR-001..004, C-001..006, SC-001..012
+├── spec.md            # FR-001..FR-013, NFR-001..005, C-001..006, SC-001..013
+├── squad-findings-post-tasks.md   # post-tasks adversarial squad: findings + disposition
 ├── plan.md            # this file
 ├── tasks.md           # WP manifest
 ├── analysis-report.md # blocking at implement
@@ -87,7 +89,7 @@ src/doctrine/
 │   ├── query.py             # site 1: 16 bucketed, 10 read out               (WP03)
 │   ├── merge.py             # org→DRG bridge: silent cross-layer drop        (WP08)
 │   ├── org_pack_loader.py   # bare-target re-kinding, raw pydantic on URNs   (WP08)
-│   └── migration/extractor.py  # sites 3 (_KIND_MAP) and 4 (writers)         (WP03)
+│   └── migration/extractor.py  # _KIND_MAP (WP03) · field-by-field writers (WP04)
 ├── agent_profiles/profile.py   # AgentProfile — gains extra="forbid"         (WP04)
 ├── schemas/
 │   ├── occurrence-map.schema.yaml   # gains field-path granularity           (WP02)
@@ -97,7 +99,7 @@ src/doctrine/
 src/charter/context.py               # site 2: 4 branches, no else            (WP03)
 scripts/generate_schemas.py          # drops structural_lint_config           (WP05)
 tests/architectural/                 # gates. NEVER run the whole directory
-.github/workflows/                   # wire generate_schemas --check          (WP05)
+.github/workflows/ci-quality.yml     # --check wiring + collection gap        (WP10)
 ```
 
 **Structure Decision**: existing layout, no new packages. The only new files are test modules under
@@ -105,7 +107,11 @@ tests/architectural/                 # gates. NEVER run the whole directory
 
 ## Implementation Concern Map
 
-Concern IDs match the programme record, which owns IC-01…IC-07. `tasks.md` turns them into 9 WPs.
+Concern IDs match the programme record, which owns IC-01…IC-08. `tasks.md` turns them into 10 WPs.
+
+> **Post-tasks squad corrections are folded in.** Three mechanisms that could not fail were found and
+> fixed; see [`squad-findings-post-tasks.md`](squad-findings-post-tasks.md) for the full record and
+> the six accepted-but-unactioned items.
 
 ### IC-01 — Inert-slot prevention
 
@@ -163,6 +169,17 @@ Concern IDs match the programme record, which owns IC-01…IC-07. `tasks.md` tur
 - **Depends on**: IC-03. **Must land before mission B1** (ADR 2026-07-26-3, Negative consequences).
 - **Risks**: **`applies` is not a dead sink** — the comment at `drg/merge.py:97-98` is wrong. `charter_runtime/lint/checks/orphan.py` reads it and `charter/synthesizer/project_drg.py` produces it. Build the gate on measurement, not on that comment. Retyping daphne's edge changes a live traversal result; ledger it.
 
+### IC-08 — CI collection completeness *(folded in from [#2957](https://github.com/Priivacy-ai/spec-kitty/issues/2957), 2026-07-26)*
+
+- **Purpose**: A frozen-contract test that no main-branch job collects is exactly as inert as a schema slot with no producer — IC-01 one layer up. This one has already fired.
+- **⚠️ Corrected claim.** An earlier revision said "four test files were red on `main` @ `1a15bcf6c` while main CI reported green." **That is false** — run `30212948549` concluded **failure** (arch-adversarial ×3, slow-tests, quality-gate), and so did the previous twelve main runs. A reviewer disproves it with one `gh run view`. The true and stronger claim: the three `cli`-gated jobs were **skipped**, so those reds were not merely unnoticed — they were **structurally uncollectable**. Confirmed from the live log: `Filter cli = false → skipped fast-tests-cli, integration-tests-cli`, plus a third `cli`-gated job at `ci-quality.yml:2836`.
+- **⚠️ Scale corrected — the gap is ~3.6× what FR-013 scoped.** Measured two independent ways (58 real `--collect-only` subprocess runs using each job's exact paths/ignores/markers, cross-checked against the repo's own `_gate_coverage.load_gates`): **950 of 2166 test files / 14,870 of 33,665 tests (44%) are collected by no job** on that commit, across 21 roots — `tests/charter` 132, `tests/sync` 103, `tests/agent` 75, `tests/status` 41. `cli` is not special; it is one of 24 dorny groups with identical semantics. Separately, only 12 files are collected by no `ci-quality.yml` job under *any* filter state, and all 12 are legitimately owned by `ci-windows.yml` / `release.yml` / `ui-e2e.yml` — **zero true orphans**.
+- **Requirements**: FR-013, NFR-005, SC-013
+- **Surfaces**: `.github/workflows/ci-quality.yml` (the `changes` paths-filter and the job `if:` conditions); a new `tests/architectural/` meta-test
+- **Depends on**: IC-01 — the same anti-vacuity mechanic, and the lint should cover the meta-test's own slots
+- **Mechanism, verified in-tree 2026-07-26**: `fast-tests-cli` and `integration-tests-cli` both gate on `needs.changes.outputs.cli == 'true'`, and the `cli` filter is `src/specify_cli/cli/**` + `tests/cli/**` + `tests/specify_cli/cli/**`. So on any main push whose diff misses those paths, **neither job runs and none of their tests are collected**. A red introduced by one merge stays invisible through every later green main run. The `fast-tests-core-misc` shard split compounds it: `specify-cli-rest` carries `--ignore=tests/specify_cli/cli`, `specify-cli-rest-2` does not include it, and `core-misc` ignores `tests/specify_cli` wholesale.
+- **Risks**: **The shard-split's own completeness check was scoped to the split, not the tree.** Its comment records "Verified disjoint + union-complete locally: 3241 + 3079 == 6320 (today's real `specify-cli-rest` selection, unchanged)" — that verifies the *bin-split* preserved a selection which **already had the hole**. Any replacement check must diff against the **full** collection, or it reproduces the same vacuity. Second risk: the meta-test will surface currently-masked reds. Those are honest pre-existing reds under ADR `2026-07-17-1` — **report them, do not fix them here, and never satisfy the gate by reclassifying a red as expected.**
+
 ## Ordering within the mission
 
 ```
@@ -172,7 +189,7 @@ WP01 (zero-producer lint)  ─── first, guards everything
    │                                      │
    │                                      └──► WP08 (bridge) ──► WP09 (applies)
    │
-   └── WP02, WP05, WP06, WP07  ── independent, parallelizable after WP01
+   └── WP02, WP05, WP06, WP07, WP10  ── independent, parallelizable after WP01
 ```
 
 **WP01 first** is C-001: the lint is what proves the later WPs' new gates are not themselves inert.

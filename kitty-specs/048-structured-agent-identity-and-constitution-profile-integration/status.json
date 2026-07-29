@@ -1,5 +1,5 @@
 {
-  "event_count": 17,
+  "event_count": 30,
   "last_event_id": "01KK8M0KAWD3E3PDESQPC0GEQS",
   "materialized_at": "2026-03-09T06:19:38.204931+00:00",
   "mission_number": "48",
@@ -18,60 +18,124 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state:compatibility",
+      "agent": "claude-sonnet-4-6",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KK8DP1YQWYJJBTFE8HEP8577",
-      "last_transition_at": "2026-03-09T04:29:01.271691+00:00"
+      "last_event_id": "44ADBWADB0N0ANW0F9YEJV1C89",
+      "last_transition_at": "2026-03-09T04:29:01.271692+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state:compatibility",
+      "agent": "claude-sonnet-4-6",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KK8DP2M91Y6RT094X0ZY6DSW",
-      "last_transition_at": "2026-03-09T04:29:01.961246+00:00"
+      "last_event_id": "525SD0VDT2XJE27QGET45ZR2NF",
+      "last_transition_at": "2026-03-09T04:29:01.961247+00:00",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state:compatibility",
+      "agent": "claude-sonnet-4-6",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KK8DP3A358W7BJCK440XQ00G",
-      "last_transition_at": "2026-03-09T04:29:02.659532+00:00"
+      "last_event_id": "6Y5H2T106P084DPAPQEFJ51PN0",
+      "last_transition_at": "2026-03-09T04:29:02.659533+00:00",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state:compatibility",
+      "agent": "claude-sonnet-4-6",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KK8DP3ZYR17EBH86B934RF5W",
-      "last_transition_at": "2026-03-09T04:29:03.358826+00:00"
+      "last_event_id": "30J0D25JF55XW5EDMKH9PG11D6",
+      "last_transition_at": "2026-03-09T04:29:03.358827+00:00",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP05": {
-      "actor": "unknown",
+      "actor": "migration:backfill_runtime_state:compatibility",
+      "agent": "claude-sonnet-4-6",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01KK8DP4P0C18N62DBM3130ZH2",
-      "last_transition_at": "2026-03-09T04:29:04.064161+00:00"
+      "last_event_id": "7RVHSE1EKG0BRKAKXCXTWA1PKN",
+      "last_transition_at": "2026-03-09T04:29:04.064162+00:00",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP06": {
       "actor": "unknown",
+      "agent": "claude-sonnet-4-6",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KK8E5RMNMF2Q7CQAQV4NZE1D",
-      "last_transition_at": "2026-03-09T04:37:36.021463+00:00"
+      "last_transition_at": "2026-03-09T04:37:36.021463+00:00",
+      "shell_pid": 197461,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     },
     "WP07": {
       "actor": "reviewer",
+      "agent": "codex:gpt-5:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KK8KMAG0HR5XKA1T0CEGHYT9",
-      "last_transition_at": "2026-03-09T06:12:55.936657+00:00"
+      "last_transition_at": "2026-03-09T06:12:55.936657+00:00",
+      "shell_pid": 197930,
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
     },
     "WP08": {
       "actor": "reviewer",
+      "agent": "codex:gpt-5:reviewer:reviewer",
+      "assignee": "Codex",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KK8M0KAWD3E3PDESQPC0GEQS",
-      "last_transition_at": "2026-03-09T06:19:38.204931+00:00"
+      "last_transition_at": "2026-03-09T06:19:38.204931+00:00",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
     }
   }
 }

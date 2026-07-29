@@ -1,5 +1,5 @@
 {
-  "event_count": 27,
+  "event_count": 36,
   "last_event_id": "01KJ64AVEQA98AVGX3781C7FH7",
   "materialized_at": "2026-02-23T20:51:26.295461+00:00",
   "mission_number": "45",
@@ -19,66 +19,146 @@
   "work_packages": {
     "WP05": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64A0S80FR0Q22WNCMFXQFB",
-      "last_transition_at": "2026-02-23T20:50:58.984451+00:00"
+      "last_transition_at": "2026-02-23T20:50:58.984451+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
+      }
     },
     "WP08": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64A3Y8SJQ5P0XFMH174998",
-      "last_transition_at": "2026-02-23T20:51:02.216432+00:00"
+      "last_transition_at": "2026-02-23T20:51:02.216432+00:00",
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
+      }
     },
     "WP09": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64A75QC5CH6V5Q9V0C5BD4",
-      "last_transition_at": "2026-02-23T20:51:05.527326+00:00"
+      "last_transition_at": "2026-02-23T20:51:05.527326+00:00",
+      "subtasks": {
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
+      }
     },
     "WP10": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64AADXSD6GYBWV8C0SARA1",
-      "last_transition_at": "2026-02-23T20:51:08.861627+00:00"
+      "last_transition_at": "2026-02-23T20:51:08.861627+00:00",
+      "subtasks": {
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned"
+      }
     },
     "WP11": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64AR4MNGN8QBCRW6D5XBHW",
-      "last_transition_at": "2026-02-23T20:51:22.900453+00:00"
+      "last_transition_at": "2026-02-23T20:51:22.900453+00:00",
+      "subtasks": {
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned",
+        "T040": "planned"
+      }
     },
     "WP12": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64AVEQA98AVGX3781C7FH7",
-      "last_transition_at": "2026-02-23T20:51:26.295461+00:00"
+      "last_transition_at": "2026-02-23T20:51:26.295461+00:00",
+      "subtasks": {
+        "T041": "planned",
+        "T042": "planned",
+        "T043": "planned",
+        "T044": "planned"
+      }
     },
     "WP13": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64ADP3V6D2T9XHC7XERSWX",
-      "last_transition_at": "2026-02-23T20:51:12.195852+00:00"
+      "last_transition_at": "2026-02-23T20:51:12.195852+00:00",
+      "subtasks": {
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned"
+      }
     },
     "WP14": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64AGZXKXSET3AEVVB2H823",
-      "last_transition_at": "2026-02-23T20:51:15.581046+00:00"
+      "last_transition_at": "2026-02-23T20:51:15.581046+00:00",
+      "subtasks": {
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned"
+      }
     },
     "WP15": {
       "actor": "codex",
+      "agent": "codex",
+      "assignee": "codex",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KJ64AMA0P8PVAVAG22GJFG9R",
-      "last_transition_at": "2026-02-23T20:51:18.976118+00:00"
+      "last_transition_at": "2026-02-23T20:51:18.976118+00:00",
+      "subtasks": {
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned"
+      }
     }
   }
 }

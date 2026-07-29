@@ -67,6 +67,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
 from tests.architectural._ratchet_keys import composite_key
 
 pytestmark = pytest.mark.architectural
@@ -120,11 +121,17 @@ _TOPOLOGY_ROUTED_READ_RESOLVERS: frozenset[str] = frozenset(
 
 # The kind-aware READ seam (+ the topology-blind PRIMARY constructor). A planning
 # join onto a dir bound from one of these is the SANCTIONED shape — never flagged.
+#
+# read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the public
+# wrapper ``primary_feature_dir_for_mission`` is deleted; its module-private
+# successor ``_compose_primary_feature_dir`` is listed here instead (this set
+# is unreferenced elsewhere in this module today — kept current rather than
+# left naming a deleted symbol, per the mission's stale-prose-reference sweep).
 _SANCTIONED_READ_SEAM_FUNCS: frozenset[str] = frozenset(
     {
         "_planning_read_dir",
         "resolve_planning_read_dir",
-        "primary_feature_dir_for_mission",
+        "_compose_primary_feature_dir",
     }
 )
 
@@ -133,6 +140,13 @@ _SANCTIONED_READ_SEAM_FUNCS: frozenset[str] = frozenset(
 # PRIMARY-anchored constructor that mirrors ``resolve_merge_target_branch``.
 _WRITE_CANDIDATE_ANCHOR = "candidate_feature_dir_for_mission"
 _WRITE_PRIMARY_ANCHOR = "primary_feature_dir_for_mission"
+# read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the FOUR real
+# write-arm surfaces (this function's docstring below) call the module-private
+# leaf DIRECTLY (never ``read_dir`` -- that would recurse, NFR-009, per the
+# FR-005 foundation-site rationale), so ``_WRITE_PRIMARY_ANCHOR`` alone no
+# longer matches any of them post-deletion. This is the leaf-anchor
+# counterpart of ``_WRITE_PRIMARY_ANCHOR`` for exactly that shape.
+_WRITE_PRIMARY_LEAF_ANCHOR = "_compose_primary_feature_dir"
 _META_JSON_LITERAL = "meta.json"
 
 
@@ -194,6 +208,102 @@ _PRIMARY_FOLD_CALLSHAPE_FUNCS: frozenset[str] = frozenset(
         "resolve_planning_read_dir",
     }
 )
+
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T001, Ledger M7): the
+# tier-1 seam idiom (``placement_seam(repo_root, handle).read_dir(kind)``) is a
+# FOURTH sanctioned shape, but it CANNOT be added to
+# ``_PRIMARY_FOLD_CALLSHAPE_FUNCS`` as a bare callee name — ``read_dir`` is called
+# for every kind, including ``STATUS_STATE`` (which the coord-read-residuals
+# NFR-001 check requires stay UN-sanctioned; see
+# ``test_coord_read_residuals_closeout.py::test_no_status_leg_rerouted_to_primary``,
+# which independently re-derives its own ``primary_bound`` from this exact
+# frozenset). A callee-name-only widening would bless a
+# ``read_dir(STATUS_STATE)`` binding identically to a
+# ``read_dir(PRIMARY_METADATA)`` one — sanctioning a STATUS leg is a genuine
+# loosening, not a widening (NFR-005). The discriminator below therefore inspects
+# the call's ``kind`` ARGUMENT via ``is_primary_artifact_kind`` (the real
+# partition predicate from ``mission_runtime.artifacts`` — never a kind list
+# hardcoded here) and is unioned with the plain name-based set at every call
+# site, so ``_PRIMARY_FOLD_CALLSHAPE_FUNCS`` itself never gains a kind-blind
+# member.
+_SEAM_READ_DIR_METHOD = "read_dir"
+
+
+def _read_dir_kind_arg(call: ast.Call) -> ast.expr | None:
+    """The ``kind`` argument expression of a ``<seam>.read_dir(kind)`` call.
+
+    ``None`` for any other call shape (including a bare ``read_dir(...)`` with
+    no argument at all — conservative, fails closed).
+    """
+    if _call_func_name(call) != _SEAM_READ_DIR_METHOD:
+        return None
+    if call.args:
+        return call.args[0]
+    for kw in call.keywords:
+        if kw.arg == "kind":
+            return kw.value
+    return None
+
+
+def _kind_expr_member(kind_expr: ast.expr) -> MissionArtifactKind | None:
+    """Resolve a STATIC kind expression to its real :class:`MissionArtifactKind`.
+
+    Handles ``MissionArtifactKind.PRIMARY_METADATA`` (``ast.Attribute``) and a
+    bare imported member name (``ast.Name``). Anything else (a variable, a
+    call result, a computed expression) is not statically resolvable and
+    returns ``None`` — fails closed (never sanctioned).
+    """
+    if isinstance(kind_expr, ast.Attribute):
+        name = kind_expr.attr
+    elif isinstance(kind_expr, ast.Name):
+        name = kind_expr.id
+    else:
+        return None
+    member = getattr(MissionArtifactKind, name, None)
+    return member if isinstance(member, MissionArtifactKind) else None
+
+
+def _is_primary_partition_read_dir_call(call: ast.Call) -> bool:
+    """True iff *call* is ``<seam>.read_dir(<PRIMARY-partition kind>)``.
+
+    Discriminates on the ``kind`` ARGUMENT (resolved through the real
+    ``is_primary_artifact_kind`` predicate over ``artifacts.py``'s frozensets),
+    never the callee name alone (WP01/T001 — Ledger M7).
+    """
+    kind_expr = _read_dir_kind_arg(call)
+    if kind_expr is None:
+        return False
+    member = _kind_expr_member(kind_expr)
+    if member is None:
+        return False
+    return is_primary_artifact_kind(member)
+
+
+def _names_bound_from_primary_read_dir(func: ast.AST) -> set[str]:
+    """Local names assigned from a PRIMARY-partition ``<seam>.read_dir(kind)``.
+
+    Mirrors :func:`_names_bound_from`'s single-hop-assignment shape (``x =
+    callee(...)`` / ``x = callee(...).attr``), but additionally requires
+    :func:`_is_primary_partition_read_dir_call` — the kind-discriminated
+    counterpart callers UNION with the plain name-based set so the tier-1 seam
+    idiom is sanctioned only for a PRIMARY-partition kind.
+    """
+    bound: set[str] = set()
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Assign):
+            continue
+        value = node.value
+        if isinstance(value, ast.Attribute):
+            value = value.value
+        if not isinstance(value, ast.Call) or not _is_primary_partition_read_dir_call(
+            value
+        ):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                bound.add(target.id)
+    return bound
+
 
 # Shape (a): identity reads (a meta.json read expressed as a function call).
 _IDENTITY_READ_FUNCS: frozenset[str] = frozenset(
@@ -544,6 +654,90 @@ def _builds_meta_path_from(func: ast.AST, anchor: str) -> bool:
     return False
 
 
+def _builds_meta_path_from_primary_seam(func: ast.AST) -> bool:
+    """True iff *func* builds a ``.../meta.json`` Path anchored on a
+    PRIMARY-partition ``<seam>.read_dir(kind)`` call.
+
+    The write-side counterpart of :func:`_builds_meta_path_from` for the tier-1
+    seam idiom (WP01/T001/T002). Matches ``seam.read_dir(kind) / "meta.json"``
+    directly and the two-hop ``d = seam.read_dir(kind); d / "meta.json"`` form,
+    discriminating on the ``kind`` argument via
+    :func:`_is_primary_partition_read_dir_call` — never a bare callee-name
+    match, so this cannot be satisfied by a ``read_dir(STATUS_STATE)`` write
+    (there is no such legitimate write; the check simply never widens by name).
+    """
+    primary_bound = _names_bound_from_primary_read_dir(func)
+    for node in ast.walk(func):
+        if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Div):
+            continue
+        right = node.right
+        if not (isinstance(right, ast.Constant) and right.value == _META_JSON_LITERAL):
+            continue
+        left = node.left
+        if isinstance(left, ast.Call) and _is_primary_partition_read_dir_call(left):
+            return True
+        if isinstance(left, ast.Name) and left.id in primary_bound:
+            return True
+    return False
+
+
+def _primary_partition_seam_invoked_in(func: ast.AST) -> bool:
+    """True iff a PRIMARY-partition seam ``<seam>.read_dir(kind)`` call occurs
+    anywhere inside *func* — bound to a name (``d = seam.read_dir(kind)``) or
+    invoked inline as a call argument, mirroring :func:`_anchor_invoked_in`'s
+    name-blind "called anywhere" shape but for the seam idiom instead of a
+    bare (deleted) callee name.
+
+    T002 review-cycle-1 fix (B1): the three REAL write-arm surfaces
+    (``core/paths.py::get_feature_target_branch``,
+    ``core/git_ops.py::resolve_target_branch``,
+    ``mission_finalize.py::finalize_tasks``) are thin adapters that hand a
+    resolved feature dir to the shared meta-read authority
+    (``read_target_branch_from_meta``) — they never build the literal
+    ``<dir> / "meta.json"`` join that :func:`_builds_meta_path_from_primary_seam`
+    requires. After WP08 deletes ``primary_feature_dir_for_mission``, the ONLY
+    spelling those three surfaces can carry is
+    ``<var> = <seam>.read_dir(PRIMARY_METADATA)`` followed by handing ``<var>``
+    to that shared authority — i.e. the SAME thin-adapter shape
+    :func:`_anchor_invoked_in` already recognises for the deleted wrapper, one
+    level down at the seam. This is that shape's counterpart: discriminated on
+    the ``kind`` ARGUMENT via :func:`_is_primary_partition_read_dir_call`
+    (never a bare callee name), so a ``read_dir(STATUS_STATE)`` call in the
+    identical shape does NOT satisfy it — Ledger M7's kind discipline extends
+    to this signal too.
+    """
+    return any(
+        isinstance(node, ast.Call) and _is_primary_partition_read_dir_call(node)
+        for node in ast.walk(func)
+    )
+
+
+def _anchor_invoked_in(func: ast.AST, anchor: str) -> bool:
+    """True iff *anchor* is called anywhere inside *func* — bound to a name
+    (``d = anchor(...)``) or invoked inline as a call argument
+    (``helper(anchor(...))``).
+
+    WP01/T002 discovery: the three REAL write-arm surfaces are thin adapters
+    over the single meta-read authority (``read_target_branch_from_meta`` /
+    ``_resolve_planning_branch_via_mission``) — e.g.
+    ``core/git_ops.py::resolve_target_branch`` does ``feature_dir =
+    primary_feature_dir_for_mission(...); branch =
+    read_target_branch_from_meta(feature_dir)``. The actual ``.../meta.json``
+    join happens one or more hops away, INSIDE the shared authority — so the
+    literal-BinOp-only :func:`_builds_meta_path_from` never matches any of
+    them (Ledger M8's "the rename also makes the anchor literal match
+    nothing", except the mismatch predates any rename: it is this pre-existing
+    thin-adapter shape). This signal asks the invariant the gate actually
+    needs: did the resolver derive its feature dir from *anchor* at all.
+    """
+    if _names_bound_from(func, frozenset({anchor})):
+        return True
+    return any(
+        isinstance(node, ast.Call) and _call_func_name(node) == anchor
+        for node in ast.walk(func)
+    )
+
+
 def write_arm_anchors(func: ast.AST) -> tuple[bool, bool]:
     """Return ``(reads_via_candidate, reads_via_primary)`` for *func*.
 
@@ -551,10 +745,56 @@ def write_arm_anchors(func: ast.AST) -> tuple[bool, bool]:
     legitimately call ``candidate_feature_dir_for_mission`` for a STATUS purpose;
     the violation is specifically a ``meta.json`` (target_branch) read anchored on
     the candidate.
+
+    ``reads_via_primary`` recognises FIVE shapes, any of which is sufficient:
+
+    1. the literal ``anchor(...) / "meta.json"`` join (:func:`_builds_meta_path_from`);
+    2. the PRIMARY-partition tier-1 seam idiom expressed as a literal
+       ``seam.read_dir(kind) / "meta.json"`` join
+       (:func:`_builds_meta_path_from_primary_seam`, T001) — a shape NONE of the
+       three real write-arm surfaces uses today or after WP08 (they never build
+       that literal join; see (4)/(5));
+    3. the deleted-wrapper thin-adapter shape (:func:`_anchor_invoked_in`) —
+       what every REAL write-arm surface used BEFORE WP08 deleted
+       ``primary_feature_dir_for_mission`` (kept for historical/regression
+       coverage; no live surface satisfies it post-deletion);
+    4. the seam-idiom thin-adapter shape
+       (:func:`_primary_partition_seam_invoked_in`, T002 review-cycle-1 fix —
+       B1) — a PRIMARY-partition ``<seam>.read_dir(kind)`` call occurring in
+       the function at all (bound to a name or inline), whether or not it
+       feeds a literal ``"meta.json"`` join; and
+    5. the module-private-leaf thin-adapter shape (:func:`_anchor_invoked_in`
+       on ``_WRITE_PRIMARY_LEAF_ANCHOR``, WP08 T035 fix) — the ACTUAL
+       surviving spelling for the three real write-arm surfaces AFTER WP08:
+       ``core/paths.py::get_feature_target_branch``,
+       ``core/paths.py::resolve_merge_target_branch``, and
+       ``core/git_ops.py::resolve_target_branch`` are FR-005/NFR-009
+       foundation sites that call the module-private
+       ``_compose_primary_feature_dir`` leaf DIRECTLY, never ``read_dir``
+       (routing through the seam here would recurse into the resolver the
+       seam itself depends on) — so shape (4)'s seam-idiom assumption, made
+       before WP08 landed, does not hold for these three surfaces either.
+       Review-cycle-1 found shape (3) alone unsatisfiable by any real surface
+       post-migration; WP08 finds shape (4) equally unsatisfiable for these
+       three specific surfaces, for the same "gate obliges continued use of a
+       name these surfaces cannot spell" reason — shape (5) is name-blind to
+       the deleted wrapper and targets the leaf these surfaces actually call.
+
+    ``reads_via_candidate`` keeps the narrower literal-join-only check — no
+    candidate reference exists in the three real surfaces today (verified), so
+    widening it symmetrically is deferred rather than bundled unvalidated into
+    this fix. That deferral is KNOWN to make the negative arm vacuous for a
+    hypothetical candidate-anchored thin adapter (the same shape shift that
+    motivated shape (4)/(5) above, mirrored onto the candidate side) —
+    accepted and named here, not silently, pending a future widening pass.
     """
     return (
         _builds_meta_path_from(func, _WRITE_CANDIDATE_ANCHOR),
-        _builds_meta_path_from(func, _WRITE_PRIMARY_ANCHOR),
+        _builds_meta_path_from(func, _WRITE_PRIMARY_ANCHOR)
+        or _builds_meta_path_from_primary_seam(func)
+        or _anchor_invoked_in(func, _WRITE_PRIMARY_ANCHOR)
+        or _primary_partition_seam_invoked_in(func)
+        or _anchor_invoked_in(func, _WRITE_PRIMARY_LEAF_ANCHOR),
     )
 
 
@@ -647,7 +887,11 @@ def _caller_binds_arg_coord_aware(
     catches, observed one frame up.
     """
     coord = _names_bound_from(caller, _COORD_AWARE_CALLSHAPE_RESOLVERS)
-    primary = _names_bound_from(caller, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
+    # T001 (Ledger M7): UNION the kind-discriminated seam-idiom binding rather
+    # than widening ``_PRIMARY_FOLD_CALLSHAPE_FUNCS`` by callee name.
+    primary = _names_bound_from(caller, _PRIMARY_FOLD_CALLSHAPE_FUNCS) | (
+        _names_bound_from_primary_read_dir(caller)
+    )
     for node in ast.walk(caller):
         if not isinstance(node, ast.Call) or _call_func_name(node) != callee_name:
             continue
@@ -784,7 +1028,12 @@ def callshape_violations(
     attribute ``.target_feature_dir``.
     """
     coord_bound = _names_bound_from(func, _COORD_AWARE_CALLSHAPE_RESOLVERS)
-    primary_bound = _names_bound_from(func, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
+    # T001 (Ledger M7): UNION the kind-discriminated seam-idiom binding rather
+    # than widening ``_PRIMARY_FOLD_CALLSHAPE_FUNCS`` by callee name — see the
+    # constant's docstring for why a bare ``read_dir`` name would be kind-blind.
+    primary_bound = _names_bound_from(func, _PRIMARY_FOLD_CALLSHAPE_FUNCS) | (
+        _names_bound_from_primary_read_dir(func)
+    )
 
     violations: list[str] = []
     for node in ast.walk(func):
@@ -856,17 +1105,27 @@ def test_read_arm_gate_surfaces_route_through_seam() -> None:
 
 
 def test_write_arm_resolvers_anchor_meta_on_primary() -> None:
-    """No write-branch resolver reads ``target_branch`` from a ``meta.json``
-    anchored on the coord-aware candidate dir; all anchor on the PRIMARY surface.
+    """Every write-branch resolver reads ``target_branch`` from a ``meta.json``
+    anchored on the PRIMARY surface — NEVER the coord-aware candidate dir.
 
-    A violation here means the planning-artifact COMMIT/branch resolves to the
-    protected repo primary ``main`` under coordination topology (the candidate
-    selects coord, whose dir has no ``meta.json``, falling back to ``main``) —
-    the finalize-tasks / implement-loop refusal-to-main bug (FR-004 / FR-009(e)).
-    Anchor the ``meta.json`` read on ``primary_feature_dir_for_mission``, mirroring
-    ``resolve_merge_target_branch``.
+    A candidate-anchored violation means the planning-artifact COMMIT/branch
+    resolves to the protected repo primary ``main`` under coordination topology
+    (the candidate selects coord, whose dir has no ``meta.json``, falling back
+    to ``main``) — the finalize-tasks / implement-loop refusal-to-main bug
+    (FR-004 / FR-009(e)).
+
+    WP01/T002 (Ledger M8): this asserts BOTH the negative (never candidate-
+    anchored) AND the POSITIVE (``reads_via_primary`` — every surface DOES
+    anchor on PRIMARY). The prior version computed ``reads_via_primary`` and
+    discarded it (``_reads_via_primary``), asserting only the negative — a
+    routed site therefore passed GREEN-BY-OMISSION (a site anchored on NEITHER
+    candidate nor primary, e.g. a third resolver entirely, would have been
+    invisible to this gate). A green test that would stay green if the code
+    regressed provides no coverage (DIRECTIVE_041); the positive assertion below
+    is what gives this gate teeth.
     """
     offenders: list[str] = []
+    unanchored: list[str] = []
     for surface in _WRITE_ARM_SURFACES:
         tree = _module_tree(surface.rel_path)
         func = _find_function(tree, surface.func)
@@ -875,9 +1134,11 @@ def test_write_arm_resolvers_anchor_meta_on_primary() -> None:
             "the enumerated resolver set has drifted from the code (update "
             "_WRITE_ARM_SURFACES)."
         )
-        reads_via_candidate, _reads_via_primary = write_arm_anchors(func)
+        reads_via_candidate, reads_via_primary = write_arm_anchors(func)
         if reads_via_candidate:
             offenders.append(f"{surface.rel_path}::{surface.func}")
+        if not reads_via_primary:
+            unanchored.append(f"{surface.rel_path}::{surface.func}")
 
     assert not offenders, (
         "Write-branch resolver(s) read meta.json anchored on the coord-aware "
@@ -888,6 +1149,15 @@ def test_write_arm_resolvers_anchor_meta_on_primary() -> None:
         "instead of the mission's target_branch (FR-004 / FR-009(e) / G-6). Anchor "
         "the meta.json read on primary_feature_dir_for_mission, mirroring "
         "resolve_merge_target_branch (core/paths.py)."
+    )
+    assert not unanchored, (
+        "Write-branch resolver(s) do NOT anchor their meta.json read on the "
+        f"PRIMARY surface at all: {sorted(unanchored)}. Passing the candidate "
+        "check is not sufficient — the resolver must POSITIVELY anchor on "
+        "primary_feature_dir_for_mission (or, post-migration, the PRIMARY-"
+        "partition seam idiom read_dir(PRIMARY_METADATA)); anchoring on some "
+        "other, unrecognised construct passes the negative check while still "
+        "being wrong (Ledger M8 / DIRECTIVE_041 anti-vacuity)."
     )
 
 
@@ -1450,6 +1720,132 @@ def test_write_arm_self_test_passes_primary_meta_anchor() -> None:
     assert reads_via_primary is True
 
 
+# ---- T002 (Ledger M8): the positive ``reads_via_primary`` signal must BITE ----
+
+_WRITE_UNANCHORED_OTHER_CONSTRUCT = '''
+def f(repo_root, mission_slug):
+    some_other_dir = some_unrelated_helper(repo_root, mission_slug)
+    meta_file = some_other_dir / "meta.json"
+    if meta_file.exists():
+        return read_target_branch(meta_file)
+    return "main"
+'''
+
+_WRITE_PRIMARY_SEAM_IDIOM_ANCHOR = '''
+def f(repo_root, mission_slug):
+    primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    meta_file = primary_dir / "meta.json"
+    if meta_file.exists():
+        return read_target_branch(meta_file)
+    return "main"
+'''
+
+# Review-cycle-1 (B1): the LITERAL-JOIN seam form above (``primary_dir /
+# "meta.json"``) is NOT the shape any of the three real write-arm surfaces
+# carries, before or after WP08 — they are thin adapters that hand the
+# resolved dir straight to ``read_target_branch_from_meta``. This is that real
+# shape, reproduced synthetically (mirrors ``core/paths.py::
+# get_feature_target_branch`` post-WP08, with ``primary_feature_dir_for_mission``
+# replaced by the seam idiom the reviewer's M3 mutation applies).
+_WRITE_PRIMARY_SEAM_THIN_ADAPTER = '''
+def f(repo_root, mission_slug):
+    primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    return read_target_branch_from_meta(primary_dir)
+'''
+
+# Kind-discrimination control for the thin-adapter shape (Ledger M7 extended,
+# reviewer's M4 mutation): the IDENTICAL hand-to-consumer shape, but the
+# seam's kind argument is STATUS_STATE rather than PRIMARY_METADATA. Must
+# stay unanchored -- a bare callee-name match would widen by name and bless
+# this too, which is the exact loosening NFR-005 forbids.
+_WRITE_STATUS_SEAM_THIN_ADAPTER = '''
+def f(repo_root, mission_slug):
+    status_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
+    return read_target_branch_from_meta(status_dir)
+'''
+
+
+def test_write_arm_mutation_neither_candidate_nor_primary_reds_positive_assertion() -> (
+    None
+):
+    """T002 mutation proof: anchoring on neither the candidate NOR the primary
+    construct FAILS ``reads_via_primary`` — the exact case the discarded-signal
+    version (M8) would have silently passed as green (it only asserted the
+    negative ``reads_via_candidate``)."""
+    reads_via_candidate, reads_via_primary = write_arm_anchors(
+        _func_from_source(_WRITE_UNANCHORED_OTHER_CONSTRUCT)
+    )
+    assert reads_via_candidate is False
+    assert reads_via_primary is False, (
+        "an unrecognised anchor construct must NOT be classified as "
+        "primary-anchored — this is the mutation this positive assertion exists "
+        "to catch (Ledger M8)"
+    )
+
+
+def test_write_arm_recognises_primary_seam_idiom_literal_join_spelling() -> None:
+    """A ``meta.json`` read anchored on the PRIMARY-partition tier-1 seam idiom
+    via a LITERAL ``primary_dir / "meta.json"`` join is classified
+    ``reads_via_primary`` (:func:`_builds_meta_path_from_primary_seam`). None
+    of the three real write-arm surfaces builds this literal join today or
+    after WP08 (review-cycle-1 B1) — this shape remains sanctioned for any
+    FUTURE write-arm resolver that does compose the join directly.
+    """
+    reads_via_candidate, reads_via_primary = write_arm_anchors(
+        _func_from_source(_WRITE_PRIMARY_SEAM_IDIOM_ANCHOR)
+    )
+    assert reads_via_candidate is False
+    assert reads_via_primary is True
+
+
+def test_write_arm_recognises_primary_seam_thin_adapter_post_migration_shape() -> None:
+    """T002 review-cycle-1 fix (B1): a PRIMARY-partition seam ``read_dir`` call
+    whose result is handed to the shared meta-read authority
+    (``read_target_branch_from_meta``) — WITHOUT a literal ``"meta.json"``
+    join — is classified ``reads_via_primary``.
+
+    This is the ACTUAL post-WP08 shape of all three real write-arm surfaces
+    (``core/paths.py::get_feature_target_branch``,
+    ``core/git_ops.py::resolve_target_branch``,
+    ``mission_finalize.py::finalize_tasks``): thin adapters, never a literal
+    join. Review-cycle-1 found that without this shape, the positive
+    assertion's ONLY currently-firing branch (:func:`_anchor_invoked_in` on
+    the deleted wrapper name) stops matching any of its own subjects the
+    moment WP08 deletes ``primary_feature_dir_for_mission`` — reintroducing,
+    on the write arm, the exact coord-vs-primary inversion this WP retires on
+    the read arm. :func:`_primary_partition_seam_invoked_in` closes that gap.
+    """
+    reads_via_candidate, reads_via_primary = write_arm_anchors(
+        _func_from_source(_WRITE_PRIMARY_SEAM_THIN_ADAPTER)
+    )
+    assert reads_via_candidate is False
+    assert reads_via_primary is True
+
+
+def test_write_arm_primary_seam_thin_adapter_kind_discipline_holds() -> None:
+    """Ledger M7's kind discipline extends to the thin-adapter shape: the
+    IDENTICAL hand-to-consumer construct with a STATUS_STATE kind argument
+    (reviewer's M4 mutation) does NOT satisfy ``reads_via_primary`` — the
+    discrimination is on the ``kind`` argument
+    (:func:`_is_primary_partition_read_dir_call`), never a bare ``read_dir``
+    callee name, so this cannot be satisfied by any STATUS read."""
+    reads_via_candidate, reads_via_primary = write_arm_anchors(
+        _func_from_source(_WRITE_STATUS_SEAM_THIN_ADAPTER)
+    )
+    assert reads_via_candidate is False
+    assert reads_via_primary is False, (
+        "a STATUS_STATE-kinded read_dir call, even in the identical "
+        "hand-to-consumer shape, must NOT be classified primary-anchored "
+        "(kind discipline, Ledger M7)"
+    )
+
+
 # ===========================================================================
 # (5) CALL-SHAPE arm self-tests (coord-read-residuals FR-007, WP01 T003).
 # ===========================================================================
@@ -1766,6 +2162,73 @@ def test_callshape_arm_passes_one_hop_caller_primary_fold() -> None:
     )
     hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS, module=module)
     assert hits == [], hits
+
+
+# ===========================================================================
+# (5b-2) T001 (Ledger M7): the tier-1 seam idiom is sanctioned ONLY for a
+# PRIMARY-partition kind — kind-discriminated, never a callee-name widening.
+# ===========================================================================
+
+_MIXED_SEAM_AND_BAD_READ = '''
+def mixed(repo_root, slug):
+    seam_dir = placement_seam(repo_root, slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    resolve_mission_identity(seam_dir)
+    bad_dir = resolve_feature_dir_for_mission(repo_root, slug)
+    return get_mission_type(bad_dir)
+'''
+
+_STATUS_KIND_SEAM_READ = '''
+def status_leg(repo_root, slug):
+    status_dir = placement_seam(repo_root, slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    return resolve_mission_identity(status_dir)
+'''
+
+
+def test_callshape_arm_sanctions_primary_seam_binding_but_still_flags_bad_read() -> None:
+    """T001 bite test: a PRIMARY-partition ``read_dir`` binding is sanctioned,
+    AND a genuinely non-compliant coord-aware read in the SAME function is
+    still flagged (NFR-005 — the widening must not blind the gate)."""
+    func = _func_from_source(_MIXED_SEAM_AND_BAD_READ, name="mixed")
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS)
+    assert hits == ["get_mission_type(bad_dir)"], hits
+
+
+def test_callshape_arm_does_not_sanction_status_kind_seam_binding() -> None:
+    """T001 negative case (Ledger M7): a STATUS_STATE ``read_dir`` binding is
+    NOT classified as a PRIMARY-fold binding.
+
+    A callee-name-only widening (adding bare ``read_dir`` to
+    ``_PRIMARY_FOLD_CALLSHAPE_FUNCS``) would sanction this identically to the
+    PRIMARY case above — a genuine loosening that would propagate a false
+    NFR-001 regression into
+    ``test_coord_read_residuals_closeout.py::test_no_status_leg_rerouted_to_primary``
+    (which independently re-derives its own ``primary_bound`` from the same
+    frozenset). Asserted directly against the binding classifier because
+    ``status_dir`` is not ``coord_bound`` either (``read_dir`` is not a
+    coord-aware resolver name), so ``callshape_violations`` would not flag it
+    regardless — the kind-blindness must be caught here, at the source.
+    """
+    func = _func_from_source(_STATUS_KIND_SEAM_READ, name="status_leg")
+    primary_bound = _names_bound_from_primary_read_dir(func)
+    assert "status_dir" not in primary_bound, (
+        "a STATUS_STATE read via placement_seam(...).read_dir(...) must NOT be "
+        "classified as a PRIMARY-fold binding"
+    )
+
+
+def test_primary_partition_read_dir_call_discriminates_on_kind_argument() -> None:
+    """Direct unit coverage of the T001 discriminator: PRIMARY kind → True,
+    STATUS kind → False, for the IDENTICAL callee shape (``read_dir``)."""
+    primary_call = ast.parse(
+        "seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)", mode="eval"
+    ).body
+    status_call = ast.parse(
+        "seam.read_dir(MissionArtifactKind.STATUS_STATE)", mode="eval"
+    ).body
+    assert isinstance(primary_call, ast.Call)
+    assert isinstance(status_call, ast.Call)
+    assert _is_primary_partition_read_dir_call(primary_call) is True
+    assert _is_primary_partition_read_dir_call(status_call) is False
 
 
 # ===========================================================================

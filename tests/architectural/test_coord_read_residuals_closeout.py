@@ -28,16 +28,22 @@ Three guards:
    floor proves the scan actually SAW the in-scope read call sites (it is not
    green merely because it matched nothing).
 
-2. **Floor honesty (FR-010 / SC-004).** ``ROUTED_CANONICALIZER_FLOOR`` matches the
-   recorded census. The honest history: **seam-routing did NOT move the
-   canonicalizer census.** Only WP01's seven identity ANCHORS (direct
-   ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
-   calls) raised it (38 → 45 total; 35 → 42 routed). WP02/WP03 routed the merge /
-   lanes / core reads through the kind-aware *seam*
-   (``resolve_planning_read_dir`` / the PRIMARY fold passed to identity & lanes
-   reads), which the canonicalizer discriminator does not count as a new direct
-   primitive anchor — so those WPs left the census unchanged. This guard records
-   that plainly: no re-pinned-integer "gain" is claimed for the seam routing.
+2. **Floor honesty — RETIRED (read-side-seam-primary-primitive-closure-01KYKMMT
+   WP01, T003/T004, FR-007).** This guard used to pin ``ROUTED_CANONICALIZER_FLOOR``
+   against the recorded census. Both use-count floors it depended on
+   (``CANONICALIZER_FLOOR`` / ``ROUTED_CANONICALIZER_FLOOR`` /
+   ``ROUTED_CANONICALIZER_FLOOR_MARGIN``, in
+   ``test_resolution_authority_gates.py``) are retired there — the guarantee
+   transfers to the read-side bypass census (``test_no_read_side_bypass.py``,
+   WP02) per the DIRECTIVE_043 adjudication recorded at that constant's
+   retirement comment. Retiring the constants without retiring THIS module's
+   import of them would raise ``ImportError`` at collection (~20 tests) —
+   DIRECTIVE_034's collection-error hazard — so
+   ``test_routed_canonicalizer_floor_matches_recorded_census`` (and the import)
+   is retired in the SAME commit as the floors themselves. DIRECTIVE_041
+   disposition: STALE — the whole test's subject was validating the retired
+   floor's derivation; it carried no coverage beyond that (mined first, per
+   ``tactic:delete-the-assertion-not-the-test``).
 
 3. **NFR-001 — zero STATUS legs re-routed to PRIMARY.** The PRIMARY evidence is
    the WP04 STATUS-from-husk behavioral assertions in
@@ -68,16 +74,10 @@ from tests.architectural.test_gate_read_literal_ban import (
     _call_func_name,
     _find_function,
     _names_bound_from,
+    _names_bound_from_primary_read_dir,
     _read_call_first_arg,
     callshape_violations,
 )
-from tests.architectural.test_resolution_authority_gates import (
-    CANONICALIZER_FLOOR,
-    ROUTED_CANONICALIZER_FLOOR,
-    ROUTED_CANONICALIZER_FLOOR_MARGIN,
-    scan_canonicalizer_call_sites,
-)
-
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -131,9 +131,16 @@ _LANES_SCAN_FILES: tuple[Path, ...] = _SHARED_SCAN_FILES
 # tight enough that a scanner that suddenly matched NOTHING (vacuous green) fails,
 # loose enough that a benign refactor that drops a read site does not. ``> 0`` is
 # explicitly NOT used (it would pass vacuously). FR-002/FR-005's widened surface
-# raised the identity live census from 12 → 22 (the identity floor moves with it);
-# the lanes live census stays 10 (``src/runtime/next/`` carries 0 lanes.json reads
-# today, so its lanes floor is unchanged).
+# raised the identity live census from 12 → 22 at the time; the lanes live census
+# stays 10 (``src/runtime/next/`` carries 0 lanes.json reads today, so its lanes
+# floor is unchanged).
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T005, FR-016):
+# off-by-one census correction — re-derived NOW via this module's own
+# ``_count_read_call_sites`` recipe (not trusted from the prior comment): the
+# LIVE identity count is 24, not 22 (unrelated `src/` growth on the base branch
+# since that figure was recorded; this module made no identity-scan-affecting
+# change). The floor itself is untouched (18 remains a valid, non-vacuous
+# anti-vacuity bound below either figure).
 _IDENTITY_READ_SITE_FLOOR = 18
 _LANES_READ_SITE_FLOOR = 8
 
@@ -162,20 +169,24 @@ _RUNTIME_NEXT_IDENTITY_READ_FLOOR = 2
 # ratchet stays tight). A "routed" read is NOT a census entry — routed means *not
 # flagged* (absent here, proven by the clean scan).
 #
-# IDENTITY census — the one FR-001 one-hop residual:
-#   ``mission_setup_plan::_run_documentation_wiring`` ← ``setup_plan`` binds
-#   ``feature_dir`` from ``_resolve_setup_plan_feature_dir`` → ``_find_feature_directory``
-#   (coord-aware). WP01's hardened arm catches it via the one-hop caller binding once
-#   ``module=`` is threaded over ``cli/commands/`` (below). It is PINNED, not routed:
-#   routing this production read is OUT of scope (C-003 sanctions exactly ONE
-#   production routing edit — the #2197 runtime/next ``preview_claimable_wp`` caller,
-#   WP03/FR-004 — not this site). Tracked under #2214.
-_IDENTITY_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset(
-    {
-        # PINNED: #2214 — FR-001 named one-hop residual; production routing deferred (C-003).
-        "src/specify_cli/cli/commands/agent/mission_setup_plan.py::_run_documentation_wiring",
-    }
-)
+# IDENTITY census — read-side-seam-primary-primitive-closure-01KYKMMT WP01
+# (T005, FR-014): the ``#2214`` PINNED exception for
+# ``mission_setup_plan::_run_documentation_wiring`` is RETIRED here, together
+# with the test that asserted the pin exists
+# (``test_fr001_documentation_wiring_residual_is_pinned_and_flags``, removed in
+# this SAME commit — deleting the entry without retiring that assertion would
+# red by construction). The site itself is UNCHANGED (still coord-aware,
+# still live-flagged by the arm below) — retiring the pin makes the gate
+# assert the TARGET design (this read routed through the PRIMARY fold) rather
+# than tolerating the current one-hop residual. This is an EXPECTED RED
+# (recorded in research/expected-reds.md): ``test_fr007_arm_live_identity_scan_
+# is_clean`` below now flags this site as ``unexpected`` until WP04 routes it
+# (FR-024's shared migration procedure, ``migrate-fail-loud`` — C-003's carve-
+# out for exactly ONE production routing edit elsewhere does not cover this
+# site). DIRECTIVE_041 disposition: STALE — the pin tolerated a residual this
+# mission now closes; VALID → the resulting red is a real, correct signal that
+# a routing WP must act on, not a defect in this gate.
+_IDENTITY_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset()
 # LANES census — empty: every in-scope lanes.json read is routed/clean.
 _LANES_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset()
 
@@ -365,7 +376,8 @@ def test_fr007_arm_live_scan_is_non_vacuous() -> None:
     family iteration would make the live arm match NOTHING — and report a
     false-clean. This guard pins the live count of in-scope identity / lanes.json
     read CALL SITES (routed or not) to a concrete floor a few below the live census
-    (22 identity / 10 lanes after FR-002/FR-005 widening), so a vacuous scan FAILS.
+    (24 identity / 10 lanes, re-derived WP01/T005 — corrected from the stale 22
+    recorded after FR-002/FR-005 widening), so a vacuous scan FAILS.
     """
     identity_sites = _count_read_call_sites(
         _IDENTITY_SCAN_DIRS, _IDENTITY_SCAN_FILES, _IDENTITY_READ_FUNCS
@@ -509,33 +521,14 @@ def test_fr003_runtime_bridge_get_mission_type_reads_are_clean_not_pinned() -> N
     ), "runtime_bridge.py reads must NOT be census pins — they are clean (ROUTED)."
 
 
-def test_fr001_documentation_wiring_residual_is_pinned_and_flags() -> None:
-    """FR-001 / NFR-004: the named one-hop residual
-    ``mission_setup_plan::_run_documentation_wiring`` is BOTH pinned in the identity
-    census AND actually flagged by the live arm (it is not an unexplained flag, and
-    not a stale pin).
-
-    This closes the auditability gap: a pin that no longer flags is stale (the
-    clean-scan would RED on it); a flag that is not pinned is unexplained (the
-    clean-scan would RED on it). Asserting both here documents the disposition
-    explicitly: PINNED #2214, production routing deferred (C-003).
-    """
-    residual = (
-        "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
-        "::_run_documentation_wiring"
-    )
-    assert residual in _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS, (
-        "the FR-001 named residual must be pinned in _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS."
-    )
-    offenders = _live_callshape_offenders(
-        _IDENTITY_SCAN_DIRS, _IDENTITY_SCAN_FILES, _IDENTITY_READ_FUNCS
-    )
-    assert residual in offenders, (
-        "the FR-001 named residual is no longer flagged by the live arm — it was "
-        "either routed in production (remove the stale #2214 pin) or the one-hop "
-        "machinery regressed (module= no longer threaded). The pin must track a LIVE "
-        "flag (shrink-only)."
-    )
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T005, FR-014):
+# ``test_fr001_documentation_wiring_residual_is_pinned_and_flags`` RETIRED
+# together with the ``#2214`` pin above (removing the pin without retiring this
+# assertion would red by construction: it asserted the pin EXISTS). The live
+# flag it used to certify is now asserted directly by
+# ``test_fr007_arm_live_identity_scan_is_clean``'s ``unexpected`` check above —
+# with the pin gone, that residual now surfaces there as an EXPECTED red
+# (recorded in research/expected-reds.md) until WP04 routes it.
 
 
 def test_fr003_sanctioned_exclusions_are_read_func_scoped_for_status() -> None:
@@ -651,59 +644,22 @@ def test_sc006_executor_identity_reads_in_scope_both_shapes() -> None:
 
 
 # ===========================================================================
-# (2) Floor honesty — seam-routing did NOT move the canonicalizer census.
+# (2) Floor honesty — RETIRED (read-side-seam-primary-primitive-closure-01KYKMMT
+# WP01, T003/T004, FR-007). ``test_routed_canonicalizer_floor_matches_recorded_
+# census`` used to pin ``ROUTED_CANONICALIZER_FLOOR == 40`` /
+# ``CANONICALIZER_FLOOR == 44`` here. Both constants (and the two use-count
+# floor tests that owned them) are retired in
+# ``test_resolution_authority_gates.py`` — see that module's retirement
+# comment for the honest re-derived census and the DIRECTIVE_043 transfer
+# adjudication (the guarantee moves to the read-side bypass census, WP02).
+# DIRECTIVE_041 disposition: STALE — this test's entire subject was verifying
+# the retired floor's derivation; it carried no coverage beyond the two
+# equality pins and the two bound checks that depended on them, so the whole
+# test is retired (not merely the pins) rather than re-pointed to a vacuous
+# shell. Retiring the constants without retiring this module's IMPORT of them
+# would raise ``ImportError`` at collection (~20 tests, DIRECTIVE_034) — hence
+# this removal lands in the SAME commit as T003.
 # ===========================================================================
-
-
-def test_routed_canonicalizer_floor_matches_recorded_census() -> None:
-    """``ROUTED_CANONICALIZER_FLOOR`` is consistent with the live routed census,
-    and the floor honesty story is recorded plainly.
-
-    HONESTY (FR-010): seam-routing did NOT move the canonicalizer census. The
-    census moved 35 → 42 routed (38 → 45 total) because of WP01's SEVEN identity
-    ANCHORS — direct ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
-    calls the canonicalizer discriminator counts. WP02/WP03 routed merge / lanes /
-    core reads through the kind-aware *seam* (the PRIMARY fold passed to identity &
-    lanes reads), which is NOT a new direct primitive anchor — so those WPs left
-    the census UNCHANGED. No re-pinned-integer "gain" is claimed for them.
-
-    The bounds mirror ``test_routed_count_floor`` (the floor is a concrete integer
-    strictly below live, within ``ROUTED_CANONICALIZER_FLOOR_MARGIN``).
-    """
-    assert ROUTED_CANONICALIZER_FLOOR == 40, (
-        "ROUTED_CANONICALIZER_FLOOR drifted from the recorded census (40 = 44 live "
-        "routed − MARGIN 4). Census history: WP01 identity anchors 35→42 (floor 38); "
-        "tasks-py-degod WP02 added ONE direct primitive anchor "
-        "(RealFsReader.primary_anchor_dir, C-002 co-located fold) 42→43 (floor 39); "
-        "runtime-state-corpus-cutover added the durable claim mission-id anchor "
-        "43→44 (floor 40). "
-        "If it changed again, a WP moved the census; record the honest before/after "
-        "rather than re-pinning the integer."
-    )
-    # read-surface-ssot-closeout WP05 (FR-001/NFR-001, SHRINK-ONLY): draining
-    # implement.py's ``feature_dir`` A-site removed the fallback cascade's
-    # ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
-    # anchor (a routed canonicalizer site) along with it — the live TOTAL
-    # census dropped 45 → 44 (a genuine routing shrink, an honest before/after,
-    # not a re-pinned integer per this test's own doctrine above). The routed
-    # count moved too (42 → 41) but stays within the unchanged ROUTED_* floor's
-    # margin, so that assertion above needed no change.
-    assert CANONICALIZER_FLOOR == 44, (
-        "CANONICALIZER_FLOOR drifted from the recorded total census (44)."
-    )
-    sites = scan_canonicalizer_call_sites(_SRC)
-    routed = [s for s in sites if s.is_canonical]
-    # The recorded floor must remain a tight, non-vacuous concrete integer.
-    assert len(routed) > ROUTED_CANONICALIZER_FLOOR, (
-        f"live routed canonicalizer census ({len(routed)}) must stay strictly above "
-        f"the floor ({ROUTED_CANONICALIZER_FLOOR}); seam-routing must not have "
-        "silently dropped routed anchors."
-    )
-    assert len(routed) - ROUTED_CANONICALIZER_FLOOR <= ROUTED_CANONICALIZER_FLOOR_MARGIN, (
-        f"live routed census ({len(routed)}) is more than MARGIN "
-        f"({ROUTED_CANONICALIZER_FLOOR_MARGIN}) above the floor "
-        f"({ROUTED_CANONICALIZER_FLOOR}); tighten the floor to the honest census."
-    )
 
 
 # ===========================================================================
@@ -753,7 +709,14 @@ def test_no_status_leg_rerouted_to_primary() -> None:
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
-            primary_bound = _names_bound_from(node, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
+            # WP01/T001 (Ledger M7): UNION the kind-discriminated seam-idiom
+            # binding rather than widening _PRIMARY_FOLD_CALLSHAPE_FUNCS by
+            # callee name — see that constant's docstring (test_gate_read_
+            # literal_ban.py) for why a bare ``read_dir`` name would sanction a
+            # STATUS_STATE-kind read here identically to a PRIMARY_METADATA one.
+            primary_bound = _names_bound_from(
+                node, _PRIMARY_FOLD_CALLSHAPE_FUNCS
+            ) | _names_bound_from_primary_read_dir(node)
             hits: list[str] = []
             for call in ast.walk(node):
                 if (

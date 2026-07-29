@@ -129,7 +129,8 @@ def test_no_directive_carries_inline_tactic_refs() -> None:
     """Post-WP02: shipped directives must not carry inline ``tactic_refs``.
 
     Cross-artifact relationships (directive → tactic) live exclusively as
-    edges in ``src/doctrine/graph.yaml`` after Phase 1 excision. This test
+    edges in ``src/doctrine/directive.graph.yaml`` after Phase 1 excision (edges
+    shard by source kind). This test
     guards against regressions that reintroduce inline references.
     """
     directive_files = _multi_glob([_SHIPPED_DIRECTIVES_DIR], "*.directive.yaml")
@@ -143,7 +144,7 @@ def test_no_directive_carries_inline_tactic_refs() -> None:
 
     assert not offenders, (
         "Inline `tactic_refs` reintroduced on shipped directives — all "
-        "cross-artifact relationships must live in src/doctrine/graph.yaml "
+        "cross-artifact relationships must live in src/doctrine/directive.graph.yaml "
         "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )
@@ -359,7 +360,7 @@ def _shipped_paradigm_ids() -> set[str]:
 def test_no_paradigm_carries_inline_tactic_refs() -> None:
     """Post-WP02: shipped paradigms must not carry inline ``tactic_refs``.
 
-    Paradigm → tactic relationships live in ``src/doctrine/graph.yaml``
+    Paradigm → tactic relationships live in ``src/doctrine/paradigm.graph.yaml``
     after Phase 1 excision; this test guards against regression.
     """
     offenders: list[str] = []
@@ -370,7 +371,7 @@ def test_no_paradigm_carries_inline_tactic_refs() -> None:
             offenders.append(f"{paradigm_id}: still declares inline `tactic_refs`")
     assert not offenders, (
         "Inline `tactic_refs` reintroduced on shipped paradigms — all "
-        "relationships must live in src/doctrine/graph.yaml "
+        "relationships must live in src/doctrine/paradigm.graph.yaml "
         "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )

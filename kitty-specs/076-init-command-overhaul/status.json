@@ -1,5 +1,5 @@
 {
-  "event_count": 43,
+  "event_count": 50,
   "last_event_id": "01KNNX21J40ST6B0JR7WND12KT",
   "materialized_at": "2026-04-08T06:39:13.988737+00:00",
   "mission_number": "76",
@@ -19,52 +19,127 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "opencode:opencode:python-reviewer:reviewer",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNNX2133W1VXEA33GENYQ0JP",
-      "last_transition_at": "2026-04-08T06:39:13.507908+00:00"
+      "last_transition_at": "2026-04-08T06:39:13.507908+00:00",
+      "shell_pid": 11061,
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "opencode:opencode:python-reviewer:reviewer",
       "force_count": 6,
       "lane": "done",
       "last_event_id": "01KNNX21BR158X3Z029KRTF3CP",
-      "last_transition_at": "2026-04-08T06:39:13.784380+00:00"
+      "last_transition_at": "2026-04-08T06:39:13.784380+00:00",
+      "shell_pid": 18478,
+      "subtasks": {
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "codex:gpt-4o:python-reviewer:reviewer",
       "force_count": 6,
       "lane": "done",
       "last_event_id": "01KNNX21DY1MNSXK0W1P50KDJB",
-      "last_transition_at": "2026-04-08T06:39:13.854637+00:00"
+      "last_transition_at": "2026-04-08T06:39:13.854637+00:00",
+      "shell_pid": 44790,
+      "subtasks": {
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "codex:gpt-4o:python-reviewer:reviewer",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNNX21G0CVHVV1EWY24R6ZX0",
-      "last_transition_at": "2026-04-08T06:39:13.920431+00:00"
+      "last_transition_at": "2026-04-08T06:39:13.920431+00:00",
+      "shell_pid": 11949,
+      "subtasks": {
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-reviewer:reviewer",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNNX21J40ST6B0JR7WND12KT",
-      "last_transition_at": "2026-04-08T06:39:13.988737+00:00"
+      "last_transition_at": "2026-04-08T06:39:13.988737+00:00",
+      "shell_pid": 14431,
+      "subtasks": {
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "codex:gpt-4o:reviewer:reviewer",
       "force_count": 4,
       "lane": "approved",
       "last_event_id": "01KNNTFGK4CM9TT6AD8EBTFY8A",
-      "last_transition_at": "2026-04-08T05:54:09.636358+00:00"
+      "last_transition_at": "2026-04-08T05:54:09.636358+00:00",
+      "shell_pid": 13447,
+      "subtasks": {
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned",
+        "T040": "planned",
+        "T041": "planned"
+      }
     },
     "WP07": {
       "actor": "user",
+      "agent": "opencode:opencode:reviewer:reviewer",
       "force_count": 4,
       "lane": "approved",
       "last_event_id": "01KNNTT42VMF9KQA7081NGTW1W",
-      "last_transition_at": "2026-04-08T05:59:57.275577+00:00"
+      "last_transition_at": "2026-04-08T05:59:57.275577+00:00",
+      "shell_pid": 15581,
+      "subtasks": {
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
     }
   }
 }

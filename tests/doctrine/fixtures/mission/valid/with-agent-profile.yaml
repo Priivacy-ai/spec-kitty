@@ -17,9 +17,13 @@ orchestration:
   required_artifacts: [spec.md, plan.md, tasks.md]
 steps:
   - id: plan
-    title: Planning
+    display_name: Planning
+    step_type: agent
+    prompt_template: plan-prompt.md
     depends_on: []
     agent-profile: architect
   - id: implement
-    title: Implement
+    display_name: Implement
+    step_type: agent
+    prompt_template: implement-prompt.md
     depends_on: [plan]

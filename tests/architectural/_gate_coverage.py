@@ -70,6 +70,11 @@ from _pytest.mark.expression import Expression
 # One collected test: its nodeid, repo-relative path, and applied marker names.
 TestRecord = dict[str, Any]
 
+# ``(workflow file name, job name)`` — the identity of one CI job. Job names are
+# only unique WITHIN a workflow (``changes`` exists in both ci-quality and
+# ci-windows), so the pair, never the bare job name, is the key.
+JobKey = tuple[str, str]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
@@ -474,6 +479,15 @@ class WorkflowModel:
       ``critical_paths`` array entries, in declaration order (FR-005).
     - ``pull_request_types`` / ``pull_request_paths`` / ``push_paths``: outer
       ``on:`` trigger types and paths lists (FR-013 / FR-012 two-layer reads).
+    - ``job_if``: job -> the RAW ``if:`` scalar (``None`` when absent, ``bool``
+      for the YAML-literal ``if: false`` form). ``job_gating_groups`` records
+      only *which* filter outputs an ``if:`` mentions; this keeps the whole
+      condition so :func:`job_runs_under` can decide whether the job actually
+      runs under a given trigger state — the distinction between "references
+      the ``cli`` group" and "runs on a push regardless of the ``cli`` group"
+      (mission doctrine-silence-guards WP10, FR-013).
+    - ``push_branches``: ``on.push.branches``, so the collection-completeness
+      model can tell which workflows a push to a given branch even starts.
     """
 
     path: Path
@@ -486,6 +500,8 @@ class WorkflowModel:
     pull_request_types: tuple[str, ...]
     pull_request_paths: tuple[str, ...]
     push_paths: tuple[str, ...]
+    job_if: dict[str, str | bool | None]
+    push_branches: tuple[str, ...]
 
 
 def _job_needs_tuple(job: dict[str, Any]) -> tuple[str, ...]:
@@ -557,6 +573,20 @@ def _on_section(data: dict[Any, Any]) -> dict[str, Any]:
     return section if isinstance(section, dict) else {}
 
 
+def _job_if_scalar(job: dict[str, Any]) -> str | bool | None:
+    """One job's raw ``if:`` scalar, preserving the YAML-literal boolean form.
+
+    ``if: false`` (used to park a job) parses as a real ``bool``; coercing it to
+    the string ``"False"`` would make it indistinguishable from an unparseable
+    condition, so the bool is kept and handled explicitly by
+    :func:`job_runs_under`.
+    """
+    value = job.get("if")
+    if value is None or isinstance(value, bool):
+        return value
+    return str(value)
+
+
 def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[str, ...]:
     """``on.<event>.<key>`` as a string tuple; ``()`` when absent."""
     event_section = on_section.get(event)
@@ -593,6 +623,8 @@ def load_workflow_model(path: Path) -> WorkflowModel:
         pull_request_types=_trigger_tuple(on_section, "pull_request", "types"),
         pull_request_paths=_trigger_tuple(on_section, "pull_request", "paths"),
         push_paths=_trigger_tuple(on_section, "push", "paths"),
+        job_if={name: _job_if_scalar(job) for name, job in jobs.items()},
+        push_branches=_trigger_tuple(on_section, "push", "branches"),
     )
 
 
@@ -723,9 +755,28 @@ class CoverageReport:
         return len(self.orphan_nodeids)
 
 
-def analyze(gates: list[Gate], universe: list[TestRecord]) -> CoverageReport:
-    """Count gate selections per test; collect orphans (0) and duplicates (>=2)."""
-    compiled = [CompiledGate(g) for g in gates]
+def analyze(
+    gates: list[Gate],
+    universe: list[TestRecord],
+    active_jobs: frozenset[JobKey] | None = None,
+) -> CoverageReport:
+    """Count gate selections per test; collect orphans (0) and duplicates (>=2).
+
+    ``active_jobs`` restricts the model to the jobs that actually RUN under some
+    trigger state (:func:`active_job_keys`). Default ``None`` keeps the historic
+    "every job runs" model every existing caller relies on — which is why the
+    committed ratchet baseline records ``orphan_test_count: 0``: true in that
+    model, and vacuous against a real CI run where most jobs are filter-gated
+    away. Passing an active set is what makes the count non-vacuous; the
+    selection evaluator itself (:class:`CompiledGate`) is unchanged and shared,
+    so there is exactly one selection engine (D-044).
+    """
+    selected = (
+        gates
+        if active_jobs is None
+        else [g for g in gates if (g.workflow, g.job) in active_jobs]
+    )
+    compiled = [CompiledGate(g) for g in selected]
     orphan_nodeids: list[str] = []
     orphan_files: set[str] = set()
     duplicate_nodeids: list[str] = []
@@ -743,6 +794,260 @@ def analyze(gates: list[Gate], universe: list[TestRecord]) -> CoverageReport:
         orphan_nodeids=sorted(orphan_nodeids),
         orphan_files=sorted(orphan_files),
         duplicate_nodeids=sorted(duplicate_nodeids),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Trigger-state job activation (mission doctrine-silence-guards WP10, FR-013 /
+# SC-013 / issue #2957).
+#
+# WHY THIS EXISTS. :func:`analyze` counts a test as covered when ANY parsed gate
+# selects it — a model in which every job always runs. Real CI does not work
+# that way: 40 of the 50 suite-running jobs are gated on a ``dorny/paths-filter``
+# output, so on a push whose diff misses those globs the job never starts and
+# every test it uniquely owns runs nowhere. That is the same defect as WP01's
+# inert schema slot, one layer up: a frozen-contract test no job collects is
+# exactly as inert as a schema slot nothing produces.
+#
+# WHAT IS MODELED. The two path-topology authorities the module already parses
+# (Adjudicated Decision 8: the dorny filter block and the job ``if:`` gates),
+# plus the ``on:`` trigger block. Nothing new is parsed from the workflow — the
+# only new capability is DECIDING a parsed ``if:`` against a named trigger
+# state, which no existing surface does.
+#
+# FAIL-CLOSED BY CONSTRUCTION. :func:`job_runs_under` returns ``True`` only for
+# conditions it positively recognizes as satisfied; anything it does not model
+# is treated as "does not run". The consequence of a mis-read is therefore an
+# over-report of uncollected tests (a loud red someone must look at), never a
+# silent claim of coverage that does not exist.
+#
+# ONE DELIBERATE EXCEPTION, AND WHAT IT COSTS THE CLAIM. Exactly one conjunct
+# fails OPEN: ``needs.<job>.result == 'success'`` decides ``True``
+# (:data:`_NEEDS_RESULT_RE_CONJUNCT`). It has to — reading it as unsatisfiable
+# would declare every downstream job dead and leave nothing to reason about. The
+# property this module can therefore state is "collected on a push to ``main``
+# ON THE GREEN PATH": when an upstream job fails, GitHub skips its dependents and
+# a real run collects less than modelled. So an uncollected count from here is
+# exact on a green run and a LOWER BOUND on a red one — the error direction is
+# "the hole is at least this big", never "there is no hole".
+# ---------------------------------------------------------------------------
+
+# The branch whose push state the completeness invariant is evaluated against.
+PRIMARY_BRANCH = "main"
+PUSH_EVENT = "push"
+PULL_REQUEST_EVENT = "pull_request"
+
+_ALWAYS = "always()"
+# ``!contains(github.event.pull_request.labels.*.name, '<label>')`` — the two
+# full-CI-block guards. On any non-``pull_request`` event there is no pull
+# request, so ``contains`` over an absent label list is false and the negation
+# holds.
+_PR_LABEL_GUARD_RE = re.compile(
+    r"^!\s*contains\(\s*github\.event\.pull_request\.labels\.\*\.name\s*,\s*"
+    r"'[^']*'\s*\)$",
+)
+# ``needs.<job>.result == 'success'`` / ``!= 'failure'`` — an ORDERING conjunct,
+# not a masking one: it says "run me after that job, if it went well", and it is
+# satisfied on the green path this invariant reasons about. Treating it as
+# unsatisfiable would declare every downstream job dead and make the model
+# useless; treating it as satisfied is the standard "assume upstream green"
+# reading, stated here so a reviewer can see the assumption rather than infer it.
+_NEEDS_RESULT_RE_CONJUNCT = re.compile(
+    r"^needs\.[A-Za-z0-9_-]+\.result\s*[!=]=\s*'[A-Za-z_]+'$",
+)
+_GROUP_OUTPUT_RE = re.compile(
+    r"^needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)\s*==\s*'true'$",
+)
+_EVENT_NAME_RE = re.compile(r"^github\.event_name\s*(==|!=)\s*'([A-Za-z_]+)'$")
+_EXPRESSION_WRAPPER_RE = re.compile(r"^\$\{\{(?P<inner>.*)\}\}$", re.DOTALL)
+
+_AND = "&&"
+_OR = "||"
+
+
+def _is_balanced(text: str) -> bool:
+    """Whether ``text`` has no unmatched ``(`` / ``)``."""
+    depth = 0
+    for char in text:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
+
+
+def split_top_level(expr: str, operator: str) -> list[str]:
+    """Split ``expr`` on ``operator`` occurrences OUTSIDE any parentheses.
+
+    The workflow's conditions are plain boolean expressions over identifiers,
+    quoted literals and calls, so paren depth is the only nesting that matters.
+    """
+    parts: list[str] = []
+    buffer: list[str] = []
+    depth = 0
+    index = 0
+    while index < len(expr):
+        char = expr[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        if depth == 0 and expr.startswith(operator, index):
+            parts.append("".join(buffer))
+            buffer = []
+            index += len(operator)
+            continue
+        buffer.append(char)
+        index += 1
+    parts.append("".join(buffer))
+    return [part.strip() for part in parts if part.strip()]
+
+
+def normalize_condition(text: str) -> str:
+    """Strip the ``${{ }}`` wrapper and any redundant outer parentheses."""
+    condition = " ".join(text.split())
+    match = _EXPRESSION_WRAPPER_RE.match(condition)
+    if match:
+        condition = match.group("inner").strip()
+    while (
+        condition.startswith("(")
+        and condition.endswith(")")
+        and _is_balanced(condition[1:-1])
+    ):
+        condition = condition[1:-1].strip()
+    return condition
+
+
+def _atom_runs_under(atom: str, *, event_name: str, active_groups: frozenset[str]) -> bool:
+    """Decide a single (non-composite) condition term. Unknown terms -> False."""
+    if atom == _ALWAYS:
+        return True
+    if _PR_LABEL_GUARD_RE.match(atom):
+        return event_name != PULL_REQUEST_EVENT
+    if _NEEDS_RESULT_RE_CONJUNCT.match(atom):
+        return True
+    group_match = _GROUP_OUTPUT_RE.match(atom)
+    if group_match:
+        return group_match.group(1) in active_groups
+    event_match = _EVENT_NAME_RE.match(atom)
+    if event_match:
+        operator, expected = event_match.groups()
+        return (expected == event_name) if operator == "==" else (expected != event_name)
+    return False
+
+
+def job_runs_under(
+    if_value: str | bool | None,
+    *,
+    event_name: str,
+    active_groups: frozenset[str],
+) -> bool:
+    """Whether a job with this ``if:`` starts, given an event and filter state.
+
+    ``None`` (no condition) runs; a YAML-literal ``if: false`` never does.
+    Otherwise the condition is decomposed by precedence — ``||`` then ``&&``,
+    parentheses respected — down to terms :func:`_atom_runs_under` decides.
+    Anything unrecognized decides ``False`` (see the fail-closed note above).
+    """
+    if if_value is None:
+        return True
+    if isinstance(if_value, bool):
+        return if_value
+    condition = normalize_condition(if_value)
+    if not condition:
+        return True
+    disjuncts = split_top_level(condition, _OR)
+    if len(disjuncts) > 1:
+        return any(
+            job_runs_under(part, event_name=event_name, active_groups=active_groups)
+            for part in disjuncts
+        )
+    conjuncts = split_top_level(condition, _AND)
+    if len(conjuncts) > 1:
+        return all(
+            job_runs_under(part, event_name=event_name, active_groups=active_groups)
+            for part in conjuncts
+        )
+    if condition.startswith("(") and condition.endswith(")") and _is_balanced(condition[1:-1]):
+        return job_runs_under(
+            condition[1:-1], event_name=event_name, active_groups=active_groups,
+        )
+    return _atom_runs_under(condition, event_name=event_name, active_groups=active_groups)
+
+
+def workflow_runs_on_push(model: WorkflowModel, branch: str = PRIMARY_BRANCH) -> bool:
+    """Whether a push to ``branch`` starts this workflow at all (``on.push.branches``).
+
+    ``release.yml`` is the live negative: it triggers on ``v*.*.*`` TAGS only, so
+    the tests it uniquely runs are not collected by a push to ``main`` — a real
+    hole this predicate surfaces rather than hides.
+    """
+    return branch in model.push_branches
+
+
+def active_job_keys(
+    models: dict[str, WorkflowModel],
+    *,
+    event_name: str,
+    active_groups: frozenset[str],
+    branch: str = PRIMARY_BRANCH,
+) -> frozenset[JobKey]:
+    """Every ``(workflow, job)`` that runs under one trigger state."""
+    active: set[JobKey] = set()
+    for name, model in models.items():
+        if event_name == PUSH_EVENT and not workflow_runs_on_push(model, branch):
+            continue
+        for job, if_value in model.job_if.items():
+            if job_runs_under(
+                if_value, event_name=event_name, active_groups=active_groups,
+            ):
+                active.add((name, job))
+    return frozenset(active)
+
+
+def main_push_active_jobs(
+    models: dict[str, WorkflowModel] | None = None,
+) -> frozenset[JobKey]:
+    """Jobs that run on a push to ``main`` in the WORST reachable filter state.
+
+    The worst state is "no dorny group matched", and it is reachable rather than
+    hypothetical: the ``changes`` job's fail-open catch-all only forces a full
+    run when ``any_src`` is true (a ``src/**`` change no named group claimed), so
+    a push touching only an unclaimed ``tests/**`` directory — which
+    ``on.push.paths`` explicitly admits — hits every named group false with the
+    catch-all silent. Because a job's ``if:`` is monotone in the active-group set
+    (groups only ever appear as ``== 'true'`` disjuncts), completeness in this
+    state implies completeness in every richer one, so one evaluation settles the
+    whole family instead of 2**N of them.
+    """
+    resolved = models if models is not None else load_workflow_models()
+    return active_job_keys(
+        resolved, event_name=PUSH_EVENT, active_groups=frozenset(),
+    )
+
+
+def main_push_uncollected(
+    universe: list[TestRecord],
+    gates: list[Gate] | None = None,
+    models: dict[str, WorkflowModel] | None = None,
+) -> CoverageReport:
+    """SC-013: the tests no job collects on a push to ``main``, on the green path.
+
+    ``orphan_nodeids`` here means "collected by zero RUNNING jobs" — node-level,
+    not file-level. The distinction is load-bearing: a file holding one ``slow``
+    test and twenty ``fast`` ones satisfies any file-level reading while the
+    twenty never execute, and that is the exact shape of most of #2957's list.
+
+    "On the green path" because of the single fail-open conjunct documented in
+    the section header: the count is exact when every upstream job succeeds and a
+    lower bound when one does not.
+    """
+    return analyze(
+        gates if gates is not None else load_gates(),
+        universe,
+        main_push_active_jobs(models),
     )
 
 

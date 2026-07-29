@@ -22,28 +22,44 @@
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
-      "last_transition_at": "2025-11-02T16:58:36Z"
+      "last_transition_at": "2025-11-02T16:58:36Z",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      }
     },
     "WP02": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JAPDYW6JKC6C0C10ZB",
-      "last_transition_at": "2025-11-02T16:58:36Z"
+      "last_transition_at": "2025-11-02T16:58:36Z",
+      "subtasks": {
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP03": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JCH85F1061KAEDX9S2",
-      "last_transition_at": "2025-11-02T16:58:36Z"
+      "last_transition_at": "2025-11-02T16:58:36Z",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP04": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JDYQW3ESGM3ER1JJV3",
-      "last_transition_at": "2025-11-02T16:58:36Z"
+      "last_transition_at": "2025-11-02T16:58:36Z",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
     }
   }
 }

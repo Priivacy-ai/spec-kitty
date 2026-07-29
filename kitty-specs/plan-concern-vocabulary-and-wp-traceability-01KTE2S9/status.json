@@ -1,5 +1,5 @@
 {
-  "event_count": 28,
+  "event_count": 31,
   "last_event_id": "01KTEGQHZB6Z53WVKEVEEGTT4G",
   "materialized_at": "2026-06-06T13:07:35.531210+00:00",
   "mission_number": "129",
@@ -19,24 +19,50 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTEGQHYQ3RMRVX50H8EJNHS5",
-      "last_transition_at": "2026-06-06T13:07:35.511191+00:00"
+      "last_transition_at": "2026-06-06T13:07:35.511191+00:00",
+      "shell_pid": 83221,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "claude",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTEGQHZB6Z53WVKEVEEGTT4G",
-      "last_transition_at": "2026-06-06T13:07:35.531210+00:00"
+      "last_transition_at": "2026-06-06T13:07:35.531210+00:00",
+      "shell_pid": 16229,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "claude",
+      "agent": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTEGKE3G4KC573XWY7MN1GZA",
-      "last_transition_at": "2026-06-06T13:05:20.496475+00:00"
+      "last_transition_at": "2026-06-06T13:05:20.496475+00:00",
+      "shell_pid": 98012,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     }
   }
 }

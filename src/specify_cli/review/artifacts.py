@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
 
+from kernel.yaml_io import serialize_mapping
 from specify_cli.status import ReviewOverride
 
 TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
@@ -200,12 +200,21 @@ class ReviewCycleArtifact:
         """Write this artifact to disk as a markdown file with YAML frontmatter.
 
         The parent directory is created if it does not exist.
+
+        Serialization is delegated to :func:`kernel.yaml_io.serialize_mapping`
+        (#3058 follow-up): its rt/preserve_quotes/default_flow_style/width=4096
+        configuration is byte-for-byte identical to :func:`_make_yaml`'s for
+        every frontmatter scalar within the 4096 wrap width (verified by
+        ``tests/review/test_artifacts_yaml_seam.py``) — the payloads this
+        artifact produces. The sole divergence is a scalar long enough to wrap
+        past 4096 columns, where ``serialize_mapping`` additionally strips the
+        non-semantic trailing whitespace the old path left (a strict
+        improvement, semantically identical). So this migration is a pure
+        internal seam consolidation with no observable output change for real
+        review-cycle payloads.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
-        yaml = _make_yaml()
-        stream = StringIO()
-        yaml.dump(self.to_dict(), stream)
-        frontmatter_text = stream.getvalue()
+        frontmatter_text = serialize_mapping(self.to_dict()).decode("utf-8")
 
         content = f"---\n{frontmatter_text}---\n"
         if self.body:

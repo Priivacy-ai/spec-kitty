@@ -24,21 +24,21 @@ coord_authority_baseline: 4
 
 canonicalizer:
 - qualname: _canonicalize_bare_modern_handle
-  line: 453
-  rationale: "C-001/FR-011 sanctioned bare probe inside _canonicalize_bare_modern_handle (the FR-004 bare-human-slug fold) - folding canonicalization into the primitive would recurse; PERMANENT fixture, never remove"
+  line: 464
+  rationale: "C-001/FR-011 sanctioned bare probe inside _canonicalize_bare_modern_handle (the FR-004 bare-human-slug fold) - folding canonicalization into the primitive would recurse; PERMANENT fixture, never remove. read-side-seam-primary-primitive-closure-01KYKMMT WP03 T016 re-pointed this call at the module-private leaf _compose_primary_feature_dir (was primary_feature_dir_for_mission) to break the wrapper-delegates-to-seam recursion (Ledger M16); same semantic raw-probe, new literal callee name."
   file: src/specify_cli/missions/_read_path_resolver.py
-  token: literal_primary = primary_feature_dir_for_mission ( repo_root , handle )
+  token: literal_primary = _compose_primary_feature_dir ( repo_root , handle )
 - qualname: read_primary_meta
-  line: 819
-  rationale: "WP03 SANCTION: seam-internal first-probe in read_primary_meta - callers (resolve_handle_to_read_path:929, _stored_topology_best_effort:1203) pass already-canonicalized handles; the raw first-probe is intentional (try literal dir, then _canonicalize_handle fallback in body); wrapping here would double-fold the composed handle; PERMANENT fixture"
+  line: 845
+  rationale: "WP03 SANCTION: seam-internal first-probe in read_primary_meta - callers (resolve_handle_to_read_path:929, _stored_topology_best_effort:1203) pass already-canonicalized handles; the raw first-probe is intentional (try literal dir, then _canonicalize_handle fallback in body); wrapping here would double-fold the composed handle; PERMANENT fixture. read-side-seam-primary-primitive-closure-01KYKMMT WP03 T016 re-pointed this call at the module-private leaf _compose_primary_feature_dir (was primary_feature_dir_for_mission), same semantic raw-probe, new literal callee name."
   file: src/specify_cli/missions/_read_path_resolver.py
-  token: primary_dir = primary_feature_dir_for_mission ( repo_root , handle )
+  token: primary_dir = _compose_primary_feature_dir ( repo_root , handle )
 - qualname: MissionStatus._find_meta_path
-  line: 533
-  rationale: "WP05 SANCTION: bare_dir_name is returned by resolve_bare_modern_mission_dir_name (called on line 531) which returns meta_path.parent.name -- the actual on-disk composed dir name (e.g. 'demo-feature-01ABCDEF'). This is a feature_dir.name-equivalent; the gate cannot detect it via def-use (bare_dir_name is a local str variable, not a .name attribute read) but the invariant is guaranteed by the callee's implementation and docstring. Already-canonical by provenance."
+  line: 534
+  rationale: "WP05 SANCTION: bare_dir_name is returned by resolve_bare_modern_mission_dir_name (called on line 521) which returns meta_path.parent.name -- the actual on-disk composed dir name (e.g. 'demo-feature-01ABCDEF'). This is a feature_dir.name-equivalent; the gate cannot detect it via def-use (bare_dir_name is a local str variable, not a .name attribute read) but the invariant is guaranteed by the callee's implementation and docstring. Already-canonical by provenance. read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): re-pointed at the module-private leaf _compose_primary_feature_dir (was primary_feature_dir_for_mission) -- WP08 deleted the public wrapper this call used; CANONICALIZER_PRIMITIVE_NAMES already recognises the leaf by literal name, so the token moves with it (precedent: WP03 77226250f)."
 
   file: src/specify_cli/status/aggregate.py
-  token: composed_primary = primary_feature_dir_for_mission ( repo_root , bare_dir_name )
+  token: composed_primary = _compose_primary_feature_dir ( repo_root , bare_dir_name )
 coord_authority:
   # WP02 (T008/T014): ``mark_status:1807`` is ROUTED -- its write leg now uses the
   # kind-aware resolve_planning_read_dir(kind=TASKS_INDEX) (closes #2154), so it is

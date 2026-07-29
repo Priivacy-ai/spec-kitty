@@ -130,11 +130,17 @@ class TestAgentProfileModel:
         with pytest.raises(ValidationError):
             AgentProfile(**_BASE)
 
-    def test_both_keys_roles_wins(self):
+    def test_both_keys_is_a_load_error(self):
+        """Re-pinned by WP04 (FR-004): "roles wins" was a silent discard.
+
+        The old contract let a profile declare two contradictory role sources
+        and resolved it by throwing one away without telling anyone. The setup
+        is unchanged; only the assertion moved to the loud outcome.
+        """
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
-            p = AgentProfile(**{**_BASE, "roles": ["architect"], "role": "implementer"})
-        assert p.roles == [Role.ARCHITECT]
+            with pytest.raises(ValidationError, match="role"):
+                AgentProfile(**{**_BASE, "roles": ["architect"], "role": "implementer"})
 
     def test_avatar_present(self):
         p = AgentProfile(**_BASE, roles=["implementer"],

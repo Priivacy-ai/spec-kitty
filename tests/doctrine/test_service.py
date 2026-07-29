@@ -57,8 +57,11 @@ def test_service_loads_all_repositories_from_built_in_defaults(tmp_path: Path) -
     )
     _write_yaml(
         built_in_root / "agent_profiles" / "built-in" / "test.agent.yaml",
+        # ``personality-traits`` used to sit here. It is not an AgentProfile
+        # field and never was — it loaded and was discarded, which is exactly
+        # the silence WP04's ``extra="forbid"`` closes (FR-004).
         {"profile-id": "test-agent", "name": "Test Agent", "roles": ["implementer"],
-         "personality-traits": ["diligent"], "directive-references": [],
+         "directive-references": [],
          "purpose": "Test agent for unit tests.",
          "specialization": {
              "primary-focus": "testing",
@@ -214,7 +217,8 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(tmp_pat
 # ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission.
 # The Directive model no longer carries inline ``tactic_refs``; cross-artifact
 # relationships are expressed exclusively via edges in
-# ``src/doctrine/graph.yaml`` and are validated by the DRG cycle/shape tests.
+# the per-kind DRG fragments (``src/doctrine/<kind>.graph.yaml``) and are
+# validated by the DRG cycle/shape tests.
 
 
 def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_match(

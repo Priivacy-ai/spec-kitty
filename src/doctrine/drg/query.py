@@ -9,9 +9,41 @@ over :func:`walk_edges` for the charter resolver/compiler cutover.
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
+
+
+def _empty_buckets() -> dict[NodeKind, list[str]]:
+    """One bucket per :class:`NodeKind`, seeded from the enum itself.
+
+    Totality is what closes the drop, and it is structural: the seed is
+    ``NodeKind``, so a member added tomorrow gets a bucket without anyone
+    editing this module.
+    """
+    return {kind: [] for kind in NodeKind}
+
+
+#: Legacy named fields, keyed by the field name so this table can never itself
+#: become a partial kind-keyed lookup (the failure mode
+#: ``tests/doctrine/drg/test_kind_mapping_totality.py`` exists to catch). It is
+#: deliberately *not* the source of totality -- :func:`_empty_buckets` is. This
+#: only records which kinds additionally answer to a named attribute, so the
+#: two surfaces stay one truth.
+_KIND_BY_LEGACY_FIELD: dict[str, NodeKind] = {
+    "directives": NodeKind.DIRECTIVE,
+    "tactics": NodeKind.TACTIC,
+    "paradigms": NodeKind.PARADIGM,
+    "styleguides": NodeKind.STYLEGUIDE,
+    "toolguides": NodeKind.TOOLGUIDE,
+    "procedures": NodeKind.PROCEDURE,
+    "agent_profiles": NodeKind.AGENT_PROFILE,
+    "mission_step_contracts": NodeKind.MISSION_STEP_CONTRACT,
+    "templates": NodeKind.TEMPLATE,
+    "assets": NodeKind.ASSET,
+}
 
 
 @dataclass(frozen=True)
@@ -140,6 +172,23 @@ class ResolveTransitiveRefsResult:
 
     Each per-kind list is returned sorted lexicographically so that downstream
     rendering is deterministic.
+
+    Totality (WP03 of ``doctrine-silence-guards-01KYFV7Q``, FR-003/SC-002)
+    ---------------------------------------------------------------------
+    The named fields cover ten of :class:`NodeKind`'s sixteen members, so
+    bucketing that reads only those fields discarded ``action``,
+    ``anti_pattern``, ``glossary``, ``glossary_pack``, ``glossary_scope`` and
+    ``mission_type`` -- kinds the shipped graph carries *today*, not
+    hypothetical ones. :attr:`by_kind` is the total view: one entry for every
+    member, so nothing can fall out and a kind added later is carried without
+    touching this class.
+
+    Loudness here is *totality*, not an exception, and that is deliberate.
+    The frozen contract at
+    ``kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/contracts/resolve-transitive-refs.contract.md``
+    (:89, :204) states this function records rather than raises; raising on
+    ``anti_pattern`` would also break the live graph. A result that loses
+    nothing has no shortfall left to announce.
     """
 
     directives: list[str] = field(default_factory=list)
@@ -157,6 +206,38 @@ class ResolveTransitiveRefsResult:
     # passed :func:`doctrine.drg.validator.assert_valid`, since the validator
     # rejects dangling targets at load time.
     unresolved: list[tuple[str, str]] = field(default_factory=list)
+    #: Bare IDs bucketed by *every* :class:`NodeKind`, including the six with
+    #: no named field above. Callers that must not lose a kind read this.
+    by_kind: Mapping[NodeKind, list[str]] = field(default_factory=_empty_buckets)
+
+    def __post_init__(self) -> None:
+        """Reconcile the named fields and :attr:`by_kind` into one truth.
+
+        Callers still construct this result with named keyword arguments only
+        (``charter.compiler``, ``charter.reference_resolver``). Left alone,
+        those instances would expose a populated ``directives`` beside an empty
+        ``by_kind`` -- closing one silent drop by opening another for whoever
+        reads the new surface. So whichever side was supplied fills the other,
+        and supplying both with conflicting content is a programming error
+        rather than a silently-picked winner.
+        """
+        buckets = _empty_buckets()
+        for kind, ids in self.by_kind.items():
+            buckets[kind] = list(ids)
+
+        for field_name, kind in _KIND_BY_LEGACY_FIELD.items():
+            named: list[str] = getattr(self, field_name)
+            bucketed = buckets[kind]
+            if named and bucketed and named != bucketed:
+                raise ValueError(
+                    f"ResolveTransitiveRefsResult.{field_name} and "
+                    f"by_kind[{kind.value}] disagree: {named!r} vs {bucketed!r}"
+                )
+            reconciled = bucketed or list(named)
+            buckets[kind] = reconciled
+            object.__setattr__(self, field_name, reconciled)
+
+        object.__setattr__(self, "by_kind", MappingProxyType(buckets))
 
     @property
     def is_complete(self) -> bool:
@@ -194,12 +275,19 @@ def resolve_transitive_refs(
 
     Returns:
         :class:`ResolveTransitiveRefsResult` with per-kind bucketed bare IDs.
-        Each per-kind list is sorted lexicographically.
+        Each per-kind list is sorted lexicographically. Every
+        :class:`NodeKind` is represented in
+        :attr:`~ResolveTransitiveRefsResult.by_kind`, including the six with no
+        named field; a visited node is never discarded for being of an
+        unexpected kind.
 
     Raises:
         Nothing. ``requires`` cycles are rejected at load time by
         :func:`assert_valid`; cycles in other relation kinds are benign
-        under BFS-with-visited-set inside :func:`walk_edges`.
+        under BFS-with-visited-set inside :func:`walk_edges`. Unknown start
+        URNs are recorded in ``unresolved``, per the frozen contract. WP03 of
+        ``doctrine-silence-guards-01KYFV7Q`` kept that promise intact by
+        closing the kind drop with totality rather than an exception.
     """
     visited_urns = walk_edges(
         graph,
@@ -208,7 +296,7 @@ def resolve_transitive_refs(
         max_depth=max_depth,
     )
 
-    buckets: dict[NodeKind, list[str]] = {k: [] for k in NodeKind}
+    buckets = _empty_buckets()
     unresolved: list[tuple[str, str]] = []
 
     for urn in visited_urns:
@@ -227,16 +315,8 @@ def resolve_transitive_refs(
         buckets[kind].sort()
     unresolved.sort()
 
-    return ResolveTransitiveRefsResult(
-        directives=buckets[NodeKind.DIRECTIVE],
-        tactics=buckets[NodeKind.TACTIC],
-        paradigms=buckets[NodeKind.PARADIGM],
-        styleguides=buckets[NodeKind.STYLEGUIDE],
-        toolguides=buckets[NodeKind.TOOLGUIDE],
-        procedures=buckets[NodeKind.PROCEDURE],
-        agent_profiles=buckets[NodeKind.AGENT_PROFILE],
-        mission_step_contracts=buckets[NodeKind.MISSION_STEP_CONTRACT],
-        templates=buckets[NodeKind.TEMPLATE],
-        assets=buckets[NodeKind.ASSET],
-        unresolved=unresolved,
-    )
+    # Hand-listing the ten named fields here is what lost the other six
+    # (WP03/T013). Pass the total bucket map instead and let
+    # ``__post_init__`` project the legacy names off it, so the enumeration
+    # exists in exactly one place and that place is seeded from ``NodeKind``.
+    return ResolveTransitiveRefsResult(unresolved=unresolved, by_kind=buckets)

@@ -148,35 +148,6 @@ fix: handle `inline code` in commit body safely
 EOF
 ```
 
-## Token-optimized proxies
-
-- Prefer `rtk` (Rust Token Killer) as a CLI proxy for common dev operations when available. It reduces agent token consumption by 60-90% on operations like `git status`, `git diff`, `git log`, and file listing.
-- `rtk` wraps standard commands and filters output to only the information agents need, eliminating noise that wastes context window budget.
-- Use `rtk` meta commands directly (`rtk gain`, `rtk discover`) to inspect token savings and identify missed optimization opportunities.
-- When `rtk` is installed, a hook-based rewrite layer can transparently redirect standard commands (e.g., `git status` → `rtk git status`) without requiring agents to change their behavior. This is the preferred enforcement path for agents that support pre-tool-use hooks.
-
-Examples:
-
-```bash
-rtk gain                    # Show cumulative token savings
-rtk gain --history          # Show per-command savings breakdown
-rtk discover                # Analyze session history for missed rtk opportunities
-rtk git status              # Token-optimized git status
-rtk git diff                # Token-optimized git diff
-rtk --version               # Verify installation
-```
-
-### Hook-based enforcement
-
-Some agentic tooling providers (e.g., Claude Code) support pre-tool-use hooks that can intercept and rewrite shell commands before execution. When available, this provides a deterministic enforcement path: the hook rewrites eligible commands to their `rtk` equivalents transparently, without requiring the agent to be aware of `rtk` at all.
-
-**Important**: Hook-based enforcement is NOT universally supported across all agent tool providers. It must not be relied on as the sole mechanism for tooling guidance. The directive and toolguide remain the primary guidance layer — hooks are an optional acceleration when the host environment supports them.
-
-Example hook pattern (Claude Code `PreToolUse`):
-```
-git status  →  hook intercepts  →  rtk git status  →  agent receives filtered output
-```
-
 ## Windows and WSL
 
 - Prefer WSL for repository-scale Unix-oriented workflows on Windows when it materially improves tool availability or throughput.

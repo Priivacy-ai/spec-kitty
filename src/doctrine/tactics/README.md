@@ -24,7 +24,10 @@ Files use the pattern `kebab-id.tactic.yaml` (e.g., `zombies-tdd.tactic.yaml`).
 | `five-paradigm-parallel-debugging` | 6 | Parallel recurring-bug investigation across five independent debugging paradigms |
 
 Tactics are referenced by directives and procedures via typed edges in
-`src/doctrine/graph.yaml` (relation `requires`). Inline `tactic_refs` fields
+the per-kind DRG fragments (relation `requires`). An edge lives in the
+fragment for its *source* kind, so those edges are in
+`src/doctrine/directive.graph.yaml` and `src/doctrine/procedure.graph.yaml`.
+Inline `tactic_refs` fields
 were removed in Phase 1 excision (mission
 `excise-doctrine-curation-and-inline-references-01KP54J6` WP02); the graph is
 now the sole authority for cross-artifact relationships.
