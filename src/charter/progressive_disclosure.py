@@ -317,18 +317,22 @@ def build_disclosure_payload(
     return out
 
 
+#: Public API surface (landing-fold E1, PR #3070): only the names an external
+#: caller actually reaches. ``build_disclosure_payload``, ``collect_typed_artifacts``
+#: and ``requires_closure`` are called directly from ``charter.context`` (the
+#: live wiring); ``partition_delivery`` is genuinely forward API with no ``src/``
+#: caller yet (see ``tests/architectural/test_no_dead_symbols.py``'s
+#: ``_CATEGORY_C_DELIVERY_RAIL_FORWARD_API``). Everything else this module
+#: defines (``bare_id``, ``edge_to_reference``, ``outbound_references``,
+#: ``link_references``, ``reconstruct_urns``, ``artifact_to_dict``,
+#: ``DELIVERY_INLINE``/``DELIVERY_LINK``/``STATED_DEFAULT_WHEN``) is an
+#: implementation detail reached only intra-module (by the functions above) or
+#: from this module's own unit tests via direct module-attribute access — those
+#: reads do not depend on ``__all__`` membership, so demoting these names here
+#: does not break anything.
 __all__ = [
-    "DELIVERY_INLINE",
-    "DELIVERY_LINK",
-    "STATED_DEFAULT_WHEN",
-    "artifact_to_dict",
     "build_disclosure_payload",
-    "bare_id",
     "collect_typed_artifacts",
-    "edge_to_reference",
-    "link_references",
-    "outbound_references",
     "partition_delivery",
-    "reconstruct_urns",
     "requires_closure",
 ]
