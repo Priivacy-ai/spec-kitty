@@ -30,6 +30,9 @@ create_intent:
 owned_files:
 - src/specify_cli/delivery/dispatcher.py
 - src/specify_cli/delivery/selection.py
+- tests/delivery/test_dispatcher.py
+- tests/delivery/test_liveness_predicate_before_limit_3030.py
+- tests/delivery/test_dispatch_honours_drain_blocked_3031.py
 ---
 
 # WP06 — Filtered read and per-project selection
