@@ -14,6 +14,13 @@ the original #2056 base (`c3814ec5a`).
 > below is amended in place to track the live 9-subcommand surface rather than treated as
 > append-only drift, per DIRECTIVE_044 (canonical sources / no split-brain contract copies).
 
+> **Amendment (write-side-seam-matrix-tracer-01KYP3MH WP04, FR-001/FR-002/FR-012):** a 10th
+> subcommand, `acceptance-verdict`, was added afterward — records one acceptance-criterion
+> verdict into the mission's `acceptance-matrix.json`, routed through the WP03 write seam
+> (`specify_cli.acceptance.matrix.write_and_commit_acceptance_matrix`). The table below is
+> amended in place to track the live 10-subcommand surface, same DIRECTIVE_044 rationale as the
+> `repair` amendment above.
+
 ## Subcommands, args, flags
 
 | Subcommand (CLI name) | def | Positional | Options (exact flags) |
@@ -27,6 +34,7 @@ the original #2056 base (`c3814ec5a`).
 | `merge` | `merge_feature` | — | `--mission`, `--target`, `--strategy`, `--push`, `--dry-run`, `--keep-branch`, `--keep-worktree`, `--auto-retry/--no-auto-retry` |
 | `finalize-tasks` | `finalize_tasks` | — | `--mission`, `--json`, `--validate-only`, `--target-branch` |
 | `repair` | `repair` | — | `--mission` |
+| `acceptance-verdict` | `acceptance_verdict` | — | `--mission`, `--criterion`, `--result`, `--verification-method`, `--actor`, `--evidence`, `--json` |
 
 ## Envelope & exit-code invariants (must also be pinned)
 
@@ -42,7 +50,7 @@ the original #2056 base (`c3814ec5a`).
 
 ## Golden test assertions (WP01)
 
-1. `CliRunner` invoking `app` with `--help` lists exactly the 9 command names above.
+1. `CliRunner` invoking `app` with `--help` lists exactly the 10 command names above.
 2. For each subcommand, `--help` lists exactly the flags in the table above (names + defaults).
 3. Representative success JSON envelope keys are asserted for at least `branch-context --json` and
    `check-prerequisites --json`.
