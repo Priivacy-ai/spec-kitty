@@ -140,6 +140,14 @@ class _ActionDoctrineBundle:
     # without re-loading and re-filtering the graph.
     merged: DRGGraph | None = None
     roots: tuple[str, ...] = ()
+    # WP15/D2a: every URN actually visited while resolving the action node
+    # (``resolve_context``'s raw ``artifact_urns``, before the NodeKind
+    # delivery table drops never-delivered kinds like ``paradigm``). Carried
+    # separately from ``roots`` so progressive disclosure can use excluded-kind
+    # pass-through hops as reference sources without widening the
+    # requires-eager/inline set (see ``progressive_disclosure.link_references``
+    # ``bridge_urns``).
+    bridge_urns: tuple[str, ...] = ()
 
 
 class _DirectiveLike(Protocol):
@@ -1079,6 +1087,7 @@ def _load_action_doctrine_bundle(
     ids_by_slot: Mapping[str, tuple[str, ...]] = {}
     merged_graph: DRGGraph | None = None
     roots: tuple[str, ...] = ()
+    bridge_urns: tuple[str, ...] = ()
     # A typeless mission has no action:<type>/<action> node to resolve; skip the
     # DRG action resolution entirely so no doctrine is inferred (FR-003a).
     if resolved_type is not None:
@@ -1106,6 +1115,18 @@ def _load_action_doctrine_bundle(
                 *(f"tactic:{t}" for t in selected_tactics),
                 *(f"paradigm:{p}" for p in selected_paradigms),
             )
+            # D2a: ``resolve_context``'s raw ``artifact_urns`` can reach a
+            # delivered (slotted) artefact only through a node of an
+            # excluded kind (e.g. ``paradigm:brownfield-onboarding``
+            # ``suggests``-> ``tactic:test-to-system-reconstruction``, with no
+            # paradigm selected). ``_classify_artifact_urns`` correctly never
+            # delivers the paradigm itself, but that leaves it out of both
+            # ``roots`` and ``delivered`` — so ``link_references`` can never
+            # walk its outbound edge and the tactic ends up delivered yet
+            # neither inlined nor named, silently. Carrying the raw resolved
+            # set as bridge URNs restores it as a reference source without
+            # making it delivered or inline.
+            bridge_urns = tuple(resolved.artifact_urns)
         except DRGLoadError as exc:
             _LOGGER.warning(
                 "DRG action resolution skipped for %s/%s: %s. "
@@ -1126,6 +1147,7 @@ def _load_action_doctrine_bundle(
         service=_build_doctrine_service(repo_root, org_roots=[org_root] if org_root else None),
         merged=merged_graph,
         roots=roots,
+        bridge_urns=bridge_urns,
     )
 
 
@@ -3444,6 +3466,7 @@ def build_charter_context_json(
             roots=bundle.roots,
             include_all=include_all,
             body_of=_jsonable_artifact_value,
+            bridge_urns=bundle.bridge_urns,
         )
     )
     return payload
