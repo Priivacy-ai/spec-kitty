@@ -81,6 +81,13 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     from specify_cli.sync import emitter as emitter_mod
 
     monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
+    # #3030 T006: capture is now gated on per-project consent, and WP01 made an
+    # unrecorded checkout a denial. This test is about envelope shape surviving
+    # capture→drain, so it consents explicitly; the non-consenting path is pinned
+    # by tests/sync/test_sync_consent_capture_gap_3031.py.
+    monkeypatch.setattr(
+        emitter_mod, "is_sync_enabled_for_checkout", lambda *a, **k: True
+    )
     em = _stub_emitter()
 
     inner = {"error_type": "runtime", "error_message": "boom", "wp_id": "WP01"}

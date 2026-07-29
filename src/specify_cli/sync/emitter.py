@@ -1955,8 +1955,34 @@ class EventEmitter:
         ``aggregate_id``, ``payload``, ``timestamp``, ``node_id``,
         ``lamport_clock``, ``schema_version``) survives the capture→drain path.
         The ``event_id``/``event_type`` journal columns still index the envelope.
+
+        **Consent gates the write itself (#3030 T006, NFR-005 as amended
+        2026-07-29).** Capture-first durability applies only to *consenting*
+        projects. A project whose checkout has not consented never reaches the
+        journal at all — previously its event was written and merely stamped
+        with a ``drain_blocked_reason``, which left every unrelated local
+        project's payloads pooled in one machine-global store. This is a
+        deliberate reversal of the unconditional-write invariant that
+        ``event_journal/journal.py`` documents, not an oversight.
+
+        The refusal lives here, at the caller, on purpose: it is the only
+        production entry point for a capture, and gating inside
+        ``capture_teamspace_bound`` via its unused ``skip_journal`` parameter
+        would leave every real capture unconditional while looking fixed.
         """
         try:
+            gate = self._capture_gate_state(team_slug)
+            if not gate.checkout_enabled:
+                # Refuse the write, loudly enough to be diagnosable but without
+                # failing emission — the local command still succeeds, exactly
+                # as it does when a delivery gate blocks.
+                logger.debug(
+                    "Journal capture refused for event %s (%s): checkout has not "
+                    "consented to sync (#3030 NFR-005)",
+                    event_id,
+                    event_type,
+                )
+                return
             payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
             capture_teamspace_bound(
                 journal=get_journal(team_slug=team_slug),
@@ -1964,7 +1990,7 @@ class EventEmitter:
                 event_type=event_type,
                 payload=payload_bytes,
                 occurred_at=occurred_at,
-                gate=self._capture_gate_state(team_slug),
+                gate=gate,
             )
         except Exception as exc:
             _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")

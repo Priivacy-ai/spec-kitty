@@ -31,19 +31,25 @@ from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 from .models import (
+    COUNT_MISSING_IDENTITY_SQL,
     COUNT_SQL,
     CREATE_COALESCE_INDEX_SQL,
+    CREATE_PROJECT_INDEX_SQL,
     CREATE_TABLE_SQL,
     CREATE_TYPE_INDEX_SQL,
     DRAIN_BLOCKED_MISSING_AUTH,
     DRAIN_BLOCKED_MISSING_TEAM,
     DRAIN_BLOCKED_SAAS_DISABLED,
+    IDENTITY_COLUMNS,
     INSERT_SQL,
     MARK_ARCHIVED_SQL,
     OLDEST_CREATED_AT_SQL,
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
+    SELECT_MISSING_IDENTITY_SQL,
+    SET_IDENTITY_SQL,
+    TABLE_NAME,
     Event,
     event_to_params,
     row_to_event,
@@ -209,9 +215,88 @@ class EventJournal:
     def _ensure_schema(self) -> None:
         with contextlib.closing(self._connect()) as conn:
             conn.execute(CREATE_TABLE_SQL)
+            # #3030 T010: must run BEFORE any statement derived from
+            # ``_COLUMN_LIST``. ``CREATE TABLE IF NOT EXISTS`` is a no-op on an
+            # existing file, so without this every journal written before the
+            # identity columns existed would raise ``no such column`` on the
+            # first read.
+            self._migrate_add_identity_columns(conn)
             conn.execute(CREATE_COALESCE_INDEX_SQL)
             conn.execute(CREATE_TYPE_INDEX_SQL)
+            conn.execute(CREATE_PROJECT_INDEX_SQL)
             conn.commit()
+
+    @staticmethod
+    def _migrate_add_identity_columns(conn: sqlite3.Connection) -> None:
+        """Add the project-identity columns to journals that predate them.
+
+        Additive and idempotent, mirroring the in-repo precedent at
+        ``sync/queue.py`` (``PRAGMA table_info`` → ``ALTER TABLE … ADD COLUMN``).
+        Nothing is dropped, retyped or rewritten, so an older CLI keeps reading
+        and writing the same file (C-001, C-002).
+
+        Lives inside ``_ensure_schema`` deliberately: that runs unconditionally
+        on construction, so ``get_journal``'s instance cache cannot skip it.
+        """
+        existing = {
+            row[1] for row in conn.execute(f"PRAGMA table_info({TABLE_NAME})")
+        }
+        for column in IDENTITY_COLUMNS:
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN {column} TEXT")  # noqa: S608 - identifiers are module constants, not input
+        conn.commit()
+
+    def iter_rows_missing_identity(self) -> list[tuple[str, bytes]]:
+        """Return ``(event_id, payload)`` for rows with no stored identity yet.
+
+        Storage-level seam for the #3030 T012 backfill. The journal deliberately
+        does not resolve identity itself — that chain lives in
+        ``sync/project_identity.py`` and the journal must stay ignorant of
+        consent policy (C-003). Restricting to ``project_uuid IS NULL`` is what
+        makes a resumed backfill idempotent.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                (str(event_id), bytes(payload) if payload is not None else b"")
+                for event_id, payload in conn.execute(SELECT_MISSING_IDENTITY_SQL)
+            ]
+
+    def set_project_identity(
+        self, entries: list[tuple[str, str | None, str | None]]
+    ) -> int:
+        """Write resolved identity for *entries* as one transaction.
+
+        Each entry is ``(event_id, project_uuid, project_slug)``. Returns the
+        number of rows actually updated. Only ever fills a NULL uuid — an
+        existing value is never overwritten, so a re-run cannot change a value
+        the selection predicate already trusts. Nothing else on the row is
+        touched (NFR-004), and no row is ever deleted (C-002).
+
+        Batched deliberately: a per-row commit over a 42-day history would be
+        thousands of fsyncs, and a partial run must leave every remaining row
+        NULL — i.e. unselectable — rather than *appearing* consented.
+        """
+        if not entries:
+            return 0
+        with contextlib.closing(self._connect()) as conn:
+            cursor = conn.executemany(
+                SET_IDENTITY_SQL,
+                [(uuid, slug, event_id) for event_id, uuid, slug in entries],
+            )
+            updated = cursor.rowcount
+            conn.commit()
+        return max(updated, 0)
+
+    def count_missing_identity(self) -> int:
+        """Count rows with no resolvable project identity (#3030 T013/FR-011).
+
+        These are permanently unselectable by the consent predicate, so the
+        count is what makes fail-closed denial observable instead of silent
+        data loss. WP07 surfaces it.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            row = conn.execute(COUNT_MISSING_IDENTITY_SQL).fetchone()
+        return int(row[0]) if row else 0
 
     def append(self, event: Event) -> None:
         """Append an event as a distinct row (idempotent on ``event_id``).
@@ -382,10 +467,31 @@ def capture_teamspace_bound(
 ) -> Event:
     """Durably capture a Teamspace-bound fact *before* the delivery gates.
 
-    The journal write is unconditional for Teamspace-bound families; ``gate``
-    only decides the recorded ``drain_blocked_reason`` (delivery eligibility),
-    never whether the write happens (FR-017, contract §2). A request to skip the
-    write for a Teamspace-bound family fails loudly (C-008, T018).
+    For every event that reaches this function the write is unconditional:
+    ``gate`` decides only the recorded ``drain_blocked_reason`` (delivery
+    eligibility), never whether the write happens (FR-017, contract §2). A
+    request to skip the write for a Teamspace-bound family fails loudly
+    (C-008, T018).
+
+    **Amended 2026-07-29 (#3030 NFR-005, operator decision).** "Unconditional"
+    is now scoped to events that get here. Whether a capture happens at all is
+    decided *upstream* by per-project consent: ``EventEmitter._capture_to_journal``
+    (``sync/emitter.py``) refuses to call this function when the checkout has
+    not consented, so a non-consenting project's events never reach the journal.
+    Capture-first durability therefore applies to consenting projects only.
+
+    This deliberately reverses the original contract, which held that a
+    Teamspace-bound fact must survive even when every gate blocks. The reason:
+    that invariant made the journal a machine-global pool of every local
+    project's payloads, and one consenting checkout shipped the lot (the
+    2026-07-27 incident, 1,322 events from 5 never-opted-in projects). The
+    invariant is preserved *within* a consenting project and abandoned across
+    project boundaries.
+
+    Note the axis: consent, not Teamspace-boundedness. Nothing here decides an
+    event is not Teamspace-bound in order to skip it — ``TeamspaceBoundDropError``
+    still fires for that, and the consent refusal happens before this function
+    is ever called.
     """
     if is_teamspace_bound and skip_journal:
         raise TeamspaceBoundDropError(event_id=event_id)

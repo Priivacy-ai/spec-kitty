@@ -25,6 +25,19 @@ COL_COALESCE_KEY = "coalesce_key"
 COL_ARCHIVED_AT = "archived_at"
 COL_DRAIN_BLOCKED_REASON = "drain_blocked_reason"
 
+# Project identity as a *derived projection* of the envelope (#3030 FR-006).
+# The authoritative identity stays in the payload; these columns exist so
+# consent is evaluable in SQL instead of by decoding every row (NFR-003).
+# They carry no target/receiver identity, so C-003's boundary holds: the
+# journal still knows nothing about *where* an event would be delivered.
+COL_PROJECT_UUID = "project_uuid"
+COL_PROJECT_SLUG = "project_slug"
+
+#: Columns added after the original 8-column schema shipped. ``_ensure_schema``
+#: ALTERs any journal file that predates them (#3030 T010). Additive and
+#: nullable only (C-001), never dropped or retyped (C-002).
+IDENTITY_COLUMNS: tuple[str, ...] = (COL_PROJECT_UUID, COL_PROJECT_SLUG)
+
 # Canonical column order shared by INSERT params and SELECT projection so
 # ``journal.py`` never hand-codes column order (T013 step 4).
 ORDERED_COLUMNS: tuple[str, ...] = (
@@ -36,6 +49,8 @@ ORDERED_COLUMNS: tuple[str, ...] = (
     COL_COALESCE_KEY,
     COL_ARCHIVED_AT,
     COL_DRAIN_BLOCKED_REASON,
+    COL_PROJECT_UUID,
+    COL_PROJECT_SLUG,
 )
 
 _COLUMN_LIST = ", ".join(ORDERED_COLUMNS)
@@ -52,7 +67,9 @@ CREATE_TABLE_SQL = (
     f"    {COL_CREATED_AT} TEXT NOT NULL,\n"
     f"    {COL_COALESCE_KEY} TEXT,\n"
     f"    {COL_ARCHIVED_AT} TEXT,\n"
-    f"    {COL_DRAIN_BLOCKED_REASON} TEXT\n"
+    f"    {COL_DRAIN_BLOCKED_REASON} TEXT,\n"
+    f"    {COL_PROJECT_UUID} TEXT,\n"
+    f"    {COL_PROJECT_SLUG} TEXT\n"
     ")"
 )
 
@@ -64,6 +81,28 @@ CREATE_COALESCE_INDEX_SQL = (
 CREATE_TYPE_INDEX_SQL = (
     f"CREATE INDEX IF NOT EXISTS idx_{TABLE_NAME}_type_created "
     f"ON {TABLE_NAME} ({COL_EVENT_TYPE}, {COL_CREATED_AT})"
+)
+# #3030 NFR-003: the consent predicate must be an indexed lookup, not a
+# full-table payload decode. ``created_at`` trails the uuid so the filtered read
+# gets its FIFO ordering from the index too.
+CREATE_PROJECT_INDEX_SQL = (
+    f"CREATE INDEX IF NOT EXISTS idx_{TABLE_NAME}_project_created "
+    f"ON {TABLE_NAME} ({COL_PROJECT_UUID}, {COL_CREATED_AT})"
+)
+
+# Backfill seams (#3030 T012). Selection is restricted to rows that have no
+# stored identity yet, which is what makes a resumed run idempotent and keeps it
+# from re-deriving a value the predicate already trusts.
+SELECT_MISSING_IDENTITY_SQL = (
+    f"SELECT {COL_EVENT_ID}, {COL_PAYLOAD} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
+    f"WHERE {COL_PROJECT_UUID} IS NULL ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
+)
+SET_IDENTITY_SQL = (
+    f"UPDATE {TABLE_NAME} SET {COL_PROJECT_UUID} = ?, {COL_PROJECT_SLUG} = ? "  # noqa: S608 — identifiers are static module constants
+    f"WHERE {COL_EVENT_ID} = ? AND {COL_PROJECT_UUID} IS NULL"
+)
+COUNT_MISSING_IDENTITY_SQL = (
+    f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608 — identifiers are static module constants
 )
 
 # Re-capture is idempotent: a duplicate ``event_id`` is ignored, never updated
@@ -127,6 +166,8 @@ class Event:
     coalesce_key: str | None = None
     archived_at: str | None = None
     drain_blocked_reason: str | None = None
+    project_uuid: str | None = None
+    project_slug: str | None = None
 
 
 def event_to_params(event: Event) -> tuple[Any, ...]:
@@ -140,6 +181,8 @@ def event_to_params(event: Event) -> tuple[Any, ...]:
         event.coalesce_key,
         event.archived_at,
         event.drain_blocked_reason,
+        event.project_uuid,
+        event.project_slug,
     )
 
 
@@ -159,14 +202,22 @@ def row_to_event(row: tuple[Any, ...]) -> Event:
         coalesce_key=None if row[5] is None else str(row[5]),
         archived_at=None if row[6] is None else str(row[6]),
         drain_blocked_reason=None if row[7] is None else str(row[7]),
+        project_uuid=None if row[8] is None else str(row[8]),
+        project_slug=None if row[9] is None else str(row[9]),
     )
 
 
 __all__ = [
+    "COUNT_MISSING_IDENTITY_SQL",
     "CREATE_COALESCE_INDEX_SQL",
+    "CREATE_PROJECT_INDEX_SQL",
     "CREATE_TABLE_SQL",
     "CREATE_TYPE_INDEX_SQL",
     "COUNT_SQL",
+    "IDENTITY_COLUMNS",
+    "SELECT_MISSING_IDENTITY_SQL",
+    "SET_IDENTITY_SQL",
+    "TABLE_NAME",
     "DRAIN_BLOCKED_DAEMON_LOCK",
     "DRAIN_BLOCKED_MISSING_AUTH",
     "DRAIN_BLOCKED_MISSING_TEAM",

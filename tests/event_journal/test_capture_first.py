@@ -164,6 +164,26 @@ def test_journal_path_is_producer_scoped_not_server_scoped(tmp_path: Path) -> No
 # ── live emit-path integration (capture-first is actually wired) ─────
 
 
+@pytest.fixture
+def _consenting_checkout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Open the per-project consent axis for the emit-path tests below.
+
+    Capture-first means the journal write precedes the *delivery* gates — SaaS
+    enablement, auth, team resolution. Since #3030 T006 it no longer outranks
+    *consent*: a checkout that has not consented never reaches the journal
+    (NFR-005 as amended), and WP01 made absence of a consent record a denial, so
+    an unconfigured test checkout now resolves to non-consenting.
+
+    These tests are about the ordering property, not about consent, so they
+    consent explicitly and keep asserting exactly what they always did. The
+    non-consenting half of the contract is pinned separately by
+    ``tests/sync/test_sync_consent_capture_gap_3031.py``.
+    """
+    from specify_cli.sync import emitter as emitter_mod
+
+    monkeypatch.setattr(emitter_mod, "is_sync_enabled_for_checkout", lambda *a, **k: True)
+
+
 def _stub_emitter():
     from specify_cli.sync.emitter import EventEmitter
     from specify_cli.sync.git_metadata import GitMetadata
@@ -178,6 +198,7 @@ def _stub_emitter():
 
 def test_emit_writes_journal_before_delivery_gates_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
+    _consenting_checkout: None,
 ) -> None:
     from specify_cli.sync import emitter as emitter_mod
 
@@ -200,6 +221,7 @@ def test_emit_writes_journal_before_delivery_gates_when_disabled(
 
 def test_emit_n_events_when_disabled_yields_n_distinct_journal_rows(
     monkeypatch: pytest.MonkeyPatch,
+    _consenting_checkout: None,
 ) -> None:
     from specify_cli.sync import emitter as emitter_mod
 

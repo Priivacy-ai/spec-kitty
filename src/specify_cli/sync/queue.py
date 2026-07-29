@@ -33,6 +33,7 @@ import toml
 
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
+from specify_cli.sync.project_identity import resolve_event_project_uuid
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle
     from specify_cli.sync.target_authority import ResolvedSyncTarget
@@ -1715,11 +1716,11 @@ class OfflineQueue:
                 except (TypeError, ValueError):
                     continue
                 payload = event.get("payload") or {}
-                event_project_uuid = (
-                    _resolve_event_or_payload(event, payload, "namespace.project_uuid")
-                    or event.get("project_uuid")
-                    or payload.get("project_uuid")
-                )
+                # #3030 T011: delegate to the single definition site. The
+                # private three-site chain that used to live here missed
+                # ``payload.subject.project_uuid`` and would have disagreed with
+                # the backfill and the selection predicate (NFR-001).
+                event_project_uuid = resolve_event_project_uuid(event, payload)
                 if str(event_project_uuid or "") == project_uuid:
                     matching_ids.append(str(event_id))
 
