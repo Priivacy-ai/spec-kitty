@@ -17,6 +17,8 @@ Rows are keyed by a **canonical identity**, not by line position or dict order:
 
 Two rows with the same canonical key are the *same* row; the merge reconciles their fields. Distinct keys union.
 
+**Intra-side collision guard:** if two *distinct* raw rows on **one** side (`%A`, `%B`, or `%O`) normalize to the same canonical key (e.g. `GH-1726` and `#1726` in the same file), the driver MUST NOT silently collapse them — it raises a structured error (or deterministically dedupes with a recorded warning). A silent collapse drops a row and is a clobber by another name.
+
 ## Per-row reconciliation (base-aware three-way)
 For each key present in `%O ∪ %A ∪ %B`:
 1. **Added on exactly one side** (absent in `%O`, present on one of `%A`/`%B`) → take the added row.

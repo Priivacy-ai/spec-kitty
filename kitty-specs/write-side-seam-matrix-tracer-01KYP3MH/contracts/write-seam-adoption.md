@@ -13,7 +13,7 @@ Every artifact write that today hand-derives a destination or takes a caller-res
 - `status/emit.py` write (#2966 slice, route-only per C-003).
 
 ## Do NOT route — by-design sanctioned coord writes (keep the gate non-vacuous)
-`widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765` are **sanctioned** kind-blind `resolve_feature_dir_for_mission` coord writes. They MUST stay on the kind-blind resolver: the coord-authority gate's `COORD_AUTHORITY_WRITE_FLOOR` counts them to prove non-vacuity (`test_resolution_authority_gates.py:704-723/1661-1716`). Routing all four → live write census 0 → the gate asserts over an empty set → **vacuous** (forbidden by ADR `2026-06-26-1`). Routing `emit.py` alone drops the census 4→3; re-pin the floor to 3 (coord-authority-gate.md Move A).
+`widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765` are **sanctioned** kind-blind `resolve_feature_dir_for_mission` coord writes. They MUST stay on the kind-blind resolver: the coord-authority gate's `COORD_AUTHORITY_WRITE_FLOOR` counts them to prove non-vacuity (`test_resolution_authority_gates.py:704-723/1661-1716`). Routing all four → live write census 0 → the gate asserts over an empty set → **vacuous** (forbidden by ADR `2026-06-26-1-single-authority-seam-and-call-site-gate`). Routing `emit.py` alone drops the census 4→3; re-pin the floor to 3 (coord-authority-gate.md Move A).
 
 **Non-vacuity invariant:** the live kind-blind coord-write census MUST NOT drop below the re-pinned floor (3). A future mission that wants to route one of the three MUST add a replacement by-design site or lower the floor with the same rationale + a preserved non-vacuity proof.
 

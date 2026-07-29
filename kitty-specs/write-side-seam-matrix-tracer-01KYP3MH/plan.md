@@ -100,13 +100,13 @@ docs/adr/3.x/                              # NEW ADR: lane-origin base ref (FR-0
 - **Relevant requirements**: FR-010 (#3055).
 - **Affected surfaces**: `decisions/emit.py`, `tests/architectural/test_resolution_authority_gates.py`, `resolution_gate_allowlist.yaml`, census floor/baseline.
 - **Sequencing/depends-on**: none. **Blocks ONLY the `decisions/emit.py` gate-route slice of IC-03.** The other writer-routing concerns (IC-04/05/06/07) route purely via `write_target`, are gate-invisible (D-6), and do NOT depend on Lane B.
-- **Risks**: interlocking ratchet — census floor 4→3, allowlist + by-design removal, baseline re-pin (four named tests are the red-first surface). **Only `decisions/emit.py` is routed off; the other three write sites (`widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765`) are by-design sanctioned coord writes that MUST stay on the kind-blind resolver so the floor stays non-vacuous.** Any gate-predicate widen (Move B) is an ADR amendment of `2026-06-26-1`, def-use gated, with an alias-bite non-vacuity test (never a name proxy).
+- **Risks**: interlocking ratchet — census floor 4→3, allowlist + by-design removal, baseline re-pin (four named tests are the red-first surface). **Only `decisions/emit.py` is routed off; the other three write sites (`widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765`) are by-design sanctioned coord writes that MUST stay on the kind-blind resolver so the floor stays non-vacuous.** Any gate-predicate widen (Move B) is an ADR amendment of `2026-06-26-1-single-authority-seam-and-call-site-gate`, def-use gated, with an alias-bite non-vacuity test (never a name proxy).
 
 ### IC-03 — Write-seam adoption core + true-bypass route (Lane C)
 
 - **Purpose**: One parameterized write-surface resolution (`write_target`) + one materialization authority (`commit_for_mission`); route the true bypass set onto it.
 - **Relevant requirements**: FR-007, FR-011, FR-012 (C-001).
-- **Affected surfaces**: caller-resolved-`feature_dir` matrix writers, **only `decisions/emit.py:71`** of the coord-authority-gate write sites (the other three — `widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765` — stay by-design on the kind-blind resolver, see IC-02), #2663 (`implement.py::_partition_files_for_commit`), `status/emit.py` (#2966 slice); Ledger-M16 leaf guard.
+- **Affected surfaces**: caller-resolved-`feature_dir` matrix writers, #2663 (`implement.py::_partition_files_for_commit`), `status/emit.py` (#2966 slice); Ledger-M16 leaf guard. NOTE: the `decisions/emit.py:71` routing landed wholly in **WP02** (atomic Move A) — it is not an IC-03/WP03 surface; the other three gate write sites stay by-design (IC-02).
 - **Sequencing/depends-on**: the `emit.py` slice depends on IC-02; the rest of the core is Lane-B-independent.
 - **Risks**: routing the seam's own engine is circular — target only the true bypasses; FR-011 must be a **zero-write refusal** (never fall back to writing `main`).
 
