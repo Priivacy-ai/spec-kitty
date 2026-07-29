@@ -5,7 +5,7 @@
 
 ## Summary
 
-Close the **write/gate side** of the artifact placement seam (the write twin of PR #3060's read-side closure) and, on top of it, make the acceptance/issue matrices **structured JSON** with deterministic write commands, a **row-aware merge driver**, a **lane-safe tracer writer**, and a **common-ancestor lane base** so mission state survives consolidation. This is primarily an **adoption** mission — `write_target`/`commit_for_mission` already exist (ADR `2026-06-24-1`) — plus the one genuine build (the tracer writer) and the matrix structural migration. Delivered across three isolated lanes: **A** (lane-base topology, ADR-first), **B** (coord-authority gate enabler, blocks C), **C** (writers + structured matrix tooling, one seam).
+Close the **write/gate side** of the artifact placement seam (the write twin of PR #3060's read-side closure) and, on top of it, make the acceptance/issue matrices **structured JSON** with deterministic write commands, a **row-aware merge driver**, a **lane-safe tracer writer**, and a **common-ancestor lane base** so mission state survives consolidation. This is primarily an **adoption** mission — `write_target`/`commit_for_mission` already exist (ADR `2026-06-24-1`) — plus the one genuine build (the tracer writer) and the matrix structural migration. Delivered across three isolated lanes: **A** (lane-base topology, ADR-first; a hard predecessor of Lane C's durability regression), **B** (coord-authority gate enabler; blocks only the `decisions/emit.py` gate-route slice of Lane C — the `write_target`-routed writers are gate-invisible), **C** (writers + structured matrix tooling, one seam).
 
 ## Technical Context
 
@@ -17,7 +17,7 @@ Close the **write/gate side** of the artifact placement seam (the write twin of 
 **Project Type**: single (CLI + library)
 **Performance Goals**: each write command p95 < 3 s (NFR-002)
 **Constraints**: cyclomatic complexity ≤ 15; mypy strict + ruff clean, zero new suppressions; NO seam bypass / no parallel write resolver (ADR `2026-06-24-1` C-006); coord-authority gate stays green; NO consolidation abort path (ADR `2026-07-23-2`); event-log remains the sole status authority
-**Scale/Scope**: 13 FRs across 3 lanes; ~a dozen true write-bypass sites to route; one structured-schema migration with reader blast-radius (doctor/gates/review/dashboard); one lane-allocation topology change; one coord-authority gate ratchet; one new ADR + two `contracts/` docs
+**Scale/Scope**: 13 FRs across 3 lanes; ~a dozen true write-bypass sites to route; one structured-schema migration with reader blast-radius (doctor, post-merge review, move-task/approval, finalize-lint, `kind_for_mission_file` recognition, merge-driver registration, doctrine skills — NOT dashboard/gates, which are net-new not migration); one lane-allocation topology change; one coord-authority gate ratchet; one new ADR + three `contracts/` docs
 
 ## Charter Check
 
@@ -28,12 +28,12 @@ Charter present (`software-dev-default`). Binding items and this plan's complian
 - **Single canonical authority / no improvisation** — extends the existing `write_target` seam; C-001 forbids a parallel resolver (ADR `2026-06-24-1` C-006). ✅
 - **DDD + tiered rigour** — core seam/merge/lane logic gets full rigour + focused tests; thin CLI wrappers get glue-tier. ✅
 - **ATDD-first / red-first** — every FR lands behind a failing test first; FR-010's four gate tests are its red-first surface. ✅
-- **Architectural gate discipline** — read-side census, C-008 shards, and the coord-authority gate must stay green; FR-010 re-pins the census floor deliberately with rationale (ADR `2026-06-26-1` sanctions this). ✅
+- **Architectural gate discipline** — read-side census, C-008 shards, and the coord-authority gate must stay green; FR-010 re-pins the census floor deliberately with rationale (ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` sanctions this; the by-design floor stays non-vacuous at 3). ✅
 - **Terminology canon** — no `feature*`; name the `primary`/`merge`/`routing` sense. ✅
 - **Git workflow** — coord topology; consolidate into `feat/…`; PR to `upstream/main` post-consolidation; no direct push to `main`. ✅
 - **Complexity ≤ 15 / Sonar** — new helpers extracted + tested; repeated literals hoisted. ✅
 
-**New decision requiring an ADR**: FR-009 lane-base change (amends `2026-04-03-1`). No other new architectural decision (FR-007/FR-010 implement `2026-06-24-1`). No unjustified gate violations → **PASS**.
+**New decision requiring an ADR**: FR-009 lane-base change (amends `2026-04-03-1`). No other new architectural decision (FR-007 implements `2026-06-24-1` C-006; FR-010 implements `2026-06-26-1-single-authority-seam-and-call-site-gate` — cite by slug, two ADRs share the `2026-06-26-1` date). No unjustified gate violations → **PASS**.
 
 ## Project Structure
 
@@ -84,68 +84,100 @@ docs/adr/3.x/                              # NEW ADR: lane-origin base ref (FR-0
 
 ## Implementation Concern Map
 
-> Concerns, not work packages. `/spec-kitty.tasks` translates these into WPs. The three lanes below encode the hard sequencing: **Lane B blocks Lane C**; **Lane A** is independent but must land before Lane C's consolidation-durability regression is meaningful.
+> Concerns, not work packages. `/spec-kitty.tasks` translates these into WPs. Sequencing (corrected post-plan squad): **Lane B blocks only the `decisions/emit.py` gate-route slice of IC-03** — `write_target`-routed writers are gate-invisible (D-6), so IC-04/05/06/07 depend on the IC-03 **core**, NOT on Lane B. **Lane A** is independent but must land before IC-08's consolidation-durability regression is meaningful (hard edge **IC-08 → IC-01**).
 
 ### IC-01 — Lane-base common ancestor (Lane A)
 
 - **Purpose**: Branch execution lanes from the recorded planning-artifact commit so lane writes share a common ancestor with the consolidation base and are not reverted at merge.
 - **Relevant requirements**: FR-009 (SC-003).
-- **Affected surfaces**: `lanes/worktree_allocator.py` (base ref), `lanes/auto_rebase.py`, `merge/executor.py`, `merge/ordering.py`; dependent-lane invariant #1684; **new ADR** under `docs/adr/3.x/`.
-- **Sequencing/depends-on**: none (ADR authored first). Must land before IC-08's consolidation regression is meaningful.
-- **Risks**: P0 git-topology; must pin a **recorded SHA** (in `lanes.json`/`meta.json`), never a moving tip; must resolve the coord-status-lineage question in the ADR; add merge/ancestor tests; add NO consolidation abort path.
+- **Affected surfaces**: `lanes/worktree_allocator.py` (base ref), `lanes/auto_rebase.py`, `merge/executor.py`, `merge/ordering.py`; dependent-lane invariant #1684; lane-hygiene guard **#2274** (compares `kitty-specs/` by commit-history not content → false-positive after the FR-009 planning-rebase; coordinate #2273/#2626/#2570); **new ADR** under `docs/adr/3.x/`.
+- **Sequencing/depends-on**: none (ADR authored first). Must land before IC-08's consolidation regression is meaningful (hard edge IC-08 → IC-01).
+- **Risks**: P0 git-topology; must pin a **recorded SHA** (in `lanes.json`/`meta.json`), never a moving tip; must resolve the coord-status-lineage question in the ADR **in light of ADR `2026-06-24-1` §5 (planning artifacts on PRIMARY, matrix/tracer/status on COORD) and FR-007's routing of those writes OFF the lane onto coord — which moots part of the coord-lineage question**; disentangle **FR-009 ancestry (primary partition)** from **FR-008 row-aware-merge durability (coord partition)** — SC-003 bundles both but they own different partitions; add merge/ancestor tests; add NO consolidation abort path.
 
 ### IC-02 — Coord-authority gate seam idiom (Lane B, enabler)
 
 - **Purpose**: Route `decisions/emit.py` off the coord-authority allowlist and (only if a seam-routed writer still resolves via the kind-blind resolver) teach the gate the `write_target(<COORD>)` idiom, so routing COORD writes is unblocked.
 - **Relevant requirements**: FR-010 (#3055).
 - **Affected surfaces**: `decisions/emit.py`, `tests/architectural/test_resolution_authority_gates.py`, `resolution_gate_allowlist.yaml`, census floor/baseline.
-- **Sequencing/depends-on**: none. **Blocks all writer-routing concerns (IC-03…IC-07).**
-- **Risks**: interlocking ratchet — census floor 4→3, allowlist + by-design removal, baseline re-pin (four named tests are the red-first surface). Any gate-predicate widen must be def-use gated with an alias-bite non-vacuity test (never a name proxy).
+- **Sequencing/depends-on**: none. **Blocks ONLY the `decisions/emit.py` gate-route slice of IC-03.** The other writer-routing concerns (IC-04/05/06/07) route purely via `write_target`, are gate-invisible (D-6), and do NOT depend on Lane B.
+- **Risks**: interlocking ratchet — census floor 4→3, allowlist + by-design removal, baseline re-pin (four named tests are the red-first surface). **Only `decisions/emit.py` is routed off; the other three write sites (`widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765`) are by-design sanctioned coord writes that MUST stay on the kind-blind resolver so the floor stays non-vacuous.** Any gate-predicate widen (Move B) is an ADR amendment of `2026-06-26-1`, def-use gated, with an alias-bite non-vacuity test (never a name proxy).
 
 ### IC-03 — Write-seam adoption core + true-bypass route (Lane C)
 
 - **Purpose**: One parameterized write-surface resolution (`write_target`) + one materialization authority (`commit_for_mission`); route the true bypass set onto it.
 - **Relevant requirements**: FR-007, FR-011, FR-012 (C-001).
-- **Affected surfaces**: caller-resolved-`feature_dir` matrix writers, the four coord-authority-gate write sites, #2663 (`implement.py::_partition_files_for_commit`), `status/emit.py` (#2966 slice); Ledger-M16 leaf guard.
-- **Sequencing/depends-on**: IC-02.
+- **Affected surfaces**: caller-resolved-`feature_dir` matrix writers, **only `decisions/emit.py:71`** of the coord-authority-gate write sites (the other three — `widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765` — stay by-design on the kind-blind resolver, see IC-02), #2663 (`implement.py::_partition_files_for_commit`), `status/emit.py` (#2966 slice); Ledger-M16 leaf guard.
+- **Sequencing/depends-on**: the `emit.py` slice depends on IC-02; the rest of the core is Lane-B-independent.
 - **Risks**: routing the seam's own engine is circular — target only the true bypasses; FR-011 must be a **zero-write refusal** (never fall back to writing `main`).
 
 ### IC-04 — Acceptance-matrix verdict command + persist-on-accept (Lane C)
 
 - **Purpose**: A command that fronts `write_acceptance_matrix` via the seam and keeps the computed verdict authoritative; canonical acceptance persists the recomputed `overall_verdict`.
-- **Relevant requirements**: FR-001 (#2318 + comment 5102989064); campsite #2743.
+- **Relevant requirements**: FR-001 (#2318 + comment 5102989064); **FR-002 acceptance-schema half** (the structured acceptance schema is homed here); campsite #2743.
 - **Affected surfaces**: `acceptance/matrix.py`, `cli/commands/accept.py`, `_evaluate_acceptance_matrix`.
-- **Sequencing/depends-on**: IC-02, IC-03.
+- **Sequencing/depends-on**: IC-03 core.
 - **Risks**: must not re-author the computed verdict or clobber invariant provenance.
 
-### IC-05 — Structured matrix schema + JSON migration + reader migration (Lane C)
+### IC-05a — Issue-matrix structured schema + canonical writer + recognition map + finalize scaffold (Lane C)
 
-- **Purpose**: Migrate the issue-matrix from markdown to `issue-matrix.json` (single canonical artifact, per-item statuses); migrate every consumer to JSON; provide failover-read + migrate-on-write + a bulk-migration command via a shared sub-module.
-- **Relevant requirements**: FR-002, FR-013, C-008, NFR-006.
-- **Affected surfaces**: `tasks/issue_matrix.py` (schema), consumers `status/doctor.py`, `policy/merge_gates.py`, `cli/commands/review/`, dashboard reader; a migration sub-module + CLI command.
-- **Sequencing/depends-on**: IC-02.
-- **Risks**: reader blast-radius — C-008 requires *every* consumer moved; no `issue-matrix.md` emitted going forward; back-compat only via failover-read.
+- **Purpose**: Define the `issue-matrix.json` schema and the single canonical writer routed via `write_target(ISSUE_MATRIX)`; teach the basename→kind recognition map about `.json`; migrate the finalize scaffold off `.md`-on-PRIMARY.
+- **Relevant requirements**: FR-002 (issue half), C-008 (schema anchor).
+- **Affected surfaces**: `tasks/issue_matrix.py` (schema + writer); **`artifacts.py:200 _MISSION_FILE_KIND_BY_BASENAME`** — add `"issue-matrix.json" → ISSUE_MATRIX` (keep `.md` for failover) with positive+negative recognition assertions (**B2 linchpin**: without it `kind_for_mission_file(".json")` → None → not staged to coord / not row-merged); **`cli/commands/agent/mission_finalize.py:355 _scaffold_issue_matrix_if_present` → `tasks/issue_matrix.py:94`** — author `issue-matrix.json` via `write_target(ISSUE_MATRIX)` (COORD), not `.md` on the planning dir (**B3**: else greenfield split-brain, FR-013 migrate-on-write never fires).
+- **Sequencing/depends-on**: IC-03 core. **First red-first WP of the structured-matrix work** (B2/B3 are its opening tests).
+- **Risks**: split-brain if the recognition map or scaffold lags the writer; assert recognition both ways.
 
-### IC-06 — Issue-matrix verdict command + multi-file discovery + gates (Lane C)
+### IC-05b — Issue-matrix reader migration (C-008 blast-radius) (Lane C)
 
-- **Purpose**: A verdict/per-item-status command on `issue-matrix.json`; generalize `detect_issue_references` to all mission artifacts; add the missing merge-time completeness gate; record Gate 4 `not_applicable` on zero references.
-- **Relevant requirements**: FR-003, FR-004 (#1738), FR-005 (#3035).
-- **Affected surfaces**: `tasks/issue_matrix.py`, `status/doctor.py:374`, `cli/commands/agent/tasks.py:159`, `cli/commands/agent/mission.py:2140`, `policy/merge_gates.py`, `cli/commands/review/__init__.py`.
-- **Sequencing/depends-on**: IC-05 (structured schema first), IC-02, IC-03.
-- **Risks**: use the *same* canonical-reference definition across finalization, approval, merge, and review (avoid a fourth definition).
+- **Purpose**: Move every live consumer of the issue-matrix from markdown to `issue-matrix.json`.
+- **Relevant requirements**: FR-002 (reader migration), C-008, NFR-005.
+- **Affected surfaces** (the real live migration consumers — NOT dashboard/gates, which are net-new): `status/doctor.py`, post-merge review (`cli/commands/review/`), move-task/approval blocker, finalize-lint, `kind_for_mission_file` recognition consumers (`auto_rebase`/`commit_router`/coherence); **doctrine/skills (M8)**: `spec-kitty-mission-review/SKILL.md:581/695`, `spec-kitty-implement-review/SKILL.md:499`, `mission-wrap-up-sequence.procedure.yaml:19/50`, `spec-kitty-core.glossary-pack.yaml:679/690/693` (incl. `ISSUE_MATRIX_SCHEMA_DRIFT` + mission-review gate def), `planning-and-tracking.styleguide.yaml:18` — `.md`→`.json`, then run `test_no_legacy_terminology.py`; **test fallout (m3)**: ~10 `.md`-shaped test files judged each (re-pin `.json` / migrate / delete obsolete markdown-parser tests) as explicit fallout, not ad-hoc.
+- **Sequencing/depends-on**: IC-05a (schema + writer first).
+- **Risks**: C-008 requires *every* live consumer moved; no `issue-matrix.md` emitted going forward; back-compat only via failover-read.
+
+### IC-05c — Issue-matrix migration sub-module + one canonical reader (Lane C)
+
+- **Purpose**: A shared migration sub-module providing failover-read + migrate-on-write + a bulk-migration command, hosting the **single canonical `load_issue_matrix() → rows`** (M7) that every read site calls.
+- **Relevant requirements**: FR-013, NFR-006.
+- **Affected surfaces**: new migration sub-module + CLI command; **the markdown parser `validate_issue_matrix` (`review/_issue_matrix.py:194`)** — shared by doctor/review/finalize-lint/move-task — must be re-pointed at the one canonical `load_issue_matrix()` (failover-read inside), so migration is not whack-a-field across 5 sites.
+- **Sequencing/depends-on**: IC-05a (schema); IC-05b consumes the canonical reader.
+- **Risks**: a second reader definition drifting from the canonical one.
+
+### IC-06a — Issue-matrix verdict command (Lane C)
+
+- **Purpose**: A verdict/per-item-status command on `issue-matrix.json`, routed via `write_target(ISSUE_MATRIX)`.
+- **Relevant requirements**: FR-003.
+- **Affected surfaces**: `tasks/issue_matrix.py`, new CLI command.
+- **Sequencing/depends-on**: IC-05a (structured schema first), IC-03 core.
+- **Risks**: keep the computed/derived fields authoritative; idempotent (FR-012).
+
+### IC-06b — Multi-file issue-reference discovery + merge-time gate (Lane C)
+
+- **Purpose**: Generalize `detect_issue_references` from single-`spec.md` to all mission artifacts across the three enforcement sites; add the missing merge-time completeness gate.
+- **Relevant requirements**: FR-004 (#1738).
+- **Affected surfaces**: `tasks/issue_matrix.py`, the three enforcement sites `status/doctor.py:374`, `cli/commands/agent/tasks.py:159`, `cli/commands/agent/mission.py:2140`, and **net-new** reader/gate in `policy/merge_gates.py`.
+- **Sequencing/depends-on**: IC-05a, IC-03 core.
+- **Risks**: use the *same* canonical-reference definition across finalization, approval, merge, and review (avoid a fourth definition — IC-05c's canonical reader).
+
+### IC-06c — Zero-reference Gate 4 = not_applicable (Lane C)
+
+- **Purpose**: Record Gate 4 `not_applicable` when the spec declares no canonical references (same definition as finalization); retain fail-closed when references exist.
+- **Relevant requirements**: FR-005 (#3035).
+- **Affected surfaces**: `cli/commands/review/__init__.py`, gate evaluation; both-branch regression.
+- **Sequencing/depends-on**: IC-06b (shared discovery definition).
+- **Risks**: the zero-ref and has-ref branches both need regression.
 
 ### IC-07 — Tracer finding writer (Lane C)
 
 - **Purpose**: The one genuine must-build — a lane-origin tracer-append command routed to the coord surface via `commit_for_mission`, leaving the lane branch unblocked with correct attribution.
 - **Relevant requirements**: FR-006 (#2980/#2549; attribution guard #2960).
 - **Affected surfaces**: `retrospective/` (writer beside the existing reader), `commit_router`; must NOT use the `read_dir(RETROSPECTIVE)` short-circuit (Ledger-M16).
-- **Sequencing/depends-on**: IC-02, IC-03.
+- **Sequencing/depends-on**: IC-03 core.
 - **Risks**: attribution blanking (#2960) — guard `agent` presence.
 
 ### IC-08 — Row-aware matrix merge driver (Lane C)
 
 - **Purpose**: Replace the whole-file "more-filled-side" acceptance/issue-matrix drivers with row-aware drivers over the structured JSON so disjoint concurrent-row writes union without clobber.
-- **Relevant requirements**: FR-008 (#2482 + disjoint-row gap).
-- **Affected surfaces**: `cli/commands/merge_driver.py`, `.gitattributes`, `lanes/merge.py` registry.
-- **Sequencing/depends-on**: IC-05 (structured rows first).
-- **Risks**: row-identity/key stability; ensure the driver satisfies the disjoint-row union AND the stale-residue case.
+- **Relevant requirements**: FR-008 (#2482 + disjoint-row gap); **#2970 (5 S2083 path-injection BLOCKERs in `merge_driver.py`) folded here — red-first repro before the fix, do NOT regress the driver contract** (E1, Sonar attack-vector-campsite doctrine). Coordinate #2555/#2228 (adjacent).
+- **Affected surfaces**: `cli/commands/merge_driver.py` (incl. #2970 path-injection hardening); **driver registration is 3 sites (M6)** — `.gitattributes` / `lanes/merge.py` registry, **`cli/commands/init.py:73,194`** (new-repo `.gitattributes` pattern), and a **NEW forward migration** repointing `**/issue-matrix.md` → `issue-matrix.json` (do NOT mutate historical `m_3_2_6`) — else upgraded repos bind a driver to a filename that no longer exists and FR-008 clobber-protection is silently absent.
+- **Sequencing/depends-on**: IC-05a (structured rows first) **+ hard edge IC-01** (the SC-003 durability-integration regression requires the common-ancestor lane base — else false-green before Lane A lands). Split option for `/tasks`: a base-independent driver-unit WP + a durability-integration WP gated on IC-01 + the driver-unit.
+- **Risks**: row-identity/key stability; the driver must satisfy the disjoint-row union AND the stale-residue case; #2970 fix must not weaken the driver's merge contract.

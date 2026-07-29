@@ -1,6 +1,6 @@
-# Contract: Coord-Authority Gate Idiom (FR-010) — implements ADR 2026-06-26-1
+# Contract: Coord-Authority Gate Idiom (FR-010) — implements ADR 2026-06-26-1-single-authority-seam-and-call-site-gate
 
-**Not a new ADR** — a citation contract for the gate change. Cites `2026-06-24-1` C-006, `2026-06-26-1` (gate-extension mechanism + non-vacuity confirmation), `2026-07-23-1`.
+**Not a new ADR** — a citation contract for the gate change. Cites `2026-06-24-1` C-006, `2026-06-26-1-single-authority-seam-and-call-site-gate` (gate-extension mechanism + non-vacuity confirmation), `2026-07-23-1`.
 
 ## Move A (default, STRENGTHENING) — route `decisions/emit.py` off the allowlist
 Convert `decisions/emit.py:_mission_dir:71` to the kind-aware seam so it no longer calls the kind-blind `resolve_feature_dir_for_mission`. This drops the live write census 4→3 and requires, in the same change:
@@ -9,8 +9,12 @@ Convert `decisions/emit.py:_mission_dir:71` to the kind-aware seam so it no long
 3. Remove `emit.py` from `_COORD_WRITE_BY_DESIGN` (else `test_coord_authority_by_design_modules_classified_write` reds).
 The `status.events.jsonl` COORD write MUST still land on the coord surface (no regression to primary).
 
+**Route ONLY `emit.py` — the other three write sites stay.** `widen/state.py:63`, `agent_tasks_ports.py:322`, and `lanes/recovery.py:765` are **by-design sanctioned** kind-blind coord writes and MUST remain on `resolve_feature_dir_for_mission`; the re-pinned floor (3) counts them to prove non-vacuity. Routing all four → census 0 → vacuous gate (forbidden). See the by-design section of `write-seam-adoption.md`.
+
+**Non-vacuity invariant:** the live kind-blind coord-write census MUST NOT drop below the re-pinned floor of 3. Lowering the floor again requires the same rationale + a preserved non-vacuity proof.
+
 ## Move B (conditional) — recognize `write_target(<COORD kind>)` as sanctioned authority
-Author ONLY if a seam-routed writer must resolve via the kind-blind resolver. Recognition MUST be **def-use gated** (the result of `write_target(kind=...)` flows to the write), mirroring `is_def_use_canonical`. A module/name-proxy exemption is forbidden.
+Author ONLY if a seam-routed writer must resolve via the kind-blind resolver. Recognition MUST be **def-use gated** (the result of `write_target(kind=...)` flows to the write), mirroring `is_def_use_canonical`. A module/name-proxy exemption is forbidden. **Move B, if triggered, is an ADR amendment of `2026-06-26-1-single-authority-seam-and-call-site-gate` (the gate mechanism lives there), not a contract-only predicate widen** — amend the ADR in the same change.
 
 ## Non-vacuity proof (DIRECTIVE_003 obligation)
 Record, in this contract and the gate module docstring, a test proving the gate still FAILS on: (a) a `write_target()` call with no `kind`, and (b) a re-introduced kind-blind wrong-surface write. A literal-vs-literal assertion is vacuous and disallowed.
