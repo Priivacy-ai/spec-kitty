@@ -7,20 +7,21 @@ requirement_refs:
 planning_base_branch: feat/journal-project-consent-3030
 merge_target_branch: feat/journal-project-consent-3030
 branch_strategy: Planning artifacts for this mission were generated on feat/journal-project-consent-3030. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/journal-project-consent-3030 unless the human explicitly redirects the landing branch.
-base_commit: 1dc38ea23ee04dbcabd5a56bb19e141163bbb497
-created_at: '2026-07-28T13:53:39.091131+00:00'
+base_branch: kitty/mission-journal-project-consent-3030-01KYKWQS
+base_commit: b09ac6680ad89efcdaf0fbf029895cea7ca3394b
+created_at: '2026-07-29T11:03:42.214983+00:00'
 subtasks:
 - T007
 - T008
 history: []
-execution_mode: code_change
-tags: []
-tracker_refs: []
 authoritative_surface: src/specify_cli/sync/
+execution_mode: code_change
 owned_files:
 - src/specify_cli/sync/background.py
 - src/specify_cli/sync/batch.py
 - src/specify_cli/sync/queue.py
+tags: []
+tracker_refs: []
 ---
 
 # WP02 — Remove the legacy queue drain
