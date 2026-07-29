@@ -29,6 +29,9 @@ owned_files:
 - src/specify_cli/event_journal/models.py
 - src/specify_cli/sync/project_identity.py
 - src/specify_cli/sync/emitter.py
+- tests/event_journal/test_identity_migration_3030.py
+- tests/sync/test_project_identity_resolver_3030.py
+- tests/sync/test_journal_identity_backfill_3030.py
 tags: []
 tracker_refs: []
 ---
