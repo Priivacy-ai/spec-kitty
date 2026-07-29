@@ -41,9 +41,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     **delivered-but-not-activation-gated** (`gate = ALL`) — a reachable source
     pulls them in without an activation list. This closes the defect where
     `asset_ids = []` was the silently-conforming outcome forever.
-  - **Docs**: [Create a doctrine artifact](docs/doctrine/create-a-doctrine-artifact.md)
+  - **Docs**: [Create a doctrine artifact](../doctrine/create-a-doctrine-artifact.md)
     gains an executable asset how-to (author a manifest, place the blob, resolve
-    it), and [Doctrine artifact kinds](docs/doctrine/doctrine-kinds.md) documents
+    it), and [Doctrine artifact kinds](../doctrine/doctrine-kinds.md) documents
     the shipped built-in asset and the three delivery categories.
 - **New checks that catch a change which looks like it worked and did nothing
   (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
