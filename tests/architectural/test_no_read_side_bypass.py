@@ -796,6 +796,26 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
+        rel_path="src/specify_cli/retrospective/tracer_writer.py",
+        qualname="_local_staging_path",
+        token_substring="candidate_feature_dir_for_mission ( repo_root , mission_slug )",
+        occurrence=None,
+        rationale=(
+            "Ledger (write-side-seam-matrix-tracer-01KYP3MH, commit 2d96492ca): "
+            "_local_staging_path computes where a LOCAL traces/<category>.md "
+            "staging file should LAND before the mission's traces/ subdir exists "
+            "(the caller append_tracer_finding mkdir+write_text's it), then "
+            "commits through the WP03 write_seam.write_artifact whose FR-011 "
+            "probe is the canonical routability authority. Mirrors the sibling "
+            "retrospective/summary.py::_read_proposal_events (:220) staging "
+            "pattern -- same package, same 'candidate dir + local subpath' shape. "
+            "A read_dir(kind) route is wrong here: this resolves a write-then-"
+            "stage destination, not where to READ from. Replaced a raw "
+            "repo_root/KITTY_SPECS_DIR/mission_slug join (the deleted "
+            "surface-resolution/untrusted-path ghost sink)."
+        ),
+    ),
+    ContentDescriptor(
         rel_path="src/specify_cli/status/aggregate.py",
         qualname="MissionStatus._find_meta_path",
         token_substring="candidate_feature_dir_for_mission ( repo_root , mission_slug )",

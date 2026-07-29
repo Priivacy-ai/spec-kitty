@@ -268,10 +268,10 @@ Editing any row here, or the § "Stay-lenient allow-list index" /
 | Verdict | Sites | Files | Primitive |
 |---|---|---|---|
 | migrate-fail-loud | 0 | 0 | `candidate_feature_dir_for_mission` |
-| stay-lenient | 12 | 9 | `candidate_feature_dir_for_mission` |
+| stay-lenient | 13 | 10 | `candidate_feature_dir_for_mission` |
 | sanction-infra | 0 | 0 | `candidate_feature_dir_for_mission` |
 | expected-red (unrouted) | 0 | 0 | `candidate_feature_dir_for_mission` |
-| Total real call sites | 12 | 9 | `candidate_feature_dir_for_mission` |
+| Total real call sites | 13 | 10 | `candidate_feature_dir_for_mission` |
 | migrate-fail-loud | 0 | 0 | `resolve_planning_read_dir` |
 | stay-lenient | 4 | 2 | `resolve_planning_read_dir` |
 | sanction-infra | 0 | 0 | `resolve_planning_read_dir` |
@@ -442,6 +442,7 @@ row here and its descriptor in the gate.
 | `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_snapshot_export` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
 | `src/specify_cli/dossier/api.py` | `DossierAPIHandler._load_dossier` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
 | `src/specify_cli/retrospective/summary.py` | `_read_proposal_events` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( project_path , mission_slug )` |
+| `src/specify_cli/retrospective/tracer_writer.py` | `_local_staging_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( repo_root , mission_slug )` |
 | `src/specify_cli/status/aggregate.py` | `MissionStatus._find_meta_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( repo_root , mission_slug )` |
 | `src/specify_cli/manifest.py` | `WorktreeStatus.get_feature_status` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( worktree_path , feature )` |
 | `src/specify_cli/agent_tasks_ports.py` | `RealCoordCommitRouter.feature_write_dir` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission (` |
@@ -465,6 +466,24 @@ at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. This moves the
 primitive's `migrate-fail-loud` count `1 → 0` and `stay-lenient` `7 → 8`
 (files `6 → 7`), which is why § "Live census summary" below now declares
 `Total = 8`, not the previously-declared `7`.
+
+write-side-seam-matrix-tracer-01KYP3MH (commit `2d96492ca`, "route … tracer
+staging through canonical mission-spec-path seams"): the new
+`retrospective/tracer_writer.py::_local_staging_path` replaced a hand-built raw
+`repo_root / KITTY_SPECS_DIR / mission_slug / …` join with
+`candidate_feature_dir_for_mission(repo_root, mission_slug)`, adding one
+`candidate_feature_dir_for_mission` site in a previously-uncensused file. It is
+**stay-lenient**, mirroring the sibling `retrospective/summary.py::_read_proposal_events`
+(`:220`) staging-path pattern: it computes where a LOCAL `traces/<category>.md`
+staging file should LAND before the mission's `traces/` subdir exists (the
+caller `mkdir`s + `write_text`s it), then commits it through the WP03
+`write_seam.write_artifact`, whose FR-011 probe is the canonical routability
+authority. A read-resolver route (`read_dir(kind)`) is wrong here — this
+resolves a write-then-stage destination, not where to READ from — and the raw
+join it replaced was the ghost sink previously carried by the surface-resolution
+and untrusted-path audits (both rows deleted with this change). This moves the
+primitive's `stay-lenient` count `12 → 13` (files `9 → 10`), which is why
+§ "Live census summary" above now declares `Total = 13`, not `12`.
 
 ## Foundation-site sanctions (machine-checked)
 
