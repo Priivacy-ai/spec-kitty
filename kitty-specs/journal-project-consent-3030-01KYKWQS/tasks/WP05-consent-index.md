@@ -25,6 +25,7 @@ create_intent:
 owned_files:
 - src/specify_cli/sync/consent.py
 - src/specify_cli/sync/config.py
+- tests/sync/test_consent_resolver_3030.py
 ---
 
 # WP05 — Consent index and resolution rule
