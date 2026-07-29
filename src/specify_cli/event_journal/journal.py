@@ -467,10 +467,31 @@ def capture_teamspace_bound(
 ) -> Event:
     """Durably capture a Teamspace-bound fact *before* the delivery gates.
 
-    The journal write is unconditional for Teamspace-bound families; ``gate``
-    only decides the recorded ``drain_blocked_reason`` (delivery eligibility),
-    never whether the write happens (FR-017, contract §2). A request to skip the
-    write for a Teamspace-bound family fails loudly (C-008, T018).
+    For every event that reaches this function the write is unconditional:
+    ``gate`` decides only the recorded ``drain_blocked_reason`` (delivery
+    eligibility), never whether the write happens (FR-017, contract §2). A
+    request to skip the write for a Teamspace-bound family fails loudly
+    (C-008, T018).
+
+    **Amended 2026-07-29 (#3030 NFR-005, operator decision).** "Unconditional"
+    is now scoped to events that get here. Whether a capture happens at all is
+    decided *upstream* by per-project consent: ``EventEmitter._capture_to_journal``
+    (``sync/emitter.py``) refuses to call this function when the checkout has
+    not consented, so a non-consenting project's events never reach the journal.
+    Capture-first durability therefore applies to consenting projects only.
+
+    This deliberately reverses the original contract, which held that a
+    Teamspace-bound fact must survive even when every gate blocks. The reason:
+    that invariant made the journal a machine-global pool of every local
+    project's payloads, and one consenting checkout shipped the lot (the
+    2026-07-27 incident, 1,322 events from 5 never-opted-in projects). The
+    invariant is preserved *within* a consenting project and abandoned across
+    project boundaries.
+
+    Note the axis: consent, not Teamspace-boundedness. Nothing here decides an
+    event is not Teamspace-bound in order to skip it — ``TeamspaceBoundDropError``
+    still fires for that, and the consent refusal happens before this function
+    is ever called.
     """
     if is_teamspace_bound and skip_journal:
         raise TeamspaceBoundDropError(event_id=event_id)
