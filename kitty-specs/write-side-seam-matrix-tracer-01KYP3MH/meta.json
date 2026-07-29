@@ -12,5 +12,7 @@
   "purpose_tldr": "Deterministic CLI commands write matrix verdicts and lane findings, routed through the placement seam to the correct branch surface so mission status stops breaking on consolidation.",
   "slug": "write-side-seam-matrix-tracer-01KYP3MH",
   "target_branch": "feat/write-side-seam-matrix-tracer",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-29T10:35:35.702234+00:00"
 }
