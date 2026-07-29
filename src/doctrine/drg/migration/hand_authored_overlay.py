@@ -347,6 +347,221 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "scoped (WP09 / FR-015)."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # #3063 family-A (DDD family), operator interview outcome. The operator has
+    # ATTESTED these relationships (C-007(a) satisfied by operator ruling); the
+    # hub is paradigm:domain-driven-design. Three kinds of edge land here:
+    #
+    #   1. ONE reaching `scope` edge, action:software-dev/specify -> the DDD
+    #      paradigm. This is the edge that changes action reachability: it makes
+    #      the DDD paradigm action-reachable at the specify grain, and the
+    #      paradigm's `requires` edges below then deliver the whole family
+    #      transitively (resolve_context walks scope at depth 1 from the action,
+    #      then requires transitively). Measured with the WP08 helper: d=1 and
+    #      d=2 action-reachable each grow by exactly the twelve artefacts the
+    #      paradigm heads (the paradigm, its two pre-existing directive_refs
+    #      DIRECTIVE_031/032, and the ten members below minus
+    #      strategic-domain-classification, which was already reachable).
+    #
+    #      NOTE the relation is `scope`, NOT `suggests`. The #3063 wiring table
+    #      row named `suggests`, but that is measured INERT: resolve_context
+    #      walks `suggests` only FROM scope-resolved artifacts, never from the
+    #      action node itself (query.resolve_context steps 2/3 seed from
+    #      `scoped_artifacts`), so a `suggests` edge sourced at an action changes
+    #      no reachability. Only a `scope` edge from an action delivers — exactly
+    #      the WP09 precedent (action:documentation/generate --scope--> 042). The
+    #      #3063 §3 mandate ("this edge DOES change action reachability; update
+    #      the pinned unreachable sets") is satisfiable only by `scope`, so the
+    #      table's `suggests` is corrected to `scope` here and the discrepancy is
+    #      recorded in docs/plans/doctrine/delivery-reachability-wiring-table.md.
+    #
+    #      C-007 without inventing a relationship: (a) the DDD paradigm's own
+    #      summary attests strategic design ("aligning code with a deep model of
+    #      the business domain"), which is what the software-dev specify step
+    #      does ("align the mission design with architectural intent"); (b) the
+    #      source is an `action` node, C-007(b)'s second clause. Canonical home /
+    #      B2 handoff: an action->artefact `scope` edge belongs in the
+    #      software-dev specify step-contract action index; mission B2 migrates
+    #      it when it retires this overlay generator.
+    #
+    #   2. TEN `requires` edges, DDD paradigm -> each genuine DDD family member.
+    #      Each target's OWN text attests DDD membership (C-007a): bounded-context
+    #      identification / canvas-fill / boundary-inference and context-mapping
+    #      (Evans strategic design), strategic-domain-classification (Core/
+    #      Supporting/Generic subdomain), aggregate-boundary-design /
+    #      entity-value-object-classification / domain-event-capture /
+    #      anti-corruption-layer (Evans tactical patterns) and the
+    #      aggregate-design-rules styleguide. EXCLUDED as non-attested:
+    #      reference-architectural-patterns (its own text is general reference-
+    #      architecture selection by quality attributes, not DDD) and the state/
+    #      UI tactics compositional-stream-boundaries / cross-cutting-state-via-
+    #      store / atomic-state-ownership.
+    #
+    #   3. THREE `suggests` edges, agent profiles -> the DDD paradigm. These are
+    #      COMPOSITION-ONLY / INERT under today's traversal: the profile channel
+    #      walks {requires, specializes_from} only, and the action channel does
+    #      not seed from profiles, so a profile--suggests-->paradigm edge changes
+    #      NO reachability (measured: profile channel 39->39, unchanged). They
+    #      record the attested "an architect/pattern-scout/reducer should reach
+    #      DDD when designing or inspecting code" relationship for when a future
+    #      channel follows it.
+    #
+    # DEFERRED (NOT authored here): the DDD<->documentation mutual-reinforcement
+    # edge — gated on the upcoming value-based edge properties (B1). Noted in the
+    # wiring-table doc as pending.
+    # -----------------------------------------------------------------------
+    DRGEdge(
+        source="action:software-dev/specify",
+        target="paradigm:domain-driven-design",
+        relation=Relation.SCOPE,
+        reason=(
+            "The software-dev specify step aligns the mission design with "
+            "architectural intent; Domain-Driven Design is the paradigm that "
+            "governs aligning that design with a deep model of the business "
+            "domain (DDD's own summary). This scope edge is the reaching entry "
+            "point that makes the DDD paradigm action-reachable at the specify "
+            "grain and delivers its strategic-design family transitively "
+            "(#3063 family-A). It is `scope` not `suggests` because a suggests "
+            "edge sourced at an action node is inert under resolve_context."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:bounded-context-identification",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Bounded Context Identification is DDD strategic design (Evans): "
+            "drawing boundaries around regions where a single consistent model "
+            "and ubiquitous language apply. Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:context-mapping-classification",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Context Mapping Classification is DDD strategic design: it "
+            "classifies every relationship between bounded contexts using the "
+            "canonical DDD context-mapping patterns. Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:context-boundary-inference",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Context Boundary Inference is DDD strategic design: it detects "
+            "bounded-context boundaries from team ownership and terminology "
+            "conflicts, documenting ubiquitous language per context. Activating "
+            "DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:bounded-context-canvas-fill",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Bounded Context Canvas Fill is DDD strategic design: it guides "
+            "completing a Bounded Context Canvas (DDD Crew v5) capturing a "
+            "context's strategic classification and ubiquitous language. "
+            "Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:strategic-domain-classification",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Strategic Domain Classification is DDD strategic design (Evans): "
+            "classifying each bounded context as Core, Supporting or Generic "
+            "subdomain to guide investment. Activating DDD pulls it in. (Already "
+            "action-reachable via paula-patterns' review tactic; this edge "
+            "records the paradigm membership without moving its reachability.)"
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:aggregate-boundary-design",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Aggregate Boundary Design is DDD tactical design (Evans / Vernon): "
+            "defining transactional consistency boundaries and aggregate roots "
+            "within a bounded context. Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:entity-value-object-classification",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Entity vs Value Object Classification is DDD tactical design "
+            "(Evans): classifying each domain object as an Entity or a Value "
+            "Object. Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:domain-event-capture",
+        relation=Relation.REQUIRES,
+        reason=(
+            "Domain Event Capture is DDD tactical design (Evans / Fowler): "
+            "funnelling significant state changes through immutable Domain "
+            "Event objects. Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="tactic:anti-corruption-layer",
+        relation=Relation.REQUIRES,
+        reason=(
+            "The Anti-Corruption Layer is a DDD context-mapping pattern (Evans): "
+            "a translation layer that keeps a foreign system's model from "
+            "corrupting the domain's ubiquitous language. Activating DDD pulls "
+            "it in."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:domain-driven-design",
+        target="styleguide:aggregate-design-rules",
+        relation=Relation.REQUIRES,
+        reason=(
+            "The Aggregate Design Rules styleguide encodes DDD tactical "
+            "aggregate discipline (reference by identity, keep aggregates small, "
+            "eventual consistency between aggregates via domain events). "
+            "Activating DDD pulls it in."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:architect-alphonso",
+        target="paradigm:domain-driven-design",
+        relation=Relation.SUGGESTS,
+        reason=(
+            "When designing and reviewing significant code changes, the "
+            "architect should reach Domain-Driven Design. Composition-only under "
+            "today's traversal (the profile channel walks requires/"
+            "specializes_from only), authored per the #3063 operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:paula-patterns",
+        target="paradigm:domain-driven-design",
+        relation=Relation.SUGGESTS,
+        reason=(
+            "When investigating or inspecting code, the pattern scout should "
+            "reach Domain-Driven Design. Composition-only under today's "
+            "traversal, authored per the #3063 operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:randy-reducer",
+        target="paradigm:domain-driven-design",
+        relation=Relation.SUGGESTS,
+        reason=(
+            "When investigating or inspecting code, the reducer should reach "
+            "Domain-Driven Design. Composition-only under today's traversal, "
+            "authored per the #3063 operator attestation."
+        ),
+    ),
 )
 
 

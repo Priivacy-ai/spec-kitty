@@ -107,12 +107,59 @@ _COMMON_DOCS_WIRED: frozenset[str] = frozenset(
 #: The delivery target the wired cluster exists to reach (WP10/WP11 ship assets).
 _COMMON_DOCS_ASSET = "asset:common-docs-structural-lint"
 
+#: The DDD family #3063 family-A wires (operator interview outcome, C-007(a)
+#: satisfied by operator ruling). One authored ``scope`` edge —
+#: ``action:software-dev/specify --scope--> paradigm:domain-driven-design`` —
+#: makes the DDD paradigm action-reachable, and the paradigm's ten authored
+#: ``requires`` edges (to the strategic-design + tactical DDD members whose own
+#: text attests DDD membership) then deliver the family transitively. Every
+#: member here becomes action-reachable at BOTH depths after the edge lands;
+#: ``tactic:strategic-domain-classification`` was already action-reachable
+#: (via ``tactic:paula-patterns-architecture-scout-review``), so it is delivered
+#: too but leaves neither ``_ACTION_UNREACHABLE`` set. NOTE the specify edge is
+#: ``scope`` NOT ``suggests``: measured with the WP08 helper, a ``suggests`` edge
+#: whose SOURCE is an action node is inert — ``resolve_context`` walks ``suggests``
+#: only FROM scope-resolved artifacts, never from the action node — so only a
+#: ``scope`` edge changes action reachability (the WP09 precedent,
+#: ``action:documentation/generate --scope--> directive:DIRECTIVE_042``).
+#:
+#: NFR-004 ledger for this move: ``_ACTION_UNREACHABLE_D1`` and
+#: ``_ACTION_UNREACHABLE_D2`` each lose the SAME twelve members —
+#: ``paradigm:domain-driven-design``; its two pre-existing ``directive_refs``
+#: ``DIRECTIVE_031``/``DIRECTIVE_032`` (delivered once the paradigm is scoped);
+#: and the nine newly-required members that were unreachable
+#: (``styleguide:aggregate-design-rules`` + the eight DDD tactics minus
+#: ``strategic-domain-classification``, which was already reachable). Because the
+#: same twelve leave both, the d1<->d2 spread stays 7. ``_PROFILE_UNREACHABLE`` is
+#: unchanged (the profile channel is untouched: the three profile edges are
+#: ``suggests``, which that channel does not follow, and the DDD paradigm stays
+#: profile-unreachable so its new ``requires`` edges deliver nothing there —
+#: measured 39->39). ``_PROFILE_RESCUES`` (defined as
+#: ``_ACTION_UNREACHABLE_D2 - _PROFILE_UNREACHABLE``) therefore loses the four of
+#: its members that just entered the action channel: ``DIRECTIVE_031``,
+#: ``DIRECTIVE_032``, ``anti-corruption-layer`` and ``domain-event-capture`` — the
+#: action channel now covers them, so they are no longer profile-only rescues.
+#: Orphan sets are unaffected (every endpoint was already edge-incident).
+_DDD_FAMILY_WIRED: frozenset[str] = frozenset(
+    {
+        "paradigm:domain-driven-design",
+        "tactic:bounded-context-identification",
+        "tactic:context-mapping-classification",
+        "tactic:context-boundary-inference",
+        "tactic:bounded-context-canvas-fill",
+        "tactic:aggregate-boundary-design",
+        "tactic:entity-value-object-classification",
+        "tactic:domain-event-capture",
+        "tactic:anti-corruption-layer",
+        "tactic:strategic-domain-classification",
+        "styleguide:aggregate-design-rules",
+    }
+)
+
 #: Activated artefacts (node form) NOT reachable via the action channel at
 #: d=1 (compact/steady-state). Membership, not cardinality (R-4).
 _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
     {
-        "directive:DIRECTIVE_031",
-        "directive:DIRECTIVE_032",
         "directive:DIRECTIVE_035",
         "directive:DIRECTIVE_038",
         "directive:DIRECTIVE_039",
@@ -120,7 +167,6 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "paradigm:atomic-design",
         "paradigm:behaviour-driven-development",
         "paradigm:c4-incremental-detail-modeling",
-        "paradigm:domain-driven-design",
         "paradigm:specification-by-example",
         "paradigm:structured-prompt-driven-development",
         "procedure:bdd-scenario-lifecycle",
@@ -130,33 +176,24 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "procedure:example-mapping-workshop",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
         "styleguide:adversarial-squad-cadence",
-        "styleguide:aggregate-design-rules",
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
         "styleguide:mutation-aware-test-design",
         "styleguide:planning-and-tracking",
         "styleguide:reasons-canvas-writing",
         "tactic:adversarial-qa-handoff",
-        "tactic:aggregate-boundary-design",
         "tactic:analysis-extract-before-interpret",
-        "tactic:anti-corruption-layer",
         "tactic:architecture-diagram-review-checklist",
         "tactic:atdd-adversarial-acceptance",
         "tactic:atomic-design-review-checklist",
         "tactic:atomic-state-ownership",
-        "tactic:bounded-context-canvas-fill",
-        "tactic:bounded-context-identification",
         "tactic:c4-zoom-in-architecture-documentation",
         "tactic:canonical-source-unification",
         "tactic:chain-of-responsibility-rule-pipeline",
         "tactic:code-documentation-analysis",
         "tactic:compositional-stream-boundaries",
-        "tactic:context-boundary-inference",
-        "tactic:context-mapping-classification",
         "tactic:cross-cutting-state-via-store",
         "tactic:development-bdd",
-        "tactic:domain-event-capture",
-        "tactic:entity-value-object-classification",
         "tactic:formalized-constraint-testing",
         "tactic:mutation-testing-workflow",
         "tactic:occurrence-classification-workflow",
@@ -197,15 +234,12 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
 #: d=2 (bootstrap). A strict subset of the d=1 set (bootstrap reaches more).
 _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
     {
-        "directive:DIRECTIVE_031",
-        "directive:DIRECTIVE_032",
         "directive:DIRECTIVE_035",
         "directive:DIRECTIVE_038",
         "directive:DIRECTIVE_039",
         "directive:DIRECTIVE_044",
         "paradigm:atomic-design",
         "paradigm:c4-incremental-detail-modeling",
-        "paradigm:domain-driven-design",
         "paradigm:specification-by-example",
         "paradigm:structured-prompt-driven-development",
         "procedure:documentation-gap-prioritization",
@@ -213,32 +247,23 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "procedure:event-storming-discovery",
         "procedure:example-mapping-workshop",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
-        "styleguide:aggregate-design-rules",
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
         "styleguide:mutation-aware-test-design",
         "styleguide:reasons-canvas-writing",
         "tactic:adversarial-qa-handoff",
-        "tactic:aggregate-boundary-design",
         "tactic:analysis-extract-before-interpret",
-        "tactic:anti-corruption-layer",
         "tactic:architecture-diagram-review-checklist",
         "tactic:atdd-adversarial-acceptance",
         "tactic:atomic-design-review-checklist",
         "tactic:atomic-state-ownership",
-        "tactic:bounded-context-canvas-fill",
-        "tactic:bounded-context-identification",
         "tactic:c4-zoom-in-architecture-documentation",
         "tactic:canonical-source-unification",
         "tactic:chain-of-responsibility-rule-pipeline",
         "tactic:code-documentation-analysis",
         "tactic:compositional-stream-boundaries",
-        "tactic:context-boundary-inference",
-        "tactic:context-mapping-classification",
         "tactic:cross-cutting-state-via-store",
         "tactic:development-bdd",
-        "tactic:domain-event-capture",
-        "tactic:entity-value-object-classification",
         "tactic:formalized-constraint-testing",
         "tactic:mutation-testing-workflow",
         "tactic:occurrence-classification-workflow",
@@ -441,12 +466,8 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
 #: artefacts reach an agent only because a profile ``requires`` them.
 _PROFILE_RESCUES: frozenset[str] = frozenset(
     {
-        "directive:DIRECTIVE_031",
-        "directive:DIRECTIVE_032",
         "directive:DIRECTIVE_044",
-        "tactic:anti-corruption-layer",
         "tactic:development-bdd",
-        "tactic:domain-event-capture",
         "tactic:reverse-speccing",
         "tactic:test-readability-clarity-check",
     }
@@ -564,6 +585,30 @@ class TestActionChannelReachability:
                 f"wired common-docs artefacts still unreachable at d={depth} "
                 f"(wired to an unreachable source, or the scope edge is absent): "
                 f"{missing}"
+            )
+
+    def test_ddd_family_is_action_reachable_at_specify_grain(
+        self, graph: DRGGraph
+    ) -> None:
+        """#3063 family-A acceptance (operator interview outcome): the specify
+        grain must reach the DDD paradigm and its strategic-design family.
+
+        The whole DDD family was a set of activated artefacts no action scoped —
+        measured unreachable at d=1 and d=2 before this edge. The single authored
+        ``scope`` edge from ``software-dev/specify`` to
+        ``paradigm:domain-driven-design`` makes the paradigm action-reachable, and
+        its authored ``requires`` edges deliver the members transitively. Measured
+        by CALLING the WP08 helper (R-1); if any member were only edge-incident to
+        an unreachable source (the PR #3007 failure), it would be absent here and
+        this test would name it. Red before the edge lands, green after.
+        """
+        for depth in (_ACTION_D1_DEPTH, _ACTION_D2_DEPTH):
+            reachable = action_channel_reachable(graph, action_seed_urns(graph), depth)
+            missing = sorted(_DDD_FAMILY_WIRED - reachable)
+            assert not missing, (
+                f"DDD family still unreachable at d={depth} "
+                f"(paradigm not scoped by an action, or a member is wired only to "
+                f"an unreachable source): {missing}"
             )
 
 

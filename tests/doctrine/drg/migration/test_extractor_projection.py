@@ -199,6 +199,38 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     the scope edge belongs in the documentation step-contract action index;
 #:     mission B2 migrates it when it retires this overlay generator. See
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (9) #3063 family-A (DDD family), operator interview outcome: FOURTEEN
+#:     hand-authored edges added to ``HAND_AUTHORED_EDGES`` (hub
+#:     ``paradigm:domain-driven-design``). One reaching ``scope`` edge
+#:     ``action:software-dev/specify --scope--> paradigm:domain-driven-design``;
+#:     ten ``requires`` edges from the DDD paradigm to its genuine family members
+#:     (bounded-context-identification / context-mapping-classification /
+#:     context-boundary-inference / bounded-context-canvas-fill /
+#:     strategic-domain-classification / aggregate-boundary-design /
+#:     entity-value-object-classification / domain-event-capture /
+#:     anti-corruption-layer / styleguide:aggregate-design-rules -- each attests
+#:     DDD in its OWN text); and three composition-only ``suggests`` edges from
+#:     agent profiles (architect-alphonso, paula-patterns, randy-reducer) to the
+#:     paradigm. +0 nodes / +14 edges (overlay) / +0 orphans -- every endpoint
+#:     was already edge-incident, so the orphan sets above are unchanged. The
+#:     PURE golden counts below are UNCHANGED (overlay-authored, not extractor-
+#:     derived), so ``test_shipped_graph_is_fresh_and_byte_identical`` stays green:
+#:     it asserts ``_EXPECTED_EDGE_COUNT + len(HAND_AUTHORED_EDGES)`` (764 + 32 =
+#:     796, was 764 + 18 = 782). Moved counts: shipped edges 782 -> 796;
+#:     ``len(HAND_AUTHORED_EDGES)`` 18 -> 32; relation histogram ``requires``
+#:     262 -> 272, ``suggests`` 337 -> 340, ``scope`` 158 -> 159 (all three pinned
+#:     by ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     all updated). The per-channel reachability move (twelve artefacts leave
+#:     ``_ACTION_UNREACHABLE_D1``/``D2``; four leave ``_PROFILE_RESCUES``) is
+#:     ledgered in ``tests/doctrine/drg/test_reachability.py``. NOTE the specify
+#:     edge is ``scope`` not the ``suggests`` the #3063 wiring table named: a
+#:     ``suggests`` edge sourced at an action node is measured inert (see the
+#:     wiring-table doc); only ``scope`` delivers, per the WP09 precedent.
+#:     EXCLUDED as non-attested: ``tactic:reference-architectural-patterns`` (its
+#:     own text is general reference-architecture selection, not DDD) and the
+#:     state/UI tactics compositional-stream-boundaries / cross-cutting-state-via-
+#:     store / atomic-state-ownership. DEFERRED: the DDD<->documentation edge (B1).
 _EXPECTED_NODE_COUNT = 304
 _EXPECTED_EDGE_COUNT = 764
 
