@@ -263,12 +263,16 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         org_charter_block: dict[str, object],
         mission_type: str | None = None,
         feature_dir: Path | None = None,
+        include_all: bool = False,
     ) -> dict[str, object]:
         assert repo_root == project
         assert action == "plan"
         assert depth == fake_ctx.depth
         assert org_root is None
         assert org_charter_block == {"present": False, "packs": []}
+        # The CLI's `--include-all` escape hatch defaults to False and was not
+        # requested on this invocation.
+        assert include_all is False
         return {
             "directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
             "all_directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
