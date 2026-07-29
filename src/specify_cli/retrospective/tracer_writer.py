@@ -48,13 +48,15 @@ from pathlib import Path
 
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.coordination.write_seam import (
     ProtectionPolicyLike,
     WriteSeamResult,
     write_artifact,
 )
-from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+from specify_cli.missions._read_path_resolver import (
+    StatusReadPathNotFound,
+    candidate_feature_dir_for_mission,
+)
 
 __all__ = [
     "TRACER_CATEGORIES",
@@ -169,13 +171,21 @@ def _read_current_coord_content(
 
 
 def _local_staging_path(repo_root: Path, mission_slug: str, filename: str) -> Path:
+    # Routes through the canonical topology-aware read primitive (C-005/FR-002,
+    # test_single_mission_surface_resolver.py) instead of a raw mission-spec-dir
+    # join built by hand -- matching the sibling ``retrospective/summary.py``
+    # staging-path pattern (same package, same "candidate dir + local subpath"
+    # shape). This primitive never requires the
+    # dir to exist yet -- it returns the best-known candidate -- so it resolves
+    # even before the mission's ``traces/`` subdir exists locally; the caller
+    # creates ``parent`` before writing.
     # Explicit ``Path`` annotation: under the project's ``follow_imports = "skip"``
-    # mypy config the cross-module ``KITTY_SPECS_DIR`` constant is seen as ``Any``
-    # when this file is type-checked in isolation; the annotation re-narrows the
-    # join back to ``Path`` (it IS a ``str``) — matching the sibling
-    # ``mission_repair.py::_mission_dir`` pattern.
-    staging_path: Path = repo_root / KITTY_SPECS_DIR / mission_slug / _TRACES_DIRNAME / filename
-    return staging_path
+    # mypy config, ``candidate_feature_dir_for_mission`` (cross-module) is seen
+    # as returning ``Any`` when this file is type-checked in isolation; the
+    # annotation re-narrows it back to ``Path`` (matching the sibling
+    # ``mission_repair.py``/former-``KITTY_SPECS_DIR`` join convention here).
+    feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    return feature_dir / _TRACES_DIRNAME / filename
 
 
 def _entry_id(category: str, entry_line: str) -> str:

@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 import typer
 
 from specify_cli.cli.console import console
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.tasks.issue_matrix import (
     ISSUE_MATRIX_JSON_FILENAME,
     ISSUE_MATRIX_MD_FILENAME,
@@ -283,7 +284,7 @@ app = typer.Typer(
 
 def _iter_primary_mission_dirs(repo_root: Path) -> list[Path]:
     """Every ``kitty-specs/<slug>/`` directory that carries a ``meta.json``."""
-    specs_root = repo_root / "kitty-specs"
+    specs_root = repo_root / KITTY_SPECS_DIR
     if not specs_root.is_dir():
         return []
     return sorted(
