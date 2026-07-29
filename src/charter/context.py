@@ -1176,6 +1176,12 @@ class _ActionRenderRow(NamedTuple):
     service_attr: str  # repository/dict on the service (absent for assets here)
     title_attr: str
     summary_attr: str | None
+    # D2c: the progressive-disclosure kind prefix (matches
+    # ``progressive_disclosure``'s URN kind, e.g. "directive"/"tactic") for the
+    # four kinds WP15's JSON payload already disclosure-cadences. ``None`` for
+    # procedure/asset, which stay always-inline here (unchanged, pre-D2c
+    # behaviour) — they are not part of the WP15 disclosure-cadenced kind set.
+    progressive_kind: str | None = None
 
 
 #: The Action Doctrine render order. Iterating it (not hand-written per-kind
@@ -1184,10 +1190,10 @@ class _ActionRenderRow(NamedTuple):
 #: WP11 (T059) retired the ``extended`` depth gate — every row renders on the
 #: bootstrap load; the compact rail carries the same kinds as ids (T061).
 _ACTION_RENDER_ROWS: tuple[_ActionRenderRow, ...] = (
-    _ActionRenderRow("Directives", "directive_ids", "directives", "title", "intent"),
-    _ActionRenderRow("Tactics", "tactic_ids", "tactics", "name", "purpose"),
-    _ActionRenderRow("Styleguides", "styleguide_ids", "styleguides", "title", None),
-    _ActionRenderRow("Toolguides", "toolguide_ids", "toolguides", "title", None),
+    _ActionRenderRow("Directives", "directive_ids", "directives", "title", "intent", "directive"),
+    _ActionRenderRow("Tactics", "tactic_ids", "tactics", "name", "purpose", "tactic"),
+    _ActionRenderRow("Styleguides", "styleguide_ids", "styleguides", "title", None, "styleguide"),
+    _ActionRenderRow("Toolguides", "toolguide_ids", "toolguides", "title", None, "toolguide"),
     _ActionRenderRow("Procedures", "procedure_ids", "procedures", "name", "purpose"),
     _ActionRenderRow("Assets", "asset_ids", "assets", "title", None),
 )
@@ -1203,6 +1209,19 @@ def _render_action_doctrine_lines(
 
     Assets have no repository on this lane, so ``getattr(service, "assets",
     None)`` is ``None`` and :func:`_extend_named_artifact_lines` emits bare ids.
+
+    D2c: directive/tactic/styleguide/toolguide entries follow the same
+    requires-eager / suggests-linked cadence WP15 already applies to the
+    ``--json`` payload (:func:`progressive_disclosure.requires_closure`) —
+    an entry outside the roots' requires-closure renders as a fetch +
+    when-doing stanza instead of its full verbatim body. Before this, every
+    resolved id always rendered its full body regardless of cadence, so a
+    grain reached mostly through ``suggests`` (the norm — see WP15's own
+    ADR) produced an Action Doctrine block large enough to blow the NFR-001
+    token budget on its own; the (smaller, but budget-substitutable)
+    profile-citation and charter-section blocks paid for it by being swapped
+    away first, silently dropping profile-cited directives like DIRECTIVE_032
+    even though swapping them never actually closed the budget gap.
     """
     service = doctrine_bundle.service
     all_action_ids: list[str] = [
@@ -1215,6 +1234,11 @@ def _render_action_doctrine_lines(
         if repo_root is not None and all_action_ids
         else {}
     )
+    inline_urns: frozenset[str] = (
+        frozenset(_pd.requires_closure(doctrine_bundle.merged, doctrine_bundle.roots))
+        if doctrine_bundle.merged is not None
+        else frozenset()
+    )
     for row in _ACTION_RENDER_ROWS:
         _extend_named_artifact_lines(
             lines,
@@ -1224,6 +1248,8 @@ def _render_action_doctrine_lines(
             row.title_attr,
             row.summary_attr,
             org_source_map=org_source_map,
+            progressive_kind=row.progressive_kind,
+            inline_urns=inline_urns,
         )
 
 
@@ -1448,6 +1474,13 @@ def _enforce_token_budget(
     return current_text
 
 
+#: When-doing clause for a linked (suggests-reached) Action Doctrine entry —
+#: mirrors the profile-citation renderers' own clause (D2c,
+#: ``_render_profile_directives`` / ``_render_profile_tactics``) so the two
+#: surfaces read consistently.
+_ACTION_DOCTRINE_LINK_WHEN = "are about to apply a code change"
+
+
 def _extend_named_artifact_lines(
     lines: list[str],
     heading: str,
@@ -1456,6 +1489,8 @@ def _extend_named_artifact_lines(
     title_attr: str,
     summary_attr: str | None,
     org_source_map: dict[str, str] | None = None,
+    progressive_kind: str | None = None,
+    inline_urns: frozenset[str] = frozenset(),
 ) -> None:
     """Append formatted artifact lines when the bucket is non-empty.
 
@@ -1467,6 +1502,14 @@ def _extend_named_artifact_lines(
     *repository* may be ``None`` when a delivered kind has no repository wired
     on this layer (e.g. assets on the WP10 base): every id then renders in the
     bare-id form, so the ids still reach the output (FR-009/B-2).
+
+    D2c: when *progressive_kind* is set (directive/tactic/styleguide/
+    toolguide), an entry outside *inline_urns* (WP15's requires-closure —
+    the eager set) renders its id + title header line plus a fetch +
+    when-doing stanza in place of the verbatim summary/body, matching the
+    cadence WP15 already applies to the ``--json`` payload. *progressive_kind*
+    ``None`` (procedure/asset) always renders the full verbatim line,
+    unchanged from pre-D2c behaviour.
     """
     if not artifact_ids:
         return
@@ -1479,6 +1522,19 @@ def _extend_named_artifact_lines(
             formatted.append(f"    - {artifact_id}{suffix}")
             continue
         title = getattr(artifact, title_attr)
+        is_linked = (
+            progressive_kind is not None
+            and f"{progressive_kind}:{artifact_id}" not in inline_urns
+        )
+        if is_linked:
+            formatted.append(f"    - {artifact_id}: {title}{suffix}")
+            formatted.extend(
+                _render_fetch_stanza(
+                    selector=f"{progressive_kind}:{artifact_id}",
+                    when_clause=_ACTION_DOCTRINE_LINK_WHEN,
+                )
+            )
+            continue
         summary = getattr(artifact, summary_attr) if summary_attr else None
         if isinstance(summary, str) and summary:
             formatted.append(f"    - {artifact_id}: {title} — {summary}{suffix}")
