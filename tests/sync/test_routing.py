@@ -197,3 +197,50 @@ def test_disable_checkout_sync_purges_only_matching_project_data(
     config_toml = (home / ".spec-kitty" / "config.toml").read_text(encoding="utf-8")
     assert "acme/spec-kitty" in config_toml
     assert "enabled = false" in config_toml
+
+
+# --- WP01 / FR-003: the sync-enabled gate must fail CLOSED -------------------
+# Regression cover for spec-kitty#3030. Before this, `is_sync_enabled_for_checkout`
+# returned True whenever routing could not be resolved, so an inability to
+# determine consent was read as consent — the inverted default in front of a
+# confidentiality boundary.
+
+
+def test_sync_enabled_denies_when_routing_is_unresolvable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unresolvable routing must DENY, not permit (FR-003, SC-003)."""
+    from specify_cli.sync import routing as routing_module
+
+    monkeypatch.setattr(
+        routing_module, "resolve_checkout_sync_routing_readonly", lambda start=None: None
+    )
+
+    assert routing_module.is_sync_enabled_for_checkout() is False
+
+
+def test_absence_of_consent_record_does_not_gate_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A checkout with NO consent record still CAPTURES (NFR-005, capture-first).
+
+    FR-002's "absence denies" is scoped to **delivery**. This resolver is also
+    read by the emit-time gate, so denying here would suppress capture and drop
+    events at write time. Measured cost of getting this wrong: 39 regressions
+    across tests/sync. The deny-by-default predicate belongs at the delivery
+    seam (WP06) and on the body-upload drain (WP11), not here.
+    """
+    repo_root = tmp_path / "never-opted-in"
+    repo_root.mkdir()
+    _write_repo_config(repo_root, project_uuid=str(uuid4()), repo_slug="acme/never-opted-in")
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.chdir(repo_root)
+
+    routing = resolve_checkout_sync_routing_readonly()
+
+    assert routing is not None
+    assert routing.local_sync_enabled is None
+    assert routing.repo_default_sync_enabled is None
+    assert routing.effective_sync_enabled is True

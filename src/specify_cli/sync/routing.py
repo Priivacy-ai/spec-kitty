@@ -84,6 +84,17 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
     elif repo_default_sync_enabled is not None:
         effective_sync_enabled = repo_default_sync_enabled
     else:
+        # Deliberately still ``True`` here. FR-002's "absence of a consent record
+        # denies" is scoped to **delivery**, and this resolver is also read by the
+        # emit-time gate (``sync/emitter.py:1890,1921``). Denying here suppresses
+        # *capture*, which violates NFR-005 (capture-first durability: no event is
+        # dropped at write time) and is not what the incident requires — the leak
+        # was on egress, not on capture.
+        #
+        # Measured: flipping this default regressed 39 tests across tests/sync,
+        # because it silently converted a capture gate into a consent gate.
+        # The deny-by-default decision belongs at the delivery seam (WP06's
+        # per-project predicate) and on the body-upload drain (WP11).
         effective_sync_enabled = True
 
     return CheckoutSyncRouting(
@@ -113,7 +124,11 @@ def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
     """
     routing = resolve_checkout_sync_routing_readonly(start=start)
     if routing is None:
-        return True
+        # FR-003 (spec-kitty#3030): fail CLOSED. This returned ``True``, so any
+        # invocation where the checkout could not be resolved was treated as
+        # consent. For a gate standing in front of a confidentiality boundary
+        # the default is inverted: inability to determine consent is not consent.
+        return False
     return routing.effective_sync_enabled
 
 
