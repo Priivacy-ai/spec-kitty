@@ -47,6 +47,7 @@ from .models import (
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
+    SELECT_IDENTITY_PROJECTION_SQL,
     SELECT_MISSING_IDENTITY_SQL,
     SET_IDENTITY_SQL,
     TABLE_NAME,
@@ -191,6 +192,21 @@ class JournalTransaction:
 # --- the append-only store ------------------------------------------------
 
 
+@dataclass(frozen=True)
+class EventIdentityRow:
+    """One journal row's identity, with no payload attached (#3030 T017).
+
+    The unit the consent predicate operates on. Carrying no payload is what makes
+    an unlimited universe read cheap enough for NFR-003.
+    """
+
+    event_id: str
+    created_at: str
+    project_uuid: str | None
+    repo_slug: str | None
+    drain_blocked_reason: str | None
+
+
 class EventJournal:
     """SQLite-backed, append-only, producer-scoped payload store."""
 
@@ -262,7 +278,7 @@ class EventJournal:
             ]
 
     def set_project_identity(
-        self, entries: list[tuple[str, str | None, str | None]]
+        self, entries: list[tuple[str, str | None, str | None, str | None]]
     ) -> int:
         """Write resolved identity for *entries* as one transaction.
 
@@ -281,7 +297,10 @@ class EventJournal:
         with contextlib.closing(self._connect()) as conn:
             cursor = conn.executemany(
                 SET_IDENTITY_SQL,
-                [(uuid, slug, event_id) for event_id, uuid, slug in entries],
+                [
+                    (uuid, slug, repo, event_id)
+                    for event_id, uuid, slug, repo in entries
+                ],
             )
             updated = cursor.rowcount
             conn.commit()
@@ -297,6 +316,27 @@ class EventJournal:
         with contextlib.closing(self._connect()) as conn:
             row = conn.execute(COUNT_MISSING_IDENTITY_SQL).fetchone()
         return int(row[0]) if row else 0
+
+    def read_identity_projection(self) -> list[EventIdentityRow]:
+        """Return every row's identity, without decoding a single payload (T017).
+
+        The universe-building read for the consent predicate (FR-008, NFR-003).
+        Deliberately unfiltered and unlimited at this layer: the caller applies the
+        project predicate in memory over an already-cheap projection, and pushing a
+        LIMIT down here would reintroduce the NFR-002 starvation the module note on
+        ``SELECT_IDENTITY_PROJECTION_SQL`` describes.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                EventIdentityRow(
+                    event_id=str(row[0]),
+                    created_at=str(row[1]),
+                    project_uuid=None if row[2] is None else str(row[2]),
+                    repo_slug=None if row[3] is None else str(row[3]),
+                    drain_blocked_reason=None if row[4] is None else str(row[4]),
+                )
+                for row in conn.execute(SELECT_IDENTITY_PROJECTION_SQL)
+            ]
 
     def append(self, event: Event) -> None:
         """Append an event as a distinct row (idempotent on ``event_id``).
@@ -464,6 +504,9 @@ def capture_teamspace_bound(
     is_teamspace_bound: bool = True,
     skip_journal: bool = False,
     created_at: str | None = None,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+    repo_slug: str | None = None,
 ) -> Event:
     """Durably capture a Teamspace-bound fact *before* the delivery gates.
 
@@ -504,6 +547,13 @@ def capture_teamspace_bound(
         coalesce_key=coalesce_key,
         archived_at=None,
         drain_blocked_reason=classify_drain_blocked_reason(gate),
+        # #3030 FR-006: the identity projection is written at capture time, not
+        # only by T012's backfill. Without this every NEW row lands with a NULL
+        # project_uuid, and NULL is permanently unselectable — the drain would go
+        # silent for live traffic while the backfill kept history deliverable.
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        repo_slug=repo_slug,
     )
     journal.append(event)
     return event
@@ -514,6 +564,7 @@ __all__ = [
     "CaptureGateState",
     "CoalesceDecision",
     "CoalesceStrategy",
+    "EventIdentityRow",
     "EventJournal",
     "JOURNAL_SUBDIR",
     "JournalTransaction",

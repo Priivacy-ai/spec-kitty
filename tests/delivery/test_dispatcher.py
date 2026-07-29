@@ -61,6 +61,23 @@ pytestmark = pytest.mark.fast
 
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
 
+# #3030 WP06: selection now requires a consented project identity. These tests are
+# about ledger/limit/multi-batch mechanics, so they carry one consented project and
+# keep asserting exactly what they always did. Identity-less and non-consenting
+# selection are pinned separately (test_incident_reproduction_3030.py,
+# test_dispatch_project_consent_3030.py).
+_TEST_PROJECT_UUID = "dddddddd-0000-0000-0000-00000000000d"
+
+
+@pytest.fixture(autouse=True)
+def _consent_to_the_test_project(tmp_path: Any, monkeypatch: Any) -> None:
+    """Record hosted-sync consent for this module's single project."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "consent-home"))
+    (tmp_path / "consent-home").mkdir(parents=True, exist_ok=True)
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(_TEST_PROJECT_UUID, True)
+
 
 # --------------------------------------------------------------------------- #
 # Fixtures / builders                                                          #
@@ -79,6 +96,7 @@ def _make_event(index: int) -> Event:
         payload=payload,
         occurred_at=_OCCURRED_AT,
         created_at=f"2026-06-29T00:00:0{index}+00:00",
+        project_uuid=_TEST_PROJECT_UUID,
     )
 
 

@@ -54,6 +54,7 @@ class ConsentLevel(enum.StrEnum):
 
     PROJECT_LOCAL = "project_local"
     MACHINE_INDEX = "machine_index"
+    REPO_DEFAULT = "repo_default"
     ENV = "env"
     ABSENT = "absent"
 
@@ -63,6 +64,7 @@ class ConsentLevel(enum.StrEnum):
 PROJECT_CONSENT_PRECEDENCE: tuple[ConsentLevel, ...] = (
     ConsentLevel.PROJECT_LOCAL,
     ConsentLevel.MACHINE_INDEX,
+    ConsentLevel.REPO_DEFAULT,
     ConsentLevel.ENV,
 )
 
@@ -183,6 +185,7 @@ def resolve_project_consent(
     *,
     repo_root: Path | None = None,
     checkout_roots: list[Path] | None = None,
+    repo_slug: str | None = None,
 ) -> ConsentDecision:
     """Resolve hosted-sync consent for *project_uuid* down the one chain.
 
@@ -236,7 +239,29 @@ def resolve_project_consent(
             ),
         )
 
-    # Level 3 — the env var, which cannot grant on its own. It is reached only to
+    # Level 3 — the repo-slug-keyed default. This is where `sync enable
+    # --remember` has always written, so it is the only record a project may have
+    # when nothing uuid-keyed exists yet. Consulted below the uuid index because a
+    # uuid record is specific to the project while a repo default covers every
+    # checkout of a repo, and consulted above the env var because it is a real
+    # per-repo decision rather than machine-wide arming.
+    if repo_slug:
+        from .config import SyncConfig
+
+        repo_default = SyncConfig().get_repository_sync_enabled(repo_slug)
+        if repo_default is not None:
+            return ConsentDecision(
+                granted=repo_default,
+                level=ConsentLevel.REPO_DEFAULT,
+                project_uuid=uuid,
+                reason=(
+                    f"granted by the repo default for {repo_slug!r}"
+                    if repo_default
+                    else f"opted out by the repo default for {repo_slug!r}"
+                ),
+            )
+
+    # Level 4 — the env var, which cannot grant on its own. It is reached only to
     # be refused, so that the reason names the incident's actual mechanism.
     return ConsentDecision(
         granted=False,
@@ -269,6 +294,7 @@ def consented_project_uuids(
     candidates: list[str | None],
     *,
     checkout_roots: list[Path] | None = None,
+    repo_slugs: dict[str, str | None] | None = None,
 ) -> frozenset[str]:
     """Return the subset of *candidates* that consent — the drain's seam.
 
@@ -282,7 +308,12 @@ def consented_project_uuids(
         uuid = _normalize_uuid(candidate)
         if uuid is None or uuid in granted:
             continue
-        if resolve_project_consent(uuid, checkout_roots=checkout_roots).granted:
+        decision = resolve_project_consent(
+            uuid,
+            checkout_roots=checkout_roots,
+            repo_slug=(repo_slugs or {}).get(uuid),
+        )
+        if decision.granted:
             granted.add(uuid)
     return frozenset(granted)
 
