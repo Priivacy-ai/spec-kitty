@@ -108,5 +108,8 @@ read must edit `_select_undelivered`. Resolved in WP06's favour:
 - T006 stamps identity-less capture non-deliverable; it must not drop events (NFR-005).
 - A `missing_auth`-stamped row **is** delivered after authentication (the T003 negative test).
 - SC-009 asserts cross-invocation shrinkage, not single-run progress.
+- **The `routing.py:87` default-allow flip lands here**, not in WP05: WP01 owns `routing.py`, and this
+  is what makes the emit-time and body-upload gates deny-by-default too. WP05 owns the matching
+  resolver semantics in `consent.py`. Without this line-item the inversion has no owning lane.
 - T005's message replacement touches `batch.py:1484-1488`, owned by WP02 — coordinate, or move that
   line-item into WP02 rather than no-op'ing inside WP01's surface.

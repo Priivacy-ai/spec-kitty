@@ -35,7 +35,7 @@
 | T012 | `project_uuid`/`project_slug` in `ORDERED_COLUMNS` + indexes; idempotent, lossless backfill using T011's chain (FR-006, FR-009, NFR-004, SC-007) | WP04 | |
 | T013 | Count unresolved-identity events for FR-011 (WP07 owns surfacing them) | WP04 | |
 | T014 | `sync/consent.py`: uuid-keyed consent index, written by `enable_checkout_sync`/`disable_checkout_sync`; conflict rule **deny if any checkout of the project is opted out**, encoded once (FR-013) | WP05 | |
-| T015 | Absence of a consent record denies for delivery, overriding the default-allow fall-through at `routing.py:87` (FR-002) | WP05 | |
+| T015 | Absence of a consent record denies — expressed as **resolver semantics in `consent.py`** (WP05's file). The matching `routing.py:87` default-allow flip is a **WP01 DoD item**, since WP01 owns `routing.py`; splitting it this way keeps both inside their lane and keeps the emit/body paths deny-by-default too (FR-002) | WP05 | |
 | T016 | Backfill path-keyed → uuid-keyed as a **single batched write**; unreadable paths retain the path entry with an `unresolved` marker the predicate ignores and WP07 renders; `enable_checkout_sync` **fails loudly** when no uuid resolves | WP05 | |
 | T017 | Project-filtered journal read as an **identity projection** (`event_id`, `created_at`, `project_uuid`; no payload BLOB) with **no `LIMIT`**; payload hydration via `read_by_id` over the ledger-selected batch (FR-008, NFR-003) | WP06 | |
 | T018 | `_select_undelivered` consumes the filtered read; stored column is the **sole authority** for selection (FR-007, NFR-001) | WP06 | |
