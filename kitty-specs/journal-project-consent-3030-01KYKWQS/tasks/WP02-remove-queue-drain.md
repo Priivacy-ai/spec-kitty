@@ -21,14 +21,6 @@ owned_files:
 - src/specify_cli/sync/background.py
 - src/specify_cli/sync/batch.py
 - src/specify_cli/sync/queue.py
-- src/specify_cli/sync/__init__.py
-- tests/sync/test_background.py
-- tests/sync/test_background_body.py
-- tests/sync/test_body_integration.py
-- tests/sync/test_issue_598_hang_fixes.py
-- tests/sync/test_target_authority_wiring.py
-- tests/sync/test_legacy_queue_precondition_3030.py
-- tests/sync/test_no_queue_drain_constructed_3030.py
 ---
 
 # WP02 — Remove the legacy queue drain

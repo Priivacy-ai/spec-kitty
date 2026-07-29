@@ -27,8 +27,6 @@ authoritative_surface: src/specify_cli/
 owned_files:
 - src/specify_cli/delivery/receivers.py
 - src/specify_cli/sync/routing.py
-- tests/sync/conftest.py
-- tests/sync/test_sync_consent_default_deny.py
 ---
 
 # WP01 — Containment: refuse loudly, fail closed
