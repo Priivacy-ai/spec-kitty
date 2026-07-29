@@ -118,7 +118,8 @@
       "last_transition_at": "2026-07-29T16:54:53.463973+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Implementation complete; pre-review gate skipped (times out at 300s cap, not a red test)."
+        "Implementation complete; pre-review gate skipped (times out at 300s cap, not a red test).",
+        "Implementation verified."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
