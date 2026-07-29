@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP09",
+  "captured_at": "2026-07-29T14:09:54Z",
+  "base_branch": "feat/write-side-seam-matrix-tracer",
+  "base_commit": "a9fd8061fae4639ddb5dbea4e567528f16d4d2d1",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
