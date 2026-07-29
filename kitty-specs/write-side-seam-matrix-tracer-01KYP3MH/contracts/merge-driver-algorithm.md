@@ -8,7 +8,9 @@ Git invokes the driver with the merge placeholders:
 - `%A` — **our** (current-branch / consolidation-base) version.
 - `%B` — **their** (incoming-lane) version.
 
-The driver MUST use all three. A 2-way (`%A`/`%B` only) merge cannot distinguish "the other side added a row" from "our side deleted a row" and re-leaks clobber. The base-aware requirement is why FR-009 (a real common ancestor) is a **hard predecessor** of the durability regression (IC-08 → IC-01): without a shared `%O` the driver degrades to 2-way.
+The driver MUST use all three. A 2-way (`%A`/`%B` only) merge cannot distinguish "the other side added a row" from "our side deleted a row" and re-leaks clobber.
+
+**Where `%O` comes from (topology-resolved, confirmed against code 2026-07-29).** `%O` is the git merge-base blob on the **seam-resolved matrix surface for the active topology** — the **coord lineage** under a coord topology, the **primary/`target_branch` lineage** under a flat (`SINGLE_BRANCH`/`LANES`) topology. `ISSUE_MATRIX`/`ACCEPTANCE_MATRIX` are COORD-partition kinds (`artifacts.py:172-183`); `declared_read_surface`/`resolve_placement_only` return PRIMARY for them in flat topologies and COORD in coord-topology (`resolution.py:1602-1607`, `:1211-1217`). FR-009's recorded primary lane base supplies `%O` **only for PRIMARY-partition artifacts** (planning docs); matrices are FR-007-routed and, under coord topology, **serialize onto the single per-mission coord worktree** (`commit_router.py:248-306`) — they never diverge on lane branches, so the lane base is orthogonal to their `%O`. The disjoint-row union therefore bites primarily on **flat topology** (matrices on `target_branch`, lanes can diverge them) and on **coord↔target integration merges**, both drawing `%O` from the resolved surface's own lineage. There is **no hard IC-08 → IC-01 dependency**: WP11 needs a real (non-synthetic) `%O` from the resolved consolidation lineage, which exists independently of WP01's recorded planning SHA.
 
 ## Row-key canonicalization
 Rows are keyed by a **canonical identity**, not by line position or dict order:
