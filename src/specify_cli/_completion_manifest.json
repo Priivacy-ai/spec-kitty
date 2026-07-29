@@ -18,6 +18,16 @@
    "hidden": false,
    "deprecated": false,
    "commands": {
+    "tracer-append": {
+     "help": "Append a dated, attributed finding to the mission's tracer surface.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "issue-verdict": {
+     "help": "Set an issue-matrix row's verdict, routed via ``write_target(ISSUE_MATRIX)``.",
+     "hidden": false,
+     "deprecated": false
+    },
     "check-prerequisites": {
      "help": "Deprecated compatibility alias forwarding to agent mission check-prerequisites.",
      "hidden": true,
@@ -67,6 +77,11 @@
      "commands": {
       "record-analysis": {
        "help": "Persist `/spec-kitty.analyze` output as `analysis-report.md`.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "acceptance-verdict": {
+       "help": "Record one acceptance-criterion verdict, routed through the WP03 write seam.",
        "hidden": false,
        "deprecated": false
       },
@@ -799,6 +814,18 @@
     }
    }
   },
+  "issue-matrix": {
+   "help": "Issue-matrix commands (structured issue-matrix.json).",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "migrate": {
+     "help": "Bulk-migrate legacy ``issue-matrix.md`` missions to ``issue-matrix.json`` (FR-013).",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
   "issue-search": {
    "help": "Search tracker issues via the hosted read path",
    "hidden": false,
@@ -821,7 +848,7 @@
    "deprecated": false
   },
   "merge-driver-acceptance-matrix": {
-   "help": "Keep the filled ``acceptance-matrix.json`` side; write result to ``ours`` (#2804).",
+   "help": "Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours`` (FR-008).",
    "hidden": true,
    "deprecated": false
   },
@@ -831,7 +858,7 @@
    "deprecated": false
   },
   "merge-driver-issue-matrix": {
-   "help": "Keep the filled ``issue-matrix.md`` side; write result to ``ours`` (#2804).",
+   "help": "Row-aware, 3-way merge of ``issue-matrix.json``; write result to ``ours`` (FR-008).",
    "hidden": true,
    "deprecated": false
   },
