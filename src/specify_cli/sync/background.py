@@ -30,9 +30,7 @@ from specify_cli.diagnostics import report_once
 from .batch import (
     BatchEventResult,
     BatchSyncResult,
-    batch_sync,
     run_final_sync_with_retries,
-    sync_all_queued_events,
 )
 from .config import SyncConfig
 from .diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
@@ -369,8 +367,11 @@ class BackgroundSyncService:
         with self._lock:
             return self._sync_once()
 
-    def _perform_full_sync(self, *, show_progress: bool = False) -> BatchSyncResult:
-        """Drain the entire queue across multiple batches.
+    def _perform_full_sync(self, *, show_progress: bool = False) -> BatchSyncResult:  # noqa: ARG002
+        """Drain body uploads; the queue-backed event drain was removed (#3030 FR-012).
+
+        ``show_progress`` is retained for signature compatibility with the callers
+        and tests that still pass it; it no longer has an event drain to report on.
 
         Thread-safe: holds _lock for the full duration so background
         timer ticks are serialised.
@@ -392,24 +393,19 @@ class BackgroundSyncService:
                 return _unauthenticated_sync_result(self.queue)
 
             try:
-                result = sync_all_queued_events(
-                    queue=self.queue,
-                    auth_token=access_token,
-                    server_url=self.config.resolve_runtime_target().resolved_server_url,
-                    batch_size=1000,
-                    show_progress=show_progress,
-                )
-                # Treat auth failures as hard errors (#598)
-                if "auth_expired" in result.category_counts:
-                    self._consecutive_failures += 1
-                    self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
-                    logger.warning(
-                        "Full sync auth failure (attempt %d): "
-                        "run `spec-kitty auth login` to re-authenticate",
-                        self._consecutive_failures,
-                    )
-                    return result
-                # Drain body upload queue after events (FR-007)
+                # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
+                #
+                # This called ``sync_all_queued_events`` over the machine-global
+                # legacy queue — a second live drain alongside the journal
+                # dispatcher, with no per-project consent anywhere on it. Removal
+                # strands nothing: ``_capture_to_journal`` (``sync/emitter.py:2057``)
+                # runs before every gate and is unconditional, so any event that
+                # reached the legacy queue already has a journal copy the
+                # dispatcher can deliver.
+                #
+                # Body uploads still drain here; they are a separate store and are
+                # gated separately (WP11).
+                result = BatchSyncResult()
                 if self._body_queue is not None:
                     self._drain_body_queue()
                 self._consecutive_failures = 0
@@ -452,33 +448,12 @@ class BackgroundSyncService:
 
         event_sync_succeeded = False
         try:
-            result = batch_sync(
-                queue=self.queue,
-                auth_token=access_token,
-                server_url=self.config.resolve_runtime_target().resolved_server_url,
-                limit=1000,
-                show_progress=False,
-            )
-            # Treat auth failures (HTTP 401) as hard errors for backoff
-            # purposes.  batch_sync() handles 401 internally and returns
-            # a result with error_category="auth_expired" rather than
-            # raising, so without this check the service would reset
-            # backoff and keep retrying at the normal cadence (#598).
-            if "auth_expired" in result.category_counts:
-                self._consecutive_failures += 1
-                self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
-                logger.warning(
-                    "Sync auth failure (attempt %d, next backoff %.1fs): "
-                    "run `spec-kitty auth login` to re-authenticate",
-                    self._consecutive_failures,
-                    self._backoff_seconds,
-                )
-            else:
-                # Genuine success: reset backoff
-                self._consecutive_failures = 0
-                self._backoff_seconds = 0.5
-                self._last_sync = datetime.now(UTC)
-                event_sync_succeeded = True
+            # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
+            # See ``_perform_full_sync`` for why removal strands nothing. The
+            # journal dispatcher is the sole event drain; body uploads below are
+            # a separate store, gated separately (WP11).
+            result = BatchSyncResult()
+            event_sync_succeeded = True
         except Exception as exc:
             self._consecutive_failures += 1
             self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
