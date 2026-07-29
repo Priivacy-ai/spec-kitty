@@ -1339,6 +1339,12 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
     "decisions": ("closeout", "misc", ("tests/specify_cli/decisions",)),
     "doc_analysis": ("closeout", "misc", ()),
     "widen": ("closeout", "misc", ("tests/specify_cli/widen",)),
+    # write-side-seam-matrix-tracer-01KYP3MH: issue-matrix.json read/write +
+    # bulk-migration domain (issue_matrix.py, issue_matrix_migration.py,
+    # issue_reference_discovery.py) -- closest to the closeout group's existing
+    # "decisions" member (a structured record-tracking surface), and its tests
+    # already run under the misc shard (tests/tasks -> shard: misc, ci-quality.yml).
+    "tasks": ("closeout", "misc", ("tests/tasks",)),
     # governance -> ``misc``.
     "doctrine": ("governance", "misc", ("tests/specify_cli/doctrine",)),
     "policy": ("governance", "misc", ("tests/policy",)),
