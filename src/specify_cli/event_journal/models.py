@@ -208,8 +208,6 @@ def row_to_event(row: tuple[Any, ...]) -> Event:
 
 
 __all__ = [
-    "COL_PROJECT_SLUG",
-    "COL_PROJECT_UUID",
     "COUNT_MISSING_IDENTITY_SQL",
     "CREATE_COALESCE_INDEX_SQL",
     "CREATE_PROJECT_INDEX_SQL",

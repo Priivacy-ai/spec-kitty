@@ -166,7 +166,12 @@ def test_backfill_leaves_unresolvable_rows_null_and_counts_them(
     assert identity["evt-bare"][0] is None
     assert identity["evt-nil"][0] is None, "the nil sentinel must not be stored"
     assert identity["evt-corrupt"][0] is None
-    assert len(journal.read_all()) == 4, "backfill must not delete rows (C-002)"
+    assert {e.event_id for e in journal.read_all()} == {
+        "evt-resolvable",
+        "evt-bare",
+        "evt-nil",
+        "evt-corrupt",
+    }, "backfill must not delete rows (C-002)"
 
     assert result.unresolved == 3
     assert count_unresolved_identity(journal) == 3
@@ -193,7 +198,9 @@ def test_sc007_backfill_twice_is_byte_identical(tmp_path: Path) -> None:
     snapshot_2 = _raw_snapshot(db_path)
 
     assert snapshot_1 == snapshot_2, "second backfill mutated stored values"
-    assert len(journal.read_all()) == 60
+    assert {e.event_id for e in journal.read_all()} == {
+        f"evt-{i:04d}" for i in range(60)
+    }, "backfill must neither drop nor invent rows"
     assert second.updated == 0, "an idempotent re-run has nothing left to update"
     assert first.unresolved == second.unresolved
 

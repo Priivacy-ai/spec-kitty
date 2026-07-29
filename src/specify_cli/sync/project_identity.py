@@ -35,10 +35,6 @@ from specify_cli.identity.project import (  # noqa: F401
 # but is intentionally omitted from ``__all__`` so wildcard imports do not promote
 # a write-boundary helper as part of the trimmed public surface.
 __all__ = [
-    "IdentityBackfillResult",
-    "NIL_PROJECT_UUID",
-    "PROJECT_SLUG_RESOLUTION_CHAIN",
-    "PROJECT_UUID_RESOLUTION_CHAIN",
     "ProjectIdentity",
     "atomic_write_config",
     "derive_project_slug",
@@ -47,9 +43,6 @@ __all__ = [
     "generate_project_uuid",
     "is_writable",
     "load_identity",
-    "backfill_journal_identity",
-    "count_unresolved_identity",
-    "resolve_event_project_slug",
     "resolve_event_project_uuid",
 ]
 
