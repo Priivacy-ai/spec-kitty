@@ -75,12 +75,24 @@ def _build_asset_repository() -> AssetRepository:
 
 
 def _resolved_path_str(repo: AssetRepository, asset_id: str) -> str:
-    """Return the resolved blob path as a string, or the unresolvable marker."""
-    from doctrine.assets.repository import AssetPathEscapeError
+    """Return the resolved blob path as a string, or the unresolvable marker.
+
+    ``asset list`` iterates every loaded manifest, including ones whose
+    anchoring can miss even though the manifest itself resolved cleanly out of
+    :meth:`AssetRepository.list_all` — e.g. an org-tier manifest whose source
+    isn't under any *currently* configured org dir, or a project-provenance
+    manifest with no project dir. ``resolve_path`` raises
+    :class:`AssetNotFoundError` for that anchoring miss (from ``_anchor_for``),
+    distinct from the containment refusal :class:`AssetPathEscapeError` raised
+    for a ``..``/symlink escape. Both render as the same unresolvable marker
+    rather than one of them crashing the whole ``list`` command with an
+    uncaught traceback.
+    """
+    from doctrine.assets.repository import AssetNotFoundError, AssetPathEscapeError
 
     try:
         return str(repo.resolve_path(asset_id))
-    except AssetPathEscapeError:
+    except (AssetPathEscapeError, AssetNotFoundError):
         return _UNRESOLVABLE
 
 
