@@ -110,6 +110,7 @@
       "last_transition_at": "2026-07-29T23:18:19.180448+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
+        "T014-T016 done; 5 failed/2302 passed, only WP06 pins remain",
         "T014-T016 done; 5 failed/2302 passed, only WP06 pins remain"
       ],
       "provider": "__resolved_provider_absent__",
