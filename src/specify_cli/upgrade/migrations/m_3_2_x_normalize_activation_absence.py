@@ -341,11 +341,10 @@ class NormalizeActivationAbsenceMigration(BaseMigration):
 
     migration_id = MIGRATION_ID
     description = (
-        "Write an explicit empty list for every per-artifact activated_<kind> "
-        "key absent from the resolved activation store (charter.yaml when the "
-        "charter: pointer is present, else config.yaml), so absence means "
-        "'nothing activated' rather than 'all built-ins' (FR-018); ensure the "
-        "config.yaml 'charter:' pointer is present."
+        "Write an empty list for each absent per-artifact activated_<kind> key "
+        "in the resolved store (charter.yaml if pointer set, else config.yaml): "
+        "absence means 'nothing activated' not 'all built-ins' (FR-018). "
+        "Ensures the config.yaml charter: pointer exists."
     )
     target_version = TARGET_VERSION
     runs_on_worktrees = False
