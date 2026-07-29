@@ -31,7 +31,6 @@ convention) -- no resolver is patched.
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -50,6 +49,15 @@ from specify_cli.cli.commands.implement import (
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
+from tests.specify_cli._read_seam_migration_fixtures import (
+    build_coord_branch_deleted,
+    build_coord_husk,
+    build_coord_materialized,
+    build_coord_worktree_empty,
+    build_flat,
+    coord_branch_name,
+    make_git_repo,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -59,26 +67,18 @@ _MISSION_ID = "01KYKMMTWP05TRIOFIXTURE001"
 _MID8 = _MISSION_ID[:8]
 _SLUG = "trio-read-seam-migration-fixture"
 _HANDLE = f"{_SLUG}-{_MID8}"
-_COORD_BRANCH = f"kitty/mission-{_HANDLE}"
-
-
-def _git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+_COORD_BRANCH = coord_branch_name(_HANDLE)
 
 
 def _make_git_repo(tmp_path: Path, name: str) -> Path:
-    repo = tmp_path / name
-    repo.mkdir(parents=True)
-    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True, capture_output=True)
-    _git(repo, "config", "user.email", "wp05-fixture@spec-kitty.test")
-    _git(repo, "config", "user.name", "WP05 Fixture")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / ".kittify").mkdir()
-    (repo / "kitty-specs").mkdir()
-    (repo / "README.md").write_text("wp05 trio fixture repo\n", encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-q", "-m", "init")
-    return repo
+    return make_git_repo(
+        tmp_path,
+        name,
+        user_email="wp05-fixture@spec-kitty.test",
+        user_name="WP05 Fixture",
+        readme_text="wp05 trio fixture repo\n",
+        quiet=True,
+    )
 
 
 def _write_meta(feature_dir: Path, *, coordination_branch: str | None) -> None:
@@ -111,11 +111,16 @@ def _plant_analysis_report(feature_dir: Path) -> None:
     (feature_dir / "analysis-report.md").write_text("# analysis report\n", encoding="utf-8")
 
 
+def _write_primary_meta(feature_dir: Path) -> None:
+    _write_meta(feature_dir, coordination_branch=_COORD_BRANCH)
+
+
 def _flat(tmp_path: Path) -> Path:
     """Flat (no coordination) topology -- the simplest materialized fixture."""
     repo = _make_git_repo(tmp_path, "flat")
-    primary_dir = repo / "kitty-specs" / _HANDLE
-    _write_meta(primary_dir, coordination_branch=None)
+    primary_dir = build_flat(
+        repo, _HANDLE, write_primary_meta=lambda fd: _write_meta(fd, coordination_branch=None)
+    )
     _plant_wp_task(primary_dir)
     _plant_analysis_report(primary_dir)
     return repo
@@ -130,15 +135,18 @@ def _coord_materialized(tmp_path: Path) -> Path:
     warn about.
     """
     repo = _make_git_repo(tmp_path, "coord-materialized")
-    _git(repo, "branch", _COORD_BRANCH)
-    primary_dir = repo / "kitty-specs" / _HANDLE
-    _write_meta(primary_dir, coordination_branch=_COORD_BRANCH)
+    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
+    primary_dir, coord_dir = build_coord_materialized(
+        repo,
+        _HANDLE,
+        _COORD_BRANCH,
+        coord_root,
+        write_primary_meta=_write_primary_meta,
+        write_coord_meta=_write_primary_meta,
+    )
     _plant_wp_task(primary_dir)
     _plant_analysis_report(primary_dir)
 
-    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
-    coord_dir = coord_root / "kitty-specs" / _HANDLE
-    _write_meta(coord_dir, coordination_branch=_COORD_BRANCH)
     # A DIFFERENT WP task + analysis report on coord: if a routed site ever
     # silently selected the coord surface for a PRIMARY-partition kind, the
     # equality assertions below would read this decoy content instead of the
@@ -151,42 +159,35 @@ def _coord_materialized(tmp_path: Path) -> Path:
 def _coord_husk(tmp_path: Path) -> Path:
     """Coord worktree materialized, but its mission dir has NO meta.json."""
     repo = _make_git_repo(tmp_path, "coord-husk")
-    _git(repo, "branch", _COORD_BRANCH)
-    primary_dir = repo / "kitty-specs" / _HANDLE
-    _write_meta(primary_dir, coordination_branch=_COORD_BRANCH)
+    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
+    primary_dir = build_coord_husk(
+        repo, _HANDLE, _COORD_BRANCH, coord_root, write_primary_meta=_write_primary_meta
+    )
     _plant_wp_task(primary_dir)
     _plant_analysis_report(primary_dir)
-
-    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
-    coord_dir = coord_root / "kitty-specs" / _HANDLE
-    coord_dir.mkdir(parents=True)
-    (coord_dir / "status.events.jsonl").write_text("", encoding="utf-8")
-    assert not (coord_dir / "meta.json").exists(), "husk invariant: no coord meta.json"
     return repo
 
 
 def _coord_worktree_empty(tmp_path: Path) -> Path:
     """Coord root materialized (create window) but no mission dir under it."""
     repo = _make_git_repo(tmp_path, "coord-empty")
-    _git(repo, "branch", _COORD_BRANCH)
-    primary_dir = repo / "kitty-specs" / _HANDLE
-    _write_meta(primary_dir, coordination_branch=_COORD_BRANCH)
+    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
+    primary_dir = build_coord_worktree_empty(
+        repo, _HANDLE, _COORD_BRANCH, coord_root, write_primary_meta=_write_primary_meta
+    )
     _plant_wp_task(primary_dir)
     _plant_analysis_report(primary_dir)
-
-    coord_root = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
-    coord_root.mkdir(parents=True)
     return repo
 
 
 def _coord_branch_deleted(tmp_path: Path) -> Path:
     """meta.json declares a coordination_branch that was never created in git."""
     repo = _make_git_repo(tmp_path, "coord-deleted")
-    primary_dir = repo / "kitty-specs" / _HANDLE
-    _write_meta(primary_dir, coordination_branch=_COORD_BRANCH)
+    primary_dir = build_coord_branch_deleted(
+        repo, _HANDLE, _COORD_BRANCH, write_primary_meta=_write_primary_meta
+    )
     _plant_wp_task(primary_dir)
     _plant_analysis_report(primary_dir)
-    assert not (repo / ".worktrees").exists(), "no coord worktree for the deleted-branch case"
     return repo
 
 

@@ -28,13 +28,22 @@ convention), built under pytest's ``tmp_path``.
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 import pytest
 
 from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
 from specify_cli.status.aggregate import MissionStatus
+from tests.specify_cli._read_seam_migration_fixtures import (
+    build_coord_branch_deleted,
+    build_coord_husk,
+    build_coord_worktree_empty,
+    build_flat,
+    coord_branch_name,
+    coord_worktree_root,
+    git_cmd as _git,
+    make_git_repo,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -45,28 +54,14 @@ _HUMAN_SLUG = "aggregate-seam-migration-fixture"
 _COMPOSED = f"{_HUMAN_SLUG}-{_MID8}"
 
 
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
-    )
-    return result.stdout.strip()
-
-
 def _make_git_repo(tmp_path: Path, name: str) -> Path:
-    repo = tmp_path / name
-    repo.mkdir(parents=True)
-    subprocess.run(
-        ["git", "init", "-b", "main", str(repo)], check=True, capture_output=True
+    return make_git_repo(
+        tmp_path,
+        name,
+        user_email="wp07-fixture@spec-kitty.test",
+        user_name="WP07 Fixture",
+        readme_text="wp07 fixture repo\n",
     )
-    _git(repo, "config", "user.email", "wp07-fixture@spec-kitty.test")
-    _git(repo, "config", "user.name", "WP07 Fixture")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / ".kittify").mkdir()
-    (repo / "kitty-specs").mkdir()
-    (repo / "README.md").write_text("wp07 fixture repo\n", encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "init")
-    return repo
 
 
 def _write_meta(
@@ -102,13 +97,16 @@ def test_find_meta_path_materialized_mission_resolves_identical_directory(
     blind composition would have (NFR-001 baseline — no behaviour change for
     the common, non-backfilled case)."""
     repo = _make_git_repo(tmp_path, "flat")
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="single_branch",
-        coordination_branch=None,
+    primary_dir = build_flat(
+        repo,
+        _COMPOSED,
+        write_primary_meta=lambda feature_dir: _write_meta(
+            feature_dir,
+            slug=_COMPOSED,
+            mission_id=_MISSION_ID,
+            topology="single_branch",
+            coordination_branch=None,
+        ),
     )
 
     meta_path, resolved_primary_dir = MissionStatus._find_meta_path(repo, _COMPOSED)
@@ -203,25 +201,30 @@ def test_find_meta_path_never_raises_coordination_branch_deleted(
     routed legs only ever request ``PRIMARY_METADATA``, which the seam
     resolves for every topology/coord state without a coord probe."""
     repo = _make_git_repo(tmp_path, f"coord-{coord_shape}")
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    branch = f"kitty/mission-{_COMPOSED}"
-    if coord_shape != "branch_deleted":
-        _git(repo, "branch", branch)
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
-    )
+    branch = coord_branch_name(_COMPOSED)
+
+    def _write(feature_dir: Path) -> None:
+        _write_meta(
+            feature_dir,
+            slug=_COMPOSED,
+            mission_id=_MISSION_ID,
+            topology="coord",
+            coordination_branch=branch,
+        )
+
+    coord_root = coord_worktree_root(repo, _COMPOSED)
     if coord_shape == "husk":
-        coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-        coord_mission_dir = coord_root / "kitty-specs" / _COMPOSED
-        coord_mission_dir.mkdir(parents=True)
-        (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+        primary_dir = build_coord_husk(
+            repo, _COMPOSED, branch, coord_root, write_primary_meta=_write
+        )
     elif coord_shape == "worktree_empty":
-        coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-        coord_root.mkdir(parents=True)
+        primary_dir = build_coord_worktree_empty(
+            repo, _COMPOSED, branch, coord_root, write_primary_meta=_write
+        )
+    else:
+        primary_dir = build_coord_branch_deleted(
+            repo, _COMPOSED, branch, write_primary_meta=_write
+        )
 
     meta_path, resolved_primary_dir = MissionStatus._find_meta_path(repo, _COMPOSED)
 
