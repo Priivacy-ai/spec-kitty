@@ -4,27 +4,27 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: write-side-seam-matrix-tracer-01KYP3MH
 mission_id: 01KYP3MHBPB22TGAT5VRRPT66G
-generated_at: '2026-07-29T10:30:53.118190+00:00'
+generated_at: '2026-07-29T12:04:43.140415+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/spec.md
-    sha256: 36f61192f62c6fa2dd79fa1168e59eb90d36c9da61d34a4f13e8467ac1d1eec3
+    sha256: 11de1604f8c1951a01cf424ae5de096c40fafc371d8b2aa208e272219fa4edf8
   plan.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/plan.md
-    sha256: 63529461dde46f3a47df5d07592874f7354d518b2dbe7e7072af4d621d0dca35
+    sha256: 434854659ece6c505194df704737d3d3015a9545c04dcc4c6152b8eab95251ae
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/tasks.md
-    sha256: 42590bc6e80bcd403eb4bee202bca8df6614f2302d51fe6b332617a325de29b3
+    sha256: d0d3212bbeaedb6b51690067ed33cb58699fe45ac516d2523c0b8250791e0cb6
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
     sha256: cb2dc6cd12aade3d5464997467b7ecdbd3849ea3581207b58c207c3d16fff9b8
 verdict: ready
 issue_counts:
-  high: 0
-  low: 3
   critical: 0
+  high: 0
   medium: 1
+  low: 3
   info: 0
 findings:
 - id: C1
@@ -68,7 +68,7 @@ findings:
 | FR-004 | ✅ | WP08 / T028–T031 | Multi-file discovery + merge gate |
 | FR-005 | ✅ | WP09 / T034–T035 | Zero-ref Gate 4 not_applicable |
 | FR-006 | ✅ | WP10 / T036–T038 | Tracer writer (the genuine build) |
-| FR-007 | ✅ | WP02 (emit.py) + WP03 (core) / T007,T010–T012 | emit.py Move A atomic in WP02 |
+| FR-007 | ✅ (re-scoped) | WP02 (emit.py) + WP03 (core) / T007,T010,T013 | emit.py Move A in WP02; core helper in WP03. **T011/T012 (#2663 + status/emit.py) deferred → #3071** (collide with pinned #2160/#2966 invariants C-006 marks out-of-scope) |
 | FR-008 | ✅ | WP11 / T039–T042,T045 | Row-aware driver + #2970 + durability |
 | FR-009 | ✅ | WP01 / T001–T005 | Lane-base ADR-first |
 | FR-010 | ✅ | WP02 / T006–T009,T046 | Coord-authority gate + ADR ratify |
