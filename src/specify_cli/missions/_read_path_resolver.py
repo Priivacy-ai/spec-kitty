@@ -1281,12 +1281,17 @@ def _compose_primary_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     enforced by ``tests/architectural/test_single_mission_surface_resolver.py``.
 
     Private by convention, not unreachable (SC-001): kept out of ``__all__``
-    (module-private), but WP08 (T035) re-pointed the five named FR-005/NFR-009
-    foundation sites (``core/paths.py`` x2, ``core/git_ops.py``,
-    ``coordination/surface_resolver.py``, ``retrospective/writer.py`` — the
-    last already re-pointed by WP03's cycle-1 fix) at this leaf once the
-    public wrapper they used to import was deleted — so it stays importable
-    for exactly those cross-module, named-sanctioned callers.
+    (module-private), but WP08 (T035) re-pointed the cross-module callers at
+    this leaf once the public wrapper they used to import was deleted — so it
+    stays importable for exactly those named-sanctioned callers. The
+    authoritative, machine-checked census of who may import this leaf lives in
+    ``tests/architectural/test_no_read_side_bypass.py`` — its
+    ``_FOUNDATION_SANCTION_SEED`` (per-site foundation sanctions:
+    ``core/paths.py`` x2, ``core/git_ops.py``, ``retrospective/writer.py``,
+    ``status/aggregate.py``) plus ``_READ_SANCTIONED_MODULES`` (whole-module
+    sanctions: ``coordination/surface_resolver.py``,
+    ``mission_runtime/resolution.py`` — 4 internal call sites) — rather than a
+    hand count here, which drifts every time a new site is sanctioned.
 
     Raises:
         ValueError: When ``mission_slug`` is not a safe path segment
@@ -1647,10 +1652,15 @@ def resolve_feature_dir_for_mission(
 # now raises ``ImportError``. The transitional shim is gone (C-004); the
 # terminal ``_compose_primary_feature_dir`` leaf is the PERMANENT, module-
 # private assembler every PRIMARY read ultimately funnels through, importable
-# only by the seam's own PRIMARY leg and the five named FR-005/NFR-009
-# foundation sites that sit beneath the seam's own composition root
-# (``core/paths.py`` x2, ``core/git_ops.py``,
-# ``coordination/surface_resolver.py``, ``retrospective/writer.py``).
+# only by the seam's own PRIMARY leg and the named-sanctioned cross-module
+# callers. The authoritative census of those callers lives in
+# ``tests/architectural/test_no_read_side_bypass.py``'s
+# ``_FOUNDATION_SANCTION_SEED`` (per-site: ``core/paths.py`` x2,
+# ``core/git_ops.py``, ``retrospective/writer.py``, ``status/aggregate.py``)
+# and ``_READ_SANCTIONED_MODULES`` (whole-module: ``coordination/
+# surface_resolver.py``, ``mission_runtime/resolution.py`` — 4 internal call
+# sites) — consult that machine-checked table rather than re-typing a hand
+# count here.
 __all__ = [
     "CoordState",
     "MissionSelectorAmbiguous",

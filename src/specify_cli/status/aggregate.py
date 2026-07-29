@@ -457,13 +457,17 @@ class MissionStatus:
         """Return ``(meta_path, primary_dir)`` via the canonical handle resolver.
 
         Routes EVERY handle form (full slug, bare mid8, full ULID, numeric
-        prefix, ``<slug>-<mid8>`` dir name) through the one canonical read
-        primitive :func:`candidate_feature_dir_for_mission` so identity is
-        derived exactly once — aggregate never self-composes the surface path or
-        does its own ``glob`` selection (FR-008). The resolved candidate may land
-        in a coord worktree (which carries no ``meta.json``), so only its
-        canonical NAME re-anchors the meta read on the primary checkout, where
-        ``meta.json`` always lives.
+        prefix, ``<slug>-<mid8>`` dir name) so identity is derived exactly
+        once — aggregate never self-composes the surface path or does its own
+        ``glob`` selection (FR-008). :func:`candidate_feature_dir_for_mission`
+        still disambiguates an ambiguous handle to a canonical mission-dir
+        NAME, but the primary and canonical directory legs are now composed
+        via ``placement_seam(...).read_dir(MissionArtifactKind.
+        PRIMARY_METADATA)`` (read-side-seam-primary-primitive-closure-01KYKMMT
+        WP07, T033) — the resolved candidate may land in a coord worktree
+        (which carries no ``meta.json``), so only its canonical NAME
+        re-anchors the meta read on the primary checkout, where ``meta.json``
+        always lives.
 
         The historical silent-first-match glob
         (``sorted(specs_dir.glob(f"{slug}-*/meta.json"))``) is **removed**: an
