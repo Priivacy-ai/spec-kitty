@@ -48,6 +48,15 @@ precondition is satisfied per `cli/commands/sync.py:2360-2367`.
 ## Definition of done
 
 - `migrate_queues_to_journal` run or required first; legacy queue asserted empty; **fails loudly**
-  rather than discarding — pre-WP03 rows may predate journal capture.
-- SC-005 asserts **no code path constructs the queue-backed drain**.
-- `queue.remove_project_events` retired per C-004.
+  rather than discarding — pre-WP03 rows may predate journal capture. ✅ T007 — `start()` refuses via
+  `_assert_legacy_queue_converged`. Requires rather than runs the migration: `converge_legacy_runtime`
+  deletes rows from the operator's source queues, which a background timer must not do unasked.
+- SC-005 asserts **no code path constructs the queue-backed drain**. ✅
+  `tests/sync/test_no_queue_drain_constructed_3030.py` — AST scan over `src/` plus `__all__` and the
+  lazy `__getattr__` map. Both entry points are un-exported; the implementations stay in `batch.py`
+  for the WP that opens that file for FR-014 (operator decision, 2026-07-29).
+- ~~`queue.remove_project_events` retired per C-004.~~ **Moved to WP08.** Not achievable here: its
+  caller `disable_checkout_sync` (`routing.py:164`) needs a journal-side replacement, and the journal
+  has no `project_uuid` column to purge by until WP04 lands (`event_journal/models.py:30-39`).
+  Deleting the call unilaterally would also zero the user-visible
+  `SyncOptOutResult.removed_events`. See WP08 for the full note.

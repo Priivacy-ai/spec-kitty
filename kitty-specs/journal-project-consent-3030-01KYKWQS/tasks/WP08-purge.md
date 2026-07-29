@@ -44,4 +44,24 @@ project retained or removed? It changes NFR-006's differential count.
 - Dry-run is the **default** and reports per-state counts while changing nothing.
 - SC-006 / NFR-006: 100% of the target project's rows gone, **0%** of any other project's, measured by
   differential row counts across journal and ledger.
-- `queue.remove_project_events` is not used (C-004; WP02 retires it).
+- `queue.remove_project_events` is not used, **and is deleted here** (C-004).
+
+## C-004 lands here, not in WP02 (corrected 2026-07-29)
+
+WP02 could not retire `queue.remove_project_events`; the note that it would was wrong. Its one caller is
+`disable_checkout_sync` (`sync/routing.py:164`), which purges a project's pending uploads on opt-out.
+Retiring it needs a replacement that purges the store that actually ships — the journal — and **that is
+not expressible until WP04 lands**: `ORDERED_COLUMNS` (`event_journal/models.py:30-39`) is
+`(event_id, event_type, payload, occurred_at, created_at, coalesce_key, archived_at,
+drain_blocked_reason)`, with **no `project_uuid`**, so there is no column to purge by. This is why WP08
+already depends on WP04.
+
+Two consequences for this WP:
+
+- Deleting the call also silently zeroes `SyncOptOutResult.removed_events`, which is user-visible. Either
+  repoint it at the journal purge built here or change what opt-out reports — do not just drop it.
+- `body_queue.remove_project_tasks` in the same function must **stay**: body uploads are a separate store
+  that the daemon still drains, so that purge is live, not superseded.
+
+Post-WP02 the legacy-queue purge is already inert for delivery (nothing drains that store), so the gap
+this leaves open is retention-on-disk, not a new leak — it is C-006's collection question, escalated.
