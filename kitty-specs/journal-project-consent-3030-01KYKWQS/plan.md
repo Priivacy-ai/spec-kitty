@@ -74,8 +74,7 @@ variable the liveness class depends on — NFR-007). Live verification against `
 kitty-specs/journal-project-consent-3030-01KYKWQS/
 ├── spec.md
 ├── plan.md
-├── research.md          # dual-store trace, four open decisions
-├── data-model.md        # journal columns, consent index, conflict rule
+├── analysis-report.md   # /spec-kitty.analyze output (recorded 2026-07-29)
 └── tasks/
 ```
 
@@ -85,7 +84,7 @@ kitty-specs/journal-project-consent-3030-01KYKWQS/
 src/specify_cli/
 ├── delivery/
 │   ├── dispatcher.py    # _select_undelivered -> consume filtered read (FR-007/FR-008)
-│   ├── receivers.py     # + GateKind.PROJECT_CONSENT, consent port (FR-001)
+│   ├── receivers.py     # + GateKind consent gate (FR-001) + terminal reject (FR-014)
 │   └── retention.py     # purge primitive reused by sync purge (FR-016/FR-017)
 ├── event_journal/
 │   ├── models.py        # + project_uuid / project_slug in ORDERED_COLUMNS (FR-006)
@@ -95,8 +94,8 @@ src/specify_cli/
 │   ├── routing.py       # fail closed; write uuid consent on enable/disable (FR-003/FR-013)
 │   ├── config.py        # persist uuid-keyed records alongside path-keyed
 │   ├── emitter.py       # identity mandatory at journal write (FR-010)
-│   ├── background.py    # daemon drain enforces the invariant (FR-012)
-│   └── batch.py         # terminal reject classification (FR-014)
+│   ├── background.py    # queue-backed event drain DELETED (FR-012, WP02)
+│   └── batch.py         # queue drain retired (WP02); FR-014 landed in receivers.py
 └── cli/commands/sync.py # doctor/status/migrate per-project reporting (FR-015), purge (FR-016/17)
 ```
 
@@ -155,8 +154,12 @@ src/specify_cli/
 - **Purpose**: Make consent evaluable in SQL instead of by decoding every payload.
 - **Relevant requirements**: FR-006, FR-009; FR-011 (the unresolved-identity **count**; IC-05 owns its
   surfacing); NFR-003, NFR-004, NFR-005; C-001, C-002, C-003
-- **FR-010 is split out of this concern — as stated it is unsatisfiable.** "Identity mandatory at
-  journal write" contradicts NFR-005 ("no event dropped at write time"), contradicts
+- **FR-010 is split out of this concern — as stated it was unsatisfiable.** *(Premise updated
+  2026-07-29: NFR-005 was amended, so the quotation below is the superseded wording. The split still
+  holds, but for the narrower reason that the nil sentinel must count as unresolvable while
+  identity-less capture stays durable — see T006(a). What NFR-005 now forbids is capture by a
+  **non-consenting** project, which is a different axis from identity.)* "Identity mandatory at
+  journal write" contradicted NFR-005 ("no event dropped at write time"), contradicts
   `sync/emitter.py:2081-2085` which deliberately routes identity-less events to the *legacy* queue
   (so they land on the IC-08 drain, not the journal), and contradicts `emitter.py:2150` which
   substitutes the nil sentinel this concern's own risk note says must count as unresolvable. Mandatory
