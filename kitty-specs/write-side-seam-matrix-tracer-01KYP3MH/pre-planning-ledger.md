@@ -147,9 +147,9 @@ Verdict: **NOT ready for /tasks until the remediations below land.** Coverage is
 - **m6 (architect) — Move B (if triggered) = ADR amendment** of 2026-06-26-1, not a contract-only predicate-widen.
 - **m7 (priti) — add #2274 to IC-01 blast radius** (lane-hygiene guard compares kitty-specs by commit-history not content → false-positive after the FR-009 planning-rebase). Coordinate #2273/#2626/#2570 (FR-009/FR-006 adjacent), #2555/#2228 (FR-006/FR-008 adjacent).
 
-### ESCALATIONS TO HiC (need operator decision)
-- **E1 — #2970** (5 BLOCKER S2083 path-injection findings in `merge_driver.py`, the exact file IC-08 rewrites). FOLD the security fix into IC-08 (Sonar attack-vector-campsite doctrine — you're rewriting the file) vs COORDINATE-only. Recommend FOLD.
-- **E2 — Dashboard net-new-build.** The dashboard reads NO matrix today; "dashboard parses JSON directly" (operator decision) is a net-new build, not a migration. DROP dashboard from this mission's migration scope + file a follow-up for a JSON dashboard panel, vs INCLUDE a net-new dashboard panel here (scope growth). Recommend DROP + follow-up.
+### ESCALATIONS TO HiC — RESOLVED 2026-07-29 (operator)
+- **E1 — #2970 → FOLD into IC-08.** Address the 5 BLOCKER S2083 path-injection findings in `merge_driver.py` during IC-08's row-aware-driver rewrite (Sonar attack-vector-campsite doctrine). IC-08 owns #2970; add it to IC-08's traceability + owned-files; do NOT regress the driver contract. Red-first repro for the path-injection before the fix.
+- **E2 — Dashboard → DROP from migration scope; follow-up filed.** Dashboard is a net-new build, removed from this mission's migration scope (C-008 consumer list drops "dashboard"). Follow-up **#3068** ("Dashboard: JSON matrix panel (acceptance-matrix.json + issue-matrix.json)") filed, parented natively to epic **#650** (UI/UX), labels `enhancement`+`dashboard`, NO milestone, NO assignee; relates to this mission. m2 above stands (drop dashboard + gates from the *migration* consumer census).
 
 ### CONFIRMED SOUND (no action)
 FR-011 zero-write refusal ✓; FR-009 recorded-SHA + no-consolidation-abort + amends 2026-04-03-1 ✓; Lane A "before IC-08 regression" ordering ✓; write-seam-adoption/coord-authority-gate correctly citation-docs-not-ADRs ✓; FR→IC coverage complete (zero holes) ✓.
