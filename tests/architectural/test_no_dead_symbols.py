@@ -1047,6 +1047,59 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 )
 
 
+# ---------- C. Delivery-rail forward API (mission doctrine-delivery-reachability-01KYMXD6) ----------
+# The delivery-rail public API built by mission
+# ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
+# reachability helpers (``src/doctrine/drg/reachability.py``), the WP15
+# progressive-disclosure / every-load delivery helpers
+# (``src/charter/progressive_disclosure.py``), and the WP07
+# activation-partition helpers (``src/charter/pack_context.py``). Each is a
+# deliberate, ``__all__``-curated public symbol on a brand-new module — the
+# forward contract the planned **fast-follow "walk-update" mission** consumes
+# from runtime ``src/`` (the profile-channel walk that follows ``suggests``
+# edges with their ``when`` guard, plus the every-load / progressive-disclosure
+# runtime wiring). The runtime call sites do not exist yet: that wiring is the
+# fast-follow's job per the operator interview, so these symbols are exercised
+# today only by their own unit tests (a few by none yet) while their public
+# contracts are locked. This is the WP08-cycle-1 "library authored ahead of its
+# runtime caller" shape the gate flags, deliberately deferred here rather than
+# deleted (deletion would forfeit mission-built API with a live forward story).
+# Follow-up tracker: Priivacy-ai/spec-kitty#3063 (the deferred
+# reachability/delivery decision surface whose fast-follow owns the runtime
+# wiring; see docs/plans/doctrine/delivery-reachability-wiring-table.md
+# "deferred to the fast-follow walk-update mission"). Target = 0 once the
+# fast-follow wires each helper from a runtime caller.
+_CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.pack_context::ActivationReachabilityPartition
+        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661"),
+        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),  # charter.pack_context::charter_activated_urns
+        # charter.pack_context::normalize_activation_identifier
+        SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c"),
+        # charter.pack_context::partition_activated_unreachable
+        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4"),
+        SymbolKey("DELIVERY_INLINE", "bcbcb29c2d1bc48afd2a50c65b490ff884cefd28df3c702f00bd816cfbe0b764"),  # charter.progressive_disclosure::DELIVERY_INLINE
+        SymbolKey("DELIVERY_LINK", "b00978d776e2f893564ec01f12392d1556f9b8757dc77ba7fc4cf47e02e3cbae"),  # charter.progressive_disclosure::DELIVERY_LINK
+        SymbolKey("STATED_DEFAULT_WHEN", "ee6ff11637313b739cf310f345615d302aeefaace206d5d907c96470a1f6c865"),  # charter.progressive_disclosure::STATED_DEFAULT_WHEN
+        SymbolKey("artifact_to_dict", "b0157de904e1b56692586b29696eb1d79b9bb04ffa55835e6f618e443654e536"),  # charter.progressive_disclosure::artifact_to_dict
+        SymbolKey("bare_id", "b6195d3d248d3d768fcafd4c6de5e11c46288f0c0049241ea8781c45278b711a"),  # charter.progressive_disclosure::bare_id
+        SymbolKey("edge_to_reference", "0e566e67e219d3faa817712aaf27222af3ff17a5879274a23eef020f4850bb28"),  # charter.progressive_disclosure::edge_to_reference
+        SymbolKey("link_references", "33680ce51376bc89c1f31447c540984ec188b366878c42b63b13b086c628fbda"),  # charter.progressive_disclosure::link_references
+        SymbolKey("outbound_references", "69e365b01e25e4a05cdeda5334b7766765660dcc0696bc155eaf0f25a90ee3ca"),  # charter.progressive_disclosure::outbound_references
+        SymbolKey("partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841"),  # charter.progressive_disclosure::partition_delivery
+        SymbolKey("reconstruct_urns", "7a79b4fa8058294690eea899040a1f3594e689bf91a7878541a35de0810ca3cc"),  # charter.progressive_disclosure::reconstruct_urns
+        SymbolKey("requires_closure", "9ea7f8386d6e4ecbce904d86e597fc4b22ca8a7cf2f4bc809a885a72ac95a570"),  # charter.progressive_disclosure::requires_closure
+        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS
+        SymbolKey("PROFILE_CHANNEL_RELATIONS", "7b7692bd08f78e457a5782fda61b7e013ef79da030d9ae226780617f9bce4cce"),
+        # doctrine.drg.reachability::action_channel_reachable
+        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10"),
+        SymbolKey("action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04"),  # doctrine.drg.reachability::action_seed_urns
+        # doctrine.drg.reachability::agent_profile_seed_urns
+        SymbolKey("agent_profile_seed_urns", "8b8a028aae488d7d97df995e1adfca92c5a52ba08fa00e4c2e53c432bf01c2ca"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1077,6 +1130,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
     | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
     | _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841
+    | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
 )
 
 
