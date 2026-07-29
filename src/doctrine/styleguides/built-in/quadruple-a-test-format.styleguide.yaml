@@ -41,7 +41,7 @@ patterns:
           # Assumption check — verify the precondition actually holds
           assert item.expiry_date < date.today()
           # Act — execute the single behaviour under test
-          with pytest.raises(ExpiredError):
+          with expect_raises(ExpiredError):
               service.process(item)
           # Assert is fused with Act here: the raised error IS the effect
     bad_example: |
@@ -49,7 +49,7 @@ patterns:
           item = Item(expiry_date=date.today() - timedelta(days=1))
           # No assumption check: if a refactor makes the fixture non-expired,
           # this test fails "wrongly" and the real precondition bug is invisible.
-          with pytest.raises(ExpiredError):
+          with expect_raises(ExpiredError):
               service.process(item)
 
   - name: Assumption Check Preceding Arrange
