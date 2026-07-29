@@ -231,7 +231,44 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     own text is general reference-architecture selection, not DDD) and the
 #:     state/UI tactics compositional-stream-boundaries / cross-cutting-state-via-
 #:     store / atomic-state-ownership. DEFERRED: the DDD<->documentation edge (B1).
-_EXPECTED_NODE_COUNT = 304
+#: (10) #3063 family-B (REFACTORING family), operator interview outcome: a NEW
+#:     built-in directive ``directive:DISCIPLINED_REFACTORING``
+#:     (``directives/built-in/disciplined-refactoring.directive.yaml``) plus
+#:     FOURTEEN hand-authored ``suggests`` edges added to ``HAND_AUTHORED_EDGES``.
+#:     The directive carries NO inline references (relationships are edges, per the
+#:     frozen-legacy references surface), so a PURE ``generate_graph`` run mints its
+#:     node but zero edges -- exactly the ``RECONCILE_CHANGE_SCOPE_TENSIONS`` shape.
+#:     So the PURE golden counts move +1 NODE / +0 edges: ``_EXPECTED_NODE_COUNT``
+#:     304 -> 305, ``_EXPECTED_EDGE_COUNT`` UNCHANGED at 764. In a pure run the
+#:     directive is an ORPHAN (its only edges are overlay-authored), so it joins
+#:     ``_AWAITING_REFERENCES`` (pure orphans 23 -> 24) and, because the overlay
+#:     wires it (7 outbound directive->tactic + 7 inbound profile->directive),
+#:     ``_ORPHANS_RESOLVED_BY_OVERLAY`` (2 -> 3); shipped orphans stay 21.
+#:     The fourteen overlay edges are ALL ``suggests``: 7 from the directive to the
+#:     refactoring tactics (encapsulate-record / encapsulate-variable /
+#:     extract-first-order-concept / move-field / move-method /
+#:     state-pattern-for-behavior / strangler-fig), each with a per-tactic ``when``
+#:     derived from the tactic's OWN applicability text; and 7 from the
+#:     implementer-role agent profiles (frontend-freddy, generic-agent,
+#:     implementer-ivan, java-jenny, node-norris, python-pedro, randy-reducer) to
+#:     the directive. Moved counts: shipped nodes 310 -> 311; shipped edges
+#:     796 -> 810; ``len(HAND_AUTHORED_EDGES)`` 32 -> 46; relation histogram
+#:     ``suggests`` 340 -> 354 (``requires``/``scope`` UNCHANGED) -- pinned by
+#:     ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated. This family is INERT: the directive is not charter-activated
+#:     (so it never enters the reachability pins' ``_activated()`` universe) and
+#:     both edge legs are ``suggests`` on channels that do not follow ``suggests``
+#:     into delivery, so ``_ACTION_UNREACHABLE_D1``/``D2``, ``_PROFILE_UNREACHABLE``
+#:     and ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
+#:     UNCHANGED (measured, not assumed). The seven refactoring tactics remain in
+#:     the delivery-reachability DEFERRED set (topology authored, delivery pending a
+#:     profile-channel walk update). URN CASING: the wiring named
+#:     ``directive:disciplined-refactoring``; the Directive model's ``id`` pattern +
+#:     ``id_normalizer`` upper-case it, so the canonical URN is
+#:     ``directive:DISCIPLINED_REFACTORING`` (the ``RECONCILE_CHANGE_SCOPE_TENSIONS``
+#:     precedent). See ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+_EXPECTED_NODE_COUNT = 305
 _EXPECTED_EDGE_COUNT = 764
 
 # ---------------------------------------------------------------------------
@@ -305,6 +342,13 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # ``reconciles_tension`` ones the extractor cannot mint. Wired by the
         # overlay -- see _ORPHANS_RESOLVED_BY_OVERLAY.
         "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # Ledger (10) #3063 family-B: the new disciplined-refactoring hub
+        # directive. It carries no inline references, so a pure ``generate_graph``
+        # mints its node but no edge; its only edges are the hand-authored
+        # family-B ``suggests`` edges (to the seven refactoring tactics, and from
+        # the seven implementer-role profiles). Wired by the overlay -- see
+        # _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:DISCIPLINED_REFACTORING",
     }
 )
 
@@ -367,9 +411,11 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 4 + 1 + 1 = 23. The retired ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the
-#: difference is ledger entries (6) and (7) -- one deletion and eight wirings --
-#: and is now a consequence of the membership rather than the whole contract.
+#: 17 + 5 + 1 + 1 = 24 (``_AWAITING_REFERENCES`` grew to 5 with ledger entry (10)'s
+#: ``directive:DISCIPLINED_REFACTORING``). The retired ``_EXPECTED_ORPHAN_COUNT``
+#: pinned 32; the difference is ledger entries (6) and (7) -- one deletion and
+#: eight wirings -- and is now a consequence of the membership rather than the
+#: whole contract.
 _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES
@@ -377,8 +423,8 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
     | _ACTIVATED_BUT_ORPHANED
 )
 
-#: The pure-extractor figure (23) and the shipped-graph figure (21) differ by
-#: exactly these two, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (24) and the shipped-graph figure (21) differ by
+#: exactly these three, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and they land on these nodes.
 #: Naming them keeps the two figures related by a stated cause instead of by two
@@ -387,6 +433,9 @@ _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
     {
         "asset:common-docs-structural-lint",
         "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # Ledger (10) #3063 family-B: the disciplined-refactoring hub directive.
+        # Pure-orphan (no inline refs), wired only by the family-B overlay edges.
+        "directive:DISCIPLINED_REFACTORING",
     }
 )
 

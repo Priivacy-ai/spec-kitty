@@ -153,6 +153,11 @@ edges:
   target: directive:DIRECTIVE_034
   relation: requires
 - source: agent_profile:frontend-freddy
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-B operator attestation."
+- source: agent_profile:frontend-freddy
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
@@ -163,6 +168,11 @@ edges:
 - source: agent_profile:generic-agent
   target: directive:DIRECTIVE_028
   relation: requires
+- source: agent_profile:generic-agent
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
 - source: agent_profile:implementer-ivan
   target: directive:DIRECTIVE_010
   relation: requires
@@ -175,6 +185,11 @@ edges:
 - source: agent_profile:implementer-ivan
   target: directive:DIRECTIVE_045
   relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
 - source: agent_profile:implementer-ivan
   target: tactic:bug-fixing-checklist
   relation: requires
@@ -198,6 +213,11 @@ edges:
   target: directive:DIRECTIVE_034
   relation: requires
 - source: agent_profile:java-jenny
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:java-jenny
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
@@ -219,6 +239,11 @@ edges:
 - source: agent_profile:node-norris
   target: directive:DIRECTIVE_034
   relation: requires
+- source: agent_profile:node-norris
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
 - source: agent_profile:node-norris
   target: tactic:behavior-driven-development
   relation: requires
@@ -293,6 +318,11 @@ edges:
   target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:python-pedro
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "The primary implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:python-pedro
   target: tactic:delete-the-assertion-not-the-test
   relation: requires
   reason: When a touched test is friction (green for the wrong reason or false-red on a correct change), replace its assertion with a contract-pinned, red-first one and keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole test only when it is provably zero-coverage or superseded; never delete to dodge a red.
@@ -318,6 +348,11 @@ edges:
 - source: agent_profile:randy-reducer
   target: directive:DIRECTIVE_041
   relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
 - source: agent_profile:randy-reducer
   target: paradigm:domain-driven-design
   relation: suggests

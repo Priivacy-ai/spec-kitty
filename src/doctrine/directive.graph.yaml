@@ -77,6 +77,9 @@ nodes:
 - urn: directive:DIRECTIVE_046
   kind: directive
   label: Readable and Consistent Pull Requests
+- urn: directive:DISCIPLINED_REFACTORING
+  kind: directive
+  label: Disciplined Refactoring
 - urn: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
   kind: directive
   label: Reconciling Change-Scope Tensions
@@ -276,6 +279,41 @@ edges:
 - source: directive:DIRECTIVE_046
   target: tactic:reviewer-implementer-role-separation
   relation: suggests
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-encapsulate-record
+  relation: suggests
+  when: a raw data record (a dict, plain object, or mutably-used named tuple) is accessed by field name from many call sites, and that direct access blocks adding validation, renaming fields, or changing the internal representation
+  reason: Disciplined refactoring suggests Encapsulate Record when the smell is an unencapsulated data record; the `when` is the tactic's own stated applicability. Composition-only under today's traversal.
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-encapsulate-variable
+  relation: suggests
+  when: a widely-accessed module-level or global variable (or public class attribute) is read and written from many locations and needs a single chokepoint for monitoring, validation, or a later change of type
+  reason: Disciplined refactoring suggests Encapsulate Variable when the smell is a globally-accessed variable with no chokepoint; the `when` is the tactic's own stated applicability. Composition-only under today's traversal.
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-extract-first-order-concept
+  relation: suggests
+  when: an important concept is implicit, duplicated, or scattered across the code with no explicit name or single home
+  reason: Disciplined refactoring suggests Extract First-Order Concept when the smell is a hidden/duplicated concept that should be named; the `when` is the tactic's own stated applicability. Composition-only under today's traversal.
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-move-field
+  relation: suggests
+  when: a field is read and modified more by another class than the one that declares it, so data ownership has drifted
+  reason: Disciplined refactoring suggests Move Field when the smell is a field living on the wrong owner; the `when` is the tactic's own stated applicability. Composition-only under today's traversal.
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-move-method
+  relation: suggests
+  when: a method uses more of another class's data and behaviour than its own host's (feature envy)
+  reason: Disciplined refactoring suggests Move Method when the smell is feature envy; the `when` is the tactic's own stated applicability (its first step confirms feature envy and target ownership). Composition-only under today's traversal.
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-state-pattern-for-behavior
+  relation: suggests
+  when: a class's methods are full of conditionals branching on the same internal state variable (enum, status flag, boolean), and behaviour is driven by lifecycle state transitions
+  reason: Disciplined refactoring suggests State Pattern for Behavior when the smell is sprawling conditionals switching on an object's lifecycle state; the `when` is the tactic's own stated applicability. Composition-only under today's traversal.
+- source: directive:DISCIPLINED_REFACTORING
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: a legacy component or code path must be replaced incrementally — running the new implementation alongside the old and rerouting callers one at a time — because a single-step cutover is too risky
+  reason: Disciplined refactoring suggests Strangler Fig when the smell is a legacy path that cannot be replaced in one safe step; the `when` is the tactic's own stated applicability. Composition-only under today's traversal.
 - source: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
   target: directive:DIRECTIVE_024
   relation: reconciles_tension

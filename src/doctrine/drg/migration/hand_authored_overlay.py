@@ -562,6 +562,249 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "authored per the #3063 operator attestation."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # #3063 family-B (REFACTORING family), operator interview outcome. The
+    # operator has ATTESTED these relationships; the hub is a NEW built-in
+    # directive, `directive:DISCIPLINED_REFACTORING` (authored as
+    # src/doctrine/directives/built-in/disciplined-refactoring.directive.yaml).
+    #
+    # URN CASING NOTE: the wiring instruction named the hub
+    # `directive:disciplined-refactoring` (lower-kebab). A directive node's URN is
+    # derived from its artifact `id`, and the Directive model requires `id` to
+    # match `^[A-Z][A-Z0-9_-]*$` while `id_normalizer.normalize_directive_id`
+    # upper-cases any non-numeric slug — so the only URN a real directive artifact
+    # can yield here is `directive:DISCIPLINED_REFACTORING` (exactly the
+    # `directive:RECONCILE_CHANGE_SCOPE_TENSIONS` precedent). The lower-kebab form
+    # is unreachable through the schema; the canonical URN is corrected to
+    # UPPER_SNAKE here and recorded in
+    # docs/plans/doctrine/delivery-reachability-wiring-table.md.
+    #
+    # This family is INERT under today's traversal (composition-only) — measured,
+    # not assumed:
+    #
+    #   * SEVEN `suggests` edges, DISCIPLINED_REFACTORING -> each refactoring
+    #     tactic, each carrying a per-tactic `when` = the applicability/"problem"
+    #     the tactic solves (refactoring.guru-style "when to consider this
+    #     refactor"), derived from the tactic's OWN purpose/first-step text (not
+    #     invented). These deliver nothing under the action channel: the directive
+    #     is scoped by no action, so `resolve_context` never reaches it, and
+    #     `suggests` is only walked FROM scope-resolved artifacts — so its outbound
+    #     `suggests` edges are never traversed. The seven tactics stay
+    #     action-unreachable (they already were).
+    #
+    #   * SEVEN `suggests` edges, each implementer-role agent profile ->
+    #     DISCIPLINED_REFACTORING, all sharing the attested `when` "when tidying
+    #     code, encountering long classes/methods, or discovering convoluted
+    #     logic". These are inert in the profile channel too: that channel walks
+    #     {requires, specializes_from} only, never `suggests`. The implementer
+    #     profiles are every built-in profile whose role is `implementer`
+    #     (python-pedro is primary): frontend-freddy, generic-agent,
+    #     implementer-ivan, java-jenny, node-norris, python-pedro, randy-reducer.
+    #
+    # Net reachability move: NONE. `directive:DISCIPLINED_REFACTORING` is a new
+    # built-in directive that this project's charter does NOT activate, so it
+    # never enters the `_activated()` universe the reachability pins subtract
+    # from; the fourteen edges are `suggests` on both channels, which neither
+    # channel follows into delivery. Measured with the WP08 helper: the
+    # `_ACTION_UNREACHABLE_D1`/`D2`, `_PROFILE_UNREACHABLE` and `_PROFILE_RESCUES`
+    # sets are UNCHANGED. Only composition counts move (one new directive node via
+    # extraction + fourteen overlay edges); ledgered in the wiring-table doc and
+    # test_extractor_projection's composition ledger.
+    #
+    # DEFERRED (recorded, NOT authored here): (1) the refactoring tactics remain
+    # in the delivery-reachability DEFERRED set — their delivery needs the
+    # profile-channel walk to follow `suggests` (topology authored, delivery
+    # pending fast-follow); (2) an `anti_pattern`-authoring companion (each code
+    # smell -> the refactor that resolves it) is a doctrine-CONTENT decision left
+    # to the fast-follow, not authored in this pass.
+    # -----------------------------------------------------------------------
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-encapsulate-record",
+        relation=Relation.SUGGESTS,
+        when=(
+            "a raw data record (a dict, plain object, or mutably-used named "
+            "tuple) is accessed by field name from many call sites, and that "
+            "direct access blocks adding validation, renaming fields, or changing "
+            "the internal representation"
+        ),
+        reason=(
+            "Disciplined refactoring suggests Encapsulate Record when the smell is "
+            "an unencapsulated data record; the `when` is the tactic's own stated "
+            "applicability. Composition-only under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-encapsulate-variable",
+        relation=Relation.SUGGESTS,
+        when=(
+            "a widely-accessed module-level or global variable (or public class "
+            "attribute) is read and written from many locations and needs a single "
+            "chokepoint for monitoring, validation, or a later change of type"
+        ),
+        reason=(
+            "Disciplined refactoring suggests Encapsulate Variable when the smell "
+            "is a globally-accessed variable with no chokepoint; the `when` is the "
+            "tactic's own stated applicability. Composition-only under today's "
+            "traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-extract-first-order-concept",
+        relation=Relation.SUGGESTS,
+        when=(
+            "an important concept is implicit, duplicated, or scattered across the "
+            "code with no explicit name or single home"
+        ),
+        reason=(
+            "Disciplined refactoring suggests Extract First-Order Concept when the "
+            "smell is a hidden/duplicated concept that should be named; the `when` "
+            "is the tactic's own stated applicability. Composition-only under "
+            "today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-move-field",
+        relation=Relation.SUGGESTS,
+        when=(
+            "a field is read and modified more by another class than the one that "
+            "declares it, so data ownership has drifted"
+        ),
+        reason=(
+            "Disciplined refactoring suggests Move Field when the smell is a field "
+            "living on the wrong owner; the `when` is the tactic's own stated "
+            "applicability. Composition-only under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-move-method",
+        relation=Relation.SUGGESTS,
+        when=(
+            "a method uses more of another class's data and behaviour than its own "
+            "host's (feature envy)"
+        ),
+        reason=(
+            "Disciplined refactoring suggests Move Method when the smell is feature "
+            "envy; the `when` is the tactic's own stated applicability (its first "
+            "step confirms feature envy and target ownership). Composition-only "
+            "under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-state-pattern-for-behavior",
+        relation=Relation.SUGGESTS,
+        when=(
+            "a class's methods are full of conditionals branching on the same "
+            "internal state variable (enum, status flag, boolean), and behaviour is "
+            "driven by lifecycle state transitions"
+        ),
+        reason=(
+            "Disciplined refactoring suggests State Pattern for Behavior when the "
+            "smell is sprawling conditionals switching on an object's lifecycle "
+            "state; the `when` is the tactic's own stated applicability. "
+            "Composition-only under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DISCIPLINED_REFACTORING",
+        target="tactic:refactoring-strangler-fig",
+        relation=Relation.SUGGESTS,
+        when=(
+            "a legacy component or code path must be replaced incrementally — "
+            "running the new implementation alongside the old and rerouting callers "
+            "one at a time — because a single-step cutover is too risky"
+        ),
+        reason=(
+            "Disciplined refactoring suggests Strangler Fig when the smell is a "
+            "legacy path that cannot be replaced in one safe step; the `when` is "
+            "the tactic's own stated applicability. Composition-only under today's "
+            "traversal."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:frontend-freddy",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "An implementer-role profile should reach the disciplined-refactoring "
+            "directive when restructuring code. Composition-only under today's "
+            "traversal (the profile channel walks requires/specializes_from only), "
+            "authored per the #3063 family-B operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:generic-agent",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "An implementer-role profile should reach the disciplined-refactoring "
+            "directive when restructuring code. Composition-only under today's "
+            "traversal, authored per the #3063 family-B operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:implementer-ivan",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "An implementer-role profile should reach the disciplined-refactoring "
+            "directive when restructuring code. Composition-only under today's "
+            "traversal, authored per the #3063 family-B operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:java-jenny",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "An implementer-role profile should reach the disciplined-refactoring "
+            "directive when restructuring code. Composition-only under today's "
+            "traversal, authored per the #3063 family-B operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:node-norris",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "An implementer-role profile should reach the disciplined-refactoring "
+            "directive when restructuring code. Composition-only under today's "
+            "traversal, authored per the #3063 family-B operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:python-pedro",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "The primary implementer-role profile should reach the "
+            "disciplined-refactoring directive when restructuring code. "
+            "Composition-only under today's traversal, authored per the #3063 "
+            "family-B operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:randy-reducer",
+        target="directive:DISCIPLINED_REFACTORING",
+        relation=Relation.SUGGESTS,
+        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        reason=(
+            "An implementer-role profile should reach the disciplined-refactoring "
+            "directive when restructuring code. Composition-only under today's "
+            "traversal, authored per the #3063 family-B operator attestation."
+        ),
+    ),
 )
 
 
