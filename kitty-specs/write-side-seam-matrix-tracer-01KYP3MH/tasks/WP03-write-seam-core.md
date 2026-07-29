@@ -10,7 +10,9 @@ requirement_refs:
 planning_base_branch: feat/write-side-seam-matrix-tracer
 merge_target_branch: feat/write-side-seam-matrix-tracer
 branch_strategy: Planning artifacts for this mission were generated on feat/write-side-seam-matrix-tracer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/write-side-seam-matrix-tracer unless the human explicitly redirects the landing branch.
-created_at: '2026-07-29T09:24:15+00:00'
+base_branch: kitty/mission-write-side-seam-matrix-tracer-01KYP3MH
+base_commit: 2e3d204662976db7f8bf7481b7609600439805eb
+created_at: '2026-07-29T10:35:38.854895+00:00'
 subtasks:
 - T010
 - T011
@@ -79,8 +81,9 @@ Add `tests/coordination/test_write_seam_adoption.py`: (a) a write beneath the `r
 
 Both planning and merge target are `feat/write-side-seam-matrix-tracer`. Allocate via `/spec-kitty.implement WP03`.
 
-## Definition of Done
-- Helper lands; #2663 + status/emit.py routed through it; zero-write refusal implemented.
+## Definition of Done (RE-SCOPED 2026-07-29 — operator-approved)
+> **T011 (#2663 implement-partition) and T012 (status/emit.py #2966) are DEFERRED → #3071.** WP03 rediscovered red-first that both collide with deliberate pinned prior-mission invariants (the #2160/C-004 verbatim-commit deferral pinned by `test_implement_coord_idempotency.py`; the literal `_commit_target_ref_for` unification pinned by `test_precondition_ref_unification.py`) — and that `status/emit.py` has no git-commit to route (pure path-I/O). Both are the #2160/#2966 clusters C-006 marks out-of-scope. See `contracts/write-seam-adoption.md` "Deferred out of this mission" + spec FR-007.
+- **Delivered:** the helper (`coordination/write_seam.py::write_artifact`, T010) lands with the zero-write refusal disclosing #3033 (FR-011) + idempotent structured result (FR-012); recursion-guard + refusal tests (T013).
 - `ruff`/`mypy` clean; complexity ≤ 15; the read-side census + coord-authority gate stay green.
 - Tests green including the refusal + recursion-guard.
 

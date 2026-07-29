@@ -46,8 +46,8 @@
 | T009 | Assert the three by-design sites (`widen/state.py`,`agent_tasks_ports.py`,`lanes/recovery.py`) stay kind-blind (floor non-vacuous at 3) | WP02 | |
 | T046 | Ratify ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` Proposed→Accepted (HiC-approved) | WP02 | |
 | T010 | New shared write-seam helper: `write_target`+`commit_for_mission`, zero-write refusal (FR-011), idempotent structured result (FR-012) | WP03 | |
-| T011 | Route #2663 `implement.py::_partition_files_for_commit` partition arm through the helper | WP03 | |
-| T012 | Route `status/emit.py` write (#2966 slice) through the helper (route-only, C-003) | WP03 | |
+| T011 | ~~Route #2663 `implement.py` partition arm through the helper~~ **DEFERRED → #3071** (collides with pinned #2160/C-004 verbatim-commit deferral + literal-ref-unification guard) | WP03 | |
+| T012 | ~~Route `status/emit.py` write (#2966 slice) through the helper~~ **DEFERRED → #3071** (status/emit.py has no git-commit to route — pure path-I/O; #2966 needs own spec) | WP03 | |
 | T013 | Ledger-M16 recursion-guard tests + zero-write refusal disclosing #3033 | WP03 | |
 | T014 | Structured acceptance schema half; confirm `overall_verdict` computed-property authoritative | WP04 | |
 | T015 | New `acceptance-verdict` command fronting `write_acceptance_matrix` via `write_target(ACCEPTANCE_MATRIX)` | WP04 | |
@@ -100,9 +100,9 @@
 
 ### WP03 — Write-seam adoption core + generic bypasses (Lane C) · FR-007 core, FR-011, FR-012
 **Prompt**: [tasks/WP03-write-seam-core.md](./tasks/WP03-write-seam-core.md)
-**Goal**: One parameterized write-surface helper (`write_target`+`commit_for_mission`) with a zero-write refusal and idempotent structured results; route the generic non-domain bypasses (#2663 implement partition, status/emit.py #2966).
+**Goal**: One parameterized write-surface helper (`write_target`+`commit_for_mission`) with a zero-write refusal and idempotent structured results. **Delivered = T010 (helper) + T013 (recursion-guard/refusal).** ~~route the generic non-domain bypasses (#2663 implement partition, status/emit.py #2966)~~ **T011/T012 DEFERRED → #3071** (collide with pinned #2160/#2966 invariants C-006 marks out-of-scope; see write-seam-adoption.md "Deferred out of this mission").
 **Priority**: P1 (foundation for all Lane-C writers). **Independent test**: the helper refuses (no write) on a deleted `target_branch` disclosing #3033, and is a no-op on re-run.
-**Subtasks**: T010–T013. **Depends on**: none. **Risk**: routing the seam's own engine is circular — only the true bypasses; never fall back to writing `main`. **~240 lines.**
+**Subtasks**: T010, T013 (delivered); T011, T012 (deferred → #3071). **Depends on**: none. **Risk**: routing the seam's own engine is circular — only the true bypasses; never fall back to writing `main`. **~240 lines.**
 
 ### WP04 — Acceptance verdict command + persist-on-accept (Lane C) · FR-001, FR-002 (acceptance half)
 **Prompt**: [tasks/WP04-acceptance-verdict-command.md](./tasks/WP04-acceptance-verdict-command.md)
