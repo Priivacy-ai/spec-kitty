@@ -96,3 +96,28 @@ def test_asset_list_json_is_a_record_list() -> None:
     shipped = next(row for row in payload if row["id"] == _SHIPPED_ASSET_ID)
     assert shipped["tier"] == "builtin"
     assert shipped["path"].endswith("docs_structural_lint.py")
+
+
+def test_resolved_path_str_renders_marker_on_not_found_not_just_escape() -> None:
+    """``_resolved_path_str`` must not crash ``asset list`` on an anchoring miss.
+
+    ``resolve_path`` raises :class:`AssetNotFoundError` (not only
+    :class:`AssetPathEscapeError`) when a loaded manifest's anchor can't be
+    determined -- e.g. an org-tier manifest whose source isn't under any
+    currently configured org dir, or a project-provenance manifest with no
+    project dir (``AssetRepository._anchor_for``). Before this fix
+    ``_resolved_path_str`` caught only ``AssetPathEscapeError``, so
+    ``asset list`` (which iterates every loaded manifest) would crash with an
+    uncaught traceback instead of rendering the unresolvable marker it already
+    renders for the escape case.
+    """
+    from unittest.mock import create_autospec
+
+    from doctrine.assets.repository import AssetNotFoundError, AssetRepository
+
+    from specify_cli.cli.commands._doctrine_asset import _UNRESOLVABLE, _resolved_path_str
+
+    repo = create_autospec(AssetRepository, instance=True)
+    repo.resolve_path.side_effect = AssetNotFoundError("orphaned-org-asset")
+
+    assert _resolved_path_str(repo, "orphaned-org-asset") == _UNRESOLVABLE
