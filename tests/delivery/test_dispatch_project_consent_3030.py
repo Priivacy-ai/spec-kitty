@@ -142,6 +142,23 @@ def _stub_emitter(
     return em
 
 
+def _captured_but_machine_blocked_gate(_team_slug: str | None) -> CaptureGateState:
+    """A gate that captures the row but leaves it machine-gate-blocked.
+
+    ``checkout_enabled=True`` so #3030 T006's capture refusal does not fire —
+    this row must exist on disk for the drain predicate to be tested at all.
+    ``saas_enabled=False`` so ``classify_drain_blocked_reason`` still stamps it,
+    keeping the two rows distinguishable.
+
+    Real-world equivalent: any row written before T006 landed, or written while
+    the project was consented and since revoked. Both are populations the drain
+    must still exclude by *consent record*, independently of capture.
+    """
+    return CaptureGateState(
+        saas_enabled=False, checkout_enabled=True, authenticated=False, team_slug=None
+    )
+
+
 def _open_capture_gate(_team_slug: str | None) -> CaptureGateState:
     """Force one emitter instance's journal-capture gate fully open.
 
@@ -210,6 +227,25 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     nonconsenting = _stub_emitter(
         project_slug="client-confidential", build_id="confidential-build-1"
     )
+    # #3030 T006 now refuses the journal WRITE when the capture gate's
+    # checkout_enabled is False, so this emitter needs a gate that still
+    # captures — otherwise the shared-journal premise below can never hold and
+    # this pin would fail on its own setup rather than on the leak.
+    #
+    # That is not a weakening of the fixture: it is the population this pin
+    # exists for. T006 stops *new* non-consenting captures, but the journal on a
+    # real machine already holds weeks of rows written before it landed (the
+    # incident's own 1,322 are still on disk), plus rows captured while a project
+    # was consented and later revoked. Those rows must still be excluded at drain
+    # time, which is exactly FR-007/FR-008's job. Capture gating does not retire
+    # the drain predicate.
+    #
+    # The two signals are distinct: the capture gate is machine-global (see
+    # _open_capture_gate), while this pin's notion of non-consent is the absent
+    # repo_slug consent RECORD the drain must resolve. saas_enabled stays False
+    # so the row is still genuinely machine-gate-blocked, preserving the
+    # distinguishability premise asserted below.
+    nonconsenting._capture_gate_state = _captured_but_machine_blocked_gate
 
     consenting_envelope = consenting._emit(
         event_type="ErrorLogged",
